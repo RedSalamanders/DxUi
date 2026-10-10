@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 30 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl
+  [DONE] TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl (0.004 s)
+[DONE] WindowHost (0.004 s)
+All DxUi tests passed.

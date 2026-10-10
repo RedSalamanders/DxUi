@@ -1,0 +1,1 @@
+- Preserve explicit local interactive-test refusal in every CI environment, including fully identified hosted runners. Exercise both marker sets before any build or child work; hosted foreground jobs retain their separate guarded lease mode.

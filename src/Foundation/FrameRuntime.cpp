@@ -182,6 +182,11 @@ bool IsRenderStageActiveForDebug() noexcept
 #endif
 }
 
+bool IsRenderStageActive() noexcept
+{
+    return g_currentDebugFrameStage == FrameStage::Render;
+}
+
 void EmitRenderMutationBlockedForDebug() noexcept
 {
     EmitFrameMetric(L"dxui.frame.render_layout_mutation_blocked", 1);

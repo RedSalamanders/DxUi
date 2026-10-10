@@ -1,0 +1,50 @@
+[
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-01.log",
+    "suite": "TextField",
+    "name": "TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-02.log",
+    "suite": "TextField",
+    "name": "TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues"
+  },
+  {
+    "exitCode": 0,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-03.log",
+    "suite": "TextField",
+    "name": "TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-04.log",
+    "suite": "ComboBox",
+    "name": "TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-05.log",
+    "suite": "NewControls",
+    "name": "TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-06.log",
+    "suite": "NewControls",
+    "name": "TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-07.log",
+    "suite": "NewControls",
+    "name": "TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely"
+  },
+  {
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cleanup-full-08.log",
+    "suite": "WindowHost",
+    "name": "TestWindowHostTabBoundarySnapshotCleanupRetiresTheValidatedTarget"
+  }
+]

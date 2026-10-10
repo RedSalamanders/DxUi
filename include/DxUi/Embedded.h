@@ -145,7 +145,7 @@ private:
     // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
     uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
-    void CancelPointer() noexcept;
+    void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor
     // are enabled and visible. Hiding or disabling it or an ancestor, removing it, or resizing the view still cancels.
     [[nodiscard]] bool CapturedDragContinues() const noexcept;

@@ -57,7 +57,7 @@ simultaneous releases of the two applications.
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
 standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
 `test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
-`["DxUi"]`, API revision 3.
+`["DxUi"]`, API revision 4.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
@@ -206,10 +206,16 @@ It reads scripts and modules from their parse trees and runs nothing. Names comp
 and a new parameter is an addition. Every other repository tool, such as `build.ps1`, `test.ps1`, `Tools/Validation.psm1` and
 the other validators, may change without a revision.
 
-Revision 3 covers three changes made at revision 2:
-- the model and delegate interfaces were renamed to `IGridModel`, `IGridDelegate`, `ITreeModel` and `ITreeDelegate`;
-- the Python tools were removed, including the build-matrix validator that `validate-build-matrix.ps1` replaces;
-- DxUi's private window messages are now registered by name, with `ContextMenu::PostMenuBarHover` for the menu-bar hover.
+Revision 3 covers changes made at revision 2:
+- `IDxGridModel`, `IDxGridDelegate`, `IDxTreeModel` and `IDxTreeDelegate` became `IGridModel`, `IGridDelegate`, `ITreeModel` and `ITreeDelegate`.
+- The modal-loop entry point became `RunModalLoop`; render diagnostics became `IsRenderStageActiveForDebug` and `EmitRenderMutationBlockedForDebug`.
+- In `DxUi::Typography`, `TypographySpec`, `GetDxUiTypographySpec`, `TypographyPerfEmitter`, `GetTypographyPerfEmitter`, `SetTypographyPerfEmitter`, `EmitTypographyPerfCounter`, `TypographyFontFamilyCacheEntry`, `TypographyTextFormatCacheEntry`, `GetTypographyMeasurementCacheMutex`, `GetTypographyFontFamilyCache`, `GetTypographyTextFormatCache`, `kTypographyFamilyCacheMissMetric` and `kTypographyTextFormatCacheMissMetric` became `Spec`, `GetSpec`, `PerfEmitter`, `GetPerfEmitter`, `SetPerfEmitter`, `EmitPerfCounter`, `FontFamilyCacheEntry`, `TextFormatCacheEntry`, `GetMeasurementCacheMutex`, `GetFontFamilyCache`, `GetTextFormatCache`, `kFamilyCacheMissMetric` and `kTextFormatCacheMissMetric`.
+- The Python tools were removed; `validate-build-matrix.ps1` replaces the Python build-matrix validator.
+- Private window messages are registered by name, and menu-bar hover is posted through `ContextMenu::PostMenuBarHover`.
+
+Revision 4 advances because Grid selection behavior and tab extraction semantics changed in ways an existing consumer could observe. It includes the compatible migration APIs `Panel::TakeChild`, `TabControl::TakeTab`/`TakeChild`, independent Grid focus accessors and `RequestFocusRow`, Tree focused-item accessors and `RequestFocusVisibleItem`, focus notifications, and the `GridSelectionModel` anchor setter; it also records quoted TSV output behavior. Those additions alone would not require a revision bump. The frozen [`Revision4.cpp`](../../Tools/ConsumerApi/Revision4.cpp) consumer fixture compiles with every consumer profile; review it alongside public headers whenever the revision changes.
+
+`capabilities.json` declares the supported PowerShell versions for each consumer script and module. The published restore entry point `vcpkg-install.ps1` remains compatible with Windows PowerShell 5.1 and PowerShell 7. The consumer-facing `validate-build-matrix.ps1 -Root` runs under PowerShell 7 and resolves a relative root against the caller's working directory. `Tools/validate_consumer.ps1` and the shared `ConsumerBuild`, `ConsumerUpdate`, `VisualStudio` and `VcpkgTriplet` modules remain compatible with 5.1 and 7. Repository validation and scoped-iteration tools require PowerShell 7. The dependency validator parses each declared entry, rejects newly mandatory parameters unless declared, and rejects missing or unsupported PowerShell version promises.
 
 ## Advisory updates
 

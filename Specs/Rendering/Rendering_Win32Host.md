@@ -1,7 +1,7 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -10,6 +10,26 @@ The WindowHost adapter owns HWND integration and its own swap-chain presentation
 It uses the same retained control implementation as embedded mode, with a separate scheduling/presentation adapter.
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
+
+Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
+painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
+painting it. Paint cleanup restores draw state when a standard exception occurs, skips the failed frame and waits
+for a later invalidation rather than scheduling a retry loop. A standard exception from an input callback is
+contained at `HandleMessage`, which consumes the partially processed message without replaying it. These boundaries
+do not qualify whole-host destruction inside a callback.
+The same frame-abort rule applies to page and model geometry replacement. Incoming page bounds deferred during
+paint are synchronized before rendering in the next Update, even if the containing root bounds did not change.
+Supported child extraction, clearing, reparenting, visibility and enabled-state changes also invalidate an in-flight
+frame under an unchanged root. Attachment changes schedule a corrective native paint; the next capture or update
+renders the current tree. Delegate replacement from a model getter cannot publish a partially painted frame.
+
+Attach runs on a same-process HWND's owner thread. One host owns an HWND, and one host has at most one attachment.
+Repeating Attach for the same HWND and presentation mode is idempotent; switching either requires Detach first.
+Attach attempted synchronously from a teardown callback fails with `ERROR_BUSY`; a later attachment after Detach
+returns remains supported. Teardown cannot acquire a new HWND or resurrect focus or a native text-input session.
+A rejected attachment preserves the existing host, accessibility peers, payloads and shared-resource accounting.
+The host registry is bounded to 128 concurrent attachments. Exhaustion fails with a diagnostic and recovers when
+an attachment is released; it never replaces an existing owner.
 
 Native ControlHost/WindowHost is supported inside the same DxUi.lib; its messages, animation dispatcher and
 resource helpers are library-owned. RedSalamander's application migration remains a later independent plan.
@@ -25,6 +45,13 @@ each sender then behaves as it does when its post or send fails. An application 
 hover calls `ContextMenu::PostMenuBarHover`. The WindowHost and Menu suites check that every message is registered,
 distinct and nonzero, and that application messages at the former `WM_APP` values reach the window procedure while
 DxUi neither consumes nor acts on them.
+
+Private heap payloads use the existing bounded registry. A receiver must match the token, destination HWND,
+message protocol and payload type before taking ownership; mismatches leave the genuine request available.
+Registry exhaustion is a reported failure and freeing an entry permits a retry. Accessibility menu Invoke
+returns the failed post's HRESULT instead of claiming that an unqueued action succeeded. A dispatch timeout
+cancels work that is still pending; an action already taken by the owner can finish after the caller times out.
+Late results use owned request state and cannot write into the departed caller's stack.
 
 The native menu and animation-dispatcher window classes use the instance of the module containing their
 window procedure. An executable and independently linked DLLs may each use DxUi.lib in one process;

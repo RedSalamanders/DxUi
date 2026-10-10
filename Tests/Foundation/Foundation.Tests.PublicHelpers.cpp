@@ -1,5 +1,6 @@
 // This translation unit consumes only supported headers, never src/Controls internals.
 #include <DxUi/AccessibilityTextUnits.h>
+#include <DxUi/DxUi.h>
 #include <DxUi/NativeMenuInterop.h>
 #include <DxUi/PointerInput.h>
 #include <DxUi/Typography.h>
@@ -7,6 +8,12 @@
 
 static_assert(! std::is_copy_constructible_v<DxUi::NativeMenuBarHost>);
 static_assert(DxUi::MenuBar::kDefaultHeightDip == 30.0f);
+
+struct ExtensionReparentContract : DxUi::Control
+{
+    using DxUi::Control::Reparent;
+};
+static_assert(std::is_same_v<decltype(&ExtensionReparentContract::Reparent), void (DxUi::Control::*)(DxUi::Panel*, DxUi::ControlHost*) noexcept>);
 
 bool TestFontAvailabilityInvalidation()
 {

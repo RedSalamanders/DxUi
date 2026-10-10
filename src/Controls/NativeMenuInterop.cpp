@@ -320,7 +320,7 @@ void NativeMenuBarHost::SetHeightDip(int heightDip) noexcept
 
 void NativeMenuBarHost::SetRefreshMenuStateCallback(RefreshMenuStateCallback callback)
 {
-    _refreshMenuState = std::move(callback);
+    ReplaceControlCallback(_refreshMenuState, std::move(callback));
 }
 
 void NativeMenuBarHost::SetOnTabBoundary(std::function<bool(bool reverse)> onTabBoundary)
@@ -560,8 +560,9 @@ void NativeMenuBarHost::RestoreCapturedFocus() noexcept
     const std::weak_ptr<int> menuBarLifetime = GetControlLifetimeToken(*menuBar);
     if (invokeRefresh && _refreshMenuState)
     {
-        const RefreshMenuStateCallback refreshMenuState = _refreshMenuState;
-        refreshMenuState();
+        auto refreshMenuState = _refreshMenuState;
+        (*refreshMenuState)();
+        refreshMenuState.reset();
         if (menuBarLifetime.expired())
         {
             return false;

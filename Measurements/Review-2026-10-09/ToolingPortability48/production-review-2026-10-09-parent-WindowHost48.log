@@ -1,0 +1,80 @@
+Native test naming: 57 files checked.
+Test plan: Affected (x64 Debug); scopes: WindowHost
+  (explicit): explicit scope => WindowHost
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.InteractiveLease.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:10
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Debug-42975c69a25b4834b790059cc6ee7004.log
+========================================
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2547.8 completed offscreen FPS; p95 0.493 ms; private 30416896 bytes
+Complex UI clean round 2: 2657.44 completed offscreen FPS; p95 0.419 ms; private 30851072 bytes
+Complex UI clean round 3: 2604.85 completed offscreen FPS; p95 0.4262 ms; private 31367168 bytes
+Complex UI clean round 4: 2605.51 completed offscreen FPS; p95 0.4129 ms; private 31334400 bytes
+Complex UI clean round 5: 1746.31 completed offscreen FPS; p95 1.5725 ms; private 31301632 bytes
+Complex UI dirty round 1: 453.434 completed offscreen FPS; p95 2.7582 ms; private 31772672 bytes
+Complex UI dirty round 2: 478.898 completed offscreen FPS; p95 2.2731 ms; private 31744000 bytes
+Complex UI dirty round 3: 494.027 completed offscreen FPS; p95 2.1973 ms; private 32153600 bytes
+Complex UI dirty round 4: 500.351 completed offscreen FPS; p95 2.1402 ms; private 32665600 bytes
+Complex UI dirty round 5: 500.245 completed offscreen FPS; p95 2.1761 ms; private 32514048 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Debug-9fb08afed12f440fa7861e90f2f9ee56.json
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+All 1 requested suites passed.
+SELECTED_PASSED; repository NOT_EVALUATED

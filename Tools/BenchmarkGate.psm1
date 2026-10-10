@@ -5,18 +5,18 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 Import-Module (Join-Path $PSScriptRoot 'PairedRun.psm1')
+Import-Module (Join-Path $PSScriptRoot 'PerformancePolicy.psm1')
 
 $script:Invariant = [Globalization.CultureInfo]::InvariantCulture
-# The scenarios the contract names for a grid text change and the default benchmark, and the repetitions its paired-set
-# rule needs: three give six runs per side, whose smallest attainable p is 0.0022; two give 0.029 and one cannot reach 0.05.
+# The scenarios the contract names for measured pull requests and the minimum independent-block study size.
 $script:GateScenarios = @('Default', 'MultilineGrid', 'MultilineGridDistinct')
-$script:GateRepetitions = 3
-# The significance level of Compare-PerformanceSet; a set whose smallest attainable p is not below it cannot judge a timing.
+$script:GateBlocks = 12
+# Familywise error rate of the migrated paired-block judge.
 $script:Significance = 0.05
 
 function Get-BenchmarkGateScenarios { return @($script:GateScenarios) }
 
-function Get-BenchmarkGateRepetitions { return $script:GateRepetitions }
+function Get-BenchmarkGateBlocks { return $script:GateBlocks }
 
 # --- Which pull requests are measured -----------------------------------------------------------------------------------
 
@@ -34,11 +34,11 @@ function Get-BenchmarkScopeRules {
        them into every receipt, so this list cannot drift from what a receipt covers. #>
     return @(
         [ordered]@{ Reason = 'library input'; Paths = @(Get-LibraryInputPaths) }
-        [ordered]@{ Reason = 'benchmark harness'; Paths = @(Get-PairedHarness) }
+        [ordered]@{ Reason = 'benchmark harness'; Paths = @(Get-PairedHarness | Where-Object { $_ -cne 'Tools/PerformanceAcceptancePolicy.v1.json' }) }
         [ordered]@{ Reason = 'benchmark executable'; Paths = @('Tests/Embedded', 'Tests/Support') }
         [ordered]@{ Reason = 'fixture or sample compiled into it'; Paths = @('Samples') }
         [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1') }
-        [ordered]@{ Reason = 'paired measurement or gate'; Paths = @('performance-paired.ps1', 'Tools/PairedRun.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/Get-BenchmarkScope.ps1', 'Tools/Publish-BenchmarkVerdict.ps1') }
+        [ordered]@{ Reason = 'paired measurement or gate'; Paths = @('performance-paired.ps1', 'Tools/PairedRun.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/Get-BenchmarkScope.ps1', 'Tools/Publish-BenchmarkVerdict.ps1') }
         [ordered]@{ Reason = 'hosted workflow'; Paths = @('.github/workflows/ci.yml') }
     )
 }
@@ -156,6 +156,140 @@ function Get-WorstConclusion([string[]] $Conclusions) {
     return 'invalid'
 }
 
+function Get-NormalizedSourceSha256([string] $Text) {
+    $normalized = $Text -replace "`r`n", "`n"
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized))) }
+    finally { $sha.Dispose() }
+}
+
+function Test-EquivalentPerformanceVerdicts([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
+    if ([string]$Legacy['status'] -cne [string]$Migrated['status']) { return $false }
+    $oldMetrics = @($Legacy['metrics']); $newMetrics = @($Migrated['metrics'])
+    if ($oldMetrics.Count -ne 26 -or $newMetrics.Count -ne 26) { return $false }
+    foreach ($metric in $newMetrics) {
+        $old = @($oldMetrics | Where-Object { [string]$_['phase'] -ceq [string]$metric['phase'] -and [string]$_['metric'] -ceq [string]$metric['metric'] })
+        if ($old.Count -ne 1 -or [string]$old[0]['verdict'] -cne [string]$metric['verdict']) { return $false }
+    }
+    return $true
+}
+
+function Test-DualJudgeReceiptEvidence {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory,
+        [Parameter(Mandatory)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string] $ApprovedJudgeSha256,
+        [Parameter(Mandatory)][ValidatePattern('^dxui-[A-Za-z0-9-]+$')][string] $ApprovedJudgeVersion)
+    if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or
+        $Summary['allocation'] -cne (Get-PairedAssignmentProtocol)) {
+        return [ordered]@{ valid=$false; reason='The summary does not identify the current independent-order regression-qualification protocol.' }
+    }
+    $provenance = $Summary['judgeProvenance']
+    $baselineCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
+    if ($provenance -isnot [System.Collections.IDictionary] -or $provenance['status'] -cne 'available' -or
+        $provenance['baselineCommit'] -cne $baselineCommit -or [string]$provenance['baseJudgeSha256'] -notmatch '^[A-Fa-f0-9]{64}$' -or
+        [string]$provenance['candidateJudgeSha256'] -notmatch '^[A-Fa-f0-9]{64}$' -or $baselineCommit -notmatch '^[A-Fa-f0-9]{40}$') {
+        return [ordered]@{ valid=$false; reason='The measured base judge was unavailable or its source attestation is incomplete.' }
+    }
+    $root = Split-Path -Parent $PSScriptRoot
+    $baseLines = @(& git -C $root show "${baselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $baseLines.Count -eq 0) { return [ordered]@{ valid=$false; reason='The immutable measured-base judge source cannot be recovered.' } }
+    $actualBaseHash = Get-NormalizedSourceSha256 (($baseLines -join "`n") + "`n")
+    $candidatePath = Join-Path $root 'Tools/PerformanceComparison.psm1'
+    if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { return [ordered]@{ valid=$false; reason='The candidate judge source is unavailable.' } }
+    $actualCandidateHash = Get-NormalizedSourceSha256 ([IO.File]::ReadAllText($candidatePath))
+    if ($actualBaseHash -cne [string]$provenance['baseJudgeSha256'] -or $actualCandidateHash -cne [string]$provenance['candidateJudgeSha256']) {
+        return [ordered]@{ valid=$false; reason='A retained base/candidate judge source differs from its attested immutable source hash.' }
+    }
+    try {
+        $candidateJudgeModule = New-Module -Name "DxUiGateCandidateJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create([IO.File]::ReadAllText($candidatePath)))
+        if (-not $candidateJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { throw 'Candidate judge version export missing.' }
+        $actualCandidateVersion = & $candidateJudgeModule { Get-PairedPerformanceJudgeVersion }
+        $baseJudgeModule = New-Module -Name "DxUiGateBaseJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create((($baseLines -join "`n") + "`n")))
+        $actualBaseVersion = if ($baseJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { & $baseJudgeModule { Get-PairedPerformanceJudgeVersion } } else { 'legacy-unversioned' }
+    } catch {
+        return [ordered]@{ valid=$false; reason='A retained base/candidate judge version cannot be verified from its source.' }
+    }
+    if ([string]$provenance['baseJudgeVersion'] -cne [string]$actualBaseVersion -or
+        [string]$provenance['candidateJudgeVersion'] -cne [string]$actualCandidateVersion) {
+        return [ordered]@{ valid=$false; reason='A retained base/candidate judge version differs from its attested source.' }
+    }
+    if ($actualCandidateHash -cne $ApprovedJudgeSha256 -or [string]$actualCandidateVersion -cne $ApprovedJudgeVersion) {
+        return [ordered]@{ valid=$false; reason='The candidate judge source or version is not explicitly approved by the measured-base policy.' }
+    }
+    $blocks = 0; $seed = 0; $steps = @($Summary['steps']); $blockSchedule = @($Summary['blockSchedule'])
+    if (-not [int]::TryParse([string]$Summary['blocks'], [ref]$blocks) -or -not [int]::TryParse([string]$Summary['seed'], [ref]$seed) -or
+        $blocks -lt 12 -or $blocks -gt 20 -or $steps.Count -ne 4 * $blocks -or $blockSchedule.Count -ne $blocks) {
+        return [ordered]@{ valid=$false; reason='The summary does not retain a seeded four-run schedule for each of twelve to twenty independent blocks.' }
+    }
+    try { $replayed = Get-RandomizedPairedBlockSchedule -Blocks $blocks -Seed $seed }
+    catch { return [ordered]@{ valid=$false; reason='The retained independent assignment seed cannot be replayed.' } }
+    if ([string]$Summary['order'] -cne $replayed.Order) {
+        return [ordered]@{ valid=$false; reason='The retained order differs from replay of its independent assignment protocol and seed.' }
+    }
+    $expectedRuns = @($steps | ForEach-Object { [string]$_['Name'] })
+    if (@($expectedRuns | Select-Object -Unique).Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason='The retained schedule repeats a run name.' } }
+    if ([string]$Summary['order'] -cne ($expectedRuns -join ', ')) { return [ordered]@{ valid=$false; reason='The literal retained order differs from the scheduled steps.' } }
+    $position = 0
+    $blockIndex = 0
+    foreach ($block in $blockSchedule) {
+        if ($block['Order'] -cnotin @('ABBA','BAAB') -or @($block['BaselineRuns']).Count -ne 2 -or @($block['CandidateRuns']).Count -ne 2) {
+            return [ordered]@{ valid=$false; reason='A block is not a balanced ABBA or BAAB block.' }
+        }
+        $expectedBlock = $replayed.Blocks[$blockIndex++]
+        if ([string]$block['Name'] -cne $expectedBlock.Name -or [string]$block['Order'] -cne $expectedBlock.Order -or
+            ($block['BaselineRuns'] -join ',') -cne ($expectedBlock.BaselineRuns -join ',') -or
+            ($block['CandidateRuns'] -join ',') -cne ($expectedBlock.CandidateRuns -join ',')) {
+            return [ordered]@{ valid=$false; reason='The retained blocks differ from replay of their independent assignment protocol and seed.' }
+        }
+        $aIndex = 0; $bIndex = 0
+        foreach ($letter in ([string]$block['Order']).ToCharArray()) {
+            $step = $steps[$position++]
+            $expectedName = if ($letter -eq 'A') { $block['BaselineRuns'][$aIndex++] } else { $block['CandidateRuns'][$bIndex++] }
+            $expectedSide = if ($letter -eq 'A') { 'baseline' } else { 'candidate' }
+            if ([string]$step['Name'] -cne [string]$expectedName -or [string]$step['Side'] -cne $expectedSide -or
+                [string]$step['Block'] -cne [string]$block['Name'] -or [string]$step['Order'] -cne [string]$block['Order'] -or
+                $step['Position'] -ne $position) {
+                return [ordered]@{ valid=$false; reason='The retained steps do not reproduce their balanced block schedule.' }
+            }
+        }
+    }
+    $scenarios = @($Summary['scenarios'])
+    if ($scenarios.Count -eq 0) { return [ordered]@{ valid=$false; reason='The migrated summary has no judged scenario.' } }
+    foreach ($scenario in $scenarios) {
+        if ($scenario -isnot [System.Collections.IDictionary] -or [string]$scenario['scenario'] -notmatch '^[A-Za-z0-9_-]+$') { return [ordered]@{ valid=$false; reason='A scenario name is missing or unsafe.' } }
+        $comparison = $scenario['judgeComparison']
+        if ($comparison -isnot [System.Collections.IDictionary] -or $comparison['legacyJudge'] -isnot [System.Collections.IDictionary] -or
+            $comparison['migratedJudge'] -isnot [System.Collections.IDictionary] -or $scenario['set'] -isnot [System.Collections.IDictionary]) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) lacks both judge decisions." }
+        }
+        $verdictsAgree = Test-EquivalentPerformanceVerdicts -Legacy $comparison['legacyJudge'] -Migrated $comparison['migratedJudge']
+        if ($comparison['reportBytesStable'] -ne $true -or $comparison['baseJudgeCommit'] -cne $baselineCommit -or $comparison['baseJudgeSha256'] -cne $actualBaseHash -or
+            $comparison['candidateJudgeSha256'] -cne $actualCandidateHash -or $comparison['verdictAgreement'] -ne $true -or
+            -not $verdictsAgree) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judges do not agree on the same attested base/candidate sources." }
+        }
+        if ([int]$comparison['migratedJudge']['schemaVersion'] -ne 3 -or $comparison['migratedJudge']['method'] -cne 'independent-paired-block-sign-flip-holm' -or
+            [int]$scenario['set']['schemaVersion'] -ne 3 -or
+            $comparison['migratedJudge']['assignmentProtocol'] -cne $Summary['allocation'] -or $scenario['set']['assignmentProtocol'] -cne $Summary['allocation']) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) lacks the current independent-protocol judge record." }
+        }
+        $hashRecords = @($comparison['sameReceiptsSha256'])
+        if ($hashRecords.Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judge inputs are incomplete." } }
+        $byRun = @{}
+        foreach ($record in $hashRecords) {
+            if ($record -isnot [System.Collections.IDictionary] -or [string]$record['sha256'] -notmatch '^[A-Fa-f0-9]{64}$') { return [ordered]@{ valid=$false; reason='A judged receipt hash is malformed.' } }
+            $run = [string]$record['run']
+            if ($run -notin $expectedRuns -or $byRun.ContainsKey($run)) { return [ordered]@{ valid=$false; reason='The dual judges do not name the exact scheduled run set.' } }
+            $path = Join-Path $ReportsDirectory "$($scenario['scenario'])-$run.json"
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return [ordered]@{ valid=$false; reason="A judge input receipt is missing: $($scenario['scenario'])-$run.json." } }
+            $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+            if ($actual -cne [string]$record['sha256']) { return [ordered]@{ valid=$false; reason="A judge input receipt changed after judgment: $($scenario['scenario'])-$run.json." } }
+            $byRun[$run] = $true
+        }
+    }
+    return [ordered]@{ valid=$true; reason='Both judge records bind to every retained report hash.' }
+}
+
 function New-ScenarioResult([string] $Scenario, [string] $SetStatus = '') {
     return [ordered]@{
         Scenario = $Scenario; SetStatus = $SetStatus; Conclusion = 'invalid'; Notes = [string[]]@()
@@ -177,6 +311,11 @@ function Get-ScenarioConclusion {
         return $result
     }
     $notes = [Collections.Generic.List[string]]::new()
+    if ($set['status'] -cin @('identity-unverifiable', 'identity-mismatch')) {
+        $reason = if ($set['status'] -ceq 'identity-unverifiable') { "missing receipt provenance: $(@($set['missingIdentity']) -join ', ')" } else { "receipt provenance differs for $($set['mismatchedIdentity'])" }
+        $result['Conclusion'] = 'inconclusive'; $result['Notes'] = [string[]]@("Identity review required: $reason.")
+        return $result
+    }
     if ($set['status'] -ceq 'invalid-evidence' -or $set['status'] -cnotin @('advice-required', 'within-noise-budget')) {
         $notes.Add("Invalid evidence: $($set['error'])")
         $result['Notes'] = $notes.ToArray()
@@ -192,10 +331,16 @@ function Get-ScenarioConclusion {
         # Held: every control measured this metric and none moved it beyond its band. A control whose comparison cannot be
         # read measured nothing, so no metric of its scenario is observed by all of them; without controls nothing is observed.
         $held = $null -ne $seen -and $seen['Observed'] -eq $drift['Total'] -and -not $seen['Drifted']
-        # An exact budget has a band of zero; a summary that does not say so is still read by its band.
-        $exact = [bool]$metric['exact'] -or ($null -ne $metric['noisePercent'] -and [double]$metric['noisePercent'] -eq 0)
+        # Migrated metrics use fractional `band`; legacy metrics retain percentage `noisePercent`.
+        # Keep both schemas readable while projecting one percentage value to the report.
+        $noisePercent = if ($metric.Contains('band')) { [double]$metric['band'] * 100.0 }
+            elseif ($metric.Contains('noisePercent')) { [double]$metric['noisePercent'] }
+            else { $null }
+        $exact = [bool]$metric['exact'] -or ($null -ne $noisePercent -and $noisePercent -eq 0)
         $outcome = switch ($metric['verdict']) {
-            'regressed' { if ($Unchanged -and -not $exact) { 'noise' } elseif ($held) { 'confirmed' } else { 'unconfirmed' } }
+            # A code fingerprint is provenance, not a noise model. A/A timing flags remain unresolved until calibration
+            # supplies independent control evidence under a trusted qualified policy.
+            'regressed' { if ($Unchanged -and -not $exact) { 'unconfirmed' } elseif ($held) { 'confirmed' } else { 'unconfirmed' } }
             'improved' { 'improved' }
             default { 'clear' }
         }
@@ -204,7 +349,9 @@ function Get-ScenarioConclusion {
                 Outcome = $outcome; Held = [bool]$held; ControlDriftPercent = $(if ($null -ne $seen) { $seen['MaxDriftPercent'] } else { $null })
                 ControlDrifted = $(if ($null -ne $seen) { [bool]$seen['Drifted'] } else { $null })
                 BaselineMedian = $metric['baselineMedian']; CandidateMedian = $metric['candidateMedian']; ChangePercent = $metric['changePercent']
-                NoisePercent = $metric['noisePercent']; PValue = $metric['pValue']
+                NoisePercent = $noisePercent; PValue = $metric['pValue']; AdjustedPValue = $metric['adjustedPValue']
+                BaselineMaximum = $metric['baselineMaximum']; CandidateMaximum = $metric['candidateMaximum']
+                MedianBudgetVerdict = $metric['medianBudgetVerdict']; PeakBudgetVerdict = $metric['peakBudgetVerdict']
                 BaselineSpreadPercent = $metric['baselineSpreadPercent']; CandidateSpreadPercent = $metric['candidateSpreadPercent']
             })
     }
@@ -217,7 +364,7 @@ function Get-ScenarioConclusion {
     $unconfirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'unconfirmed' }).Count
     $conclusion = if ($confirmed) { 'degraded' } elseif ($unconfirmed) { 'inconclusive' } else { 'pass' }
     if ($unconfirmed -and -not $confirmed) {
-        $notes.Add("$unconfirmed regressed $(if ($unconfirmed -eq 1) { 'metric has same-binary controls that drifted' } else { 'metrics have same-binary controls that drifted' }) beyond their band on this runner, so the flag cannot be told from machine noise. Re-run the job; the flagged metrics are listed below, not dismissed.")
+        $notes.Add("$unconfirmed regressed $(if ($unconfirmed -eq 1) { 'metric remains unresolved' } else { 'metrics remain unresolved' }): controls or qualified A/A provenance do not support attributing the flag. Re-run the job on a new runner; the flagged metrics are listed below, not dismissed.")
     }
     if ($conclusion -ceq 'pass' -and $null -ne $set['minimumAttainableP'] -and [double]$set['minimumAttainableP'] -ge $script:Significance) {
         $conclusion = 'inconclusive'
@@ -226,9 +373,6 @@ function Get-ScenarioConclusion {
     if ($Strict -and $drift['Unstable'] -gt 0 -and $conclusion -cin @('pass', 'degraded')) {
         $conclusion = 'inconclusive'
         $notes.Add("Strict controls: $($drift['Unstable']) of $($drift['Total']) same-binary controls drifted beyond a band, so the runner was not held still.")
-    }
-    if (@($metrics | Where-Object { $_['Outcome'] -ceq 'noise' }).Count) {
-        $notes.Add('The compiled library inputs of both sides are identical, so the timing and memory flags marked noise were measured on the same library code twice; they are chance. Deterministic budgets still gate.')
     }
     $result['Conclusion'] = $conclusion
     $result['Notes'] = $notes.ToArray()
@@ -248,11 +392,30 @@ function Get-BenchmarkConclusion {
        make every run inconclusive. StrictControls restores the all-metrics reading: any unstable control makes the scenario
        inconclusive, whatever it found.
 
-       Two more rules keep a pass honest. A set whose smallest attainable p is not below 0.05 can establish only a rise in an
-       exact budget, so its pass is inconclusive. And when the compiled library inputs of both sides are identical, a timing
-       or memory flag can only be the machine (both sides ran the same library code), so it is listed as noise; a rise in a
-       deterministic budget is still judged, because noise cannot move one. #>
-    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory, [switch] $StrictControls)
+       Two more rules keep a legacy pass honest: an underpowered set cannot clear timing, and matching source fingerprints
+       never turn a timing flag into chance. The migrated pull-request path additionally requires a trusted base policy. #>
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory, [switch] $StrictControls, [switch] $RequireQualifiedPolicy)
+    if ($RequireQualifiedPolicy) {
+        $recordedPolicy = $Summary['acceptancePolicy']
+        $root = Split-Path -Parent $PSScriptRoot
+        $baseCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
+        $policy = if ($baseCommit) { Get-TrustedPerformancePolicy -BaselineCommit $baseCommit -RepositoryRoot $root -CandidatePolicyPath (Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json') }
+        else { [ordered]@{ trusted=$false; status='policy-review-required'; reason='Baseline commit is missing.' } }
+        if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or $policy['trusted'] -ne $true -or $recordedPolicy -isnot [System.Collections.IDictionary] -or $recordedPolicy['policySha256'] -cne $policy['policySha256']) {
+            $reason = if ($Summary['studyVersion'] -ne 3) { 'Historic reports are retained for reading but cannot pass migrated qualification.' }
+            elseif ($Summary['studyPurpose'] -cne 'regression-qualification') { 'A/A calibration evidence is separate from regression qualification and cannot pass this gate.' }
+            elseif (-not $policy['trusted']) { [string]$policy['reason'] }
+            else { 'The report policy identity differs from the versioned trusted base policy.' }
+            return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
+                Notes=@("Policy review required: $reason"); Scenarios=@() }
+        }
+        $dualJudge = Test-DualJudgeReceiptEvidence -Summary $Summary -ReportsDirectory $ReportsDirectory `
+            -ApprovedJudgeSha256 ([string]$policy.policy['approvedJudgeSha256']) -ApprovedJudgeVersion ([string]$policy.policy['judgeVersion'])
+        if (-not $dualJudge.valid) {
+            return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
+                Notes=@("Policy review required: $($dualJudge.reason)"); Scenarios=@() }
+        }
+    }
     $baselineFingerprint = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['sourceFingerprint'] } else { '' }
     $candidateFingerprint = if ($Summary['candidate'] -is [System.Collections.IDictionary]) { [string]$Summary['candidate']['sourceFingerprint'] } else { '' }
     $unchanged = [bool]$baselineFingerprint -and [string]::Equals($baselineFingerprint, $candidateFingerprint, [StringComparison]::Ordinal)
@@ -268,7 +431,13 @@ function Get-BenchmarkConclusion {
     # A run is only as good as its scenarios, and a summary that lists none judged nothing: it says so itself, as there is no scenario to.
     $notes = [string[]]@(if ($scenarios.Count -eq 0) { 'Invalid evidence: the summary lists no scenario, so there is nothing to judge.' })
     $overall = if ($scenarios.Count) { Get-WorstConclusion @($scenarios | ForEach-Object { $_['Conclusion'] }) } else { 'invalid' }
-    return [ordered]@{ Conclusion = $overall; StrictControls = [bool]$StrictControls; LibraryUnchanged = $unchanged; Notes = $notes; Scenarios = $scenarios.ToArray() }
+    $policyStatus = if ($Summary['studyVersion'] -eq 3 -and $Summary['acceptancePolicy'] -is [System.Collections.IDictionary]) { [string]$Summary['acceptancePolicy']['status'] } else { 'legacy-read-only' }
+    if ($Summary['studyVersion'] -eq 3 -and $policyStatus -cne 'trusted') {
+        $policyReason = if ($Summary['acceptancePolicy'] -is [System.Collections.IDictionary]) { [string]$Summary['acceptancePolicy']['reason'] } else { 'the summary lacks trusted policy evidence' }
+        $overall = 'inconclusive'; $notes += "Policy review required: $policyReason"
+    }
+    if ($scenarios.Count -and @($scenarios | Where-Object { $_['Notes'] -join ' ' -match 'identity-unverifiable|identity-mismatch' }).Count) { $overall = 'inconclusive' }
+    return [ordered]@{ Conclusion = $overall; StrictControls = [bool]$StrictControls; LibraryUnchanged = $unchanged; PolicyStatus=$policyStatus; Notes = $notes; Scenarios = $scenarios.ToArray() }
 }
 
 # --- What a run says ------------------------------------------------------------------------------------------------------
@@ -287,9 +456,9 @@ function Get-BenchmarkMeaning {
     <# The one paragraph that says what a conclusion means and what to do about it. #>
     param([Parameter(Mandatory)][string] $Conclusion)
     switch ($Conclusion) {
-        'pass' { return 'No metric regressed. The contract reads this as no change established, which is not evidence that none exists; metrics whose same-binary controls drifted could not resolve their band on this runner and are counted below.' }
-        'degraded' { return 'A metric regressed (exact rank test against its investigation band, or a rise in an exact budget) and its same-binary controls stayed inside the band. The contract stops the affected development: present the deltas and the suspected cause to the developer and choose among optimizing the path, reducing optional scope or deferring or reverting the change. Never relax a band or replace the baseline to pass.' }
-        'inconclusive' { return 'The run cannot say. A metric was flagged but its same-binary controls drifted beyond its band, or the set is too small to judge a timing. It does not pass: re-run the job for a new runner, or repeat the set on a quiet machine, and treat the flagged metrics as unresolved findings, not as noise.' }
+        'pass' { return 'No metric regressed under the retained judge. This is no change established, not evidence that none exists; unresolved control metrics are counted below.' }
+        'degraded' { return 'A metric regressed under the retained judge or an exact budget rose. Present the deltas and suspected cause to the developer and choose among optimization, scope reduction or deferral. Never relax a band or replace the baseline to pass.' }
+        'inconclusive' { return 'The study cannot qualify a pass: policy review, missing identity, drifting controls or insufficient evidence leaves the result unresolved. Re-run or complete independent policy review; do not dismiss flagged metrics as noise.' }
         default { return 'The run produced no usable verdict (a receipt failed its checks, the fixtures differ or the run did not finish). It proves nothing about performance; see the log.' }
     }
 }
@@ -323,7 +492,7 @@ function Get-OutcomeText {
     switch ($Metric['Outcome']) {
         'confirmed' { return 'regressed, confirmed' }
         'unconfirmed' { return 'regressed, controls drifted' }
-        'noise' { return 'regressed, unchanged library (noise)' }
+        'noise' { return 'regressed, unresolved' }
         'improved' { return 'improved' }
         default { return 'within noise' }
     }
@@ -344,9 +513,13 @@ function Get-MetricRow {
     $cells.Add($Metric['Phase']); $cells.Add($Metric['Metric'])
     $cells.Add((Format-GateValue $Metric['Metric'] $Metric['BaselineMedian'])); $cells.Add((Format-GateValue $Metric['Metric'] $Metric['CandidateMedian']))
     $change = if ($null -ne $Metric['ChangePercent']) { Format-GatePercent $Metric['ChangePercent'] } elseif ([double]$Metric['BaselineMedian'] -eq [double]$Metric['CandidateMedian']) { '0.00%' } else { 'from zero' }
-    $cells.Add($change); $cells.Add((Format-GateP $Metric['PValue']))
+    $cells.Add($change); $cells.Add((Format-GateP $Metric['PValue'])); $cells.Add((Format-GateP $Metric['AdjustedPValue']))
     $cells.Add($(if ($Metric['Exact']) { 'exact' } else { Format-GatePercent $Metric['NoisePercent'] '0.#' }))
-    $cells.Add((Get-ControlText $Metric)); $cells.Add((Get-OutcomeText $Metric))
+    $cells.Add((Get-ControlText $Metric))
+    $cells.Add((Format-GateValue $Metric['Metric'] $Metric['BaselineMaximum'])); $cells.Add((Format-GateValue $Metric['Metric'] $Metric['CandidateMaximum']))
+    $cells.Add($(if ($null -ne $Metric['MedianBudgetVerdict']) { [string]$Metric['MedianBudgetVerdict'] } else { 'n/a' }))
+    $cells.Add($(if ($null -ne $Metric['PeakBudgetVerdict']) { [string]$Metric['PeakBudgetVerdict'] } else { 'n/a' }))
+    $cells.Add((Get-OutcomeText $Metric))
     return '| ' + (($cells | ForEach-Object { ConvertTo-MarkdownCell $_ }) -join ' | ') + ' |'
 }
 
@@ -389,7 +562,8 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add("| Candidate | $(& $describe $candidate) |")
     $fingerprints = @($baseline, $candidate | ForEach-Object { if ($_ -is [System.Collections.IDictionary] -and $_['sourceFingerprint']) { "``$(& $short ([string]$_['sourceFingerprint']))``" } else { 'unknown' } })
     $lines.Add("| Library inputs | $(if ($Conclusion['LibraryUnchanged']) { "identical, fingerprint $($fingerprints[0]): both sides ran the same library code" } else { "changed, fingerprint $($fingerprints[0]) to $($fingerprints[1])" }) |")
-    $lines.Add("| Method | $(if ($Summary['repetitions']) { "$($Summary['repetitions']) repetitions of the interleaved pass A, B, B, A, so $(2 * [int]$Summary['repetitions']) runs per side; " })$($Summary['platform']) $($Summary['configuration']); exact two-sided Mann-Whitney U test with the 5% timing and 2% memory investigation bands, exact budgets stay exact |")
+    $method = if ($Summary['studyVersion'] -eq 3) { "$($Summary['blocks']) independent paired blocks; seed $($Summary['seed']); independently drawn ABBA/BAAB; exact sign-flip with Holm correction" } elseif ($Summary['repetitions']) { "legacy $($Summary['repetitions']) repetitions; $([int](2 * [int]$Summary['repetitions'])) runs per side; read-only Mann-Whitney" } else { 'legacy read-only report' }
+    $lines.Add("| Method | $method; $($Summary['platform']) $($Summary['configuration']); 5% timing and 2% memory bands, exact budgets stay exact |")
     $lines.Add("| Runner | $(ConvertTo-MarkdownCell $Summary['machine'])$(if ($Hosted) { '; a shared hosted VM, not a controlled quiet desktop' }) |")
     if ($Event) { $lines.Add("| Event | $(ConvertTo-MarkdownCell $Event) |") }
     $lines.Add('')
@@ -411,8 +585,8 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add('')
     if ($flagged.Count -eq 0) { $lines.Add('None: no metric regressed or improved.') }
     else {
-        $lines.Add('| Scenario | Phase | Metric | Baseline median | Candidate median | Change | p | Band | Same-binary controls | Outcome |')
-        $lines.Add('|---|---|---|---:|---:|---:|---:|---:|---|---|')
+        $lines.Add('| Scenario | Phase | Metric | Baseline median | Candidate median | Change | Raw p | Holm-adjusted p | Band | Same-binary controls | Baseline raw max | Candidate raw max | Median budget | Peak budget | Outcome |')
+        $lines.Add('|---|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|---|---|')
         foreach ($item in $flagged) { $lines.Add((Get-MetricRow -Scenario $item.Scenario -Metric $item.Metric -WithScenario)) }
     }
     foreach ($scenario in $Conclusion['Scenarios']) {
@@ -420,14 +594,14 @@ function ConvertTo-BenchmarkMarkdown {
         $lines.Add('')
         $lines.Add("<details><summary>$(ConvertTo-MarkdownCell $scenario['Scenario']): all $(@($scenario['Metrics']).Count) metrics</summary>")
         $lines.Add('')
-        $lines.Add('| Phase | Metric | Baseline median | Candidate median | Change | p | Band | Same-binary controls | Outcome |')
-        $lines.Add('|---|---|---|---:|---:|---:|---:|---|---|')
+        $lines.Add('| Phase | Metric | Baseline median | Candidate median | Change | Raw p | Holm-adjusted p | Band | Same-binary controls | Baseline raw max | Candidate raw max | Median budget | Peak budget | Outcome |')
+        $lines.Add('|---|---|---|---:|---:|---:|---:|---:|---|---:|---:|---|---|---|')
         foreach ($metric in $scenario['Metrics']) { $lines.Add((Get-MetricRow -Scenario $scenario['Scenario'] -Metric $metric)) }
         $lines.Add('')
         $lines.Add('</details>')
     }
     $lines.Add('')
-    $lines.Add('The retained receipts, comparisons and `summary.json` are in the `paired-benchmark-x64-Release` artifact. A metric regresses only when p < 0.05 and its median shift is beyond the band (a rise in an exact budget always regresses); `Specs/Core/Core_PerformanceAndResources.md` says what a verdict establishes and what a finding requires.')
+    $lines.Add('The retained receipts, comparisons and `summary.json` are in the `paired-benchmark-x64-Release` artifact. Migrated timing and memory metrics use the Holm-adjusted p-value and declared band; legacy rows retain their original raw p-value and show no adjusted p-value. Exact-budget rows report median and raw-peak findings separately. `Specs/Core/Core_PerformanceAndResources.md` says what a verdict establishes and what a finding requires.')
     return ($lines -join "`n") + "`n"
 }
 
@@ -450,7 +624,7 @@ function Get-BenchmarkAnnotations {
         # An annotation stays short; the job summary lists every metric.
         $listed = (@($flagged | Select-Object -First 6) -join '; ') + $(if ($flagged.Count -gt 6) { "; and $($flagged.Count - 6) more (see the job summary)" } else { '' })
         switch ($scenario['Conclusion']) {
-            'pass' { if ($flagged.Count) { $lines.Add((Format-WorkflowCommand 'notice' "Paired benchmark $($scenario['Scenario'])" "No regression established; flagged on unchanged library inputs (chance): $listed")) } }
+            'pass' { if ($flagged.Count) { $lines.Add((Format-WorkflowCommand 'notice' "Paired benchmark $($scenario['Scenario'])" "No regression established; unresolved flags remain visible: $listed")) } }
             'degraded' { $lines.Add((Format-WorkflowCommand $(if ($Gate) { 'error' } else { 'warning' }) "Paired benchmark $($scenario['Scenario']): confirmed degradation" "$listed. The contract needs developer advice: optimize, reduce scope or defer.")) }
             'inconclusive' { $lines.Add((Format-WorkflowCommand $(if ($Gate) { 'error' } else { 'warning' }) "Paired benchmark $($scenario['Scenario']): inconclusive" "$(if ($flagged.Count) { "Flagged but not confirmed by same-binary controls: $listed. " })$($scenario['Notes'] -join ' ')")) }
             default { $lines.Add((Format-WorkflowCommand 'error' "Paired benchmark $($scenario['Scenario']): invalid evidence" ($scenario['Notes'] -join ' '))) }
@@ -490,7 +664,7 @@ function Find-PairedSummary {
     return $found[0]
 }
 
-Export-ModuleMember -Function Get-BenchmarkGateScenarios, Get-BenchmarkGateRepetitions, Format-RepositoryPath, Get-BenchmarkScopeRules,
-    Get-BenchmarkScope, Resolve-PullRequestPair, Get-PullRequestChangedPaths, Get-ControlDrift, Get-BenchmarkConclusion,
+Export-ModuleMember -Function Get-BenchmarkGateScenarios, Get-BenchmarkGateBlocks, Format-RepositoryPath, Get-BenchmarkScopeRules,
+    Get-BenchmarkScope, Resolve-PullRequestPair, Get-PullRequestChangedPaths, Get-ControlDrift, Test-DualJudgeReceiptEvidence, Get-BenchmarkConclusion,
     Get-BenchmarkHeadline, ConvertTo-BenchmarkMarkdown, Format-WorkflowCommand, Get-BenchmarkAnnotations, Add-WorkflowOutput,
     Add-WorkflowSummary, Find-PairedSummary, Read-GateJson

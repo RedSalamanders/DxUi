@@ -1,0 +1,1 @@
+- 2026-10-10: Preserve per-frame complex-UI timing samples and distinguish QPC counter ticks from the C++ clock's nominal period; reject overflowing aggregates and invalid counter frequencies, validate complete diagnostics against the unchanged FPS/percentiles and retain historical receipt compatibility without changing acceptance thresholds or qualifying the proposed policy.

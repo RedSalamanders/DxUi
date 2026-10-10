@@ -236,10 +236,11 @@ void TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin()
     }
 }
 
-// A right-to-left flow does not turn the Grid around: its cells lay out as they do in a left-to-right one. What must hold in
-// both is what the text says: the omission marker ends Latin text on its right and Arabic text at its left end, where that
-// text reads to; the ink of one cell never reaches its neighbour; and UI Automation keeps the complete values (Accessibility
-// suite). Two columns, so a cell's ink can be told from the next one's.
+// A right-to-left flow mirrors Grid geometry and gives each cell a right-to-left paragraph. Compare the omitted capture with a
+// literal visible-line reference in that layout; an unmarked twin is not a stable pixel anchor when leading text is right-aligned.
+// Latin in an RTL paragraph makes the direction mark observable, so its opposite-mark reference must differ. Arabic already has
+// the paragraph's direction, and Unicode bidi resolution can make LRM/RLM references paint identically; Arabic cases still check
+// the explicit Arabic ellipsis reference and clipping without requiring an invisible distinction.
 void TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping()
 {
     using namespace DxUi;
@@ -247,13 +248,17 @@ void TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping()
     const std::wstring latin       = L"Bonjour tout le monde\nsuite masquée";
     const std::wstring arabic      = L"مرحبا بالعالم الجميل\nالسطر الثاني";
     const std::wstring arabicEmoji = L"مرحبا بالعالم الجميل \xD83D\xDCF7\nالسطر الثاني";
-    // Each twin is the visible line alone, so only the omission marker differs from it.
+    // Each explicit reference independently supplies the visible line, ellipsis, and a strong mark for its intended direction.
     const std::wstring latinTwin       = L"Bonjour tout le monde";
     const std::wstring arabicTwin      = L"مرحبا بالعالم الجميل";
     const std::wstring arabicEmojiTwin = L"مرحبا بالعالم الجميل \xD83D\xDCF7";
+    const std::wstring latinExpected   = latinTwin + L"\x2026\x200E";
+    const std::wstring latinOpposite   = latinTwin + L"\x2026\x200F";
+    const std::wstring arabicExpected  = arabicTwin + L"\x2026\x200F";
+    const std::wstring arabicOpposite  = arabicTwin + L"\x2026\x200E";
+    const std::wstring emojiExpected   = arabicEmojiTwin + L"\x2026\x200F";
+    const std::wstring emojiOpposite   = arabicEmojiTwin + L"\x2026\x200E";
     MultilineBed bed({{L"", L""}}, {220.0f, 220.0f}, 40.0f, 1u, D2D1::RectF(20.0f, 20.0f, 470.0f, 120.0f));
-    // The Grid reads no flow direction, so its right-to-left paint is its left-to-right one. Reported, not required: a grid that
-    // mirrored would still satisfy everything below, which reads the rectangles the grid reports.
     bed.model.SetText(0u, 0u, latin);
     bed.model.SetText(0u, 1u, arabic);
     bed.grid->NotifyDataChanged();
@@ -262,60 +267,46 @@ void TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping()
     Require(bed.grid->GetFlowDirection() == FlowDirection::RightToLeft, "the grid's flow is right to left");
     std::cout << "Grid in a right-to-left flow against the same grid in a left-to-right flow: "
               << Describe(MeasureDifference(bed.Paint("the cells in a right-to-left flow"), leftToRight)) << '\n';
-    struct Placement
-    {
-        LONG twinRight       = 0;
-        uint64_t shiftedInk  = 0u; // Pixels that differ from the unmarked twin inside the twin's own ink span.
-        uint64_t markerAfter = 0u; // Differing pixels right of that span.
-    };
-    const auto measure = [&](size_t column, const std::wstring& marked, const std::wstring& unmarked, const char* name)
+    const auto measure = [&](size_t column,
+                             const std::wstring& marked,
+                             const std::wstring& unmarked,
+                             const std::wstring& intendedDirection,
+                             const std::wstring& oppositeDirection,
+                             bool oppositeMustDiffer,
+                             const char* name)
     {
         // The neighbour keeps the other language while the cell under test changes, so its ink is the same in every capture.
         bed.model.SetText(0u, 1u - column, column == 0u ? arabic : latin);
-        const auto emptyCell  = bed.Paint(L"", name, 0u, column);
-        const auto withMarker = bed.Paint(marked, name, 0u, column);
+        const auto emptyCell = bed.Paint(L"", name, 0u, column);
+        const auto omitted   = bed.Paint(marked, name, 0u, column);
         Require(bed.HoverTooltip(0u, column) == marked, "the tooltip carries the complete value");
-        const auto twin = bed.Paint(unmarked, name, 0u, column);
-        const RECT text = bed.TextPixels(0u, column);
-        const RECT cell = bed.CellPixels(0u, column);
-        // Clipping: nothing the cell painted lies outside its own rectangle, whatever the neighbour shows.
-        for (const auto* capture : {&withMarker, &twin})
+        const auto twin     = bed.Paint(unmarked, name, 0u, column);
+        const auto intended = bed.Paint(intendedDirection, name, 0u, column);
+        const auto opposite = bed.Paint(oppositeDirection, name, 0u, column);
+        const RECT text     = bed.TextPixels(0u, column);
+        const RECT cell     = bed.CellPixels(0u, column);
+        // Clipping: neither the omission nor either literal reference paints into its neighbour or outside the row.
+        for (const auto* capture : {&omitted, &twin, &intended, &opposite})
         {
             const Difference ink = MeasureDifference(*capture, emptyCell);
             Require(ink.pixels > 0u, "the cell paints its text");
             Require(ink.left >= text.left - 1 && ink.right <= text.right && ink.top >= cell.top && ink.bottom < cell.bottom,
                     "the cell's ink stays inside its text rectangle");
         }
-        Placement placement;
-        LONG left = LONG_MAX;
-        for (LONG y = text.top; y < text.bottom; ++y)
-            for (LONG x = text.left; x < text.right; ++x)
-                if (PixelAt(twin, x, y) != PixelAt(emptyCell, x, y))
-                {
-                    left                = (std::min)(left, x);
-                    placement.twinRight = (std::max)(placement.twinRight, x);
-                }
-        Require(left < placement.twinRight, "the unmarked twin paints its text");
-        const LONG margin = static_cast<LONG>(bed.window.Host().DipsToPixels(3.0f));
-        for (LONG y = text.top; y < text.bottom; ++y)
-            for (LONG x = text.left; x < text.right; ++x)
-                if (PixelAt(withMarker, x, y) != PixelAt(twin, x, y))
-                {
-                    if (x + margin < placement.twinRight)
-                        ++placement.shiftedInk;
-                    else if (x > placement.twinRight)
-                        ++placement.markerAfter;
-                }
-        std::cout << "Grid omission marker in a right-to-left grid (" << name << "): twin ink " << left << ".." << placement.twinRight << ", changed inside "
-                  << placement.shiftedInk << ", changed after " << placement.markerAfter << '\n';
-        return placement;
+        Require(MeasureDifference(omitted, twin, text).pixels > 0u, "the omission marker adds visible ink to the unmarked twin");
+        RequireIdentical(omitted, intended, text, std::format("{} omission matches the explicit marker in its text direction", name));
+        const Difference wrongDirection = MeasureDifference(opposite, intended, text);
+        if (oppositeMustDiffer)
+        {
+            Require(wrongDirection.pixels > 0u, "the opposite-direction marker reference visibly differs");
+            Require(MeasureDifference(omitted, opposite, text).pixels > 0u, "the omission does not match the opposite-direction reference");
+        }
+        std::cout << "Grid omission marker in a right-to-left grid (" << name << "): opposite-direction reference differs in " << wrongDirection.pixels
+                  << " pixels\n";
     };
-    const Placement latinPlacement = measure(0u, latin, latinTwin, "Latin text");
-    Require(latinPlacement.shiftedInk == 0u && latinPlacement.markerAfter > 0u, "a Latin omission marker follows the text on its right");
-    const Placement arabicPlacement = measure(1u, arabic, arabicTwin, "Arabic text");
-    Require(arabicPlacement.shiftedInk > 0u, "an Arabic omission marker sits at the left end, where that text reads to");
-    const Placement emojiPlacement = measure(1u, arabicEmoji, arabicEmojiTwin, "Arabic text ending in an emoji");
-    Require(emojiPlacement.shiftedInk > 0u, "an Arabic omission marker after an emoji still sits at the left end");
+    measure(0u, latin, latinTwin, latinExpected, latinOpposite, true, "Latin text");
+    measure(1u, arabic, arabicTwin, arabicExpected, arabicOpposite, false, "Arabic text");
+    measure(1u, arabicEmoji, arabicEmojiTwin, emojiExpected, emojiOpposite, false, "Arabic text ending in an emoji");
 }
 
 // The lines DirectWrite breaks `value` into at the width the grid lays a cell out at, as the grid measures them (same text format,

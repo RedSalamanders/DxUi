@@ -278,7 +278,12 @@ Invoke-FixtureGit $baseWork @('push', '-q', 'origin', 'main')
 function Copy-GalleryRepository([string] $Root) {
     Copy-Item -LiteralPath $baseWork -Destination (Join-Path $Root 'work') -Recurse
     Copy-Item -LiteralPath $baseOrigin -Destination (Join-Path $Root 'origin.git') -Recurse
-    return [pscustomobject]@{ Work = (Join-Path $Root 'work'); Origin = (Join-Path $Root 'origin.git') }
+    $work = Join-Path $Root 'work'
+    $origin = Join-Path $Root 'origin.git'
+    # Publication is PR-only: start each fixture on an isolated review branch, never on main.
+    Invoke-FixtureGit $work @('checkout', '-q', '-b', 'codex/gallery-fixture')
+    Invoke-FixtureGit $work @('push', '-q', '--set-upstream', 'origin', 'HEAD')
+    return [pscustomobject]@{ Work = $work; Origin = $origin; Branch = 'codex/gallery-fixture' }
 }
 
 function Invoke-CommitGallery([string] $Root, [switch] $NoPush) {
@@ -308,8 +313,8 @@ Invoke-FixtureCase 'a regenerated sheet is committed and pushed with the gallery
     Assert-Equal 'docs: regenerate the control gallery' $shown[0] 'commit message'
     Assert-Equal 'docs/gallery/generation.json docs/gallery/light.png' (($shown | Select-Object -Skip 1 | Where-Object { $_ } | Sort-Object) -join ' ') 'the commit holds the gallery files that changed and nothing else'
     Assert-Equal ' M src/Code.cpp' (Get-FixtureGit $repo.Work @('status', '--porcelain'))[0] 'the source edit stays uncommitted'
-    Assert-Equal (Get-Head $repo.Work) (Get-Head $repo.Origin 'main') 'the branch was pushed'
-    Assert-True ($before -cne (Get-Head $repo.Origin 'main')) 'and moved'
+    Assert-Equal (Get-Head $repo.Work) (Get-Head $repo.Origin $repo.Branch) 'the review branch was pushed'
+    Assert-True ($before -cne (Get-Head $repo.Origin $repo.Branch)) 'and moved'
 }
 
 Invoke-FixtureCase 'a new generation receipt or an identical rewrite alone is not a change' {
@@ -325,7 +330,7 @@ Invoke-FixtureCase 'a new generation receipt or an identical rewrite alone is no
     Assert-True (-not $result.Failed) "the run passes: $($result.Output)"
     Assert-True $result.Output.Contains('already current') "reported as a no-op: $($result.Output)"
     Assert-Equal $before (Get-Head $repo.Work) 'no commit'
-    Assert-Equal $before (Get-Head $repo.Origin 'main') 'nothing pushed'
+    Assert-Equal $before (Get-Head $repo.Origin $repo.Branch) 'nothing pushed'
 }
 
 Invoke-FixtureCase 'a changed index or README is committed even when no sheet changed' {
@@ -346,25 +351,25 @@ Invoke-FixtureCase 'the push is never forced' {
     $repo = Copy-GalleryRepository $root
     # Someone else's commit lands on the branch after this checkout was made: push one, then take this checkout back.
     Invoke-FixtureGit $repo.Work @('commit', '-q', '--allow-empty', '-m', 'meanwhile')
-    Invoke-FixtureGit $repo.Work @('push', '-q', 'origin', 'main')
-    $theirs = Get-Head $repo.Origin 'main'
+    Invoke-FixtureGit $repo.Work @('push', '-q', 'origin', $repo.Branch)
+    $theirs = Get-Head $repo.Origin $repo.Branch
     Invoke-FixtureGit $repo.Work @('reset', '-q', '--hard', 'HEAD~1')
     Set-FixtureBytes $repo.Work 'docs/gallery/light.png' ([byte[]](0x89, 0x50, 7, 7, 7))
     $result = Invoke-CommitGallery $repo.Work
     Assert-True $result.Failed 'the run fails'
     Assert-True $result.Output.Contains('no force push was attempted') "and says so: $($result.Output)"
-    Assert-Equal $theirs (Get-Head $repo.Origin 'main') 'the other commit is intact on the remote'
+    Assert-Equal $theirs (Get-Head $repo.Origin $repo.Branch) 'the other commit is intact on the remote'
 }
 
 Invoke-FixtureCase 'nothing is pushed when asked not to' {
     param($root)
     $repo = Copy-GalleryRepository $root
-    $before = Get-Head $repo.Origin 'main'
+    $before = Get-Head $repo.Origin $repo.Branch
     Set-FixtureBytes $repo.Work 'docs/gallery/dark.png' ([byte[]](0x89, 0x50, 8, 8, 8))
     $result = Invoke-CommitGallery $repo.Work -NoPush
     Assert-True (-not $result.Failed) "the run passes: $($result.Output)"
     Assert-True ((Get-Head $repo.Work) -cne $before) 'committed locally'
-    Assert-Equal $before (Get-Head $repo.Origin 'main') 'and not pushed'
+    Assert-Equal $before (Get-Head $repo.Origin $repo.Branch) 'and not pushed'
 }
 
 Invoke-TestCase 'the gallery workflow publishes only on manual dispatch, with the safeguards of the formatting workflow' {

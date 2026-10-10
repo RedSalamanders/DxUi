@@ -38,7 +38,7 @@ if (-not $summaryPath -or -not (Test-Path -LiteralPath $summaryPath -PathType Le
 
 $reportsDirectory = Split-Path -Parent $summaryPath
 try { $summary = Read-GateJson $summaryPath } catch { Stop-WithoutVerdict "summary.json could not be read, so there is no verdict: $($_.Exception.Message)" }
-$conclusion = Get-BenchmarkConclusion -Summary $summary -ReportsDirectory $reportsDirectory -StrictControls:$StrictControls
+$conclusion = Get-BenchmarkConclusion -Summary $summary -ReportsDirectory $reportsDirectory -StrictControls:$StrictControls -RequireQualifiedPolicy:$Gate
 $trigger = switch ($env:GITHUB_EVENT_NAME) {
     'pull_request' { "pull request merge ref ($($env:GITHUB_REF))" }
     'workflow_dispatch' { "manual dispatch on $($env:GITHUB_REF_NAME)" }

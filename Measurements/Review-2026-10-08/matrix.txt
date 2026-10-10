@@ -1,0 +1,497 @@
+[
+  {
+    "profile": "Debug",
+    "suite": "Foundation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:46:42.2749166Z",
+    "executableSha256": "7B3E6FAA59439FAAE04682D4F6D3520FC0C48EA62F85C217B10135EC80F2248E",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Embedded",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:10.6887415Z",
+    "executableSha256": "6140E1E3CD31480AA30FB4B8EFCCD36BF50D5D68438FDA6BD8C1664EE39C32B2",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Grid",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:13.7411918Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Theme",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:13.7839562Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Control",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:14.1384019Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "MenuExitLifetime",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:14.4876943Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "NewControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:22.9948589Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": [
+      "SKIPPED: DxUi window-host UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control grid row UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi element SetFocus announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi reactivation announcements require an interactive desktop",
+      "SKIPPED: DxUi foreground focus announcements require an interactive desktop",
+      "SKIPPED: the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane",
+      "SKIPPED: plain-menu half-pixel layout case requires a 125% or 175% monitor",
+      "SKIPPED: the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane"
+    ]
+  },
+  {
+    "profile": "Debug",
+    "suite": "EditorControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:28.3027063Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "TextField",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:31.774445Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "MultilineText",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:36.094373Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "ReadOnly",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:38.6998027Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "ComboBox",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:39.7206686Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Tree",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:40.5091433Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Tooltip",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:47:41.4420506Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Rendering",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:48:03.6593282Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Animation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:48:04.6978412Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "Accessibility",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:45:27.6710128Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "WindowHost",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:48:09.360113Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Debug",
+    "suite": "InteractiveLease",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:48:09.4233255Z",
+    "executableSha256": "E9E013F944A935FF120A94116A08D401699F77591B2969479DF5D35C04179F8F",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Foundation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:48:45.0241948Z",
+    "executableSha256": "DAAADF5EF7F07CC0A3506D61084C901312249608732AD877E8EA0B72B282B111",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Embedded",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:13.0862305Z",
+    "executableSha256": "4BEF3D44F36FFDEE1B3E49827C16C795B5D33AA0DE4855E83B59076D0F37D51F",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Grid",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:13.9743226Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Theme",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:14.0122464Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Control",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:14.3461991Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "MenuExitLifetime",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:14.7071385Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "NewControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:23.5049603Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": [
+      "SKIPPED: DxUi window-host UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control grid row UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi element SetFocus announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi reactivation announcements require an interactive desktop",
+      "SKIPPED: DxUi foreground focus announcements require an interactive desktop",
+      "SKIPPED: the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane",
+      "SKIPPED: plain-menu half-pixel layout case requires a 125% or 175% monitor",
+      "SKIPPED: the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane"
+    ]
+  },
+  {
+    "profile": "Release",
+    "suite": "EditorControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:28.7595099Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "TextField",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:32.469284Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "MultilineText",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:36.8608937Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "ReadOnly",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:39.5203721Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "ComboBox",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:40.532434Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Tree",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:41.2773944Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Tooltip",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:49:42.2497133Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Rendering",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:50:03.649744Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Animation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:50:04.6961447Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "Accessibility",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:45:25.6195753Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "WindowHost",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:50:10.0430899Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "Release",
+    "suite": "InteractiveLease",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:50:10.0969292Z",
+    "executableSha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Foundation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:08.5169675Z",
+    "executableSha256": "F96A4ADD8772B8B1BF2671A77D34FDAB4A45730DA3D3BB4B380D7AB8C35BA97B",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Embedded",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:40.1661413Z",
+    "executableSha256": "21A2FAA1A50CD1B5519BB6BCD448C8DADA4EFF20BFD66F8CA22424C9DCFC5EA5",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Grid",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:48.6888883Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Theme",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:48.7794888Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Control",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:49.8663573Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "MenuExitLifetime",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:51:50.9816584Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "NewControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:06.1339168Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": [
+      "SKIPPED: DxUi window-host UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control tree item UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi single-control grid row UIA focus changes require an interactive desktop",
+      "SKIPPED: DxUi element SetFocus announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi click activation announcements require an interactive desktop",
+      "SKIPPED: DxUi reactivation announcements require an interactive desktop",
+      "SKIPPED: DxUi foreground focus announcements require an interactive desktop",
+      "SKIPPED: the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane",
+      "SKIPPED: plain-menu half-pixel layout case requires a 125% or 175% monitor",
+      "SKIPPED: the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane"
+    ]
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "EditorControls",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:17.0480132Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "TextField",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:24.9997088Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "MultilineText",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:35.0840476Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "ReadOnly",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:41.1542705Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "ComboBox",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:43.6837255Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Tree",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:45.7808609Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Tooltip",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:52:47.8801979Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Rendering",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:53:37.3755642Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Animation",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:53:39.3197683Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "Accessibility",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:45:45.3365879Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "WindowHost",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:53:47.9517426Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  },
+  {
+    "profile": "ASan Debug",
+    "suite": "InteractiveLease",
+    "exitCode": 0,
+    "completedUtc": "2026-10-09T00:53:48.0572944Z",
+    "executableSha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD",
+    "skips": []
+  }
+]

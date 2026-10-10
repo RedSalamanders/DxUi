@@ -38,6 +38,7 @@
 
 struct IRawElementProviderFragmentRoot;
 struct ITextStoreACP;
+struct ITfThreadMgrEventSink;
 
 namespace DxUi
 {
@@ -275,8 +276,8 @@ struct MenuFlyoutItem
     // Optional literal description below the primary label. Standard/Toggle/Radio/Info
     // rows wrap both fields at the available menu width and grow to fit their text.
     std::wstring secondaryText;
-    // Complete spoken identity of the entry's UIA element; empty uses the decoded label, followed by
-    // the secondary text when there is one.
+    // Concise spoken identity of the entry's UIA element; empty uses the decoded label.
+    // Include a path here when it distinguishes commands. The secondary text is exposed through HelpText.
     std::wstring accessibleName;
 };
 
@@ -335,6 +336,12 @@ enum class ContextMenuRootVerticalPlacement
     Above,
 };
 
+enum class FlowDirection : uint8_t
+{
+    LeftToRight,
+    RightToLeft,
+};
+
 struct ContextMenuSessionCallbacks
 {
     std::function<std::optional<ContextMenuRootSwitchRequest>(POINT screenPoint)> switchRootFromPointer;
@@ -343,6 +350,7 @@ struct ContextMenuSessionCallbacks
     std::function<std::optional<ContextMenuRootSwitchRequest>(size_t hoverIndex, std::uintptr_t sequence)> switchRootFromMenuBarHover;
     ContextMenuRootHorizontalAlignment rootHorizontalAlignment = ContextMenuRootHorizontalAlignment::Start;
     ContextMenuRootVerticalPlacement rootVerticalPlacement     = ContextMenuRootVerticalPlacement::Below;
+    FlowDirection flowDirection                                = FlowDirection::LeftToRight;
     float minRootWidthDip                                      = 0.0f;
     float maxRootHeightDip                                     = 0.0f;
     bool focusFirstNavigableItem                               = false;
@@ -475,6 +483,8 @@ struct WindowHostBitmapCapture;
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
 [[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Fail one optional description preparation after primary text/resources remain available; zero disables the hook.
+void DebugFailContextMenuDescriptionPreparationForTest(size_t rowIndexPlusOne) noexcept;
 // Called on the menu's thread just before its modal loop peeks a popup's own messages (`message`: WM_PAINT, or the state
 // probes' message), with that popup's window. PeekMessageW runs the handlers of messages other threads sent, which can open
 // or close a submenu while the loop walks the popup chain; a test does the same from the hook. Null clears it.
@@ -532,12 +542,6 @@ enum class PointerDevice : uint8_t
 // anything else is the mouse. An application that forwards its own window's mouse messages to an EmbeddedHost fills
 // PointerEvent::device with it.
 [[nodiscard]] PointerDevice PointerDeviceFromMessageExtraInfo(LPARAM extraInfo) noexcept;
-
-enum class FlowDirection : uint8_t
-{
-    LeftToRight,
-    RightToLeft,
-};
 
 enum class Density : uint8_t
 {
@@ -1351,6 +1355,8 @@ public:
 };
 
 class Grid;
+class Tree;
+class NativeTextStoreTarget;
 
 class IGridDelegate
 {
@@ -1360,6 +1366,7 @@ public:
     virtual void OnGridSortRequested(const GridSortSpec& sortSpec);
     virtual void OnGridSelectionChanged(Grid& sender);
     virtual void OnGridSelectionChanged();
+    virtual void OnGridFocusedRowChanged(Grid& sender, std::optional<uint64_t> rowId);
     virtual void OnGridCheckboxToggled(Grid& sender, size_t rowIndex, size_t columnIndex, bool checked);
     virtual void OnGridCheckboxToggled(size_t rowIndex, size_t columnIndex, bool checked);
     virtual void OnGridRowActivated(Grid& sender, size_t rowIndex);
@@ -1402,15 +1409,15 @@ class ITreeDelegate
 public:
     virtual ~ITreeDelegate() = default;
 
-    // A user gesture (pointer, keyboard, typeahead or UI Automation) made `itemId` the selected item. With
-    // Tree::SetMultiSelectEnabled(true) it is the focused (current) item, which Ctrl+click or Ctrl+Space may have just
-    // deselected: read the selection from OnTreeSelectionSetChanged.
+    // Membership changed to a nonempty selection. `itemId` is the primary selected member returned by
+    // GetSelectedItemId; focus-only navigation uses OnTreeFocusedItemChanged instead.
     virtual void OnTreeSelectionChanged(uint64_t itemId);
+    virtual void OnTreeFocusedItemChanged(Tree& sender, std::optional<uint64_t> itemId);
     virtual void OnTreeItemInvoked(uint64_t itemId);
     virtual void OnTreeToggleExpanded(uint64_t itemId, bool expanded);
     virtual void OnTreeContextMenu(uint64_t itemId, POINT screenPoint);
     virtual void OnTreeReorder(const TreeDrop& drop);
-    // Only with Tree::SetMultiSelectEnabled(true): the set of selected items changed, once per change, after
+    // In either selection mode: the set of selected items changed, once per change, after
     // OnTreeSelectionChanged for the same gesture and after a model change (`NotifyDataChanged`, `SetModel`) dropped
     // selected items. `selectedItemIds` lists the selection in visible order and is valid during the call only.
     virtual void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds);
@@ -1448,6 +1455,7 @@ public:
     // which does not grow with the selection and, whatever order the ids asked about come in, is never slower than the scan.
     [[nodiscard]] bool IsSelected(uint64_t rowId) const noexcept;
     [[nodiscard]] std::optional<uint64_t> GetAnchor() const noexcept;
+    void SetAnchor(std::optional<uint64_t> rowId) noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
 
@@ -1571,15 +1579,19 @@ public:
     void SetAccessibilityRole(AccessibilityRole role) noexcept;
     [[nodiscard]] AccessibilityRole GetAccessibilityRole() const noexcept;
     void SetAccessibleInvoke(std::function<void(ControlHost&)> onInvoke);
+    void SetAccessibleInvokeResult(std::function<HRESULT(ControlHost&)> onInvoke);
     [[nodiscard]] bool SupportsAccessibleInvoke() const noexcept;
     bool InvokeAccessible(ControlHost& host);
+    HRESULT InvokeAccessibleResult(ControlHost& host) noexcept;
     void SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboardInvocation)> onContextMenu);
 
 protected:
     friend class Panel;
+    friend struct ControlModelQueryAccess;
     friend class PageHost;
     friend class ScrollPanel;
     friend class ControlHost;
+    friend class NativeTextStoreTarget;
     friend class EmbeddedHost;
     friend std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
@@ -1600,7 +1612,7 @@ protected:
     }
     virtual void PropagateHost(ControlHost* host) noexcept;
     void SetParent(Panel* parent) noexcept;
-    // Puts the control under `parent` (none for a host's root or a page) in `host`, then announces the flow direction
+    // Puts the control under `parent` (none for a host root) in `host`, then announces the flow direction
     // and density it now inherits (OnFlowDirectionChanged, OnDensityChanged) if they differ from before, as a parent's
     // own change is announced to its children. Nothing is announced when they do not differ.
     void Reparent(Panel* parent, ControlHost* host) noexcept;
@@ -1627,7 +1639,9 @@ protected:
     virtual bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange);
 
 private:
-    Panel* _parent      = nullptr;
+    // A host snapshots these before reset callbacks can retire the old parent chain.
+    void ReparentWithPreviousInheritance(Control* parent, ControlHost* host, FlowDirection previousFlowDirection, Density previousDensity) noexcept;
+    Control* _parent    = nullptr;
     ControlHost* _host  = nullptr;
     D2D1_RECT_F _bounds = D2D1::RectF();
     bool _visible       = true;
@@ -1638,14 +1652,16 @@ private:
     wchar_t _mnemonic   = L'\0';
     std::optional<FlowDirection> _explicitFlowDirection;
     std::optional<Density> _explicitDensity;
+    std::optional<FlowDirection> _detachedFlowDirection;
+    std::optional<Density> _detachedDensity;
     std::wstring _connectedAnimationKey;
     std::wstring _tooltipText;
     std::wstring _accessibleName;
     std::wstring _accessibleHelpText;
     std::wstring _accessibleAutomationId;
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
-    std::function<void(ControlHost&)> _onAccessibleInvoke;
-    std::function<void(POINT screenPoint, bool keyboardInvocation)> _onContextMenu;
+    std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
+    std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
 };
 
@@ -1656,20 +1672,50 @@ public:
 
     template <typename TControl, typename... TArgs> TControl* AddChild(TArgs&&... args)
     {
-        auto child = std::make_unique<TControl>(std::forward<TArgs>(args)...);
-        auto* raw  = child.get();
+        const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+        auto child                             = std::make_unique<TControl>(std::forward<TArgs>(args)...);
+        auto* raw                              = child.get();
+        if (ownerLifetime.expired())
+        {
+            return nullptr;
+        }
+        const std::weak_ptr<int> childLifetime = GetControlLifetimeToken(*raw);
         raw->SetParent(this);
+        if (ownerLifetime.expired())
+        {
+            if (childLifetime.expired())
+            {
+                static_cast<void>(child.release());
+                return nullptr;
+            }
+
+            static_cast<Control*>(raw)->_parent = nullptr;
+            static_cast<Control*>(raw)->PropagateHost(nullptr);
+            if (childLifetime.expired())
+            {
+                static_cast<void>(child.release());
+            }
+            return nullptr;
+        }
+        if (childLifetime.expired())
+        {
+            static_cast<void>(child.release());
+            return nullptr;
+        }
         _children.push_back(std::move(child));
         return raw;
     }
 
     virtual void ClearChildren() noexcept;
+    // Transfer ownership through this API. It leaves a null slot, detaches the child and retains inherited settings.
+    // Returns empty if an interaction callback moves the owner to another host or restores branch focus/capture.
+    [[nodiscard]] virtual std::unique_ptr<Control> TakeChild(size_t index) noexcept;
     [[nodiscard]] size_t DebugChildCount() const noexcept
     {
         return _children.size();
     }
-    // The owning pointers. A child moved out of the span (to give it to ControlHost::SetRoot or PageHost::SetPage) leaves
-    // a null slot that every panel operation skips; do it while the panel and the child's host still exist.
+    // Legacy owning access retained for source compatibility. Prefer TakeChild; arbitrary slot rearrangement is unsupported.
+    // TabControl pages must use TakeTab/TakeChild so page metadata remains coherent.
     [[nodiscard]] std::span<std::unique_ptr<Control>> GetChildren() noexcept;
     [[nodiscard]] std::span<const std::unique_ptr<Control>> GetChildren() const noexcept;
     [[nodiscard]] size_t GetLogicalChildCount() const noexcept override;
@@ -1681,6 +1727,7 @@ public:
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;
 
 protected:
+    static void DetachChildPreservingInheritance(Control& child) noexcept;
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
@@ -1736,6 +1783,7 @@ protected:
     void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
+    friend class ControlHost;
     struct TransitionState final
     {
         bool active                = false;
@@ -1752,7 +1800,7 @@ private:
     };
 
     void SyncChildBounds() noexcept;
-    void FinishTransition() noexcept;
+    [[nodiscard]] bool FinishTransition() noexcept;
     [[nodiscard]] PageHostDebugState ResolveDebugState(const ThemePalette& theme, uint64_t nowTickMs) const noexcept;
     void PaintPage(ControlHost& host, const Control* page, float opacity, float offsetXDip) const;
 
@@ -1762,6 +1810,7 @@ private:
 
     std::unique_ptr<Control> _currentPage;
     std::unique_ptr<Control> _outgoingPage;
+    bool _childBoundsPending = false;
     TransitionState _transition;
 };
 
@@ -1888,8 +1937,8 @@ private:
     static constexpr float _dropDownChevronWidthDip           = kButtonDropDownChevronWidthDip;
     static constexpr float _splitDropDownWidthDip             = kButtonSplitDropDownSegmentDip;
     std::wstring _text;
-    std::function<void()> _onClick;
-    std::function<void()> _onDropDownClick;
+    std::shared_ptr<const std::function<void()>> _onClick;
+    std::shared_ptr<const std::function<void()>> _onDropDownClick;
     InteractionTransitionState _hoverTransition{};
     InteractionTransitionState _focusTransition{};
     DisclosureTransitionState _disclosureTransition{};
@@ -1926,7 +1975,7 @@ private:
 
     std::wstring _uncheckedText;
     std::wstring _checkedText;
-    std::function<void(bool)> _onToggled;
+    std::shared_ptr<const std::function<void(bool)>> _onToggled;
     bool _checked = false;
 };
 
@@ -1967,7 +2016,7 @@ public:
 private:
     void SelectSelf(ControlHost& host);
 
-    std::function<void()> _onSelected;
+    std::shared_ptr<const std::function<void()>> _onSelected;
     RadioButtons* _group = nullptr;
     bool _checked        = false;
 };
@@ -1989,7 +2038,7 @@ private:
     friend class RadioButton;
     void SelectItem(RadioButton* item);
 
-    std::function<void(int)> _onSelectionChanged;
+    std::shared_ptr<const std::function<void(int)>> _onSelectionChanged;
     std::wstring _header;
     int _selectedIndex = -1;
 };
@@ -2065,7 +2114,7 @@ private:
     void SelectIndex(ControlHost& host, uint32_t index);
     void RefreshAccessibleName() noexcept;
 
-    std::function<void(uint32_t)> _onSelected;
+    std::shared_ptr<const std::function<void(uint32_t)>> _onSelected;
     uint32_t _pageCount     = 0;
     uint32_t _selectedIndex = 0;
     uint32_t _pressedIndex  = UINT32_MAX;
@@ -2285,6 +2334,7 @@ private:
     [[nodiscard]] double GetDisplayedNormalizedValue() const noexcept;
     void SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept;
     void SnapDisplayedValue() noexcept;
+    void PublishRangeState() noexcept;
     void BeginValueAnimation(ControlHost& host, double fromValue, double toValue) noexcept;
     [[nodiscard]] bool AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexcept;
     void BeginVisualTransition(ControlHost& host, VisualTransitionState& transition, float target) noexcept;
@@ -2304,9 +2354,9 @@ private:
     void UpdateValueFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
 
     void NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept;
-    std::function<void(SliderChange)> _onChange;
+    std::shared_ptr<const std::function<void(SliderChange)>> _onChange;
     double _dragInitialValue = 0.0;
-    std::function<void(double)> _onValueChanged;
+    std::shared_ptr<const std::function<void(double)>> _onValueChanged;
     std::vector<double> _tickMarks;
     double _minimum                     = 0.0;
     double _maximum                     = 100.0;
@@ -2413,8 +2463,8 @@ private:
     void InvalidateIfInteractive(ControlHost& host) noexcept;
 
     std::vector<MenuBarItem> _items;
-    OpenItemCallback _onOpenItem;
-    HoverChangedCallback _onHoverChanged;
+    std::shared_ptr<const OpenItemCallback> _onOpenItem;
+    std::shared_ptr<const HoverChangedCallback> _onHoverChanged;
     std::optional<size_t> _hoveredIndex;
     std::optional<size_t> _selectedIndex;
     std::optional<size_t> _pressedIndex;
@@ -2440,18 +2490,30 @@ public:
 
     template <typename TControl, typename... TArgs> TControl* AddTab(std::wstring title, TArgs&&... args)
     {
-        auto* child = AddChild<TControl>(std::forward<TArgs>(args)...);
+        const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+        auto* child                            = AddChild<TControl>(std::forward<TArgs>(args)...);
+        if (ownerLifetime.expired() || ! child)
+        {
+            return nullptr;
+        }
+        const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*child);
         _tabs.push_back(TabItem{.title = std::move(title)});
         InvalidateTabHeaderLayoutCache();
         if (! _selectedIndex.has_value())
         {
             _selectedIndex = _tabs.size() - 1u;
         }
-        SyncLayout();
+        if (! SyncLayout() || ownerLifetime.expired() || pageLifetime.expired() || ! FindTabIndex(child, pageLifetime))
+        {
+            return nullptr;
+        }
         return child;
     }
 
     void RemoveTab(size_t index) noexcept;
+    [[nodiscard]] std::unique_ptr<Control> TakeTab(size_t index) noexcept;
+    [[nodiscard]] std::unique_ptr<Control> TakeChild(size_t index) noexcept override;
+    void ClearChildren() noexcept override;
     void SetTabTitle(size_t index, std::wstring title);
     [[nodiscard]] std::wstring_view GetTabTitle(size_t index) const noexcept;
     void SetTabTooltip(size_t index, std::wstring tooltipText);
@@ -2532,7 +2594,13 @@ private:
         std::vector<D2D1_RECT_F> tabRects;
     };
 
-    void SyncLayout() noexcept;
+    [[nodiscard]] bool SyncLayout() noexcept;
+    [[nodiscard]] bool UpdateVisiblePageBounds() noexcept;
+    [[nodiscard]] std::optional<size_t> FindTabIndex(const Control* page, const std::weak_ptr<int>& pageLifetime) const noexcept;
+    [[nodiscard]] bool RemoveTabByIdentity(Control* page,
+                                           const std::weak_ptr<int>& pageLifetime,
+                                           size_t& removedIndex,
+                                           std::unique_ptr<Control>* takenPage = nullptr) noexcept;
     void EnsureSelectedTabVisible() noexcept;
     void InvalidateTabHeaderLayoutCache() const noexcept;
     void InvalidateTabTitleMeasurements() const noexcept;
@@ -2559,14 +2627,13 @@ private:
     void CloseTab(ControlHost& host, size_t index) noexcept;
     void ReorderTab(size_t fromIndex, size_t toIndex) noexcept;
     void UpdateDragReorder(ControlHost& host, D2D1_POINT_2F point) noexcept;
-    void UpdateVisiblePageBounds() noexcept;
     void PaintHeaderDivider(ControlHost& host) const noexcept;
 
     std::vector<TabItem> _tabs;
-    std::function<void(size_t)> _onSelectionChanged;
-    std::function<bool(size_t)> _onTabCloseRequested;
-    std::function<void(size_t)> _onTabClosed;
-    std::function<void(size_t, size_t)> _onTabReordered;
+    std::shared_ptr<const std::function<void(size_t)>> _onSelectionChanged;
+    std::shared_ptr<const std::function<bool(size_t)>> _onTabCloseRequested;
+    std::shared_ptr<const std::function<void(size_t)>> _onTabClosed;
+    std::shared_ptr<const std::function<void(size_t, size_t)>> _onTabReordered;
     std::optional<size_t> _selectedIndex;
     std::optional<size_t> _hoveredTabIndex;
     std::optional<size_t> _pressedTabIndex;
@@ -2596,7 +2663,7 @@ public:
 
 private:
     std::optional<uint32_t> _swatchArgb;
-    std::function<void()> _onClick;
+    std::shared_ptr<const std::function<void()>> _onClick;
     bool _pressed = false;
 };
 
@@ -2739,10 +2806,10 @@ private:
 
     std::wstring _text;
     std::wstring _placeholder;
-    std::function<void(std::wstring_view)> _onTextChanged;
-    std::function<void()> _onSubmitted;
-    std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)> _onPreviewKeyDown;
-    std::function<void()> _onBlur;
+    std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
+    std::shared_ptr<const std::function<void()>> _onSubmitted;
+    std::shared_ptr<const std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)>> _onPreviewKeyDown;
+    std::shared_ptr<const std::function<void()>> _onBlur;
     size_t _caretIndex = 0;
     std::optional<size_t> _selectionAnchorIndex;
     std::optional<float> _preferredMultilineXOffsetDip;
@@ -2902,7 +2969,7 @@ private:
     [[nodiscard]] bool DeleteEditableSelection() noexcept;
     void SelectAllEditableText() noexcept;
     void SelectEditableWordAt(size_t hitIndex) noexcept;
-    void NotifyTextChanged() const;
+    [[nodiscard]] bool NotifyTextChanged() const;
     void RefreshAccessibilitySnapshot() const noexcept;
     [[nodiscard]] EditHistoryState CaptureEditHistoryState() const;
     void RestoreEditHistoryState(const EditHistoryState& state) noexcept;
@@ -2945,10 +3012,10 @@ private:
     std::wstring _text;
     std::wstring _placeholder;
     std::wstring _noMatchesText;
-    std::function<void(std::wstring_view)> _onTextChanged;
-    std::function<void(size_t)> _onSelectionChanged;
-    std::function<void()> _onSubmitted;
-    std::function<bool()> _onPopupRequested;
+    std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
+    std::shared_ptr<const std::function<void(size_t)>> _onSelectionChanged;
+    std::shared_ptr<const std::function<void()>> _onSubmitted;
+    std::shared_ptr<const std::function<bool()>> _onPopupRequested;
     std::wstring _typeaheadBuffer;
     std::vector<EditHistoryState> _undoHistory;
     std::vector<EditHistoryState> _redoHistory;
@@ -3031,7 +3098,7 @@ private:
     void LayoutParts() noexcept;
     [[nodiscard]] float ComputePreferredHeightDip(float widthDip, const ControlHost* host) const noexcept;
     [[nodiscard]] float MeasureDisplayTagWidthDip(const DisplayTag& tag, float rowHeightDip, const ControlHost* host) const noexcept;
-    void NotifySelectionChanged();
+    [[nodiscard]] bool NotifySelectionChanged();
     [[nodiscard]] bool ContainsOption(std::wstring_view value) const noexcept;
     [[nodiscard]] bool ContainsSelectedValue(std::wstring_view value) const noexcept;
     [[nodiscard]] bool IsAllSelectionActive() const noexcept;
@@ -3046,7 +3113,7 @@ private:
     std::vector<DisplayTag> _displayTags;
     std::vector<D2D1_RECT_F> _tagRects;
     std::vector<D2D1_RECT_F> _tagRemoveRects;
-    std::function<void(std::span<const std::wstring>)> _onSelectionChanged;
+    std::shared_ptr<const std::function<void(std::span<const std::wstring>)>> _onSelectionChanged;
     bool _syncingCombo = false;
 };
 
@@ -3154,6 +3221,7 @@ public:
     [[nodiscard]] float GetContentExtent() const noexcept;
 
 private:
+    void OnBoundsChanged() noexcept override;
     void OnFlowDirectionChanged() noexcept override;
     void OnDensityChanged() noexcept override;
 
@@ -3163,6 +3231,7 @@ private:
     float _padTop                 = 0.0f;
     float _padRight               = 0.0f;
     float _padBottom              = 0.0f;
+    uint64_t _layoutRevision      = 0u;
     std::vector<std::pair<const Control*, float>> _childExtents;
 };
 
@@ -3270,20 +3339,25 @@ private:
     [[nodiscard]] D2D1_RECT_F GetScrollbarThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetScrollbarThumbHitRect() const noexcept;
     void ClampScrollOffset() noexcept;
-    void NotifyScrollChanged(float previousOffsetDip) noexcept;
+    [[nodiscard]] bool NotifyScrollChanged(float previousOffsetDip) noexcept;
     [[nodiscard]] D2D1_POINT_2F ToContentSpace(D2D1_POINT_2F viewportPoint) const noexcept;
     Control* FindChildAtContent(D2D1_POINT_2F contentPoint);
     Control* FindOverlayChildAtContent(D2D1_POINT_2F contentPoint);
     [[nodiscard]] const Control* FindOverlayChildAtContent(D2D1_POINT_2F contentPoint) const;
     void UpdateInnerHover(ControlHost& host, D2D1_POINT_2F viewportPoint);
 
-    std::function<void(float)> _onScrollChanged;
+    std::shared_ptr<const std::function<void(float)>> _onScrollChanged;
 };
 
 class TooltipLayer final : public Control
 {
 public:
     bool SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip);
+    bool Inspect(std::wstring text, const D2D1_POINT_2F& originDip);
+    [[nodiscard]] bool IsInspecting() const noexcept;
+    [[nodiscard]] bool IsDismissGestureActive() const noexcept;
+    bool HandleInspectionKey(ControlHost& host, UINT virtualKey) noexcept;
+    bool HandleInspectionPointer(ControlHost& host, UINT message, D2D1_POINT_2F point, float wheelDelta = 0.0f) noexcept;
     bool SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip, uint64_t nowTickMs, uint64_t delayMs);
     bool BeginHideDelay(uint64_t nowTickMs, uint64_t delayMs = 100u) noexcept;
     bool CancelHideDelay() noexcept;
@@ -3293,6 +3367,7 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] std::wstring_view DebugGetPendingTooltipText() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetBoundsDip(const ControlHost& host) const noexcept;
+    [[nodiscard]] bool DebugIsInspectionFinalGlyphVisible(const ControlHost& host) const noexcept;
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -3303,23 +3378,32 @@ private:
     struct LayoutCache final
     {
         wil::com_ptr<IDWriteTextLayout> layout;
-        D2D1_RECT_F bounds       = D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f);
-        D2D1_RECT_F clientBounds = D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f);
-        bool valid               = false;
+        D2D1_RECT_F bounds          = D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f);
+        D2D1_RECT_F clientBounds    = D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f);
+        float textHeightDip         = 0.0f;
+        FlowDirection flowDirection = FlowDirection::LeftToRight;
+        bool valid                  = false;
     };
 
     void InvalidateLayoutCache() noexcept;
     [[nodiscard]] bool EnsureLayoutCache(const ControlHost& host) const noexcept;
     [[nodiscard]] D2D1_RECT_F ComputeBoundsDip(const ControlHost& host) const noexcept;
+    void ScrollInspection(ControlHost& host, float offsetDip) noexcept;
     std::wstring _text;
     std::wstring _pendingText;
     D2D1_POINT_2F _originDip        = D2D1::Point2F();
     D2D1_POINT_2F _pendingOriginDip = D2D1::Point2F();
     mutable LayoutCache _layoutCache{};
-    bool _showScheduled  = false;
-    uint64_t _showTickMs = 0u;
-    bool _hideScheduled  = false;
-    uint64_t _hideTickMs = 0u;
+    mutable float _scrollOffsetDip = 0.0f;
+    bool _inspecting               = false;
+    bool _inspectionDragging       = false;
+    bool _dismissGestureActive     = false;
+    UINT _dismissGestureUpMessage  = 0u;
+    float _inspectionDragY         = 0.0f;
+    bool _showScheduled            = false;
+    uint64_t _showTickMs           = 0u;
+    bool _hideScheduled            = false;
+    uint64_t _hideTickMs           = 0u;
 };
 
 class Tree final : public Control
@@ -3348,7 +3432,7 @@ public:
         return _model;
     }
     // Opt-in multiple selection, off by default: the tree then keeps exactly one selected item, as before. On, it keeps a
-    // set of selected items and, separately, the focused (current) item that GetSelectedItemId reports. Plain click or
+    // set of selected items and, separately, the focused (current) item that GetFocusedItemId reports. Plain click or
     // key selects one item and is the anchor; Ctrl+click toggles one; Shift+click (or Shift with Up, Down, Home, End,
     // Page Up, Page Down) selects the visible range from the anchor; Ctrl with those keys moves the focus alone,
     // Ctrl+Space toggles the focused item and Ctrl+A selects every visible item. The call is silent: enabling starts with
@@ -3358,15 +3442,15 @@ public:
     {
         return _multiSelect;
     }
-    // Single selection: the selected item. Multi-select: the focused (current) item, which need not be selected.
+    // The selected item (the primary member in multi-select); focus is reported separately by GetFocusedItemId.
     // `SetSelectedItemId` is silent and selects that item alone (none clears the selection).
     void SetSelectedItemId(std::optional<uint64_t> itemId) noexcept;
     [[nodiscard]] std::optional<uint64_t> GetSelectedItemId() const noexcept;
-    // The focused (current) item owns the focus ring and is where the keys start. It is the selected item, except with
-    // multi-select, where it may be outside the selection. `SetFocusedItemId` is silent and, with multi-select, moves the
-    // focus alone (UI Automation's SetFocus does); without multi-select it is SetSelectedItemId.
+    // The focused (current) item owns the focus ring and is where the keys start. It may be outside the selection in
+    // either mode. `SetFocusedItemId` is silent and moves focus alone; UIA SetFocus uses the notifying request.
     void SetFocusedItemId(std::optional<uint64_t> itemId) noexcept;
     [[nodiscard]] std::optional<uint64_t> GetFocusedItemId() const noexcept;
+    bool RequestFocusVisibleItem(size_t visibleIndex);
     // The selected items in visible order: the set with multi-select, else the selected item alone or nothing.
     [[nodiscard]] std::vector<uint64_t> GetSelectedItemIds() const;
     [[nodiscard]] bool IsItemSelected(uint64_t itemId) const noexcept;
@@ -3374,9 +3458,10 @@ public:
     // Without multi-select only that last visible item is selected.
     void SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept;
     // Selection by the user's action, as UI Automation does: Select replaces the selection with the item; with
-    // multi-select Add and Remove change only that item's membership (Add also makes it the focused item). Each notifies
-    // the delegate. False for an index that is not a visible row, and for Remove without multi-select; Add without it
-    // selects the item like Select. Each is also false when the tree did not survive the request: its delegate, or a
+    // Add and Remove change only that item's membership, preserve the gesture anchor and succeed idempotently.
+    // In single mode Add refuses a different item while occupied; Remove may clear the optional selection.
+    // Changed membership notifies the selection delegate, and changed focus notifies the focus delegate separately.
+    // False for an invalid, disabled or retired item. Each is also false when the tree did not survive the request: its delegate, or a
     // message dispatched while the tree published the new selection to UI Automation, destroyed it.
     bool RequestSelectVisibleItem(size_t visibleIndex) noexcept;
     bool RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept;
@@ -3482,11 +3567,11 @@ private:
     void ClampScrollOffset() noexcept;
     void UpdateScrollbarHotState(const HitInfo& hit) noexcept;
     void SyncScrollbarAnimation(ControlHost& host) noexcept;
-    [[nodiscard]] std::optional<size_t> FindSelectedVisibleIndex() const noexcept;
+    [[nodiscard]] std::optional<size_t> FindFocusedVisibleIndex() const noexcept;
     void EnsureVisibleIndex(size_t visibleIndex) noexcept;
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
     // Lands a selection gesture on a visible row: updates the focused item and, with multi-select, the selection set by
-    // `mode`, then notifies the delegate (OnTreeSelectionChanged for the focused item, then OnTreeSelectionSetChanged once
+    // `mode`, then notifies the delegate (OnTreeSelectionChanged for changed nonempty membership, then OnTreeSelectionSetChanged once
     // if the set changed). False when the index is not a row, or when the delegate or the accessibility publish that
     // follows it (UI Automation event delivery dispatches messages) destroyed the tree.
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate);
@@ -3518,10 +3603,14 @@ private:
     std::wstring _emptyStateText;
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Tree destruction.
     // Invalidation validated at message entry by PruneStaleInteractionState().
-    ITreeModel* _model       = nullptr;
-    ITreeDelegate* _delegate = nullptr;
+    friend struct ControlModelQueryAccess;
+    uint64_t _modelRevision        = 0u;
+    uint64_t _modelBindingRevision = 0u;
+    ITreeModel* _model             = nullptr;
+    ITreeDelegate* _delegate       = nullptr;
     // The selected item, or with multi-select the focused (current) item.
     std::optional<uint64_t> _selectedItemId;
+    std::optional<uint64_t> _focusedItemId;
     // Multi-select only: the selected items and their anchor. Unused (empty) while `_multiSelect` is off.
     GridSelectionModel _selection;
     bool _multiSelect = false;
@@ -3631,11 +3720,17 @@ public:
     // with the non-owning model pointer so a recycled model address cannot keep an old row provider alive.
     [[nodiscard]] uint64_t GetModelAssignmentGeneration() const noexcept
     {
-        return _modelAssignmentGeneration;
+        return _modelBindingRevision;
     }
 
     [[nodiscard]] GridSelectionModel& GetSelectionModel() noexcept;
     [[nodiscard]] const GridSelectionModel& GetSelectionModel() const noexcept;
+    // Independent keyboard/current-row identity. SetFocusedRowId is silent and preserves selected membership.
+    void SetFocusedRowId(std::optional<uint64_t> rowId) noexcept;
+    [[nodiscard]] std::optional<uint64_t> GetFocusedRowId() const noexcept;
+    bool RequestFocusRow(size_t rowIndex);
+    // Also makes the column current for keyboard navigation and full-cell inspection; preserves selection.
+    bool RequestFocusCell(size_t rowIndex, size_t columnIndex);
     void RefreshAccessibilitySnapshot() const noexcept;
     [[nodiscard]] GridVisibleWorkMetrics GetVisibleWorkMetrics() const;
     [[nodiscard]] GridCellLayoutMetrics GetCellLayoutMetrics(const ControlHost& host, size_t rowIndex, size_t columnIndex) const;
@@ -3718,6 +3813,7 @@ public:
     [[nodiscard]] size_t DebugGetTextLayoutEntryLimit() const noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
+    bool RequestAddRowSelection(size_t rowIndex);
     bool RequestRemoveRowSelection(size_t rowIndex);
     bool RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex);
 
@@ -3797,6 +3893,7 @@ private:
     // False when the selection's delegate, or the accessibility publish that follows it, destroyed this grid, which its
     // caller then leaves alone.
     [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
+    [[nodiscard]] bool NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus);
     [[nodiscard]] std::optional<size_t> ResolveCheckboxToggleColumn(size_t rowIndex) const;
     [[nodiscard]] bool ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex);
     [[nodiscard]] std::optional<size_t> FindNearestVisibleRow(std::span<const GridGroupDesc> groups, size_t preferredRowIndex) const noexcept;
@@ -3902,14 +3999,19 @@ private:
 
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Grid destruction.
     // Invalidation validated at message entry by PruneStaleInteractionState().
-    IGridModel* _model                  = nullptr;
-    uint64_t _modelAssignmentGeneration = 0u;
-    IGridDelegate* _delegate            = nullptr;
+    friend struct ControlModelQueryAccess;
+    uint64_t _modelRevision        = 0u;
+    uint64_t _modelBindingRevision = 0u;
+    IGridModel* _model             = nullptr;
+    IGridDelegate* _delegate       = nullptr;
     mutable std::vector<float> _columnWidths;
     mutable std::vector<size_t> _columnDisplayOrder;
     mutable std::vector<size_t> _columnDisplayIndexByModel;
     mutable std::vector<GridGroupDesc> _cachedGroups;
     GridSelectionModel _selectionModel;
+    // The last selected row in visible/model order is not necessarily the row a Shift range reached.
+    std::optional<uint64_t> _currentRowId;
+    std::optional<size_t> _focusedRowIndex;
     GridSelectionMode _selectionMode = GridSelectionMode::Extended;
     GridVisualMode _visualMode       = GridVisualMode::Standard;
     GridSortSpec _sortSpec{};
@@ -4143,7 +4245,7 @@ private:
     [[nodiscard]] float Extent() const noexcept;
     [[nodiscard]] float PointerAxis(D2D1_POINT_2F point) const noexcept;
 
-    std::function<void(SplitterChange)> _onChange;
+    std::shared_ptr<const std::function<void(SplitterChange)>> _onChange;
     SplitterOrientation _orientation = SplitterOrientation::Vertical;
     float _thicknessDip              = kDefaultThicknessDip;
     float _minimumFirstDip           = kDefaultMinimumPaneDip;
@@ -4230,7 +4332,7 @@ private:
     void ApplyValue(ControlHost* host, double value, NumericStepperChangePhase phase) noexcept;
     void NotifyChange(NumericStepperChangePhase phase) noexcept;
 
-    std::function<void(NumericStepperChange)> _onChange;
+    std::shared_ptr<const std::function<void(NumericStepperChange)>> _onChange;
     TextField* _field  = nullptr;
     Button* _increment = nullptr;
     Button* _decrement = nullptr;
@@ -4381,7 +4483,7 @@ private:
     void UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
     void EnsureBrushes(ControlHost& host) const noexcept;
 
-    std::function<void(ColorPickerChange)> _onChange;
+    std::shared_ptr<const std::function<void(ColorPickerChange)>> _onChange;
     Labels _labels;
     D2D1_RECT_F _hexCaptionRect = D2D1::RectF(); // Arranged beside the hex field; Paint draws the caption there.
     NumericStepper* _red        = nullptr;
@@ -4439,6 +4541,12 @@ public:
     [[nodiscard]] const Control* GetRoot() const noexcept;
 
     bool SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip);
+    // Persistent full-value inspection: keyboard scrolling, wheel or touch drag, Escape/outside press to dismiss.
+    // It uses the existing logical focus and never activates the native window.
+    bool InspectTooltip(std::wstring text, const D2D1_POINT_2F& originDip);
+    [[nodiscard]] bool IsTooltipInspectionActive() const noexcept;
+    bool HandleTooltipInspectionKey(UINT virtualKey) noexcept;
+    bool HandleTooltipInspectionPointer(UINT message, D2D1_POINT_2F point, float wheelDelta = 0.0f) noexcept;
     bool SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip);
     bool BeginTooltipHideDelay(uint64_t delayMs = 100u) noexcept;
     bool ClearTooltip() noexcept;
@@ -4586,21 +4694,40 @@ public:
         return _heightPx;
     }
     [[nodiscard]] D2D1_RECT_F DebugGetTooltipBoundsDip() const noexcept;
+    [[nodiscard]] bool DebugIsTooltipInspectionAtEnd() const noexcept;
     [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept;
     [[nodiscard]] ITextStoreACP* DebugCreateNativeTextInputTextStoreForTest() noexcept;
+    [[nodiscard]] bool DebugPostActiveNativeTextStoreWorkForTest() noexcept;
+    [[nodiscard]] UINT_PTR DebugGetNativeTextStoreDispatchCookieForTest() const noexcept;
+    [[nodiscard]] bool DebugHasPostedNativeTextStoreWorkForTest() const noexcept;
+    void DebugGetActiveNativeTextStoreNotificationCountsForTest(uint64_t& textChanges, uint64_t& selectionChanges, uint64_t& layoutChanges) const noexcept;
+    [[nodiscard]] HRESULT DebugAdviseNativeTextInputThreadMgrEventSinkForTest(ITfThreadMgrEventSink* sink, DWORD* cookie) noexcept;
+    [[nodiscard]] HRESULT DebugUnadviseNativeTextInputThreadMgrEventSinkForTest(DWORD cookie) noexcept;
+    [[nodiscard]] HRESULT DebugCreateFocusedNativeTextInputDocumentForTest(IUnknown** documentMgr) noexcept;
+    [[nodiscard]] HRESULT DebugGetFocusedNativeTextInputDocumentForTest(IUnknown** documentMgr) noexcept;
+    void DebugDeactivateNativeTextInputTsfForTest() noexcept;
 #endif
 
 private:
     friend class EmbeddedHost;
+    friend struct ControlModelQueryAccess;
+    friend class PageHost;
     friend class Control;
+    friend class Panel;
+    friend class TabControl;
+    friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
-    void* _embeddedAccessibilityTarget          = nullptr;
-    bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
-    ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
-    WPARAM _focusGainTurnId                     = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
-    uint64_t _focusGainResolutions              = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
-    bool _focusGainTurnAnnounced                = false; // The host announced a focus move of the gain's turn itself.
-    uint64_t _interactionRevision               = 0;
+    void* _embeddedAccessibilityTarget = nullptr;
+    bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
+    bool _resettingInteractionState    = false;
+    bool _replacingRoot                = false;
+    ULONGLONG _focusGainTurnStartedMs  = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
+    WPARAM _focusGainTurnId            = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
+    uint64_t _focusGainResolutions     = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
+    bool _focusGainTurnAnnounced       = false; // The host announced a focus move of the gain's turn itself.
+    uint64_t _interactionRevision      = 0;
+    bool _pendingPageLayout            = false;
+    [[nodiscard]] bool PreparePendingPageLayout() noexcept;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;
@@ -4629,19 +4756,26 @@ private:
     void BeginFocusGainTurn() noexcept;
     [[nodiscard]] bool IsInFocusGainTurn() const noexcept;
     void OnKillFocus(bool clearRetainedFocus) noexcept;
-    void ActivateTextInput(Control* control) noexcept;
-    void DeactivateTextInput(bool restoreHostFocus) noexcept;
-    void ActivateNativeTextInputSession(Control* control) noexcept;
-    void DeactivateNativeTextInputSession(bool restoreHostFocus) noexcept;
+    void ActivateTextInput(Control* control, bool transferNativeFocus = true) noexcept;
+    void DeactivateTextInput() noexcept;
+    void ActivateNativeTextInputSession(Control* control, bool transferNativeFocus = true) noexcept;
+    void DeactivateNativeTextInputSession() noexcept;
     void SyncNativeTextInputSession(Control* control) noexcept;
+    [[nodiscard]] bool ScheduleNativeTextStoreDeferredWork(Control* control, UINT_PTR sessionCookie) noexcept;
+    void InvalidateNativeTextStoreDeferredWork() noexcept;
     void SecureClearNativeTextInputStateCache() noexcept;
     [[nodiscard]] bool ActivateNativeTextInputTsf(Control* control) noexcept;
     void DeactivateNativeTextInputTsf() noexcept;
     void ApplyNativeTextInputCompositionStateToCache() noexcept;
+    void CancelNativeTextInputImeComposition() noexcept;
     void ClearNativeTextInputCompositionState() noexcept;
     [[nodiscard]] NativeTextInputImePayload ReadNativeTextInputImePayload(LPARAM compositionFlags) noexcept;
     void UpdateNativeTextInputImeWindows() noexcept;
     void UpdateNativeTextInputCaret() noexcept;
+    [[nodiscard]] bool SetNativeTextInputCompositionRange(Control* control,
+                                                          std::optional<size_t> start,
+                                                          std::optional<size_t> end,
+                                                          std::optional<size_t> cursor) noexcept;
     void DestroyNativeTextInputCaret() noexcept;
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
     void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;
@@ -4651,6 +4785,8 @@ private:
     // Message entry only, where no dispatched control is borrowed: a captured control that is still in the tree but
     // no longer interactive (it or an ancestor was hidden or disabled) cancels its drag, as EmbeddedHost does.
     void CancelStaleCapture() noexcept;
+    void CancelCapturedControlInteraction() noexcept;
+    void NotifyControlFocusChanged(Control* control, bool focused) noexcept;
     void ResetRootInteractionState() noexcept;
     void UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept;
     void ValidateSupplementalTooltipTarget() noexcept;
@@ -4758,10 +4894,11 @@ private:
     mutable std::vector<uint32_t> _brushFailureLogKeys;
     // Keep test-only storage unconditional so ControlHost layout stays stable
     // even when ENABLE_TESTS differs between a DxUi producer and consumer.
-    bool _debugForceNullSolidBrushes   = false;
-    TextInputBackend _textInputBackend = TextInputBackend::Native;
-    Control* _nativeTextInputControl   = nullptr;
-    uint64_t _nativeTextInputFocusId   = 0;
+    bool _debugForceNullSolidBrushes         = false;
+    TextInputBackend _textInputBackend       = TextInputBackend::Native;
+    Control* _nativeTextInputControl         = nullptr;
+    uint64_t _nativeTextInputFocusId         = 0;
+    uint64_t _nativeTextInputSessionRevision = 0u;
     std::weak_ptr<int> _nativeTextInputControlLifetime;
     NativeTextInputState _nativeTextInputStateCache;
     bool _nativeTextInputStateCacheValid = false;
@@ -4771,9 +4908,17 @@ private:
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfPreviousFocusDocumentMgr;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfContext;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfTextStore;
-    DWORD _nativeTextInputTsfClientId = 0u;
-    bool _nativeTextInputTsfActive    = false;
-    bool _nativeTextInputImeComposing = false;
+    DWORD _nativeTextInputTsfClientId              = 0u;
+    bool _nativeTextInputTsfActive                 = false;
+    uint64_t _nativeTextInputTsfTransitionRevision = 0u;
+    Control* _nativeTextInputTsfControl            = nullptr;
+    std::weak_ptr<int> _nativeTextInputTsfControlLifetime;
+    UINT_PTR _nativeTextStoreDispatchCookie     = 1u;
+    bool _nativeTextStoreNotificationPosted     = false;
+    bool _nativeTextInputImeComposing           = false;
+    bool _nativeTextInputImeCancelledUntilStart = false;
+    uint64_t _nativeTextInputImeRevision        = 0u;
+    bool _nativeTextInputTsfComposing           = false;
     std::optional<size_t> _nativeTextInputCompositionStartIndex;
     std::optional<size_t> _nativeTextInputCompositionEndIndex;
     std::optional<size_t> _nativeTextInputConversionTargetStartIndex;
@@ -4781,6 +4926,7 @@ private:
     std::optional<size_t> _nativeTextInputCompositionCursorIndex;
     std::vector<size_t> _nativeTextInputCompositionClauseBoundaries;
     std::optional<TextInputState> _nativeTextInputImeBaseState;
+    std::optional<std::wstring> _nativeTextInputImePreviewText;
     std::optional<NativeTextInputImePayload> _debugNativeTextInputImePayload;
     NativeSystemCaret _nativeTextInputCaret;
     bool _nativeTextInputCaretRectValid      = false;
@@ -4798,6 +4944,8 @@ private:
 
     std::unique_ptr<Control> _root;
     TooltipLayer _tooltipLayer;
+    uint64_t _tooltipInspectionRevision                         = 0u;
+    bool _releasingTooltipDismissCapture                        = false;
     mutable uint64_t _debugInvalidateCount                      = 0u;
     uint64_t _debugFocusAnnouncementCount                       = 0u;
     uint64_t _debugFocusMovesLeftToSystemCount                  = 0u;
@@ -4825,6 +4973,7 @@ private:
     Control* _capturedControl            = nullptr;
     D2D1_RECT_F _capturedBounds          = {};
     Control* _focusedControl             = nullptr;
+    uint64_t _focusRequestRevision       = 0u;
     Control* _supplementalTooltipControl = nullptr;
     std::weak_ptr<int> _supplementalTooltipLifetime;
     std::wstring _supplementalTooltipText;
@@ -4832,9 +4981,9 @@ private:
     Button* _defaultButton                     = nullptr;
     Button* _cancelButton                      = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;
-    std::function<bool(bool reverse)> _onTabBoundary;
-    std::function<bool()> _onEscape;
-    std::function<void(Control* control)> _onFocusChanged;
+    std::shared_ptr<const std::function<bool(bool reverse)>> _onTabBoundary;
+    std::shared_ptr<const std::function<bool()>> _onEscape;
+    std::shared_ptr<const std::function<void(Control* control)>> _onFocusChanged;
     UINT _modifierState                = 0u;
     InputModality _inputModality       = InputModality::Pointer;
     PointerDevice _pointerDevice       = PointerDevice::Mouse;

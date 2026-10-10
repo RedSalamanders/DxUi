@@ -1,0 +1,9 @@
+
+Algorithm Hash                                                             Path
+--------- ----                                                             ----
+SHA256    2365806D57259B6AE0E718D2156F399708FD98C4F2EDC3928830731F3681EBA9 Z:\src\DxUi\.build\x64\Debug\DxUi.lib
+SHA256    D6FB1D9C5C9D9BEC64B7137D007C9895CCCD6A3A7DBEC590E38799B30C9B48B8 Z:\src\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+SHA256    E65FDAE8F9B6D1BEFD6070337167D0A03CD997AFA69813BF5D852B82C6C70268 Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp
+SHA256    62B84527CCE22D143C3858B0D54F5B63E833D0936BDD68FACA577C0FFA165B8C Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp
+
+

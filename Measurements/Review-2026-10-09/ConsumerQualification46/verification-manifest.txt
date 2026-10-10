@@ -1,0 +1,368 @@
+{
+  "purpose": "independent-relocated-consumer-verification",
+  "verifiedUtc": "2026-10-09T21:38:15.4381585Z",
+  "sourceCommit": "ffc64c8947301dfaf2b1e295968a1cc6253bd413",
+  "apiRevision": 4,
+  "platform": "x64",
+  "profiles": [
+    {
+      "configuration": "Debug",
+      "disableStlAnnotations": false,
+      "identity": {
+        "Fingerprint": "c7333b0ede9a90db14bda7f6d638e2061a3eb8d447cbf23a08582f81a162c9be",
+        "Identity": {
+          "commit": "ffc64c8947301dfaf2b1e295968a1cc6253bd413",
+          "apiRevision": 4,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.51.36231",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x86",
+          "disableStlAnnotations": false,
+          "msbuildSha256": "5F1F3AFBF86DBD8DDEB130367AE62A3B8B9750810DEB5BA1C89F20B3F9D7E878",
+          "compilerSha256": "454912D4C941D57B336125B2BCA78D9D24043E1842625E7C341DF32A733E89E2",
+          "linkerSha256": "49FF747F22B070AC4B29BA3F74DB05D219C724CC0FDB64FC910A63CA94864CE3",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "341C7D56125A03B458E4D5093E4C79B33123CCFDFD610FE236937B8E6F3134BB",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        }
+      },
+      "reportEntry": "Debug-annotationsDisabledFalse-report.json",
+      "reportSha256": "8EFC93CC982551BA9F8043F5FFEF84E0BF4559BEBE5A8EBDF22AC8ED20FFF1D2",
+      "executableSha256": "D799BAAA5C69711A70DDB6566B7319DB078CB44F44D0108F92A0B548D8F32B47",
+      "librarySha256": "594C876DF4D37956E3184FA173025DDC6955E21A286E9E90B7C1C1598A1EFE6D",
+      "parentLog": "production-review-2026-10-09-parent-consumer-Debug-annotationsDisabledFalse46.log",
+      "images": [
+        {
+          "entry": "Debug-annotationsDisabledFalse-public.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-complex.png",
+          "sha256": "CABA79DF2335F59A7D912FE39B42D6D5605B4F31FD54382C45344942F9BEA148"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-text.png",
+          "sha256": "226A02432AEAA2CDEB6164464D156312738D957574232EE0967AF69218215F18"
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "entry": "Debug-annotationsDisabledFalse-wrong-revision.log",
+          "sha256": "1CCA8900C3266D19952F08B69439D2BAA5ACA75A0189097B2B96E93D225F0894"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-wrong-api.log",
+          "sha256": "24F131D8C01C5A28B865DA72EEBAC34F4C891824D77E4FA3191A10ED320DEB38"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-wrong-target.log",
+          "sha256": "8972256F0A8F2F1A18E51D29D1B7C283253CBB8080C7B5AF69DC20E52142D343"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-tracked-dirty.log",
+          "sha256": "73177D89719047530E3154ECAD2BB332A99A3E632F5652C8A0EA603A6226DEC2"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-untracked-dirty.log",
+          "sha256": "73177D89719047530E3154ECAD2BB332A99A3E632F5652C8A0EA603A6226DEC2"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-DxUiConsumerToolset.log",
+          "sha256": "A80705933A86B4EAD8E6E2E17AF09424111AF0BF31329F7980B27E0B30CD4C18"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-DxUiConsumerVCToolsVersion.log",
+          "sha256": "282BDC95FB8BB36A54765FE03A56052A42D288EFFC3CE051CC7B1D4D6448851B"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-DxUiConsumerSdkVersion.log",
+          "sha256": "46D85EB464E357F0A1E56409D0A8B8F76BD6DC67DB0EAD278922597F54482928"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-DxUiConsumerPreferredToolArchitecture.log",
+          "sha256": "350C348F66CEF41AA86D1EDDCB706F53A99C3B7EAB89284BC25B33ADBE5CF094"
+        },
+        {
+          "entry": "Debug-annotationsDisabledFalse-DxUiDisableStlAnnotations.log",
+          "sha256": "25E54825B2D99FA3187181CF8A63ED32F32344FAEE1A67F52DEC07B1D9265A31"
+        }
+      ],
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10
+    },
+    {
+      "configuration": "Release",
+      "disableStlAnnotations": false,
+      "identity": {
+        "Fingerprint": "c7333b0ede9a90db14bda7f6d638e2061a3eb8d447cbf23a08582f81a162c9be",
+        "Identity": {
+          "commit": "ffc64c8947301dfaf2b1e295968a1cc6253bd413",
+          "apiRevision": 4,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.51.36231",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x86",
+          "disableStlAnnotations": false,
+          "msbuildSha256": "5F1F3AFBF86DBD8DDEB130367AE62A3B8B9750810DEB5BA1C89F20B3F9D7E878",
+          "compilerSha256": "454912D4C941D57B336125B2BCA78D9D24043E1842625E7C341DF32A733E89E2",
+          "linkerSha256": "49FF747F22B070AC4B29BA3F74DB05D219C724CC0FDB64FC910A63CA94864CE3",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "341C7D56125A03B458E4D5093E4C79B33123CCFDFD610FE236937B8E6F3134BB",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        }
+      },
+      "reportEntry": "Release-annotationsDisabledFalse-report.json",
+      "reportSha256": "D7284D098A5CD90B10D81D79AC5198CDE06E6676104BD6B20197F0DD1BE40949",
+      "executableSha256": "63D5B5D0EB4327A31F3796CA8D8A769F0CF9A39994848E7A0EE0A9F6C8B54DEC",
+      "librarySha256": "EFECA1C693B7EC59781A51D18835545314CD8D90AC7F01A1B7940CA2E3278ED4",
+      "parentLog": "production-review-2026-10-09-parent-consumer-Release-annotationsDisabledFalse46.log",
+      "images": [
+        {
+          "entry": "Release-annotationsDisabledFalse-public.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-complex.png",
+          "sha256": "CABA79DF2335F59A7D912FE39B42D6D5605B4F31FD54382C45344942F9BEA148"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-text.png",
+          "sha256": "226A02432AEAA2CDEB6164464D156312738D957574232EE0967AF69218215F18"
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "entry": "Release-annotationsDisabledFalse-wrong-revision.log",
+          "sha256": "72AE83CE67F23F9C853653164CAF7773A60A6EE98AC2B261041C77BBA83547BC"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-wrong-api.log",
+          "sha256": "F352746044FAEE0AD125858DC3EB15CFEBC1F41F7B04EE723035523099368493"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-wrong-target.log",
+          "sha256": "A5BD05D58E685CB3255A42520255CEAD5C5E68D72C87E7997F7490C4EF7829A9"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-tracked-dirty.log",
+          "sha256": "47AAEA89CBCE7D05F263FED2F67E36F9D503C5AFB8A6CB3378EDD026E2E43013"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-untracked-dirty.log",
+          "sha256": "47AAEA89CBCE7D05F263FED2F67E36F9D503C5AFB8A6CB3378EDD026E2E43013"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-DxUiConsumerToolset.log",
+          "sha256": "2787631AC3A2EA0872F5F646A90F7928C451535F9F09D3FA2B1393570EE34A09"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-DxUiConsumerVCToolsVersion.log",
+          "sha256": "68DEC1C4BCA58C7EF46D93FB6383A6E41578FF4BE1E33EA9E500E8B3912CA437"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-DxUiConsumerSdkVersion.log",
+          "sha256": "BEFCD56D0BECD2CC62ED9197E553B0401C03647B660BFFC28CD790D08D0400F5"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-DxUiConsumerPreferredToolArchitecture.log",
+          "sha256": "D1EF9F804FD85E1349D30C62BFB820B11505AEF113E987208000BF32C68B4292"
+        },
+        {
+          "entry": "Release-annotationsDisabledFalse-DxUiDisableStlAnnotations.log",
+          "sha256": "2B4C08C791A9A14EA5BC31156155D557DDE25735E6D85600A4B4904B83160941"
+        }
+      ],
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10
+    },
+    {
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": false,
+      "identity": {
+        "Fingerprint": "c7333b0ede9a90db14bda7f6d638e2061a3eb8d447cbf23a08582f81a162c9be",
+        "Identity": {
+          "commit": "ffc64c8947301dfaf2b1e295968a1cc6253bd413",
+          "apiRevision": 4,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.51.36231",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x86",
+          "disableStlAnnotations": false,
+          "msbuildSha256": "5F1F3AFBF86DBD8DDEB130367AE62A3B8B9750810DEB5BA1C89F20B3F9D7E878",
+          "compilerSha256": "454912D4C941D57B336125B2BCA78D9D24043E1842625E7C341DF32A733E89E2",
+          "linkerSha256": "49FF747F22B070AC4B29BA3F74DB05D219C724CC0FDB64FC910A63CA94864CE3",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "341C7D56125A03B458E4D5093E4C79B33123CCFDFD610FE236937B8E6F3134BB",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        }
+      },
+      "reportEntry": "ASanDebug-annotationsDisabledFalse-report.json",
+      "reportSha256": "33A4771B2CE42001990E570980A5D8918E34F5FC34BD8FE1AF8C4610BE4E763C",
+      "executableSha256": "45327CACFF60C93D65525811518D134BE814CA041E66D8490721E44816CDD9EE",
+      "librarySha256": "89885152B807489D6BEB2789C046FF70F018E42C6C7EB6D7A85A0E0906A32AA0",
+      "parentLog": "production-review-2026-10-09-parent-consumer-ASanDebug-annotationsDisabledFalse46.log",
+      "images": [
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-public.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-complex.png",
+          "sha256": "CABA79DF2335F59A7D912FE39B42D6D5605B4F31FD54382C45344942F9BEA148"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-text.png",
+          "sha256": "226A02432AEAA2CDEB6164464D156312738D957574232EE0967AF69218215F18"
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-wrong-revision.log",
+          "sha256": "D5BAE1A24151997EDC6E5AB6E40FB6E805C620AAF77F8A616D2B0973E8E05F65"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-wrong-api.log",
+          "sha256": "ED4910C03C3EABE76D1C8E67A0306D184F1A057EB9FBFACD8820233833992ADD"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-wrong-target.log",
+          "sha256": "51791756B7DA671635B90EEAD46A9D426365DD4CD20CA6260CC3376B5F93152A"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-tracked-dirty.log",
+          "sha256": "CA7BF574C19F6C98E3CCDBA90D9E772E910BF96A1C2C61F72E5DEB104BD465C7"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-untracked-dirty.log",
+          "sha256": "CA7BF574C19F6C98E3CCDBA90D9E772E910BF96A1C2C61F72E5DEB104BD465C7"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-DxUiConsumerToolset.log",
+          "sha256": "97296B6E384B42711E96BCA6797E6302E75F774EB1D918C8F4E2FF7A455A34A4"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-DxUiConsumerVCToolsVersion.log",
+          "sha256": "0C6DF812A514780E586B28FBF336B0721EA02A1813EE8F440E1082D8D6842F82"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-DxUiConsumerSdkVersion.log",
+          "sha256": "EF780181C4AD6DB735C2D1529D6E5B2C3D29C6F987A1B55B48E502B6985FEE98"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-DxUiConsumerPreferredToolArchitecture.log",
+          "sha256": "56ADBDB8506CD3D3CC4DF3DF7783A606284D0055394667A5401788EEA216D983"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledFalse-DxUiDisableStlAnnotations.log",
+          "sha256": "093BCE0D0D325FC2D12BDE53A09E38BE3B293A08CA1570244480A61A9A5BE160"
+        }
+      ],
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10
+    },
+    {
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": true,
+      "identity": {
+        "Fingerprint": "b541d19da99c12b7865532ed115cc36cb4ef6b0cf19912a8dfc3bd7d75cdd2c8",
+        "Identity": {
+          "commit": "ffc64c8947301dfaf2b1e295968a1cc6253bd413",
+          "apiRevision": 4,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.51.36231",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x86",
+          "disableStlAnnotations": true,
+          "msbuildSha256": "5F1F3AFBF86DBD8DDEB130367AE62A3B8B9750810DEB5BA1C89F20B3F9D7E878",
+          "compilerSha256": "454912D4C941D57B336125B2BCA78D9D24043E1842625E7C341DF32A733E89E2",
+          "linkerSha256": "49FF747F22B070AC4B29BA3F74DB05D219C724CC0FDB64FC910A63CA94864CE3",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "341C7D56125A03B458E4D5093E4C79B33123CCFDFD610FE236937B8E6F3134BB",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        }
+      },
+      "reportEntry": "ASanDebug-annotationsDisabledTrue-report.json",
+      "reportSha256": "CBA91ABAD9F120FF236A807662AAEBB4E9AB8C40B5855DD0C1A61551ECF83CBC",
+      "executableSha256": "8A84A04B2B925CDE5826D51D40D93213A67AD475C3C5277D79C3087652D6D1EB",
+      "librarySha256": "E3967EDE8C6E7AC8EA2104067AAC72501FAF2A295286124833EA2CEB3D26F74B",
+      "parentLog": "production-review-2026-10-09-parent-consumer-ASanDebug-annotationsDisabledTrue46.log",
+      "images": [
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-public.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-complex.png",
+          "sha256": "CABA79DF2335F59A7D912FE39B42D6D5605B4F31FD54382C45344942F9BEA148"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-text.png",
+          "sha256": "226A02432AEAA2CDEB6164464D156312738D957574232EE0967AF69218215F18"
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-wrong-revision.log",
+          "sha256": "C52F87337485BC16C9E20CFCDE7A3F72935E8DF678BD049230F6EB6E6E92E1B3"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-wrong-api.log",
+          "sha256": "4918D683F98F1A27084079483540C697E8CDB6B06F6A3481F3A101CAC5AD917C"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-wrong-target.log",
+          "sha256": "BAD8D4BE5A6871663155A5DE6F2AED67DBD2BEB665DFA0BF33045BD147CDA98E"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-tracked-dirty.log",
+          "sha256": "0C9ABC30C496843D640073D03932D2CA32924F9820348EB76C245CF259D76E11"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-untracked-dirty.log",
+          "sha256": "0C9ABC30C496843D640073D03932D2CA32924F9820348EB76C245CF259D76E11"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-DxUiConsumerToolset.log",
+          "sha256": "47141782A286C70B1BF4936D2D09A27732886FD4176AEEC99C23D208BFE5C9DD"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-DxUiConsumerVCToolsVersion.log",
+          "sha256": "ACE22D52F69BCD93078BB355BAB39321AE37788160C0F63976998BAAEAF74315"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-DxUiConsumerSdkVersion.log",
+          "sha256": "22BF1BEC56B7CBEDC0D60AEEF03849AACD0352EF494384D3516BC2C454D367EC"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-DxUiConsumerPreferredToolArchitecture.log",
+          "sha256": "94E3D39F7438DD2B0518F8CCC573E178379F73E0F2194024044A0AF8286E2449"
+        },
+        {
+          "entry": "ASanDebug-annotationsDisabledTrue-DxUiDisableStlAnnotations.log",
+          "sha256": "584D20E4D620E9C6D74F21B6B526A9A26CE4B61609AE019B37BCBB4D44D57B2C"
+        }
+      ],
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10
+    }
+  ],
+  "visualReview": "Lead reviewed all three Release harness captures: public, complex and text/Unicode.",
+  "limitations": [
+    "These reports qualify their exact ffc64c8 pin.",
+    "A later tooling-fixture correction requires separate final-source CI accounting.",
+    "No consumer repository or pin was changed.",
+    "ARM64 runtime and physical device/product acceptance remain separate."
+  ]
+}

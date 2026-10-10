@@ -307,8 +307,8 @@
           "test": "TestAccessibilityProviderExposesTextPatternForTextField"
         },
         {
-          "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
-          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+          "file": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputProviderExposesImeTextEditRanges"
         },
         {
           "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
@@ -327,8 +327,8 @@
           "test": "TestAccessibilityProviderExposesTextPatternForTextField"
         },
         {
-          "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
-          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+          "file": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputProviderExposesImeTextEditRanges"
         },
         {
           "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
@@ -387,8 +387,8 @@
           "test": "TestAccessibilityProviderExposesTextPatternForTextField"
         },
         {
-          "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
-          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+          "file": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputProviderExposesImeTextEditRanges"
         },
         {
           "file": "Tests/Controls/DxUi.Tests.Accessibility.cpp",

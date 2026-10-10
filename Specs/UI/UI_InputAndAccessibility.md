@@ -1,7 +1,25 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-03
+Last reviewed: 2026-10-09
+
+Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
+request may retire only its own session generation, including when the newer session uses the same retained editor.
+Each explicit logical focus request supersedes an older request. After application or TSF callbacks, an older
+setter stops before assigning, clearing or publishing focus belonging to the newer request. Standard exceptions
+from focus callbacks are contained at the host boundary. A live control whose override fails before acknowledging
+the transition receives the base focus-state acknowledgement, unless a newer request has superseded that transition.
+A failed old blur still clears the old control's acknowledged focus when a different control wins. Reset snapshots
+and clears interaction observers before invoking callbacks, preserves explicit callback-selected focus, and suppresses
+automatic focus restoration during the reset. Root replacement retires any focus chosen in the old tree while that
+tree remains owned; callback-selected focus in the installed new tree survives. A root replacement cannot borrow a
+rootless focus target from the tree it is retiring.
+Retiring a native text-input cache never transfers keyboard focus. Reset and root replacement on an inactive
+host preserve the other window's keyboard focus; text-service retirement has no focus-restoration option.
+If a host focus notification removes its newly focused editor, the setter retires its native session, TSF document
+and cached text before returning, even if the notification throws. A returned live child acknowledges lost focus.
+Restoring a retiring TSF document's HWND association preserves a different document that already owns TSF focus.
+After the association callback, a newer host transition or a different callback-selected document takes precedence.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -22,11 +40,32 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
-Every entry of a native menu is a UI Automation element, whether or not any entry has a description:
-full per-entry names (`accessibleName`, or the decoded label followed by its description) and
-MenuItem roles, exact command invocation and acknowledged checked state. A popup publishes those
-elements whether or not a client listens, and each keyboard move or scroll republishes them, at a
-cost that grows with the number of entries ([measurement](../../Measurements/PlainMenuUia/2026-10-02/README.md)).
+A persistent full-value inspection is a non-modal overlay and does not move logical or native focus.
+An outside pointer press dismisses it while consuming that press's complete gesture through its matching
+button-up or cancellation, so the same gesture cannot activate the control underneath. Native hosts
+retain HWND capture only for that dismissal gesture; embedded hosts consume its delivered move, up, or
+cancel events. A later independent gesture returns to normal control dispatch.
+
+Every entry of a native menu is a UI Automation element, whether or not any entry has a description.
+Its concise `Name` is `accessibleName` or the decoded label; `secondaryText` is exposed as `HelpText`.
+Entries retain MenuItem roles, exact command invocation and acknowledged checked state. Menu
+accessibility records are prepared when a provider is requested or a client is listening. State and
+bounds changes mark the popup dirty and coalesce into a posted publication; an owner-thread provider
+query first flushes that dirty snapshot. Worker-thread queries read the last complete immutable
+snapshot. A real focus transition is published synchronously on the owner thread so the first
+worker-thread `GetFocus` sees the focused element and focus-event attribution uses the publication
+time; ordinary menu state and scrolling remain coalesced. This avoids rebuilding all popup records
+for each intermediate input while retaining complete per-entry semantics
+([measurement](../../Measurements/PlainMenuUia/2026-10-02/README.md)).
+
+Tree and Grid model getters may reenter application code. Snapshot construction revalidates the control lifetime,
+its path and borrowed model after each getter and aborts the entire unpublished snapshot if they change. Navigation,
+point geometry and focused-item lookup follow the same rule. Native publication permits two attempts per flush;
+a later query or queued flush handles any further mutation. Clients reacquire a collapsed semantic root after its
+control is replaced; retained elements never bind to a replacement at the same path. Grid row, header and cell
+properties return `UIA_E_ELEMENTNOTAVAILABLE` when their record is no longer materialized in the current snapshot.
+These rules do not extend borrowed model lifetime or qualify destruction of the entire host from a callback.
+
 Modal and asynchronous menu tracking both activate the root popup
 for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused
 owner control while the menu still owns focus. Logical entry navigation does not change that
@@ -46,6 +85,14 @@ actions carry popup-instance identity so HWND reuse cannot dispatch an old actio
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
 
+Context-menu mnemonics consume the Unicode character produced by the active keyboard layout
+(`WM_CHAR`/`WM_SYSCHAR`), rather than deriving a letter from a virtual key. An explicit ampersand
+mnemonic wins over an inferred label mnemonic; when multiple enabled rows match, successive
+characters move keyboard selection through those rows and do not invoke one until the match is
+unique. Right-to-left sessions map horizontal arrows to the reading direction for submenu opening,
+closing, root switching, and slider values. High-contrast selected rows use the system selection
+foreground/background pair, and disabled row text uses opaque system GrayText.
+
 While a popup holds mouse capture Windows sends no `WM_SETCURSOR`, so the menu chooses the cursor on every delivered
 pointer move: the standard arrow over its popups (and while one drags a slider or scrollbar), and outside them the
 cursor the window under the pointer chooses when that window belongs to the menu's thread (it receives
@@ -61,6 +108,11 @@ holds none, whatever the renderer and allocator keep.
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
 focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.
+
+`SetFocusControl(control, false)` changes logical focus without taking HWND keyboard focus, including for editors
+and repeated calls on the already focused editor. A visible, sized native host may maintain its editor cache while
+inactive; it activates TSF and its system caret only while that HWND actually owns keyboard focus. Hidden or zero-sized
+native hosts have no active text-input session. Embedded hosts retain application-owned focus and scheduling.
 
 Win32 focus stays on a window host's HWND while focus moves between its controls (Tab, arrows, pointer,
 `SetFocusControl`), so the host raises the UIA focus-changed event itself, from the difference between two published
@@ -99,6 +151,15 @@ the host's logical focus before it takes Win32 focus, so the activation never fi
 first control; a UIA client's SetFocus first has UI Automation focus the hosting window, which reports the window's
 current focus the way a dialog's activation does, and the requested element is the last one reported. Native menu popups
 raise theirs once a keyboard transition completes, and embedded hosts raise theirs from the snapshot diff. A
+native HWND host coalesces ordinary dirty state into a posted snapshot publication. Owner-thread UIA
+queries flush dirty state before reading; worker-thread queries read the last complete immutable
+snapshot. The event-diff baseline advances separately when the queued publication drains, so an
+owner-thread query does not consume pending events. An interested host publishes an actual focus
+transition synchronously before returning, which keeps the first worker `GetFocus` answer current
+and captures focus-event attribution at that publication. Detaching retires the snapshot and
+attachment identity so an old queued flush cannot publish into a later host on the same HWND. These
+native scheduling rules do not change embedded hosting: the application still calls
+`UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
 or removed while it has focus loses it at the host's next message, which publishes the change, so a client hears the
 window. Replacing the whole tree (`SetRoot`) is compared with the tree before it, not with the empty snapshot standing
@@ -167,6 +228,12 @@ Clearing disclosure removes the pattern; removed/hidden controls cannot be activ
 providers. Native and embedded lifetime/acknowledgement tests qualify this implementation, with
 [final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md)
 for all six x64/ARM64 configurations. ARM64 Menu foreground capability skips remain explicit.
+
+Enabled state includes visible ancestors: a disabled container disables its retained descendants for UIA
+properties, actions and focus, including Tree items, Grid fragments and text-range selection. Owner-thread
+execution rechecks that state and reports `UIA_E_ELEMENTNOTENABLED` before invoking consumer behavior.
+Queries remain available, and enabling the ancestor again permits actions on the same live identities.
+Native text-service locks use the same effective-interaction rule.
 This is not a claim of consumer screen-reader acceptance.
 
 
@@ -227,6 +294,9 @@ press) also eases in a 48 DIP touch halo and eases it out after the release; Can
 band and 24 DIP grab radius do not change with hover, press or the halo. Keyboard steps and
 RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
 the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
+The halo's 48 DIP target is clipped to the Slider bounds and any active ancestor viewport and host clips; hit testing stays
+within the declared control bounds, and popup/menu overlay layers paint above it. Give the Slider 48 DIP of cross-axis room
+to show the full halo while keeping neighboring content outside its bounds.
 SetValue updates from externally acknowledged state without firing an input callback, including snapping a pending
 animation when the acknowledged value equals its accepted target. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
@@ -259,6 +329,46 @@ exceptions return failure across the COM boundary; they never unwind through it.
 the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
 text snapshot so their argument and callable survive destruction of the control.
 
+The native WindowHost text store stages edits for each TSF lock. An active composition previews text without a
+model notification; `OnEndComposition` restores the captured base and applies the final state once, so the whole
+composition is one undo step even when the last preview already equals the committed text. Sequential completed
+compositions in one TSF lock have separate undo units. Disconnect cancels the preview and restores the base only
+while the live document still matches the preview owned by that composition; a newer application replacement wins.
+The native IMM path follows the same history rule: preview and cancellation
+preserve history, while the result string is one committed edit. Synchronizing newer application text retires the
+old preview and its metadata immediately. Late composition/result payloads remain rejected until a fresh
+`WM_IME_STARTCOMPOSITION`. Result notifications may synchronize, replace text, move focus or begin a newer
+composition; the old message cannot overwrite that state or clear its successor's metadata, and focus transfer
+preserves the already committed result. Cancellation revalidates the live control, session, composition and owned
+preview after extensible state reads; replacement or throwing callbacks cannot restore an old base into a successor.
+A failed owned state read leaves composition retired and permits a later ordinary synchronization.
+A composition message with no GCS flags cancels the owned inline preview;
+IME read-string updates do not cancel it. Composition range, caret, conversion-target and
+clause metadata are cleared when composition ends; range and caret geometry follows the control's current text
+viewport, including single-line horizontal scroll and multiline scrolling. A masked TextField does not activate
+TSF, rejects native text-store locks and discards IMM composition. Its UI Automation Text pattern is unavailable,
+and its accessible name/value/text never contains the password. Host `WM_GETTEXT`, `WM_GETTEXTLENGTH` and
+`WM_SETTEXT` remain window-caption messages while an editor has focus; editor state is exposed by the supported
+control and UI Automation APIs.
+
+Native TSF activation stages its document, context and store before publishing the session. It revalidates the
+focused control and transition generation after each callback-capable TSF operation, including context push and
+focus association. Deactivation detaches the old session before calling TSF and cleans up only its own retained
+objects; a reentrant replacement session remains active when the old context is popped. Each production text store
+is bound to the host's dispatch cookie, so callbacks from a retired same-control session cannot edit text or clear
+composition metadata owned by its replacement. Once activation commits, one bounded posted reconciliation reports
+text, selection and layout changes made by synchronous TSF callbacks; a combined text/layout change emits one layout
+notification. Deactivation and activation-failure cleanup clear thread-manager focus only when it still names the
+document being retired. Process-exit detach abandons borrowed observers before native teardown; a synchronous TSF
+pop callback cannot restore focus or reactivate the editor, and the retained root and native text cache are cleared.
+
+Changing a field to read-only or masked cancels its pending native preview while preserving the current policy.
+Hiding or suspending a zero-size native host cancels its native session. Late IME messages cannot reactivate a
+hidden, suspended or unfocused HWND. Showing or resizing a host resumes an eligible editor only while that HWND
+retains keyboard focus; resumption does not activate another window. Native text-store locks also require the
+current logical editor to remain visible through its ancestors. `EM_REPLACESEL` rejects read-only and masked
+editors before inspecting the replacement pointer.
+
 ### Application-side text services
 
 TextInputServices in the same DxUi.lib attaches to an application-owned HWND on its COM STA. It creates no
@@ -266,6 +376,12 @@ renderer, swap chain, worker or timer. SetClient lazily creates a TSF document a
 client on focus loss/view removal and detach before destroying the HWND. One client represents one immutable
 focusId. The embedded snapshot exposes that identity separately from its frequently changing revision;
 leaving and returning to a field changes focus identity even when no intermediate snapshot was read.
+
+SetClient and ClearClient publish retirement before calling the old client or TSF. A client or TSF callback may
+install a successor; the older operation stops and releases only its own staged or retired resources. Deferred
+lock requests retain an immutable store generation and cannot dispatch into a successor. Retirement preserves
+an independently focused TSF document when restoring the HWND association. Detach clears the HWND identity before
+callbacks and rejects reentrant Attach/SetClient until teardown finishes; a later explicit Attach remains valid.
 
 The application implements TextInputClient in its own module. Its Read/Apply/Cancel and physical-screen geometry
 operations adapt application-defined transport; neither the HWND nor a DxUi C++ object crosses a plugin ABI.
@@ -277,15 +393,24 @@ The COM text store shares native control adaptation with the application client 
 staged for one TSF lock because initial insertion may precede composition-start notification. Preview changes
 displayed text without committing; completion commits once, including unchanged preview text. Failed/stale/focus-
 replaced transactions do not retry against a new revision. An owned callback argument survives disconnection.
-Application-side TSF edits are not echoed back through sink change notifications; separately observed external
-changes are notified. Native-host notification behavior remains covered by its existing compatibility tests.
+`ITextStoreACP::SetText`, `InsertTextAtSelection` and `SetSelection` do not echo their own text or selection edits
+through `OnTextChange` or `OnSelectionChange`, including while `RequestLock` is active. The store reports an actual
+prepared layout change separately. External client changes are reported outside an active lock; a change observed
+from a callback during a lock is coalesced onto the existing posted owner-thread work message and reported after the
+lock unwinds. A nested message loop that consumes that message early does not repost until lock release. Notification
+callbacks retain the advised sink and stop the remaining notification sequence if the sink connection, target or
+reported state changes reentrantly. Native-host synchronization follows the same no-echo rule for TSF-originated
+edits while reporting separately observed control changes.
 
 Forward PreTranslate before TranslateMessage/DispatchMessage and HandleMessage from the application window
 procedure. Nested synchronous locks fail; asynchronous requests coalesce into one pending lock with the strongest
 requested access. A generation-tagged posted message, registered like DxUi's other private messages (see the
 [window hosting contract](../Rendering/Rendering_Win32Host.md)), grants it after the active lock, without recursion or
 a timer.
-Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock.
+Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock; if a
+callback reports a replacement while the lock is active, the store coalesces it onto the deferred message and emits
+it after the transaction ends. A failed stale continuation therefore cannot hide the callback's newer document or
+announce a partial TSF edit as an application change.
 Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
 
 The shared clipboard backend opens the clipboard once, without retry sleeps. Reads honor the allocation extent,
@@ -315,6 +440,15 @@ and clipped=true. The app performs the one DIP-to-physical-screen conversion. Ge
 TS_E_NOLAYOUT, and the app calls TextInputServices::NotifyLayoutChanged after preparation. Notifications retain
 the store through callbacks that release the application's last reference. Clear/disconnect prevents stale focus
 sessions from receiving edits, cancellation, or geometry.
+An asynchronously requested lock consumed while another lock is active retains its pending flags without reposting
+into a nested message loop. Releasing the active lock schedules one coalesced notification. If that post fails, the
+flags remain pending and the next real lock request retries; there is no timer, busy poll or unbounded immediate retry.
+
+Native host caption messages (`WM_GETTEXT`, `WM_GETTEXTLENGTH`, `WM_SETTEXT`) keep their HWND meaning while an
+editor has logical focus. Editor text is available through control APIs and the supported text/value providers.
+The edit-message shim preserves `EM_SETSEL` anchor/active endpoint order even for a reversed range; `EM_GETSEL`
+returns the ordered bounds. End -1 means the text end and start -1 collapses the selection at the requested end,
+including the native CRLF-to-logical LF mapping. See the [Windows selection contract](https://learn.microsoft.com/en-us/windows/win32/controls/em-setsel).
 
 The shared text store supports the documented InsertTextAtSelection flags: NOQUERY permits absent ACP outputs,
 QUERYONLY makes no edit and obeys the same capacity limit, and their combination is invalid. These rules follow
@@ -352,6 +486,16 @@ focus state. Changed active snapshots raise applicable property, text, focus, st
 [selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
 ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
 the tree inside an accessibility callback.
+Embedded focus events name the focused tree item or grid row returned by `GetFocus`, including moves within an
+already-focused control. No focus event is raised while placement reports no application keyboard focus.
+Native Slider, Splitter and ProgressBar value changes republish their accessible range values; Slider limit and step
+changes also publish immediately and request preparation. A listening client receives changed RangeValue value,
+minimum, maximum, small-change and large-change properties outside the snapshot mutex. Callbacks that retire the target stop stale
+notifications. Embedded publication remains the application's prepared-frame responsibility.
+
+Tree item and Grid header/row/cell `IsOffscreen` queries agree with the published bounds after ancestor clipping:
+a nonempty partially visible rectangle is onscreen, and a fully clipped fragment is offscreen. Navigable retained
+selection providers need not have visible geometry.
 
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
@@ -383,6 +527,10 @@ when a row is evicted, retained cell providers return `UIA_E_ELEMENTNOTAVAILABLE
 through a changed row id. A grid's model-assignment generation is part of that identity, so reassigning a model
 at the same address invalidates row and cell providers from the previous assignment. Visible and selected rows continue to use
 the existing snapshot paths and limits. Out-of-range row or column indices return `E_INVALIDARG`.
+Requested-row capture uses the same borrowed-model, geometry and publication revision guards as ordinary snapshots.
+A callback that changes the same model can abandon that request with `UIA_E_ELEMENTNOTAVAILABLE`; a fresh request
+may materialize the current row. No returned row mixes cell values from superseded and current captures. Native
+materialization flushes immediately on its owner, while ordinary mutations retain lazy publication and event coalescing.
 
 For a native HWND host, a foreign-thread `GetItem` that needs an uncached row dispatches a bounded request
 to the window thread, which must pump messages. In an embedded host, snapshot-backed requests for rows
@@ -402,8 +550,9 @@ always did. See [Tree multi-select](UI_ControlsAndLayout.md#tree-multi-select).
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
 reference with `wil::com_ptr::attach`; null means the window or attachment is unavailable. Call only for a
-window in the same process. A foreign-thread call synchronously dispatches to the owner, which must pump
-messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
+window in the same process. A foreign-thread call dispatches to the owner with a five-second bound; the owner must
+pump messages. Null also reports a failed or timed-out dispatch, and a late reply never writes into the caller's
+stack. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
 tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
 This API requires neither private implementation headers nor a consumer diagnostics build define.
 

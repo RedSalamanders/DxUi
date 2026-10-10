@@ -78,6 +78,13 @@ public:
             prefix = L"revision-" + std::to_wstring(_contentRevision) + L"-row-";
         }
         outCell.text = prefix + std::to_wstring(rowIndex) + (columnIndex == 0u ? L"-name" : L"-details");
+        if (_notifyOnRow && rowIndex == _notifyOnRow.value())
+        {
+            _notifyOnRow.reset();
+            auto notify = std::move(_notifyModel);
+            if (notify)
+                notify();
+        }
     }
 
     [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
@@ -149,6 +156,12 @@ public:
         _contentRevision = revision;
     }
 
+    void NotifyModelAfterReading(size_t rowIndex, std::function<void()> callback)
+    {
+        _notifyOnRow = rowIndex;
+        _notifyModel = std::move(callback);
+    }
+
     void SetThrowOnRead(bool enabled, bool badAlloc = false) noexcept
     {
         _throwOnRead   = enabled;
@@ -179,6 +192,8 @@ private:
     mutable size_t _stableIdTriggerAtOccurrence{};
     mutable size_t _stableIdTriggerOccurrence{};
     mutable std::optional<size_t> _shrinkOnRow;
+    mutable std::optional<size_t> _notifyOnRow;
+    mutable std::function<void()> _notifyModel;
     size_t _shrinkTo{};
     size_t _contentRevision{};
     bool _throwOnRead{};
@@ -452,7 +467,7 @@ void TestGridUiaPatternStopsWhenCellReadShrinksItsModel()
             "GridPattern rejects the old row index after the model shrink is published");
 }
 
-void TestGridUiaPatternKeepsNestedSameAddressPublication()
+void TestGridUiaPatternRetriesSupersededSameAddressCapture()
 {
     using namespace DxUi;
     ScopedNonActivatingTestWindows nonActivating;
@@ -474,15 +489,46 @@ void TestGridUiaPatternKeepsNestedSameAddressPublication()
                                    [&model, grid]
     {
         model.SetContentRevision(1u);
-        grid->SetModel(&model);       // Publishes a nested snapshot for this new assignment.
-        model.SetContentRevision(2u); // The outer, older capture must not overwrite that nested publication.
+        grid->SetModel(&model);       // Invalidates the capture for this new assignment.
+        model.SetContentRevision(2u); // A retry must capture the latest acknowledged model state.
     });
     window.Host().RefreshAccessibilitySnapshot();
 
     wil::com_ptr_nothrow<IRawElementProviderSimple> firstCell;
     RequireSucceeded(pattern->GetItem(0, 0, firstCell.put()), "the nested model assignment remains queryable");
-    Require(ReadGridCellName(*firstCell) == L"revision-1-row-0-name",
-            "an unwinding outer capture does not overwrite the newer nested same-address model publication");
+    Require(ReadGridCellName(*firstCell) == L"revision-2-row-0-name", "a superseded same-address capture retries and exposes the current model state");
+}
+
+void TestGridUiaPatternStopsWhenCellReadNotifiesSameModel()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    GridUiaPatternModel model(2000u);
+    Grid* grid = nullptr;
+    AttachGrid(window, model, grid);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderSimple> rootSimple;
+    RequireSucceeded(root.query_to(rootSimple.put()), "notified model root exposes Simple");
+    wil::com_ptr_nothrow<IUnknown> patternUnknown;
+    RequireSucceeded(rootSimple->GetPatternProvider(UIA_GridPatternId, patternUnknown.put()), "notified model exposes GridPattern");
+    wil::com_ptr_nothrow<IGridProvider> pattern;
+    RequireSucceeded(patternUnknown.query_to(pattern.put()), "notified model exposes IGridProvider");
+    model.NotifyModelAfterReading(1500u,
+                                  [&model, grid]
+    {
+        model.SetContentRevision(1u);
+        grid->NotifyDataChanged();
+    });
+    wil::com_ptr_nothrow<IRawElementProviderSimple> nameCell;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> detailsCell;
+    Require(pattern->GetItem(1500, 0, nameCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! nameCell,
+            "a same-model callback update abandons the superseded requested row");
+    RequireSucceeded(pattern->GetItem(1500, 0, nameCell.put()), "a fresh request materializes the current same-model row");
+    RequireSucceeded(pattern->GetItem(1500, 1, detailsCell.put()), "the retried row exposes its second cell");
+    Require(ReadGridCellName(*nameCell) == L"revision-1-row-1500-name" && ReadGridCellName(*detailsCell) == L"revision-1-row-1500-details",
+            "a same-model callback cannot publish cells from different content revisions");
 }
 
 void TestGridUiaPatternStopsPointHitsAfterModelReplacement()
@@ -517,6 +563,8 @@ void TestGridUiaPatternStopsPointHitsAfterModelReplacement()
     });
     window.Host().RefreshAccessibilitySnapshot();
 
+    int publishedRowCount = 0;
+    RequireSucceeded(pattern->get_RowCount(&publishedRowCount), "an owner query flushes the dirty point-hit snapshot");
     Require(oldModelCallsAfterReplacement != 0u, "point-hit capture reached the scheduled model replacement callback");
     Require(model.StableIdCalls() == oldModelCallsAfterReplacement, "point-hit capture stops immediately after a model callback replaces the grid model");
     wil::com_ptr_nothrow<IRawElementProviderSimple> replacementCell;

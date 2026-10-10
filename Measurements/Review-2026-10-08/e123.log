@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] TextField
+  [START] TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys
+FAILED: preview callback state advances across key notifications

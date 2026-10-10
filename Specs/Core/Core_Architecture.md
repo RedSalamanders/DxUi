@@ -27,7 +27,7 @@ native text/accessibility and Win32 hosting are implementation areas of that tar
 Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
-exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 27 concrete controls;
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 30 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
 attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 
@@ -42,6 +42,40 @@ payload registry, neutral ThemeColors record and native animation dispatcher. Co
 diagnostic sinks; DxUi opens no application log file. Platform libraries and pinned WIL are permitted dependencies.
 Public configuration is fixed by API revision: diagnostic hooks are compiled but dormant until used. Consumer flags
 must not change class definitions. Control C++ objects remain within their owning module.
+
+Revision 4 adds ownership-safe extraction. `Panel::TakeChild` cancels branch capture before releasing focus with lifetime checks,
+leaves an empty logical slot, clears host/parent links, and preserves effective inherited flow/density without making
+them explicit overrides. Adoption into a new owner resumes inheritance from that owner. `TabControl::TakeTab`
+and its virtual `TakeChild` also remove matching tab metadata and reconcile selection; virtual `ClearChildren`
+clears tab metadata together with pages. Extraction/removal stops without changing ownership or tab metadata when
+a capture/focus callback moves its live owner to another host or restores focus/capture inside the requested branch.
+The newer callback state is preserved; extraction returns empty in that case. Legacy mutable owning spans remain a compatibility surface; arbitrary
+slot rearrangement and tab extraction through those slots are unsupported. Application callbacks may retire or
+replace a control tree, so callers revalidate both owner and borrowed-model lifetimes after every external callback
+and callable-capture cleanup. Physical retirement at a dispatch boundary remains an evaluation, not a promise that
+callbacks or accessibility publication cannot reenter. Whole-host destruction within a callback remains separately
+unqualified.
+
+Borrowed Tree/Grid queries capture the control lifetime, model pointer and private mutation revision. Replacing a
+model, assigning a delegate or notifying model changes invalidates an older query, including replacing and restoring
+the same pointer. Parent paint, tick and hit-test traversal reacquires child storage after virtual callbacks and
+rejects retired or detached hit targets. Failed model collections must not be committed as an empty selection.
+An action distinguishes a delegate's completed `NotifyDataChanged` edit from replacing the model/delegate binding:
+it can acknowledge a freshly verified completed edit while discarding the old query/animation transaction, but
+binding replacement or physical retirement still ends the old request.
+Queries also capture host identity and interaction geometry revision, so a flow, density or metric change inside a
+getter or focus callback ends the old read before it can commit a newly resolved action against earlier pixels.
+Model and page mutations also invalidate host geometry. A page replacement during painting retains a private pending
+layout request; the next preparation synchronizes current and outgoing page bounds before paint. The host scans the
+current owned tree only when such a request is pending, revalidating each owner after virtual callbacks, and allocates
+no task queue. This supports callback replacement without doing layout in the render stage.
+Geometry, visibility, enabled-state and supported ownership changes advance the same host revision in native and
+embedded hosting. Detaching or attaching a branch schedules invalidation for both affected hosts. Native painting
+therefore rejects a partial frame even when the root itself survives a child mutation. Visual-only invalidation
+does not advance this revision, preserving embedded dispatch against still-current prepared hit geometry.
+Flow/density overrides, density-changing themes and Tree/Grid row/header/indent metrics invalidate interaction
+geometry. A color-only theme change outside painting remains visual-only. A theme assigned during painting aborts
+the mixed-palette frame. Virtual hit and hover queries revalidate geometry before proceeding to action dispatch.
 
 Library controls implement UI semantics rather than application operations. DxUi does not enumerate audio/camera
 devices, switch application profiles, store consumer settings or embed product-specific dimensions. Consumers supply

@@ -1,0 +1,42 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostTreeFocusOutlineSurvivesForcedNullSolidBrushes
+=================================================================
+==87472==ERROR: AddressSanitizer: access-violation on unknown address 0x000000000000 (pc 0x7ff8e3e0aeee bp 0x004fb9fa8271 sp 0x004fb9fa81b0 T0)
+==87472==The signal is caused by a READ memory access.
+==87472==Hint: address points to the zero page.
+    #0 0x7ff8e3e0aeed in D2D1MakeSkewMatrix+0x24d8d (C:\WINDOWS\SYSTEM32\d2d1.dll+0x18004aeed)
+    #1 0x7ff8e3e0a557 in D2D1MakeSkewMatrix+0x243f7 (C:\WINDOWS\SYSTEM32\d2d1.dll+0x18004a557)
+    #2 0x7ff6ba552e8f in DxUi::`anonymous namespace'::DrawTreeRow Z:\src\DxUi\src\Controls\DxUi.Tree.cpp:187
+    #3 0x7ff6ba5325b3 in DxUi::Tree::Paint Z:\src\DxUi\src\Controls\DxUi.Tree.cpp:880
+    #4 0x7ff6ba57f2b6 in DxUi::Panel::Paint Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:1357
+    #5 0x7ff6ba7695be in DxUi::ControlHost::Render Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:3868
+    #6 0x7ff6ba767f76 in DxUi::ControlHost::Render Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:3589
+    #7 0x7ff6ba75a5dd in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:2554
+    #8 0x7ff6b9a12ec4 in AttachedHostWindow::WndProc Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:937
+    #9 0x7ff8eaca52c5 in CallWindowProcW+0x6a5 (C:\WINDOWS\System32\USER32.dll+0x1800152c5)
+    #10 0x7ff8eaca4b4b in GetFocus+0x1e3b (C:\WINDOWS\System32\USER32.dll+0x180014b4b)
+    #11 0x7ff8eaccf672 in GetWindowDpiAwarenessContext+0x4d2 (C:\WINDOWS\System32\USER32.dll+0x18003f672)
+    #12 0x7ff8ec2e4de3 in KiUserCallbackDispatcher+0x23 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x180164de3)
+    #13 0x7ff8e99014e3 in NtUserRedrawWindow+0x13 (C:\WINDOWS\System32\win32u.dll+0x1800014e3)
+    #14 0x7ff6ba2bc57b in `anonymous namespace'::CaptureAttachedHostWindowBitmapForWindowHostSuite Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:55
+    #15 0x7ff6ba2fa417 in `anonymous namespace'::TestWindowHostTreeFocusOutlineSurvivesForcedNullSolidBrushes Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2857
+    #16 0x7ff6b9a0b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #17 0x7ff6ba31862d in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:4250
+    #18 0x7ff6b9b8a765 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #19 0x7ff6b9b85a36 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #20 0x7ff6ba9fc248 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #21 0x7ff6ba9fc161 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #22 0x7ff6ba9fc01d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #23 0x7ff6ba9fc2bd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #24 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #25 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+==87472==Register values:
+rax = d4018ba05500  rbx = 0  rcx = 11c9be2aa498  rdx = 4fb9fa85b0  
+rdi = 11c9be2aa498  rsi = 0  rbp = 4fb9fa8271  rsp = 4fb9fa81b0  
+r8  = 0  r9  = 4fb9fa85b0  r10 = 9f73f5044  r11 = 4fb9fa8220  
+r12 = 0  r13 = 0  r14 = 4fb9fa85b0  r15 = 4fb9fa85b0  
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: access-violation (C:\WINDOWS\SYSTEM32\d2d1.dll+0x18004aeed) in D2D1MakeSkewMatrix+0x24d8d
+==87472==ABORTING

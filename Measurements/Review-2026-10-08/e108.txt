@@ -1,0 +1,13 @@
+{
+  "scopes": [
+    "Tooling"
+  ],
+  "reasons": [
+    {
+      "path": "Tools/tests/TestSupport.psm1",
+      "scopes": "Tooling",
+      "reason": "tooling regression tests"
+    }
+  ],
+  "full": false
+}

@@ -4,13 +4,122 @@
 
 #include <algorithm>
 #include <bit>
+#include <exception>
 #include <new>
 #include <oleauto.h>
 #include <span>
+#include <utility>
 
 namespace DxUi
 {
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
+
+struct ControlModelQueryAccess
+{
+    template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
+    {
+        if (auto* const host = owner.GetHost())
+            ++host->_interactionRevision;
+        const auto lifetime = owner.GetLifetimeToken();
+        // Every exit, including a failed getter, leaves a surviving model owner scheduled for fresh preparation.
+        return wil::scope_exit([&owner, lifetime]() noexcept
+        {
+            if (! lifetime.expired())
+                owner.RequestInvalidate();
+        });
+    }
+    [[nodiscard]] static uint64_t Revision(const Tree& owner) noexcept
+    {
+        return owner._modelRevision;
+    }
+    [[nodiscard]] static uint64_t Revision(const Grid& owner) noexcept
+    {
+        return owner._modelRevision;
+    }
+    [[nodiscard]] static uint64_t BindingRevision(const Tree& owner) noexcept
+    {
+        return owner._modelBindingRevision;
+    }
+    [[nodiscard]] static uint64_t BindingRevision(const Grid& owner) noexcept
+    {
+        return owner._modelBindingRevision;
+    }
+    [[nodiscard]] static uint64_t GeometryRevision(const Control& owner) noexcept
+    {
+        const auto* host = owner.GetHost();
+        return host ? host->_interactionRevision : 0u;
+    }
+    [[nodiscard]] static const ControlHost* Host(const Control& owner) noexcept
+    {
+        return owner.GetHost();
+    }
+};
+
+// Shared by model reads and delegate dispatch. The revision also rejects replacing a model and restoring its pointer.
+template <typename Owner, typename Model> class BorrowedControlModelGuard final
+{
+public:
+    BorrowedControlModelGuard(const Owner& owner, std::weak_ptr<int> lifetime, const Model* model) noexcept
+        : _owner(&owner),
+          _lifetime(std::move(lifetime)),
+          _model(model),
+          _revision(ControlModelQueryAccess::Revision(owner)),
+          _bindingRevision(ControlModelQueryAccess::BindingRevision(owner)),
+          _host(ControlModelQueryAccess::Host(owner)),
+          _geometryRevision(ControlModelQueryAccess::GeometryRevision(owner))
+    {
+    }
+
+    [[nodiscard]] bool IsCurrent() const noexcept
+    {
+        return IsBindingCurrent() && ControlModelQueryAccess::Revision(*_owner) == _revision && ControlModelQueryAccess::Host(*_owner) == _host &&
+               ControlModelQueryAccess::GeometryRevision(*_owner) == _geometryRevision;
+    }
+
+    [[nodiscard]] bool IsBindingCurrent() const noexcept
+    {
+        return ! _lifetime.expired() && _owner->GetModel() == _model && ControlModelQueryAccess::BindingRevision(*_owner) == _bindingRevision;
+    }
+
+private:
+    const Owner* _owner;
+    std::weak_ptr<int> _lifetime;
+    const Model* _model;
+    uint64_t _revision;
+    uint64_t _bindingRevision;
+    const ControlHost* _host;
+    uint64_t _geometryRevision;
+};
+
+// Application callbacks can throw standard exceptions. The caller supplies the failed-operation fallback and
+// revalidates borrowed lifetimes and operation generations after either outcome, before using retained state.
+template <typename Callback> [[nodiscard]] bool TryControlCallback(Callback&& callback) noexcept
+{
+    try
+    {
+        std::forward<Callback>(callback)();
+        return true;
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+}
+
+// Registration owns the callable; dispatch retains this storage without cloning mutable state or allocating.
+template <typename Signature>
+void ReplaceControlCallback(std::shared_ptr<const std::function<Signature>>& destination, std::function<Signature> callback) noexcept
+{
+    try
+    {
+        auto replacement = callback ? std::make_shared<const std::function<Signature>>(std::move(callback)) : nullptr;
+        destination      = std::move(replacement);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Preserve the previous subscription if storage for its replacement cannot be allocated.
+    }
+}
 
 // Retained text layouts (the Grid's multiline cells and their omitted tails) live in set-associative tables: a mixed
 // 64-bit key hash selects a set of kTextLayoutWays entries and the caller confirms a hit by comparing the whole key. A
@@ -182,6 +291,9 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 [[nodiscard]] D2D1_COLOR_F RainbowMenuSelectionTint(std::wstring_view seed, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F RainbowFolderViewSelectionTint(uint32_t stableHash32, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F ChooseContrastingTextColor(const D2D1_COLOR_F& background) noexcept;
+[[nodiscard]] D2D1_COLOR_F ResolveInactiveSelectionTextColor(const ThemePalette& theme,
+                                                             const D2D1_COLOR_F& preferredText,
+                                                             const D2D1_COLOR_F& paintedGround) noexcept;
 [[nodiscard]] std::wstring_view GetCheckboxCheckGlyph(const ControlHost& host) noexcept;
 [[nodiscard]] FontRole GetCheckboxCheckFontRole(const ControlHost& host) noexcept;
 [[nodiscard]] DWRITE_READING_DIRECTION ResolveReadingDirection(FlowDirection flowDirection) noexcept;
@@ -191,10 +303,11 @@ void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool ex
 // A native menu popup's row focus, raised once its keyboard transition completes (ordinary window hosts announce
 // focus from their snapshot changes instead).
 void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
-[[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control) noexcept;
+[[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control, bool hostDeferredWorkEligible = false) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;
 [[nodiscard]] bool IsRenderStageActiveForDebug() noexcept;
+[[nodiscard]] bool IsRenderStageActive() noexcept;
 void EmitRenderMutationBlockedForDebug() noexcept;
 [[nodiscard]] bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture& outCapture, std::wstring_view componentName) noexcept;
 
@@ -367,6 +480,7 @@ void DrawTextWithMnemonic(ControlHost& host,
 [[nodiscard]] FontRole ResolveIconTextFontRole(std::wstring_view iconText) noexcept;
 [[nodiscard]] bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept;
 
+inline constexpr PCWSTR kNativeAccessibilityTargetProperty = L"DxUi.ControlHost";
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
@@ -375,9 +489,7 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 // the foreground's keyboard focus. While the window itself gains focus, the system's focus event reports it; a move
 // later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus no call has ever
 // begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
-// Returns callback/allocation failures so COM callers that requested a snapshot can return a failing HRESULT instead of
-// allowing an exception through this noexcept boundary.
-HRESULT RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 // A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
 // begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
 // asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.
@@ -390,9 +502,12 @@ void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) n
 // True for a native menu popup window. Explicit UIA focus of a row in such a popup tracks
 // logical row focus only; the menu session keeps its own Win32 focus target.
 [[nodiscard]] bool IsNativeMenuPopupWindow(HWND hwnd) noexcept;
+// Closes current-thread async menus before the process-exit window-host sweep.
+void DismissAsyncMenusForProcessExit() noexcept;
 [[nodiscard]] LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept;
 [[nodiscard]] bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
+void DebugFailNextWindowHostAccessibilityRegistrationForTest() noexcept;
 void DebugSetAccessibilityUiActionHandlerStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 void DebugSetAccessibilityUiActionHandlerTakenStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 void DebugSetAccessibilityUiActionPostedEventForTest(HANDLE postedEvent) noexcept;
@@ -403,10 +518,12 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // How many calls of `hwnd`'s fragment-root GetFocus have begun: each counts itself before it reads the snapshot. The
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
+[[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
-void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent, bool afterSnapshot = false) noexcept;
+void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 // Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
 // change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
 // raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or

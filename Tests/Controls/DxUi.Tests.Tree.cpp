@@ -3,10 +3,42 @@
 #include <clocale>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <stdexcept>
 
 namespace
 {
+
+class ReentrantTreeModel final : public DxUi::ITreeModel
+{
+public:
+    explicit ReentrantTreeModel(std::vector<DxUi::TreeItemData> items) : _items(std::move(items))
+    {
+    }
+
+    [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
+    {
+        return _items.size();
+    }
+
+    void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
+    {
+        outItem = _items.at(visibleIndex);
+        ++itemReads;
+        if (onItemRead)
+        {
+            auto callback = std::move(onItemRead);
+            callback();
+        }
+    }
+
+    mutable size_t itemReads = 0u;
+    mutable std::function<void()> onItemRead;
+
+private:
+    std::vector<DxUi::TreeItemData> _items;
+};
 
 void TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange()
 {
@@ -223,6 +255,168 @@ void TestTreeSelectionDelegateCanReplaceRootSafely()
     Require(handled, "tree pointer selection remains handled when its delegate replaces the root");
     Require(delegate.selectedItemId == 10u, "tree selection delegate receives the stable item id before replacing the root");
     Require(host.GetRoot() != nullptr, "tree selection delegate can replace the root without post-dispatch access");
+}
+
+void TestTreePaintStopsAfterModelGetterReplacesRoot()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
+    ReentrantTreeModel model({TreeItemData{.id = 1u, .text = L"First"}, TreeItemData{.id = 2u, .text = L"Second"}});
+    tree->SetModel(&model);
+    host.SetRoot(std::move(root));
+    const std::weak_ptr<int> lifetime = GetControlLifetimeToken(*tree);
+    model.onItemRead                  = [&host] { host.SetRoot(std::make_unique<Panel>()); };
+
+    tree->Paint(host);
+
+    Require(lifetime.expired(), "the model getter replaced and retired the painted Tree");
+    Require(model.itemReads == 1u, "painting stops immediately after its row getter replaces the root");
+    Require(host.GetRoot() != nullptr, "the replacement root remains installed");
+}
+
+void TestTreeSelectionAndReconciliationStopAfterModelGetterReplacesModel()
+{
+    using namespace DxUi;
+    const std::vector<TreeItemData> twoItems{TreeItemData{.id = 1u, .text = L"First"}, TreeItemData{.id = 2u, .text = L"Second"}};
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* tree = root->AddChild<Tree>();
+        ReentrantTreeModel model(twoItems);
+        ReentrantTreeModel replacement(twoItems);
+        RecordingTreeDelegate delegate;
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        host.SetRoot(std::move(root));
+        model.onItemRead = [tree, &replacement] { tree->SetModel(&replacement); };
+
+        Require(! tree->RequestSelectVisibleItem(1u), "selection aborts when its row getter replaces the model");
+        Require(tree->GetModel() == &replacement, "the replacement model remains current");
+        Require(tree->GetSelectedItemIds().empty() && delegate.callOrder.empty(), "the interrupted selection commits no stale state or callbacks");
+    }
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* tree = root->AddChild<Tree>();
+        ReentrantTreeModel model(twoItems);
+        ReentrantTreeModel replacement({TreeItemData{.id = 1u, .text = L"First"}});
+        RecordingTreeDelegate delegate;
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        tree->SetMultiSelectEnabled(true);
+        host.SetRoot(std::move(root));
+        tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 2u});
+        delegate.callOrder.clear();
+        delegate.selectionChangedCount    = 0u;
+        delegate.selectionSetChangedCount = 0u;
+        model.onItemRead                  = [tree, &replacement] { tree->SetModel(&replacement); };
+
+        tree->NotifyDataChanged();
+
+        Require(tree->GetModel() == &replacement, "reconciliation keeps the model installed by its getter");
+        Require(tree->GetSelectedItemIds() == std::vector<uint64_t>{1u}, "the nested replacement reconciliation prunes only the missing selection");
+        Require(delegate.selectionChangedCount == 1u && delegate.selectionSetChangedCount == 1u,
+                "the interrupted old-model reconciliation does not emit a second stale notification");
+    }
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* tree = root->AddChild<Tree>();
+        ReentrantTreeModel model(twoItems);
+        ReentrantTreeModel replacement(twoItems);
+        tree->SetModel(&model);
+        host.SetRoot(std::move(root));
+        model.onItemRead = [tree, &model, &replacement]
+        {
+            tree->SetModel(&replacement);
+            tree->SetModel(&model);
+        };
+
+        Require(! tree->RequestSelectVisibleItem(1u), "a model getter that replaces and restores its pointer still interrupts the outer query");
+        Require(tree->GetModel() == &model && tree->GetSelectedItemIds().empty(), "the revision guard catches an A-to-B-to-A model reentrancy");
+    }
+}
+
+void TestTreeSelectionDelegateReplacingModelStopsOuterNotifications()
+{
+    using namespace DxUi;
+    class ReplacingDelegate final : public ITreeDelegate
+    {
+    public:
+        ReplacingDelegate(Tree& tree, ITreeModel& replacement) : _tree(tree), _replacement(replacement)
+        {
+        }
+        void OnTreeSelectionChanged(uint64_t) override
+        {
+            ++primaryCalls;
+            _tree.SetModel(&_replacement);
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+        {
+            ++setCalls;
+        }
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t>) override
+        {
+            ++focusCalls;
+        }
+        size_t primaryCalls = 0u;
+        size_t setCalls     = 0u;
+        size_t focusCalls   = 0u;
+
+    private:
+        Tree& _tree;
+        ITreeModel& _replacement;
+    };
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    ReentrantTreeModel model({TreeItemData{.id = 1u, .text = L"First"}});
+    ReentrantTreeModel replacement({TreeItemData{.id = 1u, .text = L"First"}});
+    ReplacingDelegate delegate(*tree, replacement);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+
+    Require(! tree->RequestSelectVisibleItem(0u), "selection reports interruption after its delegate replaces the model");
+    Require(tree->GetModel() == &replacement && tree->GetSelectedItemId() == 1u, "the completed selection and replacement model remain coherent");
+    Require(delegate.primaryCalls == 1u && delegate.setCalls == 0u && delegate.focusCalls == 0u,
+            "no outer stale set or focus notification follows the delegate's model replacement");
+}
+
+void TestTreeFailedReconciliationPreservesSelection()
+{
+    using namespace DxUi;
+    ReentrantTreeModel model({TreeItemData{.id = 1u, .text = L"First"}, TreeItemData{.id = 2u, .text = L"Second"}});
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetModel(&model);
+    tree->SetMultiSelectEnabled(true);
+    host.SetRoot(std::move(root));
+    Require(tree->RequestAddVisibleItemToSelection(0u), "select the first row before reconciliation failure");
+    Require(tree->RequestAddVisibleItemToSelection(1u), "select the second row before reconciliation failure");
+    const auto selection = tree->GetSelectedItemIds();
+    model.onItemRead     = [] { throw std::runtime_error("injected silent selection read failure"); };
+    const std::array<uint64_t, 1> replacementSelection{1u};
+    tree->SetSelectedItemIds(replacementSelection);
+    Require(tree->GetSelectedItemIds() == selection, "failed silent selection replacement preserves the previously committed set");
+    model.onItemRead = [] { throw std::runtime_error("injected model read failure"); };
+    bool failed      = false;
+    try
+    {
+        tree->NotifyDataChanged();
+    }
+    catch (const std::runtime_error&)
+    {
+        failed = true;
+    }
+    Require(failed && tree->GetSelectedItemIds() == selection, "failed reconciliation does not apply a fabricated empty model");
+    tree->NotifyDataChanged();
+    Require(tree->GetSelectedItemIds() == selection, "a later successful reconciliation preserves the same selected rows");
 }
 
 void TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal()
@@ -999,14 +1193,15 @@ void TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast()
     Require(state.showFocus, "tree keyboard-focused row shows focus chrome");
     Require(state.iconArgb == state.textArgb, "tree keyboard-focused selected row keeps icon chrome aligned with selected text chrome");
     Require(state.expanderArgb == state.textArgb, "tree keyboard-focused selected row keeps expander chrome aligned with selected text chrome");
-    Require(state.focusArgb == PackColorForTest(theme.focusStroke), "tree keyboard-focused row uses the palette focus stroke for the focus ring");
+    Require(state.focusArgb == PackColorForTest(ChooseContrastingTextColor(CompositeOverBackground(ColorFromArgb(state.fillArgb), theme.surfaceBackground))),
+            "a selected Tree focus ring contrasts against the selection fill that it surrounds");
 
     ThemePalette highContrastTheme = theme;
     highContrastTheme.highContrast = true;
     Require(tree.DebugGetRowVisualState(highContrastTheme, 1u, false, state), "tree focus visual test resolves the high-contrast row state");
     Require(state.showFocus, "tree high-contrast focused row keeps a visible focus fallback even without keyboard focus visibility");
-    Require(state.focusArgb == PackColorForTest(highContrastTheme.focusStroke),
-            "tree high-contrast focused row keeps the palette focus stroke for the focus ring");
+    Require(state.focusArgb == PackColorForTest(highContrastTheme.selectionText),
+            "a selected high-contrast Tree focus ring preserves the explicit HighlightText pair");
 
     ThemeColors viewerTheme{.sizeBytes = sizeof(ThemeColors)};
     viewerTheme.backgroundArgb             = 0xFF11161Cu;
@@ -1038,10 +1233,35 @@ void TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast()
     Require(state.badgeFillArgb != 0u, "tree viewer-derived selected row exposes resolved badge fill chrome");
     Require(state.badgeTextArgb != 0u, "tree viewer-derived selected row exposes resolved badge text chrome");
     Require(state.badgeFillArgb != PackColorForTest(viewerPalette.accent), "tree viewer-derived selected row badge fill does not fall back to raw accent");
-    Require(state.focusArgb == PackColorForTest(viewerPalette.focusStroke),
-            "tree viewer-derived keyboard-focused row uses the palette focus stroke for the focus ring");
-    Require(state.focusArgb != PackColorForTest(viewerPalette.accent),
-            "tree viewer-derived focus ring follows the focus-stroke contract instead of raw accent");
+    Require(state.focusArgb ==
+                PackColorForTest(ChooseContrastingTextColor(CompositeOverBackground(ColorFromArgb(state.fillArgb), viewerPalette.surfaceBackground))),
+            "viewer-derived selected Tree focus ring contrasts against its painted selection fill");
+
+    ThemePalette rainbowViewerPalette = viewerPalette;
+    rainbowViewerPalette.rainbowMode  = true;
+    Require(tree.DebugGetRowVisualState(rainbowViewerPalette, 1u, true, state), "Tree resolves a selected rainbow row with current focus");
+    Require(state.usesRainbow, "selected focused Tree row uses its viewer text as a rainbow tint seed");
+    Require(state.focusArgb ==
+                PackColorForTest(ChooseContrastingTextColor(CompositeOverBackground(ColorFromArgb(state.fillArgb), rainbowViewerPalette.surfaceBackground))),
+            "rainbow Tree focus ring contrasts against the actual resolved rainbow fill");
+
+    const auto checkHighContrastFocusPair = [&](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
+    {
+        ThemeColors colors{.sizeBytes = sizeof(ThemeColors)};
+        colors.backgroundArgb          = backgroundArgb;
+        colors.textArgb                = textArgb;
+        colors.selectionBackgroundArgb = selectionArgb;
+        colors.selectionTextArgb       = selectionTextArgb;
+        colors.accentArgb              = 0xFF0078D4u;
+        colors.darkMode                = darkBase ? TRUE : FALSE;
+        colors.darkBase                = darkBase ? TRUE : FALSE;
+        colors.highContrast            = TRUE;
+        const ThemePalette palette     = MakeThemePalette(colors);
+        Require(tree.DebugGetRowVisualState(palette, 1u, true, state), "Tree resolves a selected row for a supplied high-contrast palette");
+        Require(state.focusArgb == PackColorForTest(palette.selectionText), "selected Tree focus ring uses the supplied High Contrast HighlightText token");
+    };
+    checkHighContrastFocusPair(0xFF202020u, 0xFFFFFFFFu, 0xFF8EE3F0u, 0xFF263B50u, true);  // Aquatic-like.
+    checkHighContrastFocusPair(0xFFFFFAEFu, 0xFF3D3D3Du, 0xFF903909u, 0xFFFFF5E3u, false); // Desert-like.
 }
 
 void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
@@ -1607,36 +1827,41 @@ void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
     fixture.Click(5u, MK_SHIFT);
     RequireTreeIds(fixture.Selected(), {6u}, "Shift+click without multi-select");
     Require(! tree.IsItemSelected(4u) && tree.IsItemSelected(6u), "a single selection names its one item");
-    Require(log.selectionChangedCount == 3u, "every click still notifies the focused item");
-    Require(log.selectionSetChangedCount == 0u, "the set callback belongs to multi-select");
+    Require(log.selectionChangedCount == 3u, "each click reports its selected primary");
+    Require(log.selectionSetChangedCount == 3u && log.lastSelectionSet == std::vector<uint64_t>{6u},
+            "the set callback reports each changed single-select membership");
 
-    // The keys do too: Shift and Ctrl with a movement key move the selection, and Ctrl+A and Ctrl+Space are not commands.
+    // Shift and Ctrl with a movement key move focus and single selection together. Ctrl+Space toggles the optional single
+    // membership and leaves focus in place; Ctrl+A remains unavailable without multi-select.
     Require(fixture.Key(VK_UP, MK_SHIFT), "Shift+Up moves a single selection");
     RequireTreeIds(fixture.Selected(), {5u}, "Shift+Up without multi-select");
     Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down moves a single selection");
     RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+Down without multi-select");
     Require(! fixture.Key('A', MK_CONTROL) && ! tree.OnSelectAll(fixture.host), "Ctrl+A selects nothing without multi-select");
     RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+A without multi-select");
-    Require(fixture.Key(VK_SPACE, MK_CONTROL) && log.invokedCount == 1u && log.lastInvokedItemId == 6u, "Ctrl+Space still invokes the item");
-    RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+Space without multi-select");
-    Require(tree.GetFocusedItemId() == tree.GetSelectedItemId(), "the selected item is the focused item");
+    Require(fixture.Key(VK_SPACE, MK_CONTROL) && log.invokedCount == 0u, "Ctrl+Space toggles instead of invoking the item");
+    RequireTreeIds(fixture.Selected(), {}, "Ctrl+Space clears the optional single selection");
+    Require(! tree.GetSelectedItemId().has_value() && tree.GetFocusedItemId() == 6u, "clearing membership preserves the focused item");
+    Require(log.selectionSetChangedCount == 6u, "Ctrl+Space reports the changed single-select membership");
 
     // The setters and requests keep their single meaning.
-    Require(! tree.RequestRemoveVisibleItemFromSelection(5u), "there is no membership to remove without multi-select");
+    Require(tree.RequestRemoveVisibleItemFromSelection(5u), "removing absent membership is idempotent without multi-select");
     Require(tree.RequestAddVisibleItemToSelection(0u), "adding selects the item without multi-select");
     RequireTreeIds(fixture.Selected(), {1u}, "Add without multi-select");
+    const size_t selectionCallbacksBeforeSetters = log.selectionSetChangedCount;
     tree.SetSelectedItemIds(std::vector<uint64_t>{2u, 3u});
     RequireTreeIds(fixture.Selected(), {3u}, "a list of ids selects its last visible item without multi-select");
     tree.SetSelectedItemIds({});
     Require(fixture.Selected().empty() && ! tree.GetSelectedItemId().has_value(), "an empty list clears the selection");
-    Require(log.selectionSetChangedCount == 0u, "no gesture of a single-select tree reaches the set callback");
+    Require(log.selectionSetChangedCount == selectionCallbacksBeforeSetters, "the public setters stay silent in single-select mode");
 
-    // Characters are typeahead whatever modifier came with them, as before: a row that starts with a space is what the
-    // space character of Ctrl+Space finds, and only a multi-select tree keeps that character out of typeahead.
+    // Ctrl+Space is a command in both selection modes; the unmodified space character remains typeahead.
     TreeSelectionFixture spaced({TreeItemData{.id = 1u, .text = L" Leading space"}, TreeItemData{.id = 2u, .text = L"Beta"}}, std::nullopt);
     spaced.tree->SetSelectedItemId(2u);
-    Require(spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "a space with Ctrl is typeahead without multi-select");
-    RequireTreeIds(spaced.Selected(), {1u}, "typeahead selected the row that starts with a space");
+    Require(! spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "the Ctrl+Space character is not typeahead without multi-select");
+    RequireTreeIds(spaced.Selected(), {2u}, "the Ctrl+Space character leaves the selection alone");
+    Require(spaced.tree->OnChar(spaced.host, L' ', 0u), "an unmodified space remains typeahead without multi-select");
+    RequireTreeIds(spaced.Selected(), {1u}, "plain typeahead selected the row that starts with a space");
 }
 
 void TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder()
@@ -1650,7 +1875,7 @@ void TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder()
     // A plain click selects one row and is the anchor.
     fixture.Click(1u);
     RequireTreeIds(fixture.Selected(), {2u}, "plain click");
-    Require(log.selectionChangedCount == 1u && log.lastSelectedItemId == 2u, "a plain click notifies the focused item");
+    Require(log.selectionChangedCount == 1u && log.lastSelectedItemId == 2u, "a plain click reports its selected primary");
     Require(log.selectionSetChangedCount == 1u, "a plain click changes the selection set once");
     RequireTreeIds(log.lastSelectionSet, {2u}, "the set callback of a plain click");
     Require(fixture.host.GetFocusControl() == &tree, "a click focuses the tree");
@@ -1664,19 +1889,22 @@ void TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder()
     RequireTreeIds(fixture.Selected(), {1u, 2u, 4u, 6u}, "a row added above the others keeps the model's order");
     fixture.Click(3u, MK_CONTROL);
     RequireTreeIds(fixture.Selected(), {1u, 2u, 6u}, "Ctrl+click on a selected row removes it");
-    Require(! tree.IsItemSelected(4u) && tree.GetSelectedItemId() == 4u, "the row Ctrl+click removed is the focused item but not selected");
+    Require(! tree.IsItemSelected(4u) && tree.GetFocusedItemId() == 4u, "the row Ctrl+click removed remains focused but not selected");
     fixture.Click(0u, MK_CONTROL);
     RequireTreeIds(fixture.Selected(), {2u, 6u}, "Ctrl+click removes the first row");
     RequireTreeIds(log.lastSelectionSet, {2u, 6u}, "the set callback names the selection after the toggle");
     Require(log.selectionSetChangedCount == 6u, "each toggle changed the set once");
 
-    // Shift+click selects the visible range from the anchor, the row of the last plain click, and drops the rest.
+    // Each Ctrl+click moves the range anchor to its touched row, including a row it deselects. The last Ctrl+click above
+    // touched id 1, so Shift selects the range from id 1 to the endpoint and drops rows outside it.
     fixture.Click(4u, MK_SHIFT);
-    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u, 5u}, "Shift+click selects the range across a group boundary");
-    Require(tree.GetSelectedItemId() == 5u, "the clicked row of a range is the focused item");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 4u, 5u}, "Shift+click extends from the last Ctrl-touched row across a group boundary");
+    Require(log.selectionSetChangedCount == 7u, "the range reports its changed membership once");
+    Require(tree.GetFocusedItemId() == 5u, "the clicked row of a range is focused");
     fixture.Click(0u, MK_SHIFT);
-    RequireTreeIds(fixture.Selected(), {1u, 2u}, "Shift+click above the anchor selects the range upward");
-    RequireTreeIds(log.lastSelectionSet, {1u, 2u}, "the set callback of a range");
+    RequireTreeIds(fixture.Selected(), {1u}, "Shift+click at the anchor selects its one-row range");
+    Require(log.selectionSetChangedCount == 8u, "shrinking the range reports its changed membership once");
+    RequireTreeIds(log.lastSelectionSet, {1u}, "the set callback of the one-row range at its anchor");
 
     // A plain click collapses the selection to its row.
     fixture.Click(6u);
@@ -1684,14 +1912,16 @@ void TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder()
     fixture.Click(5u, MK_SHIFT);
     RequireTreeIds(fixture.Selected(), {6u, 7u}, "the plain click moved the anchor");
 
-    // Clicking the one selected row again changes no set: its row is still announced, and the set is not.
+    // Clicking the one selected row again changes neither membership nor its membership callback.
     fixture.Click(6u);
-    const size_t setChangesBefore = log.selectionSetChangedCount;
-    const size_t focusMovesBefore = log.selectionChangedCount;
+    const size_t setChangesBefore     = log.selectionSetChangedCount;
+    const size_t primaryChangesBefore = log.selectionChangedCount;
+    const size_t focusChangesBefore   = log.focusChangedCount;
     fixture.Click(6u);
     RequireTreeIds(fixture.Selected(), {7u}, "the same row clicked again");
     Require(log.selectionSetChangedCount == setChangesBefore, "an unchanged selection is not reported again");
-    Require(log.selectionChangedCount == focusMovesBefore + 1u, "a click always announces the row it landed on");
+    Require(log.selectionChangedCount == primaryChangesBefore && log.focusChangedCount == focusChangesBefore,
+            "a click on the already selected row changes neither primary nor focus");
 
     // Shift+click with no anchor takes the focused row as one.
     TreeSelectionFixture unanchored(FlatTreeItems(5u));
@@ -1723,8 +1953,32 @@ void TestTreeCtrlAndShiftClickThroughTheHostMessages()
     click(5u, MK_CONTROL);
     RequireTreeIds(fixture.Selected(), {2u, 4u, 6u}, "host Ctrl+click");
     click(2u, MK_SHIFT);
-    RequireTreeIds(fixture.Selected(), {2u, 3u}, "host Shift+click");
+    RequireTreeIds(fixture.Selected(), {3u, 4u, 5u, 6u}, "host Shift+click extends from the last Ctrl-touched row");
     Require(fixture.delegate.selectionSetChangedCount == 4u, "each host gesture reached the tree once");
+}
+
+void TestTreeMultiRowDragRejectsEverySelectedSubtree()
+{
+    using namespace DxUi;
+    TreeSelectionFixture fixture({TreeItemData{.id = 10u, .text = L"First", .hasChildren = true, .expanded = true},
+                                  TreeItemData{.id = 11u, .parentId = 10u, .text = L"Child", .depth = 1u},
+                                  TreeItemData{.id = 20u, .text = L"Second", .hasChildren = true, .expanded = true},
+                                  TreeItemData{.id = 21u, .parentId = 20u, .text = L"Other child", .depth = 1u},
+                                  TreeItemData{.id = 30u, .text = L"Outside"}},
+                                 true,
+                                 true);
+    fixture.tree->SetSelectedItemIds(std::vector<uint64_t>{10u, 20u});
+    const auto drag = [&](size_t target)
+    {
+        Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(0u), false, 0u), "selected row starts a drag");
+        Require(fixture.tree->OnMouseMove(fixture.host, fixture.RowPoint(target), 0u), "drag reaches target");
+        static_cast<void>(fixture.tree->OnMouseUp(fixture.host, fixture.RowPoint(target), false, 0u));
+    };
+    drag(2u);
+    drag(3u);
+    Require(fixture.delegate.reorderCount == 0u, "another selected row and its subtree reject the entire moving selection");
+    drag(4u);
+    Require(fixture.delegate.reorderCount == 1u, "a target outside every selected subtree remains usable");
 }
 
 void TestTreeKeyboardExtendsTogglesAndSelectsAll()
@@ -1767,17 +2021,19 @@ void TestTreeKeyboardExtendsTogglesAndSelectsAll()
     Require(fixture.Key(VK_SPACE) && log.invokedCount == 1u && log.lastInvokedItemId == 5u, "plain Space still invokes the focused row");
     RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Space leaves the selection alone");
 
-    // Shift with Home, End and Page Down reaches the ends and the page the keys always did, and the anchor stayed put.
+    // Shift with Home, End and Page Down extends from the last Ctrl+Space-touched row, id 5.
     Require(fixture.Key(VK_END, MK_SHIFT), "Shift+End is handled");
-    RequireTreeIds(fixture.Selected(), {3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Shift+End");
+    RequireTreeIds(fixture.Selected(), {5u, 6u, 7u, 8u, 9u}, "Shift+End extends from the last Ctrl+Space-touched row");
     Require(fixture.Key(VK_HOME, MK_SHIFT), "Shift+Home is handled");
-    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Shift+Home");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 4u, 5u}, "Shift+Home returns to that anchor");
 
     // Ctrl+A selects every visible row and keeps the focused one, which the delegate already knew.
-    const size_t focusMovesBeforeAll = log.selectionChangedCount;
+    const size_t focusChangesBeforeAll  = log.focusChangedCount;
+    const size_t selectionSetsBeforeAll = log.selectionSetChangedCount;
     Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled");
     RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Ctrl+A");
-    Require(tree.GetFocusedItemId() == 1u && log.selectionChangedCount == focusMovesBeforeAll, "Ctrl+A moves no focus");
+    Require(tree.GetFocusedItemId() == 1u && log.focusChangedCount == focusChangesBeforeAll, "Ctrl+A moves no focus");
+    Require(log.selectionSetChangedCount == selectionSetsBeforeAll + 1u, "Ctrl+A reports its membership change once");
     RequireTreeIds(log.lastSelectionSet, {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "the set callback of Ctrl+A");
     const size_t setChangesAfterAll = log.selectionSetChangedCount;
     Require(tree.OnSelectAll(fixture.host), "selecting everything twice is handled");
@@ -1793,13 +2049,13 @@ void TestTreeKeyboardExtendsTogglesAndSelectsAll()
     RequireTreeIds(fixture.Selected(), {2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Shift+Page Down extends from the anchor by a page");
     Require(tree.OnChar(fixture.host, L'r', 0u), "typeahead is handled");
     RequireTreeIds(fixture.Selected(), {1u}, "typeahead collapses the selection to its match");
-    Require(! tree.OnChar(fixture.host, L' ', MK_CONTROL), "the space character of Ctrl+Space is not typeahead");
+    Require(! tree.OnChar(fixture.host, L' ', MK_CONTROL), "the Ctrl+Space character is not typeahead");
     RequireTreeIds(fixture.Selected(), {1u}, "the Ctrl+Space character selected nothing");
 
     // A row that starts with a space would be found by that character, which is what this keeps out of typeahead.
     TreeSelectionFixture spaced({TreeItemData{.id = 1u, .text = L" Leading space"}, TreeItemData{.id = 2u, .text = L"Beta"}});
     spaced.tree->SetFocusedItemId(2u);
-    Require(! spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "the space character of Ctrl+Space finds no row");
+    Require(! spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "a Ctrl+Space character is not typeahead in single-select mode");
     Require(spaced.Selected().empty() && spaced.tree->GetFocusedItemId() == 2u, "the Ctrl+Space character moved nothing");
     Require(spaced.tree->OnChar(spaced.host, L' ', 0u), "a space without Ctrl is typeahead");
     RequireTreeIds(spaced.Selected(), {1u}, "typeahead selected the row that starts with a space");
@@ -1871,6 +2127,40 @@ void TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused()
         Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled on a tree that has nothing focused");
         Require(fixture.Selected().size() == 5u && fixture.tree->GetFocusedItemId() == 1u, "Ctrl+A focuses the first row");
         Require(fixture.delegate.callOrder == "PS", "the delegate hears of the focus it was given and of the selection, in that order");
+    }
+}
+
+void TestTreeUnhandledKeysLeaveAnEmptySelectionAlone()
+{
+    using namespace DxUi;
+    for (const bool multiSelect : {false, true})
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        fixture.tree->SetMultiSelectEnabled(multiSelect);
+        for (const UINT key : {UINT{VK_TAB}, UINT{VK_SHIFT}, UINT{VK_CONTROL}, UINT{VK_MENU}, UINT{VK_ESCAPE}, UINT{VK_F5}})
+        {
+            Require(! fixture.Key(key), "an unhandled key remains available to the host");
+            Require(fixture.Selected().empty() && ! fixture.tree->GetFocusedItemId().has_value(), "an unhandled key does not select or focus the first row");
+            Require(fixture.delegate.callOrder.empty(), "an unhandled key does not notify a selection change");
+        }
+    }
+}
+
+void TestTreePointerRechecksTheModelAfterFocusCallbacks()
+{
+    for (const bool doubleClick : {false, true})
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        const auto point = fixture.RowPoint(2u);
+        fixture.host.SetOnFocusChanged([&](DxUi::Control* focused)
+        {
+            if (focused == fixture.tree)
+                fixture.tree->SetModel(nullptr);
+        });
+        const bool handled =
+            doubleClick ? fixture.tree->OnMouseDoubleClick(fixture.host, point, false, 0u) : fixture.tree->OnMouseDown(fixture.host, point, false, 0u);
+        Require(handled && fixture.tree->GetModel() == nullptr, "the pointer focus callback may clear the model");
+        Require(fixture.delegate.callOrder.empty(), "a removed model receives no stale pointer selection");
     }
 }
 
@@ -1957,7 +2247,7 @@ void TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection()
     RequireTreeIds(log.idsSeenByPrimaryCallback, {2u}, "the focused-item callback of a click already sees its selection");
     RequireTreeIds(log.idsSeenBySetCallback, {2u}, "the set callback sees the selection it reports");
     fixture.Click(1u);
-    expectCalls("P", "a click that leaves the set alone announces the row only");
+    expectCalls("", "a click that leaves the set alone announces no selection membership change");
     fixture.Click(3u, MK_CONTROL);
     expectCalls("PS", "Ctrl+click that adds a row");
     RequireTreeIds(log.idsSeenBySetCallback, {2u, 4u}, "the set callback of Ctrl+click sees both rows");
@@ -1965,9 +2255,9 @@ void TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection()
     expectCalls("PS", "Ctrl+click that removes a row");
     RequireTreeIds(log.lastSelectionSet, {2u}, "the set after the removal");
     Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down is handled");
-    expectCalls("P", "moving the focus alone announces the row only");
+    expectCalls("", "moving focus alone does not announce a selection membership change");
     Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled");
-    expectCalls("S", "Ctrl+A reports the new set only: the focused row stays");
+    expectCalls("PS", "Ctrl+A reports the unchanged primary and the new membership set; the focused row stays");
     Require(tree.OnSelectAll(fixture.host), "Ctrl+A again is handled");
     expectCalls("", "an unchanged set reports nothing");
 
@@ -1978,11 +2268,17 @@ void TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection()
     Require(tree.RequestAddVisibleItemToSelection(1u), "AddToSelection is handled");
     expectCalls("PS", "AddToSelection adds the row");
     Require(tree.RequestAddVisibleItemToSelection(1u), "AddToSelection of a selected row is handled");
-    expectCalls("P", "AddToSelection of a selected row changes no set");
+    expectCalls("", "AddToSelection of a selected row changes no selection membership");
     RequireTreeIds(fixture.Selected(), {2u, 5u}, "AddToSelection is not a toggle");
+    const std::optional<uint64_t> focusBeforeRemoval = tree.GetFocusedItemId();
+    const size_t focusCallbacksBeforeRemoval         = log.focusChangedCount;
     Require(tree.RequestRemoveVisibleItemFromSelection(1u), "RemoveFromSelection is handled");
-    expectCalls("S", "RemoveFromSelection reports the set and leaves the focus");
+    expectCalls("PS", "removing the primary reports its replacement and the changed set without moving focus");
     RequireTreeIds(fixture.Selected(), {5u}, "RemoveFromSelection");
+    Require(tree.GetSelectedItemId() == std::optional<uint64_t>(5u) && log.lastSelectedItemId == 5u,
+            "removing the primary reports the remaining row as the new primary");
+    Require(tree.GetFocusedItemId() == focusBeforeRemoval && log.focusChangedCount == focusCallbacksBeforeRemoval,
+            "removing a selected row leaves the independent keyboard focus unchanged");
     Require(tree.RequestRemoveVisibleItemFromSelection(1u), "RemoveFromSelection of a row that is not selected is handled");
     expectCalls("", "removing a row that is not selected reports nothing");
     Require(! tree.RequestRemoveVisibleItemFromSelection(99u) && ! tree.RequestAddVisibleItemToSelection(99u), "a row that does not exist is refused");
@@ -1994,6 +2290,238 @@ void TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection()
     tree.SetMultiSelectEnabled(false);
     tree.SetMultiSelectEnabled(true);
     expectCalls("", "no setter notifies");
+}
+
+void TestDisabledTreeRejectsPublicSelectionAndExpansionRequests()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture({TreeItemData{.id = 1u, .text = L"Group", .hasChildren = true, .expanded = false},
+                                  TreeItemData{.id = 2u, .parentId = 1u, .text = L"Child", .depth = 1u}},
+                                 true);
+    fixture.tree->SetSelectedItemId(2u);
+    fixture.tree->SetFocusedItemId(2u);
+    fixture.tree->SetEnabled(false);
+    const std::vector<uint64_t> selectionBefore = fixture.Selected();
+    const std::optional<uint64_t> focusBefore   = fixture.tree->GetFocusedItemId();
+
+    Require(! fixture.tree->RequestSelectVisibleItem(0u), "a disabled Tree refuses Select");
+    Require(! fixture.tree->RequestAddVisibleItemToSelection(0u), "a disabled Tree refuses AddToSelection");
+    Require(! fixture.tree->RequestRemoveVisibleItemFromSelection(1u), "a disabled Tree refuses RemoveFromSelection");
+    Require(! fixture.tree->RequestExpandedState(0u, true), "a disabled Tree refuses Expand");
+
+    TreeItemData group;
+    fixture.model.GetVisibleItem(0u, group);
+    Require(! group.expanded, "a disabled expansion request leaves its model row unchanged");
+    Require(fixture.Selected() == selectionBefore && fixture.tree->GetFocusedItemId() == focusBefore, "disabled requests leave selection and focus unchanged");
+    Require(fixture.delegate.callOrder.empty() && fixture.delegate.toggleCount == 0u, "disabled requests notify no selection or expansion callbacks");
+}
+
+void TestTreeSingleSelectionKeepsFocusSeparateAndSupportsOptionalRemoval()
+{
+    using namespace DxUi;
+
+    struct FocusLog final : ITreeDelegate
+    {
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t> itemId) override
+        {
+            focused.push_back(itemId);
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t> ids) override
+        {
+            selectionSets.emplace_back(ids.begin(), ids.end());
+        }
+        std::vector<std::optional<uint64_t>> focused;
+        std::vector<std::vector<uint64_t>> selectionSets;
+    } focusLog;
+
+    TreeSelectionFixture fixture(FlatTreeItems(4u), false);
+    Tree& tree = *fixture.tree;
+    tree.SetDelegate(&focusLog);
+    tree.SetSelectedItemId(2u);
+    tree.SetFocusedItemId(4u);
+    Require(tree.GetSelectedItemId() == 2u && tree.GetFocusedItemId() == 4u, "a silent focus move does not replace the single selected item");
+    Require(focusLog.focused.empty(), "the silent focus setter does not notify");
+    Require(tree.RequestFocusVisibleItem(1u), "UI Automation focus-only request accepts a visible row");
+    Require(tree.GetSelectedItemId() == 2u && tree.GetFocusedItemId() == 2u, "focus-only request updates focus while retaining the single selection");
+    Require(focusLog.focused == std::vector<std::optional<uint64_t>>{2u}, "focus request notifies the independent focus callback");
+    Require(focusLog.selectionSets.empty(), "focus-only UI Automation request does not report membership changes");
+
+    Require(tree.RequestAddVisibleItemToSelection(1u), "AddToSelection of the selected single row is handled");
+    Require(tree.GetSelectedItemId() == 2u && focusLog.selectionSets.empty(), "single-select Add of the current item is idempotent");
+    Require(! tree.RequestAddVisibleItemToSelection(0u), "single-select Add refuses a different row while selection is occupied");
+    Require(tree.RequestRemoveVisibleItemFromSelection(1u), "RemoveFromSelection can clear the optional single selection");
+    Require(! tree.GetSelectedItemId().has_value() && tree.GetFocusedItemId() == 2u, "removing the selected row keeps focus and leaves no selected value");
+    Require(! focusLog.selectionSets.empty() && focusLog.selectionSets.back().empty(), "clearing single selection reports an empty membership set");
+    Require(tree.RequestAddVisibleItemToSelection(0u), "AddToSelection can fill an empty single selection");
+    Require(tree.GetSelectedItemId() == 1u && tree.GetFocusedItemId() == 1u, "single-select Add establishes both membership and focus");
+}
+
+void TestTreeRightToLeftMirrorsTheExpanderHitTarget()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture({TreeItemData{.id = 1u, .text = L"Group", .hasChildren = true, .expanded = true},
+                                  TreeItemData{.id = 2u, .parentId = 1u, .text = L"Child", .depth = 1u}},
+                                 false);
+    Tree& tree = *fixture.tree;
+    tree.SetFlowDirection(FlowDirection::RightToLeft);
+    const D2D1_RECT_F row                = tree.GetVisibleItemHitRect(0u).value();
+    const D2D1_POINT_2F mirroredExpander = D2D1::Point2F(row.right - 10.0f, (row.top + row.bottom) * 0.5f);
+    Require(tree.OnMouseDown(fixture.host, mirroredExpander, false, 0u), "the mirrored RTL expander accepts pointer input");
+    static_cast<void>(tree.OnMouseUp(fixture.host, mirroredExpander, false, 0u));
+    Require(fixture.delegate.toggleCount == 1u && fixture.delegate.lastToggledItemId == 1u && ! fixture.delegate.lastExpandedState,
+            "the RTL-side expander hit toggles the group row");
+}
+
+void TestTreeIdempotentAddPreservesFocusAndSelectAllKeepsItsPrimary()
+{
+    using namespace DxUi;
+
+    struct SelectionLog final : ITreeDelegate
+    {
+        void OnTreeSelectionChanged(uint64_t itemId) override
+        {
+            primaryChanges.push_back(itemId);
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t> ids) override
+        {
+            selectionSets.emplace_back(ids.begin(), ids.end());
+        }
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t> itemId) override
+        {
+            focusChanges.push_back(itemId);
+        }
+        std::vector<uint64_t> primaryChanges;
+        std::vector<std::vector<uint64_t>> selectionSets;
+        std::vector<std::optional<uint64_t>> focusChanges;
+    } log;
+
+    TreeSelectionFixture fixture(FlatTreeItems(5u));
+    Tree& tree = *fixture.tree;
+    tree.SetDelegate(&log);
+    const std::array<uint64_t, 2> initialSelection{2u, 4u};
+    tree.SetSelectedItemIds(initialSelection);
+    tree.SetFocusedItemId(3u);
+
+    Require(tree.RequestAddVisibleItemToSelection(1u), "adding an already-selected row is handled");
+    RequireTreeIds(tree.GetSelectedItemIds(), {2u, 4u}, "an idempotent Add keeps membership unchanged");
+    Require(tree.GetSelectedItemId() == 4u && tree.GetFocusedItemId() == 3u, "an idempotent Add leaves primary and focus unchanged");
+    Require(log.primaryChanges.empty() && log.selectionSets.empty() && log.focusChanges.empty(), "an idempotent Add sends no callbacks");
+    Require(fixture.Key(VK_DOWN, MK_SHIFT), "Shift+Down after Add is handled");
+    RequireTreeIds(tree.GetSelectedItemIds(), {4u}, "an idempotent Add preserves the anchor at the existing primary");
+    log.primaryChanges.clear();
+    log.selectionSets.clear();
+    log.focusChanges.clear();
+    tree.SetSelectedItemIds(initialSelection);
+    tree.SetFocusedItemId(3u);
+
+    Require(tree.OnSelectAll(fixture.host), "Select All handles the current visible rows");
+    RequireTreeIds(tree.GetSelectedItemIds(), {1u, 2u, 3u, 4u, 5u}, "Select All extends membership to every visible item");
+    Require(tree.GetSelectedItemId() == 4u && tree.GetFocusedItemId() == 3u, "Select All preserves the selected primary and separate focus");
+    Require(log.primaryChanges == std::vector<uint64_t>{4u}, "the selection callback names the selected primary, not the final range member");
+    Require(log.selectionSets.size() == 1u && log.focusChanges.empty(), "Select All reports membership once and leaves focus callbacks alone");
+
+    Require(tree.RequestRemoveVisibleItemFromSelection(3u), "removing the selected primary is handled");
+    Require(tree.GetSelectedItemId() == 5u && tree.IsItemSelected(5u), "removing the primary chooses the last remaining selected member");
+    Require(log.primaryChanges == std::vector<uint64_t>({4u, 5u}), "the membership callback follows the reconciled primary");
+
+    tree.SetSelectedItemId(std::nullopt);
+    tree.SetFocusedItemId(3u);
+    log.primaryChanges.clear();
+    log.selectionSets.clear();
+    log.focusChanges.clear();
+    Require(tree.OnSelectAll(fixture.host), "Select All also handles a previously empty selection");
+    Require(tree.GetSelectedItemId() == 3u && tree.GetFocusedItemId() == 3u, "Select All uses an existing focused row as primary when there was none");
+    Require(log.primaryChanges == std::vector<uint64_t>{3u}, "the empty-selection Select All callback reports its focused primary");
+
+    tree.SetSelectedItemId(std::nullopt);
+    tree.SetFocusedItemId(std::nullopt);
+    log.primaryChanges.clear();
+    log.selectionSets.clear();
+    Require(tree.OnSelectAll(fixture.host), "Select All handles the absence of both selection and focus");
+    Require(tree.GetSelectedItemId() == 5u && tree.GetFocusedItemId() == 1u,
+            "Select All falls back to the final visible item as primary and the first as focus");
+    Require(log.primaryChanges == std::vector<uint64_t>{5u}, "the no-focus Select All callback reports its final visible primary");
+}
+
+void TestTreeSelectAllStopsWhenSelectionCallbackReplacesItsDelegate()
+{
+    using namespace DxUi;
+
+    struct CallbackCounts
+    {
+        size_t primary = 0u;
+        size_t sets    = 0u;
+        size_t focus   = 0u;
+    };
+    struct ReplacementDelegate final : ITreeDelegate
+    {
+        explicit ReplacementDelegate(CallbackCounts& counts) noexcept : counts(counts)
+        {
+        }
+        void OnTreeSelectionChanged(uint64_t) override
+        {
+            ++counts.primary;
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+        {
+            ++counts.sets;
+        }
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t>) override
+        {
+            ++counts.focus;
+        }
+        CallbackCounts& counts;
+    };
+    struct RetiringDelegate final : ITreeDelegate
+    {
+        RetiringDelegate(Tree& tree, std::unique_ptr<RetiringDelegate>& owner, ITreeDelegate* replacement, CallbackCounts& counts) noexcept
+            : tree(tree),
+              owner(owner),
+              replacement(replacement),
+              counts(counts)
+        {
+        }
+        void OnTreeSelectionChanged(uint64_t) override
+        {
+            ++counts.primary;
+            tree.SetDelegate(replacement);
+            owner.reset();
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+        {
+            ++counts.sets;
+        }
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t>) override
+        {
+            ++counts.focus;
+        }
+        Tree& tree;
+        std::unique_ptr<RetiringDelegate>& owner;
+        ITreeDelegate* replacement;
+        CallbackCounts& counts;
+    };
+
+    for (const bool replaceDelegate : {false, true})
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        Tree& tree = *fixture.tree;
+        CallbackCounts counts{};
+        ReplacementDelegate replacement(counts);
+        std::unique_ptr<RetiringDelegate> retiring;
+        retiring = std::make_unique<RetiringDelegate>(tree, retiring, replaceDelegate ? &replacement : nullptr, counts);
+        tree.SetDelegate(retiring.get());
+        const std::array<uint64_t, 1u> initialSelection{2u};
+        tree.SetSelectedItemIds(initialSelection);
+        tree.SetFocusedItemId(std::nullopt);
+
+        Require(tree.OnSelectAll(fixture.host), "Select All remains handled when its delegate changes during notification");
+        Require(! retiring, "the selection callback retires the previous borrowed delegate");
+        Require(counts.primary == 1u && counts.sets == 0u && counts.focus == 0u,
+                "a replaced delegate receives no later callbacks from the same selection-and-focus operation");
+        RequireTreeIds(tree.GetSelectedItemIds(), {1u, 2u, 3u, 4u, 5u}, "Select All commits complete selection before the delegate is replaced");
+    }
 }
 
 void TestTreeSelectionSetCallbackMayDestroyTheTree()
@@ -2110,7 +2638,7 @@ void TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling()
     RequireTreeIds(fixture.Selected(), {5u, 7u}, "collapsing drops the rows it hides");
     Require(log.selectionSetChangedCount == setChanges + 1u, "the delegate hears of the dropped rows once");
     RequireTreeIds(log.lastSelectionSet, {5u, 7u}, "the set callback of a collapse");
-    Require(tree.GetSelectedItemId() == 7u, "the focused row survived");
+    Require(tree.GetFocusedItemId() == 7u, "the focused row survived");
 
     // Expanding shows them again, unselected.
     fixture.model.SetVisibleItems(expanded());
@@ -2129,13 +2657,14 @@ void TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling()
     tree.NotifyDataChanged();
     RequireTreeIds(fixture.Selected(), {7u}, "a removed row leaves the selection");
     Require(log.selectionSetChangedCount == setChanges + 2u, "the removal was reported once");
-    const size_t focusMoves = log.selectionChangedCount;
+    const size_t focusChanges = log.focusChangedCount;
     fixture.model.SetVisibleItems({group, row(2u, 1u), row(3u, 1u), row(4u), row(6u), row(8u)});
     tree.NotifyDataChanged();
     Require(fixture.Selected().empty() && ! tree.GetSelectedItemId().has_value(), "the last selected row left");
     Require(log.selectionSetChangedCount == setChanges + 3u && log.lastSelectionSet.empty(), "an empty selection is reported");
-    Require(log.selectionChangedCount == focusMoves, "a focused row that left is not announced, as before");
-    Require(tree.GetFocusedItemId() == tree.GetSelectedItemId(), "focus and selection agree that nothing is left");
+    Require(log.focusChangedCount == focusChanges + 1u && ! log.lastFocusedItemId.has_value(), "removing the focused row reports focus becoming empty");
+    Require(! tree.GetFocusedItemId().has_value() && ! tree.GetSelectedItemId().has_value(),
+            "removing the final selected row leaves focus and membership empty");
 
     // Another model keeps the ids it also shows.
     tree.SetSelectedItemIds(std::vector<uint64_t>{2u, 4u, 8u});
@@ -2206,8 +2735,36 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
         Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
                 "a selected row of an unfocused tree is filled with the inactive selection color");
-        Require(state.textArgb == PackColorForTest(theme.text), "a selected row of an unfocused tree keeps the text color");
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground)),
+                "a selected row of an unfocused tree uses text contrasting with its painted inactive fill");
     }
+
+    for (const bool dark : {false, true})
+    {
+        const ThemePalette polarityTheme = MakeDefaultThemePalette(dark);
+        Require(tree.DebugGetRowVisualState(polarityTheme, 0u, true, state), "unfocused Tree resolves selected text in both light and dark themes");
+        const D2D1_COLOR_F paintedFill = CompositeOverBackground(polarityTheme.selectionInactiveFill, polarityTheme.surfaceBackground);
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.text, polarityTheme.surfaceBackground)),
+                "unfocused Tree preserves readable text or substitutes contrast over the painted alpha selection");
+    }
+
+    const auto checkHighContrastPair = [&](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
+    {
+        ThemeColors colors{.sizeBytes = sizeof(ThemeColors)};
+        colors.backgroundArgb          = backgroundArgb;
+        colors.textArgb                = textArgb;
+        colors.selectionBackgroundArgb = selectionArgb;
+        colors.selectionTextArgb       = selectionTextArgb;
+        colors.accentArgb              = 0xFF0078D4u;
+        colors.darkMode                = darkBase ? TRUE : FALSE;
+        colors.darkBase                = darkBase ? TRUE : FALSE;
+        colors.highContrast            = TRUE;
+        const ThemePalette palette     = MakeThemePalette(colors);
+        Require(tree.DebugGetRowVisualState(palette, 0u, true, state), "unfocused Tree resolves a selected row in high contrast");
+        Require(state.textArgb == PackColorForTest(palette.selectionText), "unfocused high-contrast Tree preserves the explicit HighlightText pair");
+    };
+    checkHighContrastPair(0xFF202020u, 0xFFFFFFFFu, 0xFF8EE3F0u, 0xFF263B50u, true);  // Aquatic-like.
+    checkHighContrastPair(0xFFFFFAEFu, 0xFF3D3D3Du, 0xFF903909u, 0xFFFFF5E3u, false); // Desert-like.
 
     // The same rows reach the screen: sample the rendered rows of a window.
     AttachedHostWindow window;
@@ -2298,7 +2855,7 @@ void TestTreeDragReorderKeepsItsSourceAndTheMultiSelection()
     // A click on a selected row of a multi-selection selects that row alone once the pointer is up.
     log.callOrder.clear();
     fixture.Press(3u);
-    Require(log.callOrder == "P", "the press announces the row it landed on");
+    Require(log.callOrder.empty(), "pressing a selected row reports no membership change before release");
     fixture.Release(3u);
     RequireTreeIds(fixture.Selected(), {13u}, "the release of a click collapses the selection to the row");
     Require(log.callOrder == "PS", "the release reports the set once and does not announce the row twice");
@@ -2409,7 +2966,7 @@ void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
     tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
     tree.SetFocusedItemId(6u);
     RequireTreeIds(fixture.Selected(), {1u, 3u, 4u}, "moving the focus keeps the selection");
-    Require(tree.GetFocusedItemId() == 6u && tree.GetSelectedItemId() == 6u, "the focused row is what GetSelectedItemId reports with multi-select");
+    Require(tree.GetFocusedItemId() == 6u && tree.GetSelectedItemId() == 4u, "moving focus preserves the multi-selection's selected value");
     tree.SetSelectedItemId(2u);
     RequireTreeIds(fixture.Selected(), {2u}, "SetSelectedItemId selects one row alone");
     tree.SetSelectedItemId(std::nullopt);
@@ -2463,15 +3020,22 @@ void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()
 
 void RunTreeTests()
 {
+    DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
+    DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
     DXUI_RUN_TEST(TestTreeInputLeavesATreeTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange);
     DXUI_RUN_TEST(TestTreeIconFontAndReorderReleaseEdgeCases);
     DXUI_RUN_TEST(TestTreePointerSelectionNotifiesDelegate);
     DXUI_RUN_TEST(TestTreeDragReorderReportsDropAndEscapeCancels);
     DXUI_RUN_TEST(TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges);
+    DXUI_RUN_TEST(TestTreeMultiRowDragRejectsEverySelectedSubtree);
     DXUI_RUN_TEST(TestTreeExpanderClickRequestsToggle);
     DXUI_RUN_TEST(TestTreeExpanderReResolvesStableItemAfterSelectionReorder);
     DXUI_RUN_TEST(TestTreeSelectionDelegateCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestTreePaintStopsAfterModelGetterReplacesRoot);
+    DXUI_RUN_TEST(TestTreeSelectionAndReconciliationStopAfterModelGetterReplacesModel);
+    DXUI_RUN_TEST(TestTreeSelectionDelegateReplacingModelStopsOuterNotifications);
+    DXUI_RUN_TEST(TestTreeFailedReconciliationPreservesSelection);
     DXUI_RUN_TEST(TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal);
     DXUI_RUN_TEST(TestTreeTypeaheadSelectsVisibleMatch);
     DXUI_RUN_TEST(TestTreeTypeaheadFallsBackToSingleCharacterAfterPrefixMiss);
@@ -2505,6 +3069,11 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused);
     DXUI_RUN_TEST(TestTreeGroupKeysFollowTheModifierRulesAndLeaveTheSelectionWhenTheyExpand);
     DXUI_RUN_TEST(TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection);
+    DXUI_RUN_TEST(TestDisabledTreeRejectsPublicSelectionAndExpansionRequests);
+    DXUI_RUN_TEST(TestTreeSingleSelectionKeepsFocusSeparateAndSupportsOptionalRemoval);
+    DXUI_RUN_TEST(TestTreeIdempotentAddPreservesFocusAndSelectAllKeepsItsPrimary);
+    DXUI_RUN_TEST(TestTreeSelectAllStopsWhenSelectionCallbackReplacesItsDelegate);
+    DXUI_RUN_TEST(TestTreeRightToLeftMirrorsTheExpanderHitTarget);
     DXUI_RUN_TEST(TestTreeSelectionSetCallbackMayDestroyTheTree);
     DXUI_RUN_TEST(TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling);
     DXUI_RUN_TEST(TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors);

@@ -1,0 +1,158 @@
+[
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForControlAndButton",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-01.log",
+    "suite": "Control"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForToggleAndColorSwatch",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-02.log",
+    "suite": "Control"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForScrollPanel",
+    "exitCode": 0,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-03.log",
+    "suite": "Control"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-04.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForRadioControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-05.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForPageIndicator",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-06.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForSliderCallbacks",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-07.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-08.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-09.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTabControlReorder",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-10.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTagPicker",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-11.log",
+    "suite": "NewControls"
+  },
+  {
+    "name": "TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-12.log",
+    "suite": "TextField"
+  },
+  {
+    "name": "TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-13.log",
+    "suite": "TextField"
+  },
+  {
+    "name": "TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-14.log",
+    "suite": "TextField"
+  },
+  {
+    "name": "TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-15.log",
+    "suite": "TextField"
+  },
+  {
+    "name": "TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-16.log",
+    "suite": "TextField"
+  },
+  {
+    "name": "TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-17.log",
+    "suite": "ComboBox"
+  },
+  {
+    "name": "TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-18.log",
+    "suite": "ComboBox"
+  },
+  {
+    "name": "TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-19.log",
+    "suite": "ComboBox"
+  },
+  {
+    "name": "TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-20.log",
+    "suite": "ComboBox"
+  },
+  {
+    "name": "TestWindowHostTabBoundaryMutableCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-21.log",
+    "suite": "WindowHost"
+  },
+  {
+    "name": "TestWindowHostEscapeMutableCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-22.log",
+    "suite": "WindowHost"
+  },
+  {
+    "name": "TestWindowHostFocusChangedMutableCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-23.log",
+    "suite": "WindowHost"
+  },
+  {
+    "name": "TestSplitterMutableChangeCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-24.log",
+    "suite": "EditorControls"
+  },
+  {
+    "name": "TestNumericStepperMutableChangeCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-25.log",
+    "suite": "EditorControls"
+  },
+  {
+    "name": "TestColorPickerMutableChangeCallbackRetainsState",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-state-26.log",
+    "suite": "EditorControls"
+  }
+]

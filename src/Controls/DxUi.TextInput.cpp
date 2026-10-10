@@ -1356,22 +1356,22 @@ bool TextField::IsReadOnly() const noexcept
 
 void TextField::SetOnTextChanged(std::function<void(std::wstring_view)> onTextChanged)
 {
-    _onTextChanged = std::move(onTextChanged);
+    ReplaceControlCallback(_onTextChanged, std::move(onTextChanged));
 }
 
 void TextField::SetOnSubmitted(std::function<void()> onSubmitted)
 {
-    _onSubmitted = std::move(onSubmitted);
+    ReplaceControlCallback(_onSubmitted, std::move(onSubmitted));
 }
 
 void TextField::SetOnPreviewKeyDown(std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)> onPreviewKeyDown)
 {
-    _onPreviewKeyDown = std::move(onPreviewKeyDown);
+    ReplaceControlCallback(_onPreviewKeyDown, std::move(onPreviewKeyDown));
 }
 
 void TextField::SetOnBlur(std::function<void()> onBlur)
 {
-    _onBlur = std::move(onBlur);
+    ReplaceControlCallback(_onBlur, std::move(onBlur));
 }
 
 bool TextField::DebugGetMultilineState(const ControlHost& host, TextFieldDebugMultilineState& out) const noexcept
@@ -1706,7 +1706,14 @@ void TextField::OnFocusChanged(ControlHost& host, bool focused)
         _passwordRevealKeyboardFocused = false;
         if (_onBlur)
         {
-            _onBlur();
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
+            auto onBlur                       = _onBlur;
+            (*onBlur)();
+            onBlur.reset();
+            if (lifetime.expired())
+            {
+                return;
+            }
         }
         Invalidate(host);
     }
@@ -1749,7 +1756,11 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     {
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
         _passwordRevealKeyboardFocused = false;
-        SetTextAndNotify({});
+        SetText({});
+        if (! NotifyChanged())
+        {
+            return true;
+        }
         ResetCaretBlink(host);
         Invalidate(host);
         return true;
@@ -2066,8 +2077,10 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
 bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    const auto textRect     = GetTextRect();
-    const auto refreshCaret = [this, &host, &textRect]() noexcept
+    const size_t caretBeforeKey                          = _caretIndex;
+    const std::optional<size_t> selectionAnchorBeforeKey = _selectionAnchorIndex;
+    const auto textRect                                  = GetTextRect();
+    const auto refreshCaret                              = [this, &host, &textRect, caretBeforeKey, selectionAnchorBeforeKey]() noexcept
     {
         ResetCaretBlink(host);
         if (_multiline)
@@ -2077,6 +2090,12 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         else
         {
             EnsureCaretVisible(&host, std::max(1.0f, textRect.right - textRect.left));
+        }
+        if (_caretIndex != caretBeforeKey || _selectionAnchorIndex != selectionAnchorBeforeKey)
+        {
+            // Selection and caret positions are part of the retained text snapshot. Publish them
+            // through the same dirty/coalesced path as committed text, after the key's final state.
+            RefreshAccessibilitySnapshot();
         }
         Invalidate(host);
     };
@@ -2126,9 +2145,16 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return true;
     }
 
-    if (_onPreviewKeyDown && _onPreviewKeyDown(host, virtualKey, modifiers))
+    if (_onPreviewKeyDown)
     {
-        return true;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        auto onPreviewKeyDown             = _onPreviewKeyDown;
+        const bool handled                = (*onPreviewKeyDown)(host, virtualKey, modifiers);
+        onPreviewKeyDown.reset();
+        if (handled || lifetime.expired())
+        {
+            return true;
+        }
     }
 
     if (ModifiersContainCtrl(modifiers))
@@ -2466,7 +2492,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         if (_onSubmitted)
         {
-            _onSubmitted();
+            const auto onSubmitted = _onSubmitted;
+            (*onSubmitted)();
             return true;
         }
         return false;
@@ -2894,18 +2921,10 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
 {
     const std::wstring previousText       = _text;
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
-    if (host.IsEmbedded())
-    {
-        // Preview/cancel/selection imports preserve history. EmbeddedHost restores the composition base
-        // before the single notifying commit, so the committed edit gets exactly one meaningful undo entry.
-        if (notifyChange && previousText != state.text)
-            RecordUndoStateForDirectEdit();
-    }
-    else
-    {
-        _undoHistory.clear();
-        _redoHistory.clear();
-    }
+    // Imported previews, cancellation and selection changes preserve existing history on every host.
+    // A changed notifying import is one committed edit, regardless of how many previews preceded it.
+    if (notifyChange && previousText != state.text)
+        RecordUndoStateForDirectEdit();
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _text       = state.text;
@@ -2968,8 +2987,7 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
     Invalidate(host);
     if (notifyChange && previousText != _text)
     {
-        static_cast<void>(NotifyChanged());
-        return true;
+        return NotifyChanged();
     }
     return true;
 }
@@ -3466,20 +3484,30 @@ bool TextField::NotifyChanged()
     InvalidateMultilineLayoutCache();
     FinishEditTransactionMetric();
 
-    const std::function<void(std::wstring_view)> onTextChanged = _onTextChanged;
+    auto onTextChanged = _onTextChanged;
     if (! onTextChanged)
     {
+        RefreshAccessibilitySnapshot();
         return true;
     }
 
     std::wstring textSnapshot             = _text;
     const bool secureSnapshot             = _masked;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    onTextChanged(textSnapshot);
+    (*onTextChanged)(textSnapshot);
+    // Releasing the last callback capture can itself retire this control.
+    onTextChanged.reset();
     if (secureSnapshot)
     {
         SecureWipe::SecureClear(textSnapshot);
     }
-    return ! selfLifetime.expired();
+    const bool alive = ! selfLifetime.expired();
+    if (alive)
+    {
+        // The callback may have changed this field again or reparented it. Publish only after
+        // revalidation so UIA reads the committed value without touching a retired control.
+        RefreshAccessibilitySnapshot();
+    }
+    return alive;
 }
 } // namespace DxUi

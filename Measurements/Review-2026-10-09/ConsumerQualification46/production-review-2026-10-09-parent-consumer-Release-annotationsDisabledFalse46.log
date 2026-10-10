@@ -1,0 +1,239 @@
+Cloning into 'Z:\src\DxUi\.build\consumers\de90b368d1fa\relocated DxUi'...
+done.
+Visual Studio: C:\Program Files\Microsoft Visual Studio\18\Insiders
+MSVC toolset:  14.51.36231, the default MSBuild compiles with; vcpkg is pinned to 14.51
+Cloning pinned vcpkg tooling into Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\vcpkg-tool
+Cloning into 'Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\vcpkg-tool'...
+Updating files:   0% (1/14336)
+Updating files:   1% (144/14336)
+Updating files:   2% (287/14336)
+Updating files:   3% (431/14336)
+Updating files:   4% (574/14336)
+Updating files:   5% (717/14336)
+Updating files:   6% (861/14336)
+Updating files:   7% (1004/14336)
+Updating files:   8% (1147/14336)
+Updating files:   9% (1291/14336)
+Updating files:  10% (1434/14336)
+Updating files:  11% (1577/14336)
+Updating files:  12% (1721/14336)
+Updating files:  13% (1864/14336)
+Updating files:  14% (2008/14336)
+Updating files:  15% (2151/14336)
+Updating files:  16% (2294/14336)
+Updating files:  17% (2438/14336)
+Updating files:  18% (2581/14336)
+Updating files:  19% (2724/14336)
+Updating files:  20% (2868/14336)
+Updating files:  21% (3011/14336)
+Updating files:  22% (3154/14336)
+Updating files:  23% (3298/14336)
+Updating files:  24% (3441/14336)
+Updating files:  25% (3584/14336)
+Updating files:  26% (3728/14336)
+Updating files:  27% (3871/14336)
+Updating files:  28% (4015/14336)
+Updating files:  29% (4158/14336)
+Updating files:  30% (4301/14336)
+Updating files:  31% (4445/14336)
+Updating files:  32% (4588/14336)
+Updating files:  33% (4731/14336)
+Updating files:  34% (4875/14336)
+Updating files:  35% (5018/14336)
+Updating files:  36% (5161/14336)
+Updating files:  37% (5305/14336)
+Updating files:  38% (5448/14336)
+Updating files:  39% (5592/14336)
+Updating files:  40% (5735/14336)
+Updating files:  41% (5878/14336)
+Updating files:  42% (6022/14336)
+Updating files:  43% (6165/14336)
+Updating files:  44% (6308/14336)
+Updating files:  45% (6452/14336)
+Updating files:  46% (6595/14336)
+Updating files:  47% (6738/14336)
+Updating files:  48% (6882/14336)
+Updating files:  49% (7025/14336)
+Updating files:  50% (7168/14336)
+Updating files:  50% (7190/14336)
+Updating files:  51% (7312/14336)
+Updating files:  52% (7455/14336)
+Updating files:  53% (7599/14336)
+Updating files:  54% (7742/14336)
+Updating files:  55% (7885/14336)
+Updating files:  56% (8029/14336)
+Updating files:  57% (8172/14336)
+Updating files:  58% (8315/14336)
+Updating files:  59% (8459/14336)
+Updating files:  60% (8602/14336)
+Updating files:  61% (8745/14336)
+Updating files:  62% (8889/14336)
+Updating files:  63% (9032/14336)
+Updating files:  64% (9176/14336)
+Updating files:  65% (9319/14336)
+Updating files:  66% (9462/14336)
+Updating files:  67% (9606/14336)
+Updating files:  68% (9749/14336)
+Updating files:  69% (9892/14336)
+Updating files:  70% (10036/14336)
+Updating files:  71% (10179/14336)
+Updating files:  72% (10322/14336)
+Updating files:  73% (10466/14336)
+Updating files:  74% (10609/14336)
+Updating files:  75% (10752/14336)
+Updating files:  76% (10896/14336)
+Updating files:  77% (11039/14336)
+Updating files:  78% (11183/14336)
+Updating files:  79% (11326/14336)
+Updating files:  80% (11469/14336)
+Updating files:  81% (11613/14336)
+Updating files:  82% (11756/14336)
+Updating files:  83% (11899/14336)
+Updating files:  84% (12043/14336)
+Updating files:  85% (12186/14336)
+Updating files:  86% (12329/14336)
+Updating files:  87% (12473/14336)
+Updating files:  88% (12616/14336)
+Updating files:  89% (12760/14336)
+Updating files:  90% (12903/14336)
+Updating files:  91% (13046/14336)
+Updating files:  92% (13190/14336)
+Updating files:  93% (13333/14336)
+Updating files:  94% (13476/14336)
+Updating files:  95% (13620/14336)
+Updating files:  96% (13763/14336)
+Updating files:  97% (13906/14336)
+Updating files:  98% (14050/14336)
+Updating files:  99% (14193/14336)
+Updating files: 100% (14336/14336)
+Updating files: 100% (14336/14336), done.
+Selecting pinned vcpkg commit 9e593bb18ea69cc5095e012465dcd675a822ed0d
+From https://github.com/microsoft/vcpkg
+ * branch                9e593bb18ea69cc5095e012465dcd675a822ed0d -> FETCH_HEAD
+HEAD is now at 9e593bb18 Release vcpkg-tool 2026-07-27. (#53109)
+Bootstrapping vcpkg...
+Downloading https://github.com/microsoft/vcpkg-tool/releases/download/2026-07-27/vcpkg.exe -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\vcpkg-tool\vcpkg.exe... done.
+Validating signature... done.
+
+vcpkg package management program version 2026-07-27-98d7cb0cf1f4686a3e43aa5672b6230c1d56bce8
+
+See LICENSE.txt for license information.
+Overlay triplet Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\vcpkg-triplets\x64\x64-windows.cmake written
+Installing DxUi dependencies (x64-windows)
+A suitable version of cmake was not found (required v4.4.0).
+Downloading https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-windows-x86_64.zip -> cmake-4.4.0-windows-x86_64.zip
+Successfully downloaded cmake-4.4.0-windows-x86_64.zip
+Extracting cmake...
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+The following packages will be built and installed:
+  * vcpkg-cmake:x64-windows@2024-04-23
+  * vcpkg-cmake-config:x64-windows@2026-07-21
+    wil:x64-windows@1.0.260126.7
+Additional packages (*) will be modified to complete this operation.
+Restored 3 package(s) from C:\Users\eric\AppData\Local\vcpkg\archives in 70.2 ms. Use --debug to see more details.
+Installing 1/3 vcpkg-cmake-config:x64-windows@2026-07-21...
+vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 5543a30658d2ce6abc927f781bc82adf9379d80288d0ea9d22eb7e199cba01c0
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 2.41 ms
+Installing 2/3 vcpkg-cmake:x64-windows@2024-04-23...
+vcpkg-cmake:x64-windows@2024-04-23 package ABI: c5b8345cc5c6f04f3178c5bf7a12aa5c7d109ebac7cdd2397413e59858e5d915
+Elapsed time to handle vcpkg-cmake:x64-windows: 2.1 ms
+Installing 3/3 wil:x64-windows@1.0.260126.7...
+wil:x64-windows@1.0.260126.7 package ABI: bd04cd2728898a9a622ac8f3e05f9c0b28f5e03df29882afee66a6174f0513a0
+Elapsed time to handle wil:x64-windows: 6.13 ms
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+MIT
+wil provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(wil CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE WIL::WIL)
+
+All requested installations completed successfully in: 11.7 ms
+vcpkg dependencies are ready.
+
+  compilation header save succeeded; see Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: ffc64c8947301dfaf2b1e295968a1cc6253bd413
+  The vcpkg manifest was disabled, but we found a manifest file in Z:\src\DxUi\. You may want to enable vcpkg manifests in your properties page or pass /p:VcpkgEnableManifest=true to the msbuild invocation.
+  Main.cpp
+  ConsumerApiRevision4.cpp
+  DxUi.cpp
+  Typography.cpp
+  FocusRestore.cpp
+  PointerInput.cpp
+  AccessibilityTextUnits.cpp
+  NativeMenuInterop.cpp
+  Generating Code...
+  ExternalConsumer.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\ExternalConsumer.exe
+Rendered independent DxUi sample to Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\public-consumer.png
+Rendered independent DxUi sample to Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\complex-consumer.png
+Rendered independent DxUi sample to Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\text-consumer.png
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: ffc64c8947301dfaf2b1e295968a1cc6253bd413
+  The vcpkg manifest was disabled, but we found a manifest file in Z:\src\DxUi\. You may want to enable vcpkg manifests in your properties page or pass /p:VcpkgEnableManifest=true to the msbuild invocation.
+  ConsumerModules.Tests.NativeModule.cpp
+     Creating library Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleA.lib and object Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleA.exp
+  NativeModuleA.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleA.dll
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: ffc64c8947301dfaf2b1e295968a1cc6253bd413
+  The vcpkg manifest was disabled, but we found a manifest file in Z:\src\DxUi\. You may want to enable vcpkg manifests in your properties page or pass /p:VcpkgEnableManifest=true to the msbuild invocation.
+  ConsumerModules.Tests.NativeModule.cpp
+     Creating library Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleB.lib and object Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleB.exp
+  NativeModuleB.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleB.dll
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: ffc64c8947301dfaf2b1e295968a1cc6253bd413
+  The vcpkg manifest was disabled, but we found a manifest file in Z:\src\DxUi\. You may want to enable vcpkg manifests in your properties page or pass /p:VcpkgEnableManifest=true to the msbuild invocation.
+  ConsumerModules.Tests.NativeModule.cpp
+  ConsumerModules.Tests.Driver.cpp
+  Generating Code...
+     Creating library Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleDriver.lib and object Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleDriver.exp
+  NativeModuleDriver.vcxproj -> Z:\src\DxUi\.build\consumers\de90b368d1fa\app space\bin\NativeModuleDriver.exe
+module=00007FF772560000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF81F10000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF6F460000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF772560000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF81F10000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF6F460000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF772560000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF81F10000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF6F460000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF772560000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF81F10000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF6F460000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+Native module fixture: 0 failed probes across EXE + two DLLs
+DxUi pin verified: ffc64c8947301dfaf2b1e295968a1cc6253bd413
+PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: Z:\src\DxUi\.build\consumers\de90b368d1fa

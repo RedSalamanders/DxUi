@@ -1,0 +1,74 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostTabBoundaryCallbackCanReplaceItself
+=================================================================
+==73464==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x002f260fdc10 at pc 0x7ff6d13579dd bp 0x002f260fab40 sp 0x002f260fab48
+READ of size 8 at 0x002f260fdc10 thread T0
+    #0 0x7ff6d13579dc in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator= C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484
+    #1 0x7ff6d1c830be in ``anonymous namespace'::TestWindowHostTabBoundaryCallbackCanReplaceItself'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:1118
+    #2 0x7ff6d1d03e21 in std::invoke<``anonymous namespace'::TestWindowHostTabBoundaryCallbackCanReplaceItself'::`2'::<lambda_1> &,bool> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1811
+    #3 0x7ff6d1cd80f0 in std::_Func_impl_no_alloc<``anonymous namespace'::TestWindowHostTabBoundaryCallbackCanReplaceItself'::`2'::<lambda_1>,bool,bool>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1007
+    #4 0x7ff6d218d553 in std::_Func_class<bool,bool>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #5 0x7ff6d212c5fd in DxUi::ControlHost::HandleTabNavigation Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1835
+    #6 0x7ff6d21199f4 in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:2909
+    #7 0x7ff6d1c82811 in `anonymous namespace'::TestWindowHostTabBoundaryCallbackCanReplaceItself Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:1123
+    #8 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #9 0x7ff6d1cd148b in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:4293
+    #10 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #11 0x7ff6d15216f6 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #12 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #13 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #14 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #15 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #16 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #17 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+Address 0x002f260fdc10 is located in stack of thread T0 at offset 3696 in frame
+    #0 0x7ff6d1c8211f in `anonymous namespace'::TestWindowHostTabBoundaryCallbackCanReplaceItself Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:1097
+
+  This frame has 10 object(s):
+    [32, 3296) 'host'
+    [48, 88) 'captureAfterReplacement'
+    [64, 128) 'compiler temporary'
+    [80, 128) 'compiler temporary'
+    [96, 104) 'root'
+    [112, 120) 'compiler temporary'
+    [128, 144) 'callbackText'
+    [144, 152) 'originalCount'
+    [160, 168) 'replacementCount'
+    [176, 177) 'handled' <== Memory access at offset 3696 overflows this variable
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp, SEH and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484 in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator=
+Shadow bytes around the buggy address:
+  0x002f260fd980: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x002f260fda00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x002f260fda80: f2 f2 f2 f2 00 00 00 00 00 f2 f2 f2 f2 f8 f8 f8
+  0x002f260fdb00: f8 f8 f8 f8 f8 f2 f2 f2 f2 f8 f8 f8 f8 f8 f8 f2
+  0x002f260fdb80: f2 f2 f2 00 f2 f8 f2 00 00 f2 f2 f2 f2 00 f2 00
+=>0x002f260fdc00: f2 01[f3]f3 f3 f3 00 00 00 00 00 00 00 00 00 00
+  0x002f260fdc80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x002f260fdd00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x002f260fdd80: 00 00 f1 f1 f1 f1 00 00 00 00 00 f2 f2 f2 f2 f8
+  0x002f260fde00: f8 f8 f8 f2 f2 f2 f2 00 f2 01 f2 00 f2 00 f2 00
+  0x002f260fde80: f2 00 f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==73464==ABORTING

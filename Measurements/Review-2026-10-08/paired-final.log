@@ -1,0 +1,714 @@
+Preparing worktree (detached HEAD bea676a)
+HEAD is now at bea676a Merge pull request #68 from RedSalamanders/review/production-review-2026-10-05
+Visual Studio: C:\Program Files\Microsoft Visual Studio\18\Insiders
+MSVC toolset:  14.51.36231, the default MSBuild compiles with; vcpkg is pinned to 14.51
+Cloning pinned vcpkg tooling into Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\vcpkg-tool
+Cloning into 'Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\vcpkg-tool'...
+Updating files:   0% (1/14336)
+Updating files:   1% (144/14336)
+Updating files:   2% (287/14336)
+Updating files:   3% (431/14336)
+Updating files:   4% (574/14336)
+Updating files:   4% (709/14336)
+Updating files:   5% (717/14336)
+Updating files:   6% (861/14336)
+Updating files:   7% (1004/14336)
+Updating files:   8% (1147/14336)
+Updating files:   9% (1291/14336)
+Updating files:  10% (1434/14336)
+Updating files:  11% (1577/14336)
+Updating files:  12% (1721/14336)
+Updating files:  13% (1864/14336)
+Updating files:  14% (2008/14336)
+Updating files:  15% (2151/14336)
+Updating files:  16% (2294/14336)
+Updating files:  17% (2438/14336)
+Updating files:  18% (2581/14336)
+Updating files:  19% (2724/14336)
+Updating files:  20% (2868/14336)
+Updating files:  21% (3011/14336)
+Updating files:  22% (3154/14336)
+Updating files:  23% (3298/14336)
+Updating files:  24% (3441/14336)
+Updating files:  25% (3584/14336)
+Updating files:  26% (3728/14336)
+Updating files:  27% (3871/14336)
+Updating files:  28% (4015/14336)
+Updating files:  29% (4158/14336)
+Updating files:  30% (4301/14336)
+Updating files:  31% (4445/14336)
+Updating files:  32% (4588/14336)
+Updating files:  33% (4731/14336)
+Updating files:  34% (4875/14336)
+Updating files:  35% (5018/14336)
+Updating files:  36% (5161/14336)
+Updating files:  37% (5305/14336)
+Updating files:  38% (5448/14336)
+Updating files:  39% (5592/14336)
+Updating files:  40% (5735/14336)
+Updating files:  41% (5878/14336)
+Updating files:  42% (6022/14336)
+Updating files:  43% (6165/14336)
+Updating files:  44% (6308/14336)
+Updating files:  45% (6452/14336)
+Updating files:  46% (6595/14336)
+Updating files:  47% (6738/14336)
+Updating files:  48% (6882/14336)
+Updating files:  49% (7025/14336)
+Updating files:  50% (7168/14336)
+Updating files:  51% (7312/14336)
+Updating files:  52% (7455/14336)
+Updating files:  53% (7599/14336)
+Updating files:  54% (7742/14336)
+Updating files:  55% (7885/14336)
+Updating files:  56% (8029/14336)
+Updating files:  57% (8172/14336)
+Updating files:  57% (8300/14336)
+Updating files:  58% (8315/14336)
+Updating files:  59% (8459/14336)
+Updating files:  60% (8602/14336)
+Updating files:  61% (8745/14336)
+Updating files:  62% (8889/14336)
+Updating files:  63% (9032/14336)
+Updating files:  64% (9176/14336)
+Updating files:  65% (9319/14336)
+Updating files:  66% (9462/14336)
+Updating files:  67% (9606/14336)
+Updating files:  68% (9749/14336)
+Updating files:  69% (9892/14336)
+Updating files:  70% (10036/14336)
+Updating files:  71% (10179/14336)
+Updating files:  72% (10322/14336)
+Updating files:  73% (10466/14336)
+Updating files:  74% (10609/14336)
+Updating files:  75% (10752/14336)
+Updating files:  76% (10896/14336)
+Updating files:  77% (11039/14336)
+Updating files:  78% (11183/14336)
+Updating files:  79% (11326/14336)
+Updating files:  80% (11469/14336)
+Updating files:  81% (11613/14336)
+Updating files:  82% (11756/14336)
+Updating files:  83% (11899/14336)
+Updating files:  84% (12043/14336)
+Updating files:  85% (12186/14336)
+Updating files:  86% (12329/14336)
+Updating files:  87% (12473/14336)
+Updating files:  88% (12616/14336)
+Updating files:  89% (12760/14336)
+Updating files:  90% (12903/14336)
+Updating files:  91% (13046/14336)
+Updating files:  92% (13190/14336)
+Updating files:  93% (13333/14336)
+Updating files:  94% (13476/14336)
+Updating files:  95% (13620/14336)
+Updating files:  96% (13763/14336)
+Updating files:  97% (13906/14336)
+Updating files:  98% (14050/14336)
+Updating files:  99% (14193/14336)
+Updating files: 100% (14336/14336)
+Updating files: 100% (14336/14336), done.
+Selecting pinned vcpkg commit 9e593bb18ea69cc5095e012465dcd675a822ed0d
+From https://github.com/microsoft/vcpkg
+ * branch                9e593bb18ea69cc5095e012465dcd675a822ed0d -> FETCH_HEAD
+HEAD is now at 9e593bb18 Release vcpkg-tool 2026-07-27. (#53109)
+Bootstrapping vcpkg...
+Downloading https://github.com/microsoft/vcpkg-tool/releases/download/2026-07-27/vcpkg.exe -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\vcpkg-tool\vcpkg.exe... done.
+Validating signature... done.
+
+vcpkg package management program version 2026-07-27-98d7cb0cf1f4686a3e43aa5672b6230c1d56bce8
+
+See LICENSE.txt for license information.
+Overlay triplet Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\vcpkg-triplets\x64\x64-windows.cmake written
+Installing DxUi dependencies (x64-windows)
+A suitable version of cmake was not found (required v4.4.0).
+Downloading https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-windows-x86_64.zip -> cmake-4.4.0-windows-x86_64.zip
+Successfully downloaded cmake-4.4.0-windows-x86_64.zip
+Extracting cmake...
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+The following packages will be built and installed:
+  * vcpkg-cmake:x64-windows@2024-04-23
+  * vcpkg-cmake-config:x64-windows@2026-07-21
+    wil:x64-windows@1.0.260126.7
+Additional packages (*) will be modified to complete this operation.
+Restored 3 package(s) from C:\Users\eric\AppData\Local\vcpkg\archives in 73.2 ms. Use --debug to see more details.
+Installing 1/3 vcpkg-cmake-config:x64-windows@2026-07-21...
+vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 5543a30658d2ce6abc927f781bc82adf9379d80288d0ea9d22eb7e199cba01c0
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 1.44 ms
+Installing 2/3 vcpkg-cmake:x64-windows@2024-04-23...
+vcpkg-cmake:x64-windows@2024-04-23 package ABI: c5b8345cc5c6f04f3178c5bf7a12aa5c7d109ebac7cdd2397413e59858e5d915
+Elapsed time to handle vcpkg-cmake:x64-windows: 1.76 ms
+Installing 3/3 wil:x64-windows@1.0.260126.7...
+wil:x64-windows@1.0.260126.7 package ABI: bd04cd2728898a9a622ac8f3e05f9c0b28f5e03df29882afee66a6174f0513a0
+Elapsed time to handle wil:x64-windows: 5.68 ms
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+MIT
+wil provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(wil CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE WIL::WIL)
+
+All requested installations completed successfully in: 9.71 ms
+vcpkg dependencies are ready.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.lib
+  Embedded.Tests.Embedded.cpp
+  InteractiveLease.Tests.Runner.cpp
+  Main.cpp
+  DxUi.Tests.Accessibility.cpp
+  Foundation.Tests.Foundation.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.InteractiveLease.exe
+  DxUi.Tests.Animation.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:14
+Output: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\
+Log: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\baseline\.build\logs\build-x64-Release-a2501d7e1f804a9fbfe71cbf3ec6b475.log
+========================================
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-B6.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\Default-A6.json
+Performance comparison: advice-required
+REGRESSION dirty/composeCpuP95Ms: 0.018 -> 0.020
+REGRESSION dirty/privateBytes: 29114368.000 -> 29704192.000
+REGRESSION dirty/privatePeakBytes: 29114368.000 -> 29712384.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.373 -> 0.405
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.012
+REGRESSION dirty/prepareP95Ms: 1.093 -> 1.221
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.489 -> 0.680
+REGRESSION dirty/composeCpuP95Ms: 0.018 -> 0.027
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.375 -> 0.405
+REGRESSION clean/privateBytes: 27471872.000 -> 28205056.000
+REGRESSION clean/privatePeakBytes: 27471872.000 -> 28233728.000
+REGRESSION dirty/prepareP95Ms: 1.113 -> 1.221
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.464 -> 0.501
+REGRESSION clean/composeCpuP95Ms: 0.010 -> 0.011
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/privateBytes: 26423296.000 -> 28065792.000
+REGRESSION clean/privatePeakBytes: 26808320.000 -> 28139520.000
+REGRESSION clean/workingSetBytes: 42422272.000 -> 44154880.000
+REGRESSION clean/workingSetPeakBytes: 42901504.000 -> 44208128.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/fps: 2589.097 -> 2437.360
+REGRESSION clean/frameP50Ms: 0.372 -> 0.399
+REGRESSION clean/composeCpuP95Ms: 0.010 -> 0.012
+REGRESSION dirty/frameP95Ms: 1.750 -> 1.989
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: within-noise-budget
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.364 -> 0.390
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/fps: 2493.703 -> 2258.866
+REGRESSION clean/frameP50Ms: 0.383 -> 0.419
+REGRESSION clean/frameP95Ms: 0.468 -> 0.544
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.013
+REGRESSION clean/privateBytes: 28299264.000 -> 29237248.000
+REGRESSION clean/privatePeakBytes: 28360704.000 -> 29261824.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.364 -> 0.383
+REGRESSION dirty/frameP95Ms: 1.794 -> 2.060
+REGRESSION dirty/prepareP95Ms: 1.122 -> 1.199
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/fps: 2491.218 -> 2258.866
+REGRESSION clean/frameP50Ms: 0.390 -> 0.419
+REGRESSION clean/frameP95Ms: 0.479 -> 0.544
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.013
+REGRESSION clean/privateBytes: 27951104.000 -> 29237248.000
+REGRESSION clean/privatePeakBytes: 27987968.000 -> 29261824.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-B6.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGrid-A6.json
+Performance comparison: advice-required
+REGRESSION clean/privateBytes: 30887936.000 -> 34590720.000
+REGRESSION clean/privatePeakBytes: 31399936.000 -> 35520512.000
+REGRESSION clean/workingSetBytes: 47185920.000 -> 48373760.000
+REGRESSION clean/workingSetPeakBytes: 47255552.000 -> 48410624.000
+REGRESSION dirty/frameP95Ms: 9.225 -> 9.703
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.487 -> 0.584
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/privateBytes: 30887936.000 -> 33341440.000
+REGRESSION clean/privatePeakBytes: 31399936.000 -> 33615872.000
+REGRESSION clean/workingSetBytes: 47185920.000 -> 48275456.000
+REGRESSION clean/workingSetPeakBytes: 47255552.000 -> 48906240.000
+REGRESSION dirty/composeCpuP95Ms: 0.015 -> 0.022
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.506 -> 0.584
+REGRESSION dirty/composeCpuP95Ms: 0.014 -> 0.017
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.369 -> 0.392
+REGRESSION clean/privateBytes: 32866304.000 -> 33976320.000
+REGRESSION clean/privatePeakBytes: 33853440.000 -> 34897920.000
+REGRESSION dirty/composeCpuP95Ms: 0.014 -> 0.017
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.489 -> 0.560
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.012
+REGRESSION clean/privateBytes: 32587776.000 -> 34627584.000
+REGRESSION clean/privatePeakBytes: 33566720.000 -> 36225024.000
+REGRESSION dirty/fps: 136.404 -> 112.931
+REGRESSION dirty/frameP50Ms: 7.189 -> 8.561
+REGRESSION dirty/frameP95Ms: 7.756 -> 9.399
+REGRESSION dirty/prepareP95Ms: 7.233 -> 8.778
+REGRESSION dirty/composeCpuP95Ms: 0.012 -> 0.013
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.452 -> 0.489
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.470 -> 0.560
+REGRESSION clean/composeCpuP95Ms: 0.012 -> 0.012
+REGRESSION clean/privatePeakBytes: 34897920.000 -> 36225024.000
+REGRESSION dirty/fps: 129.050 -> 112.931
+REGRESSION dirty/frameP50Ms: 7.622 -> 8.561
+REGRESSION dirty/frameP95Ms: 8.258 -> 9.399
+REGRESSION dirty/prepareP95Ms: 7.612 -> 8.778
+REGRESSION dirty/privateBytes: 33972224.000 -> 35164160.000
+REGRESSION dirty/privatePeakBytes: 34013184.000 -> 35278848.000
+REGRESSION dirty/workingSetPeakBytes: 49766400.000 -> 50786304.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/composeCpuP95Ms: 0.013 -> 0.015
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.493 -> 0.524
+REGRESSION dirty/composeCpuP95Ms: 0.012 -> 0.021
+REGRESSION dirty/privateBytes: 33935360.000 -> 34734080.000
+REGRESSION dirty/privatePeakBytes: 34017280.000 -> 34848768.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: within-noise-budget
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.487 -> 0.524
+REGRESSION dirty/composeCpuP95Ms: 0.015 -> 0.021
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B1.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A2.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B3.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A4.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B5.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-B6.json
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports\MultilineGridDistinct-A6.json
+Performance comparison: within-noise-budget
+Performance comparison: advice-required
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.011
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.468 -> 0.532
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/composeCpuP95Ms: 0.010 -> 0.011
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.012
+REGRESSION clean/privateBytes: 28651520.000 -> 30769152.000
+REGRESSION clean/privatePeakBytes: 28966912.000 -> 30781440.000
+REGRESSION clean/workingSetBytes: 44584960.000 -> 46743552.000
+REGRESSION clean/workingSetPeakBytes: 44838912.000 -> 46743552.000
+REGRESSION dirty/prepareP95Ms: 1.234 -> 1.321
+REGRESSION dirty/privateBytes: 30842880.000 -> 31580160.000
+REGRESSION dirty/privatePeakBytes: 30887936.000 -> 31596544.000
+REGRESSION dirty/workingSetBytes: 46960640.000 -> 47923200.000
+REGRESSION dirty/workingSetPeakBytes: 46960640.000 -> 48029696.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.467 -> 0.519
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.011
+REGRESSION clean/privateBytes: 29102080.000 -> 30625792.000
+REGRESSION clean/privatePeakBytes: 29126656.000 -> 30711808.000
+REGRESSION clean/workingSetBytes: 45137920.000 -> 46497792.000
+REGRESSION clean/workingSetPeakBytes: 45162496.000 -> 46563328.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/frameP95Ms: 1.896 -> 2.144
+REGRESSION dirty/composeCpuP95Ms: 0.012 -> 0.013
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/composeCpuP95Ms: 0.011 -> 0.012
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/frameP95Ms: 1.860 -> 2.046
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/frameP95Ms: 1.864 -> 1.968
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/fps: 2542.023 -> 2107.426
+REGRESSION clean/frameP95Ms: 0.487 -> 0.638
+REGRESSION clean/prepareP95Ms: 0.000 -> 0.000
+REGRESSION clean/privateBytes: 29999104.000 -> 30748672.000
+REGRESSION clean/privatePeakBytes: 30035968.000 -> 31453184.000
+REGRESSION dirty/composeCpuP95Ms: 0.011 -> 0.012
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.468 -> 0.505
+REGRESSION dirty/composeCpuP95Ms: 0.010 -> 0.011
+REGRESSION dirty/privateBytes: 31244288.000 -> 32018432.000
+REGRESSION dirty/privatePeakBytes: 31256576.000 -> 32075776.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Scenario Default:
+  A1 clean fps 2 372,282  private   27 897 856  working set   43 675 648
+  A1 dirty fps   619,248  private   29 114 368  working set   45 035 520
+  B1 clean fps 2 465,787  private   27 471 872  working set   43 253 760
+  B1 dirty fps   621,131  private   29 704 192  working set   45 711 360
+  B2 clean fps 2 422,745  private   28 205 056  working set   43 933 696
+  B2 dirty fps   610,359  private   29 454 336  working set   45 293 568
+  A2 clean fps 2 435,401  private   28 012 544  working set   43 962 368
+  A2 dirty fps   615,597  private   29 532 160  working set   45 260 800
+  A3 clean fps 2 589,097  private   27 963 392  working set   43 728 896
+  A3 dirty fps   632,435  private   29 552 640  working set   45 379 584
+  B3 clean fps 2 573,456  private   27 979 776  working set   43 999 232
+  B3 dirty fps   628,193  private   29 442 048  working set   45 383 680
+  B4 clean fps 2 567,823  private   28 065 792  working set   44 154 880
+  B4 dirty fps   640,841  private   29 310 976  working set   45 285 376
+  A4 clean fps 2 437,360  private   26 423 296  working set   42 422 272
+  A4 dirty fps   628,993  private   29 450 240  working set   45 617 152
+  A5 clean fps 2 544,821  private   28 065 792  working set   43 909 120
+  A5 dirty fps   632,321  private   28 717 056  working set   44 498 944
+  B5 clean fps 2 491,218  private   27 951 104  working set   43 765 760
+  B5 dirty fps   610,048  private   29 249 536  working set   44 408 832
+  B6 clean fps 2 258,866  private   29 237 248  working set   44 367 872
+  B6 dirty fps   613,680  private   29 347 840  working set   45 215 744
+  A6 clean fps 2 493,703  private   28 299 264  working set   44 331 008
+  A6 dirty fps   619,270  private   29 196 288  working set   45 281 280
+  Default-B1-vs-A1: advice-required
+  Default-B2-vs-A2: advice-required
+  Default-A2-vs-A1-control: unstable-control
+    drift clean/frameP50Ms -5,53%
+    drift clean/frameP95Ms +39,09%
+    drift clean/composeCpuP95Ms -14,81%
+    drift dirty/composeCpuP95Ms +54,24%
+  Default-B2-vs-B1-control: unstable-control
+    drift clean/frameP50Ms +8,20%
+    drift clean/privateBytes +2,67%
+    drift clean/privatePeakBytes +2,77%
+    drift dirty/prepareP95Ms +9,73%
+    drift dirty/composeCpuP95Ms -5,91%
+  Default-B3-vs-A3: advice-required
+  Default-B4-vs-A4: advice-required
+  Default-A4-vs-A3-control: unstable-control
+    drift clean/fps -5,86%
+    drift clean/frameP50Ms +7,48%
+    drift clean/composeCpuP95Ms +12,50%
+    drift clean/privateBytes -5,51%
+    drift clean/privatePeakBytes -4,40%
+    drift clean/workingSetBytes -2,99%
+    drift dirty/frameP95Ms +13,65%
+    drift dirty/composeCpuP95Ms -17,73%
+  Default-B4-vs-B3-control: unstable-control
+    drift clean/frameP95Ms -6,45%
+  Default-B5-vs-A5: advice-required
+  Default-B6-vs-A6: advice-required
+  Default-A6-vs-A5-control: unstable-control
+    drift clean/frameP50Ms +5,02%
+    drift dirty/frameP95Ms +14,79%
+    drift dirty/prepareP95Ms +6,86%
+    drift dirty/composeCpuP95Ms -28,10%
+  Default-B6-vs-B5-control: unstable-control
+    drift clean/fps -9,33%
+    drift clean/frameP50Ms +7,38%
+    drift clean/frameP95Ms +13,47%
+    drift clean/composeCpuP95Ms +17,43%
+    drift clean/privateBytes +4,60%
+    drift clean/privatePeakBytes +4,55%
+    drift dirty/composeCpuP95Ms -9,91%
+  Set: within-noise-budget; 6 runs per side, smallest attainable p 0.0022, 0 regressed, 0 improved
+Scenario MultilineGrid:
+  A1 clean fps 2 384,941  private   30 887 936  working set   47 185 920
+  A1 dirty fps   113,540  private   34 820 096  working set   50 319 360
+  B1 clean fps 2 511,190  private   34 590 720  working set   48 373 760
+  B1 dirty fps   110,361  private   33 980 416  working set   49 782 784
+  B2 clean fps 2 498,922  private   32 714 752  working set   48 926 720
+  B2 dirty fps   110,985  private   34 144 256  working set   50 364 416
+  A2 clean fps 2 510,828  private   33 341 440  working set   48 275 456
+  A2 dirty fps   112,114  private   34 369 536  working set   50 176 000
+  A3 clean fps 2 588,695  private   32 866 304  working set   48 476 160
+  A3 dirty fps   111,952  private   34 439 168  working set   50 073 600
+  B3 clean fps 2 483,947  private   33 976 320  working set   48 447 488
+  B3 dirty fps   129,050  private   33 972 224  working set   49 766 400
+  B4 clean fps 2 455,720  private   34 627 584  working set   49 090 560
+  B4 dirty fps   112,931  private   35 164 160  working set   50 446 336
+  A4 clean fps 2 544,189  private   32 587 776  working set   48 852 992
+  A4 dirty fps   136,404  private   34 910 208  working set   50 614 272
+  A5 clean fps 2 387,589  private   32 935 936  working set   48 414 720
+  A5 dirty fps   135,312  private   34 996 224  working set   50 647 040
+  B5 clean fps 2 456,158  private   32 215 040  working set   48 152 576
+  B5 dirty fps   139,009  private   34 828 288  working set   50 397 184
+  B6 clean fps 2 569,571  private   32 083 968  working set   48 635 904
+  B6 dirty fps   135,442  private   34 734 080  working set   50 626 560
+  A6 clean fps 2 501,845  private   32 907 264  working set   48 181 248
+  A6 dirty fps   137,924  private   33 935 360  working set   49 733 632
+  MultilineGrid-B1-vs-A1: advice-required
+  MultilineGrid-B2-vs-A2: advice-required
+  MultilineGrid-A2-vs-A1-control: unstable-control
+    drift clean/fps +5,28%
+    drift clean/frameP50Ms -6,95%
+    drift clean/composeCpuP95Ms -9,24%
+    drift clean/privateBytes +7,94%
+    drift clean/privatePeakBytes +7,06%
+    drift clean/workingSetBytes +2,31%
+    drift clean/workingSetPeakBytes +3,49%
+    drift dirty/composeCpuP95Ms +53,42%
+  MultilineGrid-B2-vs-B1-control: unstable-control
+    drift clean/frameP95Ms +15,44%
+    drift clean/composeCpuP95Ms -5,08%
+    drift clean/privateBytes -5,42%
+    drift clean/privatePeakBytes -5,37%
+    drift dirty/composeCpuP95Ms +19,58%
+  MultilineGrid-B3-vs-A3: advice-required
+  MultilineGrid-B4-vs-A4: advice-required
+  MultilineGrid-A4-vs-A3-control: unstable-control
+    drift clean/frameP95Ms +8,20%
+    drift dirty/fps +21,84%
+    drift dirty/frameP50Ms -17,49%
+    drift dirty/frameP95Ms -17,07%
+    drift dirty/prepareP95Ms -16,97%
+    drift dirty/composeCpuP95Ms -18,06%
+  MultilineGrid-B4-vs-B3-control: unstable-control
+    drift clean/frameP95Ms +18,96%
+    drift clean/composeCpuP95Ms +6,03%
+    drift clean/privatePeakBytes +3,80%
+    drift dirty/fps -12,49%
+    drift dirty/frameP50Ms +12,33%
+    drift dirty/frameP95Ms +13,82%
+    drift dirty/prepareP95Ms +15,32%
+    drift dirty/composeCpuP95Ms -21,97%
+    drift dirty/privateBytes +3,51%
+    drift dirty/privatePeakBytes +3,72%
+    drift dirty/workingSetPeakBytes +2,05%
+  MultilineGrid-B5-vs-A5: advice-required
+  MultilineGrid-B6-vs-A6: advice-required
+  MultilineGrid-A6-vs-A5-control: unstable-control
+    drift clean/frameP50Ms -6,99%
+    drift clean/frameP95Ms -12,52%
+    drift clean/composeCpuP95Ms -6,45%
+    drift dirty/frameP95Ms -7,96%
+    drift dirty/composeCpuP95Ms -9,77%
+    drift dirty/privateBytes -3,03%
+    drift dirty/privatePeakBytes -3,41%
+    drift dirty/workingSetPeakBytes -2,14%
+  MultilineGrid-B6-vs-B5-control: unstable-control
+    drift clean/frameP95Ms +7,70%
+    drift clean/composeCpuP95Ms -15,63%
+    drift dirty/composeCpuP95Ms +39,74%
+  Set: within-noise-budget; 6 runs per side, smallest attainable p 0.0022, 0 regressed, 0 improved
+Scenario MultilineGridDistinct:
+  A1 clean fps 2 557,921  private   29 728 768  working set   45 563 904
+  A1 dirty fps   622,757  private   31 236 096  working set   47 607 808
+  B1 clean fps 2 610,370  private   29 757 440  working set   45 826 048
+  B1 dirty fps   624,653  private   31 375 360  working set   47 620 096
+  B2 clean fps 2 657,242  private   29 552 640  working set   45 555 712
+  B2 dirty fps   621,174  private   31 498 240  working set   47 468 544
+  A2 clean fps 2 610,983  private   29 937 664  working set   45 785 088
+  A2 dirty fps   621,339  private   31 473 664  working set   47 767 552
+  A3 clean fps 2 281,685  private   28 651 520  working set   44 584 960
+  A3 dirty fps   623,050  private   30 842 880  working set   46 960 640
+  B3 clean fps 2 520,495  private   30 769 152  working set   46 743 552
+  B3 dirty fps   627,219  private   31 580 160  working set   47 923 200
+  B4 clean fps 2 546,262  private   30 625 792  working set   46 497 792
+  B4 dirty fps   619,462  private   31 342 592  working set   47 558 656
+  A4 clean fps 2 543,591  private   29 102 080  working set   45 137 920
+  A4 dirty fps   593,800  private   30 793 728  working set   46 866 432
+  A5 clean fps 2 542,023  private   29 999 104  working set   46 112 768
+  A5 dirty fps   630,456  private   31 526 912  working set   47 726 592
+  B5 clean fps 2 633,936  private   30 519 296  working set   46 489 600
+  B5 dirty fps   611,461  private   31 244 288  working set   47 468 544
+  B6 clean fps 2 584,848  private   30 593 024  working set   46 379 008
+  B6 dirty fps   600,302  private   32 018 432  working set   47 525 888
+  A6 clean fps 2 107,426  private   30 748 672  working set   46 391 296
+  A6 dirty fps   605,695  private   31 678 464  working set   47 476 736
+  MultilineGridDistinct-B1-vs-A1: within-noise-budget
+  MultilineGridDistinct-B2-vs-A2: advice-required
+  MultilineGridDistinct-A2-vs-A1-control: unstable-control
+    drift clean/frameP95Ms +13,63%
+    drift clean/composeCpuP95Ms -5,36%
+    drift dirty/prepareP95Ms -6,32%
+  MultilineGridDistinct-B2-vs-B1-control: unstable-control
+    drift clean/composeCpuP95Ms +7,69%
+    drift clean/privatePeakBytes -2,35%
+    drift dirty/composeCpuP95Ms -8,62%
+  MultilineGridDistinct-B3-vs-A3: advice-required
+  MultilineGridDistinct-B4-vs-A4: advice-required
+  MultilineGridDistinct-A4-vs-A3-control: unstable-control
+    drift clean/fps +11,48%
+    drift clean/frameP95Ms -18,42%
+    drift dirty/frameP95Ms +13,08%
+    drift dirty/composeCpuP95Ms +6,67%
+  MultilineGridDistinct-B4-vs-B3-control: unstable-control
+    drift clean/frameP50Ms -5,04%
+    drift clean/composeCpuP95Ms -9,76%
+    drift dirty/prepareP95Ms -6,72%
+    drift dirty/composeCpuP95Ms +14,15%
+  MultilineGridDistinct-B5-vs-A5: advice-required
+  MultilineGridDistinct-B6-vs-A6: advice-required
+  MultilineGridDistinct-A6-vs-A5-control: unstable-control
+    drift clean/fps -17,10%
+    drift clean/frameP95Ms +30,95%
+    drift clean/prepareP95Ms +33,33%
+    drift clean/privateBytes +2,50%
+    drift clean/privatePeakBytes +4,72%
+    drift dirty/composeCpuP95Ms +9,91%
+  MultilineGridDistinct-B6-vs-B5-control: unstable-control
+    drift clean/frameP95Ms +7,91%
+    drift dirty/composeCpuP95Ms +7,69%
+    drift dirty/privateBytes +2,48%
+    drift dirty/privatePeakBytes +2,62%
+  Set: within-noise-budget; 6 runs per side, smallest attainable p 0.0022, 0 regressed, 0 improved
+Paired reports: Z:\src\DxUi\.build\paired\20261009T002849Z-bea676a1f841\reports

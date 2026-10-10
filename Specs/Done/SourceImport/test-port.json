@@ -389,15 +389,17 @@
     },
     {
       "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
-      "currentFile": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
+      "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges",
+      "currentTest": "TestNativeTextInputProviderExposesImeTextEditRanges",
       "status": "ported",
       "reason": "Runtime control contract retained."
     },
     {
       "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
-      "currentFile": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
+      "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters",
+      "currentTest": "TestNativeTextInputRaisesTextAndTextEditEventCounters",
       "status": "ported",
       "reason": "Runtime control contract retained."
     },
@@ -3485,8 +3487,9 @@
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestNativeTextInputBackendEditMessagesSetTextClearsComposition",
+      "currentTest": "TestNativeTextInputPublicSetTextClearsComposition",
       "status": "ported",
-      "reason": "Runtime control contract retained."
+      "reason": "Composition clearing remains covered through the control API; HWND WM_SETTEXT now retains its caption meaning."
     },
     {
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
@@ -3576,8 +3579,9 @@
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink",
+      "currentTest": "TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextWithoutEcho",
       "status": "ported",
-      "reason": "Runtime control contract retained."
+      "reason": "Retained edit behavior is covered; TSF ACP self-edits must not echo text or selection notifications."
     },
     {
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
@@ -3590,8 +3594,9 @@
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink",
+      "currentTest": "TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho",
       "status": "ported",
-      "reason": "Runtime control contract retained."
+      "reason": "Retained range replacement is covered; TSF ACP self-edits must not echo text or selection notifications."
     },
     {
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",

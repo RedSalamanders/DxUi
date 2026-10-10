@@ -1,0 +1,1 @@
+- Establish actual desktop foreground ownership in authorized menu/text fixtures by reusing the lease backend's scoped input attachment when a direct activation request is refused. Explicitly activate context-menu owners before opening their popups, keep noninteractive activation blocked, and preserve failure reporting and production deactivation behavior.

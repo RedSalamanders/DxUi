@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NewControls
+  [START] TestMenuBarHoverLeaveCallbackCanRetireRoot
+  [DONE] TestMenuBarHoverLeaveCallbackCanRetireRoot (0.875 s)
+[DONE] NewControls (0.876 s)
+All DxUi tests passed.

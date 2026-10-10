@@ -377,6 +377,22 @@ void TestSplitterChangeCallbackCanReplaceRootSafely()
     Require(host.GetRoot() != nullptr, "the commit callback replaced the root safely");
 }
 
+void TestSplitterMutableChangeCallbackRetainsState()
+{
+    WindowHost host;
+    auto root      = std::make_unique<Panel>();
+    auto* splitter = root->AddChild<Splitter>();
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 100.0f));
+    splitter->SetPosition(100.0f);
+    host.SetRoot(std::move(root));
+
+    std::vector<size_t> observed;
+    splitter->SetOnChange([count = size_t{0u}, &observed](SplitterChange) mutable { observed.push_back(++count); });
+    Require(splitter->OnKeyDown(host, VK_RIGHT, 0u), "the first right-arrow position change is handled");
+    Require(splitter->OnKeyDown(host, VK_RIGHT, 0u), "the second right-arrow position change is handled");
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable splitter callback retains its counter across notifications");
+}
+
 // ── NumericStepper ───────────────────────────────────────────────────────
 
 void TestNumericStepperDefaultState()
@@ -483,6 +499,22 @@ void TestNumericStepperNudgeAndButtonsCommit()
     Require(stepper->GetValue() == 4.0 && stepper->Field().GetText() == L"4", "RequestValue applies the value and formats it");
     Require(! stepper->RequestValue(host, std::numeric_limits<double>::infinity()), "RequestValue rejects a non-finite value");
     Require(events.lastValue == 4.0 && events.Count(NumericStepperChangePhase::Commit) == 7u, "RequestValue commits once");
+}
+
+void TestNumericStepperMutableChangeCallbackRetainsState()
+{
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetMinimum(0.0);
+    stepper->SetMaximum(10.0);
+    host.SetRoot(std::move(root));
+
+    std::vector<size_t> observed;
+    stepper->SetOnChange([count = size_t{0u}, &observed](NumericStepperChange) mutable { observed.push_back(++count); });
+    Require(stepper->Nudge(host, +1, false), "the first numeric step is accepted");
+    Require(stepper->Nudge(host, +1, false), "the second numeric step is accepted");
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable numeric-stepper callback retains its counter across notifications");
 }
 
 void TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels()
@@ -777,6 +809,21 @@ void TestColorPickerSetColorSyncsChildrenSilently()
     picker.SetCurrentColor(0xFF654321u);
     Require(picker.GetCurrentColor() == 0xFF654321u && picker.GetColor() == 0xFF123456u, "SetCurrentColor changes only the reference swatch");
     Require(events.phases.empty(), "SetColor and SetCurrentColor never notify");
+}
+
+void TestColorPickerMutableChangeCallbackRetainsState()
+{
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* picker = root->AddChild<ColorPicker>();
+    picker->SetColor(0xFF808080u);
+    host.SetRoot(std::move(root));
+
+    std::vector<size_t> observed;
+    picker->SetOnChange([count = size_t{0u}, &observed](ColorPickerChange) mutable { observed.push_back(++count); });
+    Require(picker->OnKeyDown(host, VK_UP, 0u), "the first value adjustment is handled");
+    Require(picker->OnKeyDown(host, VK_UP, 0u), "the second value adjustment is handled");
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable color-picker callback retains its counter across notifications");
 }
 
 void TestColorPickerFieldDragPreviewsAndOkCommits()
@@ -1749,6 +1796,28 @@ void TestMovingAControlAnnouncesWhatItNowInheritsOnce()
     }
 }
 
+void TestPageHostInheritsItsControlParentFlowAndDensity()
+{
+    using namespace DxUi;
+
+    Panel outer;
+    outer.SetFlowDirection(FlowDirection::RightToLeft);
+    outer.SetDensity(Density::Compact);
+    PageHost* const pageHost = outer.AddChild<PageHost>();
+    AnnouncementProbe::Heard heard;
+    pageHost->SetPage(std::make_unique<AnnouncementProbe>(&heard));
+
+    Require(pageHost->GetFlowDirection() == FlowDirection::RightToLeft && pageHost->GetDensity() == Density::Compact,
+            "PageHost itself inherits the values of its Control parent");
+    Require(heard.flowDirection == 1u && heard.density == 1u, "a page attached beneath an inherited PageHost hears its initial flow direction and density");
+
+    outer.SetFlowDirection(FlowDirection::LeftToRight);
+    outer.SetDensity(Density::Standard);
+    Require(pageHost->GetPage()->GetFlowDirection() == FlowDirection::LeftToRight && pageHost->GetPage()->GetDensity() == Density::Standard,
+            "the page resolves inherited values through PageHost after its parent changes");
+    Require(heard.flowDirection == 2u && heard.density == 2u, "the page hears each changed inherited value once through PageHost");
+}
+
 // A null slot dereference is a hardware fault, not an exception: report it as a failure instead of ending the run.
 [[nodiscard]] bool ClearsWithoutFaulting(Panel& panel) noexcept
 {
@@ -1862,12 +1931,14 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestSplitterDisabledAndRequestPosition);
     DXUI_RUN_TEST(TestSplitterPaintHandlesMissingDeviceContext);
     DXUI_RUN_TEST(TestSplitterChangeCallbackCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestSplitterMutableChangeCallbackRetainsState);
 
     // NumericStepper
     DXUI_RUN_TEST(TestNumericStepperDefaultState);
     DXUI_RUN_TEST(TestNumericStepperParseAndFormat);
     DXUI_RUN_TEST(TestNumericStepperSetValueClampsSilently);
     DXUI_RUN_TEST(TestNumericStepperNudgeAndButtonsCommit);
+    DXUI_RUN_TEST(TestNumericStepperMutableChangeCallbackRetainsState);
     DXUI_RUN_TEST(TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels);
     DXUI_RUN_TEST(TestNumericStepperUnparseableEditRevertsAndDecimalsRound);
     DXUI_RUN_TEST(TestNumericStepperEditsEndWithCommitOrCancel);
@@ -1879,6 +1950,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestColorHelpers);
     DXUI_RUN_TEST(TestColorPickerDefaultState);
     DXUI_RUN_TEST(TestColorPickerSetColorSyncsChildrenSilently);
+    DXUI_RUN_TEST(TestColorPickerMutableChangeCallbackRetainsState);
     DXUI_RUN_TEST(TestColorPickerFieldDragPreviewsAndOkCommits);
     DXUI_RUN_TEST(TestColorPickerHueStripAndKeyboard);
     DXUI_RUN_TEST(TestColorPickerCancelPaths);
@@ -1902,6 +1974,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestTreeMovedBetweenDensitiesMatchesAFreshOne);
     DXUI_RUN_TEST(TestGridMovedBetweenDensitiesMatchesAFreshOne);
     DXUI_RUN_TEST(TestMovingAControlAnnouncesWhatItNowInheritsOnce);
+    DXUI_RUN_TEST(TestPageHostInheritsItsControlParentFlowAndDensity);
     DXUI_RUN_TEST(TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren);
     DXUI_RUN_TEST(TestEditorControlsAreCatalogued);
     DXUI_RUN_TEST(TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed);

@@ -433,8 +433,8 @@ __declspec(noinline) static void TestEmbeddedSingleGridEventsReachAClientSubscri
     walk.ExpectHeard(hear(2u, "a click on a row", [&] { click(1u); }), {row(L"Selected", 1u), row(L"IsSelected:true", 1u)}, "a click on a row");
     walk.ExpectHeard(hear(2u, "Ctrl+click", [&] { click(3u, MK_CONTROL); }), {row(L"Added", 3u), row(L"IsSelected:true", 3u)}, "Ctrl+click");
     walk.ExpectHeard(hear(4u, "Shift+click", [&] { click(2u, MK_SHIFT); }),
-                     {row(L"Added", 2u), row(L"IsSelected:true", 2u), row(L"Removed", 3u), row(L"IsSelected:false", 3u)},
-                     "Shift+click from the anchor, Ligne 1");
+                     {row(L"Removed", 1u), row(L"IsSelected:false", 1u), row(L"Added", 2u), row(L"IsSelected:true", 2u)},
+                     "Shift+click from the last Ctrl+click anchor, Ligne 3");
     walk.ExpectHeard(hear(4u,
                           "clearing the selection",
                           [&]
@@ -442,7 +442,7 @@ __declspec(noinline) static void TestEmbeddedSingleGridEventsReachAClientSubscri
         grid->GetSelectionModel().Clear();
         grid->NotifyDataChanged();
     }),
-                     {row(L"Removed", 1u), row(L"Removed", 2u), row(L"IsSelected:false", 1u), row(L"IsSelected:false", 2u)},
+                     {row(L"Removed", 2u), row(L"Removed", 3u), row(L"IsSelected:false", 2u), row(L"IsSelected:false", 3u)},
                      "clearing the selection");
     walk.ExpectHeard(hear(1u,
                           "Ctrl+A",
@@ -613,6 +613,110 @@ __declspec(noinline) static void TestEmbeddedMultiSelectTreeRaisesItsSelectionEv
                 "a client hears the Selection_Invalidated event the view raises for its tree");
 }
 
+__declspec(noinline) static void TestEmbeddedRowFocusChangesReachSubscribedClient(GraphicsFixture& gpu)
+{
+    const auto heardFocus = [](long type, std::wstring name)
+    { return [=](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Focus && event.controlType == type && event.name == name; }; };
+    {
+        EmbeddedTreeModel model;
+        auto control = std::make_unique<DxUi::Tree>();
+        auto* tree   = control.get();
+        tree->SetModel(&model);
+        tree->SetMultiSelectEnabled(true);
+        tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 2u});
+        tree->SetFocusedItemId(1u);
+        EmbeddedSingleControlView test(gpu, std::move(control), L"Categories");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach the row-focus tree");
+        UiaTest::Subscription subscription;
+        subscription.focus = true;
+        EmbeddedClientWalk walk(bridge, std::move(subscription));
+        test.view.Controls().SetFocusControl(tree);
+        PublishEmbeddedView(test, bridge, "publish tree focus");
+        walk.Expect(walk.client.WaitForEvent(heardFocus(UIA_TreeItemControlTypeId, L"Général")), "gaining tree focus announces the focused item");
+        tree->SetFocusedItemId(2u);
+        PublishEmbeddedView(test, bridge, "publish a focus-only move within the selected tree items");
+        walk.Expect(walk.client.WaitForEvent(heardFocus(UIA_TreeItemControlTypeId, L"Volets")), "a focus-only tree move announces its item");
+        Check(tree->GetSelectedItemIds().size() == 2u, "focus events do not change the multi-selection");
+    }
+    {
+        EmbeddedNumberedGridModel model;
+        auto control = std::make_unique<DxUi::Grid>();
+        auto* grid   = control.get();
+        grid->SetModel(&model);
+        Check(grid->RequestSelectRow(2u, 0u), "select the initial grid row");
+        EmbeddedSingleControlView test(gpu, std::move(control), L"Results");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach the row-focus grid");
+        UiaTest::Subscription subscription;
+        subscription.focus = true;
+        EmbeddedClientWalk walk(bridge, std::move(subscription));
+        test.view.Controls().SetFocusControl(grid);
+        PublishEmbeddedView(test, bridge, "publish grid focus");
+        walk.Expect(walk.client.WaitForEvent(heardFocus(UIA_DataItemControlTypeId, L"Ligne 3")), "gaining grid focus announces the focused row");
+        Check(grid->RequestSelectRow(1u, MK_SHIFT), "extend a grid range upward");
+        PublishEmbeddedView(test, bridge, "publish the moving grid range endpoint");
+        walk.Expect(walk.client.WaitForEvent(heardFocus(UIA_DataItemControlTypeId, L"Ligne 2")), "a grid range announces its moving endpoint");
+        walk.client.Settle();
+        Hr(bridge.Update(false), "the application loses keyboard focus");
+        walk.client.Settle();
+        const auto rowFocusCount = [&]
+        {
+            return std::ranges::count_if(walk.client.Events(), [](const UiaTest::HeardEvent& event) {
+                return event.kind == UiaTest::EventKind::Focus && event.controlType == UIA_DataItemControlTypeId && event.name.starts_with(L"Ligne ");
+            });
+        };
+        const auto eventsBefore = rowFocusCount();
+        Check(grid->RequestSelectRow(0u, 0u), "change a background grid row");
+        PublishEmbeddedView(test, bridge, "publish the background row");
+        walk.client.Settle();
+        walk.Expect(rowFocusCount() == eventsBefore, "a view without application keyboard focus raises no row focus event");
+        Hr(bridge.Update(true), "the application regains keyboard focus");
+        walk.Expect(walk.client.WaitForEvent(heardFocus(UIA_DataItemControlTypeId, L"Ligne 1")), "regaining focus announces the current grid row");
+    }
+}
+
+__declspec(noinline) static void TestEmbeddedRangeMetadataChangesWakeAndReachSubscribedClient(GraphicsFixture& gpu)
+{
+    auto control = std::make_unique<DxUi::Slider>();
+    auto* slider = control.get();
+    slider->SetValue(42.0);
+    EmbeddedSingleControlView test(gpu, std::move(control), L"Opacity");
+    EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+    Hr(bridge.Attach(), "attach the range-metadata slider");
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_RangeValueValuePropertyId,
+                               UIA_RangeValueMinimumPropertyId,
+                               UIA_RangeValueMaximumPropertyId,
+                               UIA_RangeValueSmallChangePropertyId,
+                               UIA_RangeValueLargeChangePropertyId};
+    EmbeddedClientWalk walk(bridge, std::move(subscription));
+    const auto publish = [&]
+    {
+        Check(test.view.Prepare(320, 160, 96) == S_OK, "a range setter requests changed preparation without an explicit invalidation");
+        Hr(bridge.Update(), "publish the changed range metadata");
+    };
+    const auto expect = [&](PROPERTYID property, double value)
+    {
+        walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(property, UIA_SliderControlTypeId, L"Opacity", std::to_wstring(value))),
+                    "an application-window subscriber receives the embedded range property change");
+    };
+    slider->SetMinimum(44.0);
+    publish();
+    expect(UIA_RangeValueValuePropertyId, 44.0);
+    expect(UIA_RangeValueMinimumPropertyId, 44.0);
+    slider->SetMaximum(45.0);
+    publish();
+    expect(UIA_RangeValueMaximumPropertyId, 45.0);
+    slider->SetStep(12.0);
+    publish();
+    expect(UIA_RangeValueSmallChangePropertyId, 12.0);
+    expect(UIA_RangeValueLargeChangePropertyId, 12.0);
+    slider->SetLargeStep(15.0);
+    publish();
+    expect(UIA_RangeValueLargeChangePropertyId, 15.0);
+}
+
 __declspec(noinline) static void TestEmbeddedUiaEventHarness(GraphicsFixture& gpu)
 {
     TestEmbeddedSingleTreeIsNavigableFromTheApplicationsElement(gpu);
@@ -621,4 +725,6 @@ __declspec(noinline) static void TestEmbeddedUiaEventHarness(GraphicsFixture& gp
     TestEmbeddedSingleGridEventsReachAClientSubscribedToTheApplicationsWindow(gpu);
     TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow(gpu);
     TestEmbeddedSelectionEventsEndWhenTheViewLeavesWhileTheyAreRaised(gpu);
+    TestEmbeddedRowFocusChangesReachSubscribedClient(gpu);
+    TestEmbeddedRangeMetadataChangesWakeAndReachSubscribedClient(gpu);
 }

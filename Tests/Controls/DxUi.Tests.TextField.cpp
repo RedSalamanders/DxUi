@@ -3,6 +3,7 @@
 #include <array>
 #include <fstream>
 #include <iterator>
+#include <new>
 
 namespace
 {
@@ -19,6 +20,17 @@ WindowHostBitmapCapture CaptureAttachedTextFieldHostWindowBitmap(AttachedHostWin
     WindowHostBitmapCapture capture;
     Require(window.Host().DebugCaptureBitmap(capture), context);
     return capture;
+}
+
+std::shared_ptr<int> MakeRetainedCallbackCleanupThatClearsRoot(DxUi::WindowHost& host, bool& cleanupRan)
+{
+    return std::shared_ptr<int>(new int(1),
+                                [&host, &cleanupRan](int* value)
+    {
+        delete value;
+        cleanupRan = true;
+        host.SetRoot({});
+    });
 }
 
 [[nodiscard]] size_t CountWarmSaturatedPixels(const WindowHostBitmapCapture& capture) noexcept
@@ -1353,18 +1365,86 @@ void TestMaskedTextFieldExactMaskUsesTextElementCount()
     Require(field.GetSecretVisibleDotCount() == 2u, "one BMP character plus one astral character renders exactly two password dots");
 }
 
-void TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification()
+void TestNativeTextFieldEditSelectionPreservesReversedEndpoints()
+{
+    using namespace DxUi;
+    class Probe final : public TextField
+    {
+    public:
+        using TextField::ExportTextInputState;
+        using TextField::TextField;
+    };
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<Probe>(L"abcdef");
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_SETSEL, 5u, 2));
+    TextInputState state;
+    Require(field->ExportTextInputState(state) && state.selectionAnchorIndex == 5u && state.caretIndex == 2u,
+            "a reversed Win32 selection preserves its anchor and active caret end");
+    DWORD first = 0u;
+    DWORD last  = 0u;
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&first), reinterpret_cast<LPARAM>(&last)));
+    Require(first == 2u && last == 5u, "Win32 reports normalized bounds for a reversed selection");
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(L"X")));
+    Require(field->GetText() == L"abXf", "replacement edits the full reversed range rather than inserting at its end");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_SETSEL, 0u, -1));
+    Require(field->ExportTextInputState(state) && state.selectionAnchorIndex == 0u && state.caretIndex == 4u, "a negative end selects to the document end");
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_SETSEL, static_cast<WPARAM>(static_cast<UINT>(-1)), 2));
+    Require(field->ExportTextInputState(state) && ! state.selectionAnchorIndex && state.caretIndex == 2u,
+            "a 32-bit negative start deselects instead of creating a reversed selection");
+
+    field->SetMultiline(true);
+    field->SetTextAndNotify(L"a\nbc");
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_SETSEL, 4u, 1));
+    Require(field->ExportTextInputState(state) && state.selectionAnchorIndex == 3u && state.caretIndex == 1u,
+            "reversed Win32 CRLF positions map to logical newline positions");
+    static_cast<void>(SendMessageW(window.Hwnd(), EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(L"x")));
+    Require(field->GetText() == L"axc", "reversed multiline replacement normalizes CRLF positions");
+}
+
+void TestNativeTextFieldDoesNotTakeOverHostCaptionMessages()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
     window.Host().SetTextInputBackend(TextInputBackend::Native);
+    Require(SetWindowTextW(window.Hwnd(), L"document-title") != FALSE, "caption fixture sets the host title");
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"editor text");
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+
+    std::array<wchar_t, 64> buffer{};
+    const LRESULT copied = SendMessageW(window.Hwnd(), WM_GETTEXT, buffer.size(), reinterpret_cast<LPARAM>(buffer.data()));
+    Require(copied == 14 && std::wstring(buffer.data()) == L"document-title", "focused editor leaves host WM_GETTEXT owned by the caption");
+    Require(SendMessageW(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0) == 14, "focused editor leaves host WM_GETTEXTLENGTH owned by the caption");
+
+    Require(SendMessageW(window.Hwnd(), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"renamed-title")) != FALSE,
+            "host WM_SETTEXT changes the host caption while a text field is logically focused");
+    buffer.fill(L'\0');
+    const LRESULT renamedLength = SendMessageW(window.Hwnd(), WM_GETTEXT, buffer.size(), reinterpret_cast<LPARAM>(buffer.data()));
+    Require(renamedLength == 13 && std::wstring(buffer.data()) == L"renamed-title", "host returns its updated caption");
+    Require(field->GetText() == L"editor text", "host caption changes never rewrite the focused text field");
+}
+
+void TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification()
+{
+    using namespace DxUi;
+
+    // This verifies synchronization ordering, without starting native services on a hidden HWND.
+    WindowHost host;
+    host.SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"alpha beta");
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
-    window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field);
     field->SetSelectionRange(6u, 10u);
 
     bool callbackInvoked        = false;
@@ -1372,17 +1452,17 @@ void TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification()
     field->SetOnTextChanged([&](std::wstring_view text)
     {
         NativeTextInputState state{};
-        callbackInvoked        = text == L"alpha helper";
-        callbackSawSyncedState = window.Host().TryReadNativeTextInputState(field, state) && state.text == text && state.caretIndex == 12u &&
-                                 ! state.selectionAnchorIndex.has_value();
-        window.Host().SetRoot(std::make_unique<Panel>());
+        callbackInvoked = text == L"alpha helper";
+        callbackSawSyncedState =
+            host.TryReadNativeTextInputState(field, state) && state.text == text && state.caretIndex == 12u && ! state.selectionAnchorIndex.has_value();
+        host.SetRoot(std::make_unique<Panel>());
     });
 
     field->ReplaceSelectionAndNotify(L"helper");
 
     Require(callbackInvoked, "selection replacement invokes its notification with the final text");
     Require(callbackSawSyncedState, "selection replacement synchronizes focused native state before its terminal notification");
-    Require(window.Host().GetRoot() != nullptr, "selection replacement notification can replace the retained root safely");
+    Require(host.GetRoot() != nullptr, "selection replacement notification can replace the retained root safely");
 }
 
 void TestMaskedTextFieldGeometryMapsUtf16SourceToDisplayElements()
@@ -1805,6 +1885,50 @@ void TestTextFieldClearButtonNotVisibleWhenReadOnly()
     Require(field->GetText() == L"Read only text", "read-only text field click in clear-button area does not clear text");
 }
 
+void TestTextFieldClearButtonStopsAfterTextChangedDestroysField()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"clear me");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 28.0f));
+    field->SetClearButtonEnabled(true);
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field);
+    field->SetOnTextChanged([&](std::wstring_view) { host.SetRoot(std::make_unique<Panel>()); });
+
+    static_cast<void>(field->OnMouseDown(host, D2D1::Point2F(190.0f, 14.0f), false, 0u));
+
+    const auto* replacement = dynamic_cast<const Panel*>(host.GetRoot());
+    Require(replacement != nullptr && replacement->GetChildren().empty(), "clear button callback replaces the field without later field access");
+}
+
+void TestTextFieldImportReportsWhenTextChangedDestroysField()
+{
+    using namespace DxUi;
+    class ImportField final : public TextField
+    {
+    public:
+        using TextField::ImportTextInputState;
+        using TextField::TextField;
+    };
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<ImportField>(L"before");
+    host.SetRoot(std::move(root));
+    field->SetOnTextChanged([&](std::wstring_view) { host.SetRoot(std::make_unique<Panel>()); });
+    TextInputState state;
+    state.text       = L"after";
+    state.caretIndex = state.text.size();
+
+    const bool survived = field->ImportTextInputState(host, state, true);
+
+    Require(! survived, "text input import reports that the text callback destroyed its field");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "text input import leaves the replacement root installed");
+}
+
 // A text field press, double click or context menu that focuses the field, given a focus callback that replaces every
 // control, touches the destroyed field no further (AddressSanitizer catches one that does).
 void TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed()
@@ -1836,10 +1960,313 @@ void TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed()
     }
 }
 
+void TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"blur target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field, false);
+
+    std::wstring observed;
+    field->SetOnBlur([payload = std::make_shared<std::wstring>(L"blur payload"), &host, &observed]()
+    {
+        host.SetRoot(std::make_unique<Panel>());
+        observed = *payload;
+    });
+
+    host.SetFocusControl(nullptr, false);
+
+    Require(observed == L"blur payload", "blur callback capture remains alive after the field is destroyed");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "blur callback replacement root remains installed");
+}
+
+void TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"blur target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field, false);
+
+    std::wstring observed;
+    field->SetOnBlur([payload = std::make_shared<std::wstring>(L"replacement payload"), field, &observed]()
+    {
+        field->SetOnBlur({});
+        observed = *payload;
+    });
+
+    host.SetFocusControl(nullptr, false);
+
+    Require(observed == L"replacement payload", "blur callback capture remains alive after its setter replaces the callable");
+}
+
+void TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"preview target");
+    host.SetRoot(std::move(root));
+
+    std::wstring observed;
+    field->SetOnPreviewKeyDown([payload = std::make_shared<std::wstring>(L"preview payload"), &observed](ControlHost& callbackHost, UINT, UINT)
+    {
+        callbackHost.SetRoot(std::make_unique<Panel>());
+        observed = *payload;
+        return false;
+    });
+
+    static_cast<void>(field->OnKeyDown(host, VK_BACK, 0u));
+
+    Require(observed == L"preview payload", "preview callback capture remains alive after destroying the field and returning false");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "preview callback replacement root remains installed");
+}
+
+void TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    TextField field(L"preview target");
+    std::wstring observed;
+    field.SetOnPreviewKeyDown([payload = std::make_shared<std::wstring>(L"preview replacement payload"), &field, &observed](ControlHost&, UINT, UINT)
+    {
+        field.SetOnPreviewKeyDown({});
+        observed = *payload;
+        return true;
+    });
+
+    const bool handled = field.OnKeyDown(host, VK_F1, 0u);
+
+    Require(handled, "preview callback handles the key");
+    Require(observed == L"preview replacement payload", "preview callback capture remains alive after its setter replaces the callable");
+}
+
+void TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    TextField field(L"submit target");
+    std::wstring observed;
+    field.SetOnSubmitted([payload = std::make_shared<std::wstring>(L"submit replacement payload"), &field, &observed]()
+    {
+        field.SetOnSubmitted({});
+        observed = *payload;
+    });
+
+    const bool handled = field.OnKeyDown(host, VK_RETURN, 0u);
+
+    Require(handled, "single-line submitted callback handles Enter");
+    Require(observed == L"submit replacement payload", "submitted callback capture remains alive after its setter replaces the callable");
+}
+
+void TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications()
+{
+    using namespace DxUi;
+
+    TextField field(L"initial");
+    std::vector<int> observedCounts;
+    field.SetOnTextChanged([count = 0, &observedCounts](std::wstring_view) mutable { observedCounts.push_back(++count); });
+
+    field.SetTextAndNotify(L"first");
+    field.SetTextAndNotify(L"second");
+
+    Require(observedCounts == std::vector<int>{1, 2}, "text-change callback state advances across notifications");
+}
+
+void TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    TextField field(L"submit target");
+    std::vector<int> observedCounts;
+    field.SetOnSubmitted([count = 0, &observedCounts]() mutable { observedCounts.push_back(++count); });
+
+    static_cast<void>(field.OnKeyDown(host, VK_RETURN, 0u));
+    static_cast<void>(field.OnKeyDown(host, VK_RETURN, 0u));
+
+    Require(observedCounts == std::vector<int>{1, 2}, "submitted callback state advances across Enter notifications");
+}
+
+void TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    TextField field(L"preview target");
+    std::vector<int> observedCounts;
+    field.SetOnPreviewKeyDown([count = 0, &observedCounts](ControlHost&, UINT, UINT) mutable
+    {
+        observedCounts.push_back(++count);
+        return true;
+    });
+
+    static_cast<void>(field.OnKeyDown(host, VK_F1, 0u));
+    static_cast<void>(field.OnKeyDown(host, VK_F1, 0u));
+
+    Require(observedCounts == std::vector<int>{1, 2}, "preview callback state advances across key notifications");
+}
+
+void TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"blur target");
+    host.SetRoot(std::move(root));
+
+    std::vector<int> observedCounts;
+    field->SetOnBlur([count = 0, &observedCounts]() mutable { observedCounts.push_back(++count); });
+    for (int notification = 0; notification < 2; ++notification)
+    {
+        host.SetFocusControl(field, false);
+        host.SetFocusControl(nullptr, false);
+    }
+
+    Require(observedCounts == std::vector<int>{1, 2}, "blur callback state advances across logical focus losses");
+}
+
+void TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable()
+{
+    using namespace DxUi;
+    struct CopyGuardedCallback final
+    {
+        bool* throwOnCopy = nullptr;
+        int* callCount    = nullptr;
+
+        CopyGuardedCallback(bool& copyGuard, int& calls) noexcept : throwOnCopy(&copyGuard), callCount(&calls)
+        {
+        }
+        CopyGuardedCallback(const CopyGuardedCallback& other) : throwOnCopy(other.throwOnCopy), callCount(other.callCount)
+        {
+            if (*throwOnCopy)
+            {
+                throw std::bad_alloc{};
+            }
+        }
+        CopyGuardedCallback(CopyGuardedCallback&& other) noexcept : throwOnCopy(other.throwOnCopy), callCount(other.callCount)
+        {
+        }
+
+        void operator()(std::wstring_view) const noexcept
+        {
+            ++*callCount;
+        }
+    };
+
+    TextField field(L"copy guard");
+    bool throwOnCopy = false;
+    int callCount    = 0;
+    field.SetOnTextChanged(CopyGuardedCallback{throwOnCopy, callCount});
+    throwOnCopy = true;
+
+    bool dispatchThrew = false;
+    try
+    {
+        field.SetTextAndNotify(L"notified");
+    }
+    catch (const std::bad_alloc&)
+    {
+        dispatchThrew = true;
+    }
+
+    Require(! dispatchThrew, "text-change dispatch does not copy the registered callback target");
+    Require(callCount == 1, "registered text-change callback still runs after copy is disabled");
+}
+
+void TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"original");
+    host.SetRoot(std::move(root));
+
+    bool cleanupRan = false;
+    field->SetOnTextChanged([payload = MakeRetainedCallbackCleanupThatClearsRoot(host, cleanupRan), field](std::wstring_view)
+    {
+        field->SetOnTextChanged({});
+        static_cast<void>(payload);
+    });
+
+    const bool handled = field->OnChar(host, L'x', 0u);
+
+    Require(handled, "text-change cleanup leaves the typed character handled");
+    Require(cleanupRan && host.GetRoot() == nullptr, "releasing the callback snapshot retires the root");
+}
+
+void TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"backspace target");
+    host.SetRoot(std::move(root));
+
+    bool cleanupRan = false;
+    field->SetOnPreviewKeyDown([payload = MakeRetainedCallbackCleanupThatClearsRoot(host, cleanupRan), field](ControlHost&, UINT, UINT)
+    {
+        field->SetOnPreviewKeyDown({});
+        static_cast<void>(payload);
+        return false;
+    });
+
+    const bool handled = field->OnKeyDown(host, VK_BACK, 0u);
+
+    Require(handled, "preview snapshot cleanup stops the retired field's Backspace path");
+    Require(cleanupRan && host.GetRoot() == nullptr, "releasing the preview callback snapshot retires the root");
+}
+
+void TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"blur target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field, false);
+
+    bool cleanupRan = false;
+    field->SetOnBlur([payload = MakeRetainedCallbackCleanupThatClearsRoot(host, cleanupRan), field]()
+    {
+        field->SetOnBlur({});
+        static_cast<void>(payload);
+    });
+
+    host.SetFocusControl(nullptr, false);
+
+    Require(cleanupRan && host.GetRoot() == nullptr, "releasing the blur callback snapshot retires the root before focus-loss cleanup");
+}
+
 } // namespace
 
 void RunTextFieldTests()
 {
+    DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField);
+    DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself);
+    DXUI_RUN_TEST(TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive);
+    DXUI_RUN_TEST(TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself);
+    DXUI_RUN_TEST(TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself);
+    DXUI_RUN_TEST(TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications);
+    DXUI_RUN_TEST(TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions);
+    DXUI_RUN_TEST(TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys);
+    DXUI_RUN_TEST(TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses);
+    DXUI_RUN_TEST(TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable);
+    DXUI_RUN_TEST(TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues);
+    DXUI_RUN_TEST(TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues);
+    DXUI_RUN_TEST(TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate);
     DXUI_RUN_TEST(TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestTextFieldHoverStyleUsesSharedOverlayChrome);
     DXUI_RUN_TEST(TestTextFieldHighContrastFocusStaysVisibleWithoutKeyboardFocus);
@@ -1899,6 +2326,8 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestSingleLineTextFieldTabDoesNotInsertCharacter);
     DXUI_RUN_TEST(TestMaskedTextFieldPreservesSecretValueAndSuppressesCopy);
     DXUI_RUN_TEST(TestMaskedTextFieldExactMaskUsesTextElementCount);
+    DXUI_RUN_TEST(TestNativeTextFieldDoesNotTakeOverHostCaptionMessages);
+    DXUI_RUN_TEST(TestNativeTextFieldEditSelectionPreservesReversedEndpoints);
     DXUI_RUN_TEST(TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification);
     DXUI_RUN_TEST(TestMaskedTextFieldGeometryMapsUtf16SourceToDisplayElements);
     DXUI_RUN_TEST(TestTextFieldCompactDensityShrinksDefaultVerticalPadding);
@@ -1913,4 +2342,6 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestNativeMaskedTextFieldEmojiSuppressesColorFontRendering);
     DXUI_RUN_TEST(TestTextFieldClearButtonClickClearsTextWhenFocused);
     DXUI_RUN_TEST(TestTextFieldClearButtonNotVisibleWhenReadOnly);
+    DXUI_RUN_TEST(TestTextFieldClearButtonStopsAfterTextChangedDestroysField);
+    DXUI_RUN_TEST(TestTextFieldImportReportsWhenTextChangedDestroysField);
 }

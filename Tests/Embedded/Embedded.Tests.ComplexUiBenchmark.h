@@ -119,6 +119,10 @@ inline void Run(
     memoryPhases[4] = Memory();
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
+    using Clock = std::chrono::steady_clock;
+    static_assert(Clock::period::num == 1 && Clock::period::den == 1'000'000'000, "review clock diagnostics if the MSVC clock period changes");
+    LARGE_INTEGER clockFrequency{};
+    Check(QueryPerformanceFrequency(&clockFrequency) != FALSE && clockFrequency.QuadPart > 0, "benchmark clock frequency");
     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\""
            << (paced            ? "dxui-complex-ui-multiline-grid-heap-paced-v1"
                : heapDiagnostic ? "dxui-complex-ui-multiline-grid-heap-v1"
@@ -128,8 +132,11 @@ inline void Run(
                                 : "dxui-complex-ui-v2")
            << "\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
            << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
-           << kDirtyAllocationsPerFrameCeiling << ",\"scenarios\":[";
-    using Clock        = std::chrono::steady_clock;
+           << kDirtyAllocationsPerFrameCeiling
+           << ",\"clock\":{\"name\":\"std::chrono::steady_clock\",\"implementation\":\"QueryPerformanceCounter\",\"ticksPerSecond\":" << clockFrequency.QuadPart
+           << ",\"tickNanoseconds\":" << 1.0e9 / static_cast<double>(clockFrequency.QuadPart)
+           << ",\"nominalPeriodNanoseconds\":" << 1.0e9 * static_cast<double>(Clock::period::num) / static_cast<double>(Clock::period::den)
+           << "},\"scenarios\":[";
     const auto elapsed = [](Clock::time_point start) { return std::chrono::duration<double, std::milli>(Clock::now() - start).count(); };
     for (int dirty = 0; dirty != 2; ++dirty)
     {
@@ -173,6 +180,8 @@ inline void Run(
             double totalMs         = 0;
             for (double value : frameMs)
                 totalMs += value;
+            // Preserve frame order outside the measured/allocation-counted interval. Sorting still computes the same judged percentiles.
+            const auto rawFrameMs = frameMs, rawPrepareMs = prepareMs, rawComposeMs = composeMs;
             std::sort(frameMs.begin(), frameMs.end());
             std::sort(prepareMs.begin(), prepareMs.end());
             std::sort(composeMs.begin(), composeMs.end());
@@ -189,7 +198,25 @@ inline void Run(
                    << ",\"replacementPeakBytes\":" << after.replacementPeakBytes << ",\"privateBytes\":" << memoryAfter.PrivateUsage
                    << ",\"privatePeakBytes\":" << memoryPeak.PrivateUsage
                    << ",\"privateGrowthBytes\":" << static_cast<int64_t>(memoryAfter.PrivateUsage) - static_cast<int64_t>(memoryBefore.PrivateUsage)
-                   << ",\"workingSetBytes\":" << memoryAfter.WorkingSetSize << ",\"workingSetPeakBytes\":" << memoryPeak.WorkingSetSize << '}';
+                   << ",\"workingSetBytes\":" << memoryAfter.WorkingSetSize << ",\"workingSetPeakBytes\":" << memoryPeak.WorkingSetSize;
+            const auto writeSamples = [&](const auto& samples)
+            {
+                output << '[';
+                for (size_t index = 0; index < samples.size(); ++index)
+                {
+                    if (index)
+                        output << ',';
+                    output << samples[index];
+                }
+                output << ']';
+            };
+            output << ",\"timingSamplesMs\":{\"frame\":";
+            writeSamples(rawFrameMs);
+            output << ",\"prepare\":";
+            writeSamples(rawPrepareMs);
+            output << ",\"composeCpu\":";
+            writeSamples(rawComposeMs);
+            output << "}}";
             std::cout << "Complex UI " << (dirty ? "dirty" : "clean") << " round " << round + 1 << ": " << 40000 / totalMs << " completed offscreen FPS; p95 "
                       << frameMs[37] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";
         }

@@ -1,0 +1,37 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  DEBUG  /  ARM64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      ARM64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.lib
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.EmbeddedTests.exe
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\ARM64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:06
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-ARM64-Debug-8445c6e599ed43bc83eb04b27da021f0.log
+========================================

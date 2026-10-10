@@ -15,7 +15,9 @@ struct ThemeColors
     uint32_t selectionTextArgb;
     uint32_t accentArgb;
 
-    // Zero alpha (the zero default) means none supplied: MakeThemePalette uses windowBackground and text instead.
+    // Zero alpha means none supplied: defaults keep distinct info/warning/error tones; high contrast uses windowBackground/text.
+    // A missing partner is derived for readable contrast where possible; outside high contrast supplied pairs are used as given.
+    // High contrast always preserves the user's window background/text pair, including when alert colors were supplied.
     uint32_t alertErrorBackgroundArgb;
     uint32_t alertErrorTextArgb;
     uint32_t alertWarningBackgroundArgb;

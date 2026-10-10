@@ -19,12 +19,15 @@ function Get-NamesIn([string] $Text, [string] $Pattern) {
 }
 
 # Whether a node of test.ps1 sits in the body of an `if` whose condition names $Interactive.
-function Test-GuardedByInteractive($Node) {
+function Test-GuardedByInteractive($Node, [switch] $AllowHostedProbe) {
     for ($parent = $Node.Parent; $null -ne $parent; $parent = $parent.Parent) {
         if ($parent -isnot [Management.Automation.Language.IfStatementAst]) { continue }
         foreach ($clause in $parent.Clauses) {
             $body = $clause.Item2
-            if ($body.Extent.StartOffset -le $Node.Extent.StartOffset -and $Node.Extent.EndOffset -le $body.Extent.EndOffset -and $clause.Item1.Extent.Text -match '\$Interactive\b') { return $true }
+            if ($body.Extent.StartOffset -le $Node.Extent.StartOffset -and $Node.Extent.EndOffset -le $body.Extent.EndOffset -and $clause.Item1.Extent.Text -match '\$(Interactive|foregroundLeaseRequired)\b') { return $true }
+            if ($AllowHostedProbe -and $Node.GetCommandName() -eq 'Test-DxUiDesktopAvailable' -and
+                $body.Extent.StartOffset -le $Node.Extent.StartOffset -and $Node.Extent.EndOffset -le $body.Extent.EndOffset -and
+                $clause.Item1.Extent.Text -match '\$verifiedHostedRunner\b') { return $true }
         }
     }
     return $false
@@ -42,10 +45,10 @@ function Get-FlatText([string] $Text) {
 }
 
 # Runs test.ps1 in a child process of its own under an environment that says CI, bounded, and reports how it ended.
-function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment) {
+function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment, [string] $Root) {
     $info = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
-    foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', $testScript) + $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.WorkingDirectory = $repository
+    foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', (Join-Path $Root 'test.ps1')) + $Arguments) { $info.ArgumentList.Add($argument) }
+    $info.WorkingDirectory = $Root
     $info.UseShellExecute = $false
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
@@ -71,10 +74,27 @@ function ConvertTo-OrdinalOrder([string[]] $Values) {
     return , $sorted
 }
 
-function Get-OutputFiles {
+function New-RefusalFixture([string] $Root) {
+    # The refused child needs the real entry point and its imports, but no build or test
+    # artifacts. An isolated output tree distinguishes its writes from the parent log
+    # and unrelated builds that legitimately continue during this check.
+    Set-FixtureFile $Root 'test.ps1' ([IO.File]::ReadAllText($testScript))
+    foreach ($module in @('SuiteFailure.psm1', 'InteractiveRun.psm1', 'ScopedTesting.psm1', 'CapabilitySkipPolicy.psm1')) {
+        Set-FixtureFile $Root "Tools/$module" ([IO.File]::ReadAllText((Join-Path $repository "Tools/$module")))
+    }
+    Set-FixtureFile $Root 'Tests/test-scopes.json' ([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')))
+    Set-FixtureFile $Root '.build/logs/existing.log' 'existing log'
+    Set-FixtureFile $Root '.build/reports/existing.json' '{}'
+}
+
+function Get-OutputFiles([string] $Root) {
     return , @(foreach ($directory in @('.build/logs', '.build/reports')) {
-        $path = Join-Path $repository $directory
-        if (Test-Path -LiteralPath $path) { Get-ChildItem -LiteralPath $path -File | ForEach-Object { "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)" } }
+        $path = Join-Path $Root $directory
+        if (Test-Path -LiteralPath $path) {
+            Get-ChildItem -LiteralPath $path -File -Recurse | ForEach-Object {
+                "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+            }
+        }
     })
 }
 
@@ -123,6 +143,26 @@ Invoke-TestCase 'a run refuses where there is no desktop to take, and says why' 
     Assert-Equal 'this process has no interactive window station: it runs as a service, a scheduled task or a remote shell' (Get-DxUiInteractiveRefusal -Environment $clean -UserInteractive $false -OnWindows $true) 'a service, a scheduled task or a remote shell is refused'
     Assert-Equal 'this is not Windows' (Get-DxUiInteractiveRefusal -Environment $clean -UserInteractive $true -OnWindows $false) 'another operating system is refused'
     Assert-Equal 'this is not Windows' (Get-DxUiInteractiveRefusal -Environment @{ CI = 'true' } -UserInteractive $false -OnWindows $false) 'the first reason that applies is the one given'
+}
+Invoke-TestCase 'only verified GitHub-hosted Windows jobs bypass the interactive desktop lease' {
+    $hosted = @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }
+    Assert-True (Test-DxUiVerifiedGitHubHostedRunner -Environment $hosted) 'complete hosted metadata qualifies'
+    foreach ($mutation in @(
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='self-hosted'; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT=''; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI=''; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Linux' }
+    )) { Assert-True (-not (Test-DxUiVerifiedGitHubHostedRunner -Environment $mutation)) 'partial/self-hosted/non-Windows metadata never bypasses' }
+}
+Invoke-TestCase 'hosted foreground mode is selected only for verified hosted jobs that contain a foreground suite' {
+    $hosted = @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }
+    Assert-True (Test-DxUiHostedForegroundLeaseRequired -Suites @('Menu') -VerifiedHostedRunner (Test-DxUiVerifiedGitHubHostedRunner -Environment $hosted)) 'a verified hosted Menu run uses the foreground lease'
+    Assert-True (Test-DxUiHostedForegroundLeaseRequired -Suites @('MenuResources') -VerifiedHostedRunner $true) 'the named menu fixture also uses it'
+    Assert-True (-not (Test-DxUiHostedForegroundLeaseRequired -Suites @('Grid','Embedded') -VerifiedHostedRunner $true)) 'ordinary hosted suites do not use it'
+    Assert-True (-not (Test-DxUiHostedForegroundLeaseRequired -Suites @('Menu') -VerifiedHostedRunner $false)) 'a local run never gets hosted mode'
+    Assert-Equal 'Menu,NativeTextInput' ((Resolve-DxUiForegroundLeaseSuites -Suites @('Foundation','Menu','Grid','NativeTextInput') -Interactive $false -VerifiedHostedRunner $true) -join ',') 'a hosted full run leases only its foreground suites'
+    Assert-Equal 'Menu,NativeTextInput' ((Resolve-DxUiForegroundLeaseSuites -Suites @('Menu','NativeTextInput') -Interactive $true -VerifiedHostedRunner $false) -join ',') 'a local interactive run leases its selected suites'
+    Assert-Equal 0 @(Resolve-DxUiForegroundLeaseSuites -Suites @('Grid','Embedded') -Interactive $false -VerifiedHostedRunner $false).Count 'a local noninteractive run has no lease'
 }
 Invoke-TestCase 'the estimate is the suites and the lease overhead, per configuration' {
     Assert-Equal 85 (Get-DxUiInteractiveEstimateSeconds -Suites @('Menu', 'NativeTextInput') -Configuration 'Debug') 'Debug: 20 + 45 + 20 seconds'
@@ -209,10 +249,31 @@ Invoke-TestCase 'the exit codes of the lease are the ones the PowerShell side re
     }
     Assert-True ((Get-DxUiLeaseExitMeaning -ExitCode 77).Contains('unexpected exit code 77')) 'an exit code it does not know is said to be unexpected'
 }
-Invoke-TestCase 'the lease is reached only through -Interactive' {
+Invoke-TestCase 'desktop takeover requires local -Interactive or the verified hosted foreground wrapper' {
     $calls = Get-CommandCalls @('Invoke-DxUiInteractiveLease', 'Test-DxUiDesktopAvailable', 'Resolve-DxUiInteractiveSuites')
     Assert-True ($calls.Count -ge 3) 'test.ps1 uses each of them'
-    foreach ($call in $calls) { Assert-True (Test-GuardedByInteractive $call) "$($call.GetCommandName()) is called only inside an if (`$Interactive) at line $($call.Extent.StartLineNumber)" }
+    foreach ($call in $calls) { Assert-True (Test-GuardedByInteractive $call -AllowHostedProbe) "$($call.GetCommandName()) has the required desktop authorization guard at line $($call.Extent.StartLineNumber)" }
+    $hostedCall = Get-CommandCalls @('Invoke-DxUiHostedForegroundLease') | Select-Object -First 1
+    Assert-True ($null -ne $hostedCall) 'test.ps1 has a hosted lease call'
+    $hostedGuard = $false
+    for ($parent = $hostedCall.Parent; $null -ne $parent; $parent = $parent.Parent) {
+        if ($parent -is [Management.Automation.Language.IfStatementAst] -and $parent.Clauses.Item1.Extent.Text -match '\$hostedForegroundLease\b' -and
+            $parent.Clauses.Item2.Extent.StartOffset -le $hostedCall.Extent.StartOffset -and $hostedCall.Extent.EndOffset -le $parent.Clauses.Item2.Extent.EndOffset) { $hostedGuard = $true }
+    }
+    Assert-True $hostedGuard 'the hosted wrapper is called only in the hosted-selected branch'
+    $module = [IO.File]::ReadAllText((Join-Path $repository 'Tools/InteractiveRun.psm1'))
+    Assert-True ($module -match '(?s)function Invoke-DxUiHostedForegroundLease\s*\{.*?Test-DxUiVerifiedGitHubHostedRunner') 'the PowerShell wrapper rechecks the verified hosted markers before writing the plan or launching the executable'
+    Assert-True $module.Contains("'--run-hosted'") 'the wrapper selects the native hosted-only mode'
+    $native = [IO.File]::ReadAllText((Join-Path $repository 'Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp'))
+    foreach ($marker in @('L"CI", L"true"', 'L"GITHUB_ACTIONS", L"true"', 'L"RUNNER_ENVIRONMENT", L"github-hosted"', 'L"RUNNER_OS", L"Windows"')) {
+        Assert-True $native.Contains($marker) "native authorization requires exact $marker"
+    }
+    $nativeGate = $native.IndexOf('mode == Mode::RunHosted && ! IsVerifiedGitHubHostedRunner()')
+    Assert-True ($nativeGate -gt 0 -and $nativeGate -lt $native.IndexOf('SetProcessDpiAwarenessContext') -and $nativeGate -lt $native.LastIndexOf('case Mode::RunHosted:')) 'the native gate runs before process or desktop mutation and dispatch'
+    Assert-True ($native -match '(?s)if \(_hosted\).*?Confirmation::Started') 'verified hosted mode records authorization and skips only the person-facing confirmation'
+    $failureHandler = $native.IndexOf('DxUiTestFailureReports::RouteAwayFromDialogs();', $nativeGate)
+    $childRoute = $native.IndexOf('return SelfTestChild(*selfTestChildMode);')
+    Assert-True ($failureHandler -gt $nativeGate -and $childRoute -gt $failureHandler) 'the hosted gate still precedes UI setup, and the intentional runtime-failure child still runs only after the no-dialog handler is installed'
     $text = [IO.File]::ReadAllText($testScript)
     Assert-True $text.Contains('DxUi.InteractiveLease.exe') 'test.ps1 names the lease executable'
     foreach ($other in Get-ChildItem -LiteralPath $repository -Filter '*.ps1' | Where-Object { $_.Name -ne 'test.ps1' }) {
@@ -232,6 +293,7 @@ Invoke-TestCase 'an interactive run is settled before anything is built or run' 
     $nativeCheck = $text.IndexOf('Test-DxUiDesktopAvailable')
     Assert-True ($nativeCheck -gt $text.IndexOf("'build.ps1'") -and $nativeCheck -lt $text.IndexOf('performance.ps1')) 'the native desktop check follows the build and comes before the benchmark and the suites'
     Assert-True ($text.IndexOf('Invoke-DxUiInteractiveLease') -gt $text.IndexOf('performance.ps1')) 'the lease starts after everything else the run checks, so the desktop is held only for the suites'
+    Assert-True ($text.Contains('Resolve-DxUiForegroundLeaseSuites') -and $text.Contains('foreach ($name in $leaseSuites)')) 'the plan contains only suites that need the foreground lease, leaving other requested suites on the normal runner path'
 }
 Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and every other control suite always is' {
     $function = $testAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-SuiteRun' }, $true)
@@ -244,7 +306,7 @@ Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and
     $fakeRoot = Join-Path ([IO.Path]::GetTempPath()) 'dxui-interactive-fake'
     $runOf = {
         param([string] $Suite, [bool] $Interactive, [string[]] $Tests, $TestTimeout)
-        $Platform = 'x64'; $Configuration = 'Debug'; $logs = Join-Path $fakeRoot 'logs'
+        $Platform = 'x64'; $Configuration = 'Debug'; $logs = Join-Path $fakeRoot 'logs'; $instrumentation = @(); $hostedForegroundLease = $false
         . ([scriptblock]::Create($function.Extent.Text.Replace('$PSScriptRoot', "'$fakeRoot'"))) # A dynamic scriptblock has no $PSScriptRoot.
         Get-SuiteRun $Suite
     }
@@ -266,28 +328,35 @@ Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and
     Assert-True ($filtered.Arguments -contains '--test=TestA,TestB' -and $filtered.Arguments -contains '--test-timeout=7' -and $filtered.Log.EndsWith('.interactive.filtered.log') -and $filtered.Filtered) 'its filter and deadline reach the runner, and its log says both'
     Assert-True ((& $runOf 'Foundation' $true @('TestA') $null).Arguments.Count -eq 0) 'Foundation ignores a filter'
 }
-Invoke-TestCase 'test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built' {
-    $before = Get-OutputFiles
-    $run = Invoke-TestScript @('-Interactive', '-Suites', 'Grid') @{ CI = 'true' }
+Invoke-FixtureCase 'test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built' { param($fixture)
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    $run = Invoke-TestScript @('-Interactive', '-Suites', 'Grid') @{ CI = 'true' } $fixture
     Assert-True $run.Exited 'the refusal ended the run'
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
     Assert-True ((Get-FlatText $run.Output).Contains('not interactive: Grid')) "naming the suite: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ')) 'and nothing ran'
-    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
 }
-Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or runs anything' {
+Invoke-FixtureCase 'test.ps1 -Interactive refuses in a CI job before it builds or runs anything' { param($fixture)
     # Whatever happens here must not reach the rest of test.ps1: it would run these tooling tests again and the lease's desktop with
     # them. So the refusal is proved in this process first, and the child's CI variable is set on its process, never inherited.
     Assert-True ($null -ne (Get-DxUiInteractiveRefusal -Environment @{ CI = 'true' } -UserInteractive $true -OnWindows $true)) 'a CI environment is refused'
-    $before = Get-OutputFiles
-    $run = Invoke-TestScript @('-Interactive') @{ CI = 'true' }
-    Assert-True $run.Exited 'the refusal ended the run'
-    Assert-True ($run.Exit -ne 0) 'with a failing exit code'
-    # On Windows the CI variable is the reason; where this runs on another system (CI's validation job is Ubuntu) there is no desktop at all.
-    $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
-    Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
-    Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
-    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    foreach ($environment in @(
+        @{ CI = 'true' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }
+    )) {
+        $run = Invoke-TestScript @('-Interactive') $environment $fixture
+        Assert-True $run.Exited 'the refusal ended the run'
+        Assert-True ($run.Exit -ne 0) 'with a failing exit code'
+        # Even a verified hosted runner uses its distinct hosted mode; -Interactive still requires a person.
+        $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
+        Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
+        Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
+        Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
+    }
 }
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'
@@ -307,5 +376,71 @@ $global:LASTEXITCODE = $exitCode
         Assert-Equal $case.Exit $answer[0].ExitCode 'the executable exit code is preserved'
         Assert-Equal $case.Exit $answer[0].Result.Children[0].ExitCode 'the child result is preserved'
     }
+}
+Invoke-FixtureCase 'the hosted wrapper rechecks authorization and the shared lease core removes stale results' { param($fixture)
+    $fake = Join-Path $fixture 'hosted-lease.ps1'
+    $marker = Join-Path $fixture 'launched.txt'
+    @'
+param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
+[IO.File]::WriteAllText($env:DXUI_HOSTED_LEASE_MARKER, ($Arguments -join "`n"))
+$resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
+"state: completed`nexit: 0`nconfirmation: started`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
+$global:LASTEXITCODE = 0
+'@ | Set-Content -LiteralPath $fake
+    $names = @('CI', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_OS')
+    $saved = @{}
+    foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name); [Environment]::SetEnvironmentVariable($name, $null) }
+    $oldMarker = [Environment]::GetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER')
+    [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $marker)
+    try {
+        $thrown = $false
+        try { [void](Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture) } catch { $thrown = $_.Exception.Message.Contains('verified GitHub-hosted') }
+        Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
+        Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
+
+        foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { [Environment]::SetEnvironmentVariable($pair.Key, $pair.Value) }
+        Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
+        $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+        Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
+        Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
+        Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
+    } finally {
+        foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
+        [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $oldMarker)
+    }
+
+    $staleProbe = Join-Path $fixture 'stale-probe.ps1'
+    @'
+param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
+$resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
+$global:leaseSawStale = Test-Path -LiteralPath $resultPath
+$global:LASTEXITCODE = 0
+'@ | Set-Content -LiteralPath $staleProbe
+    Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
+    $global:leaseSawStale = $true
+    $answer = Invoke-DxUiInteractiveLease -Executable $staleProbe -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+    Assert-True (-not $global:leaseSawStale) 'the shared lease core removes a stale result before launch'
+    Assert-Equal $null $answer.Result 'a launch that writes no current result cannot reuse stale data'
+}
+Invoke-FixtureCase 'a missing lease child replaces an existing suite log with the current launch failure' { param($fixture)
+    $log = Join-Path $fixture 'test-Menu-x64-Debug.hosted.log'
+    Set-Content -LiteralPath $log 'previous successful suite output' -Encoding utf8
+    Write-DxUiLeaseFailureLog -Path $log -Suite 'Menu'
+    $current = Get-Content -Raw -LiteralPath $log
+    Assert-True ($current.Contains('[LEASE] Menu did not run under the foreground lease')) 'the receipt source log names this launch failure'
+    Assert-True (-not $current.Contains('previous successful suite output')) 'a previous suite log cannot hide this failure'
+    $failureCall = Get-CommandCalls @('Write-DxUiLeaseFailureLog') | Select-Object -First 1
+    $childFailureBranch = $false
+    $logExistenceGuard = $false
+    for ($parent = $failureCall.Parent; $null -ne $parent; $parent = $parent.Parent) {
+        if ($parent -isnot [Management.Automation.Language.IfStatementAst]) { continue }
+        foreach ($clause in $parent.Clauses) {
+            $containsCall = $clause.Item2.Extent.StartOffset -le $failureCall.Extent.StartOffset -and $failureCall.Extent.EndOffset -le $clause.Item2.Extent.EndOffset
+            if ($containsCall -and $clause.Item1.Extent.Text -match '\$child\.Launched') { $childFailureBranch = $true }
+            if ($containsCall -and $clause.Item1.Extent.Text -match 'Test-Path.*\$log') { $logExistenceGuard = $true }
+        }
+    }
+    Assert-True $childFailureBranch 'test.ps1 replaces the log in the child launch-failure branch'
+    Assert-True (-not $logExistenceGuard) 'log replacement is unconditional and cannot preserve a previous suite log'
 }
 Complete-TestRun 'Interactive mode'

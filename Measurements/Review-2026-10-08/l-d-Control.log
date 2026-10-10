@@ -1,0 +1,115 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestLocalizedActionLayout
+LOCALIZED_LAYOUT round=0 layouts=24000 us=7114 checksum=1.21933e+07
+  [DONE] TestLocalizedActionLayout (0.045 s)
+LOCALIZED_LAYOUT round=1 layouts=24000 us=7090 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=2 layouts=24000 us=7200 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=3 layouts=24000 us=7060 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=4 layouts=24000 us=7102 checksum=1.21933e+07
+  [START] TestPanelOverlayDismissalCanRetireItsOwner
+  [DONE] TestPanelOverlayDismissalCanRetireItsOwner (0.001 s)
+  [START] TestScrollPanelOverlayDismissalCanRetireItsOwner
+  [DONE] TestScrollPanelOverlayDismissalCanRetireItsOwner (0.000 s)
+  [START] TestMeasuredActionsFailureAndDirectionContracts
+  [DONE] TestMeasuredActionsFailureAndDirectionContracts (0.001 s)
+  [START] TestScrollPanelChildCallbacksCanClearChildrenSafely
+  [DONE] TestScrollPanelChildCallbacksCanClearChildrenSafely (0.000 s)
+  [START] TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner
+  [DONE] TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForControlAndButton
+  [DONE] TestMutableCallbackCaptureStatePersistsForControlAndButton (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForToggleAndColorSwatch
+  [DONE] TestMutableCallbackCaptureStatePersistsForToggleAndColorSwatch (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForScrollPanel
+  [DONE] TestMutableCallbackCaptureStatePersistsForScrollPanel (0.000 s)
+  [START] TestPageHostCallbacksCanDestroyTheirOwnerSafely
+  [DONE] TestPageHostCallbacksCanDestroyTheirOwnerSafely (0.000 s)
+  [START] TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection
+  [DONE] TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection (0.000 s)
+  [START] TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent
+  [DONE] TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent (0.000 s)
+  [START] TestToggleStateLabelsReserveTextLaneWithoutPrimaryLabel
+  [DONE] TestToggleStateLabelsReserveTextLaneWithoutPrimaryLabel (0.000 s)
+  [START] TestToggleStateLabelsFollowCheckedState
+  [DONE] TestToggleStateLabelsFollowCheckedState (0.000 s)
+  [START] TestFocusRingPaintPathsHandleMissingDeviceContext
+  [DONE] TestFocusRingPaintPathsHandleMissingDeviceContext (0.239 s)
+  [START] TestScrollPanelThumbGutterDragThroughWindowHost
+  [DONE] TestScrollPanelThumbGutterDragThroughWindowHost (0.000 s)
+  [START] TestScrollPanelScrollCallbackCanReplaceItsOwnCallable
+  [DONE] TestScrollPanelScrollCallbackCanReplaceItsOwnCallable (0.000 s)
+  [START] TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets
+  [DONE] TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets (0.000 s)
+  [START] TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner
+  [DONE] TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner (0.000 s)
+  [START] TestScrollPanelScrollbarDragCallbackCanDestroyItsOwner
+  [DONE] TestScrollPanelScrollbarDragCallbackCanDestroyItsOwner (0.000 s)
+  [START] TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations
+  [DONE] TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations (0.000 s)
+  [START] TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations
+  [DONE] TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations (0.000 s)
+  [START] TestTabControlLayoutRevalidatesPagesAfterCallbacks
+  [DONE] TestTabControlLayoutRevalidatesPagesAfterCallbacks (0.000 s)
+  [START] TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab
+  [DONE] TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab (0.000 s)
+  [START] TestTabControlReorderingPolicyPreservesStableHostIndices
+  [DONE] TestTabControlReorderingPolicyPreservesStableHostIndices (0.000 s)
+  [START] TestTabControlReorderingReportsStableMove
+All DxUi tests passed.
+  [DONE] TestTabControlReorderingReportsStableMove (0.000 s)
+  [START] TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState
+  [DONE] TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState (0.000 s)
+  [START] TestToggleMouseActivationCanReplaceRootSafely
+  [DONE] TestToggleMouseActivationCanReplaceRootSafely (0.000 s)
+  [START] TestMenuBarActivationCanReplaceRootSafely
+  [DONE] TestMenuBarActivationCanReplaceRootSafely (0.000 s)
+  [START] TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed
+  [DONE] TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed (0.001 s)
+  [START] TestColorSwatchStoresConfiguredArgbAndEmptyState
+  [DONE] TestColorSwatchStoresConfiguredArgbAndEmptyState (0.000 s)
+  [START] TestTagPickerWrapsBadgesInsideInputFrame
+  [DONE] TestTagPickerWrapsBadgesInsideInputFrame (0.000 s)
+  [START] TestTagPickerSuggestionsTrackSelectedBadges
+  [DONE] TestTagPickerSuggestionsTrackSelectedBadges (0.000 s)
+  [START] TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter
+  [DONE] TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter (0.000 s)
+  [START] TestToggleRightClickInvokesContextMenuWithoutChangingState
+  [DONE] TestToggleRightClickInvokesContextMenuWithoutChangingState (0.000 s)
+  [START] TestCheckboxRightClickInvokesContextMenuWithoutChangingState
+  [DONE] TestCheckboxRightClickInvokesContextMenuWithoutChangingState (0.000 s)
+  [START] TestControlContextMenuCallbackCanReplaceItsOwnCallable
+  [DONE] TestControlContextMenuCallbackCanReplaceItsOwnCallable (0.000 s)
+  [START] TestControlAccessibleInvokeCallbackCanDestroyItsOwner
+  [DONE] TestControlAccessibleInvokeCallbackCanDestroyItsOwner (0.000 s)
+  [START] TestColorSwatchKeyboardCallbackCanDestroyItsOwner
+  [DONE] TestColorSwatchKeyboardCallbackCanDestroyItsOwner (0.000 s)
+  [START] TestAccessibleInvokeReplacementCanRetireItsOwnerDuringOldCaptureCleanup
+  [DONE] TestAccessibleInvokeReplacementCanRetireItsOwnerDuringOldCaptureCleanup (0.000 s)
+  [START] TestPageIndicatorSelectionCallbackCanReplaceItsOwnCallable
+  [DONE] TestPageIndicatorSelectionCallbackCanReplaceItsOwnCallable (0.000 s)
+  [START] TestMnemonicTextIndexUsesExplicitAmpersandMnemonic
+  [DONE] TestMnemonicTextIndexUsesExplicitAmpersandMnemonic (0.000 s)
+  [START] TestMnemonicTextIndexTreatsEscapedAmpersandAsLiteralDisplayText
+  [DONE] TestMnemonicTextIndexTreatsEscapedAmpersandAsLiteralDisplayText (0.000 s)
+  [START] TestGridCheckboxCellClickTogglesThroughDelegate
+  [DONE] TestGridCheckboxCellClickTogglesThroughDelegate (0.000 s)
+  [START] TestDisabledGridCheckboxCellClickSelectsWithoutTogglingAndInvalidates
+  [DONE] TestDisabledGridCheckboxCellClickSelectsWithoutTogglingAndInvalidates (0.000 s)
+  [START] TestGridCheckboxCellTextClickDoesNotToggle
+  [DONE] TestGridCheckboxCellTextClickDoesNotToggle (0.000 s)
+  [START] TestGridSpaceTogglesActiveCheckboxColumnAcrossRows
+  [DONE] TestGridSpaceTogglesActiveCheckboxColumnAcrossRows (0.000 s)
+  [START] TestGridSpaceOnDisabledCheckboxColumnIsHandledWithoutToggling
+  [DONE] TestGridSpaceOnDisabledCheckboxColumnIsHandledWithoutToggling (0.000 s)
+  [START] TestDedicatedCheckboxColumnCentersIndicatorAndToggles
+  [DONE] TestDedicatedCheckboxColumnCentersIndicatorAndToggles (0.000 s)
+  [START] TestToggleMetricsMatchPreferencesWidthBudget
+  [DONE] TestToggleMetricsMatchPreferencesWidthBudget (0.000 s)
+  [START] TestMnemonicTextIndexFindsFirstCaseInsensitiveMatch
+  [DONE] TestMnemonicTextIndexFindsFirstCaseInsensitiveMatch (0.000 s)
+  [START] TestMnemonicTextIndexReturnsNoMatchWhenAbsent
+  [DONE] TestMnemonicTextIndexReturnsNoMatchWhenAbsent (0.000 s)
+  [START] TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts
+  [DONE] TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts (0.000 s)
+[DONE] Control (0.294 s)

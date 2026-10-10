@@ -1,12 +1,59 @@
 {
   "schemaVersion": 1,
-  "apiRevision": 3,
+  "apiRevision": 4,
   "library": "DxUi",
   "consumerInterface": {
     "scripts": {
       "vcpkg-install.ps1": ["Platform", "OutputRoot"],
       "validate-build-matrix.ps1": ["Root"],
       "Tools/validate_consumer.ps1": ["DxUiRoot", "LockFile"]
+    },
+    "mandatoryParameters": {
+      "scripts": {
+        "Tools/validate_consumer.ps1": [
+          "DxUiRoot",
+          "LockFile"
+        ]
+      },
+      "modules": {
+        "Tools/ConsumerBuild.psm1": {
+          "Get-DxUiConsumerBuildIdentity": [
+            "DxUiRoot",
+            "MSBuildPath",
+            "Platform"
+          ]
+        },
+        "Tools/ConsumerUpdate.psm1": {
+          "Show-DxUiUpdateNotice": [
+            "LockFile"
+          ]
+        },
+        "Tools/VisualStudio.psm1": {
+          "Get-DxUiDefaultToolset": [
+            "Installation"
+          ]
+        },
+        "Tools/VcpkgTriplet.psm1": {
+          "Update-DxUiVcpkgOverlayTriplet": [
+            "StockTripletPath",
+            "Toolset",
+            "OutputDirectory"
+          ]
+        }
+      }
+    },
+    "powershell": {
+      "scripts": {
+        "vcpkg-install.ps1": ["5.1", "7"],
+        "validate-build-matrix.ps1": ["7"],
+        "Tools/validate_consumer.ps1": ["5.1", "7"]
+      },
+      "modules": {
+        "Tools/ConsumerBuild.psm1": ["5.1", "7"],
+        "Tools/ConsumerUpdate.psm1": ["5.1", "7"],
+        "Tools/VisualStudio.psm1": ["5.1", "7"],
+        "Tools/VcpkgTriplet.psm1": ["5.1", "7"]
+      }
     },
     "modules": {
       "Tools/ConsumerBuild.psm1": {
@@ -40,6 +87,10 @@
     "native-text-input",
     "native-accessibility",
     "control-gallery",
+    "tree-multi-select",
+    "grid-multiline-text",
+    "ordinary-native-menu-uia",
+    "slider-touch-feedback",
     "embedded-text-state",
     "application-text-services",
     "embedded-accessibility",
@@ -48,6 +99,10 @@
   ],
   "pending": [
     "described-native-menu-qualification",
+    "interactive-menu-native-text-input-qualification",
+    "native-arm64-runtime-qualification",
+    "physical-touch-device-qualification",
+    "consumer-api-revision-4-adoption",
     "embedded-host-text-uia-bridge",
     "av-control"
   ]

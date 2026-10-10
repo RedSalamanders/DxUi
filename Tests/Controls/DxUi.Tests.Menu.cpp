@@ -1,3 +1,4 @@
+#include "../../src/Controls/DxUi.Internal.h"
 #include "../../src/Controls/DxUi.PointerInput.h"
 #include "../../src/Controls/DxUiNativeMenuInterop.h"
 #include "../../src/Support/AnimationDispatcher.h"
@@ -885,6 +886,13 @@ private:
     return SendMessageTimeoutW(popupHwnd, WM_KEYDOWN, virtualKey, 0, SMTO_ABORTIFHUNG, 1000u, &unused) != 0;
 }
 
+[[nodiscard]] bool PostMenuCharacterForMenuSuite(HWND popupHwnd, wchar_t character, bool systemCharacter = false) noexcept
+{
+    if (! popupHwnd || IsWindow(popupHwnd) == FALSE)
+        return false;
+    return PostMessageW(popupHwnd, systemCharacter ? WM_SYSCHAR : WM_CHAR, static_cast<WPARAM>(character), 0) != FALSE;
+}
+
 HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText)
 {
     HWND popupHwnd               = nullptr;
@@ -1141,6 +1149,149 @@ void TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu()
     Require(closedByGuard, "the guard of the failed driver closed the menu that came up after the driver gave up");
     Require(! result.has_value(), "the menu a failed driver left open is closed without invoking a command");
     Require(elapsed < std::chrono::seconds(8), "the menu a failed driver left open is closed within the guard's allowance");
+}
+
+void TestModalMenuDispatchesUnrelatedTimerWithSubmenuId()
+{
+    using namespace DxUi;
+
+    if (! DxUiTestWindowsCanActivateFlag())
+    {
+        SkipDxUiTest("the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane");
+        return;
+    }
+
+    AttachedHostWindow ownerWindow;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Timer dispatch", .commandId = 91602}};
+    size_t timerDispatchCount    = 0u;
+    bool dismissPosted           = false;
+    bool fallbackFired           = false;
+    bool fallbackDismissPosted   = false;
+    bool popupObserved           = false;
+    auto popupObservedAt         = std::chrono::steady_clock::time_point{};
+    const auto started           = std::chrono::steady_clock::now();
+    constexpr auto fallbackDelay = std::chrono::milliseconds{750};
+    ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM, LRESULT& result)
+    {
+        if (message != WM_TIMER)
+        {
+            return false;
+        }
+
+        if (const HWND popup = FindOwnedContextMenuPopupWindow(ownerWindow.Hwnd()))
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if (! popupObserved)
+            {
+                // Start the safety deadline only after the popup exists. The owner may receive timer ticks while the
+                // modal call is still creating it, and those must not consume the dismissal allowance.
+                popupObservedAt = now;
+                popupObserved   = true;
+            }
+            if (wParam == 1u)
+            {
+                ++timerDispatchCount;
+                dismissPosted = PostMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0) != FALSE;
+            }
+            else if (wParam == 2u && now - popupObservedAt >= fallbackDelay)
+            {
+                // Timer 2 is independent of the ID-1 dispatch under test. Keep polling it until the popup-relative
+                // deadline so it still dismisses the menu if the modal loop swallows owner timer ID 1.
+                fallbackFired         = true;
+                fallbackDismissPosted = PostMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0) != FALSE;
+            }
+        }
+        result = 0;
+        return true;
+    });
+    const auto clearHandler = wil::scope_exit([&]() noexcept { ownerWindow.SetApplicationMessageHandler({}); });
+
+    const UINT_PTR timerId = SetTimer(ownerWindow.Hwnd(), 1u, 50u, nullptr);
+    Require(timerId == 1u, "the owner installs timer id 1 for the modal-loop regression");
+    const auto killTimer           = wil::scope_exit([&]() noexcept { KillTimer(ownerWindow.Hwnd(), timerId); });
+    const UINT_PTR fallbackTimerId = SetTimer(ownerWindow.Hwnd(), 2u, 50u, nullptr);
+    Require(fallbackTimerId == 2u, "the owner installs a distinct bounded-dismissal timer");
+    const auto killFallbackTimer = wil::scope_exit([&]() noexcept { KillTimer(ownerWindow.Hwnd(), fallbackTimerId); });
+
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, ownerWindow.Host().GetTheme());
+    const auto ended                = std::chrono::steady_clock::now();
+    const auto totalElapsedMs       = std::chrono::duration_cast<std::chrono::milliseconds>(ended - started).count();
+    const auto popupElapsedMs       = popupObserved ? std::chrono::duration_cast<std::chrono::milliseconds>(ended - popupObservedAt).count() : -1;
+    const std::string diagnostics =
+        std::format("timerDispatchCount={} fallbackFired={} dismissPosted={} fallbackDismissPosted={} popupObserved={} totalElapsedMs={} popupElapsedMs={}",
+                    timerDispatchCount,
+                    fallbackFired,
+                    dismissPosted,
+                    fallbackDismissPosted,
+                    popupObserved,
+                    totalElapsedMs,
+                    popupElapsedMs);
+    const auto requireWithTimerDiagnostics = [&](bool condition, const char* expectation)
+    {
+        if (! condition)
+            std::cerr << "Modal timer regression state: " << diagnostics << '\n';
+        Require(condition, expectation);
+    };
+    requireWithTimerDiagnostics(timerDispatchCount >= 1u, "the modal loop dispatches an unrelated window timer that shares submenu id 1");
+    requireWithTimerDiagnostics(! fallbackFired, "timer id 1 dispatches before the popup-relative bounded-dismissal fallback");
+    requireWithTimerDiagnostics(dismissPosted, "the dispatched timer can post Escape to close the modal menu");
+    requireWithTimerDiagnostics(! result.has_value(), "the timer-dismissed modal menu invokes no command");
+}
+
+void TestModalMenuDismissesOnSentCancellationAndDeactivation()
+{
+    using namespace DxUi;
+
+    if (! DxUiTestWindowsCanActivateFlag())
+    {
+        SkipDxUiTest("modal cancellation and deactivation require a capturing menu and are limited to the interactive Menu lane");
+        return;
+    }
+
+    struct SentDismissal
+    {
+        UINT message;
+        WPARAM wParam;
+        const char* label;
+    };
+    constexpr SentDismissal cases[] = {{WM_ACTIVATEAPP, FALSE, "WM_ACTIVATEAPP"},
+                                       {WM_ACTIVATE, WA_INACTIVE, "WM_ACTIVATE"},
+                                       {WM_NCACTIVATE, FALSE, "WM_NCACTIVATE"},
+                                       {WM_CANCELMODE, 0, "WM_CANCELMODE"}};
+    for (const SentDismissal& test : cases)
+    {
+        AttachedHostWindow ownerWindow;
+        const std::wstring label = std::format(L"Sent dismissal {}", test.message);
+        const std::vector<MenuFlyoutItem> items{{.text = label, .commandId = 91603}};
+        std::string driverFailure;
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), label);
+            if (! popup)
+            {
+                driverFailure = "the modal popup appears before the sent dismissal";
+                return;
+            }
+
+            DWORD_PTR unused = 0;
+            if (SendMessageTimeoutW(popup, test.message, test.wParam, 0, SMTO_ABORTIFHUNG, 1000u, &unused) == 0)
+            {
+                driverFailure = std::format("{} reaches the modal popup", test.label);
+                return;
+            }
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            while (IsWindow(popup) != FALSE && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            if (IsWindow(popup) != FALSE)
+                driverFailure = std::format("{} dismisses the synchronous menu", test.label);
+        });
+
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, ownerWindow.Host().GetTheme());
+        driver.join();
+        Require(driverFailure.empty(), driverFailure.c_str());
+        Require(! result.has_value(), std::format("{} dismisses without invoking a command", test.label).c_str());
+    }
 }
 
 void TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands()
@@ -5312,8 +5463,6 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Save & Close");
         if (! popupHwnd)
         {
@@ -5366,9 +5515,9 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
             return;
         }
 
-        if (! SendMenuKeyForMenuSuite(popupHwnd, 'X'))
+        if (! PostMenuCharacterForMenuSuite(popupHwnd, L'x'))
         {
-            driverFailure = "explicit ampersand mnemonic key is delivered to the popup";
+            driverFailure = "explicit ampersand mnemonic character is delivered to the popup";
         }
     });
 
@@ -5377,6 +5526,172 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(result.has_value() && result.value() == 3002, "explicit ampersand mnemonic invokes the matching popup item");
+}
+
+void TestMenuUnicodeDuplicateMnemonicsAndRtlMixedScriptLayout()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 520, 320, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 24, 24, "RTL menu anchor maps to screen coordinates");
+    const std::vector<MenuFlyoutItem> children{{.text = L"Child Settings", .commandId = 3040}};
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"&שלום Settings\tCtrl+S", .commandId = 3031, .children = children},
+        {.text = L"&שמור Settings\tCtrl+Shift+S", .commandId = 3032},
+    };
+    bool closed = false;
+    std::optional<int> closedCommand;
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.flowDirection = FlowDirection::RightToLeft;
+    Require(ContextMenu::ShowAsync(owner.Hwnd(),
+                                   anchor,
+                                   items,
+                                   owner.Host().GetTheme(),
+                                   [&](std::optional<int> commandId) noexcept
+    {
+        closedCommand = commandId;
+        closed        = true;
+    },
+                                   callbacks),
+            "an RTL mixed-script menu opens asynchronously");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        // Retire the callback before its captured state is destroyed even if popup discovery fails.
+        DismissOwnedContextMenuPopupChain(owner.Hwnd());
+    });
+
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"שלום Settings");
+    Require(popup != nullptr, "the RTL mixed-script popup is visible");
+
+    ContextMenuPopupItemLayoutDebugState row{};
+    Require(DebugGetContextMenuPopupItemLayout(popup, 0u, row), "RTL mixed-script row exposes its shaped text columns");
+    Require(row.iconRectDip.left >= row.textRectDip.right, "RTL menu reserves the leading icon lane at the right edge without mirroring mixed-script glyphs");
+    Require(row.acceleratorRectDip.right <= row.textRectDip.left, "RTL menu places the accelerator column to the left of its primary label");
+
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, 2, 2), "the RTL popup pointer parks outside its rows");
+    const auto waitForPostedMnemonicSelection = [&](size_t expectedIndex) noexcept
+    {
+        const auto deadline      = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+        bool characterDispatched = false;
+        do
+        {
+            // ShowAsync owns this popup on the current thread. Dispatch the posted character here before
+            // inspecting state; the same-thread debug accessor intentionally does not pump the queue.
+            MSG message{};
+            if (PeekMessageW(&message, popup, 0u, 0u, PM_REMOVE) != FALSE)
+            {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+                characterDispatched = characterDispatched || (message.message == WM_CHAR && message.wParam == L'ש');
+            }
+
+            ContextMenuPopupDebugState currentState{};
+            if (characterDispatched && DebugGetContextMenuPopupState(popup, currentState) && currentState.keyboardIndex == std::optional<size_t>{expectedIndex})
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        } while (std::chrono::steady_clock::now() < deadline);
+        return false;
+    };
+    Require(PostMenuCharacterForMenuSuite(popup, L'ש'), "the Hebrew WM_CHAR mnemonic reaches the RTL popup");
+    Require(waitForPostedMnemonicSelection(0u), "the first duplicate Unicode mnemonic selects rather than invokes its row");
+    Require(! closed && ! closedCommand.has_value(), "the first duplicate Unicode mnemonic leaves the menu open without invoking a command");
+    Require(PostMenuCharacterForMenuSuite(popup, L'ש'), "the second Hebrew mnemonic character reaches the RTL popup");
+    Require(waitForPostedMnemonicSelection(1u), "repeated Unicode mnemonics cycle to the next matching row");
+    Require(! closed && ! closedCommand.has_value(), "cycling the duplicate Unicode mnemonic leaves the menu open without invoking a command");
+
+    Require(SendMenuKeyForMenuSuite(popup, VK_HOME), "Home selects the first RTL menu row");
+    Require(SendMenuKeyForMenuSuite(popup, VK_LEFT), "the RTL forward arrow opens the selected row's submenu");
+    const HWND submenu = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Child Settings");
+    Require(submenu != nullptr && submenu != popup, "the RTL submenu is visible");
+    ContextMenuPopupDebugState rootPlacement{};
+    ContextMenuPopupDebugState submenuPlacement{};
+    ContextMenuPopupItemLayoutDebugState parentRow{};
+    Require(DebugGetContextMenuPopupState(popup, rootPlacement) && DebugGetContextMenuPopupState(submenu, submenuPlacement) &&
+                DebugGetContextMenuPopupItemLayout(popup, 0u, parentRow),
+            "RTL root and submenu expose visible-surface and parent-row geometry");
+    const float dpiScale = static_cast<float>(rootPlacement.dpi) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
+    const LONG parentRowLeftPx =
+        static_cast<LONG>(std::lround(static_cast<double>(rootPlacement.windowRectPx.left) + static_cast<double>(parentRow.itemRectDip.left) * dpiScale));
+    const LONG parentRowRightPx =
+        static_cast<LONG>(std::lround(static_cast<double>(rootPlacement.windowRectPx.left) + static_cast<double>(parentRow.itemRectDip.right) * dpiScale));
+    // Popup placement and the test's DIP-to-screen projection each round to whole device pixels.
+    constexpr LONG kVisibleSurfaceRoundingAllowancePx = 1;
+    const bool opensLeft                              = std::abs(submenuPlacement.surfaceRectPx.right - parentRowLeftPx) <= kVisibleSurfaceRoundingAllowancePx;
+    const bool flipsRight                             = std::abs(submenuPlacement.surfaceRectPx.left - parentRowRightPx) <= kVisibleSurfaceRoundingAllowancePx;
+    Require(opensLeft || flipsRight, "RTL submenu visible surface attaches to the parent row's left edge or work-area flip right edge");
+    MONITORINFO monitor{};
+    monitor.cbSize = sizeof(monitor);
+    Require(GetMonitorInfoW(MonitorFromPoint(POINT{parentRowLeftPx, rootPlacement.surfaceRectPx.top}, MONITOR_DEFAULTTONEAREST), &monitor) != FALSE,
+            "the RTL submenu fixture exposes the parent row's work area");
+    const LONG childWidthPx = submenuPlacement.surfaceRectPx.right - submenuPlacement.surfaceRectPx.left;
+    if (parentRowLeftPx - childWidthPx >= monitor.rcWork.left)
+        Require(opensLeft, "RTL prefers the parent's left edge when the visible submenu fits in the work area");
+    Require(SendMenuKeyForMenuSuite(submenu, VK_ESCAPE), "Escape returns focus from the RTL submenu to its parent");
+    Require(SendMenuKeyForMenuSuite(popup, VK_DOWN), "Down selects the second RTL menu row");
+    Require(SendMenuKeyForMenuSuite(popup, VK_RETURN), "Enter activates the duplicate-mnemonic row currently selected");
+    Require(closed && closedCommand == std::optional<int>{3032}, "Enter closes the RTL menu with exactly the selected second-row command");
+    Require(WaitForWindowDestroyed(popup), "the RTL root popup closes after Enter invokes the selected row");
+}
+
+void TestMenuHighContrastSelectionUsesExactPalettePair()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    ThemePalette theme  = MakeAnimatedTestThemePalette(false);
+    theme.highContrast  = true;
+    theme.selectionFill = D2D1::ColorF(0.08f, 0.20f, 0.72f, 1.0f);
+    theme.selectionText = D2D1::ColorF(0.96f, 0.92f, 0.12f, 1.0f);
+    const POINT anchor  = ClientScreenPointForTest(owner.Hwnd(), 24, 24, "high-contrast menu anchor maps to screen coordinates");
+    const std::vector<MenuFlyoutItem> items{{.text = L"Selected", .commandId = 3051}, {.text = L"Disabled", .enabled = false, .commandId = 3052}};
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, theme, [](std::optional<int>) noexcept {}), "high-contrast menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Selected");
+    Require(popup != nullptr, "high-contrast popup appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup) != FALSE)
+            DismissOwnedContextMenuPopupChain(owner.Hwnd());
+    });
+
+    D2D1_RECT_F row{};
+    Require(DebugGetContextMenuPopupItemRect(popup, 0u, row), "high-contrast selected row exposes its bounds");
+    Require(SendSettledClientMouseMoveForMenuSuite(
+                popup, static_cast<LONG>(std::lround((row.left + row.right) * 0.5f)), static_cast<LONG>(std::lround((row.top + row.bottom) * 0.5f))),
+            "the pointer selects the high-contrast row");
+    ContextMenuPopupItemPaintDebugState paint{};
+    Require(WaitForContextMenuPopupItemPaint(popup, 0u, paint), "high-contrast selected paint state is available");
+    Require(paint.hovered && paint.usesHighlightFill, "the selected row uses the high-contrast selection state");
+    RequireColorNear(paint.fillColor, theme.selectionFill, "high-contrast selected background uses the exact palette token");
+    RequireColorNear(paint.textColor, theme.selectionText, "high-contrast selected foreground uses the exact palette token");
+    Require(paint.textColor.a == 1.0f && paint.fillColor.a == 1.0f, "high-contrast selected colors remain fully opaque");
+
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, 2, 2), "the pointer leaves the selected row before the disabled-text capture");
+    ContextMenuPopupItemLayoutDebugState disabledRow{};
+    WindowHostBitmapCapture capture{};
+    Require(DebugGetContextMenuPopupItemLayout(popup, 1u, disabledRow) && DebugCaptureContextMenuPopupBitmap(popup, capture),
+            "the disabled high-contrast row and its rendered pixels are available");
+    const COLORREF grayText = GetSysColor(COLOR_GRAYTEXT);
+    const UINT dpi          = GetDpiForWindow(popup);
+    const LONG left         = static_cast<LONG>(DipToPixelForPopup(disabledRow.textRectDip.left, dpi));
+    const LONG right        = static_cast<LONG>(DipToPixelForPopup(disabledRow.textRectDip.right, dpi));
+    const LONG top          = static_cast<LONG>(DipToPixelForPopup(disabledRow.textRectDip.top, dpi));
+    const LONG bottom       = static_cast<LONG>(DipToPixelForPopup(disabledRow.textRectDip.bottom, dpi));
+    size_t opaqueGrayPixels = 0u;
+    for (LONG y = top; y < bottom && y < static_cast<LONG>(capture.heightPx); ++y)
+    {
+        for (LONG x = left; x < right && x < static_cast<LONG>(capture.widthPx); ++x)
+        {
+            const uint32_t bgra = GetCapturePixelBgra(capture, static_cast<UINT>(x), static_cast<UINT>(y));
+            const int red       = static_cast<int>((bgra >> 16u) & 0xFFu);
+            const int green     = static_cast<int>((bgra >> 8u) & 0xFFu);
+            const int blue      = static_cast<int>(bgra & 0xFFu);
+            if (std::abs(red - GetRValue(grayText)) <= 2 && std::abs(green - GetGValue(grayText)) <= 2 && std::abs(blue - GetBValue(grayText)) <= 2)
+                ++opaqueGrayPixels;
+        }
+    }
+    Require(opaqueGrayPixels > 0u, "disabled high-contrast text contains opaque system GrayText pixels rather than alpha-dimmed theme text");
 }
 
 void TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface()
@@ -6369,8 +6684,7 @@ void TestDescribedAsyncMenuRestoresFocusedOwnerChild()
     using namespace DxUi;
     // The ordinary NewControls lane remains nonactivating. The Menu lane owns
     // native focus qualification and its external desktop warning/restoration.
-    if (! DxUiTestWindowsCanActivateFlag())
-        return;
+    Require(DxUiTestWindowsCanActivateFlag(), "described asynchronous menu focus restoration requires the interactive activation lease");
     AttachedHostWindow owner;
     ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
     wil::unique_hwnd child(CreateWindowExW(
@@ -6465,6 +6779,10 @@ void TestDescribedMenuAccessibilityInvokesAndDisconnects()
     wil::unique_variant name;
     RequireSucceeded(simple->GetPropertyValue(UIA_NamePropertyId, &name), "full menu identity is available");
     Require(name.vt == VT_BSTR && items[1].accessibleName == name.bstrVal, "UIA distinguishes repeated leaf using exact full identity");
+    wil::unique_variant helpText;
+    RequireSucceeded(simple->GetPropertyValue(UIA_HelpTextPropertyId, &helpText), "secondary menu context is exposed separately as help text");
+    Require(helpText.vt == VT_BSTR && items[1].secondaryText == helpText.bstrVal,
+            "the secondary description remains help text instead of being concatenated into the accessible name");
     wil::unique_variant type;
     RequireSucceeded(simple->GetPropertyValue(UIA_ControlTypePropertyId, &type), "menu role is available");
     Require(type.vt == VT_I4 && type.lVal == UIA_MenuItemControlTypeId, "described command exposes MenuItem role");
@@ -6476,6 +6794,157 @@ void TestDescribedMenuAccessibilityInvokesAndDisconnects()
     owner.PumpMessages();
     Require(result == 8922 && WaitForWindowDestroyed(popup), "UIA invokes exact selected destination and closes popup");
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained menu provider disconnects after teardown");
+}
+
+void TestDescribedMenuAccessibilityInvokeReportsPayloadSaturationAndRecovers()
+{
+    using namespace DxUi;
+    struct SaturationPayload final
+    {
+        size_t* destroyed = nullptr;
+        ~SaturationPayload()
+        {
+            if (destroyed)
+                ++*destroyed;
+        }
+    };
+    constexpr UINT kSaturationMessage = WM_APP + 0x73u;
+    size_t destroyedCount             = 0u;
+    AttachedHostWindow owner;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Saturation command", .commandId = 8967}};
+    size_t invocationCount = 0u;
+    const POINT anchor     = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "saturated accessible menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(),
+                                   anchor,
+                                   items,
+                                   owner.Host().GetTheme(),
+                                   [&](std::optional<int> chosen) noexcept
+    {
+        if (chosen == 8967)
+            ++invocationCount;
+    }),
+            "saturation fixture opens its asynchronous menu");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "saturation fixture identifies its live menu popup");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup) != FALSE)
+            DismissOwnedContextMenuPopupChain(owner.Hwnd());
+    });
+
+    for (size_t i = 0u; i < 128u; ++i)
+    {
+        auto payload       = std::make_unique<SaturationPayload>();
+        payload->destroyed = &destroyedCount;
+        Require(PostMessagePayload(owner.Hwnd(), kSaturationMessage, 0u, std::move(payload)), "the shared payload registry accepts each of its 128 entries");
+    }
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "the live saturated menu has a native UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "the saturated menu root exposes fragment navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, row.put()), "the saturated menu exposes its command row");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(row.query_to(simple.put()), "the saturated menu command exposes patterns");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "the saturated menu command exposes Invoke");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "the saturated menu command exposes IInvokeProvider");
+
+    const HRESULT saturatedResult = invoke->Invoke();
+    Require(saturatedResult == HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY), "UIA Invoke reports payload-registry exhaustion instead of silently succeeding");
+    Require(invocationCount == 0u, "a failed menu request does not execute the command");
+
+    MSG queued{};
+    Require(PeekMessageW(&queued, owner.Hwnd(), kSaturationMessage, kSaturationMessage, PM_REMOVE) != 0,
+            "one application payload message is removed to release a registry entry");
+    auto released = TakeMessagePayload<SaturationPayload>(owner.Hwnd(), kSaturationMessage, queued.lParam);
+    Require(released != nullptr, "the matching application payload releases its registry slot");
+    released.reset();
+    Require(destroyedCount == 1u, "the released payload is destroyed once");
+
+    RequireSucceeded(invoke->Invoke(), "the same menu row can be retried after one registry entry is freed");
+    owner.PumpMessages();
+    Require(invocationCount == 1u && WaitForWindowDestroyed(popup), "the retry posts and executes the exact command once");
+    owner.Host().Detach();
+    Require(destroyedCount == 128u, "detaching the owner drains every remaining saturated payload exactly once");
+}
+
+void TestDescriptionPreparationFallbackPreservesCommandIdentityAndRecovers()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "description fallback menu anchor maps to screen");
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Archives", .commandId = 8928, .secondaryText = L"C:\\Famille\\Été", .accessibleName = L"C:\\Famille\\Été\\Archives"}};
+    std::optional<int> result;
+    DebugFailContextMenuDescriptionPreparationForTest(1u);
+    const auto cleanup = wil::scope_exit([&]() noexcept
+    {
+        DebugFailContextMenuDescriptionPreparationForTest(0u);
+        DismissOwnedContextMenuPopupChain(owner.Hwnd());
+    });
+
+    const auto open = [&]()
+    {
+        result.reset();
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int> chosen) noexcept { result = chosen; }),
+                "described command menu opens asynchronously");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "described command popup appears");
+        return popup;
+    };
+    const auto requireUiAIdentityAndInvoke = [&](HWND popup, int expectedResult)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+        root.attach(CreateWindowHostAccessibilityProvider(popup));
+        Require(root != nullptr, "fallback/recovery menu publishes its UIA root");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        RequireSucceeded(root.query_to(rootFragment.put()), "menu root exposes fragment navigation");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> entry;
+        RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, entry.put()), "menu exposes the described command");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(entry.query_to(simple.put()), "described command exposes UIA properties");
+        wil::unique_variant name;
+        RequireSucceeded(simple->GetPropertyValue(UIA_NamePropertyId, &name), "accessible command identity is readable");
+        Require(name.vt == VT_BSTR && items.front().accessibleName == name.bstrVal, "fallback keeps the full accessible command identity");
+        wil::unique_variant helpText;
+        RequireSucceeded(simple->GetPropertyValue(UIA_HelpTextPropertyId, &helpText), "secondary context remains readable as HelpText");
+        Require(helpText.vt == VT_BSTR && items.front().secondaryText == helpText.bstrVal, "fallback keeps secondary text separate from the accessible name");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "fallback row remains invokable");
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        RequireSucceeded(pattern.query_to(invoke.put()), "fallback row exposes Invoke");
+        RequireSucceeded(invoke->Invoke(), "described command invocation is queued");
+        owner.PumpMessages();
+        Require(result == expectedResult && WaitForWindowDestroyed(popup), "the original command ID invokes and closes the menu");
+    };
+
+    const HWND fallbackPopup = open();
+    ContextMenuPopupItemLayoutDebugState fallbackLayout{};
+    Require(DebugGetContextMenuPopupItemLayout(fallbackPopup, 0u, fallbackLayout), "fallback primary row exposes its ordinary layout");
+    Require(fallbackLayout.primaryLayoutWidthDip == 0.0f && fallbackLayout.secondaryLayoutWidthDip == 0.0f,
+            "the fallback row carries no optional description layout");
+    const ContextMenuResourceDebugState fallbackResources = DebugGetContextMenuResources();
+    Require(fallbackResources.popups == 1u && fallbackResources.rowLayouts == 0u, "failed optional description preparation retains no native row layout");
+    ContextMenuPopupDebugState fallbackState{};
+    Require(DebugGetContextMenuPopupState(fallbackPopup, fallbackState) && fallbackState.itemSecondaryTexts.size() == 1u &&
+                fallbackState.itemSecondaryTexts.front() == items.front().secondaryText,
+            "the fallback popup retains its description data for UI Automation");
+    requireUiAIdentityAndInvoke(fallbackPopup, 8928);
+    DebugFailContextMenuDescriptionPreparationForTest(0u);
+
+    const HWND recoveredPopup                              = open();
+    const ContextMenuResourceDebugState recoveredResources = DebugGetContextMenuResources();
+    Require(recoveredResources.popups == 1u && recoveredResources.rowLayouts == 1u,
+            "the one-shot failure does not prevent the next popup from preparing its description layout");
+    ContextMenuPopupItemLayoutDebugState recoveredLayout{};
+    Require(DebugGetContextMenuPopupItemLayout(recoveredPopup, 0u, recoveredLayout) && recoveredLayout.primaryLineCount > 0u &&
+                recoveredLayout.secondaryLineCount > 0u && recoveredLayout.primaryLayoutWidthDip > 0.0f,
+            "the next popup recovers its measured two-field row");
+    requireUiAIdentityAndInvoke(recoveredPopup, 8928);
 }
 
 void TestDescribedMenuPointerAndCancelledQueuedInvoke()
@@ -6631,7 +7100,8 @@ void TestDescribedMenuScrollRepublishesAccessibleGeometry()
     using namespace DxUi;
     AttachedHostWindow owner;
     std::vector<MenuFlyoutItem> items;
-    for (int index = 0; index < 8; ++index)
+    // The consumer-source audit found up to 50 described history entries; use synthetic library data at that size.
+    for (int index = 0; index < 50; ++index)
     {
         items.push_back(MenuFlyoutItem{
             .text = std::format(L"Destination {}", index), .commandId = 8960 + index, .secondaryText = std::format(L"D:\\Sauvegardes\\Collection {}", index)});
@@ -6639,7 +7109,9 @@ void TestDescribedMenuScrollRepublishesAccessibleGeometry()
     ContextMenuSessionCallbacks callbacks{};
     callbacks.maxRootHeightDip = 170.0f;
     const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "scrolled described menu anchor maps to screen");
-    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, callbacks),
+    std::optional<int> chosenCommand;
+    Require(ContextMenu::ShowAsync(
+                owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int> chosen) noexcept { chosenCommand = chosen; }, callbacks),
             "scrolled described menu opens");
     const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
     Require(popup != nullptr, "scrolled described menu appears");
@@ -6699,6 +7171,18 @@ void TestDescribedMenuScrollRepublishesAccessibleGeometry()
     Require(std::abs(bounds.left - expectedLeft) <= 1.0 && std::abs(bounds.top - expectedTop) <= 1.0 &&
                 std::abs(bounds.left + bounds.width - expectedRight) <= 1.0 && std::abs(bounds.top + bounds.height - expectedBottom) <= 1.0,
             "UIA bounds follow the scrolled row geometry");
+
+    SendMessageW(popup, WM_KEYDOWN, VK_END, 0);
+    Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == std::optional<size_t>{items.size() - 1u},
+            "End reaches the last of 50 described history rows");
+    D2D1_RECT_F lastRow{};
+    Require(DebugGetContextMenuPopupItemRect(popup, items.size() - 1u, lastRow) && lastRow.top >= state.viewportRectDip.top - 0.5f &&
+                lastRow.bottom <= state.viewportRectDip.bottom + 0.5f,
+            "the final described row is fully visible in the bounded viewport");
+    SendMessageW(popup, WM_KEYDOWN, VK_RETURN, 0);
+    owner.PumpMessages();
+    Require(chosenCommand == items.back().commandId && WaitForWindowDestroyed(popup),
+            "keyboard activation preserves the final described row's command identity");
 }
 
 // A menu without descriptions exposes its rows as a described menu does: role, state, exact name and geometry, a logical
@@ -6741,11 +7225,11 @@ void TestPlainMenuAccessibilityInvokesAndDisconnects()
     Require(DebugGetContextMenuPopupState(popup, state) && state.descriptionPreparationCount == 0u &&
                 std::all_of(state.itemSecondaryTexts.begin(), state.itemSecondaryTexts.end(), [](const std::wstring& text) noexcept { return text.empty(); }),
             "the plain menu prepares no description");
-    Require(DebugGetContextMenuResources().accessibilityRecords >= before.accessibilityRecords + items.size(), "every row of the open plain menu is published");
-
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     root.attach(CreateWindowHostAccessibilityProvider(popup));
     Require(root != nullptr, "plain menu publishes its native UIA root");
+    Require(DebugGetContextMenuResources().accessibilityRecords >= before.accessibilityRecords + items.size(),
+            "requesting the provider publishes every row of the open plain menu");
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
     RequireSucceeded(root.query_to(rootFragment.put()), "plain menu root exposes fragment navigation");
     const auto reach = [](IRawElementProviderFragment* from, NavigateDirection direction, const char* expectation)
@@ -6892,6 +7376,202 @@ void TestPlainMenuAccessibilityScrollsFocusedRow()
     Require(closed && WaitForWindowDestroyed(popup), "the long plain menu closes");
 }
 
+// At 125%/175%, whole-device-pixel sizing can leave a plain popup less than half a pixel
+// shorter than its content. That rounding slack is not a scroll range.
+void TestPlainMenuFractionalDpiRoundingDoesNotCreateScrollbar()
+{
+    using namespace DxUi;
+    const auto verifyAtDpi = [](UINT dpi, size_t separators)
+    {
+        AttachedHostWindow owner;
+        ThemePalette theme = owner.Host().GetTheme();
+        theme.density      = Density::Standard;
+        owner.Host().SetTheme(theme);
+        std::vector<MenuFlyoutItem> items{{.text = L"Rounding slack", .commandId = 9191}};
+        for (size_t index = 0u; index < separators; ++index)
+            items.push_back(MenuFlyoutItem{.kind = MenuItemKind::Separator});
+
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "fractional-DPI plain menu anchor maps to screen");
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, theme, [](std::optional<int>) noexcept {}), "fractional-DPI plain menu opens");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "fractional-DPI plain menu appears");
+        const auto dismiss = wil::scope_exit([&]() noexcept
+        {
+            if (IsWindow(popup))
+                SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        });
+
+        ContextMenuPopupDebugState state{};
+        Require(DebugGetContextMenuPopupState(popup, state), "plain menu exposes its initial layout");
+        RECT suggested = state.windowRectPx;
+        SendMessageW(popup, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&suggested));
+        Require(DebugGetContextMenuPopupState(popup, state) && state.dpi == dpi, "plain menu reports the synthetic fractional DPI");
+        const float roundingSlackDip = 0.5f * 96.0f / static_cast<float>(dpi);
+        Require(state.contentHeightDip > state.visibleHeightDip && state.contentHeightDip - state.visibleHeightDip <= roundingSlackDip,
+                "the fixture reaches the sub-half-pixel content overflow caused by whole-pixel sizing");
+        Require(! state.hasScrollbar && state.scrollOffsetDip == 0.0f,
+                "plain-menu rounding slack does not reserve a scrollbar lane or create fractional scroll range");
+    };
+
+    // Match the two intended geometries independently of the developer's monitor configuration.
+    verifyAtDpi(120u, 3u);
+    verifyAtDpi(168u, 1u);
+}
+
+void TestPlainMenuPointerMoveClearsLogicalFocusAndRefreshesAccessibility()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Pointer row", .commandId = 9192}, {.text = L"UIA row", .commandId = 9193}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "pointer-focus menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}), "pointer-focus plain menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "pointer-focus plain menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "pointer-focus menu publishes its UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "pointer-focus menu root supports navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> pointerRow;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, pointerRow.put()), "the pointer row is the first child");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focusedRow;
+    RequireSucceeded(pointerRow->Navigate(NavigateDirection_NextSibling, focusedRow.put()), "the UIA row follows the pointer row");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
+    RequireSucceeded(focusedRow.query_to(focusedSimple.put()), "the UIA row exposes focus properties");
+
+    D2D1_RECT_F rowRect{};
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupItemRect(popup, 0u, rowRect) && DebugGetContextMenuPopupState(popup, state),
+            "the pointer row exposes popup-relative geometry");
+    const LONG x = static_cast<LONG>(DipToPixelForPopup((rowRect.left + rowRect.right) * 0.5f, state.dpi));
+    const LONG y = static_cast<LONG>(DipToPixelForPopup((rowRect.top + rowRect.bottom) * 0.5f, state.dpi));
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, x, y), "a delivered move hovers the first row");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hoveredIndex == 0u, "the first row is hovered");
+
+    RequireSucceeded(focusedRow->SetFocus(), "UIA focuses the second menu row");
+    owner.PumpMessages();
+    Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && ! state.hoveredIndex.has_value(),
+            "UIA focus selects the second row logically and clears the stale pointer hover");
+    ContextMenuPopupItemPaintDebugState rowPaint{};
+    Require(DebugGetContextMenuPopupItemPaint(popup, 1u, rowPaint) && rowPaint.usesHighlightFill,
+            "the UIA-focused row remains visibly highlighted after the prior hover is cleared");
+    wil::unique_variant hasFocus;
+    RequireSucceeded(focusedSimple->GetPropertyValue(UIA_HasKeyboardFocusPropertyId, &hasFocus), "the UIA row focus property is readable");
+    Require(hasFocus.vt == VT_BOOL && hasFocus.boolVal == VARIANT_TRUE, "the UIA snapshot reports the focused row");
+
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, x, y), "a stationary pointer event is delivered after UIA focus");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && ! state.hoveredIndex.has_value(),
+            "a stationary pointer preserves the row UIA focused");
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, x + 1, y), "a later pointer movement returns to the original pointer row");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hoveredIndex == 0u && ! state.keyboardIndex.has_value(),
+            "the delivered pointer restores hover and clears the UIA keyboard row");
+    hasFocus.reset();
+    RequireSucceeded(focusedSimple->GetPropertyValue(UIA_HasKeyboardFocusPropertyId, &hasFocus), "the UIA focus property refreshes after pointer movement");
+    Require(hasFocus.vt == VT_BOOL && hasFocus.boolVal == VARIANT_FALSE, "the UIA snapshot no longer reports stale keyboard focus");
+    Require(DebugGetContextMenuPopupItemPaint(popup, 1u, rowPaint) && ! rowPaint.usesHighlightFill,
+            "the row that lost logical focus is repainted without its former highlight");
+}
+
+void TestPlainMenuWheelReconcilesHoverAndCancelsMovedSubmenuTimer()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> children{{.text = L"Child command", .commandId = 9194}};
+    std::vector<MenuFlyoutItem> items{{.text = L"Submenu row", .children = children}, {.text = L"Next row", .commandId = 9195}};
+    for (int index = 0; index < 12; ++index)
+        items.push_back(MenuFlyoutItem{.text = std::format(L"Extra row {}", index), .commandId = 9200 + index});
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.maxRootHeightDip = 140.0f;
+    const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "wheel menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, callbacks),
+            "scrollable plain menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "scrollable plain menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+
+    ContextMenuPopupDebugState state{};
+    D2D1_RECT_F rowRect{};
+    RECT windowRect{};
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hasScrollbar && DebugGetContextMenuPopupItemRect(popup, 0u, rowRect) &&
+                GetWindowRect(popup, &windowRect) != FALSE,
+            "the submenu row has scrollable geometry");
+    const LONG x = static_cast<LONG>(DipToPixelForPopup((rowRect.left + rowRect.right) * 0.5f, state.dpi));
+    const LONG y = static_cast<LONG>(DipToPixelForPopup((rowRect.top + rowRect.bottom) * 0.5f, state.dpi));
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, x, y), "a delivered move hovers the submenu row");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hoveredIndex == 0u && state.hoverTimerPendingOpen && state.hoverTimerItemIndex == 0u,
+            "hover starts the first row's submenu timer");
+
+    const POINT screenPoint{windowRect.left + x, windowRect.top + y};
+    const WPARAM wheelTowardUser = MAKEWPARAM(0, static_cast<WORD>(0x10000 - WHEEL_DELTA));
+    SendMessageW(popup, WM_MOUSEWHEEL, wheelTowardUser, MousePointLParamForMenuSuite(screenPoint.x, screenPoint.y));
+    Require(DebugGetContextMenuPopupState(popup, state) && state.scrollOffsetDip > 0.0f && state.hoveredIndex == 1u && ! state.hoverTimerActive,
+            "wheel scrolling retargets hover to the row now under the stationary pointer and cancels the moved submenu timer");
+}
+
+void TestOpeningSubmenuEdgeScrollRepaintsParentAccessibilityBounds()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> children{{.text = L"Edge child", .commandId = 9196}};
+    std::vector<MenuFlyoutItem> items{{.text = L"Edge submenu", .children = children}};
+    for (int index = 0; index < 14; ++index)
+        items.push_back(MenuFlyoutItem{.text = std::format(L"Edge filler {}", index), .commandId = 9300 + index});
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.maxRootHeightDip = 140.0f;
+    const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "edge-scroll menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, callbacks),
+            "edge-scroll plain menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "edge-scroll plain menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "edge-scroll menu publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "edge-scroll menu root supports row navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> firstRow;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, firstRow.put()), "the submenu row is the first UIA child");
+
+    ContextMenuPopupDebugState state{};
+    D2D1_RECT_F rowRect{};
+    RECT windowRect{};
+    Require(DebugGetContextMenuPopupState(popup, state) && DebugGetContextMenuPopupItemRect(popup, 0u, rowRect) && GetWindowRect(popup, &windowRect) != FALSE,
+            "edge-scroll parent exposes the first row geometry");
+    const LONG x         = static_cast<LONG>(DipToPixelForPopup((rowRect.left + rowRect.right) * 0.5f, state.dpi));
+    const LONG originalY = static_cast<LONG>(DipToPixelForPopup((rowRect.top + rowRect.bottom) * 0.5f, state.dpi));
+    const POINT screenPoint{windowRect.left + x, windowRect.top + originalY};
+    const WPARAM halfNotchTowardUser = MAKEWPARAM(0, static_cast<WORD>(0x10000 - (WHEEL_DELTA / 2)));
+    SendMessageW(popup, WM_MOUSEWHEEL, halfNotchTowardUser, MousePointLParamForMenuSuite(screenPoint.x, screenPoint.y));
+    Require(DebugGetContextMenuPopupState(popup, state) && state.scrollOffsetDip > 0.0f && state.scrollOffsetDip < 24.0f,
+            "a half-notch leaves the first submenu row partially visible");
+    Require(DebugGetContextMenuPopupItemRect(popup, 0u, rowRect), "the partially visible submenu row remains addressable");
+    const LONG partialY = static_cast<LONG>(DipToPixelForPopup((rowRect.top + rowRect.bottom) * 0.5f, state.dpi));
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, x, partialY), "a delivered move hovers the partially visible first row");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hoveredIndex == 0u && state.hoverTimerPendingOpen,
+            "the partially visible submenu row starts its delayed open");
+
+    UiaRect before{};
+    RequireSucceeded(firstRow->get_BoundingRectangle(&before), "the partially visible UIA row exposes clipped bounds");
+    Require(FirePendingSubmenuHoverTimerForMenuSuite(popup), "the pending submenu timer opens the child");
+    owner.PumpMessages();
+    Require(FindOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Edge child") != nullptr, "the edge submenu child is visible after its hover timer");
+    Require(DebugGetContextMenuPopupState(popup, state) && state.scrollOffsetDip == 0.0f, "opening the edge submenu reveals the parent menu padding");
+    UiaRect after{};
+    RequireSucceeded(firstRow->get_BoundingRectangle(&after), "the parent UIA row exposes bounds after edge reveal");
+    Require(after.top < before.top || after.height > before.height, "parent repaint republishes the row's edge-revealed bounds");
+}
+
 // The native focus a popup receives selects no row, plain or described: the first Down chooses the first command, and
 // focus that comes back keeps the row chosen and acknowledges it again to UI Automation.
 void TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne()
@@ -6960,60 +7640,114 @@ void TestDescribedSubmenuSliderFocusKeepsSessionFocus()
 {
     using namespace DxUi;
     // Native focus ownership needs the activating Menu lane; the nonactivating lane blocks focus changes.
-    if (! DxUiTestWindowsCanActivateFlag())
-        return;
-    AttachedHostWindow owner;
-    SetWindowPos(owner.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
-    if (! TryActivateDxUiTestWindow(owner.Hwnd()))
+    Require(DxUiTestWindowsCanActivateFlag(), "described submenu slider focus retention requires the interactive activation lease");
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        SkipDxUiTest("DxUi described submenu focus retention requires an interactive desktop");
+        failure.clear();
+        AttachedHostWindow owner;
+        static_cast<void>(SetWindowPos(owner.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER | SWP_NOACTIVATE));
+        const uint32_t lossesBefore = owner.ForegroundLossCount();
+        const auto finish           = [&]() { return ForegroundAttempt{owner.ForegroundLossCount() != lossesBefore, owner.LastForegroundThiefThreadId()}; };
+        const auto expect           = [&](bool condition, const char* message)
+        {
+            if (! condition && failure.empty())
+                failure = message;
+            return condition;
+        };
+        const bool activated = TryActivateDxUiTestWindow(owner.Hwnd());
+        if (! activated)
+        {
+            const DWORD lastError        = GetLastError();
+            const HWND focus             = GetFocus();
+            const HWND active            = GetActiveWindow();
+            const HWND foreground        = GetForegroundWindow();
+            const DWORD ownerThread      = GetWindowThreadProcessId(owner.Hwnd(), nullptr);
+            const DWORD focusThread      = focus ? GetWindowThreadProcessId(focus, nullptr) : 0u;
+            const DWORD activeThread     = active ? GetWindowThreadProcessId(active, nullptr) : 0u;
+            const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0u;
+            const auto hwndValue         = [](HWND hwnd) noexcept { return reinterpret_cast<UINT_PTR>(hwnd); };
+            std::cerr << std::format("    [MENU ACTIVATION] owner=0x{:X} ownerThread={} style=0x{:X} exstyle=0x{:X} visible={} focus=0x{:X} focusThread={} "
+                                     "active=0x{:X} activeThread={} foreground=0x{:X} foregroundThread={} lastError={}\n",
+                                     hwndValue(owner.Hwnd()),
+                                     ownerThread,
+                                     static_cast<ULONG_PTR>(GetWindowLongPtrW(owner.Hwnd(), GWL_STYLE)),
+                                     static_cast<ULONG_PTR>(GetWindowLongPtrW(owner.Hwnd(), GWL_EXSTYLE)),
+                                     IsWindowVisible(owner.Hwnd()) != FALSE,
+                                     hwndValue(focus),
+                                     focusThread,
+                                     hwndValue(active),
+                                     activeThread,
+                                     hwndValue(foreground),
+                                     foregroundThread,
+                                     lastError)
+                      << std::flush;
+            failure = "the submenu focus fixture can activate its owner under the desktop lease";
+            return finish();
+        }
+        // Modal and asynchronous sessions both activate their root popup, so explicit focus of a root row
+        // cannot move Win32 focus. A submenu never activates: a native transfer for its focusable slider
+        // row, which is not a MenuItem command, would activate it and deactivate the root, which ends an
+        // asynchronous session while the provider call is still running.
+        const std::vector<MenuFlyoutItem> items{
+            {.text          = L"Affichage",
+             .commandId     = 8971,
+             .children      = {{.text = L"Archives", .commandId = 89711, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+                               {.kind        = MenuItemKind::Slider,
+                                .text        = L"Zoom",
+                                .sliderStops = {{.text = L"Petit", .commandId = 89712}, {.text = L"Grand", .commandId = 89713}}}},
+             .secondaryText = L"Options de la galerie"}};
+        bool closed        = false;
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 24, 60, "described submenu slider anchor maps to screen");
+        const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+        if (! expect(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+                     "described submenu slider session opens"))
+            return finish();
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Affichage");
+        if (! expect(popup != nullptr, "the asynchronous root popup appears"))
+            return finish();
+        if (! expect(WaitForFocusedWindow(popup), "the asynchronous root popup takes native keyboard focus"))
+            return finish();
+        SendMessageW(popup, WM_KEYDOWN, VK_HOME, 0);
+        SendMessageW(popup, WM_KEYDOWN, VK_RIGHT, 0);
+        const HWND child = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
+        if (! expect(child != nullptr && ! closed && GetFocus() == popup, "the described submenu opens without taking native focus"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+        root.attach(CreateWindowHostAccessibilityProvider(child));
+        if (! expect(root != nullptr, "the described submenu publishes a UIA root"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        if (! expect(SUCCEEDED(root.query_to(rootFragment.put())) && rootFragment != nullptr, "the described submenu root navigates"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragment> command;
+        if (! expect(SUCCEEDED(rootFragment->Navigate(NavigateDirection_FirstChild, command.put())) && command != nullptr,
+                     "the described submenu exposes its command row"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragment> slider;
+        if (! expect(SUCCEEDED(command->Navigate(NavigateDirection_NextSibling, slider.put())) && slider != nullptr,
+                     "the described submenu exposes its slider row"))
+            return finish();
+        if (! expect(SUCCEEDED(slider->SetFocus()), "a screen reader can focus the submenu slider row"))
+            return finish();
+        owner.PumpMessages();
+        if (! expect(! closed && IsWindow(popup) && IsWindow(child), "UIA focus of a submenu slider row keeps the asynchronous session open") ||
+            ! expect(GetFocus() == popup, "UIA focus of a submenu slider row keeps native focus on the root popup"))
+            return finish();
+        ContextMenuPopupDebugState state{};
+        if (! expect(DebugGetContextMenuPopupState(child, state) && state.keyboardIndex == 1u, "UIA focus tracks the submenu slider row logically"))
+            return finish();
+        // Focusing the submenu popup itself must not activate it either: activation would deactivate the root popup.
+        if (! expect(SUCCEEDED(rootFragment->SetFocus()), "a screen reader can focus the described submenu root"))
+            return finish();
+        owner.PumpMessages();
+        expect(! closed && IsWindow(popup) && IsWindow(child) && GetFocus() == popup,
+               "UIA focus of a submenu root keeps the asynchronous session and native focus on the root popup");
+        return finish();
+    });
+    if (! ForegroundHeldOrSkip(run, "described submenu slider focus retention"))
         return;
-    }
-    // Modal and asynchronous sessions both activate their root popup, so explicit focus of a root row
-    // cannot move Win32 focus. A submenu never activates: a native transfer for its focusable slider
-    // row, which is not a MenuItem command, would activate it and deactivate the root, which ends an
-    // asynchronous session while the provider call is still running.
-    const std::vector<MenuFlyoutItem> items{{.text      = L"Affichage",
-                                             .commandId = 8971,
-                                             .children = {{.text = L"Archives", .commandId = 89711, .secondaryText = L"C:\\Photographies\\Archives familiales"},
-                                                          {.kind        = MenuItemKind::Slider,
-                                                           .text        = L"Zoom",
-                                                           .sliderStops = {{.text = L"Petit", .commandId = 89712}, {.text = L"Grand", .commandId = 89713}}}},
-                                             .secondaryText = L"Options de la galerie"}};
-    bool closed        = false;
-    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 24, 60, "described submenu slider anchor maps to screen");
-    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
-            "described submenu slider session opens");
-    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
-    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Affichage");
-    Require(popup != nullptr && WaitForFocusedWindow(popup), "the asynchronous root popup takes native keyboard focus");
-    SendMessageW(popup, WM_KEYDOWN, VK_HOME, 0);
-    SendMessageW(popup, WM_KEYDOWN, VK_RIGHT, 0);
-    const HWND child = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
-    Require(child != nullptr && ! closed && GetFocus() == popup, "the described submenu opens without taking native focus");
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
-    root.attach(CreateWindowHostAccessibilityProvider(child));
-    Require(root != nullptr, "the described submenu publishes a UIA root");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
-    RequireSucceeded(root.query_to(rootFragment.put()), "the described submenu root navigates");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> command;
-    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, command.put()), "the described submenu exposes its command row");
-    Require(command != nullptr, "the described submenu command row exists");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> slider;
-    RequireSucceeded(command->Navigate(NavigateDirection_NextSibling, slider.put()), "the described submenu exposes its slider row");
-    Require(slider != nullptr, "the described submenu slider row exists");
-    RequireSucceeded(slider->SetFocus(), "a screen reader can focus the submenu slider row");
-    owner.PumpMessages();
-    Require(! closed && IsWindow(popup) && IsWindow(child), "UIA focus of a submenu slider row keeps the asynchronous session open");
-    Require(GetFocus() == popup, "UIA focus of a submenu slider row keeps native focus on the root popup");
-    ContextMenuPopupDebugState state{};
-    Require(DebugGetContextMenuPopupState(child, state) && state.keyboardIndex == 1u, "UIA focus tracks the submenu slider row logically");
-    // Focusing the submenu popup itself (its root fragment) must not activate it either: activation would deactivate
-    // the root popup and dismiss the whole asynchronous session.
-    RequireSucceeded(rootFragment->SetFocus(), "a screen reader can focus the described submenu root");
-    owner.PumpMessages();
-    Require(! closed && IsWindow(popup) && IsWindow(child) && GetFocus() == popup,
-            "UIA focus of a submenu root keeps the asynchronous session and native focus on the root popup");
+    Require(failure.empty(), failure.c_str());
 }
 
 class MenuRowFocusObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
@@ -7235,6 +7969,15 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
     const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
     const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Première");
     Require(popup != nullptr, "described focus menu appears");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "described focus menu publishes its UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "described focus menu root supports row navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> firstRow;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, firstRow.put()), "the first described row is reachable");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> secondRow;
+    RequireSucceeded(firstRow->Navigate(NavigateDirection_NextSibling, secondRow.put()), "the second described row is reachable");
     ContextMenuPopupDebugState state{};
     const auto requireRow = [&](size_t row, const char* context)
     {
@@ -7244,13 +7987,19 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
                       << '\n';
         Require(alive && state.keyboardIndex == row, context);
     };
-    // The first row's event proves row focus changes reach the client. UIA may also resolve the popup's own
-    // activation lazily to that same row, so only the second row, reached after it, is decisive.
+    // UIA SetFocus changes the menu's logical row while native focus stays on the popup. The posted focus
+    // synchronization must announce that row too, then keyboard navigation continues to announce each target.
+    unsigned int before = observer->secondRow.load();
+    RequireSucceeded(secondRow->SetFocus(), "UIA can focus the second described row");
+    requireRow(1u, "UIA SetFocus chooses the exact second described row");
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->secondRow.load() > before; }),
+            "a UIA client receives a focus change for the row SetFocus chose");
+    before = observer->firstRow.load();
     SendMessageW(popup, WM_KEYDOWN, VK_HOME, 0);
     requireRow(0u, "the keyboard reaches the first described row");
-    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->firstRow.load() >= 1u; }),
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->firstRow.load() > before; }),
             "a UIA client receives a focus change for the first described row");
-    const unsigned int before = observer->secondRow.load();
+    before = observer->secondRow.load();
     SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
     requireRow(1u, "the keyboard reaches the second described row");
     Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->secondRow.load() > before; }),
@@ -7262,56 +8011,90 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
 void TestWindowHostTabRaisesAutomationFocusChanges()
 {
     using namespace DxUi;
-    AttachedHostWindow window;
-    auto root       = std::make_unique<Panel>();
-    auto* rootPanel = root.get();
-    auto* first     = root->AddChild<Button>(L"Premier bouton");
-    auto* second    = root->AddChild<Button>(L"Second bouton");
-    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
-    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
-    window.Host().SetRoot(std::move(root));
-    FocusEventClient client(window, window.Hwnd());
-    const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
-    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    bool desktop = true;
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
+    {
+        desktop = true;
+        failure.clear();
+        AttachedHostWindow window;
+        auto root       = std::make_unique<Panel>();
+        auto* rootPanel = root.get();
+        auto* first     = root->AddChild<Button>(L"Premier bouton");
+        auto* second    = root->AddChild<Button>(L"Second bouton");
+        first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+        window.Host().SetRoot(std::move(root));
+        FocusEventClient client(window, window.Hwnd());
+        const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
+        const uint32_t lossesBefore    = window.ForegroundLossCount();
+        const auto finish              = [&] { return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId()}; };
+        const auto expect              = [&](bool condition, const char* message)
+        {
+            if (! condition && failure.empty())
+                failure = message;
+            return condition;
+        };
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+        {
+            desktop = false;
+            return finish();
+        }
+        // Activation focuses the first button. Windows reports the window's new focus itself and UI Automation asks the
+        // fragment root which element has it, so the client hears that button while the host adds no second event.
+        expect(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() == first, "activation focuses the first button");
+        expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
+               "a UIA client hears the control the window's activation focused");
+        expect(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore, "the host adds no announcement to the window's own focus event");
+
+        SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0);
+        expect(window.Host().GetFocusControl() == second, "Tab moves focus to the second button");
+        expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
+               "a UIA client receives a focus change for the control Tab reached");
+        expect(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces a focus move inside its focused window once");
+        std::cout << "Window-host Tab focus change reached the UIA client (" << client.Count(L"Second bouton") << " event(s))\n";
+
+        // With no control focused the window itself has focus, as GetFocus reports it, and a client hears the window by
+        // its title. (The test window's class skips DefWindowProc at creation, so the title is set here.)
+        Require(SetWindowTextW(window.Hwnd(), L"Essai de focus") != FALSE, "title the test window");
+        window.Host().SetFocusControl(nullptr);
+        const bool heardWindow = client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") >= 1u; });
+        if (! heardWindow)
+            client.PrintNames();
+        expect(heardWindow, "a UIA client hears the window when no control has focus");
+
+        // Removing the focused control (its panel clears its children) drops its focus at the host's next message, which
+        // publishes it: the client hears the window then.
+        window.Host().SetFocusControl(first);
+        expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.LastName() == L"Premier bouton"; }),
+               "the client hears the first button again");
+        client.Settle(); // UI Automation may deliver an earlier window event a second time; count only what follows.
+        const size_t windowHeard     = client.Count(L"Essai de focus");
+        const uint64_t beforeRemoval = window.Host().DebugGetFocusAnnouncementCount();
+        expect(GetFocus() == window.Hwnd() && GetForegroundWindow() == window.Hwnd(),
+               "the test window retains foreground keyboard focus before its focused control is removed");
+        rootPanel->ClearChildren();
+        Require(PostMessageW(window.Hwnd(), WM_NULL, 0, 0) != FALSE, "queue a message for the host");
+        const bool heardRemoval = client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") > windowHeard; });
+        if (! heardRemoval)
+        {
+            client.PrintNames();
+            std::cerr << "    [UIA] removal announcements=" << beforeRemoval << "->" << window.Host().DebugGetFocusAnnouncementCount()
+                      << " focus=" << GetFocus() << " expected=" << window.Hwnd() << " foreground=" << GetForegroundWindow()
+                      << " logicalFocus=" << window.Host().GetFocusControl() << '\n';
+        }
+        expect(heardRemoval, "a UIA client hears the window once the focused control is removed");
+        expect(window.Host().GetFocusControl() == nullptr, "the removed control no longer has focus");
+        return finish();
+    });
+    if (run.held && ! desktop)
     {
         SkipDxUiTest("DxUi window-host UIA focus changes require an interactive desktop");
         return;
     }
-    // Activation focuses the first button. Windows reports the window's new focus itself and UI Automation asks the
-    // fragment root which element has it, so the client hears that button while the host adds no second event.
-    Require(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() == first, "activation focuses the first button");
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
-            "a UIA client hears the control the window's activation focused");
-    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore, "the host adds no announcement to the window's own focus event");
-
-    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0);
-    Require(window.Host().GetFocusControl() == second, "Tab moves focus to the second button");
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
-            "a UIA client receives a focus change for the control Tab reached");
-    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces a focus move inside its focused window once");
-    std::cout << "Window-host Tab focus change reached the UIA client (" << client.Count(L"Second bouton") << " event(s))\n";
-
-    // With no control focused the window itself has focus, as GetFocus reports it, and a client hears the window by
-    // its title. (The test window's class skips DefWindowProc at creation, so the title is set here.)
-    Require(SetWindowTextW(window.Hwnd(), L"Essai de focus") != FALSE, "title the test window");
-    window.Host().SetFocusControl(nullptr);
-    const bool heardWindow = client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") >= 1u; });
-    if (! heardWindow)
-        client.PrintNames();
-    Require(heardWindow, "a UIA client hears the window when no control has focus");
-
-    // Removing the focused control (its panel clears its children) drops its focus at the host's next message, which
-    // publishes it: the client hears the window then.
-    window.Host().SetFocusControl(first);
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.LastName() == L"Premier bouton"; }),
-            "the client hears the first button again");
-    client.Settle(); // UI Automation may deliver an earlier window event a second time; count only what follows.
-    const size_t windowHeard = client.Count(L"Essai de focus");
-    rootPanel->ClearChildren();
-    Require(PostMessageW(window.Hwnd(), WM_NULL, 0, 0) != FALSE, "queue a message for the host");
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") > windowHeard; }),
-            "a UIA client hears the window once the focused control is removed");
-    Require(window.Host().GetFocusControl() == nullptr, "the removed control no longer has focus");
+    if (! ForegroundHeldOrSkip(run, "window-host Tab and focused-control removal announcements"))
+        return;
+    Require(failure.empty(), failure.c_str());
 }
 
 // Arrow keys move focus between a tree's items while the tree control keeps it: the host announces the item, as
@@ -7627,10 +8410,10 @@ void TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesT
         const size_t secondHeardBefore            = scenario.client.Count(L"Second bouton");
         const uint64_t announcedBeforeCalibrating = host.DebugGetFocusAnnouncementCount();
         host.SetFocusControl(scenario.second);
-        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBeforeCalibrating + 1u, "the host announces a move in the active window once");
         scenario.Expect(scenario.Hears([&] { return scenario.client.Count(L"Second bouton") > secondHeardBefore; }),
                         "a UIA client hears a control the host announces");
         scenario.client.Settle();
+        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBeforeCalibrating + 1u, "the host announces a move in the active window once");
         const size_t heardPerHostEvent = scenario.client.Count(L"Second bouton") - secondHeardBefore;
         const size_t firstHeardBefore  = scenario.client.Count(L"Premier bouton");
         host.SetFocusControl(scenario.first);
@@ -7651,9 +8434,9 @@ void TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesT
         scenario.Expect(host.GetFocusControl() == scenario.second, "the click focuses the clicked button");
         scenario.Expect(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore,
                         "the host leaves nothing to an event UI Automation answers from what it knows of the window");
-        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces the click once");
         scenario.Expect(scenario.Hears([&] { return scenario.client.Count(L"Second bouton") > secondHeardAtClick; }), "a UIA client hears the clicked button");
         scenario.client.Settle();
+        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces the click once");
         scenario.Expect(scenario.client.Count(L"Second bouton") - secondHeardAtClick == heardPerHostEvent,
                         "a client hears the clicked button once, as it hears any control the host announces");
         scenario.Expect(scenario.client.LastName() == L"Second bouton", "the clicked button is the last control the client hears");
@@ -7699,10 +8482,10 @@ void TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedCont
         scenario.Expect(TryActivateDxUiTestWindow(scenario.window.Hwnd()) && GetFocus() == scenario.window.Hwnd(), "the window is activated again");
         scenario.Expect(host.GetFocusControl() == scenario.second, "the activation restores the second button");
         scenario.window.PumpMessages();
-        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces the restored button once the gain's turn ends");
         scenario.Expect(scenario.Hears([&] { return scenario.client.Count(L"Second bouton") > secondHeardAtReturn; }),
                         "a UIA client hears the restored button");
         scenario.client.Settle();
+        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces the restored button once the gain's turn ends");
         scenario.Expect(scenario.client.Count(L"Second bouton") - secondHeardAtReturn == heardPerHostEvent,
                         "a client hears the restored button once, as it hears any control the host announces");
         scenario.Expect(scenario.client.Count(L"Premier bouton") == firstHeardAtReturn, "and no other control of the window");
@@ -7715,10 +8498,10 @@ void TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedCont
         scenario.Expect(TryActivateDxUiTestWindow(scenario.window.Hwnd()) && GetFocus() == scenario.window.Hwnd(), "the window is activated once more");
         scenario.Expect(host.GetFocusControl() == scenario.first, "the activation focuses the first button");
         scenario.window.PumpMessages();
-        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedAgain + 1u, "the host announces the button the activation focused");
         scenario.Expect(scenario.Hears([&] { return scenario.client.Count(L"Premier bouton") > firstHeardBefore; }),
                         "a UIA client hears the button the activation focused");
         scenario.client.Settle();
+        scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedAgain + 1u, "the host announces the button the activation focused");
         scenario.Expect(scenario.client.Count(L"Premier bouton") - firstHeardBefore == heardPerHostEvent,
                         "a client hears the button the activation focused once");
         return scenario.Foreground();
@@ -7947,6 +8730,12 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
 void TestMenuChoosesTheCursorWhenItOpensAndCloses()
 {
     using namespace DxUi;
+    if (! DxUiTestWindowsCanActivateFlag())
+    {
+        SkipDxUiTest("the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane");
+        return;
+    }
+
     static constexpr wchar_t kTextWindowClass[] = L"DxUiTests.MenuCursorTextWindow";
     WNDCLASSEXW textClass{};
     textClass.cbSize        = sizeof(textClass);
@@ -8145,40 +8934,65 @@ void TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus()
 {
     using namespace DxUi;
     // Native focus transfer needs the activating Menu lane; the nonactivating lane blocks it.
-    if (! DxUiTestWindowsCanActivateFlag())
-        return;
-    AttachedHostWindow other;
-    AttachedHostWindow window;
-    SetWindowPos(other.Hwnd(), nullptr, 120, 120, 320, 200, SWP_NOZORDER);
-    SetWindowPos(window.Hwnd(), nullptr, 480, 120, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    // An ordinary host may use the public MenuItem role; only native menu popups keep focus away.
-    auto root = std::make_unique<Panel>();
-    for (int index = 0; index < 2; ++index)
+    Require(DxUiTestWindowsCanActivateFlag(), "MenuItem native focus transfer requires the interactive activation lease");
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        auto* recent    = root->AddChild<Label>(std::format(L"Dossier récent {}", index));
-        const float top = 8.0f + 32.0f * static_cast<float>(index);
-        recent->SetBounds(D2D1::RectF(8.0f, top, 240.0f, top + 28.0f));
-        recent->SetFocusable(true);
-        recent->SetAccessibilityRole(AccessibilityRole::MenuItem);
-    }
-    window.Host().SetRoot(std::move(root));
-    if (! TryActivateDxUiTestWindow(other.Hwnd()))
-    {
-        SkipDxUiTest("DxUi MenuItem-role native focus transfer requires an interactive desktop");
+        failure.clear();
+        AttachedHostWindow other;
+        AttachedHostWindow window;
+        static_cast<void>(SetWindowPos(other.Hwnd(), nullptr, 120, 120, 320, 200, SWP_NOZORDER));
+        static_cast<void>(SetWindowPos(window.Hwnd(), nullptr, 480, 120, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        // An ordinary host may use the public MenuItem role; only native menu popups keep focus away.
+        auto root = std::make_unique<Panel>();
+        for (int index = 0; index < 2; ++index)
+        {
+            auto* recent    = root->AddChild<Label>(std::format(L"Dossier récent {}", index));
+            const float top = 8.0f + 32.0f * static_cast<float>(index);
+            recent->SetBounds(D2D1::RectF(8.0f, top, 240.0f, top + 28.0f));
+            recent->SetFocusable(true);
+            recent->SetAccessibilityRole(AccessibilityRole::MenuItem);
+        }
+        window.Host().SetRoot(std::move(root));
+        const uint32_t otherLossesBefore  = other.ForegroundLossCount();
+        const uint32_t windowLossesBefore = window.ForegroundLossCount();
+        const auto finish                 = [&]()
+        {
+            const bool lost   = other.ForegroundLossCount() != otherLossesBefore || window.ForegroundLossCount() != windowLossesBefore;
+            const DWORD thief = window.ForegroundLossCount() != windowLossesBefore ? window.LastForegroundThiefThreadId() : other.LastForegroundThiefThreadId();
+            return ForegroundAttempt{lost, thief};
+        };
+        const auto expect = [&](bool condition, const char* message)
+        {
+            if (! condition && failure.empty())
+                failure = message;
+            return condition;
+        };
+        if (! expect(TryActivateDxUiTestWindow(other.Hwnd()), "the MenuItem focus fixture can activate its initial window under the desktop lease"))
+        {
+            return finish();
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        if (! expect(provider != nullptr, "ordinary MenuItem-role host publishes a UIA root"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        if (! expect(SUCCEEDED(provider.query_to(rootFragment.put())) && rootFragment != nullptr, "ordinary MenuItem-role root navigates"))
+            return finish();
+        wil::com_ptr_nothrow<IRawElementProviderFragment> entry;
+        if (! expect(SUCCEEDED(rootFragment->Navigate(NavigateDirection_FirstChild, entry.put())) && entry != nullptr,
+                     "ordinary MenuItem-role entry is available"))
+            return finish();
+        if (! expect(SUCCEEDED(entry->SetFocus()), "a screen reader can focus an ordinary MenuItem-role entry"))
+            return finish();
+        expect(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() != nullptr,
+               "UIA focus of a MenuItem-role control outside a native menu popup transfers native focus");
+        return finish();
+    });
+    if (! ForegroundHeldOrSkip(run, "MenuItem native focus transfer outside a menu popup"))
         return;
-    }
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
-    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
-    Require(provider != nullptr, "ordinary MenuItem-role host publishes a UIA root");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
-    RequireSucceeded(provider.query_to(rootFragment.put()), "ordinary MenuItem-role root navigates");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> entry;
-    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, entry.put()), "ordinary MenuItem-role entry is available");
-    Require(entry != nullptr, "ordinary MenuItem-role entry exists");
-    RequireSucceeded(entry->SetFocus(), "a screen reader can focus an ordinary MenuItem-role entry");
-    Require(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() != nullptr,
-            "UIA focus of a MenuItem-role control outside a native menu popup transfers native focus");
+    Require(failure.empty(), failure.c_str());
 }
 
 void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
@@ -8687,6 +9501,31 @@ void TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss()
     Require(closed && WaitForWindowDestroyed(popup), "device loss menu closes");
 }
 
+void TestDescribedMenuChoosesContentWidthBelowItsMaximum()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 28, 28, "content-sized described-menu anchor maps to screen coordinates");
+    const std::vector<MenuFlyoutItem> items{{.text = L"Recent", .commandId = 9691, .secondaryText = L"A short location"}};
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}), "a short described menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Recent");
+    Require(popup != nullptr, "the short described popup appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup) != FALSE)
+            DismissOwnedContextMenuPopupChain(owner.Hwnd());
+    });
+
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state), "the short described popup exposes its final width");
+    Require(state.visibleWidthDip >= 128.0f && state.visibleWidthDip < 456.0f,
+            "described rows use their measured natural width within the supported minimum and maximum");
+    ContextMenuPopupItemLayoutDebugState row{};
+    Require(DebugGetContextMenuPopupItemLayout(popup, 0u, row), "the short described row exposes its final layout");
+    Require(std::abs(row.primaryLayoutWidthDip - (row.textRectDip.right - row.textRectDip.left)) < 0.5f,
+            "the prepared primary/description layout matches the width actually painted");
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -8709,12 +9548,18 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestDescribedAsyncMenuRestoresFocusedOwnerChild);
     DXUI_RUN_TEST(TestDescribedMenuWrapsFrenchTextAndPreservesIdentity);
     DXUI_RUN_TEST(TestDescribedMenuAccessibilityInvokesAndDisconnects);
+    DXUI_RUN_TEST(TestDescribedMenuAccessibilityInvokeReportsPayloadSaturationAndRecovers);
+    DXUI_RUN_TEST(TestDescriptionPreparationFallbackPreservesCommandIdentityAndRecovers);
     DXUI_RUN_TEST(TestDescribedMenuPointerAndCancelledQueuedInvoke);
     DXUI_RUN_TEST(TestDescribedMenuSubmenuKeepsSessionAndIdentity);
     DXUI_RUN_TEST(TestDescribedPointerMenuActivationSelectsNoRow);
     DXUI_RUN_TEST(TestDescribedMenuScrollRepublishesAccessibleGeometry);
     DXUI_RUN_TEST(TestPlainMenuAccessibilityInvokesAndDisconnects);
     DXUI_RUN_TEST(TestPlainMenuAccessibilityScrollsFocusedRow);
+    DXUI_RUN_TEST(TestPlainMenuFractionalDpiRoundingDoesNotCreateScrollbar);
+    DXUI_RUN_TEST(TestPlainMenuPointerMoveClearsLogicalFocusAndRefreshesAccessibility);
+    DXUI_RUN_TEST(TestPlainMenuWheelReconcilesHoverAndCancelsMovedSubmenuTimer);
+    DXUI_RUN_TEST(TestOpeningSubmenuEdgeScrollRepaintsParentAccessibilityBounds);
     DXUI_RUN_TEST(TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne);
     DXUI_RUN_TEST(TestDescribedSubmenuSliderFocusKeepsSessionFocus);
     DXUI_RUN_TEST(TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus);
@@ -8725,6 +9570,8 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestDescribedRowDescriptionKeepsTheSmallFontTabStops);
     DXUI_RUN_TEST(TestBodyAndSmallFormatsAgreeOnWhatOneRowLayoutHoldsForAllItsText);
     DXUI_RUN_TEST(TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss);
+    DXUI_RUN_TEST(TestDescribedMenuChoosesContentWidthBelowItsMaximum);
+    DXUI_RUN_TEST(TestModalMenuDispatchesUnrelatedTimerWithSubmenuId);
     DXUI_RUN_TEST(TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu);
 }
 
@@ -8732,8 +9579,9 @@ void RunMenuDescriptionTests()
 
 void RunMenuTests()
 {
-    // Also exercise described rows with real native focus; the nonactivating
-    // NewControls lane cannot alone detect a popup stealing Win32 focus.
+    // Every capturing/focus/pointer fixture runs under the explicit desktop lease.
+    extern void RunNewControlCapturingMenuTests();
+    RunNewControlCapturingMenuTests();
     RunMenuDescriptionTests();
     // Every menu test starts with a stopped animation dispatcher.
     const auto runTest = [](const char* name, void (*fn)())
@@ -8752,7 +9600,10 @@ void RunMenuTests()
     runTest("TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets", TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets);
     runTest("TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive", TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive);
     runTest("TestMenuGraphicalSliderSupportsClickDragAndAnimation", TestMenuGraphicalSliderSupportsClickDragAndAnimation);
+    runTest("TestModalMenuDismissesOnSentCancellationAndDeactivation", TestModalMenuDismissesOnSentCancellationAndDeactivation);
     runTest("TestMenuMnemonicHonorsExplicitAmpersandLabels", TestMenuMnemonicHonorsExplicitAmpersandLabels);
+    runTest("TestMenuUnicodeDuplicateMnemonicsAndRtlMixedScriptLayout", TestMenuUnicodeDuplicateMnemonicsAndRtlMixedScriptLayout);
+    runTest("TestMenuHighContrastSelectionUsesExactPalettePair", TestMenuHighContrastSelectionUsesExactPalettePair);
     runTest("TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface", TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface);
     runTest("TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands", TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands);
     runTest("TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease", TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease);
@@ -8811,13 +9662,31 @@ void RunMenuExitLifetimeTests()
 {
     using namespace DxUi;
     AttachedHostWindow owner;
+    const ThemePalette theme = owner.Host().GetTheme();
     std::vector<MenuFlyoutItem> items{
         {.kind = MenuItemKind::Standard, .text = L"Archives", .commandId = 9300},
     };
-    Require(ContextMenu::ShowAsync(owner.Hwnd(), POINT{100, 100}, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}),
+    bool onClosedCalled = false;
+    bool reopened       = false;
+    Require(ContextMenu::ShowAsync(owner.Hwnd(),
+                                   POINT{100, 100},
+                                   items,
+                                   theme,
+                                   [&](std::optional<int>) noexcept
+    {
+        onClosedCalled = true;
+        reopened       = ContextMenu::ShowAsync(owner.Hwnd(), POINT{100, 100}, items, theme, [](std::optional<int>) noexcept {});
+    }),
             "exit lifetime fixture opens an asynchronous menu");
     const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
     Require(popup && GetCapture() == popup, "exit lifetime fixture leaves a live menu owning capture");
-    std::cerr << "[EXIT] MenuExitLifetime: active menu survives stack scope until CRT teardown\n" << std::flush;
+    ShutdownAllWindowHostsForProcessExit();
+    Require(! onClosedCalled, "process-exit shutdown suppresses async menu close callbacks");
+    Require(! reopened, "process-exit shutdown prevents callbacks from reopening async menus");
+    Require(IsWindow(popup) == FALSE, "process-exit shutdown destroys the active popup");
+    Require(GetCapture() != popup, "process-exit shutdown releases popup capture");
+    Require(! ContextMenu::ShowAsync(owner.Hwnd(), POINT{100, 100}, items, theme, [](std::optional<int>) noexcept {}),
+            "process-exit shutdown keeps async menus closed through the host sweep");
+    std::cerr << "[EXIT] MenuExitLifetime: active menu is dismissed before the process-exit host sweep\n" << std::flush;
     std::exit(0);
 }

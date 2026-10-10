@@ -3,7 +3,8 @@
 void TestGridUiaPatternSupportsBoundedOffscreenGetItem();
 void TestGridUiaPatternStopsWhenCellReadReplacesItsControl();
 void TestGridUiaPatternStopsWhenCellReadShrinksItsModel();
-void TestGridUiaPatternKeepsNestedSameAddressPublication();
+void TestGridUiaPatternRetriesSupersededSameAddressCapture();
+void TestGridUiaPatternStopsWhenCellReadNotifiesSameModel();
 void TestGridUiaPatternStopsPointHitsAfterModelReplacement();
 void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment();
 void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary();

@@ -1,0 +1,113 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild
+=================================================================
+==86260==ERROR: AddressSanitizer: heap-use-after-free on address 0x1223a75a08d8 at pc 0x7ff6a5d7a407 bp 0x002f62ef7930 sp 0x002f62ef7938
+READ of size 8 at 0x1223a75a08d8 thread T0
+    #0 0x7ff6a5d7a406 in std::vector<unsigned __int64,std::allocator<unsigned __int64> >::size C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:1922
+    #1 0x7ff6a6072d56 in std::ranges::_Size::_Cpo::operator()<std::vector<unsigned __int64,std::allocator<unsigned __int64> > const &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xutility:3410
+    #2 0x7ff6a60686d3 in std::span<unsigned __int64 const ,-1>::span<unsigned __int64 const ,-1><std::vector<unsigned __int64,std::allocator<unsigned __int64> > const &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\span:343
+    #3 0x7ff6a689f21b in DxUi::GridSelectionModel::GetOrderedSelection Z:\src\DxUi\src\Controls\DxUi.Grid.cpp:1001
+    #4 0x7ff6a67ac276 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1977
+    #5 0x7ff6a67ad0c2 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:2040
+    #6 0x7ff6a67bca7a in DxUi::`anonymous namespace'::PublishWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:959
+    #7 0x7ff6a67b4336 in DxUi::`anonymous namespace'::FlushNativeAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:10608
+    #8 0x7ff6a67be603 in DxUi::`anonymous namespace'::CaptureAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1058
+    #9 0x7ff6a6827eb8 in DxUi::`anonymous namespace'::AccessibilityProvider::CaptureSnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:5997
+    #10 0x7ff6a6809adc in DxUi::`anonymous namespace'::AccessibilityProvider::ElementProviderFromPoint Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:7023
+    #11 0x7ff6a5d04442 in GetProviderAtDipPoint Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:799
+    #12 0x7ff6a59fbc9a in `anonymous namespace'::ReadPointProviderName Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:141
+    #13 0x7ff6a59fc724 in `anonymous namespace'::RequireReplacementButtonAtPoint Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:159
+    #14 0x7ff6a5a1ade2 in `anonymous namespace'::TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1327
+    #15 0x7ff6a5d11737 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #16 0x7ff6a5b3566d in RunAccessibilityTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:10034
+    #17 0x7ff6a5ec6fa5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #18 0x7ff6a5ec2428 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:589
+    #19 0x7ff6a6e71978 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #20 0x7ff6a6e71891 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #21 0x7ff6a6e7174d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #22 0x7ff6a6e719ed in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #23 0x7ff8067ecd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #24 0x7ff807c8caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x1223a75a08d8 is located 600 bytes inside of 1200-byte region [0x1223a75a0680,0x1223a75a0b30)
+freed by thread T0 here:
+    #0 0x7ff6a6e6f693 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff6a5cf1510 in DxUi::Grid::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301510)
+    #2 0x7ff6a5cefc03 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff6a5cc3540 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff6a5cf1236 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301236)
+    #5 0x7ff6a5c60721 in std::destroy_at<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #6 0x7ff6a5c60333 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::destroy<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #7 0x7ff6a5bcba32 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #8 0x7ff6a5d4eb59 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #9 0x7ff6a5cc7546 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::~vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #10 0x7ff6a5cc88bb in DxUi::Panel::~Panel+0x1b (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402d88bb)
+    #11 0x7ff6a5cf1876 in DxUi::Panel::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301876)
+    #12 0x7ff6a5cefc03 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #13 0x7ff6a5cc3540 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #14 0x7ff6a6bb1870 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1476
+    #15 0x7ff6a5a1b0de in ``anonymous namespace'::TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1325
+    #16 0x7ff6a5c6fa0e in std::invoke<``anonymous namespace'::TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1> &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1801
+    #17 0x7ff6a5b47d16 in std::_Func_impl_no_alloc<``anonymous namespace'::TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1>,void>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1005
+    #18 0x7ff6a5cef462 in std::_Func_class<void>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #19 0x7ff6a59faf90 in `anonymous namespace'::ReentrantAccessibilityGridModel::GetCellData Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:96
+    #20 0x7ff6a67abd91 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1943
+    #21 0x7ff6a67ad0c2 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:2040
+    #22 0x7ff6a67bca7a in DxUi::`anonymous namespace'::PublishWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:959
+    #23 0x7ff6a67b4336 in DxUi::`anonymous namespace'::FlushNativeAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:10608
+    #24 0x7ff6a67be603 in DxUi::`anonymous namespace'::CaptureAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1058
+    #25 0x7ff6a6827eb8 in DxUi::`anonymous namespace'::AccessibilityProvider::CaptureSnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:5997
+    #26 0x7ff6a6809adc in DxUi::`anonymous namespace'::AccessibilityProvider::ElementProviderFromPoint Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:7023
+    #27 0x7ff6a5d04442 in GetProviderAtDipPoint Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:799
+    #28 0x7ff6a59fbc9a in `anonymous namespace'::ReadPointProviderName Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:141
+
+previously allocated by thread T0 here:
+    #0 0x7ff6a6e6f575 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff6a5c76f77 in std::make_unique<DxUi::Grid,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff6a5ba0584 in DxUi::Panel::AddChild<DxUi::Grid> Z:\src\DxUi\include\DxUi\DxUi.h:1674
+    #3 0x7ff6a5a1aa8f in `anonymous namespace'::TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1315
+    #4 0x7ff6a5d11737 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6a5b3566d in RunAccessibilityTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:10034
+    #6 0x7ff6a5ec6fa5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6a5ec2428 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:589
+    #8 0x7ff6a6e71978 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6a6e71891 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6a6e7174d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6a6e719ed in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8067ecd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff807c8caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:1922 in std::vector<unsigned __int64,std::allocator<unsigned __int64> >::size
+Shadow bytes around the buggy address:
+  0x1223a75a0600: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x1223a75a0680: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0700: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0780: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0800: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+=>0x1223a75a0880: fd fd fd fd fd fd fd fd fd fd fd[fd]fd fd fd fd
+  0x1223a75a0900: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0980: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0a00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0a80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x1223a75a0b00: fd fd fd fd fd fd fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==86260==ABORTING
