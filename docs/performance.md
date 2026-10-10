@@ -14,6 +14,9 @@ DxUi must remain fast and use little memory. The normative
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
 The [recent-merge review packet](../Measurements/Review-2026-10-08/README.md) retains its original baseline,
 targeted failure evidence and final-candidate qualification boundaries.
+The [remaining-branch integration record](../Measurements/BranchIntegration/2026-10-10/README.md) retains PR #69's
+six-profile native and synthetic consumer results, reproduced model-assignment races and inconclusive paired study.
+Its functional merge leaves benchmark-policy and ARM64 foreground qualification open.
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)

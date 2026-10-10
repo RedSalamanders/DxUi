@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Review and integration of the remaining branches](BranchIntegration_2026-10-10.md) — completed 2026-10-10 (PR #69 integrated with current snapshot/model guards and first full presentation; two assignment races reproduced and repaired; native and synthetic consumer results archived, with inconclusive performance and refused ARM64 foreground suites explicit; unfinished prepared-tree work retained).
+
 - [WindowHost first full presentation](WindowHostFirstFullPresentation_2026-10-08.md) — completed 2026-10-08 (a new or resized native flip-model swap chain keeps full-frame rendering and presentation pending until EndDraw and Present both succeed; all six DxUi native profiles pass, and the identified x64 consumer cases and their eight lifecycle frames pass separately; broader consumer gates and smaller possible performance costs remain open).
 - [Grid UI Automation GridPattern](GridUiaPattern_2026-10-08.md) — completed 2026-10-08 (snapshot-backed counts and bounded offscreen `GetItem` retention with native/embedded thread contracts; all six DxUi native profiles pass, and the identified x64 detached-provider/callback-guard case plus eight lifecycle frames pass across two selected cases; broader consumer gates and smaller possible performance costs remain open).
 
