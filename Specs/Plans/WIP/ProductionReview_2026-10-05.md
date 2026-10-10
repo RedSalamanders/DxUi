@@ -34,6 +34,10 @@ Current qualification limits (10 October): all three x64 profiles of hosted cand
 `0ebf482`) pass their 21 suites with zero skips and four API 4 consumer cases. All ARM64 profiles build and pass
 19 noninteractive suites; Menu and NativeTextInput refuse warning ownership before input, including after the
 opaque-patch experiment, so native foreground/consumer completion is still open.
+The completed frozen paired study has zero migrated flags, but retains two legacy clean-prepare P95 regressions
+(600 to 700 ns in both Grid scenarios), 71/72 unstable short controls and 42/54 timing/memory cells with excursions.
+Neither statistical migration nor the one-counter-tick increase resolves those findings; retain them pending
+controlled quiet-host calibration and focused profiling. The independent consumer CI follow-up awaits hosted execution.
 The isolated same-binary A/A study has zero migrated flags, but all 72 short controls are unstable and 50 of 54 timing/
 memory cells have excursions. It does not qualify policy seeding. Keep the required CI rule deferred until the trusted
 base policy and a concrete candidate pass are established. The lead independently checks all 126 native reports and
@@ -1872,3 +1876,15 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   Native and aggregate failures remain failures; current CI execution must verify the independent ARM64 cases.
   Existing six-profile workflow-contract and aggregate-failure tooling checks cover the new obligation; the
   reviewed workflow digest is refreshed without changing the benchmark policy or required-rule status.
+- [Paired and workflow follow-up 68](../../../Measurements/Review-2026-10-09/PairedAndWorkflowFollowup68/README.md)
+  retains completed frozen run 38010688230, seed 38264413, and independent verification of 144 receipts, 1440 rounds,
+  thirteen immutable harness hashes, all 78 migrated decisions and 7200 timing fields from 172800 ordered samples.
+  The migrated judge has zero flags, but the two Grid clean-prepare legacy regressions are independently reproduced
+  and remain unresolved. Run-median P95 rises 600 to 700 ns, a 100 ns counter tick; small real overhead remains
+  plausible. Controls are unstable in 71/72 cases and 42/54 timing/memory cells have excursions; exact budgets stay
+  stable. Retain the original flags/bands and recommend controlled quiet-host calibration plus focused profiling.
+  Both raw paired probabilities lose significance under the prescribed Holm correction; this unqualified policy
+  supplies no accepted non-regression verdict. The official policy-review-required result and aggregate gate fail.
+  Separate affected Tooling67/format checks and clean committed `76373d4` Linux68 validation/tooling pass; new hosted
+  consumer execution remains pending. The cancelled broader affected run supplies no validation pass. All archives
+  are independently reopened against original SHA/length; no native, physical, policy-seeding or adoption gate is closed.
