@@ -120,7 +120,12 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.EmbeddedTextInput.h"
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
+#include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Embedded.Tests.PreparedTreeAccessibilityBenchmark.h"
+#include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
+#include "Embedded.Tests.PreparedTreeEvents.h"
+#include "Embedded.Tests.PreparedTreeRootLifetime.h"
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -1118,10 +1123,40 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-prepared-tree-accessibility")
+    {
+#if DXUI_TEST_HAS_PREPARED_TREE_ROWS
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "prepared Tree semantics WARP device");
+        TestPreparedTreeAccessibilitySemantics(gpu);
+        TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
+        return 0;
+#else
+        Check(false, "prepared Tree semantics requires the optional source API");
+#endif
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--benchmark-tree-accessibility")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "large Tree benchmark WARP device");
+        RunPreparedTreeAccessibilityBenchmark(gpu, false);
+        RunPreparedTreeAccessibilityBenchmark(gpu, true);
+        return 0;
+    }
     // The opt-in grid selection measurement is dispatched here, not in Embedded.Tests.BenchmarkMain.h, whose hash identifies the complex-UI fixture.
     if ((__argc == 3 || __argc == 4) && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
     {
         GridSelectionBenchmark::Run(__wargv[2], __argc == 4 ? std::wstring_view(__wargv[3]) : std::wstring_view());
+        return 0;
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-prepared-tree-events")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "embedded real client WARP device");
+        TestPreparedTreeSourceReplacementNotifiesReentrantEmbeddedClient(gpu);
+        TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
+        TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
+        TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
         return 0;
     }
     static size_t diagnosticCalls = 0;
@@ -1140,7 +1175,14 @@ __declspec(noinline) static int RunFunctionalTests()
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestPreparedTreeAccessibilitySemantics(gpu);
+    TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
+    TestInteractionLayoutWithoutPaint(gpu);
     TestEmbeddedUiaEventHarness(gpu);
+    TestPreparedTreeSourceReplacementNotifiesReentrantEmbeddedClient(gpu);
+    TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
+    TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
+    TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);

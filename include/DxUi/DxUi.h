@@ -1,5 +1,6 @@
 #pragma once
 #include "Configuration.h"
+#include "PreparedTreeAccessibility.h"
 
 #include <array>
 #include <atomic>
@@ -1386,6 +1387,12 @@ public:
     [[nodiscard]] virtual size_t GetVisibleItemCount() const noexcept             = 0;
     virtual void GetVisibleItem(size_t visibleIndex, TreeItemData& outItem) const = 0;
     [[nodiscard]] virtual std::optional<size_t> FindVisibleItemById(uint64_t itemId) const noexcept;
+    // Optional source for exactly the current visible model epoch, including offscreen rows. Capture only
+    // retains an already prepared owner; it must not construct/copy/traverse rows. Null preserves legacy capture.
+    [[nodiscard]] virtual std::shared_ptr<const IPreparedTreeAccessibilityRows> CapturePreparedAccessibilityRows() const noexcept
+    {
+        return {};
+    }
 };
 
 enum class TreeDropPlace : uint8_t

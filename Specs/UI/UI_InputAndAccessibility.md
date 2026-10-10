@@ -464,6 +464,28 @@ remains a separate gate; no UIA bridge is claimed by this text-service sample.
 
 ### Shared embedded UI Automation providers
 
+#### Optional prepared Tree row source
+
+`ITreeModel::CapturePreparedAccessibilityRows()` may return an immutable shared source for the complete current
+visible-row semantics, including offscreen rows. The default implementation returns null; null keeps the existing
+row-by-row capture through `GetVisibleItemCount()` and `GetVisibleItem()`. The source count must equal the model's
+visible item count or it is discarded in favor of that same fallback. `GetItem(visibleIndex)` and
+`FindItem(itemId)` are bounded, allocation-free reads returning an empty optional for a missing row. A row view
+contains visible index, ID, borrowed text, depth, `hasChildren`, and `expanded`.
+
+The source's shared identity is the semantic epoch used by accessibility snapshot comparison. Preserve identity only
+while the ordered visible-row sequence and each row's ID, text, depth, child presence, and expanded state are all
+unchanged. Any change to those fields, including reordering or replacement with the same count and IDs, requires a
+new shared identity. Selection is independent of row semantics and does not require replacing the source. On an
+identity change, the snapshot treats the Tree children as changed; it does not walk the source to diff rows.
+
+Text storage is borrowed from the source and must stay valid through every read for as long as a shared source
+reference remains readable. Consumers own bounded, allocation-free source queries and capture, preparation and
+admission, and arranging final source destruction on the appropriate lane, including releases by foreign retained
+readers. Capture only retains an already prepared source; it does not construct, copy, or traverse rows. DxUi does
+not create a row-preparation worker or define the consumer's preparation lane. These requirements define source ownership and
+semantics; they do not establish a performance qualification or change the supported-capabilities record.
+
 EmbeddedHost exposes lazy AttachAccessibility, UpdateAccessibility, GetAccessibilityProvider and
 DisconnectAccessibility methods. The low-level bridge reuses the native provider/pattern implementation. The
 application supplies a module-local EmbeddedAccessibilitySite for parent/sibling navigation, fragment-root identity,
@@ -496,6 +518,52 @@ notifications. Embedded publication remains the application's prepared-frame res
 Tree item and Grid header/row/cell `IsOffscreen` queries agree with the published bounds after ancestor clipping:
 a nonempty partially visible rectangle is onscreen, and a fully clipped fragment is offscreen. Navigable retained
 selection providers need not have visible geometry.
+
+Native WindowHost structure invalidation uses one lazily created thread-pool work object per accessibility target.
+The owner retains its canonical root and published snapshot in a single replaceable pending slot; one delivery and
+one pending generation may be retained. A later publication replaces that pending generation instead of growing a
+queue. Delivery runs in an MTA without borrowing controls or dereferencing the host, so a real UIA callback can
+read the current snapshot and synchronously invoke an owner action while the owner pumps messages. A successor
+is submitted only for a new explicit publication received during delivery. Work creation/COM initialization
+failure is logged; no retry timer or polling is introduced. Disconnected targets are checked before delivery, and
+surviving providers still enforce their ordinary stale-target guards. Teardown does not wait for a UIA client:
+each submitted callback retains its target until return, and closing the work object defers its reclamation until
+outstanding callbacks finish.
+
+Embedded structure invalidation uses the same bounded, coalesced delivery protocol. The canonical provider stays
+in its supplied STA/site apartment. The owner registers that provider in the COM Global Interface Table once;
+delivery resolves a marshalled proxy in its MTA before calling UIA. No raw embedded provider crosses apartments.
+This invalidation carries no historical property values, so the slot and held delivery retain no row snapshot;
+provider reads resolve the current coherent epoch. Disconnect clears pending work and revokes the registration on
+the owner before releasing the canonical provider. Already resolved proxies enforce the disconnected target
+guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
+allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Selection, text and
+focus events retain their separate event contracts; embedded control-property transport is described below. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
+
+The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
+non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;
+they never access a replacement control merely because its path or row IDs are unchanged. Keeping only the root
+alive must not retain a superseded prepared source after publication.
+
+Embedded control-property events use the same event-driven work item as structure invalidation. The owner captures
+the property values and registers a weak-identity sender in the COM Global Interface Table; the delivery MTA resolves
+a proxy before calling UIA. No raw STA provider crosses apartments. There is one active batch and one pending batch,
+with at most one pending entry per current control identity/property ID. Repeated changes preserve the oldest
+undelivered value and replace the latest value. Each publication removes pending entries for retired controls, so a
+held client cannot accumulate retired control epochs. Batches own scalar/BSTR values and registrations, not row
+snapshots. Disconnect clears the pending batch; an active delivery checks disconnection before each event. Delivery
+does not block the owner, and teardown never joins a client callback. COM registrations are revoked when the last
+batch reference releases them, in its initialized apartment, as permitted by the
+[GIT revocation contract](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-iglobalinterfacetable-revokeinterfacefromglobal).
+Capture/marshalling/work failures are logged without a synchronous fallback or automatic retry loop. Selection,
+text and focus events retain their separate contracts.
+
+Internal embedded property-event providers retain the target and the published control's weak lifetime/identity,
+then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;
+they must not pin complete creation snapshots or prepared row epochs. Replacing the control invalidates them even
+when its path is reused. Public row providers and text ranges keep their existing creation-snapshot ownership.
+Runtime IDs use that retained control identity after checking the current snapshot; an event sender need not hold
+a creation snapshot to expose the same runtime ID as its public control element.
 
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new

@@ -18,6 +18,12 @@ is still in review; this register intentionally names no candidate commit.
 
 ## Handoff completion record
 
+Prepared Tree accessibility and `PrepareInteraction` are optional revision-4 additions. RedPrism's prepared-row
+adoption remains **HOLD** until its exact-pin real embedded client re-entry/held delivery, charged-source admission
+and retirement, and large-row product fixtures pass. Historical library/consumer results for older pins do not
+qualify a newly merged pin. The library's standalone real-client tests and counting model qualify library behavior;
+they do not activate prepared rows or complete this consumer handoff.
+
 For each consumer, its owner should record the exact DxUi commit and API revision, pin/lock change, restore and build
 configuration, relevant product test results and remaining capability skips. A pin is not qualified by this register or
 by the library's frozen fixture. Device, platform, interactive and publication results must link to consumer-owned

@@ -33,8 +33,20 @@ and the appropriate modifiers. Set `device` to the contact's device so a touch d
 halo): for a mouse message your window received, `PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())` while you
 handle it. An event that names no device is the mouse. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
-revision. Cancel on capture loss.
-Captured drag continuation may update a draft between paints; tree, bounds or availability changes cancel capture.
+revision. A host that arranges all live bounds itself can instead call
+`PrepareInteraction(widthPixels, heightPixels, dpi)` between gestures, at the last successfully painted extent/DPI.
+It acknowledges input geometry without painting or publishing text/UIA bounds. Pixels stay dirty for the next
+frame's full `Prepare`. Initial/failed preparation, hide/zero extent, device replacement and a changed size/DPI still
+require full preparation. Do not acknowledge a partial layout or geometry that only painting computes. Cancel on capture loss.
+
+Embedded structure and control-property notifications are coalesced and delivered from an MTA through COM-marshalled
+STA providers. Keep pumping the application's owner thread while a client reads or invokes a control. A held event
+callback does not block `UpdateAccessibility`; pending property changes preserve the first old and latest new value.
+These notification batches hold no prepared Tree row snapshots. Source admission and final-release scheduling remain
+the consumer's responsibility; native library fixtures do not qualify a product's source budget or screen reader.
+Captured drag continuation may update a draft between paints. Moving, removing, hiding or disabling the captured
+control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
+are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
 
 Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Those methods are not a complete
 embedded IME, text-store or UI Automation bridge: the consumer must supply the integrations described in

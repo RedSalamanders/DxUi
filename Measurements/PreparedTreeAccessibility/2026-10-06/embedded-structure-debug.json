@@ -1,0 +1,39 @@
+{
+  "scope": "Embedded structure-delivery checkpoint; full Debug library matrix only; consumer and other profiles remain due",
+  "actualResult": {
+    "schema": 1,
+    "attempt": "matrix-r15",
+    "configuration": "Debug",
+    "platform": "x64",
+    "kind": "Test",
+    "ownerStartedUtc": "2026-10-06T06:57:13.4641051Z",
+    "childStarted": true,
+    "childStartedUtc": "2026-10-06T06:57:13.4707216Z",
+    "childExitedUtc": "2026-10-06T07:00:00.9343490Z",
+    "ownerCompletedUtc": "2026-10-06T07:00:02.4396336Z",
+    "childExitCode": 0,
+    "actualCompletion": "child-exit-0",
+    "validationPassed": true,
+    "validationErrors": [],
+    "fatalError": null,
+    "sourceFileCount": 200,
+    "productFileCount": 10,
+    "diagnosticFileCount": 43,
+    "sourceCopyHashManifest": "C:\\Users\\eric\\.codex\\worktrees\\p1-prepared-tree-accessibility\\DxUi\\.build\\prepared-tree-proof\\matrix-r15\\x64\\Debug\\Test\\source-copy-hash-manifest.json",
+    "productCopyHashManifest": "C:\\Users\\eric\\.codex\\worktrees\\p1-prepared-tree-accessibility\\DxUi\\.build\\prepared-tree-proof\\matrix-r15\\x64\\Debug\\Test\\product-copy-hash-manifest.json",
+    "diagnosticCopyHashManifest": "C:\\Users\\eric\\.codex\\worktrees\\p1-prepared-tree-accessibility\\DxUi\\.build\\prepared-tree-proof\\matrix-r15\\x64\\Debug\\Test\\diagnostic-copy-hash-manifest.json"
+  },
+  "sourceManifestHash": "A1158F67F269151B323B90DD98E9DB5B63DEA8A87FC9061C0EA5BD14221011E9",
+  "productManifestHash": "2DD252628188A3C691345B478D0446D33B480A9D8E19E00E9A103747316CF5AE",
+  "diagnosticManifestHash": "BE7DBF88B68623529FF47C51E255F499D1F20810C52E771E3CE28656F5EB0EC4",
+  "liveFrozenInputsVerified": 200,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-embedded-structure-delivery-debug-matrix",
+  "benchmarkInputs": {
+    "Tests/Controls/PreparedTreeAccessibilityEvents.h": "0698F8290F7B1540F7CA98B09D77E7E2F4BA9095AD5086CBA82D2397D850542C",
+    "Tests/Embedded/PreparedTreeAccessibilitySemantics.h": "3E31ED6887FE4D75E13228803A4A7271F1D9100FB44E1FD4AE9586F760765BF6",
+    "Tests/Embedded/PreparedTreeRootLifetimeTests.h": "52AA1E4EE15D2174C989C11246EB7A9BAF776A5DDD91B71E799CCB2A4BC7B230",
+    "Tests/Support/PreparedTreeSemanticFixture.h": "09704EA7FCBE7944FCF4E084D4C0678BA5E46E9284C099AF50391E2CBEAE61DD",
+    "Tests/Embedded/PreparedTreeAccessibilityFixture.h": "0494CF3AF7ED90D4B52816E2983C565F952AC2A6C063DE7C53DB596579F7A8E7"
+  }
+}
