@@ -628,6 +628,65 @@ void TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation()
     Require(ReadGridCellName(*currentCell) == L"revision-1-row-0-name", "the fresh query reads the new assignment's content");
 }
 
+void TestGridUiaPatternPreservesAssignmentDuringRowNavigation()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    GridUiaPatternModel model(2u);
+    Grid* grid = nullptr;
+    AttachGrid(window, model, grid);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IGridProvider> pattern;
+    RequireSucceeded(root.query_to(pattern.put()), "row-navigation race obtains GridPattern");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> cachedCell;
+    RequireSucceeded(pattern->GetItem(0, 0, cachedCell.put()), "cache the cell before the parent-row race");
+    wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release, "create row-navigation race events");
+    DebugSetAccessibilityPeerCreationGateForTest(window.Hwnd(), entered.get(), release.get());
+    std::atomic<HRESULT> workerResult{E_PENDING};
+    wil::com_ptr_nothrow<IRawElementProviderFragment> cachedFragment;
+    RequireSucceeded(cachedCell.query_to(cachedFragment.put()), "cached cell exposes Fragment");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> racedRow;
+    std::jthread worker;
+    bool gateArmed     = true;
+    const auto cleanup = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(SetEvent(release.get()));
+        if (worker.joinable())
+            worker.join();
+        if (gateArmed)
+            DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    });
+    worker =
+        std::jthread([&]() noexcept { workerResult.store(cachedFragment->Navigate(NavigateDirection_Parent, racedRow.put()), std::memory_order_release); });
+    Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, "pause parent navigation after its row lookup");
+    model.SetContentRevision(1u);
+    grid->SetModel(&model);
+    grid->NotifyDataChanged();
+    window.Host().RefreshAccessibilitySnapshot();
+    int rowCount = 0;
+    RequireSucceeded(pattern->get_RowCount(&rowCount), "publish a new assignment at the same model address before peer creation resumes");
+    Require(SetEvent(release.get()) != FALSE, "resume the row-navigation query");
+    worker.join();
+    DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    gateArmed = false;
+    RequireSucceeded(workerResult.load(std::memory_order_acquire), "the raced query returns its original-assignment peer");
+    Require(racedRow != nullptr, "the raced query produced a row");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> racedSimple;
+    RequireSucceeded(racedRow.query_to(racedSimple.put()), "raced row exposes Simple");
+    VARIANT name{};
+    VariantInit(&name);
+    const HRESULT staleResult = racedSimple->GetPropertyValue(UIA_NamePropertyId, &name);
+    VariantClear(&name);
+    Require(staleResult == UIA_E_ELEMENTNOTAVAILABLE, "a parent-row query cannot adopt a newer model assignment during peer creation");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> currentCell;
+    RequireSucceeded(pattern->GetItem(0, 0, currentCell.put()), "a fresh query resolves the current assignment");
+    Require(ReadGridCellName(*currentCell) == L"revision-1-row-0-name", "the fresh query reads the new assignment's content");
+}
+
 void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment()
 {
     using namespace DxUi;

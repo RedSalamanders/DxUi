@@ -4951,13 +4951,6 @@ private:
     return target && target->embedded ? CaptureAccessibilitySnapshot(target, hwnd) : nullptr;
 }
 
-[[nodiscard]] uint64_t CaptureGridModelAssignmentGeneration(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path) noexcept
-{
-    const auto snapshot                                        = CaptureAccessibilitySnapshot(target, hwnd);
-    const AccessibilityControlNavigationSnapshot* const record = snapshot ? FindControlNavigationRecord(*snapshot, path) : nullptr;
-    return record && record->isGrid ? record->gridModelAssignmentGeneration : 0u;
-}
-
 class AccessibilityProvider final : public IRawElementProviderSimple,
                                     public IRawElementProviderFragment,
                                     public IRawElementProviderFragmentRoot,
@@ -5045,15 +5038,19 @@ public:
     {
     }
 
-    AccessibilityProvider(
-        WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, uint64_t gridRowId, AccessibilityFragmentKind kind) noexcept
+    AccessibilityProvider(WindowHostAccessibilityTarget* target,
+                          HWND hwnd,
+                          const ControlPath& path,
+                          uint64_t gridRowId,
+                          AccessibilityFragmentKind kind,
+                          uint64_t gridModelAssignmentGeneration) noexcept
         : _target(target),
           _hwnd(hwnd),
           _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _path(path),
           _kind(kind),
           _gridRowId(gridRowId),
-          _gridModelAssignmentGeneration(kind == AccessibilityFragmentKind::GridRow ? CaptureGridModelAssignmentGeneration(target, hwnd, path) : 0u)
+          _gridModelAssignmentGeneration(gridModelAssignmentGeneration)
     {
     }
 
@@ -5196,14 +5193,17 @@ private:
     [[nodiscard]] IRawElementProviderFragment* CreateGridHeaderProvider(const ControlPath& path,
                                                                         size_t columnIndex,
                                                                         const AccessibilityControlIdentity& expectedIdentity) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateGridRowProvider(const ControlPath& path,
+    [[nodiscard]] IRawElementProviderFragment* CreateGridRowProvider(const AccessibilitySnapshot& sourceSnapshot,
+                                                                     const ControlPath& path,
                                                                      uint64_t rowId,
                                                                      const AccessibilityControlIdentity& expectedIdentity) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateGridCellProvider(const ControlPath& path,
+    [[nodiscard]] IRawElementProviderFragment* CreateGridCellProvider(const AccessibilitySnapshot& sourceSnapshot,
+                                                                      const ControlPath& path,
                                                                       uint64_t rowId,
                                                                       size_t columnIndex,
                                                                       const AccessibilityControlIdentity& expectedIdentity) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget,
+    [[nodiscard]] IRawElementProviderFragment* CreateProviderFromNavigationTarget(const AccessibilitySnapshot& sourceSnapshot,
+                                                                                  const AccessibilityNavigationTarget& navigationTarget,
                                                                                   const AccessibilityControlIdentity& expectedIdentity) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path,
                                                               size_t start,
@@ -6885,16 +6885,8 @@ HRESULT AccessibilityProvider::GetItem(int row, int column, IRawElementProviderS
         }
         HoldAccessibilityPeerCreationForTest(_hwnd);
         wil::com_ptr_nothrow<IRawElementProviderFragment> cellProvider;
-        // Keep the assignment that supplied this row lookup. Recapturing in the ordinary cell factory could bind
-        // the old row id to a newer model assignment published by the owner while a cached foreign query runs.
-        cellProvider.attach(MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
-            AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity},
-            _hwnd,
-            gridPath,
-            rowId,
-            static_cast<size_t>(column),
-            gridModelIdentity,
-            gridModelAssignmentGeneration));
+        cellProvider.attach(CreateGridCellProvider(
+            *snapshot, gridPath, rowId, static_cast<size_t>(column), AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity}));
         return cellProvider ? cellProvider->QueryInterface(IID_PPV_ARGS(outProvider)) : E_OUTOFMEMORY;
     }
     catch (const std::bad_alloc&)
@@ -7373,7 +7365,7 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         const auto* record = FindControlNavigationRecord(*snapshot, navigationTarget->path);
         return record ? CaptureControlIdentity(*record) : AccessibilityControlIdentity{};
     }();
-    *outProvider                                        = CreateProviderFromNavigationTarget(navigationTarget.value(), expectedIdentity);
+    *outProvider                                        = CreateProviderFromNavigationTarget(*snapshot, navigationTarget.value(), expectedIdentity);
     return S_OK; // A child retired after the captured snapshot is a transient empty answer for its surviving parent.
 }
 
@@ -7696,8 +7688,10 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
             break;
         }
         case AccessibilityFragmentKind::GridHeader: *outProvider = CreateGridHeaderProvider(hit->path, hit->gridColumnIndex, hitIdentity); break;
-        case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(hit->path, hit->gridRowId, hitIdentity); break;
-        case AccessibilityFragmentKind::GridCell: *outProvider = CreateGridCellProvider(hit->path, hit->gridRowId, hit->gridColumnIndex, hitIdentity); break;
+        case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(*snapshot, hit->path, hit->gridRowId, hitIdentity); break;
+        case AccessibilityFragmentKind::GridCell:
+            *outProvider = CreateGridCellProvider(*snapshot, hit->path, hit->gridRowId, hit->gridColumnIndex, hitIdentity);
+            break;
         case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(hit->path, hitIdentity); break;
         case AccessibilityFragmentKind::Root: *outProvider = CreateRootFragmentProvider(hitIdentity); break;
     }
@@ -7753,7 +7747,7 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
             if (focusedFragment.kind == AccessibilityFragmentKind::TreeItem)
                 *outProvider = CreateTreeItemProvider(focusedFragment.path, focusedFragment.treeItemId, identity);
             else if (focusedFragment.kind == AccessibilityFragmentKind::GridRow)
-                *outProvider = CreateGridRowProvider(focusedFragment.path, focusedFragment.gridRowId, identity);
+                *outProvider = CreateGridRowProvider(*snapshot, focusedFragment.path, focusedFragment.gridRowId, identity);
             else
                 *outProvider = CreateControlProvider(focusedFragment.path, identity);
             break;
@@ -8478,7 +8472,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
             for (const uint64_t rowId : record->selectedGridRowIds)
             {
                 wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-                fragment.attach(CreateGridRowProvider(record->path, rowId, CaptureControlIdentity(*record)));
+                fragment.attach(CreateGridRowProvider(*snapshot, record->path, rowId, CaptureControlIdentity(*record)));
                 wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
                 if (! fragment || FAILED(fragment.query_to(simple.put())))
                 {
@@ -10439,20 +10433,29 @@ IRawElementProviderFragment* AccessibilityProvider::CreateGridHeaderProvider(con
         expectedIdentity, _hwnd, path, columnIndex, AccessibilityProvider::GridHeaderTag{});
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateGridRowProvider(const ControlPath& path,
+IRawElementProviderFragment* AccessibilityProvider::CreateGridRowProvider(const AccessibilitySnapshot& sourceSnapshot,
+                                                                          const ControlPath& path,
                                                                           uint64_t rowId,
                                                                           const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(expectedIdentity, _hwnd, path, rowId, AccessibilityFragmentKind::GridRow);
+    const auto* record = FindControlNavigationRecord(sourceSnapshot, path);
+    if (! record || ! record->isGrid || ! record->gridModelIdentity || record->gridModelAssignmentGeneration == 0u)
+    {
+        return nullptr;
+    }
+    // The row id and assignment must come from the same query snapshot, even if the owner publishes a replacement
+    // before the peer is constructed. A peer for the retired assignment then disconnects instead of aliasing it.
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
+        expectedIdentity, _hwnd, path, rowId, AccessibilityFragmentKind::GridRow, record->gridModelAssignmentGeneration);
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const ControlPath& path,
+IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const AccessibilitySnapshot& sourceSnapshot,
+                                                                           const ControlPath& path,
                                                                            uint64_t rowId,
                                                                            size_t columnIndex,
                                                                            const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    const auto snapshot = CaptureSnapshot();
-    const auto cell     = snapshot ? FindSnapshotGridCellRecord(*snapshot, path, rowId, columnIndex) : std::nullopt;
+    const auto cell = FindSnapshotGridCellRecord(sourceSnapshot, path, rowId, columnIndex);
     if (! cell || ! cell->controlRecord->gridModelIdentity || cell->controlRecord->gridModelAssignmentGeneration == 0u)
     {
         return nullptr;
@@ -10461,7 +10464,8 @@ IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const
         expectedIdentity, _hwnd, path, rowId, columnIndex, cell->controlRecord->gridModelIdentity, cell->controlRecord->gridModelAssignmentGeneration);
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget,
+IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigationTarget(const AccessibilitySnapshot& sourceSnapshot,
+                                                                                       const AccessibilityNavigationTarget& navigationTarget,
                                                                                        const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
     switch (navigationTarget.kind)
@@ -10477,9 +10481,11 @@ IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigation
             return CreateTextFieldPasswordRevealButtonProvider(navigationTarget.path, expectedIdentity);
         case AccessibilityFragmentKind::TreeItem: return CreateTreeItemProvider(navigationTarget.path, navigationTarget.treeItemId, expectedIdentity);
         case AccessibilityFragmentKind::GridHeader: return CreateGridHeaderProvider(navigationTarget.path, navigationTarget.gridColumnIndex, expectedIdentity);
-        case AccessibilityFragmentKind::GridRow: return CreateGridRowProvider(navigationTarget.path, navigationTarget.gridRowId, expectedIdentity);
+        case AccessibilityFragmentKind::GridRow:
+            return CreateGridRowProvider(sourceSnapshot, navigationTarget.path, navigationTarget.gridRowId, expectedIdentity);
         case AccessibilityFragmentKind::GridCell:
-            return CreateGridCellProvider(navigationTarget.path, navigationTarget.gridRowId, navigationTarget.gridColumnIndex, expectedIdentity);
+            return CreateGridCellProvider(
+                sourceSnapshot, navigationTarget.path, navigationTarget.gridRowId, navigationTarget.gridColumnIndex, expectedIdentity);
         default: return nullptr;
     }
 }
@@ -10720,8 +10726,14 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
                 raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path, fragment->treeItemId, AccessibilityProvider::TreeItemTag{});
                 break;
             case AccessibilityFragmentKind::GridRow:
-                raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path, fragment->gridRowId, AccessibilityFragmentKind::GridRow);
+            {
+                const auto* record = FindControlNavigationRecord(*snapshot, fragment->path);
+                if (! record || ! record->isGrid || record->gridModelAssignmentGeneration == 0u)
+                    return false;
+                raw = new (std::nothrow) AccessibilityProvider(
+                    target.get(), hwnd, fragment->path, fragment->gridRowId, AccessibilityFragmentKind::GridRow, record->gridModelAssignmentGeneration);
                 break;
+            }
             default: raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path); break;
         }
         if (! raw)
@@ -10759,10 +10771,15 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
     const auto live             = [&](const SelectionChange& change) noexcept { return connected() && published(change); };
     const auto makeItemProvider = [&](const SelectionChange& change, uint64_t id) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
     {
+        const auto* record = expectedSnapshot ? FindControlNavigationRecord(*expectedSnapshot, change.path) : nullptr;
+        if (change.itemKind == AccessibilityFragmentKind::GridRow && (! record || ! record->isGrid || record->gridModelAssignmentGeneration == 0u))
+            return {};
         static_cast<void>(target.AddRef());
-        AccessibilityProvider* const raw = change.itemKind == AccessibilityFragmentKind::GridRow
-                                               ? new (std::nothrow) AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityFragmentKind::GridRow)
-                                               : new (std::nothrow) AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityProvider::TreeItemTag{});
+        AccessibilityProvider* const raw =
+            change.itemKind == AccessibilityFragmentKind::GridRow
+                ? new (std::nothrow)
+                      AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityFragmentKind::GridRow, record->gridModelAssignmentGeneration)
+                : new (std::nothrow) AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityProvider::TreeItemTag{});
         if (! raw)
         {
             static_cast<void>(target.Release());

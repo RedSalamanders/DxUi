@@ -8,4 +8,5 @@ void TestGridUiaPatternStopsWhenCellReadNotifiesSameModel();
 void TestGridUiaPatternStopsPointHitsAfterModelReplacement();
 void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment();
 void TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation();
+void TestGridUiaPatternPreservesAssignmentDuringRowNavigation();
 void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary();
