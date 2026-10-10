@@ -409,6 +409,8 @@ void Splitter::SetPosition(float positionDip) noexcept
     }
     _positionDip = clamped;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 float Splitter::GetPosition() const noexcept
@@ -435,7 +437,7 @@ bool Splitter::RequestPosition(ControlHost& host, float positionDip) noexcept
 
 void Splitter::SetOnChange(std::function<void(SplitterChange)> onChange)
 {
-    _onChange = std::move(onChange);
+    ReplaceControlCallback(_onChange, std::move(onChange));
 }
 
 bool Splitter::IsDragging() const noexcept
@@ -560,7 +562,10 @@ bool Splitter::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
     {
         return false;
     }
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _dragging             = true;
     _dragStartPositionDip = _positionDip;
     _dragPointerOffsetDip = PointerAxis(point) - _positionDip;
@@ -697,19 +702,23 @@ WindowHostCursorKind Splitter::ResolveCursorKind(ControlHost& /*host*/, D2D1_POI
 
 void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
         const auto changed = _onChange;
         const float value  = _positionDip;
         if (changed)
         {
-            changed({phase, value});
+            (*changed)({phase, value});
         }
     }
     catch (const std::exception&)
     {
         Debug::Warning(L"Splitter change callback failed");
     }
+    if (! lifetime.expired())
+        if (ControlHost* const host = GetHost())
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 // ── NumericStepper ───────────────────────────────────────────────────────
@@ -996,7 +1005,7 @@ void NumericStepper::ApplyValue(ControlHost* host, double value, NumericStepperC
 
 void NumericStepper::SetOnChange(std::function<void(NumericStepperChange)> onChange)
 {
-    _onChange = std::move(onChange);
+    ReplaceControlCallback(_onChange, std::move(onChange));
 }
 
 bool NumericStepper::IsEditing() const noexcept
@@ -1186,7 +1195,7 @@ void NumericStepper::NotifyChange(NumericStepperChangePhase phase) noexcept
         const double value = _value;
         if (changed)
         {
-            changed({phase, value});
+            (*changed)({phase, value});
         }
     }
     catch (const std::exception&)
@@ -1476,7 +1485,7 @@ void ColorPicker::Cancel(ControlHost& host) noexcept
 
 void ColorPicker::SetOnChange(std::function<void(ColorPickerChange)> onChange)
 {
-    _onChange = std::move(onChange);
+    ReplaceControlCallback(_onChange, std::move(onChange));
 }
 
 bool ColorPicker::IsDragging() const noexcept
@@ -1820,7 +1829,10 @@ bool ColorPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return false;
     }
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     host.CaptureMouse(this);
     UpdateFromPoint(host, point);
     return true;
@@ -1952,7 +1964,7 @@ void ColorPicker::NotifyChange(ColorPickerChangePhase phase) noexcept
         const uint32_t argb = _argb;
         if (changed)
         {
-            changed({phase, argb});
+            (*changed)({phase, argb});
         }
     }
     catch (const std::exception&)

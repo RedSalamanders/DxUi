@@ -1,8 +1,22 @@
 # Performance and testing
 
+The migrated paired study is currently **policy-review-required**. A changed pull request cannot pass on its own candidate
+policy. The measured base must contain an independently reviewed, qualified versioned policy, and every receipt must carry
+full source, executable, benchmark, harness, toolchain, dependency, machine, CPU, OS, GPU/driver, WARP binary, system DPI
+and power-policy identity. Toolchain identity comes from MSBuild-evaluated properties and compiler/linker/MSBuild/default-
+toolset hashes, imported project files, resolved compiler settings, and the selected SDK headers/libraries. Dependency
+identity includes the platform-scoped vcpkg status, installed package inventories/ABI metadata, and runtime DLL closure.
+Missing or unavailable identity inputs remain inconclusive. Historical
+reports remain readable under the legacy judge; the migrated CI gate treats them as read-only, never as qualified passes.
+
 DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
+The [recent-merge review packet](../Measurements/Review-2026-10-08/README.md) retains its original baseline,
+targeted failure evidence and final-candidate qualification boundaries.
+The [remaining-branch integration record](../Measurements/BranchIntegration/2026-10-10/README.md) retains PR #69's
+six-profile native and synthetic consumer results, reproduced model-assignment races and inconclusive paired study.
+Its functional merge leaves benchmark-policy and ARM64 foreground qualification open.
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)
@@ -33,39 +47,49 @@ When the benchmark itself changed, or the baseline predates it, measure both rev
 .\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid,MultilineGridDistinct
 ```
 
-It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1`, comparator
-and benchmark inputs into it, builds both trees and runs the interleaved pass A1, B1, B2, A2 serially (A is the
-baseline). `-Repetitions` (default 3, at most 10) repeats that pass as A3, B3, B4, A4 and so on, so each side ends
-with six runs per scenario by default. `-SkipBuild` reuses the existing build of this checkout and of named
+It creates a detached baseline worktree under `.build/paired`, copies this checkout's measurement scripts, comparator
+and benchmark inputs into it, builds both trees, then runs at least twelve independently randomized blocks per scenario.
+Each block independently draws ABBA or BAAB with equal probability, with two runs per side in either order. Counts across
+blocks are unconstrained; the versioned allocation protocol, seed and literal schedule are retained and replayed. That is 24 runs per side at the
+default, not 12 independent observations. `-Blocks` accepts 12–20 and `-Seed` replays an explicit schedule. `-SkipBuild`
+reuses the existing build of this checkout and of named
 trees (below); detached worktrees always build. `-CandidateRevision` measures a second
 historical revision instead of this checkout, still with this checkout's harness.
 
-What a set establishes. A single pass gave each side two runs, and on 2026-09-30 all 14 same-binary controls on the
-developer laptop drifted beyond their bands, so no set there established anything. The verdict is now the set's, not a
-pass's. For every phase (clean, dirty) and metric, an exact two-sided Mann-Whitney U test compares the baseline's run
-medians with the candidate's (each run's median over its five rounds; six against six by default), and the
-candidate's median shift is compared with the metric's investigation band:
+The migrated verdict uses direction-normalized paired log-ratios per independent block and a two-sided exact sign-flip
+randomization test. Holm step-down controls familywise alpha 0.05 over all 26 predeclared phase/metric slots. Twelve blocks
+can reach p = 2/4096 = 0.000488, below the first Holm boundary 0.05/26; six runs per side were not enough for that
+family. The legacy six-run Mann–Whitney judge remains available to read historic receipts, but cannot pass migrated CI.
+Study schema 3 and judge v2 reject earlier globally balanced allocation records: that design does not support the
+independent sign-flip distribution. Old measurements remain diagnostic evidence; qualification requires fresh studies.
 
-- A metric is `regressed` (or `improved`) only when p < 0.05 and the candidate's median lies beyond its band, 5%
+- A metric is `regressed` (or `improved`) only when its Holm-adjusted p is at most 0.05 and the candidate's median lies beyond its band, 5%
   for timing and FPS and 2% for process memory, on the worse (better) side. Anything else is `within-noise`: a
   significant shift inside the band, and a shift beyond it that the runs cannot separate from noise, are both
   reported with their values and neither is a verdict.
-- Exact budgets (surface bytes, replacement peak, C++ allocations) stay exact: any candidate run above the
-  baseline runs' median is `regressed`, whatever the test says.
+- Exact budgets (surface bytes, replacement peak, C++ allocations) stay exact: any candidate run median above the
+  baseline run-median median is `regressed`, and a raw candidate-round maximum above the retained baseline raw maximum
+  independently regresses. The summary reports the baseline/candidate maxima and median/peak verdicts separately.
 - The set is `advice-required` when any metric is `regressed`, otherwise `within-noise-budget`, which says that no
-  change was established, not that none exists. Advice-required needs the developer's advice as before (optimize,
-  reduce scope or defer, never a silent rebaseline), once the same set repeats on a quiet fixture: about 26 metric
-  tests run per scenario, so a chance verdict is possible.
-- The runs a set can separate limit what it can establish. Complete separation of six runs against six reaches
-  p = 2/924 = 0.0022, four against four 0.029, and two against two only 0.33, which can never reach 0.05: a single
-  pass (`-Repetitions 1`) can establish only a rise in an exact budget. Each set records this smallest attainable p.
-- Each side's own spread across its runs is printed with every verdict as context and never vetoes one. The
-  per-pass comparisons (B1/A1 and B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls, marked
-  `unstable-control` when they drift beyond a band in either direction) are kept for continuity and are context too.
+  change was established, not that none exists. Advice-required needs developer advice (optimize, reduce scope or defer;
+  never a silent rebaseline). Holm correction caps the declared family's false-positive rate at 0.05.
+- The analysis uses blocks as the independent units; the two runs per side inside each block summarize that block and do
+  not increase the inferential sample count. Exact surface/allocation budgets bypass p-values and keep both the
+  any-candidate-run-median-above-baseline-median rule and the independent no-tolerance raw-peak rule.
+- Identical source or executable fingerprints are provenance only and do not classify timing flags as chance. A/A
+  calibration is a separate study that builds one explicit revision once and measures its exact executable under
+  both randomized labels, retaining separate receipts for every invocation. Missing or mismatched full
+  harness/toolchain/executable/dependency identity is
+  inconclusive. Every copied harness input, including historical include aliases, is byte-verified after overlay and
+  around execution. A corrupt copy or failed restoration is a failed study, retained for diagnosis before a fresh run.
 
-`summary.json` keeps every run's medians and, for each scenario, the set's per-metric run values, medians, shift,
-spread, p-value and verdict; `Compare-PerformanceSet` in `Tools/PerformanceComparison.psm1` judges a set again from its
-retained receipts.
+`summary.json` keeps the seed, block order, every receipt hash, the migrated decision and the legacy decision over those
+same receipt bytes. The legacy judge is loaded from the measured base commit's immutable Git object in its own module
+scope; both source hashes and verdict agreement are retained, and report bytes are rehashed before and after judgment.
+Unavailable base code, changed reports or changed verdicts remain `policy-review-required`/inconclusive until reviewed.
+A changed judge, assignment generator or policy remains `policy-review-required` until the base policy is independently
+qualified. The policy binds the assignment protocol and normalized generator/replay source hash as well as the judge;
+candidate code cannot inherit trust by retaining the protocol name or self-approve the trust policy.
 
 To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
 existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against
@@ -79,10 +103,54 @@ vcpkg manifests), because nothing differs to measure; that is how uncommitted wo
 compared with it. `-SkipBuild` on a named tree needs its existing build, and refuses a tree whose overlay changed a
 compiled benchmark input, since that build predates the harness its receipts would name. `summary.json` records each
 side's revision or path, commit and source fingerprint. Every receipt, comparison and
-`summary.json` is retained; an `advice-required` set still needs developer advice. A manual run of the
-[validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
-and `benchmark_scenarios`) does the same, with three repetitions, on one hosted x64 runner and uploads
-`paired-benchmark-x64-Release`.
+`summary.json` is retained; an `advice-required` set still needs developer advice.
+
+A merge does not have to wait for a quiet developer machine: the [validation workflow](../.github/workflows/ci.yml) runs
+the study on one hosted x64 Release runner. The current workflow allocates 180 minutes for pull requests and 240 minutes
+for manual diagnostic runs because twelve blocks across three scenarios produce 144 benchmark receipts. Its
+[contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate) has the rules; in short:
+
+- **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
+  headers, the build props and vcpkg manifests, the sources of the benchmark executable, its fixtures and samples, the
+  build and measurement scripts and the workflow; never Markdown) is measured by the `paired-benchmark` job. It compares
+  the pull request's merge ref with that merge commit's first parent, the base as the merge ref was made, in `Default`,
+  `MultilineGrid` and `MultilineGridDistinct`, twelve independent blocks each: 24 runs per side per scenario. The job starts for every pull
+  request to `main`: its first step decides from the changed paths and its summary names the files that did, and a pull
+  request that changes none of them ends the job within a couple of minutes, passed, without restoring or measuring
+  anything. The job is not skipped for such a pull request because GitHub names a skipped job by its unevaluated name
+  expression, which a required check would never see. The check `paired-benchmark (pull request)` (named apart from the
+  push and manual runs of the same job, so that a required check names one check run) can therefore be made required in
+  branch protection without holding documentation changes. A step that cannot decide fails the job: nothing passes
+  unmeasured because its scope could not be read.
+- **Manual runs.** A manual run with `benchmark_baseline` (and optionally `benchmark_candidate` and `benchmark_scenarios`)
+  measures the revisions it names with twelve blocks by default. It publishes the verdict the same way and stays green for a
+  finding; only a pull request is gated. A manual run is its own concurrency group, so a later push does not cancel it,
+  while a newer push to a pull request cancels that pull request's older run.
+- **What is published.** The job summary lists each scenario's set verdict and every metric's medians, change, p-value,
+  band, same-binary controls and outcome, flagged metrics first. `paired-benchmark-x64-Release` keeps every receipt,
+  comparison, `summary.json` and `verdict.json` for 14 days; copy a run worth keeping into `Measurements`.
+- **What fails a pull request.** During migration, `policy-review-required` and every `inconclusive` or degraded result fail.
+  This includes historic summaries, an untrusted or changed policy, and missing/mismatched toolchain, executable,
+  harness or dependency identity. The candidate cannot establish its own trust anchor. A regression is never dismissed
+  from a matching source fingerprint alone. Hosted controls drift in several timings in almost every run (the
+  [calibration set](../Measurements/HostedPairedGate/2026-10-01/README.md) records 18 of 18), which is why the controls of
+  the flagged metric decide and not all twenty-six; exact budgets never drift, so a rise in one always confirms. A
+  [second calibration set](../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) of identical code flagged five
+  clean-phase timings, each with a drifted control: inconclusive, so expect an occasional re-run.
+- **Unchanged library code.** Matching source/executable hashes identify what ran but do not form a noise model. Timing and
+  memory flags remain unresolved until trusted calibration supports the inference; exact budgets remain deterministic.
+- **No verdict.** A run that cannot finish fails with the reason in its summary. The usual cause is a pull request that
+  changes the harness and the library's interfaces together: its base cannot be built with the merge ref's harness, so
+  measure that comparison by hand with `performance-paired.ps1`, as before.
+- **Approved tradeoffs.** The gate has no waiver list. A tradeoff the developer approves is recorded in the
+  [contract](../Specs/Core/Core_PerformanceAndResources.md) with its measured budget, as the accepted ones are, and a
+  maintainer merges over the failed check.
+
+To judge a local or retained run the same way, point the verdict script at its reports directory:
+`./Tools/Publish-BenchmarkVerdict.ps1 -Reports .build/paired/<run>/reports [-Gate]` prints the summary, writes `verdict.md`
+and `verdict.json` beside `summary.json` and, with `-Gate`, exits 1 for anything but a pass. A laptop in use drifts in
+every control, so a flagged metric there reads as inconclusive.
+
 Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
@@ -133,7 +201,7 @@ Release, 320 in Debug where the debug STL allocates container proxies; clean rou
 surface payload and replacement peak, process private bytes and working set
 with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
-auditable. The fixture fingerprint covers the minimal benchmark entry (`BenchmarkMain.h`), benchmark, shared
+auditable. The fixture fingerprint covers the minimal benchmark entry (`Embedded.Tests.BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate
 non-inlined function so their stack frame is not part of benchmark entry. Changes to those inputs invalidate earlier fixture comparisons, so measure a fresh baseline with the final harness on the previous implementation before comparing a candidate. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
 
@@ -170,8 +238,9 @@ constant, rotates described-row counts and samples before opening, after ordinar
 paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
 are retained in the suite log, including DPI, entry counts and process/handle
 counters. Release x64 CI runs it alongside the existing native matrix.
-This suite and `MenuResources` require foreground interaction. Local runs use the
-authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
+This suite and `MenuResources` require foreground interaction. Run them locally with
+`./test.ps1 -Interactive -Suites MenuResourceScaling` (or `MenuResources`), which asks first, holds
+the desktop lease and restores the foreground window, focus and cursor; `--no-activate`
 is rejected. V4 records all 320 native extents from a visible owned parent on one
 monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
 The first description enables a whole-menu semantic tree; later descriptions add
@@ -180,18 +249,30 @@ not a measurement of one entry's allocation. Treat this as attribution evidence,
 not a substitute for the required matched-source performance comparison.
 
 `./test.ps1 -Configuration Release -Suites MenuTextLayoutResources` isolates the
-native text-layout path: twelve Body labels, twelve Small descriptions and their
-pairs, sampled before creation, before/after metrics and after release. It uses
-32 rotated cycles without popup, semantic tree or paint and does not take focus.
-Compare its live-heap deltas with the whole-menu probe; private-memory changes
-still include allocator retention and cannot identify an individual allocation.
+native text-layout path: twelve Body labels, twelve Small descriptions, their
+pairs (what a described row held before it held one layout) and twelve rows of one
+formatted layout each (what it holds now), sampled before creation, before/after
+metrics and after release. It uses 32 rotated cycles without popup, semantic tree
+or paint and does not take focus. Compare its live-heap deltas with the whole-menu
+probe; private-memory changes still include allocator retention and cannot identify
+an individual allocation. Fixture v5 of `MenuResourceScaling` also opens described
+menus whose captions all differ, which the earlier cases (one caption in every row)
+cannot show.
 
 The [popup-local sharing experiment](../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
 compares separate, combined and shared native layouts. Sharing equal text/font/width
 reduces duplicate shaping storage; unique captions do not have the same saving.
 Its text-only evidence is separate from whole-menu and common-scene acceptance.
 The same packet retains a matched whole-menu comparison: twelve repeated-caption
-rows use 575,310 versus 367,894 live heap bytes. The
+rows use 575,310 versus 367,894 live heap bytes. A described row now holds the one
+formatted layout that experiment called combined, instead of shared layouts, so the
+saving no longer depends on repeated captions. The
+[row-layout packet](../Measurements/MenuDescriptions/2026-09-30/row-layout/README.md)
+measures it against that sharing in the whole menu (Release x64, `MenuResourceScaling`
+v5, open minus before): rows with distinct captions use 33.7% (twelve), 36.6% (24) and
+38.2% (48 rows) fewer live heap bytes, and rows that all repeat one caption use 1.6%,
+4.8% and 6.9% more. Its captures and the gallery sheets are byte-identical to main's.
+It is live heap in an open menu, not the common-scene flag below. The
 [six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
 passes functionally with explicit ARM64 desktop skips. Its common-scene timing flags compare two
 described-menu builds, not the feature against unchanged main; the matched pairs against main never
@@ -209,7 +290,7 @@ a full selection that draw alike), times `IsSelected` per call over selections o
 an order a processor learns and in a random one it cannot, counts the C++ heap bytes a selection model holds after Ctrl+A
 and after each way back from it, times the selection model's mutators with their C++ heap bytes and `PreserveOrdered` over
 a long list, and reports how many rows the default complex-UI scene's Grid
-holds selected (none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
+holds selected (none). Its entry is dispatched outside `Embedded.Tests.BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
 Compare builds of the one harness as an interleaved A, B, B, A set (A, B, C, C, B, A for three). The
 [record of the sorted selection copy](../Measurements/GridSelection/2026-10-01/README.md) does so, ten runs per side
 twice and then for three builds: `IsSelected` costs 9 to 16 ns from 1,500 to 1,000,000 selected ids when a processor can
@@ -261,8 +342,10 @@ before it fails, and is what CI's validation job runs (each validator also runs 
 tests beside its native suites). No validator scan enters a nested git checkout, such as an agent's worktree under
 `.claude/worktrees`, so a half-edited copy cannot fail this tree. The comparator behind
 `performance.ps1` is `Tools/Compare-Performance.ps1`; its tests reproduce every stored paired comparison under
-Measurements exactly. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
-changes; native ARM64 CI must also pass. To iterate on one control test instead of its whole suite, run
+Measurements exactly. Follow `Test-Changes.ps1 -Explain` and the affected default while editing; `-Mode PrePush`
+accounts for full local and actual PR coverage without duplicating identical evidence. Code changes require x64
+Debug, Release and ASan Debug execution and ARM64 builds in all three configurations; native ARM64 runtime must
+also pass. To iterate on one control test instead of its whole suite, run
 `./test.ps1 -Configuration Debug -Platform x64 -SkipBuild -Suites Menu -Tests TestDescribedMenuReleasesItsMemoryWhenItCloses`
 (or `DxUi.ControlTests.exe --suite=Menu --test=<Name>[,<Name>]`): only the named tests run, an unknown name fails the run,
 and the receipt is a separate `*.filtered.json` file. It supports development; a change is validated by the whole suites.
@@ -271,6 +354,25 @@ tests) a deadline, 300 s by default, and a test that outlives it ends the run wi
 code 124. `DxUi.ControlTests.exe --test-timeout=<seconds>` (`test.ps1 -TestTimeout <seconds>`) changes it and 0 turns it off,
 which debugging a test needs; every run prints its deadline on a `[WATCHDOG]` line and every `[DONE]` marker carries the
 test's duration. `test.ps1` prints a failing suite's exit code, its `TIMEOUT:` line and the last lines of its log.
+
+More than twenty control tests need the person's real desktop (focus, the foreground, the pointer), and a run that cannot get
+it records a capability skip for each. They live in the `Menu` suite (the described-menu group of them also runs, and skips, in the
+nonactivating `NewControls` lane) and in `NativeTextInput`, which `DxUi.ControlTests.exe`
+therefore never runs with `--no-activate`. Ordinary affected and Full runs leave these focus-taking suites out.
+To run them deliberately, use `./test.ps1 -Interactive -Configuration Debug -Platform x64` (add
+`-SkipBuild` after a build; `-Suites MenuResources` or `MenuResourceScaling` adds the menu resource fixtures, and `-Tests` and
+`-TestTimeout` work as usual). It runs only the interactive suites, after the checks and the benchmark of every run, under the
+interactive desktop lease: it refuses before building anything in a CI job or a process without a desktop, checks the session
+(a locked screen, a disconnected session and a screen saver also refuse), and then asks. The dialog says what will happen and for
+about how long, its default button is Cancel and it cancels itself after two minutes with no answer, so nothing is taken
+unless someone chooses Start. While the suites run a banner at the top of the screen says to keep hands off the keyboard and
+mouse, and when they end, fail, hit the watchdog (exit code 124) or are stopped with Ctrl+C, the foreground window, its keyboard
+focus and the pointer position are put back and the result is printed (`Restoration: foreground=... focus=... cursor=...`). A
+suite that records a skip fails the run, since the run exists to execute what other runs skip. Logs and receipts carry the suffix
+`.interactive`. Expect about a minute and a half of checks, then about a minute and a half with the desktop taken in x64 Debug
+(a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
+[validation contract](../Specs/Testing/Testing_Validation.md) has the details.
+
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual

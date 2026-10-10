@@ -1,0 +1,462 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Rendering
+  [START] TestGridMultilineClampPreservesCompleteModelText
+Grid clamp ink rows: full=71 clamped=29
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineClampPreservesCompleteModelText (2.131 s)
+  [START] TestGridMultilineShortRowsPaintClippedFirstLine
+Grid short multiline row (minimum row, Body): text=989 outside=0
+    [TRACE] attached host dtor: begin
+Grid short multiline row (compact default row, Body): text=1014 outside=0
+Grid short multiline row (minimum row, Title taller than the cell): text=1350 outside=0
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineShortRowsPaintClippedFirstLine (0.384 s)
+  [START] TestGridMultilineTrailingSeparatorsMatchTrimmedTwin
+Grid multiline trailing-separator twin: single paragraph ending in CRLF, clamp 1
+Grid multiline trailing-separator twin: two paragraphs ending in CRLF, clamp 2
+Grid multiline trailing-separator twin: two paragraphs ending in CRLF, clamp 3
+Grid multiline trailing-separator twin: trailing paragraph separator
+Grid multiline trailing-separator twin: trailing line separators
+Grid multiline trailing-separator twin: space before an omitted paragraph
+Grid multiline trailing-separator twin: space ending the last visible line
+Grid multiline trailing-separator twin: trailing next-line character, clamp 1
+Grid multiline trailing-separator twin: trailing vertical tab, clamp 2
+Grid multiline trailing-separator twin: trailing form feed, clamp 2
+Grid multiline trailing-separator twin: blank last line of spaces
+Grid multiline trailing-separator twin: blank last line of a tab
+Grid multiline trailing-separator twin: blank last line of a no-break space
+Grid multiline trailing-separator twin: blank last line of an em space
+Grid multiline trailing-separator twin: blank last line of narrow and thin spaces
+Grid multiline trailing-separator twin: blank last line of a zero-width space
+Grid multiline trailing-separator twin: blank last line of a byte order mark and a word joiner
+Grid multiline trailing-separator twin: blank last line of a directional mark
+Grid multiline trailing-separator twin: blank last line of a soft hyphen
+Grid multiline trailing-separator twin: blank last line of an Arabic letter mark
+Grid multiline trailing-separator twin: blank last line closing an embedding and an isolate
+Grid multiline trailing-separator twin: blank last line of a grapheme joiner and a variation selector
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineTrailingSeparatorsMatchTrimmedTwin (2.064 s)
+  [START] TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell
+Grid distinct multiline cells 6x4: visible 24, repaint lookups 56, hits 56, new layouts 0, retained 28 of 32
+Grid distinct multiline cells 6x4: one-row scroll lays out 8 layouts
+Grid distinct multiline cells 6x4: one-row scroll up lays out 8 layouts
+Grid distinct multiline cells 7x4: visible 28, repaint lookups 64, hits 64, new layouts 0, retained 32 of 32
+Grid distinct multiline cells 7x4: one-row scroll lays out 8 layouts
+Grid distinct multiline cells 7x4: one-row scroll up lays out 8 layouts
+Grid distinct multiline cells 10x6: visible 60, repaint lookups 132, hits 132, new layouts 0, retained 66 of 128
+Grid distinct multiline cells 10x6: one-row scroll lays out 12 layouts
+Grid distinct multiline cells 10x6: one-row scroll up lays out 12 layouts
+Grid distinct multiline cells 6x4: visible 24, repaint lookups 56, hits 56, new layouts 0, retained 28 of 32
+Grid distinct multiline cells 6x4: one-row scroll lays out 8 layouts
+Grid distinct multiline cells 6x4: one-row scroll up lays out 8 layouts
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell (1.086 s)
+  [START] TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix
+Grid oversized multiline value (100,000 units, clamp 2): shaped 481 UTF-16 units in 2 layouts
+    [TRACE] attached host dtor: begin
+Grid oversized multiline value (another long value, clamp 2): shaped 0 UTF-16 units in 1 layouts
+Grid oversized multiline value (3,000-unit twin, clamp 2): shaped 481 UTF-16 units in 2 layouts
+Grid oversized multiline value, clamp 2: repaint lays out 0 layouts, another long value shapes 0 units
+Grid oversized multiline value (100,000 units, clamp 1): shaped 243 UTF-16 units in 2 layouts
+Grid oversized multiline value (another long value, clamp 1): shaped 0 UTF-16 units in 1 layouts
+Grid oversized multiline value (3,000-unit twin, clamp 1): shaped 243 UTF-16 units in 2 layouts
+Grid oversized multiline value, clamp 1: repaint lays out 0 layouts, another long value shapes 0 units
+Grid oversized multiline value (100,000 units, clamp 1000): shaped 971 UTF-16 units in 2 layouts
+Grid oversized multiline value (another long value, clamp 1000): shaped 0 UTF-16 units in 1 layouts
+Grid oversized multiline value (3,000-unit twin, clamp 1000): shaped 971 UTF-16 units in 2 layouts
+Grid oversized multiline value, clamp 1000: repaint lays out 0 layouts, another long value shapes 0 units
+Grid oversized multiline value (100,000 units in a 3,000-DIP cell): shaped 6200 UTF-16 units in 2 layouts
+Grid oversized multiline value in a 3,000-DIP cell: shaped 6200 units, repaint lays out 0 layouts
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix (0.664 s)
+  [START] TestGridSingleLineLayoutsSurviveRepaintAndScroll
+Grid single-line cells at 28 DIP rows: a one-row scroll lays out 4 layouts
+    [TRACE] attached host dtor: begin
+Grid single-line cells at 28 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 28 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 28 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 22.96 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 22.96 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 22.96 DIP rows: a one-row scroll lays out 4 layouts
+Grid single-line cells at 22.96 DIP rows: a one-row scroll lays out 4 layouts
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSingleLineLayoutsSurviveRepaintAndScroll (0.586 s)
+  [START] TestGridPaintedLayoutsAreThoseOfItsVisibleCells
+Grid holds, multiline 6x4 distinct cells at 48 DIP rows (28 drawn cells): value table 28 layouts of 32 entries, omitted-tail table 0 of 32, keys 3080 units (6160 bytes), tables 5632 bytes, ellipsis sign held
+Grid holds, multiline 6x4 after scrolling through every row: value table 24 layouts of 32 entries, omitted-tail table 0 of 32, keys 3403 units (6806 bytes), tables 5632 bytes, ellipsis sign held
+Grid holds, multiline 7x4 distinct cells at 48 DIP rows (32 drawn cells): value table 32 layouts of 32 entries, omitted-tail table 0 of 32, keys 3520 units (7040 bytes), tables 5632 bytes, ellipsis sign held
+Grid holds, multiline 7x4 after scrolling through every row: value table 28 layouts of 64 entries, omitted-tail table 0 of 32, keys 4056 units (8112 bytes), tables 8704 bytes, ellipsis sign held
+Grid holds, multiline 10x6 distinct cells at 48 DIP rows (66 drawn cells): value table 66 layouts of 128 entries, omitted-tail table 0 of 32, keys 5934 units (11868 bytes), tables 14848 bytes, ellipsis sign held
+    [TRACE] attached host dtor: begin
+Grid holds, multiline 10x6 after scrolling through every row: value table 60 layouts of 128 entries, omitted-tail table 0 of 32, keys 7038 units (14076 bytes), tables 14848 bytes, ellipsis sign held
+Grid holds, single-line 10x4 distinct cells at 28 DIP rows (44 drawn cells): value table 44 layouts of 64 entries, omitted-tail table 0 of 0, keys 5940 units (11880 bytes), tables 6144 bytes, ellipsis sign none
+Grid holds, single-line 10x4 after scrolling through every row: value table 40 layouts of 64 entries, omitted-tail table 0 of 0, keys 6885 units (13770 bytes), tables 6144 bytes, ellipsis sign none
+Grid holds, single-line 10x4 distinct cells at 22.96 DIP rows (44 drawn cells): value table 44 layouts of 64 entries, omitted-tail table 0 of 0, keys 5940 units (11880 bytes), tables 6144 bytes, ellipsis sign none
+Grid holds, single-line 10x4 after scrolling through every row: value table 40 layouts of 64 entries, omitted-tail table 0 of 0, keys 7425 units (14850 bytes), tables 6144 bytes, ellipsis sign none
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridPaintedLayoutsAreThoseOfItsVisibleCells (1.769 s)
+  [START] TestGridReleasesItsLayoutsWhenItStopsPainting
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridReleasesItsLayoutsWhenItStopsPainting (2.681 s)
+  [START] TestGridInAnUnselectedTabReleasesItsLayouts
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridInAnUnselectedTabReleasesItsLayouts (0.350 s)
+  [START] TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix
+Grid single-line caption (100,000 units): shaped 363 UTF-16 units
+    [TRACE] attached host dtor: begin
+Grid single-line caption (110-unit twin, shaped whole): shaped 110 UTF-16 units
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix (0.250 s)
+  [START] TestGridMultilineOmissionMarkerFollowsTheTextDirection
+Grid omission marker (Latin text): twin ink 29..157, changed inside 0, changed after 14
+Grid omission marker (Arabic text): twin ink 29..132, changed inside 562, changed after 32
+Grid omission marker (Arabic text ending in an emoji): twin ink 29..152, changed inside 703, changed after 32
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineOmissionMarkerFollowsTheTextDirection (0.428 s)
+  [START] TestGridMultilineDecomposedAccentsPaintLikePrecomposed
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineDecomposedAccentsPaintLikePrecomposed (0.721 s)
+  [START] TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin
+Grid shaped prefix cut, clamp 1, surrogate pairs: shaped units 241..243
+Grid shaped prefix cut, clamp 1, zero-width-joiner family sequences: shaped units 241..243
+Grid shaped prefix cut, clamp 1, a letter and a combining accent: shaped units 243..243
+Grid shaped prefix cut, clamp 1, a letter and two combining marks: shaped units 243..243
+Grid shaped prefix cut, clamp 2, surrogate pairs: shaped units 480..481
+Grid shaped prefix cut, clamp 2, zero-width-joiner family sequences: shaped units 480..481
+Grid shaped prefix cut, clamp 2, a letter and a combining accent: shaped units 481..481
+Grid shaped prefix cut, clamp 2, a letter and two combining marks: shaped units 481..481
+Grid shaped prefix cut, clamp 3, surrogate pairs: shaped units 614..615
+Grid shaped prefix cut, clamp 3, zero-width-joiner family sequences: shaped units 614..615
+Grid shaped prefix cut, clamp 3, a letter and a combining accent: shaped units 615..615
+Grid shaped prefix cut, clamp 3, a letter and two combining marks: shaped units 615..615
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin (4.671 s)
+  [START] TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping
+Grid in a right-to-left flow against the same grid in a left-to-right flow: identical
+Grid omission marker in a right-to-left grid (Latin text): twin ink 29..157, changed inside 0, changed after 14
+Grid omission marker in a right-to-left grid (Arabic text): twin ink 249..352, changed inside 562, changed after 32
+Grid omission marker in a right-to-left grid (Arabic text ending in an emoji): twin ink 249..372, changed inside 703, changed after 32
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping (0.645 s)
+  [START] TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue
+Grid narrow cell, a 40-DIP cell at clamp 1: ink 68 pixels differ inside (29,78)-(48,86) in text 28..52 x 53..111, shows 1 line(s), the last with 2 of 35 characters and an ellipsis
+Grid narrow cell, a 40-DIP cell at clamp 2: ink 167 pixels differ inside (28,70)-(50,95) in text 28..52 x 53..111, shows 2 line(s), the last with 2 of 3 characters and an ellipsis
+Grid narrow cell, a 40-DIP cell at clamp 3: ink 245 pixels differ inside (28,61)-(49,104) in text 28..52 x 53..111, shows 3 line(s), the last with 2 of 3 characters and an ellipsis
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+Grid narrow cell, a 48-DIP cell at clamp 1: ink 97 pixels differ inside (29,78)-(57,86) in text 28..60 x 53..111, shows 1 line(s), the last with 4 of 35 characters and an ellipsis
+Grid narrow cell, a 48-DIP cell at clamp 2: ink 223 pixels differ inside (28,70)-(56,95) in text 28..60 x 53..111, shows 2 line(s), the last with 3 of 5 characters and an ellipsis
+Grid narrow cell, a 48-DIP cell at clamp 3: ink 373 pixels differ inside (28,61)-(57,104) in text 28..60 x 53..111, shows 3 line(s), the last with 4 of 4 characters and an ellipsis
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+Grid narrow cell, a 56-DIP cell at clamp 1: ink 132 pixels differ inside (29,78)-(64,86) in text 28..68 x 53..111, shows 1 line(s), the last with 5 of 35 characters and an ellipsis
+    [TRACE] attached host dtor: begin
+Grid narrow cell, a 56-DIP cell at clamp 2: ink 295 pixels differ inside (29,70)-(65,95) in text 28..68 x 53..111, shows 2 line(s), the last with 5 of 7 characters and an ellipsis
+Grid narrow cell, a 56-DIP cell at clamp 3: ink 436 pixels differ inside (28,61)-(64,104) in text 28..68 x 53..111, shows 3 line(s), the last with 3 of 6 characters and an ellipsis
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue (2.951 s)
+  [START] TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf
+Grid scrolled by whole rows and DIPs, scrolled by (64, 0), row 1: compared 298 x 49 pixels of text at 28,53 (18 colors), best shift identical
+Grid scrolled by whole rows and DIPs, scrolled by (0, 40), row 0: compared 266 x 58 pixels of text at 20,53 (18 colors), best shift identical
+Grid scrolled by whole rows and DIPs, scrolled by (0, 40), row 1: compared 266 x 49 pixels of text at 20,117 (18 colors), best shift identical
+Grid scrolled by whole rows and DIPs, scrolled by (64, 40), row 1: compared 266 x 49 pixels of text at 20,53 (18 colors), best shift identical
+Grid scrolled by whole rows and DIPs, scrolled by (64, 100), row 1: compared 206 x 49 pixels of text at 20,53 (18 colors), best shift identical
+Grid under a dragged scrollbar thumb, scrolled by (28.7797, 0), row 0: compared 298 x 32 pixels of text at 28,50 (17 colors), best shift identical
+Grid under a dragged scrollbar thumb, scrolled by (28.7797, 0), row 1: compared 298 x 48 pixels of text at 28,89 (18 colors), best shift identical
+    [TRACE] attached host dtor: begin
+Grid under a dragged scrollbar thumb, scrolled by (82.9814, 0), row 1: compared 298 x 33 pixels of text at 28,50 (18 colors), best shift identical
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf (0.876 s)
+  [START] TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid
+Grid at 144 dpi: layouts created by the repaint 0, retained 8
+Grid at 192 dpi: layouts created by the repaint 0, retained 8
+Grid at 96 dpi: layouts created by the repaint 0, retained 8
+Grid at 192 dpi: layouts created by the repaint 0, retained 8
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid (0.842 s)
+  [START] TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach
+    [NOTE] light, body again paints the pixels of an earlier state
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach (1.137 s)
+  [START] TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently
+Grid prefix sharing (a value that differs inside the shaped prefix, past the hashed units, lays out for itself): the second value made 2 layouts
+    [TRACE] attached host dtor: begin
+Grid prefix sharing (a value that differs only beyond the shaped prefix shares the retained layout): the second value made 0 layouts
+Grid prefix sharing (a paragraph that continues where the retained one ended lays out for itself): the second value made 2 layouts
+Grid prefix sharing (a CR LF pair where the retained paragraph ended in a line feed lays out for itself): the second value made 2 layouts
+Grid prefix sharing (the same break and another tail shares the retained layout): the second value made 0 layouts
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently (0.855 s)
+  [START] TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction
+    [TRACE] attached host dtor: begin
+Grid lowered ceiling: 78 drawn cells, default tables 128 / 32 entries
+Grid lowered ceiling: tables 64 / 64 entries, layouts 64 / 16
+Grid lowered ceiling: repaint 1 laid out 32 layouts for 78 cells
+Grid lowered ceiling: repaint 2 laid out 32 layouts for 78 cells
+Grid lowered ceiling: repaint 3 laid out 32 layouts for 78 cells
+Grid lowered ceiling: after 3 paints the tables hold 32 / 32 entries
+Grid lowered ceiling: after 2 paints the tables hold 32 / 32 entries
+Grid lowered ceiling: after 2 paints the tables hold 32 / 32 entries
+Grid lowered ceiling: after 2 paints the tables hold 32 / 32 entries
+Grid lowered ceiling: after 2 paints the tables hold 32 / 32 entries
+Grid lowered ceiling: after 2 paints the tables hold 32 / 32 entries
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction (0.787 s)
+  [START] TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss (0.776 s)
+  [START] TestGridMultilineMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridMultilineMovedBetweenHostsMatchesAFreshOne (3.124 s)
+  [START] TestMultilineButtonPaintUsesMultipleTextRows
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMultilineButtonPaintUsesMultipleTextRows (0.302 s)
+  [START] TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies (0.550 s)
+  [START] TestThroughputGraphBandsStayBelowHistoryLine
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestThroughputGraphBandsStayBelowHistoryLine (0.499 s)
+  [START] TestThroughputGraphHueChurnPerformanceScenario
+  [DONE] TestThroughputGraphHueChurnPerformanceScenario (0.000 s)
+  [START] TestDxUiCoreControlsDarkVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiCoreControlsDarkVisualBaseline (0.293 s)
+  [START] TestDxUiCoreControlsLightVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiCoreControlsLightVisualBaseline (0.242 s)
+  [START] TestDxUiHighContrastVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiHighContrastVisualBaseline (0.248 s)
+  [START] TestProgressBarReducedMotionIndeterminateCaptureIsStatic
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestProgressBarReducedMotionIndeterminateCaptureIsStatic (0.302 s)
+  [START] TestDxUiPopupAndBarsVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiPopupAndBarsVisualBaseline (0.281 s)
+  [START] TestDxUiPopupAndBarsAcrylicLightVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiPopupAndBarsAcrylicLightVisualBaseline (0.260 s)
+  [START] TestDxUiPageTransitionVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiPageTransitionVisualBaseline (0.194 s)
+  [START] TestDxUiAdvancedControlsVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDxUiAdvancedControlsVisualBaseline (0.217 s)
+  [START] TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame
+    [TRACE] rendering combo hover: begin
+    [TRACE] rendering combo hover: root attached
+    [TRACE] rendering combo hover: before ShowWindow
+    [TRACE] rendering combo hover: after ShowWindow
+    [TRACE] rendering combo hover: dispatching initial msg=799 hwnd=0000000002A30F06 isWindow=1 class=DxUiTests.AttachedHostWindow wp=1 lp=0
+    [TRACE] rendering combo hover: dispatched initial msg=799 hwnd=0000000002A30F06
+    [TRACE] rendering combo hover: dispatching initial msg=15 hwnd=0000000002A30F06 isWindow=1 class=DxUiTests.AttachedHostWindow wp=0 lp=0
+    [TRACE] rendering combo hover: dispatched initial msg=15 hwnd=0000000002A30F06
+    [TRACE] rendering combo hover: window shown
+    [TRACE] rendering combo hover: popup toggle handled
+    [TRACE] rendering combo hover: initial redraw complete
+    [TRACE] rendering combo hover: popup geometry ready
+    [TRACE] rendering combo hover: first hover complete
+    [TRACE] rendering combo hover: second-row hover complete
+    [TRACE] rendering combo hover: repeat hover complete
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame (0.228 s)
+  [START] TestAttachedGridPaintHandlesDegenerateScrollbarTracks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedGridPaintHandlesDegenerateScrollbarTracks (0.191 s)
+  [START] TestGridIncludesBottomClippedTrailingRow
+  [DONE] TestGridIncludesBottomClippedTrailingRow (0.000 s)
+  [START] TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll (0.300 s)
+  [START] TestAttachedLargeGridPaintReusesCellDataStringStorage
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeGridPaintReusesCellDataStringStorage (0.322 s)
+  [START] TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll (0.244 s)
+  [START] TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader (0.174 s)
+  [START] TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn (0.460 s)
+  [START] TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll (0.865 s)
+  [START] TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll (0.175 s)
+  [START] TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn (4.917 s)
+  [START] TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn (0.356 s)
+  [START] TestAttachedComboBoxPopupScrollingStaysStable
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedComboBoxPopupScrollingStaysStable (0.345 s)
+  [START] TestAttachedComboBoxPopupLongRunScrollingStaysStable
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedComboBoxPopupLongRunScrollingStaysStable (1.161 s)
+  [START] TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain (0.188 s)
+  [START] TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize (0.317 s)
+  [START] TestAttachedHostResizeDoesNotFlushD2DInWrongState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedHostResizeDoesNotFlushD2DInWrongState (0.147 s)
+  [START] TestAttachedHostRecoversAfterSimulatedDeviceLoss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedHostRecoversAfterSimulatedDeviceLoss (0.284 s)
+[DONE] Rendering (43.847 s)
+All DxUi tests passed.

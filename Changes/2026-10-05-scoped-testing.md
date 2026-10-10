@@ -1,0 +1,1 @@
+- Name active native test sources by scope and scenario, select affected tests by default, reuse exact successful local evidence, and account for matching PR coverage while keeping full/native/foreground qualification explicit.

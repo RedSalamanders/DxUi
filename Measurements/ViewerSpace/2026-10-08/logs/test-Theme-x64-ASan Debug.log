@@ -1,0 +1,176 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Theme
+  [START] TestColorFromArgbPreservesAlpha
+  [DONE] TestColorFromArgbPreservesAlpha (0.000 s)
+  [START] TestStableVisualHash32Utf16V1GoldenValuesAndNamedEncodingPolicy
+  [DONE] TestStableVisualHash32Utf16V1GoldenValuesAndNamedEncodingPolicy (0.000 s)
+  [START] TestD2dBlendClampsInterpolationAmount
+  [DONE] TestD2dBlendClampsInterpolationAmount (0.000 s)
+  [START] TestModifierCompositionCoversEveryCombination
+  [DONE] TestModifierCompositionCoversEveryCombination (0.000 s)
+  [START] TestThemeColorsPaletteDerivesDarkControlChrome
+  [DONE] TestThemeColorsPaletteDerivesDarkControlChrome (0.004 s)
+  [START] TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors
+  [DONE] TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors (0.001 s)
+  [START] TestThemeColorsPaletteKeepsDistinctReadableAlertTones
+  [DONE] TestThemeColorsPaletteKeepsDistinctReadableAlertTones (0.000 s)
+  [START] TestThemeColorsPaletteDerivesLightControlChrome
+  [DONE] TestThemeColorsPaletteDerivesLightControlChrome (0.000 s)
+  [START] TestThemeColorsPaletteDerivesDarkHighContrastChrome
+  [DONE] TestThemeColorsPaletteDerivesDarkHighContrastChrome (0.000 s)
+  [START] TestListIconColorUsesSelectionFillChrome
+  [DONE] TestListIconColorUsesSelectionFillChrome (0.000 s)
+  [START] TestListIconColorUsesViewerDerivedSelectionFillChrome
+  [DONE] TestListIconColorUsesViewerDerivedSelectionFillChrome (0.000 s)
+  [START] TestGridBusyColorUsesSelectionFillChrome
+  [DONE] TestGridBusyColorUsesSelectionFillChrome (0.000 s)
+  [START] TestGridBusyColorUsesViewerDerivedSelectionFillChrome
+  [DONE] TestGridBusyColorUsesViewerDerivedSelectionFillChrome (0.000 s)
+  [START] TestGridProgressVisualStyleUsesSharedTrackAndFillChrome
+  [DONE] TestGridProgressVisualStyleUsesSharedTrackAndFillChrome (0.000 s)
+  [START] TestGridProgressVisualStyleUsesViewerDerivedTrackAndFillChrome
+  [DONE] TestGridProgressVisualStyleUsesViewerDerivedTrackAndFillChrome (0.000 s)
+  [START] TestGridProgressVisualStyleUsesHighContrastTrackAndFillChrome
+  [DONE] TestGridProgressVisualStyleUsesHighContrastTrackAndFillChrome (0.000 s)
+  [START] TestGridCheckboxVisualStyleUsesSharedCheckboxChrome
+  [DONE] TestGridCheckboxVisualStyleUsesSharedCheckboxChrome (0.000 s)
+  [START] TestGridCheckboxVisualStyleUsesViewerDerivedSelectionTextChrome
+  [DONE] TestGridCheckboxVisualStyleUsesViewerDerivedSelectionTextChrome (0.000 s)
+  [START] TestGridSwatchVisualStyleUsesSharedRowChrome
+  [DONE] TestGridSwatchVisualStyleUsesSharedRowChrome (0.000 s)
+  [START] TestGridSwatchVisualStyleUsesViewerDerivedRowChrome
+  [DONE] TestGridSwatchVisualStyleUsesViewerDerivedRowChrome (0.000 s)
+  [START] TestGridSwatchVisualStyleUsesHighContrastRowChrome
+  [DONE] TestGridSwatchVisualStyleUsesHighContrastRowChrome (0.000 s)
+  [START] TestGridBadgeVisualStyleUsesSharedRowChrome
+  [DONE] TestGridBadgeVisualStyleUsesSharedRowChrome (0.000 s)
+  [START] TestGridBadgeVisualStyleUsesViewerDerivedRowChrome
+  [DONE] TestGridBadgeVisualStyleUsesViewerDerivedRowChrome (0.000 s)
+  [START] TestGridBadgeVisualStyleUsesHighContrastRowChrome
+  [DONE] TestGridBadgeVisualStyleUsesHighContrastRowChrome (0.000 s)
+  [START] TestTreeBadgeVisualStyleUsesSharedAdornmentChrome
+  [DONE] TestTreeBadgeVisualStyleUsesSharedAdornmentChrome (0.000 s)
+  [START] TestTreeBadgeVisualStyleUsesViewerDerivedAdornmentChrome
+  [DONE] TestTreeBadgeVisualStyleUsesViewerDerivedAdornmentChrome (0.000 s)
+  [START] TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome
+  [DONE] TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome (0.000 s)
+  [START] TestButtonVisualStyleMatchesPreferencesFlatChrome
+  [DONE] TestButtonVisualStyleMatchesPreferencesFlatChrome (0.000 s)
+  [START] TestPrimaryButtonVisualStyleUsesAccentChrome
+  [DONE] TestPrimaryButtonVisualStyleUsesAccentChrome (0.000 s)
+  [START] TestPrimaryButtonVisualStyleFallsBackToReadableText
+  [DONE] TestPrimaryButtonVisualStyleFallsBackToReadableText (0.000 s)
+  [START] TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus
+  [DONE] TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus (0.000 s)
+  [START] TestPrimaryButtonContrastPreservesSystemColorPairs
+  [DONE] TestPrimaryButtonContrastPreservesSystemColorPairs (0.000 s)
+  [START] TestButtonHighContrastDisabledBorderStaysVisible
+  [DONE] TestButtonHighContrastDisabledBorderStaysVisible (0.000 s)
+  [START] TestButtonVisualStyleInterpolatesHoverAndFocusStrength
+  [DONE] TestButtonVisualStyleInterpolatesHoverAndFocusStrength (0.000 s)
+  [START] TestPrimaryButtonVisualStyleUsesViewerDerivedSelectionTextChrome
+  [DONE] TestPrimaryButtonVisualStyleUsesViewerDerivedSelectionTextChrome (0.000 s)
+  [START] TestButtonVisualStyleUsesViewerDerivedPressedBorderChrome
+  [DONE] TestButtonVisualStyleUsesViewerDerivedPressedBorderChrome (0.000 s)
+  [START] TestButtonVisualStyleUsesViewerDerivedHotAndPressedFillChrome
+  [DONE] TestButtonVisualStyleUsesViewerDerivedHotAndPressedFillChrome (0.000 s)
+  [START] TestAdornmentColorsUsePaletteChrome
+  [DONE] TestAdornmentColorsUsePaletteChrome (0.000 s)
+  [START] TestAdornmentColorsUseViewerDerivedSelectionAndAlertChrome
+  [DONE] TestAdornmentColorsUseViewerDerivedSelectionAndAlertChrome (0.000 s)
+  [START] TestToggleVisualStyleMatchesPreferencesSwitchChrome
+  [DONE] TestToggleVisualStyleMatchesPreferencesSwitchChrome (0.000 s)
+  [START] TestToggleVisualStyleUsesViewerDerivedKnobChrome
+  [DONE] TestToggleVisualStyleUsesViewerDerivedKnobChrome (0.000 s)
+  [START] TestToggleHighContrastDisabledBordersStayVisible
+  [DONE] TestToggleHighContrastDisabledBordersStayVisible (0.000 s)
+  [START] TestToggleVisualStyleInterpolatesHoverStrength
+  [DONE] TestToggleVisualStyleInterpolatesHoverStrength (0.000 s)
+  [START] TestToggleLayoutMetricsUseCompactSwitchOnlyChromeWhenTextIsEmpty
+  [DONE] TestToggleLayoutMetricsUseCompactSwitchOnlyChromeWhenTextIsEmpty (0.000 s)
+  [START] TestColorSwatchVisualStyleUsesSharedOverlayChrome
+  [DONE] TestColorSwatchVisualStyleUsesSharedOverlayChrome (0.000 s)
+  [START] TestColorSwatchUsesViewerDerivedOverlayChrome
+  [DONE] TestColorSwatchUsesViewerDerivedOverlayChrome (0.000 s)
+  [START] TestColorSwatchHighContrastFocusRingStaysVisibleWithoutKeyboardFocus
+  [DONE] TestColorSwatchHighContrastFocusRingStaysVisibleWithoutKeyboardFocus (0.000 s)
+  [START] TestCardPanelVisualStyleUsesSharedSurfaceChrome
+  [DONE] TestCardPanelVisualStyleUsesSharedSurfaceChrome (0.000 s)
+  [START] TestCardPanelUsesViewerDerivedSurfaceChrome
+  [DONE] TestCardPanelUsesViewerDerivedSurfaceChrome (0.000 s)
+  [START] TestCardPanelHighContrastUsesPaletteSurfaceChrome
+  [DONE] TestCardPanelHighContrastUsesPaletteSurfaceChrome (0.000 s)
+  [START] TestGridSurfaceVisualStyleUsesSharedGridChrome
+  [DONE] TestGridSurfaceVisualStyleUsesSharedGridChrome (0.000 s)
+  [START] TestGridSurfaceVisualStyleUsesViewerDerivedGridChrome
+  [DONE] TestGridSurfaceVisualStyleUsesViewerDerivedGridChrome (0.000 s)
+  [START] TestGridSurfaceHighContrastUsesPaletteGridChrome
+  [DONE] TestGridSurfaceHighContrastUsesPaletteGridChrome (0.000 s)
+  [START] TestTreeSurfaceVisualStyleUsesSharedTreeChrome
+  [DONE] TestTreeSurfaceVisualStyleUsesSharedTreeChrome (0.000 s)
+  [START] TestTreeSurfaceVisualStyleUsesViewerDerivedTreeChrome
+  [DONE] TestTreeSurfaceVisualStyleUsesViewerDerivedTreeChrome (0.000 s)
+  [START] TestTreeSurfaceHighContrastUsesPaletteTreeChrome
+  [DONE] TestTreeSurfaceHighContrastUsesPaletteTreeChrome (0.000 s)
+  [START] TestGridHeaderVisualStyleUsesSharedHeaderChrome
+  [DONE] TestGridHeaderVisualStyleUsesSharedHeaderChrome (0.000 s)
+  [START] TestGridHeaderVisualStyleUsesViewerDerivedHeaderChrome
+  [DONE] TestGridHeaderVisualStyleUsesViewerDerivedHeaderChrome (0.000 s)
+  [START] TestGridHeaderHighContrastUsesPaletteHeaderChrome
+  [DONE] TestGridHeaderHighContrastUsesPaletteHeaderChrome (0.000 s)
+  [START] TestTooltipVisualStyleUsesSharedTooltipChrome
+  [DONE] TestTooltipVisualStyleUsesSharedTooltipChrome (0.000 s)
+  [START] TestTooltipUsesViewerDerivedTooltipChrome
+  [DONE] TestTooltipUsesViewerDerivedTooltipChrome (0.000 s)
+  [START] TestTooltipHighContrastBorderStrengthensLegibility
+  [DONE] TestTooltipHighContrastBorderStrengthensLegibility (0.000 s)
+  [START] TestCheckboxVisualStyleMatchesStandardCheckboxChrome
+  [DONE] TestCheckboxVisualStyleMatchesStandardCheckboxChrome (0.000 s)
+  [START] TestLabelVisualStyleUsesPaletteTextChrome
+  [DONE] TestLabelVisualStyleUsesPaletteTextChrome (0.000 s)
+  [START] TestLabelVisualStyleUsesViewerDerivedTextChrome
+  [DONE] TestLabelVisualStyleUsesViewerDerivedTextChrome (0.000 s)
+  [START] TestLabelVisualStyleUsesHighContrastTextChrome
+  [DONE] TestLabelVisualStyleUsesHighContrastTextChrome (0.000 s)
+  [START] TestCheckboxVisualStyleInterpolatesHoverStrength
+  [DONE] TestCheckboxVisualStyleInterpolatesHoverStrength (0.000 s)
+  [START] TestCheckboxVisualStyleUsesViewerDerivedSelectionTextChrome
+  [DONE] TestCheckboxVisualStyleUsesViewerDerivedSelectionTextChrome (0.000 s)
+  [START] TestCheckboxHighContrastDisabledBordersStayVisible
+  [DONE] TestCheckboxHighContrastDisabledBordersStayVisible (0.000 s)
+  [START] TestComboBoxVariantsExposeDistinctChromeContracts
+  [DONE] TestComboBoxVariantsExposeDistinctChromeContracts (0.000 s)
+  [START] TestComboBoxHoverStyleStrengthensFieldChrome
+  [DONE] TestComboBoxHoverStyleStrengthensFieldChrome (0.000 s)
+  [START] TestComboBoxModernPopupUsesViewerDerivedPressedChrome
+  [DONE] TestComboBoxModernPopupUsesViewerDerivedPressedChrome (0.000 s)
+  [START] TestComboBoxUsesViewerDerivedInputBorderChrome
+  [DONE] TestComboBoxUsesViewerDerivedInputBorderChrome (0.000 s)
+  [START] TestComboBoxHighContrastFocusAccentStaysVisibleWithoutKeyboardFocus
+  [DONE] TestComboBoxHighContrastFocusAccentStaysVisibleWithoutKeyboardFocus (0.000 s)
+  [START] TestComboBoxHighContrastDisabledBordersStayVisible
+  [DONE] TestComboBoxHighContrastDisabledBordersStayVisible (0.001 s)
+  [START] TestGridRowIconChromeFollowsResolvedRowVisuals
+  [DONE] TestGridRowIconChromeFollowsResolvedRowVisuals (0.000 s)
+  [START] TestGridRowIconChromeFollowsViewerDerivedRowVisuals
+  [DONE] TestGridRowIconChromeFollowsViewerDerivedRowVisuals (0.000 s)
+  [START] TestGridCellChromeFollowsResolvedCellVisuals
+  [DONE] TestGridCellChromeFollowsResolvedCellVisuals (0.001 s)
+  [START] TestGridCellChromeFollowsViewerDerivedResolvedCellVisuals
+  [DONE] TestGridCellChromeFollowsViewerDerivedResolvedCellVisuals (0.001 s)
+  [START] TestNewTokensPresentInDarkDefaultPalette
+  [DONE] TestNewTokensPresentInDarkDefaultPalette (0.000 s)
+  [START] TestDarkDefaultPaletteOverridesLightInteractionTokens
+  [DONE] TestDarkDefaultPaletteOverridesLightInteractionTokens (0.000 s)
+  [START] TestThemeColorsAccentPressedUsesBaseThemePolarity
+  [DONE] TestThemeColorsAccentPressedUsesBaseThemePolarity (0.000 s)
+  [START] TestNewTokensPresentInLightDefaultPalette
+  [DONE] TestNewTokensPresentInLightDefaultPalette (0.000 s)
+  [START] TestRadioButtonVisualStyleDerivesFromThemePalette
+  [DONE] TestRadioButtonVisualStyleDerivesFromThemePalette (0.000 s)
+  [START] TestProgressBarVisualStyleUsesSelectionFill
+  [DONE] TestProgressBarVisualStyleUsesSelectionFill (0.000 s)
+  [START] TestToolbarVisualStyleUsesCardBackground
+  [DONE] TestToolbarVisualStyleUsesCardBackground (0.000 s)
+[DONE] Theme (0.016 s)
+All DxUi tests passed.

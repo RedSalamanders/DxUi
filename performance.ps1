@@ -18,6 +18,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 # The comparator module also owns the receipt's source fingerprint and benchmark inputs; a paired run copies it with this file.
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceComparison.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
 $native = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Performance evidence requires native execution matching the requested architecture.'
@@ -59,9 +60,13 @@ try {
     $receipt.machine = [Environment]::MachineName
     $receipt.cpu = (Get-ItemProperty -LiteralPath 'HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0' -Name ProcessorNameString).ProcessorNameString.Trim()
     $receipt.os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-    $receipt.warpVersion = (Get-Item -LiteralPath (Join-Path $env:SystemRoot 'System32/d3d10warp.dll')).VersionInfo.FileVersion
+    $warpPath = Join-Path $env:SystemRoot 'System32/d3d10warp.dll'
+    $receipt.warpVersion = (Get-Item -LiteralPath $warpPath).VersionInfo.FileVersion
+    $receipt.warpSha256 = (Get-FileHash -LiteralPath $warpPath -Algorithm SHA256).Hash
     $receipt.powerPolicy = ((& powercfg.exe /getactivescheme) -join ' ').Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the active power policy.' }
+    $toolIdentity = Get-PerformanceToolIdentities -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    foreach ($key in $toolIdentity.Keys) { $receipt[$key] = $toolIdentity[$key] }
     $receipt.buildSkipped = [bool]$SkipBuild
     $receipt.completedUtc = [DateTime]::UtcNow.ToString('o')
     $receipt.sourceCommit = (& git rev-parse HEAD).Trim()

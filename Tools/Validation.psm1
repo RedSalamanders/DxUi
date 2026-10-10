@@ -568,11 +568,39 @@ function Get-ParameterNames([object] $Parameters) {
     return , [string[]]@($Parameters | Where-Object { $_ } | ForEach-Object { $_.Name.VariablePath.UserPath })
 }
 
+function Get-MandatoryParameterNames([object[]] $ParameterAsts) {
+    $mandatory = [Collections.Generic.List[string]]::new()
+    foreach ($parameter in $ParameterAsts) {
+        foreach ($attribute in $parameter.Attributes) {
+            if ($attribute.TypeName.FullName -notmatch '(^|\.)Parameter(Attribute)?$') { continue }
+            foreach ($argument in $attribute.NamedArguments) {
+                if ($argument.ArgumentName -ine 'Mandatory') { continue }
+                if ($null -eq $argument.Argument -or [bool]$argument.Argument.SafeGetValue()) { $mandatory.Add($parameter.Name.VariablePath.UserPath); break }
+            }
+        }
+    }
+    return , [string[]]@($mandatory | Sort-Object -Unique)
+}
+
+function Get-ConsumerMandatoryParameters([object] $Interface, [string] $Kind, [string] $Relative, [string] $Function = '') {
+    # Walk optional JSON objects explicitly. Chained hashtable indexing throws when an older capabilities file omits
+    # this additive contract, and PowerShell's array subexpression can turn a missing leaf into a null index target.
+    $mandatory = Get-JsonValue $Interface 'mandatoryParameters' @{}
+    $entries = Get-JsonValue $mandatory $Kind @{}
+    if ($entries -isnot [Collections.IDictionary] -or -not $entries.Contains($Relative)) { return , [string[]]@() }
+    $entry = $entries[$Relative]
+    if ($Function) {
+        if ($entry -isnot [Collections.IDictionary] -or -not $entry.Contains($Function)) { return , [string[]]@() }
+        $entry = $entry[$Function]
+    }
+    return , [string[]]@($entry | Where-Object { $_ } | ForEach-Object { [string]$_ })
+}
+
 function Get-ScriptParameterNames([string] $Path) {
     # Read from the parse tree, so nothing runs.
     $ast = [Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
-    if (-not $ast.ParamBlock) { return , [string[]]@() }
-    return Get-ParameterNames $ast.ParamBlock.Parameters
+    if (-not $ast.ParamBlock) { return [pscustomobject]@{ Names=@(); Mandatory=@() } }
+    return [pscustomobject]@{ Names=(Get-ParameterNames $ast.ParamBlock.Parameters); Mandatory=(Get-MandatoryParameterNames $ast.ParamBlock.Parameters) }
 }
 
 function Get-ModuleFunctionParameters([string] $Path) {
@@ -582,7 +610,7 @@ function Get-ModuleFunctionParameters([string] $Path) {
     $defined = @{}
     foreach ($function in $ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
         $parameters = if ($function.Body.ParamBlock) { $function.Body.ParamBlock.Parameters } else { $function.Parameters }
-        $defined[$function.Name] = Get-ParameterNames $parameters
+        $defined[$function.Name] = [pscustomobject]@{ Names=(Get-ParameterNames $parameters); Mandatory=(Get-MandatoryParameterNames $parameters) }
     }
     $exports = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Export-ModuleMember' }, $true))
     if ($exports.Count -eq 0) { return $defined }
@@ -613,39 +641,64 @@ function Test-DxUiConsumerInterface([Parameter(Mandatory)][string] $Root) {
         $failures.Add('capabilities.json needs a consumerInterface object')
         return [pscustomobject]@{ Failures = $failures.ToArray(); Entries = 0; Revision = $revision }
     }
-    $entries = 0
+    $consumerEntries = 0
     $scripts = Get-JsonValue $interface 'scripts' @{}
     foreach ($relative in Sort-Ordinal @($scripts.Keys)) {
-        $entries++
+        $consumerEntries++
         $path = Resolve-ConsumerInterfacePath $Root $relative
         if ($null -eq $path -or -not [IO.File]::Exists($path)) { $failures.Add("Consumer script is missing: $relative"); continue }
-        $present = Get-ScriptParameterNames $path
+        $details = Get-ScriptParameterNames $path
+        $present = $details.Names
         foreach ($parameter in @($scripts[$relative])) {
             if ($parameter -notin $present) { $failures.Add("Consumer script $relative has no -$parameter parameter") }
         }
+        $declaredMandatory = Get-ConsumerMandatoryParameters $interface 'scripts' $relative
+        foreach ($parameter in $details.Mandatory) { if ($parameter -notin $declaredMandatory) { $failures.Add("Consumer script $relative added undeclared mandatory -$parameter parameter") } }
     }
     $modules = Get-JsonValue $interface 'modules' @{}
     foreach ($relative in Sort-Ordinal @($modules.Keys)) {
         $path = Resolve-ConsumerInterfacePath $Root $relative
-        if ($null -eq $path -or -not [IO.File]::Exists($path)) { $entries++; $failures.Add("Consumer module is missing: $relative"); continue }
+        if ($null -eq $path -or -not [IO.File]::Exists($path)) { $consumerEntries++; $failures.Add("Consumer module is missing: $relative"); continue }
         $exported = Get-ModuleFunctionParameters $path
         foreach ($function in Sort-Ordinal @($modules[$relative].Keys)) {
-            $entries++
+            $consumerEntries++
             $match = @($exported.Keys | Where-Object { $_ -eq $function })
             if ($match.Count -eq 0) { $failures.Add("Consumer module $relative does not export $function"); continue }
             foreach ($parameter in @($modules[$relative][$function])) {
-                if ($parameter -notin $exported[$match[0]]) { $failures.Add("Consumer function $function in $relative has no -$parameter parameter") }
+                if ($parameter -notin $exported[$match[0]].Names) { $failures.Add("Consumer function $function in $relative has no -$parameter parameter") }
+            }
+            $declaredMandatory = Get-ConsumerMandatoryParameters $interface 'modules' $relative $function
+            foreach ($parameter in $exported[$match[0]].Mandatory) { if ($parameter -notin $declaredMandatory) { $failures.Add("Consumer function $function in $relative added undeclared mandatory -$parameter parameter") } }
+        }
+    }
+    $mandatory = Get-JsonValue $interface 'mandatoryParameters' @{}
+    $declaredScripts = Get-JsonValue $mandatory 'scripts' @{}
+    foreach ($relative in Sort-Ordinal @($declaredScripts.Keys)) { if ($relative -notin $scripts.Keys) { $failures.Add("Mandatory-parameter contract names an undeclared consumer script: $relative") } }
+    $declaredModules = Get-JsonValue $mandatory 'modules' @{}
+    foreach ($relative in Sort-Ordinal @($declaredModules.Keys)) {
+        if ($relative -notin $modules.Keys) { $failures.Add("Mandatory-parameter contract names an undeclared consumer module: $relative"); continue }
+        foreach ($function in @($declaredModules[$relative].Keys)) { if ($function -notin $modules[$relative].Keys) { $failures.Add("Mandatory-parameter contract names an undeclared function $function in $relative") } }
+    }
+    $powershell = Get-JsonValue $interface 'powershell' @{}
+    foreach ($kind in @('scripts','modules')) {
+        $promises = Get-JsonValue $powershell $kind @{}
+        $contractEntries = Get-JsonValue $interface $kind @{}
+        foreach ($relative in Sort-Ordinal @($contractEntries.Keys)) {
+            $versions = @($promises[$relative] | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+            if (-not $versions.Count -or @($versions | Where-Object { $_ -notin @('5.1','7') }).Count) {
+                $failures.Add("Consumer $kind entry $relative must declare supported PowerShell versions (5.1 and/or 7).")
             }
         }
+        foreach ($relative in Sort-Ordinal @($promises.Keys)) { if ($relative -notin $contractEntries.Keys) { $failures.Add("PowerShell contract names an undeclared consumer $kind entry: $relative") } }
     }
     $msbuild = Get-JsonValue $interface 'msbuild' @()
     $headers = Get-JsonValue $interface 'headers' @()
     foreach ($relative in @($msbuild) + @($headers)) {
-        $entries++
+        $consumerEntries++
         $path = Resolve-ConsumerInterfacePath $Root $relative
         if ($null -eq $path -or -not (Test-PathExists $path)) { $failures.Add("Consumer entry point is missing: $relative") }
     }
-    return [pscustomobject]@{ Failures = $failures.ToArray(); Entries = $entries; Revision = $revision }
+    return [pscustomobject]@{ Failures = $failures.ToArray(); Entries = $consumerEntries; Revision = $revision }
 }
 
 # --- Inherited test accounting ----------------------------------------------------------------------------------
@@ -714,9 +767,11 @@ function Test-DxUiTestPort([Parameter(Mandatory)][string] $Root) {
         $identity = "('$file', '$test')"
         if ($seen.Contains("$file`0$test")) { $errors.Add("Duplicate test origin: $identity") }
         [void]$seen.Add("$file`0$test")
-        $parts = @($file.Split('/') | Where-Object { $_ -and $_ -ne '.' })
-        $path = Get-FullPath (Join-DataPath $Root $file)
-        if ($file.StartsWith('/') -or $parts -contains '..' -or -not (Test-UnderPath $path $controls) -or -not [IO.File]::Exists($path)) {
+        # The origin identity stays immutable when an owned source is renamed.
+        $currentFile = [string](Get-JsonValue $case 'currentFile' $file)
+        $parts = @($currentFile.Split('/') | Where-Object { $_ -and $_ -ne '.' })
+        $path = Get-FullPath (Join-DataPath $Root $currentFile)
+        if ($currentFile.StartsWith('/') -or $parts -contains '..' -or -not (Test-UnderPath $path $controls) -or -not [IO.File]::Exists($path)) {
             $errors.Add("Invalid owned test source: $(($parts) -join '/')")
             continue
         }
@@ -776,6 +831,8 @@ function Test-DxUiSolutionConfigurations([Parameter(Mandatory)][string] $Path) {
 }
 
 function Test-DxUiBuildMatrix([Parameter(Mandatory)][string] $Root) {
+    if (-not [IO.Path]::IsPathRooted($Root)) { $Root = [IO.Path]::Combine((Get-Location).ProviderPath, $Root) }
+    $Root = [IO.Path]::GetFullPath($Root)
     $Root = Get-FullPath $Root
     $listed = @(Get-GitPathList $Root @('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', '*.vcxproj', '*.sln'))
     $live = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)

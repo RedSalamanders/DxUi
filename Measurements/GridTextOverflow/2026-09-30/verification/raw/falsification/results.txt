@@ -1,0 +1,33 @@
+copy4096           Grid           exit 1   TestGridCopyOfTrimmedMultilineCellsIsExact  ->  FAILED: Ctrl+C copies every trimmed cell exactly: every unit of every value, across rows and columns
+copyNfc            Grid           exit 1   TestGridCopyOfTrimmedMultilineCellsIsExact  ->  FAILED: Ctrl+C copies every trimmed cell exactly: every unit of every value, across rows and columns
+uiaNfc             Accessibility  exit 1   TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues  ->  FAILED: left-to-right grid, cell 1,1: the Name is the complete value
+uiaTruncate        Accessibility  exit 1   TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues  ->  FAILED: left-to-right grid, cell 1,0: the Name is the complete value
+uiaTruncate        Accessibility  exit 1   TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport  ->  FAILED: scrolled (64, 40), cell 2,0: the Name, Value and ValuePattern are the complete value
+uiaUnclipped       Accessibility  exit 1   TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport  ->  FAILED: scrolled (0, 0), cell 0,0: the bounding rectangle is the viewport-clipped cell
+dropLastUnit       Rendering      exit 1   TestGridMultilineDecomposedAccentsPaintLikePrecomposed  ->  FAILED: a 420-unit value at clamp 3: decomposed accents paint like precomposed ones
+noSurrogateGuard   Rendering      exit 1   TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin  ->  FAILED: clamp 1, surrogate pairs: in some alignment the cut falls inside a surrogate pair, and shaping steps back from it
+shortPrefix        Rendering      exit 1   TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin  ->  FAILED: clamp 3, surrogate pairs, phase 0: a prefix cut in the tail paints like a short twin
+noMarkDirection    Rendering      exit 1   TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping  ->  FAILED: an Arabic omission marker sits at the left end, where that text reads to
+noTrimSign         Rendering      exit 1   TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue  ->  FAILED: a 40-DIP cell at clamp 1: the ink stays inside the text rectangle
+reflowClipped      Rendering      exit 1   TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf  ->  FAILED: a cut cell paints the shifted pixels of the unscrolled one: clipping does not reflow it
+dpiStale           Rendering      exit 1   TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid  ->  FAILED: at 144 dpi the grid that kept its layouts paints like a fresh one
+dpiStale           Embedded       exit 1   (embedded suite)  ->  FAIL: a view whose dpi changed paints what a fresh view paints at that dpi
+themeColorCache    Rendering      exit 1   TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach  ->  FAILED: dark: the grid that kept its layouts paints like a fresh attach
+noFormatKey        Rendering      exit 1   TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach  ->  FAILED: a font or density change lays the cells out again
+noBreakShape       Rendering      exit 1   TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently  ->  FAILED: a paragraph that continues where the retained one ended lays out for itself
+hashOnlyPrefix     Rendering      exit 1   TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently  ->  FAILED: a value that differs inside the shaped prefix, past the hashed units, lays out for itself
+noCeiling          Rendering      exit 1   TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction  ->  FAILED: the tables stop growing at the ceiling
+noCeiling          Grid           exit 1   TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves  ->  FAILED: a table never grows past its ceiling
+noHalving          Rendering      exit 1   TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction  ->  FAILED: each paint of a few cells halves the tables, down to 32 entries
+noHalving          Grid           exit 1   TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves  ->  FAILED: a paint that uses under an eighth of a table halves it, once
+evictNewest        Rendering      exit 0   TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction  ->  
+evictNewest        Grid           exit 1   TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves  ->  FAILED: a full set at the ceiling evicts one least recently used way, one the previous paint used, for a new value
+noTooltip          Rendering      exit 1   TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue  ->  FAILED: a 40-DIP cell at clamp 1: hovering offers the complete value
+noTooltip          Grid           exit 1   TestGridCopyOfTrimmedMultilineCellsIsExact  ->  FAILED: the cell is trimmed and its tooltip is the complete value
+noMarker           Embedded       exit 1   (embedded suite)  ->  FAIL: the cell differs from its twin by an omission marker after the second line, with no third line
+hideCorrupts       Embedded       exit 1   (embedded suite)  ->  FAIL: showing the view again paints the pixels it painted before
+replaceAliased     Embedded       exit 1   (embedded suite)  ->  FAIL: a replacement device paints the pixels of the first one
+replaceHiddenAliased Embedded       exit 1   (embedded suite)  ->  FAIL: a device replaced while hidden paints the same pixels when shown
+lossAliased        Rendering      exit 1   TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss  ->  FAILED: after device loss 1 the trimmed cells paint what they painted before
+lossClearsFormats  Rendering      exit 1   TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss  ->  FAILED: the layouts survive the loss: nothing is laid out again
+noMoveAnnouncement Rendering      exit 1   TestGridMultilineMovedBetweenHostsMatchesAFreshOne  ->  FAILED: a moved control arranges itself like a fresh one

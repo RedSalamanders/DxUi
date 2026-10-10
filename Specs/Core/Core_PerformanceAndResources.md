@@ -1,7 +1,11 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-10
+
+The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
+the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
+can authorize its own pass. Historical receipts remain readable under their original judge and are not migrated or rewritten.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -42,34 +46,163 @@ chosen resource budget in this contract or its owning domain; a WIP note alone c
 
 ### Paired sets
 
-A single receipt pair cannot tell a change from a machine that drifts between runs; on 2026-09-30 all 14 same-binary
-controls of one developer laptop drifted beyond their bands. A paired set can: `performance-paired.ps1` runs the
-interleaved pass A, B, B, A serially, repeats it `-Repetitions` times (default 3) and judges every scenario phase
-(clean, dirty) and metric on all runs at once. Each side's sample is its run medians, the median of each run's five
-rounds, so 2N runs per side after N repetitions.
+The migrated study uses `performance-paired.ps1 -Blocks 12` by default. Every independent block contains two baseline and
+two candidate runs, scheduled as either ABBA or BAAB. Each block independently draws either order with probability 1/2,
+using the retained seed. Neither the counts of the two orders nor later draws constrain previous draws. Both orders
+balance linear within-block drift. The `independent-ABBA-BAAB-v1` allocation protocol, seed and literal schedule are retained;
+qualification replays them exactly. Repetitions inside a block are not treated as independent blocks.
 
-- The baseline and candidate samples are compared by an exact two-sided Mann-Whitney U test whose null distribution is
-  counted over the observed ranks, ties averaged, never approximated. A metric is `regressed` (`improved`) only when
-  p < 0.05 and the candidate's median of run medians lies beyond the metric's investigation band (5% timing and FPS,
-  2% process memory) on the worse (better) side; otherwise it is `within-noise`. A shift inside the band, or beyond it
-  without separation from noise, is not a verdict and stays in the retained values, and trends inside the bands
-  remain subject to the investigation above.
-- Exact budgets (surface bytes, replacement peak, composition and C++ allocations) stay exact. Any candidate run above
-  the median of the baseline runs is `regressed`, whatever the rank test says, and no band applies.
-- Each side's spread across its own runs is reported with the verdicts for context. It is not a veto: it cannot
-  waive a regressed metric or invalidate the set. Runs of one side must be of one binary and library source, and both
-  sides of one fixture, or the set is `invalid-evidence`.
-- A set is `advice-required` when any metric is `regressed` and `within-noise-budget` otherwise. `advice-required` is
-  a measured finding, not an acceptance: it confirms on a repeat on the same quiet fixture and then follows the
-  advice rule above, with the developer choosing among optimization, reduced scope and deferral. `within-noise-budget`
-  states that no change was established, which is not evidence that none exists. A set never replaces a baseline or
-  relaxes a band. A scenario makes about 26 metric tests, so a chance verdict is possible.
-- What a set can establish is bounded by its runs: complete separation reaches p = 2 / C(4N, 2N), which is 0.0022 for
-  the default six against six, 0.029 for four against four and 0.33 for two against two. A single pass therefore
-  cannot reach p < 0.05 and can establish only a rise in an exact budget. Each set records its smallest attainable p.
-- The retained `summary.json` keeps each side's revision or path, commit and library source fingerprint, every run's
-  medians and each metric's run values, p-value, spread and verdict. Pairs are refused when there is nothing to
-  compare: one commit for two revisions, or identical fingerprints when a working tree is named.
+- The judge computes a direction-normalized paired log-ratio for each block from the two run medians per side, then uses a
+  two-sided exact sign-flip randomization test across independent blocks. Holm step-down correction controls familywise
+  alpha at 0.05 across the predeclared 26 scenario-phase-metric slots. Twelve blocks are the minimum: complete separation
+  has minimum two-sided p = 2/4096 = 0.000488, below the first Holm boundary 0.05/26. Fewer observations cannot be
+  promoted to qualification by treating correlated runs as independent.
+- Study schema 3 and judge `dxui-paired-block-sign-flip-holm-v2` require that assignment protocol. Earlier schema 2 studies
+  forced six blocks of each order, permitting only C(12,6) = 924 assignments, while their judge enumerated 4096 independent
+  sign choices. Their claimed exact randomization inference is invalid for that design. The correct restricted-design
+  minimum two-sided p is 2/924 = 0.002165, above the first 26-outcome Holm boundary. Preserve those records for diagnosis;
+  fresh independent-order A/A calibration and paired studies are required before approving the migrated policy. A valid
+  independent draw may itself produce six of each order, so the protocol identity and replay, rather than observed counts,
+  determine eligibility. This follows the requirement that a randomization test reflect the actual assignment scheme
+  ([Hemerik and Goeman](https://arxiv.org/html/1912.02633v2)). Investigation bands, family size and exact budgets are unchanged.
+- Timing/FPS investigation bands remain 5%, process-memory bands remain 2%, and deterministic surface/allocation budgets
+  remain exact. Exact budgets do not use statistical averaging: any candidate run median above the baseline run-median
+  median is a regression, and any candidate raw-round maximum above the retained baseline raw-round maximum is a separate
+  no-tolerance peak regression. The report shows both maxima and both findings. No timing or memory flag becomes “chance”
+  merely because source fingerprints or executable hashes match.
+- Each receipt must identify source, executable, benchmark inputs, harness, toolchain, dependencies, machine, CPU, OS,
+  GPU/driver, WARP binary hash and version, system DPI and power policy. Toolchain identity uses MSBuild-evaluated target properties,
+  compiler/linker/MSBuild/default-toolset byte hashes, imported project files, resolved compiler item metadata, and the
+  selected Windows SDK header/library closure. Dependency identity uses the platform install's vcpkg status, package
+  inventories/ABI metadata, and installed/output runtime DLL closure. Missing or mismatched required provenance makes the
+  study inconclusive; a source fingerprint by itself
+  never establishes runner noise. A/A calibration is a separate study and cannot qualify a pull request by itself.
+  It builds one explicit revision once and measures that same executable under both randomized role labels, with
+  distinct raw receipts for every invocation. Separate builds can encode different PDB paths or link timestamps;
+  matching source revisions therefore do not satisfy A/A executable identity.
+- A policy binds the approved judge version and normalized source SHA-256. The candidate judge must match both values from
+  the measured-base policy to be eligible for qualification; agreement of verdict labels alone does not approve changed
+  judge code. It also binds the assignment protocol and normalized `Tools/PairedRun.psm1` source SHA-256; both the immutable
+  measured-base source and candidate generator/replay source must match that approved hash. A candidate cannot change
+  assignment semantics while keeping the protocol string. Proposed hashes in the unqualified candidate policy are not trusted. Before seeding the first qualified
+  policy, reviewers inspect a retained, same-source A/A calibration for the same runner, toolchain, harness and scenarios,
+  including full provenance, per-metric controls and exact-budget findings. A/A review is manual, has no invented numeric
+  pass threshold, and cannot qualify a pull request.
+- The migration summary loads the legacy judge from `git show <measured-base>:Tools/PerformanceComparison.psm1` in an
+  isolated module scope, then runs it and the candidate judge over identical parsed reports. It records both source
+  hashes, the base commit, every receipt SHA-256, and both decisions; the report files are rehashed around judgment. An
+  unavailable base judge, changed reports, or a changed verdict is inconclusive and requires explicit review; a
+  candidate cannot bootstrap the trusted policy from its own tree. The first policy is marked
+  `policy-review-required`; the migrated gate remains inconclusive until an independently reviewed, versioned policy is
+  present and qualified in the measured base.
+- `advice-required` remains a measured finding, not permission to merge or rebaseline. The retained summary records the
+  block schedule, seed, receipt identities, the legacy and migrated decisions, the correction family and every metric.
+  Historic Mann-Whitney summaries stay readable, but the migrated gate treats them as read-only and never as qualified passes.
+
+### Native accessibility scheduling and synchronization
+
+Native attachments start without a full tree snapshot. Mutations mark a revision dirty and post at most one private,
+attachment-cookie-checked publication message while a provider or UIA listener is interested. An owner-thread provider
+query flushes that revision synchronously; worker queries read the last complete published snapshot. Actual focus changes
+publish synchronously so the system's first worker focus query can report the new control. Event comparison has a separate
+baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
+after application preparation, with no snapshot work in composition.
+
+The developer approved retaining this coalescing tradeoff after reviewing the 9 October 2026
+[paired scheduling study](../../Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md).
+For its 128-operation synthetic batches, keystroke and selection total cost fell 95.92% and 98.43%, while representative
+first-query cost rose from 11.90/8.10 to 431.83/321.93 microseconds. The queue budget remains at most one pending
+publication message. These controlled batches, with unchanged focus and no intervening query or publication delivery,
+must build no full snapshots during mutation and one coherent fresh snapshot at the first owner query.
+Fresh-query correctness remains required. Larger-tree and query-heavy consumer workloads need their own retained
+baseline and latency qualification; this Debug study and approval establish no universal query-latency allowance or
+Release benchmark-policy pass.
+
+The study's globally balanced schedule is historical: its original independent-sign-flip inference is superseded by
+the [restricted-allocation correction](../../Measurements/Review-2026-10-09/RandomizationDesignCorrection50/README.md).
+All six corrected Holm-adjusted p-values are 0.0129870129870; the observations and approved tradeoff are unchanged.
+It cannot seed the independent-order qualification policy.
+
+The HWND registry and canonical-provider cache use separate nonrecursive mutexes. Immutable provider queries do not take
+the mutable range-state lock, and owner-thread actions resolve, unlock, invoke and revalidate across callbacks. Text ranges
+retain a recursive mutex per target while their helpers can reenter; demoting that mutex requires bounded reentrancy
+evidence, not a mechanical substitution. No range lock is held while waiting for an owner-thread visual-line operation.
+If another caller changes its endpoints or the document text during that dispatch, the delayed operation returns `UIA_E_INVALIDOPERATION`,
+leaves the newer range unchanged and reports no movement. A caller may retry using the current range. Replacement controls
+remain unavailable to the old range. Snapshot-derived peers bind the source control identity, so navigation and range
+creation cannot silently attach an old snapshot's answer to a new control at the same path.
+
+Native default text ranges read current coherent text and clamp their endpoints when queried. Explicit composition text
+overrides retain their declared text. Native peers retain control lifetime identities, not a whole predecessor tree
+snapshot per peer; embedded peers retain their creation snapshot for the embedded lifetime contract.
+
+The callback-retirement review retains immediate destruction with ownership-safe extraction and checks at every external
+callback/capture-cleanup boundary. A deferred physical-retirement queue is not introduced: it would require immediate
+logical invalidation, outermost nested-dispatch accounting and a measured retained-byte budget, and would not protect
+borrowed models or destruction of the host itself. Revisit it on a reproduced residual lifetime failure with ASan and
+matched latency/retention evidence. This decision does not close whole-host callback destruction or hardware/client gates.
+
+### Hosted paired gate
+
+The `paired-benchmark` job of [ci.yml](../../.github/workflows/ci.yml) runs the study on a hosted x64 Release runner.
+During migration, `Tools/BenchmarkGate.psm1` fails closed: a measured report cannot pass unless its base commit contains an
+independently qualified versioned policy, all required receipt identities are present and the policy is unchanged. The new
+candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.ps1` covers that fail-closed path.
+
+- **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
+  `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
+  benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
+  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
+  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
+  job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
+  the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
+  ends the job within a couple of minutes with the check passed. A step that cannot decide fails the job, so nothing passes
+  unmeasured because its scope could not be read. The job is not skipped for such a pull request, because GitHub reports a
+  skipped job under its unevaluated name expression and a required check of the same name would wait forever. A manual
+  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
+  and its job is bounded at 180 minutes; manual diagnostic runs are bounded at 240 minutes. A
+  pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
+  that a required check names exactly one check run.
+- **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
+  base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
+  also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
+  request; the two are one commit when the base has not moved. Both are built in Release and measured by
+  `performance-paired.ps1` with the merge ref's harness in `Default`, `MultilineGrid` and `MultilineGridDistinct`, twelve
+  independently drawn ABBA/BAAB blocks each: 24 runs per side per scenario. The assignment protocol and schedule seed/order are retained. The
+  gate keeps no baseline receipt, so it measures the base afresh.
+- **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
+  p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
+  `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
+  A flagged metric is listed whatever the conclusion; the gate dismisses nothing.
+- **Conclusion.** Under the migrated contract, a complete statistical result is still not a pass until the measured base
+  contains the trusted qualified policy. Missing/mismatched toolchain, executable, dependency or harness identity and any
+  unqualified/changed policy produce `inconclusive` and fail the pull-request check. Source fingerprints alone cannot
+  label an observed timing shift as noise. The report keeps the old judge and new judge decisions over identical receipt
+  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy.
+- **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
+  metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
+  controls of the metric a set flagged, not of all twenty-six together. The
+  [retained hosted run](../../Measurements/HostedPairedGate/2026-10-01/README.md) records the drift: all 18 controls
+  drifted in some metric, and the eight exact budgets in none. A
+  [second hosted A/A run](../../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) flagged five
+  clean-phase timings (p 0.004 to 0.026) of the same library code with their controls drifted: the candidate was slow in
+  five of its six runs and the baseline in none. Per metric that is inconclusive, not a degradation, so a hosted run can
+  need a re-run. The strict reading,
+  any unstable control making its scenario inconclusive, is the `-StrictControls` switch of
+  `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
+- **Identical library inputs.** Matching source or executable hashes are provenance only. Timing/memory flags remain
+  unresolved unless a trusted policy and its independent block/A/A evidence support the inference. Exact deterministic
+  budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima.
+- **No verdict.** Invalid evidence, missing provenance, an unqualified policy, a missing/unreadable summary, a summary that
+  lists no scenario or uses only an older six-run judge, and a run that did not finish fail with the reason in the job
+  summary. A pull request that changes the harness and library interfaces together, whose base cannot be
+  built with the merge ref's harness. Its comparison is measured by hand, as before.
+- **Confirmed degradation** follows the advice rule above: stop, present the deltas and suspected cause, and never relax a
+  band or replace a baseline to pass. The gate has no waiver list: a
+  tradeoff the developer approves is recorded in this contract, as the sections below do, and a maintainer merges over the
+  failed check.
+- **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull
+  request is gated. Hosted runs are serial on one machine but not on a controlled quiet desktop, and their evidence says so.
 
 ### Described-menu clean private memory
 
@@ -78,7 +211,7 @@ matched September 21 Release pairs against `78b3de3`
 ([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)), clean-round median
 private bytes had risen by 823,296, 1,175,552 and 1,175,552 bytes (+3.23%, +4.56%, +4.51%). The waiver accepted up to
 1,175,552 bytes (+4.6%) on the default x64 Release WARP fixture while an
-[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
+[optimization plan](../Plans/Done/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
 outside menu popups the change adds no allocation.
 
 On 2026-09-30 the waiver is removed, because the plan's repeated paired runs of `e47c836` against `6f769ab` are within
@@ -87,6 +220,26 @@ the bands. A local set of six runs per side
 +0.36% (p = 0.70) and dirty private bytes -0.89% (p = 0.56). The earlier hosted set measured clean private bytes
 -0.50% and -0.70%, and pair three's unaccepted dirty-round +8.67% did not repeat. Described menus now carry no memory
 envelope, and the regular investigation bands and exact budgets apply to them.
+
+### Accepted UI Automation elements of menus without descriptions
+
+On 2026-10-02 the developer accepted the measured cost of a UI Automation element for every row of a menu without
+descriptions (#56), which lets a screen reader read, focus and invoke an ordinary menu. A popup publishes its rows'
+elements whether or not a client listens. Three local sets of six interleaved runs per side, x64 Release, in a
+nonactivating harness ([packet](../../Measurements/PlainMenuUia/2026-10-02/README.md)), measured the final code against
+`265c280`, with UI Automation clients listening throughout:
+
+- **Memory.** An open menu holds about 1.6 KB more live heap per command row and 1.9 to 2.0 KB per radio row, linear from
+  12 to 4,096 rows: +19,967 bytes for twelve commands, +76,287 for 48 and +6.39 MB for 4,096. Closing returns all of it.
+- **Keyboard and scrolling.** A key or wheel notch that moves the rows rebuilds the popup's snapshot and raises a focus
+  change. Down takes about 0.3 ms more at twelve rows (38 to 340 µs), 0.6 ms more at 128 and 6.1 ms more at 4,096.
+- **Opening and pointer.** Opening 4,096 rows takes 77 ms instead of 60. A pointer move costs 4 µs more at twelve rows
+  and 236 µs more at 4,096.
+
+The accepted envelope is those recorded costs on that fixture. Described menus already paid them and are unchanged.
+The snapshot pre-sizing taken with the change makes every host's snapshot cheaper to build. A larger cost per row, any
+cost for a menu that opens no popup, and any change to the complex-UI benchmark remain regressions that need developer
+advice. The regular investigation bands and exact budgets still apply to everything else.
 
 ### I26 accepted multiline Grid memory tradeoff
 
@@ -118,8 +271,9 @@ quiet-fixture repeat.
 On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
 for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
 [review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
-(at most 16,384 entries; an entry the current or previous paint used is never evicted) and keep single-line captions'
-layouts as well. Two local paired sets against the review fixes
+(at most 16,384 entries; a table grows instead of evicting an entry the current or previous paint used, and at the ceiling a
+full set gives up its least recently used way) and keep single-line captions' layouts as well. Two local paired sets against
+the review fixes
 ([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
 allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
 (+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every
@@ -181,6 +335,16 @@ where the Debug STL allocates one container proxy per std::vector/std::wstring. 
 `dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
 advice. The benchmark does not establish displayed FPS.
 
+New complex-UI receipts retain all forty frame, preparation and CPU composition times per round in frame order,
+plus the `std::chrono::steady_clock` implementation, QPC frequency and counter-tick duration. Report the clock's
+nominal C++ period separately; it is not the hardware counter's resolution. Bounded stack copies and JSON output
+occur outside measured/allocation-counted frames. These diagnostic fields do not add judged metrics or change the
+existing percentiles, thirteen metrics, 26-slot family, investigation bands or exact budgets. Receipt validation
+checks complete finite samples and reproduces the reported FPS/percentiles with tolerance only for JSON rounding.
+Paired receipts must use the same clock metadata. Historical receipts without either diagnostic group remain
+readable under their original harness; partial new groups are invalid. A no-op preparation taking a few counter
+ticks warrants quantization analysis, not an automatic noise waiver or a silently batched replacement metric.
+
 Benchmark receipts also record process-memory phases at entry, device creation, scene
 creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
 locate changes; they do not replace matched frame/retention comparisons. The opt-in
@@ -203,7 +367,7 @@ and in a random order it cannot (a binary search is only as cheap as the first),
 after Ctrl+A and after each way back from it (Clear, a click, a Shift+click, a data change), counted exactly by the executable's
 allocation hook, the time and C++ heap bytes of the selection model's mutators, and `PreserveOrdered` over 200,000 rows with a
 few to 5,000 clicked. It also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched
-outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
+outside `Embedded.Tests.BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
 harness, as an interleaved paired set (a record of three builds runs them as A, B, C, C, B, A); it supplements the default
 benchmark for a change to selection and does not replace it.
 
@@ -241,6 +405,13 @@ and their acceptance criteria remain library-owned. The runnable complex sample 
 `Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
 A harness-only change (assertions or receipt fields) keeps the workload identity but changes the fixture hash, so the
 matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
+Renamed benchmark headers MUST also overlay any existing legacy include paths in the older measured tree with the
+current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
+and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
+after copying, before build/reuse, and before and after every measurement.
+Overlay rollback MUST retain and verify the original hash, refuse changed backups, attempt the remaining restorations,
+and report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
+performance qualification; preserve its original records for diagnosis before starting a fresh study.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
 repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,

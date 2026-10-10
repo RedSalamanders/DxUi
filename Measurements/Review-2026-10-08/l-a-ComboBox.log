@@ -1,0 +1,95 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] ComboBox
+  [START] TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox
+  [DONE] TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox (0.002 s)
+  [START] TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself
+  [DONE] TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself (0.000 s)
+  [START] TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications
+  [DONE] TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications (0.000 s)
+  [START] TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions
+  [DONE] TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions (0.000 s)
+  [START] TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections
+  [DONE] TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections (0.000 s)
+  [START] TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests
+  [DONE] TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests (0.000 s)
+  [START] TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues
+  [DONE] TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues (0.000 s)
+  [START] TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed
+  [DONE] TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed (0.002 s)
+  [START] TestEditableComboBoxTextCallbackKeepsItsSnapshotDuringReentry
+  [DONE] TestEditableComboBoxTextCallbackKeepsItsSnapshotDuringReentry (0.815 s)
+  [START] TestEditableComboBoxImportReportsWhenTextChangedDestroysComboBox
+  [DONE] TestEditableComboBoxImportReportsWhenTextChangedDestroysComboBox (0.001 s)
+  [START] TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox
+  [DONE] TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox (0.000 s)
+  [START] TestComboRightClickInvokesContextMenuWithoutOpeningPopup
+  [DONE] TestComboRightClickInvokesContextMenuWithoutOpeningPopup (0.001 s)
+  [START] TestComboBoxClosesOnFocusLoss
+  [DONE] TestComboBoxClosesOnFocusLoss (0.000 s)
+  [START] TestComboBoxSecondClickTogglesPopupClosed
+  [DONE] TestComboBoxSecondClickTogglesPopupClosed (0.001 s)
+  [START] TestAttachedComboBoxSentMouseHoverAndOutsideDismiss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedComboBoxSentMouseHoverAndOutsideDismiss (0.101 s)
+  [START] TestComboBoxPopupOverlayBlocksUnderlyingHover
+  [DONE] TestComboBoxPopupOverlayBlocksUnderlyingHover (0.001 s)
+  [START] TestComboBoxPopupOverlayBlocksUnderlyingClick
+  [DONE] TestComboBoxPopupOverlayBlocksUnderlyingClick (0.001 s)
+  [START] TestComboBoxPopupInsideScrolledPanelUsesViewportCoordinates
+  [DONE] TestComboBoxPopupInsideScrolledPanelUsesViewportCoordinates (0.222 s)
+  [START] TestScrollPanelPaintsOverlaysInScrolledViewportCoordinates
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestScrollPanelPaintsOverlaysInScrolledViewportCoordinates (0.069 s)
+  [START] TestAttachedComboBoxPopupMouseLeaveRestoresKeyboardHighlightedItem
+  [DONE] TestAttachedComboBoxPopupMouseLeaveRestoresKeyboardHighlightedItem (0.001 s)
+  [START] TestComboBoxPopupFlipsAboveWhenBelowSpaceIsInsufficient
+  [DONE] TestComboBoxPopupFlipsAboveWhenBelowSpaceIsInsufficient (0.231 s)
+  [START] TestAttachedComboBoxFlippedPopupItemRectsStayInsidePopupBounds
+  [DONE] TestAttachedComboBoxFlippedPopupItemRectsStayInsidePopupBounds (0.003 s)
+  [START] TestComboBoxPageDownUsesClampedVisiblePopupRows
+  [DONE] TestComboBoxPageDownUsesClampedVisiblePopupRows (0.013 s)
+  [START] TestComboBoxPopupWidensForLongVisibleEntries
+  [DONE] TestComboBoxPopupWidensForLongVisibleEntries (0.001 s)
+  [START] TestComboBoxPopupWidthRemainsStableAcrossPopupScroll
+  [DONE] TestComboBoxPopupWidthRemainsStableAcrossPopupScroll (0.008 s)
+  [START] TestComboBoxPopupScrollbarPagesLongLists
+  [DONE] TestComboBoxPopupScrollbarPagesLongLists (0.012 s)
+  [START] TestComboBoxPopupScrollbarThumbGutterDragThroughWindowHost
+  [DONE] TestComboBoxPopupScrollbarThumbGutterDragThroughWindowHost (0.012 s)
+  [START] TestComboBoxPopupCapsVisibleItemsAndScrolls
+  [DONE] TestComboBoxPopupCapsVisibleItemsAndScrolls (0.001 s)
+  [START] TestComboBoxTypeaheadSelectsMatchingItem
+  [DONE] TestComboBoxTypeaheadSelectsMatchingItem (0.000 s)
+  [START] TestComboBoxEightItemsAllFitInDefaultPopup
+  [DONE] TestComboBoxEightItemsAllFitInDefaultPopup (0.002 s)
+  [START] TestComboBoxSetMaxVisibleItemsAllowsLargerPopup
+  [DONE] TestComboBoxSetMaxVisibleItemsAllowsLargerPopup (0.003 s)
+  [START] TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent
+  [DONE] TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent (0.045 s)
+  [START] TestComboBoxLocalizedNoMatchesRefreshesOpenPopup
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestComboBoxLocalizedNoMatchesRefreshesOpenPopup (0.135 s)
+  [START] TestComboBoxCompactEditableTextRectPreservesInsetAndWidth
+  [DONE] TestComboBoxCompactEditableTextRectPreservesInsetAndWidth (0.000 s)
+  [START] TestNativeEditableComboBoxEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeEditableComboBoxEmojiUsesColorFontRendering (0.421 s)
+  [START] TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth
+  [DONE] TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth (0.223 s)
+  [START] TestComboBoxPopupUsesRoundSmallCornerRadius
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestComboBoxPopupUsesRoundSmallCornerRadius (0.093 s)
+  [START] TestComboBoxRainbowPopupUsesAccentDerivedHighlight
+  [DONE] TestComboBoxRainbowPopupUsesAccentDerivedHighlight (0.000 s)
+[DONE] ComboBox (2.426 s)
+All DxUi tests passed.

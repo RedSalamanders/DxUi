@@ -1,5 +1,10 @@
 # Prepared Tree accessibility qualification
 
+Historical record for the exact 2026-10-06 sources below. These receipts do not qualify the branch reconciled with
+current main on 2026-10-10. Earlier paired studies also predate the current independent-block/policy requirements;
+retain their raw observations without promoting them to current-source non-regression acceptance. The library
+finish checklist records fresh validation separately; RedPrism charged-source adoption remains on HOLD.
+
 Owner: DxUi library. The models, names, controls, devices and benchmark scenes are library-owned synthetic fixtures.
 No consumer data, application services or image documents are required.
 

@@ -14,7 +14,13 @@ an unknown name fails the run, and a filtered run never replaces a suite's recei
 `DXUI_RUN_TEST(TestName);` in its suite runner so the filter can select it and the watchdog can bound it: a test that
 outlives its deadline (300 s; `--test-timeout=<seconds>`, `test.ps1 -TestTimeout`, 0 off) ends the run with
 `TIMEOUT: <TestName> after <N> s` and exit code 124. A driver thread of a blocking menu starts with `DismissMenusIfDriverFails`.
+The suites that need the person's real desktop (`Menu`, `NativeTextInput` and the two menu resource fixtures) run deliberately through
+`test.ps1 -Interactive` (`-Suites` to pick, `-SkipBuild` after a build): it refuses without an interactive desktop, asks first (Cancel
+is the default), warns while it runs and restores the foreground window, focus and pointer however the run ends. Run it, or any of those
+suites, only when the person at the desktop has agreed to the time; leave them out of `-Suites` otherwise.
 
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded
 in `capabilities.json`; library tests do not replace consumer product qualification or deferred native-platform/IME/AT coverage.
+
+Ordinary iteration uses `Test-Changes.ps1 -Explain` followed by the affected default. Full/PrePush are explicit; use the owning scoped-testing contract to account for matching CI obligations and exact local evidence instead of repeating unchanged identical tests. Pending CI or foreground/platform acceptance is not a repository pass.

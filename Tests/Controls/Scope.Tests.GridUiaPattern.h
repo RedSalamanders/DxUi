@@ -1,0 +1,12 @@
+#pragma once
+
+void TestGridUiaPatternSupportsBoundedOffscreenGetItem();
+void TestGridUiaPatternStopsWhenCellReadReplacesItsControl();
+void TestGridUiaPatternStopsWhenCellReadShrinksItsModel();
+void TestGridUiaPatternRetriesSupersededSameAddressCapture();
+void TestGridUiaPatternStopsWhenCellReadNotifiesSameModel();
+void TestGridUiaPatternStopsPointHitsAfterModelReplacement();
+void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment();
+void TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation();
+void TestGridUiaPatternPreservesAssignmentDuringRowNavigation();
+void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary();

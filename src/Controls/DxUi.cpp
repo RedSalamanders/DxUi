@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <cwctype>
+#include <exception>
 #include <limits>
 #include <utility>
 
+#include <UIAutomation.h>
 #include <d2d1effects.h>
 
 #include "../Support/Diagnostics.h"
@@ -346,10 +348,15 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
             return;
         }
 
-        if (_host && _host->_embedded)
+        if (_host)
             ++_host->_interactionRevision;
-        _bounds = bounds;
+        _bounds                           = bounds;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
+        if (lifetime.expired())
+        {
+            return;
+        }
         RequestInvalidate();
     }
 }
@@ -390,12 +397,23 @@ void Control::SetVisible(bool visible) noexcept
 {
     if (_visible != visible)
     {
-        if (_host && _host->_embedded)
+        if (_host)
             ++_host->_interactionRevision;
-        _visible = visible;
+        _visible                          = visible;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (! visible)
+        {
             OnHidden();
+            if (lifetime.expired())
+            {
+                return;
+            }
+        }
         RequestInvalidate();
+        if (lifetime.expired())
+        {
+            return;
+        }
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -412,11 +430,20 @@ void Control::SetEnabled(bool enabled) noexcept
 {
     if (_enabled != enabled)
     {
-        if (_host && _host->_embedded)
+        if (_host)
             ++_host->_interactionRevision;
-        _enabled = enabled;
+        _enabled                          = enabled;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnEnabledChanged(enabled);
+        if (lifetime.expired())
+        {
+            return;
+        }
         RequestInvalidate();
+        if (lifetime.expired())
+        {
+            return;
+        }
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -532,7 +559,8 @@ bool Control::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POI
         return false;
     }
 
-    _onContextMenu(ResolveContextMenuAnchor(host, keyboardInvocation, pointDip), keyboardInvocation);
+    const auto onContextMenu = _onContextMenu;
+    (*onContextMenu)(ResolveContextMenuAnchor(host, keyboardInvocation, pointDip), keyboardInvocation);
     return true;
 }
 
@@ -555,15 +583,27 @@ bool Control::OnMnemonic(ControlHost& host)
 
     if (IsFocusable())
     {
-        if (const HWND hwnd = host.GetHwnd())
-        {
-            SetFocus(hwnd);
-        }
-        host.SetFocusControl(this);
+        static_cast<void>(FocusControlAndSurvive(host, *this, true));
         return true;
     }
 
     return false;
+}
+
+bool FocusControlAndSurvive(ControlHost& host, Control& control, bool takeNativeFocus) noexcept
+{
+    const std::weak_ptr<int> lifetime = GetControlLifetimeToken(control);
+    if (takeNativeFocus)
+    {
+        if (const HWND hwnd = host.GetHwnd())
+        {
+            SetFocus(hwnd);
+            if (lifetime.expired())
+                return false;
+        }
+    }
+    host.SetFocusControl(&control);
+    return ! lifetime.expired();
 }
 
 size_t Control::GetLogicalChildCount() const noexcept
@@ -603,9 +643,9 @@ void Control::SetFlowDirection(FlowDirection direction) noexcept
         return;
     }
 
-    _explicitFlowDirection = direction;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _explicitFlowDirection        = direction;
     OnFlowDirectionChanged();
-    RequestInvalidate();
 }
 
 void Control::ClearFlowDirection() noexcept
@@ -615,9 +655,9 @@ void Control::ClearFlowDirection() noexcept
         return;
     }
 
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     _explicitFlowDirection.reset();
     OnFlowDirectionChanged();
-    RequestInvalidate();
 }
 
 bool Control::HasExplicitFlowDirection() const noexcept
@@ -632,7 +672,7 @@ FlowDirection Control::GetFlowDirection() const noexcept
         return _explicitFlowDirection.value();
     }
 
-    return _parent ? _parent->GetFlowDirection() : FlowDirection::LeftToRight;
+    return _parent ? _parent->GetFlowDirection() : _detachedFlowDirection.value_or(FlowDirection::LeftToRight);
 }
 
 bool Control::IsRightToLeft() const noexcept
@@ -647,9 +687,9 @@ void Control::SetDensity(Density density) noexcept
         return;
     }
 
-    _explicitDensity = density;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _explicitDensity              = density;
     OnDensityChanged();
-    RequestInvalidate();
 }
 
 void Control::ClearDensity() noexcept
@@ -659,9 +699,9 @@ void Control::ClearDensity() noexcept
         return;
     }
 
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     _explicitDensity.reset();
     OnDensityChanged();
-    RequestInvalidate();
 }
 
 bool Control::HasExplicitDensity() const noexcept
@@ -681,7 +721,7 @@ Density Control::GetDensity() const noexcept
         return _parent->GetDensity();
     }
 
-    return _host ? _host->GetTheme().density : Density::Standard;
+    return _host ? _host->GetTheme().density : _detachedDensity.value_or(Density::Standard);
 }
 
 bool Control::IsCompactDensity() const noexcept
@@ -776,7 +816,26 @@ AccessibilityRole Control::GetAccessibilityRole() const noexcept
 
 void Control::SetAccessibleInvoke(std::function<void(ControlHost&)> onInvoke)
 {
-    _onAccessibleInvoke = std::move(onInvoke);
+    if (! onInvoke)
+    {
+        SetAccessibleInvokeResult({});
+        return;
+    }
+    SetAccessibleInvokeResult([onInvoke = std::move(onInvoke)](ControlHost& host)
+    {
+        onInvoke(host);
+        return S_OK;
+    });
+}
+
+void Control::SetAccessibleInvokeResult(std::function<HRESULT(ControlHost&)> onInvoke)
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    ReplaceControlCallback(_onAccessibleInvoke, std::move(onInvoke));
+    if (lifetime.expired())
+    {
+        return;
+    }
     if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -790,18 +849,33 @@ bool Control::SupportsAccessibleInvoke() const noexcept
 
 bool Control::InvokeAccessible(ControlHost& host)
 {
-    if (! _onAccessibleInvoke || ! IsVisible() || ! IsEnabled())
-    {
-        return false;
-    }
+    return SUCCEEDED(InvokeAccessibleResult(host));
+}
 
-    _onAccessibleInvoke(host);
-    return true;
+HRESULT Control::InvokeAccessibleResult(ControlHost& host) noexcept
+try
+{
+    if (! _onAccessibleInvoke || ! IsVisible())
+        return UIA_E_NOTSUPPORTED;
+    if (! IsEnabled())
+        return UIA_E_ELEMENTNOTENABLED;
+    const auto onAccessibleInvoke = _onAccessibleInvoke;
+    return (*onAccessibleInvoke)(host);
+}
+catch (const std::bad_alloc&)
+{
+    // An application callback cannot propagate allocation failure through UI Automation.
+    return E_OUTOFMEMORY;
+}
+catch (const std::exception&)
+{
+    // Report a failed application callback to the COM caller without repeating its action.
+    return E_FAIL;
 }
 
 void Control::SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboardInvocation)> onContextMenu)
 {
-    _onContextMenu = std::move(onContextMenu);
+    ReplaceControlCallback(_onContextMenu, std::move(onContextMenu));
 }
 
 Control* Control::HitTest(D2D1_POINT_2F point)
@@ -831,12 +905,17 @@ bool Control::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point
         return false;
     }
 
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     for (size_t childIndex = GetLogicalChildCount(); childIndex > 0u; --childIndex)
     {
         Control* const child = GetLogicalChild(childIndex - 1u);
         if (child && child->DismissOverlayOnPointerDown(host, point))
         {
             return true;
+        }
+        if (selfLifetime.expired())
+        {
+            return false;
         }
     }
 
@@ -878,12 +957,12 @@ void Control::PropagateHost(ControlHost* host) noexcept
 {
     if (_host != host)
     {
-        if (_host && _host->_embedded)
+        if (_host)
         {
             ++_host->_interactionRevision;
             _host->Invalidate();
         }
-        if (host && host->_embedded)
+        if (host)
         {
             ++host->_interactionRevision;
             host->Invalidate();
@@ -899,32 +978,77 @@ void Control::SetParent(Panel* parent) noexcept
 
 void Control::Reparent(Panel* parent, ControlHost* host) noexcept
 {
+    ReparentWithPreviousInheritance(parent, host, GetFlowDirection(), GetDensity());
+}
+
+void Control::ReparentWithPreviousInheritance(Control* parent, ControlHost* host, FlowDirection flowDirection, Density density) noexcept
+{
+    const std::weak_ptr<int> lifetime       = GetLifetimeToken();
+    const std::weak_ptr<int> parentLifetime = parent ? parent->GetLifetimeToken() : std::weak_ptr<int>{};
     // The flow direction and density a control inherits resolve through its parent chain (a root takes its host's
     // density). A parent's own change is announced to its children; a move changes them just the same, so the moved
     // control hears it the same way: once, after it stands in its final place, and only when a value differs. A child
-    // that inherits what its parent already has, and a host being torn down, announce nothing. The old parent is read
-    // to tell what differs, so it must still exist (as the old host, which PropagateHost reads, always had to).
-    const FlowDirection flowDirection = GetFlowDirection();
-    const Density density             = GetDensity();
-    _parent                           = parent;
+    // that inherits what its parent already has, and a host being torn down, announce nothing. Snapshot the previous
+    // values before callbacks can retire the old parent; this operation reads only the new parent chain.
+    _parent = parent;
+    if (parent || host)
+    {
+        _detachedFlowDirection.reset();
+        _detachedDensity.reset();
+    }
     PropagateHost(parent ? parent->_host : nullptr);
+    if (lifetime.expired())
+    {
+        return;
+    }
+    if (parent && parentLifetime.expired())
+    {
+        _parent = nullptr;
+        return;
+    }
     if (host != _host)
     {
         PropagateHost(host);
+        if (lifetime.expired())
+        {
+            return;
+        }
+        if (parent && parentLifetime.expired())
+        {
+            _parent = nullptr;
+            return;
+        }
     }
     if (GetFlowDirection() != flowDirection)
     {
         OnFlowDirectionChanged();
+        if (lifetime.expired())
+        {
+            return;
+        }
+        if (parent && parentLifetime.expired())
+        {
+            _parent = nullptr;
+            return;
+        }
     }
     if (GetDensity() != density)
     {
         OnDensityChanged();
+        if (lifetime.expired())
+        {
+            return;
+        }
+        if (parent && parentLifetime.expired())
+        {
+            _parent = nullptr;
+        }
     }
 }
 
 Panel* Control::GetParent() const noexcept
 {
-    return _parent;
+    return dynamic_cast<Panel*>(_parent);
 }
 
 void Control::OnBoundsChanged() noexcept
@@ -933,18 +1057,28 @@ void Control::OnBoundsChanged() noexcept
 
 void Control::OnFlowDirectionChanged() noexcept
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     RequestInvalidate();
 }
 
 void Control::OnDensityChanged() noexcept
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     RequestInvalidate();
 }

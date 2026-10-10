@@ -1,0 +1,1 @@
+- Scoped build and native run evidence now hashes installed platform vcpkg triplet files plus status, package inventory and ABI metadata; missing dependency inputs prevent receipt reuse.

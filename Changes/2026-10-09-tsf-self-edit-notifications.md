@@ -1,0 +1,1 @@
+- Suppress TSF sink text and selection notifications for the store's own ACP edits, defer callback-observed external document changes until the active lock unwinds, and retire native posted work with its TSF session cookie.

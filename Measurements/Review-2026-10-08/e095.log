@@ -1,0 +1,100 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] TextField
+  [START] TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues
+=================================================================
+==115856==ERROR: AddressSanitizer: heap-use-after-free on address 0x129e33ba0d34 at pc 0x7ff7559ac788 bp 0x007aad91b930 sp 0x007aad91b930
+READ of size 1 at 0x129e33ba0d34 thread T0
+    #0 0x7ff7559ac787 in DxUi::TextField::OnKeyDown Z:\src\DxUi\src\Controls\DxUi.TextInput.cpp:2387
+    #1 0x7ff75550761a in `anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues Z:\src\DxUi\Tests\Controls\DxUi.Tests.TextField.cpp:2224
+    #2 0x7ff754cbb917 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #3 0x7ff755508a73 in RunTextFieldTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.TextField.cpp:2267
+    #4 0x7ff754e60b65 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #5 0x7ff754e5bd7c in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:539
+    #6 0x7ff755d3b758 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #7 0x7ff755d3b671 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #8 0x7ff755d3b52d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #9 0x7ff755d3b7cd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #10 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #11 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x129e33ba0d34 is located 692 bytes inside of 944-byte region [0x129e33ba0a80,0x129e33ba0e30)
+freed by thread T0 here:
+    #0 0x7ff755d39473 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff7559e4940 in DxUi::TextField::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140ff4940)
+    #2 0x7ff754c9a4f3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff754c6e1a0 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff754c9bb26 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402abb26)
+    #5 0x7ff754c0ecf1 in std::destroy_at<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #6 0x7ff754c0e903 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::destroy<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #7 0x7ff754b7d4f2 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #8 0x7ff754cf9929 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #9 0x7ff754c721a6 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::~vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #10 0x7ff754c7351b in DxUi::Panel::~Panel+0x1b (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x14028351b)
+    #11 0x7ff754c9c166 in DxUi::Panel::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402ac166)
+    #12 0x7ff754c9a4f3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #13 0x7ff754c6e1a0 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #14 0x7ff755a8d220 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1395
+    #15 0x7ff7554cce1a in ``anonymous namespace'::MakeRetainedCallbackCleanupThatClearsRoot'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.TextField.cpp:32
+    #16 0x7ff75550af95 in std::_Ref_count_resource<int *,``anonymous namespace'::MakeRetainedCallbackCleanupThatClearsRoot'::`2'::<lambda_1> >::_Destroy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1242
+    #17 0x7ff754cd45c0 in std::_Ref_count_base::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1183
+    #18 0x7ff754cd44d7 in std::_Ptr_base<int>::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1408
+    #19 0x7ff754c6d85e in std::shared_ptr<int>::~shared_ptr<int> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1713
+    #20 0x7ff755507c85 in ``anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues'::`2'::<lambda_1>::~<lambda_1>+0x15 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b17c85)
+    #21 0x7ff75550d939 in std::_Func_impl_no_alloc<``anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues'::`2'::<lambda_1>,bool,DxUi::ControlHost &,unsigned int,unsigned int>::~_Func_impl_no_alloc<``anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues'::`2'::<lambda_1>,bool,DxUi::ControlHost &,unsigned int,unsigned int>+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b1d939)
+    #22 0x7ff75550d966 in std::_Func_impl_no_alloc<``anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues'::`2'::<lambda_1>,bool,DxUi::ControlHost &,unsigned int,unsigned int>::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b1d966)
+    #23 0x7ff75550d8f4 in std::_Func_impl_no_alloc<``anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues'::`2'::<lambda_1>,bool,DxUi::ControlHost &,unsigned int,unsigned int>::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1027
+    #24 0x7ff75551cc10 in std::_Func_class<bool,DxUi::ControlHost &,unsigned int,unsigned int>::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1138
+    #25 0x7ff75551bf0e in std::_Func_class<bool,DxUi::ControlHost &,unsigned int,unsigned int>::~_Func_class<bool,DxUi::ControlHost &,unsigned int,unsigned int> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1061
+    #26 0x7ff7559e22d2 in std::function<bool __cdecl(DxUi::ControlHost &,unsigned int,unsigned int)>::~function<bool __cdecl(DxUi::ControlHost &,unsigned int,unsigned int)>+0x12 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140ff22d2)
+    #27 0x7ff7559e48a6 in std::function<bool __cdecl(DxUi::ControlHost &,unsigned int,unsigned int)>::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140ff48a6)
+    #28 0x7ff7559d63f1 in std::_Destroy_in_place<std::function<bool __cdecl(DxUi::ControlHost &,unsigned int,unsigned int)> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:324
+
+previously allocated by thread T0 here:
+    #0 0x7ff755d39355 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff754c23963 in std::make_unique<DxUi::TextField,wchar_t const (&)[17],0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff754b59281 in DxUi::Panel::AddChild<DxUi::TextField,wchar_t const (&)[17]> Z:\src\DxUi\include\DxUi\DxUi.h:1662
+    #3 0x7ff755507163 in `anonymous namespace'::TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues Z:\src\DxUi\Tests\Controls\DxUi.Tests.TextField.cpp:2213
+    #4 0x7ff754cbb917 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff755508a73 in RunTextFieldTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.TextField.cpp:2267
+    #6 0x7ff754e60b65 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff754e5bd7c in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:539
+    #8 0x7ff755d3b758 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff755d3b671 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff755d3b52d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff755d3b7cd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi\src\Controls\DxUi.TextInput.cpp:2387 in DxUi::TextField::OnKeyDown
+Shadow bytes around the buggy address:
+  0x129e33ba0a80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x129e33ba0b00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x129e33ba0b80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x129e33ba0c00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x129e33ba0c80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+=>0x129e33ba0d00: fd fd fd fd fd fd[fd]fd fd fd fd fd fd fd fd fd
+  0x129e33ba0d80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x129e33ba0e00: fd fd fd fd fd fd fa fa fa fa fa fa fa fa fa fa
+  0x129e33ba0e80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x129e33ba0f00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x129e33ba0f80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==115856==ABORTING

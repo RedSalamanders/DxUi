@@ -1,0 +1,1844 @@
+[
+  {
+    "path": "paired-first/Default-A1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A1.json",
+    "bytes": 8171,
+    "sha256": "e9835550b3ac219ec69de13f99e4c7ffaf2e4e23caca2eadc9f1c6d28bf63734"
+  },
+  {
+    "path": "paired-first/Default-A1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-A2-vs-A1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A2-vs-A1-control.comparison.json",
+    "bytes": 5784,
+    "sha256": "6de3f2f94aa6db5b5c2cb414a6b83bc3c240ccd0c1634136c871ca58392f813d"
+  },
+  {
+    "path": "paired-first/Default-A2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A2.json",
+    "bytes": 8172,
+    "sha256": "e6ad5403e3e17ea8a18a623ff73adb4a7b34f5bf4ac9aa00637b86c78c678255"
+  },
+  {
+    "path": "paired-first/Default-A2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-A3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A3.json",
+    "bytes": 8175,
+    "sha256": "c013e370c0b143918afea664ad9c336fc9c66e210b3b80eb8ad1a902baab68d2"
+  },
+  {
+    "path": "paired-first/Default-A3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-A4-vs-A3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A4-vs-A3-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "e8ef3a4c4c18bc7991fb2affb595fb1d40df8fa092a76b523e6f6b2a3b489a05"
+  },
+  {
+    "path": "paired-first/Default-A4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A4.json",
+    "bytes": 8176,
+    "sha256": "20131de69c3612f7fe23843514f6e095f25ca94354e817c6ab8980519e740f42"
+  },
+  {
+    "path": "paired-first/Default-A4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-A5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A5.json",
+    "bytes": 8175,
+    "sha256": "cd41edd70a4d974075bad64a8788a05fef3fd41be3aa85daa0f6f42cd93624c6"
+  },
+  {
+    "path": "paired-first/Default-A5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-A6-vs-A5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A6-vs-A5-control.comparison.json",
+    "bytes": 5790,
+    "sha256": "b45fe4130b1010a1413702e339beb6570c0cde28a8d4a089f83d3cedf461e813"
+  },
+  {
+    "path": "paired-first/Default-A6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A6.json",
+    "bytes": 8171,
+    "sha256": "db0d6bac958cfbf493dbb1d2ca153d18da45c49119e511a1e5bdf09f04eac2b1"
+  },
+  {
+    "path": "paired-first/Default-A6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-A6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B1-vs-A1.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B1-vs-A1.comparison.json",
+    "bytes": 5772,
+    "sha256": "f5a6a1ed3fbab42f56f80e1d9d4bea895f5e32cab9ab6fad7f64ac06fbf1bba7"
+  },
+  {
+    "path": "paired-first/Default-B1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B1.json",
+    "bytes": 8173,
+    "sha256": "53c59bd81193476a613fbedc8b19f1f8ad3d652682e1d54933b5f59da270178a"
+  },
+  {
+    "path": "paired-first/Default-B1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B2-vs-A2.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B2-vs-A2.comparison.json",
+    "bytes": 5797,
+    "sha256": "ec7e81f4ae1bad4f399f39a3e4f825a5e11cf75051385d660c9b81a68f766e27"
+  },
+  {
+    "path": "paired-first/Default-B2-vs-B1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B2-vs-B1-control.comparison.json",
+    "bytes": 5793,
+    "sha256": "8cf86463bbc4931b69f7f8bbdc9fb24fd6288e73624e918f464ce740f6748a4e"
+  },
+  {
+    "path": "paired-first/Default-B2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B2.json",
+    "bytes": 8175,
+    "sha256": "841b77cfa4f8b0023c1b53ae87a3b968d975f3b9eafab612c8a9b6d5d6fb3760"
+  },
+  {
+    "path": "paired-first/Default-B2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B3-vs-A3.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B3-vs-A3.comparison.json",
+    "bytes": 5788,
+    "sha256": "5cf88de46530208bfb72eed6e909de732b29c38e9f898daa75e7996a31dae18c"
+  },
+  {
+    "path": "paired-first/Default-B3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B3.json",
+    "bytes": 8171,
+    "sha256": "2e40c20acf427fa8440722aca12614f09840e14c19a1bfcb7c4bd6150b16c184"
+  },
+  {
+    "path": "paired-first/Default-B3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B4-vs-A4.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B4-vs-A4.comparison.json",
+    "bytes": 5770,
+    "sha256": "be437621bf304f1265b2c9fdb30740812fc73dd9ec0a7eb1d2e0e5e4b4f1eb87"
+  },
+  {
+    "path": "paired-first/Default-B4-vs-B3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B4-vs-B3-control.comparison.json",
+    "bytes": 5782,
+    "sha256": "cb72060afc5c997c8240970fef16c16bb1697de36006634674c6e3a2b29d1731"
+  },
+  {
+    "path": "paired-first/Default-B4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B4.json",
+    "bytes": 8171,
+    "sha256": "2d9026e5b2d2a93093c91104f0c8ab47674578fb3833a70f3c7d00862e81ae6d"
+  },
+  {
+    "path": "paired-first/Default-B4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B5-vs-A5.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B5-vs-A5.comparison.json",
+    "bytes": 5789,
+    "sha256": "1447f327b35756a5b0f92c2b6919edd61f7b858a23beb96f05ea50118bf286c4"
+  },
+  {
+    "path": "paired-first/Default-B5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B5.json",
+    "bytes": 8171,
+    "sha256": "ce628db8d486b5d2cdac36fa9af08daacc73ca492ca42fd3fe3c34538db6df6f"
+  },
+  {
+    "path": "paired-first/Default-B5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/Default-B6-vs-A6.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B6-vs-A6.comparison.json",
+    "bytes": 5791,
+    "sha256": "ae3da4dcbfbff99c69dbe0e6f9ad560beb7e7e2252566207eab39a305c47d2d0"
+  },
+  {
+    "path": "paired-first/Default-B6-vs-B5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B6-vs-B5-control.comparison.json",
+    "bytes": 5784,
+    "sha256": "42eacf8ec15581b440e11bf888e27980e867ac8ded3c2d2b5b292bdd6c490dbf"
+  },
+  {
+    "path": "paired-first/Default-B6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B6.json",
+    "bytes": 8174,
+    "sha256": "6d5455dbc77de085040cef38721cd08698b8652ad043d494ababa377dd3f8945"
+  },
+  {
+    "path": "paired-first/Default-B6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\Default-B6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A1.json",
+    "bytes": 8195,
+    "sha256": "4ccb2318f9db360e014e5cf492f5f442d5f7b0892ee2b524812c1ccb0147496e"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A2-vs-A1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A2-vs-A1-control.comparison.json",
+    "bytes": 5788,
+    "sha256": "b5ecfeca73992a45d2093adfaaabcdc92deb8b1dec9eaa360aef490f5cbfb795"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A2.json",
+    "bytes": 8201,
+    "sha256": "05a6f17f9fd44275f65d7a56888edb6d06d132e16632e04303ba1144028a93cc"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A3.json",
+    "bytes": 8191,
+    "sha256": "7cd58c4cd3af495ac1947338298e111637e3785adfa4219c2f74b3f1c8ab65a7"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A4-vs-A3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A4-vs-A3-control.comparison.json",
+    "bytes": 5785,
+    "sha256": "e5760ef8cf37e9feff63cbd6ad56b9373a2c3814b00dcf401baae802381e04de"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A4.json",
+    "bytes": 8203,
+    "sha256": "5771726c56fb77451bd10e83a9f41a35cb630433f123a99512ec037f4790f53c"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A5.json",
+    "bytes": 8201,
+    "sha256": "71dd204d441fa10767d2300351140d133bb9c29c1cfc9f4791a4b75e0eda3c5d"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A6-vs-A5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A6-vs-A5-control.comparison.json",
+    "bytes": 5789,
+    "sha256": "739fca8c7706b22213e07685c5d70d6ea9840f27f5316eb089b46a244879209b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A6.json",
+    "bytes": 8206,
+    "sha256": "1e2a2f8cae44ff2ea3c2504961c017424b90e51bce5b88f6e4c33b6e0926e9a0"
+  },
+  {
+    "path": "paired-first/MultilineGrid-A6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-A6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B1-vs-A1.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B1-vs-A1.comparison.json",
+    "bytes": 5780,
+    "sha256": "3209aa133438a1c967b4bd29c824533defe9bc8daafba34c651c1840093744e9"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B1.json",
+    "bytes": 8201,
+    "sha256": "c8ea50ac1837bc07235f5d0cc96b7ae38ceb5c47afe2efb24ae05c8daf64af59"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B2-vs-A2.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B2-vs-A2.comparison.json",
+    "bytes": 5798,
+    "sha256": "950d85a4d706f5e184c9b2b62e94767d0e8903b749b0b2e26ebb518698132778"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B2-vs-B1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B2-vs-B1-control.comparison.json",
+    "bytes": 5796,
+    "sha256": "4954d42eb25910a8fc0026d05189cea95df921a7f891f75b39849018ea35b504"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B2.json",
+    "bytes": 8185,
+    "sha256": "5b568b3c3a41cdf10ac82c16536609862d206a5c177ec3c09afac282a0d3d808"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B3-vs-A3.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B3-vs-A3.comparison.json",
+    "bytes": 5785,
+    "sha256": "862fb9b1f2be2e990d0909ce4b831e018086604c741e7daa7b1367ca7f2d5c1b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B3.json",
+    "bytes": 8201,
+    "sha256": "6e24b63ed1acf4d57a91a7872c8335a2ca6d4ff66872e4a7abef9c1caadec48b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B4-vs-A4.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B4-vs-A4.comparison.json",
+    "bytes": 5759,
+    "sha256": "8186ab3e56e72863e10437cd60a46f66fb967273adb95ed1a077466fa327f830"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B4-vs-B3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B4-vs-B3-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "c72d9655261beffc3f3fac993090f2dfb495ab1b34366de2f24d14ea4100e94f"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B4.json",
+    "bytes": 8190,
+    "sha256": "58cc7b379b02f03190f5d23698d655767fc6b501bd680f5bdda3bd73e086227c"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B5-vs-A5.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B5-vs-A5.comparison.json",
+    "bytes": 5777,
+    "sha256": "47b8330569550d589edf67dbd7c1a945a25f6229a391aae6add9e300adde870b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B5.json",
+    "bytes": 8209,
+    "sha256": "3ffc6e9b50385b55a0ea7b89b80bec5d082dee4eb5bbef9d455e017daaf3b78b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B6-vs-A6.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B6-vs-A6.comparison.json",
+    "bytes": 5779,
+    "sha256": "c6de83ac6f01f0d9ea046682f8217abe937818311b26038f85e95847495bb712"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B6-vs-B5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B6-vs-B5-control.comparison.json",
+    "bytes": 5773,
+    "sha256": "d8381c6cbc666fb70f823d57ece31194c177fd6ea88f46907894b0460519fdf6"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B6.json",
+    "bytes": 8198,
+    "sha256": "ceeb6b2dc1db2f89757173187692507c2852bbfc8df2c6fed84ede58e717be9b"
+  },
+  {
+    "path": "paired-first/MultilineGrid-B6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGrid-B6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A1.json",
+    "bytes": 8195,
+    "sha256": "28618a1b9046ef31b4aa171308a6e3c554ba8ea5e993846d2434bc1f915c582b"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A2-vs-A1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A2-vs-A1-control.comparison.json",
+    "bytes": 5781,
+    "sha256": "382fa34fa677264dfc562059170f1c639086dc7ef025c38f74c8940f878eada6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A2.json",
+    "bytes": 8193,
+    "sha256": "297fd87c670f009b2f3eba40aa540a290ce291f9c99e2b7296161b62be4532b9"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A3.json",
+    "bytes": 8192,
+    "sha256": "01add71e1abdad787edb92cf764dedfd5fcbb31aa140ce75748ccd92a1037c64"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A4-vs-A3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A4-vs-A3-control.comparison.json",
+    "bytes": 5771,
+    "sha256": "e9407b7f4c751e5b91b67073f8b25495a0c5d2f974721a89a6ccfb27287ef1a8"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A4.json",
+    "bytes": 8200,
+    "sha256": "e9d08b7bc003bc0195c58d4b17693664060ef223c17e80b8f01b43db0eb2ba27"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A5.json",
+    "bytes": 8190,
+    "sha256": "b648ffe1177aad72163cfd3f865044ba73974f53c0a98a32b60ec0b2acda37be"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A6-vs-A5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A6-vs-A5-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "656211b8b5bb2c178086d835dfa41aa44962317c9e9c618e9b3d8cf494f2088a"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A6.json",
+    "bytes": 8197,
+    "sha256": "0010c32e1408bcfc81a7ad204bbdb265848c9c71c05723aa6a8113bc76fcc350"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-A6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-A6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B1-vs-A1.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B1-vs-A1.comparison.json",
+    "bytes": 5776,
+    "sha256": "8225caf5231d190e12425f49f1c3b2a5c45e3b5d33ef754e8a36a0475a5fd8e4"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B1.json",
+    "bytes": 8200,
+    "sha256": "bbbfb96177af28f0c3b6d18e1a54bb93670ba59e4c2c0f323ae09f400bf11e2b"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B2-vs-A2.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B2-vs-A2.comparison.json",
+    "bytes": 5784,
+    "sha256": "a543eae85bb26af7ddf7116ba25e238759957d88103bdfeab1fe1efa0545a1e8"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B2-vs-B1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B2-vs-B1-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "278db2fedd2daf7ac161412b26c9250dab598d2b1899bfab3e4a8fb652a85266"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B2.json",
+    "bytes": 8195,
+    "sha256": "b87dc6d9d53543882797583af18cf7324fb89ac84deb159083f10eaa2e4e4f40"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B3-vs-A3.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B3-vs-A3.comparison.json",
+    "bytes": 5769,
+    "sha256": "75257a31307a1dbac6126e0fdedb376332fa587cf6c755fccab504369340594f"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B3.json",
+    "bytes": 8196,
+    "sha256": "2df578745290a43f04bd9e67c9619352c8dc9b88272cda83dc10b43b04613306"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B4-vs-A4.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B4-vs-A4.comparison.json",
+    "bytes": 5791,
+    "sha256": "af6d55df054d51e5e93aa83f7326ebf9d1e46378d616642b659735455561115d"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B4-vs-B3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B4-vs-B3-control.comparison.json",
+    "bytes": 5791,
+    "sha256": "69e1e47d1df098ee61be8a021417efa5e5e50075de3f186683a59b368d1e6a6e"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B4.json",
+    "bytes": 8199,
+    "sha256": "62fdf8929efab1ce2b4a9d07aac9d98396ef16ab3705ade09871996250af6fbc"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B5-vs-A5.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B5-vs-A5.comparison.json",
+    "bytes": 5771,
+    "sha256": "94b9d2dd25c20ae9ab3f88c37a912f0e4b6029534fc36e59e663c2881801a137"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B5.json",
+    "bytes": 8193,
+    "sha256": "a798588ba561f4794d6468f9c2fe2d6800f4ee1156a7477f7f4d68f5443bdcfe"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B6-vs-A6.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B6-vs-A6.comparison.json",
+    "bytes": 5788,
+    "sha256": "36c2da6f4d7df50b81771fdddc2f857552aa247dd608270fb41d00c551b3d1fc"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B6-vs-B5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B6-vs-B5-control.comparison.json",
+    "bytes": 5774,
+    "sha256": "f83bbd770e110867c6fdaa065b5804d95a6fce044d239ce461b8be1463a5c93f"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B6.json",
+    "bytes": 8198,
+    "sha256": "df021a20c79b158e7d303cd7da808ba7612d88af019a3b0db573bd4339d0cb9f"
+  },
+  {
+    "path": "paired-first/MultilineGridDistinct-B6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridDistinct-B6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A1.json",
+    "bytes": 15303,
+    "sha256": "fb420595e38a94747d7224eb636ac5d00c273dbe2053d883844ee9392c0e5254"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A2-vs-A1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2-vs-A1-control.comparison.json",
+    "bytes": 5782,
+    "sha256": "d34e5b90345c8e8bdfb4efe3194e095d9883eaac9aaca5dc8ea9954649b547b2"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2.json",
+    "bytes": 15317,
+    "sha256": "47f20155ab0c9bef1b80969b99ef60dafef0ddefddac1dc4eaff1c20b488168f"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A3.json",
+    "bytes": 15309,
+    "sha256": "b24b2c294078c99b948152f4376e85750216e0f8874c39a723fd25fa1e835bd6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A4-vs-A3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4-vs-A3-control.comparison.json",
+    "bytes": 5761,
+    "sha256": "e776f80b9440e945f51827d17092f3e19049a8661e3e355a58b01651a9c88c98"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4.json",
+    "bytes": 15318,
+    "sha256": "4567fa6d90981a6a359393c5d7115dac8c4acf8eb5a6d05cfa1e2ce1cef2f340"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A5.json",
+    "bytes": 15303,
+    "sha256": "6896059e312f91681bbdbae694630fe48bb321889a782389bfde977c333f37ca"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A6-vs-A5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6-vs-A5-control.comparison.json",
+    "bytes": 5795,
+    "sha256": "1f38fd92f3bd2ae00849dbf71540073c459716131b4e5f2a7a56df5cb8283b14"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6.json",
+    "bytes": 15297,
+    "sha256": "63c6c318b29d53b8697b28095f4f90ef27b76a22825295d02e83354dc4ff94e9"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-A6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B1-vs-A1.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1-vs-A1.comparison.json",
+    "bytes": 5788,
+    "sha256": "f3a8653be2e2631beef242b5b43f681d1f79bfd07b3c70e3f9d975a64e51da85"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1.json",
+    "bytes": 15287,
+    "sha256": "8e776339959688eaf5ac612756df76671a88c42e6c44ecc3688f8b9ba5f31593"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B2-vs-A2.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2-vs-A2.comparison.json",
+    "bytes": 5776,
+    "sha256": "07e1fc2224556be12ab75899589a533fe576264557f23e969755f3c4867e479a"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B2-vs-B1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2-vs-B1-control.comparison.json",
+    "bytes": 5777,
+    "sha256": "e6d1b63c2e702a96ba97fd06f9cf5d8e8cf67f65af721998225cda75799212b8"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2.json",
+    "bytes": 15303,
+    "sha256": "34004ce780cadd3e48001115c3b5ad4c520b38b5ca3b384b074b7d2cac8b0687"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B3-vs-A3.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3-vs-A3.comparison.json",
+    "bytes": 5770,
+    "sha256": "7c81d86fb16a7af5325b979454e3831426156a9554e276d8dded89199d123b0a"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3.json",
+    "bytes": 15300,
+    "sha256": "ce0306863b6609f0c0545a6bb91a1ecc52f13bd92f014f10b5d46924d8535da4"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B4-vs-A4.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4-vs-A4.comparison.json",
+    "bytes": 5782,
+    "sha256": "3dae94680a34f04995b4ec5f51a0ee3f277c7d759565346000b8825a886e34db"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B4-vs-B3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4-vs-B3-control.comparison.json",
+    "bytes": 5782,
+    "sha256": "9934a87ef1d1dab93bf56a6d02b7990f14a160c9a4f4cb0f82b46aaeb9ee93b5"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4.json",
+    "bytes": 15309,
+    "sha256": "c4588c234da1ddbc787d30b4fa4a6377e9801d0831774e8ff043fc5d2684b813"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B5-vs-A5.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5-vs-A5.comparison.json",
+    "bytes": 5776,
+    "sha256": "fa8b18902ec0a41208e1da965edcc5ba1316a7519a27033439249c5d43702e49"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5.json",
+    "bytes": 15309,
+    "sha256": "22aafa25ac90768466f232d2d6d4cab30bf179ececc422c5b36bd00aa8c575a3"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B6-vs-A6.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6-vs-A6.comparison.json",
+    "bytes": 5758,
+    "sha256": "c56cac04d0fc066b59aa0abfb94e9af7644c99a460c81f59c9475ea642a68443"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B6-vs-B5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6-vs-B5-control.comparison.json",
+    "bytes": 5790,
+    "sha256": "41dd5ab2ea83acaf7bfd76b86698cd61c6118b04548d335fc143c7e3ed274eac"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6.json",
+    "bytes": 15305,
+    "sha256": "c58551ce80e25ba195c147a9431a10bba1cf7c3058ce27c596229e0dfa57aa75"
+  },
+  {
+    "path": "paired-first/MultilineGridRetention-B6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-first/summary.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T162442Z-e5ebbb5c6046\\reports\\summary.json",
+    "bytes": 172469,
+    "sha256": "db676e2b0324c0f3877ed5e56ab5a1a6f8e8c84c5f1af00eeb896743b4689f6a"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A1.json",
+    "bytes": 15309,
+    "sha256": "a87ed228b252cb60d538968e71e7a5630c0411ec1a5b3ef66289be84dc19da7e"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A2-vs-A1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2-vs-A1-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "4787b46467c79216b0936e9dc82f5db85c8b818ff57c8e5b07db3a783a7c3bac"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2.json",
+    "bytes": 15313,
+    "sha256": "80084167c8bcf3621ad36f957bf1469574ef59c766c9676449db98f7ea7ef92b"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A3.json",
+    "bytes": 15294,
+    "sha256": "32346f4fe7ae4b1947b286f800902db60cf8d53458259dc63e49d4aca5e623da"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A4-vs-A3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4-vs-A3-control.comparison.json",
+    "bytes": 5775,
+    "sha256": "367612cda884f2840161566712232fa278e9a491fae0baafff2be0a5aa6c3210"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4.json",
+    "bytes": 15295,
+    "sha256": "505b1b9ed942192fdfb832ee3fe1954df13b222b5065b1c10eac28376503eab6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A5.json",
+    "bytes": 15315,
+    "sha256": "0a3b99295a434f304a475f20cc10ef312d364050fadaf57f72879578b239deba"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A6-vs-A5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6-vs-A5-control.comparison.json",
+    "bytes": 5776,
+    "sha256": "96b4e98129c2d143708106d923356d2775ea4ff278c627281d4495007d243465"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6.json",
+    "bytes": 15293,
+    "sha256": "6c526f4311ebacfda4535b9c6c08bd9937d5cec2abea1b630b72b97f3fa34872"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-A6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-A6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B1-vs-A1.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1-vs-A1.comparison.json",
+    "bytes": 5777,
+    "sha256": "533df00ba8ae8a5d599bbb5655192b19dbfc0a9213594b63a29e94e6f725b81b"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B1.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1.json",
+    "bytes": 15295,
+    "sha256": "e96ba7723f634cd718a26b179c5880fef250b00d788e0f269a5231e52e832e7e"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B1.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B1.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B2-vs-A2.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2-vs-A2.comparison.json",
+    "bytes": 5787,
+    "sha256": "7b1195cd7d6793300fa0f50acfed384ba6f8952bff266580ac2322f39f53fcd0"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B2-vs-B1-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2-vs-B1-control.comparison.json",
+    "bytes": 5762,
+    "sha256": "41d8579739edacec215d213ffbb1ff1e2ed69c321c59f98e9550efec461f2a05"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B2.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2.json",
+    "bytes": 15309,
+    "sha256": "835f3bba3f57879885be411f03150fd9c10ff7c29242bea892e2c203b34132f8"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B2.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B2.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B3-vs-A3.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3-vs-A3.comparison.json",
+    "bytes": 5782,
+    "sha256": "fc001fca9dff6c4d61d26d88eab38716e5279f92116e65d9a37ff159d6d3e788"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B3.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3.json",
+    "bytes": 15295,
+    "sha256": "573ec29b51175c2d6b07fbe1948a34d0861963cbca54a81046a0b0476798b535"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B3.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B3.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B4-vs-A4.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4-vs-A4.comparison.json",
+    "bytes": 5785,
+    "sha256": "eaee8085d8b7ba8702f4bf7fc0c54e9b9e574f7b79ea0ecc15af0a50757fa94f"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B4-vs-B3-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4-vs-B3-control.comparison.json",
+    "bytes": 5783,
+    "sha256": "b204b2bd7ca79a992ce55d61af06a4920fc0ce2172d8637fef5ffb351d00c5c0"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B4.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4.json",
+    "bytes": 15305,
+    "sha256": "0bacb564c4dbeaf2f1950859365502fda2622bf6567b60300c26bd753447ee39"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B4.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B4.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B5-vs-A5.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5-vs-A5.comparison.json",
+    "bytes": 5764,
+    "sha256": "b869797cdba9f36918ae44e0c17f96349fe7dc68d33f9739493e46f390f57e20"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B5.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5.json",
+    "bytes": 15288,
+    "sha256": "aa0aaf4f9815dce7cea380a8a6b0dcb56050a47884392e19347005bb962ca6f1"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B5.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B5.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B6-vs-A6.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6-vs-A6.comparison.json",
+    "bytes": 5791,
+    "sha256": "495d645a1df5090cd175d4b3492a8d1ce35b45d8a3c43ec319996622c7dc4499"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B6-vs-B5-control.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6-vs-B5-control.comparison.json",
+    "bytes": 5806,
+    "sha256": "df6bb65e41ab8de7b2001e9078d78c51f5c4251f5306f46fa852c7212241d19c"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B6.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6.json",
+    "bytes": 15299,
+    "sha256": "cbaa29b4614d661c2322cb62853e324d953af5abb62e9d88458b83b2683be615"
+  },
+  {
+    "path": "paired-repeat/MultilineGridRetention-B6.json.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\MultilineGridRetention-B6.json.comparison.json",
+    "bytes": 48,
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "path": "paired-repeat/summary.comparison.json",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\paired\\20261008T164801Z-e5ebbb5c6046\\reports\\summary.json",
+    "bytes": 45648,
+    "sha256": "0f6fd0f5f81179908ef263432cf316bea4384faa67330fd3d4b170c60f9a92e6"
+  },
+  {
+    "path": "scoped-receipts/independent/Tooling.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\independent\\Tooling.json",
+    "bytes": 259,
+    "sha256": "f8e68977bf17e7f34d52d8cfaf7bd17ad80a62f9d0764e687c7d4ebea96b533d"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Accessibility.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Accessibility.json",
+    "bytes": 259,
+    "sha256": "3a615f39e181dee312ace65008338b06cb83381fe6d37cf193288b1b875d871d"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Animation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Animation.json",
+    "bytes": 259,
+    "sha256": "f1c2a9e28be7c5d7d0a0eb63965344bdb18df9b5b1b914af980a7ce5a05fcde3"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/build.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\build.json",
+    "bytes": 259,
+    "sha256": "5a592c93ee6f2cd3938c9adeb2cb0640682aac980e0a87cfe373b923298ec2ca"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/ComboBox.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ComboBox.json",
+    "bytes": 259,
+    "sha256": "f07c58e266ec98fb12809e141b2fdb0cf842e9630eb846f4934f79dd1b3657c4"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Control.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Control.json",
+    "bytes": 259,
+    "sha256": "dea5d491246bb8217404b11c55a7cb0d062d03744c39b5062c687aff3df7bf1c"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/EditorControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\EditorControls.json",
+    "bytes": 259,
+    "sha256": "aa125930fb60382b395364c862af4813281244ce44b47bb3a7800d2ff95ca01b"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Embedded.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Embedded.json",
+    "bytes": 259,
+    "sha256": "d5460f05a6b0b7798f4e6fba95dd0cc7b93b150be08f756216b6589a521def2b"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Foundation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Foundation.json",
+    "bytes": 259,
+    "sha256": "4e8ac4ad66c674054d5bd0178a0c9d1e966a05cf678529d753d82999dc7dd9e9"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Grid.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Grid.json",
+    "bytes": 259,
+    "sha256": "d7bd37b68f79e86567513f8d636e198d5a245d6146accf108b39c2cbe2fec261"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/InteractiveLease.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\InteractiveLease.json",
+    "bytes": 259,
+    "sha256": "355351c0dd873ba18f07bec799be036f11099e5a4dfcf80559e5037fbb5848da"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/MenuExitLifetime.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MenuExitLifetime.json",
+    "bytes": 259,
+    "sha256": "fb21d1a11d5f0be34d5ee7cfb47a6a4a7c1c0e2536d20df8ea1d91e3a716aafe"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/MultilineText.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MultilineText.json",
+    "bytes": 259,
+    "sha256": "fabfd6dd0dabe1908b4038d96cbc0b19e7f01dd6288a0dc5f3fda488e1a89c91"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/NewControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\NewControls.json",
+    "bytes": 259,
+    "sha256": "3e208655617eb6d8e85e91febb74d627492adce57deffe2d493ef1f72dd85926"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/ReadOnly.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ReadOnly.json",
+    "bytes": 259,
+    "sha256": "d8e1b919fc1ee3944832f6c457bc2ddb337f867eece0b4f6ec9cab1a0dd93231"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Rendering.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Rendering.json",
+    "bytes": 259,
+    "sha256": "a914506216d92eba11382a58ad5af94341e94b619843c1ac71ddef329e4e153f"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/TextField.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\TextField.json",
+    "bytes": 259,
+    "sha256": "88e9d2c030d4bd9e472d837999e31f6fd1ca626d8aa9d95da09aed14cdc7d506"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Theme.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Theme.json",
+    "bytes": 259,
+    "sha256": "9c7a68b1cd39587e2b03200b499cb5812c1b9e90225701b7b9efa5542047a364"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Tooltip.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tooltip.json",
+    "bytes": 259,
+    "sha256": "b9a0d17611813d28971ad234b7fb4834dde996d7c3dee3a5dafc5f0434a388f9"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/Tree.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tree.json",
+    "bytes": 259,
+    "sha256": "4ea229777e3238e8dffc189e25c37d6734a025db8d801b9faf1830ff69a53d06"
+  },
+  {
+    "path": "scoped-receipts/x64-ASanDebug/WindowHost.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-ASanDebug\\WindowHost.json",
+    "bytes": 259,
+    "sha256": "172a7bcf51616a534ae47e012f8a6bd63e5e86cf3e69d1c20e12b7b0997a6dcd"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Accessibility.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Accessibility.json",
+    "bytes": 259,
+    "sha256": "68821ea79de60759c6f1cbce6d8b3713d9c7b6c25b282812e7c216c21cc92c7f"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Animation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Animation.json",
+    "bytes": 259,
+    "sha256": "a0e15790c690d06c69015dd61d599069a852a3c479b6ca9da798e237a58311e7"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/build.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\build.json",
+    "bytes": 259,
+    "sha256": "5cd801bdac989bd01553e226edb72b87a73114c52b976f3da90e9ff1cd5c9c0c"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/ComboBox.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\ComboBox.json",
+    "bytes": 259,
+    "sha256": "ce0b761b6a93fadfbc86b04e2e2e454114d5155b4d9ad46733244510e38740bb"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Control.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Control.json",
+    "bytes": 259,
+    "sha256": "9b6773e8252e070e3517049226a46f140175449c785cd16cb16dc920b65c84ee"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/EditorControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\EditorControls.json",
+    "bytes": 259,
+    "sha256": "9131f010e31275ae2eb17fd59c5ca6d30645f4e9ccac42fa278d7562880a6623"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Embedded.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Embedded.json",
+    "bytes": 259,
+    "sha256": "e1dec497517b70f8d4ae3b5c5364702bc403e1077d6c3c3d7c50ca3f2518d727"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Foundation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Foundation.json",
+    "bytes": 259,
+    "sha256": "6245f23dc2f7bff7d7bd6bbd32c04c2a09ce067130d36860e5953bf4a743b797"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Grid.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Grid.json",
+    "bytes": 259,
+    "sha256": "f4e6fbc278d99668f6eb9fc49204caaa48c6c32eae6fd1e8284c412c02396f2b"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/InteractiveLease.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\InteractiveLease.json",
+    "bytes": 259,
+    "sha256": "b92d6ead6a6bf998433dd5dac5635c1ad9a7e3ed38d866f1f0e097cd6715908e"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/MenuExitLifetime.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\MenuExitLifetime.json",
+    "bytes": 259,
+    "sha256": "4334d95a15dd8c9c33afabf21dc4deda64a53f8da2211de349b5b5a72049a22a"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/MultilineText.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\MultilineText.json",
+    "bytes": 259,
+    "sha256": "467390ae222a89702b1f7b41040a1b10344207a1316f27316810848ede9b5fa3"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/NewControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\NewControls.json",
+    "bytes": 259,
+    "sha256": "13496e83c054e1892a9e399125f8a59933a0ee941f2b8ed785f3f73fd43b506a"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/ReadOnly.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\ReadOnly.json",
+    "bytes": 259,
+    "sha256": "43ccf7487ee85e7f5afaa8df90628a9b784bf002c5eea72b4f77f22e93f47414"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Rendering.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Rendering.json",
+    "bytes": 259,
+    "sha256": "9c0e4a25ac94b27374a3f61d45a9743bff71e3c4a2bc807b4aa278b0ce9efc80"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/TextField.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\TextField.json",
+    "bytes": 259,
+    "sha256": "ae3bd7af7184e0f269258a35d01c2079ed0adec6ee11cd5055907bd75e363635"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Theme.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Theme.json",
+    "bytes": 259,
+    "sha256": "9e5ece14d6ebef61d2f8a18a90db7d702fd7812ede830e8264ec4abf9d7a4c7a"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Tooltip.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Tooltip.json",
+    "bytes": 259,
+    "sha256": "c3a13b9ae6f5fbf1506dcffaf31b3603012fef3dfed5be5ce9a423fcc61f9036"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/Tree.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\Tree.json",
+    "bytes": 259,
+    "sha256": "f09bfe42fedd1041c57f51ceacf7dc95d08a510ca929faa2a38ce85d004bc220"
+  },
+  {
+    "path": "scoped-receipts/x64-Debug/WindowHost.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Debug\\WindowHost.json",
+    "bytes": 259,
+    "sha256": "84602404669f67fbb516e05892117cc30f17afddb87c2e94123cfb5c09724cd5"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Accessibility.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Accessibility.json",
+    "bytes": 259,
+    "sha256": "619c148a26356c04ad757e74eeafe464db55a3338d4e94feab39706c3f945904"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Animation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Animation.json",
+    "bytes": 259,
+    "sha256": "aea60567b3f63bf1524db70b1fc8daec7c860b6bcc97a3e7a146f4bd7c56b2e0"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/build.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\build.json",
+    "bytes": 259,
+    "sha256": "ee4add068b2794eec64f0a5604e55cf37c28f5508ff26764551c7312f0b9a8d7"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/ComboBox.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\ComboBox.json",
+    "bytes": 259,
+    "sha256": "e75c724f2130db1806cb19dfe315ddf204eed4f14177f0b775bcd7627d5e7f48"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Control.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Control.json",
+    "bytes": 259,
+    "sha256": "a1519bbfd360c742342693f98ed58143327112c06eee67ca00b42785c27d3d18"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/EditorControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\EditorControls.json",
+    "bytes": 259,
+    "sha256": "2e2b2c174381ba277c62b5347bfe74f33c9edd4e0ff925799a010e21974aa8ed"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Embedded.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Embedded.json",
+    "bytes": 259,
+    "sha256": "bbed712281eb0dc50bae193eff6d0bb62af32b24eed90d8ea12a041782852bfc"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Foundation.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Foundation.json",
+    "bytes": 259,
+    "sha256": "fcd37578e82bf6f8b64303d2eede81187126196f8b0ada47a8c66c5d36f18c2f"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Grid.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Grid.json",
+    "bytes": 259,
+    "sha256": "7cb678f77ae41d78a865c476967c39f40a798533a3a23fea6dd3dd0d7625723f"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/InteractiveLease.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\InteractiveLease.json",
+    "bytes": 259,
+    "sha256": "e895275dc9a90e8da49ab945d9bd66b6a95c13a1fcca0913c591fa4dd8ecb080"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/MenuExitLifetime.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\MenuExitLifetime.json",
+    "bytes": 259,
+    "sha256": "883269a52f7456de29a2deda337d29412e4c6ecf7354caf8828fb67e6896324a"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/MultilineText.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\MultilineText.json",
+    "bytes": 259,
+    "sha256": "ed07eab3339266a2e7b9790ccf3efe023acefdbaa2c5870e462b1703c23eba9a"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/NewControls.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\NewControls.json",
+    "bytes": 259,
+    "sha256": "32ed9fd9862dbc97e7c7397c370a98a2a37d3bf44fe98e62100091e5aebe90f9"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/ReadOnly.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\ReadOnly.json",
+    "bytes": 259,
+    "sha256": "b4cd973d85f00f875c8d984711d30b2a566c7402ec18cb4a10ffd4b806f683d8"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Rendering.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Rendering.json",
+    "bytes": 259,
+    "sha256": "d68e4e937d0fd4d60c8d90bd5a182d0406628cc8569c7b03b864ac82c26c5fcf"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/TextField.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\TextField.json",
+    "bytes": 259,
+    "sha256": "67d39a37270353cdef8f40f80c510a5b42597cdcd8dbc4bd1907a868533be5bc"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Theme.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Theme.json",
+    "bytes": 259,
+    "sha256": "9bdcb69176dcbcbcf79f0834d1a0a2a88b192006120ccf3bcadd3edb603bf21c"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Tooltip.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Tooltip.json",
+    "bytes": 259,
+    "sha256": "45caea74f63dfe8c7225fc711ca27f7d07feb26e0d79c9ef0609ac9d58b76a5c"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/Tree.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\Tree.json",
+    "bytes": 259,
+    "sha256": "4836cfa0c3fce63b33b07a8e961df12694b191db170d40bf53118c3dfadf0e52"
+  },
+  {
+    "path": "scoped-receipts/x64-Release/WindowHost.receipt.txt",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\reports\\scoped-tests\\x64-Release\\WindowHost.json",
+    "bytes": 259,
+    "sha256": "7338ed61a5eae439455a1602ef54e93bf259bc2225875a276a3201d39ba7cbb5"
+  },
+  {
+    "path": "logs/build-x64-Debug-0c3fd54ef6414a279805d712f1ea8584.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-x64-Debug-0c3fd54ef6414a279805d712f1ea8584.log",
+    "bytes": 24996,
+    "sha256": "3d1bbf529e256791937d71688cca628f0e2192b59bd0f052eb269b1f9f6381a5"
+  },
+  {
+    "path": "logs/build-x64-Release-25514d7a7c164f78964de6b0d8a5757b.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-x64-Release-25514d7a7c164f78964de6b0d8a5757b.log",
+    "bytes": 37748,
+    "sha256": "ca80a647033dda42f63896da7c9016d381cc4081bed0614b1c54bd4d7b17075d"
+  },
+  {
+    "path": "logs/build-x64-ASan Debug-2228208fca7344aba635c5d69ea2079f.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-x64-ASan Debug-2228208fca7344aba635c5d69ea2079f.log",
+    "bytes": 39410,
+    "sha256": "e6ba9ea4065e3528db2daf43ad26f59e6cab7116c7a641776b03b47830882ba5"
+  },
+  {
+    "path": "logs/build-ARM64-Debug-7a8e7ce4d8034e39bc4e46c05f3f2e69.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-ARM64-Debug-7a8e7ce4d8034e39bc4e46c05f3f2e69.log",
+    "bytes": 39138,
+    "sha256": "d2d7b193436bc203ecfca952e2913d405be9aa8d9ec4c222703e7834f69f254e"
+  },
+  {
+    "path": "logs/build-ARM64-Release-96360f71f0d149068e7207c0118e4f2b.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-ARM64-Release-96360f71f0d149068e7207c0118e4f2b.log",
+    "bytes": 38969,
+    "sha256": "82781bd133bc9b06420b647811e244261e62cb29dc0abcad22f8acfb7ab83aed"
+  },
+  {
+    "path": "logs/build-ARM64-ASan Debug-4b49623f36614d53977b730813b5a0bb.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\build-ARM64-ASan Debug-4b49623f36614d53977b730813b5a0bb.log",
+    "bytes": 40258,
+    "sha256": "891ffa8134c101429c6cf953f400737a07b80b7e6e6c9a54ff7ec00a8e538fb9"
+  },
+  {
+    "path": "logs/test-Accessibility-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Accessibility-x64-ASan Debug.log",
+    "bytes": 44975,
+    "sha256": "1c2c7b0f9a640467c44b0a455ee7ab2d6dc50ad9b445fdd5fe6d4d21b26a05c5"
+  },
+  {
+    "path": "logs/test-Accessibility-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Accessibility-x64-Debug.log",
+    "bytes": 44974,
+    "sha256": "b93fb28a441a8f3fde0e798833a10c696e7e69d3928d9938c64cf55baadaace7"
+  },
+  {
+    "path": "logs/test-Accessibility-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Accessibility-x64-Release.log",
+    "bytes": 44975,
+    "sha256": "560cecaff308739db671153c91ef005f6d2e8bcc677d0da20fd7d0982da5a22a"
+  },
+  {
+    "path": "logs/test-AddressSanitizer-x64.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-AddressSanitizer-x64.log",
+    "bytes": 5923,
+    "sha256": "99a4c85c57341b670032ca468126c24157fe5083a98ca2ab8d1d245c3c24c720"
+  },
+  {
+    "path": "logs/test-Animation-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Animation-x64-ASan Debug.log",
+    "bytes": 5147,
+    "sha256": "22d01c7bef1ab9c425d9472b9d55ab4c1b13b82a8c623c3aab18e13f9f69134a"
+  },
+  {
+    "path": "logs/test-Animation-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Animation-x64-Debug.log",
+    "bytes": 5147,
+    "sha256": "6d57fc9914ce7253c841792aca3f9095cb6f484ff6491168d117874017f86e3d"
+  },
+  {
+    "path": "logs/test-Animation-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Animation-x64-Release.log",
+    "bytes": 5147,
+    "sha256": "3fbd3cb9ff3bf73dfa0e0e3ccce0a1eca7d9eee860176fdca03c7b798706f845"
+  },
+  {
+    "path": "logs/test-ComboBox-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ComboBox-x64-ASan Debug.log",
+    "bytes": 4534,
+    "sha256": "1387f73db1633ff06672be86faa1821d8059f48431fd2a51a7a17763697e5fea"
+  },
+  {
+    "path": "logs/test-ComboBox-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ComboBox-x64-Debug.log",
+    "bytes": 4534,
+    "sha256": "2a15b0130f1eed64db5d7457affab71945d74c330d11c0909cdaa255c45ff3de"
+  },
+  {
+    "path": "logs/test-ComboBox-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ComboBox-x64-Release.log",
+    "bytes": 4534,
+    "sha256": "90317e26b503a0754e54c31806a4ba39aafd0e14c5f4b960b3394506b842ac37"
+  },
+  {
+    "path": "logs/test-Control-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Control-x64-ASan Debug.log",
+    "bytes": 5474,
+    "sha256": "cc7d95e368144eda210291e7815fb43c1c7f7620ceabcb7b9e729adf3ef5452e"
+  },
+  {
+    "path": "logs/test-Control-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Control-x64-Debug.log",
+    "bytes": 5469,
+    "sha256": "c43039b18bdfa01ac2a2ca0e90de83b6e2f436aa7a2fb6a7e7a2b38bd72ed1b3"
+  },
+  {
+    "path": "logs/test-Control-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Control-x64-Release.log",
+    "bytes": 5464,
+    "sha256": "5bb56491beb1baabd07a890fabd94e5370c51965ca403046ea6b651d152edf36"
+  },
+  {
+    "path": "logs/test-EditorControls-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-EditorControls-x64-ASan Debug.log",
+    "bytes": 11520,
+    "sha256": "d75bab6e3d00a430939e0ccaf0eac3ca18347868860782f16870acf7db1d9b96"
+  },
+  {
+    "path": "logs/test-EditorControls-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-EditorControls-x64-Debug.log",
+    "bytes": 11520,
+    "sha256": "cea6e38e8e7adc695b93fe840a167aa70a24e68394e7ec4aee5cb7bfa609295b"
+  },
+  {
+    "path": "logs/test-EditorControls-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-EditorControls-x64-Release.log",
+    "bytes": 11520,
+    "sha256": "b178acd773b26398fb27ed835c4bc8986273f5c951bfc07ba5c15c307d639c62"
+  },
+  {
+    "path": "logs/test-Embedded-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Embedded-x64-ASan Debug.log",
+    "bytes": 3579,
+    "sha256": "db23cfb70c6ba94272aea938b1260ab410351f4e592f30abfa28622346a5324b"
+  },
+  {
+    "path": "logs/test-Embedded-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Embedded-x64-Debug.log",
+    "bytes": 3578,
+    "sha256": "7813ba4dc8698669349d4dbb69224b5473727c483dea7476770ee55b0ffd45f1"
+  },
+  {
+    "path": "logs/test-Embedded-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Embedded-x64-Release.log",
+    "bytes": 3578,
+    "sha256": "d0f982bb8ae44f39b7fc5b16ad7904ab48c98fe090938b9fde9d6ddcb99c9864"
+  },
+  {
+    "path": "logs/test-Foundation-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Foundation-x64-ASan Debug.log",
+    "bytes": 24,
+    "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372"
+  },
+  {
+    "path": "logs/test-Foundation-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Foundation-x64-Debug.log",
+    "bytes": 24,
+    "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372"
+  },
+  {
+    "path": "logs/test-Foundation-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Foundation-x64-Release.log",
+    "bytes": 24,
+    "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372"
+  },
+  {
+    "path": "logs/test-Grid-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Grid-x64-ASan Debug.log",
+    "bytes": 12583,
+    "sha256": "e743c3febbf6b75a01f5c9c64279ce9d33fc896804ed37472792c8513ba565bf"
+  },
+  {
+    "path": "logs/test-Grid-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Grid-x64-Debug.log",
+    "bytes": 12583,
+    "sha256": "b5d7c9013d3eef37e990b50b4ade2d8abbffe8fcfbc05d0bfd8421edf7ca8819"
+  },
+  {
+    "path": "logs/test-Grid-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Grid-x64-Release.log",
+    "bytes": 12583,
+    "sha256": "8d45c926afee17e154d4b267df2040eebecf8f89bce2f60fa47ec313fbd37590"
+  },
+  {
+    "path": "logs/test-InteractiveLease-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-InteractiveLease-x64-ASan Debug.log",
+    "bytes": 4520,
+    "sha256": "08be74a6d26f7fde0d8ead36bcaba0941ec46cf27ddda91f8e20e1b98f474310"
+  },
+  {
+    "path": "logs/test-InteractiveLease-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-InteractiveLease-x64-Debug.log",
+    "bytes": 4520,
+    "sha256": "426cca651f1398565e72270f02f0204922f70fc14efe5d8ec46261334c784484"
+  },
+  {
+    "path": "logs/test-InteractiveLease-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-InteractiveLease-x64-Release.log",
+    "bytes": 4520,
+    "sha256": "1170ee1b6a67c4eca9f449ec3d3bb2722baadcdd137e69ea9abee416c3c01de9"
+  },
+  {
+    "path": "logs/test-MenuExitLifetime-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MenuExitLifetime-x64-ASan Debug.log",
+    "bytes": 197,
+    "sha256": "886ff84b2adcb32aba08fde3e0da607d4e9d9d9cf56f9fa4fbac04b847d3a737"
+  },
+  {
+    "path": "logs/test-MenuExitLifetime-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MenuExitLifetime-x64-Debug.log",
+    "bytes": 197,
+    "sha256": "886ff84b2adcb32aba08fde3e0da607d4e9d9d9cf56f9fa4fbac04b847d3a737"
+  },
+  {
+    "path": "logs/test-MenuExitLifetime-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MenuExitLifetime-x64-Release.log",
+    "bytes": 197,
+    "sha256": "886ff84b2adcb32aba08fde3e0da607d4e9d9d9cf56f9fa4fbac04b847d3a737"
+  },
+  {
+    "path": "logs/test-MultilineText-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MultilineText-x64-ASan Debug.log",
+    "bytes": 16450,
+    "sha256": "610d3d3543e2cb8fddedc3d17abb6fb4db675c6552db6a0edcc45b1ecd4d6f78"
+  },
+  {
+    "path": "logs/test-MultilineText-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MultilineText-x64-Debug.log",
+    "bytes": 16450,
+    "sha256": "cba4062e93ecb32b5b797132e1b9b5e4bd696d1d2feabbb24ace224f15777dd4"
+  },
+  {
+    "path": "logs/test-MultilineText-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-MultilineText-x64-Release.log",
+    "bytes": 16450,
+    "sha256": "0de5cb87a46a5879e13bad3236752e42614c7c5dc08f9e3a2c9b83716886c95a"
+  },
+  {
+    "path": "logs/test-NewControls-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-NewControls-x64-ASan Debug.log",
+    "bytes": 22581,
+    "sha256": "c7b3090643b807c7f0564d217e121570d12ceccf5cd0675de68545643426a7ca"
+  },
+  {
+    "path": "logs/test-NewControls-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-NewControls-x64-Debug.log",
+    "bytes": 22629,
+    "sha256": "1bfaa956eabc3153b438ab46f32aee87d30c0f7daf980e99a99eb68169e812fc"
+  },
+  {
+    "path": "logs/test-NewControls-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-NewControls-x64-Release.log",
+    "bytes": 22629,
+    "sha256": "84a8806c1d170bb0bf0ebdde4c18c1dcd2d86e000b7cb86d95895888f375bc10"
+  },
+  {
+    "path": "logs/test-ReadOnly-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ReadOnly-x64-ASan Debug.log",
+    "bytes": 7406,
+    "sha256": "9d81330f0093cd5d17436e2d8c9b6db2b33d2124b6fea6879b2c6f4f214e4b65"
+  },
+  {
+    "path": "logs/test-ReadOnly-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ReadOnly-x64-Debug.log",
+    "bytes": 7406,
+    "sha256": "5c67a4bb3dde2ab191a33f134a7625dbf176334c81b79d16d691167764dee47f"
+  },
+  {
+    "path": "logs/test-ReadOnly-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-ReadOnly-x64-Release.log",
+    "bytes": 7406,
+    "sha256": "380aca48b50827d186fcd10cdf819ff7555e475fadfcd12a2df44b40bbec7c04"
+  },
+  {
+    "path": "logs/test-Rendering-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Rendering-x64-ASan Debug.log",
+    "bytes": 31235,
+    "sha256": "ebe2faaf31a9a464c322deaed37ea240d41104b40c466a9687041d01ef0b1503"
+  },
+  {
+    "path": "logs/test-Rendering-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Rendering-x64-Debug.log",
+    "bytes": 31235,
+    "sha256": "38a33f49cd6b4e051cd6b85f7b88f2f8160700c4fd19e01497c06ef19ba27a92"
+  },
+  {
+    "path": "logs/test-Rendering-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Rendering-x64-Release.log",
+    "bytes": 31235,
+    "sha256": "be5717b80d15eb77eec2370d03e6ee35d5753c997975d2b1cff92af7b8958e49"
+  },
+  {
+    "path": "logs/test-TextField-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-TextField-x64-ASan Debug.log",
+    "bytes": 11849,
+    "sha256": "194c29af8d4f4bbbb49f5f07cac135792193775780becd96c440b2fab59865df"
+  },
+  {
+    "path": "logs/test-TextField-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-TextField-x64-Debug.log",
+    "bytes": 11849,
+    "sha256": "b598268acca4c4d92bf0e3a417e52c6928b7f21cec46aad9d2ea65347b4c2536"
+  },
+  {
+    "path": "logs/test-TextField-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-TextField-x64-Release.log",
+    "bytes": 11849,
+    "sha256": "9756cf4d81bee624b2b46bbfab09dc9897571784e086c5d67bad4fc2a12e844f"
+  },
+  {
+    "path": "logs/test-Theme-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Theme-x64-ASan Debug.log",
+    "bytes": 11574,
+    "sha256": "71fdbec48cda2584fd7d5f928d697c5b5f6e30ba01747e4ccd87ce137e12caf1"
+  },
+  {
+    "path": "logs/test-Theme-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Theme-x64-Debug.log",
+    "bytes": 11574,
+    "sha256": "988b45b0dbf95c91ccbbda7e09043d4e5066d385e579b5870ebe56867c90aad1"
+  },
+  {
+    "path": "logs/test-Theme-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Theme-x64-Release.log",
+    "bytes": 11574,
+    "sha256": "535e5fdeb0bb632472775ce3d4772c436075462cf4413e2d7a2fa4d3f7b47d35"
+  },
+  {
+    "path": "logs/test-Tooltip-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tooltip-x64-ASan Debug.log",
+    "bytes": 2383,
+    "sha256": "1940dd12268c037059dbef391a8aeaac45c4b669e5758e23d0224e0c917f8f97"
+  },
+  {
+    "path": "logs/test-Tooltip-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tooltip-x64-Debug.log",
+    "bytes": 2383,
+    "sha256": "dea3e640a29397a271531a0fea3e9544f392ce6c0814c831081db35bed8eda25"
+  },
+  {
+    "path": "logs/test-Tooltip-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tooltip-x64-Release.log",
+    "bytes": 2383,
+    "sha256": "40c8633047826b1e8da758ca78d187c4bfe969fd19464dbbd61101a112b13e60"
+  },
+  {
+    "path": "logs/test-Tree-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tree-x64-ASan Debug.log",
+    "bytes": 7002,
+    "sha256": "529ed275b11bc4303f55ba666cee7eec7b5756ce148671d1c33f25055d66ce36"
+  },
+  {
+    "path": "logs/test-Tree-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tree-x64-Debug.log",
+    "bytes": 7002,
+    "sha256": "9893c1d173a1106a8b559b3967287557e0dbd3cfee7741efe22ed49eb87a1cb4"
+  },
+  {
+    "path": "logs/test-Tree-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-Tree-x64-Release.log",
+    "bytes": 7002,
+    "sha256": "fdb03980fd8802d8cfe69a033c13ca3c8a93560fbcadb54347c79143f51c87ce"
+  },
+  {
+    "path": "logs/test-WindowHost-x64-ASan Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-WindowHost-x64-ASan Debug.log",
+    "bytes": 16380,
+    "sha256": "fb106ad1b02f8c8e428cf0f3bb41535d254459388ca522095f102cdea2a7b438"
+  },
+  {
+    "path": "logs/test-WindowHost-x64-Debug.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-WindowHost-x64-Debug.log",
+    "bytes": 16380,
+    "sha256": "acbe581f7fd603fb8b89dfb412f28e371622a9a9d153198b186c3b01ec39769a"
+  },
+  {
+    "path": "logs/test-WindowHost-x64-Release.log",
+    "source": "C:\\Users\\PVB\\.codex\\worktrees\\dxui-viewer-space-grid\\.build\\logs\\test-WindowHost-x64-Release.log",
+    "bytes": 16380,
+    "sha256": "6bcc2448cb7b43dc53d28ec9ee83f48b9a59469b08706ac0af77a6f32eea976b"
+  }
+]

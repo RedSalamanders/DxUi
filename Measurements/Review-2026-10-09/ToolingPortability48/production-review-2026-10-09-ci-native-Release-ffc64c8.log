@@ -1,0 +1,588 @@
+﻿2026-10-09T21:28:09.7382308Z Current runner version: '2.337.0'
+2026-10-09T21:28:09.7410603Z ##[group]Runner Image Provisioner
+2026-10-09T21:28:09.7411496Z Hosted Compute Agent
+2026-10-09T21:28:09.7412178Z Version: 20260901.588
+2026-10-09T21:28:09.7412875Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-09T21:28:09.7413691Z Build Date: 2026-09-01T19:56:44Z
+2026-10-09T21:28:09.7414540Z Worker ID: {f7224f92-a50f-4329-8b08-55bbc475efb8}
+2026-10-09T21:28:09.7415354Z Azure Region: eastus
+2026-10-09T21:28:09.7415991Z ##[endgroup]
+2026-10-09T21:28:09.7417932Z ##[group]Operating System
+2026-10-09T21:28:09.7418636Z Microsoft Windows Server 2025
+2026-10-09T21:28:09.7419358Z 10.0.26100
+2026-10-09T21:28:09.7419920Z Datacenter
+2026-10-09T21:28:09.7420487Z ##[endgroup]
+2026-10-09T21:28:09.7421096Z ##[group]Runner Image
+2026-10-09T21:28:09.7421757Z Image: windows-2025-vs2026
+2026-10-09T21:28:09.7422475Z Version: 20260925.250.1
+2026-10-09T21:28:09.7424171Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20260925.250/images/windows/Windows2025-VS2026-Readme.md
+2026-10-09T21:28:09.7426288Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20260925.250
+2026-10-09T21:28:09.7427491Z ##[endgroup]
+2026-10-09T21:28:09.7428782Z ##[group]GITHUB_TOKEN Permissions
+2026-10-09T21:28:09.7430639Z Contents: read
+2026-10-09T21:28:09.7431311Z Metadata: read
+2026-10-09T21:28:09.7431921Z ##[endgroup]
+2026-10-09T21:28:09.7434148Z Secret source: Actions
+2026-10-09T21:28:09.7435184Z Cache mode: write
+2026-10-09T21:28:09.7435974Z Prepare workflow directory
+2026-10-09T21:28:09.7695060Z Prepare all required actions
+2026-10-09T21:28:09.7733645Z Getting action download info
+2026-10-09T21:28:09.9153544Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-09T21:28:10.0222035Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-09T21:28:10.3126216Z Complete job name: native (x64, windows-2025-vs2026, Release)
+2026-10-09T21:28:10.4520054Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-10-09T21:28:10.4521121Z with:
+2026-10-09T21:28:10.4521439Z   repository: RedSalamanders/DxUi
+2026-10-09T21:28:10.4524759Z   token: ***
+2026-10-09T21:28:10.4525070Z   ssh-strict: true
+2026-10-09T21:28:10.4525382Z   ssh-user: git
+2026-10-09T21:28:10.4525704Z   persist-credentials: true
+2026-10-09T21:28:10.4526052Z   clean: true
+2026-10-09T21:28:10.4526371Z   sparse-checkout-cone-mode: true
+2026-10-09T21:28:10.4526745Z   fetch-depth: 1
+2026-10-09T21:28:10.4527048Z   fetch-tags: false
+2026-10-09T21:28:10.4527358Z   show-progress: true
+2026-10-09T21:28:10.4527670Z   lfs: false
+2026-10-09T21:28:10.4527954Z   submodules: false
+2026-10-09T21:28:10.4528266Z   set-safe-directory: true
+2026-10-09T21:28:10.4528618Z   allow-unsafe-pr-checkout: false
+2026-10-09T21:28:10.4529181Z ##[endgroup]
+2026-10-09T21:28:10.5704911Z Syncing repository: RedSalamanders/DxUi
+2026-10-09T21:28:10.5706400Z ##[group]Getting Git version info
+2026-10-09T21:28:10.5706838Z Working directory is 'D:\a\DxUi\DxUi'
+2026-10-09T21:28:10.6335879Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-09T21:28:11.0584363Z git version 2.55.0.windows.5
+2026-10-09T21:28:11.0622891Z ##[endgroup]
+2026-10-09T21:28:11.0640447Z Temporarily overriding HOME='D:\a\_temp\ed886741-2caa-431d-83d5-f2ab63c550ae' before making global git config changes
+2026-10-09T21:28:11.0641534Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:28:11.0651389Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\DxUi\DxUi
+2026-10-09T21:28:11.1376964Z Deleting the contents of 'D:\a\DxUi\DxUi'
+2026-10-09T21:28:11.1381711Z ##[group]Initializing the repository
+2026-10-09T21:28:11.1389486Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\DxUi\DxUi
+2026-10-09T21:28:11.2232930Z Initialized empty Git repository in D:/a/DxUi/DxUi/.git/
+2026-10-09T21:28:11.2269551Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:11.2865812Z ##[endgroup]
+2026-10-09T21:28:11.2866765Z ##[group]Disabling automatic garbage collection
+2026-10-09T21:28:11.2876706Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-09T21:28:11.3164730Z ##[endgroup]
+2026-10-09T21:28:11.3165612Z ##[group]Setting up auth
+2026-10-09T21:28:11.3175877Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:28:11.3404811Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-09T21:28:12.7508058Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:28:12.7743218Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-09T21:28:13.1661693Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:28:13.1895854Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-09T21:28:13.6101803Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-09T21:28:13.6342429Z ##[endgroup]
+2026-10-09T21:28:13.6342961Z ##[group]Fetching the repository
+2026-10-09T21:28:13.6357509Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d768aeebecd996d509109cdddadddc07b37ef9b9:refs/remotes/pull/70/merge
+2026-10-09T21:28:15.3188848Z From https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:15.3189437Z  * [new ref]         d768aeebecd996d509109cdddadddc07b37ef9b9 -> pull/70/merge
+2026-10-09T21:28:15.3219782Z ##[endgroup]
+2026-10-09T21:28:15.3220101Z ##[group]Determining the checkout info
+2026-10-09T21:28:15.3222267Z ##[endgroup]
+2026-10-09T21:28:15.3233858Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-09T21:28:15.3596318Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-09T21:28:15.3841697Z ##[group]Checking out the ref
+2026-10-09T21:28:15.3849268Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/remotes/pull/70/merge
+2026-10-09T21:28:16.3305944Z Note: switching to 'refs/remotes/pull/70/merge'.
+2026-10-09T21:28:16.3306670Z 
+2026-10-09T21:28:16.3306910Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-09T21:28:16.3307784Z changes and commit them, and you can discard any commits you make in this
+2026-10-09T21:28:16.3308313Z state without impacting any branches by switching back to a branch.
+2026-10-09T21:28:16.3308639Z 
+2026-10-09T21:28:16.3308825Z If you want to create a new branch to retain commits you create, you may
+2026-10-09T21:28:16.3309370Z do so (now or later) by using -c with the switch command. Example:
+2026-10-09T21:28:16.3309684Z 
+2026-10-09T21:28:16.3309861Z   git switch -c <new-branch-name>
+2026-10-09T21:28:16.3310065Z 
+2026-10-09T21:28:16.3310184Z Or undo this operation with:
+2026-10-09T21:28:16.3310365Z 
+2026-10-09T21:28:16.3310462Z   git switch -
+2026-10-09T21:28:16.3310612Z 
+2026-10-09T21:28:16.3310870Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-09T21:28:16.3311237Z 
+2026-10-09T21:28:16.3311699Z HEAD is now at d768aee Merge ffc64c8947301dfaf2b1e295968a1cc6253bd413 into bea676a1f8418141f61cab9326b9b910e89a14b4
+2026-10-09T21:28:16.3430242Z ##[endgroup]
+2026-10-09T21:28:16.3774356Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-09T21:28:16.3975987Z d768aeebecd996d509109cdddadddc07b37ef9b9
+2026-10-09T21:28:16.4383636Z ##[group]Run ./vcpkg-install.ps1 -Platform x64
+2026-10-09T21:28:16.4384060Z [36;1m./vcpkg-install.ps1 -Platform x64[0m
+2026-10-09T21:28:16.4927277Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-09T21:28:16.4927748Z ##[endgroup]
+2026-10-09T21:28:17.4240814Z Visual Studio: C:\Program Files\Microsoft Visual Studio\18\Enterprise
+2026-10-09T21:28:17.4259875Z MSVC toolset:  14.51.36231, the default MSBuild compiles with; vcpkg is pinned to 14.51
+2026-10-09T21:28:17.4318247Z Cloning pinned vcpkg tooling into D:\a\DxUi\DxUi\.build\vcpkg-tool
+2026-10-09T21:28:17.4549021Z Cloning into 'D:\a\DxUi\DxUi\.build\vcpkg-tool'...
+2026-10-09T21:28:24.6417947Z Updating files:   0% (1/14336)
+2026-10-09T21:28:24.6690968Z Updating files:   1% (144/14336)
+2026-10-09T21:28:24.6970325Z Updating files:   2% (287/14336)
+2026-10-09T21:28:24.7258179Z Updating files:   3% (431/14336)
+2026-10-09T21:28:24.7532453Z Updating files:   4% (574/14336)
+2026-10-09T21:28:24.7806753Z Updating files:   5% (717/14336)
+2026-10-09T21:28:24.8080237Z Updating files:   6% (861/14336)
+2026-10-09T21:28:24.8356807Z Updating files:   7% (1004/14336)
+2026-10-09T21:28:24.8633368Z Updating files:   8% (1147/14336)
+2026-10-09T21:28:24.8896139Z Updating files:   9% (1291/14336)
+2026-10-09T21:28:24.9166038Z Updating files:  10% (1434/14336)
+2026-10-09T21:28:24.9437127Z Updating files:  11% (1577/14336)
+2026-10-09T21:28:24.9711208Z Updating files:  12% (1721/14336)
+2026-10-09T21:28:24.9980699Z Updating files:  13% (1864/14336)
+2026-10-09T21:28:25.0027153Z Updating files:  14% (2008/14336)
+2026-10-09T21:28:25.0254804Z Updating files:  14% (2033/14336)
+2026-10-09T21:28:25.0516499Z Updating files:  15% (2151/14336)
+2026-10-09T21:28:25.0782568Z Updating files:  16% (2294/14336)
+2026-10-09T21:28:25.1049463Z Updating files:  17% (2438/14336)
+2026-10-09T21:28:25.1310974Z Updating files:  18% (2581/14336)
+2026-10-09T21:28:25.1571831Z Updating files:  19% (2724/14336)
+2026-10-09T21:28:25.1835372Z Updating files:  20% (2868/14336)
+2026-10-09T21:28:25.2115326Z Updating files:  21% (3011/14336)
+2026-10-09T21:28:25.2389546Z Updating files:  22% (3154/14336)
+2026-10-09T21:28:25.2658643Z Updating files:  23% (3298/14336)
+2026-10-09T21:28:25.2927633Z Updating files:  24% (3441/14336)
+2026-10-09T21:28:25.4294022Z Updating files:  25% (3584/14336)
+2026-10-09T21:28:25.4562575Z Updating files:  26% (3728/14336)
+2026-10-09T21:28:25.4824693Z Updating files:  27% (3871/14336)
+2026-10-09T21:28:25.5088838Z Updating files:  28% (4015/14336)
+2026-10-09T21:28:25.5350883Z Updating files:  29% (4158/14336)
+2026-10-09T21:28:25.5611217Z Updating files:  30% (4301/14336)
+2026-10-09T21:28:25.5877198Z Updating files:  31% (4445/14336)
+2026-10-09T21:28:25.6137042Z Updating files:  32% (4588/14336)
+2026-10-09T21:28:25.6398376Z Updating files:  33% (4731/14336)
+2026-10-09T21:28:25.6659743Z Updating files:  34% (4875/14336)
+2026-10-09T21:28:25.6920437Z Updating files:  35% (5018/14336)
+2026-10-09T21:28:25.7175919Z Updating files:  36% (5161/14336)
+2026-10-09T21:28:25.7438462Z Updating files:  37% (5305/14336)
+2026-10-09T21:28:25.7722082Z Updating files:  38% (5448/14336)
+2026-10-09T21:28:25.7990235Z Updating files:  39% (5592/14336)
+2026-10-09T21:28:25.8246823Z Updating files:  40% (5735/14336)
+2026-10-09T21:28:25.8508808Z Updating files:  41% (5878/14336)
+2026-10-09T21:28:25.8773300Z Updating files:  42% (6022/14336)
+2026-10-09T21:28:25.9032147Z Updating files:  43% (6165/14336)
+2026-10-09T21:28:25.9298789Z Updating files:  44% (6308/14336)
+2026-10-09T21:28:25.9560775Z Updating files:  45% (6452/14336)
+2026-10-09T21:28:25.9822079Z Updating files:  46% (6595/14336)
+2026-10-09T21:28:26.0028499Z Updating files:  47% (6738/14336)
+2026-10-09T21:28:26.0088471Z Updating files:  47% (6849/14336)
+2026-10-09T21:28:26.0350480Z Updating files:  48% (6882/14336)
+2026-10-09T21:28:26.0612461Z Updating files:  49% (7025/14336)
+2026-10-09T21:28:26.0874719Z Updating files:  50% (7168/14336)
+2026-10-09T21:28:26.1136757Z Updating files:  51% (7312/14336)
+2026-10-09T21:28:26.1414515Z Updating files:  52% (7455/14336)
+2026-10-09T21:28:26.1674653Z Updating files:  53% (7599/14336)
+2026-10-09T21:28:26.1928197Z Updating files:  54% (7742/14336)
+2026-10-09T21:28:26.2193297Z Updating files:  55% (7885/14336)
+2026-10-09T21:28:26.2459576Z Updating files:  56% (8029/14336)
+2026-10-09T21:28:26.2722223Z Updating files:  57% (8172/14336)
+2026-10-09T21:28:26.2996872Z Updating files:  58% (8315/14336)
+2026-10-09T21:28:26.3262372Z Updating files:  59% (8459/14336)
+2026-10-09T21:28:26.3526451Z Updating files:  60% (8602/14336)
+2026-10-09T21:28:26.3791457Z Updating files:  61% (8745/14336)
+2026-10-09T21:28:26.4067515Z Updating files:  62% (8889/14336)
+2026-10-09T21:28:26.4344549Z Updating files:  63% (9032/14336)
+2026-10-09T21:28:26.5437799Z Updating files:  64% (9176/14336)
+2026-10-09T21:28:26.5698948Z Updating files:  65% (9319/14336)
+2026-10-09T21:28:26.5973019Z Updating files:  66% (9462/14336)
+2026-10-09T21:28:26.6236975Z Updating files:  67% (9606/14336)
+2026-10-09T21:28:26.6505465Z Updating files:  68% (9749/14336)
+2026-10-09T21:28:26.6809029Z Updating files:  69% (9892/14336)
+2026-10-09T21:28:26.8181472Z Updating files:  70% (10036/14336)
+2026-10-09T21:28:26.8459935Z Updating files:  71% (10179/14336)
+2026-10-09T21:28:26.8742529Z Updating files:  72% (10322/14336)
+2026-10-09T21:28:26.9011556Z Updating files:  73% (10466/14336)
+2026-10-09T21:28:26.9275165Z Updating files:  74% (10609/14336)
+2026-10-09T21:28:26.9538613Z Updating files:  75% (10752/14336)
+2026-10-09T21:28:26.9813000Z Updating files:  76% (10896/14336)
+2026-10-09T21:28:27.0037466Z Updating files:  77% (11039/14336)
+2026-10-09T21:28:27.0062943Z Updating files:  77% (11165/14336)
+2026-10-09T21:28:27.0299487Z Updating files:  78% (11183/14336)
+2026-10-09T21:28:27.0548541Z Updating files:  79% (11326/14336)
+2026-10-09T21:28:27.0813711Z Updating files:  80% (11469/14336)
+2026-10-09T21:28:27.1066509Z Updating files:  81% (11613/14336)
+2026-10-09T21:28:27.1306714Z Updating files:  82% (11756/14336)
+2026-10-09T21:28:27.1548829Z Updating files:  83% (11899/14336)
+2026-10-09T21:28:27.1789074Z Updating files:  84% (12043/14336)
+2026-10-09T21:28:27.2024900Z Updating files:  85% (12186/14336)
+2026-10-09T21:28:27.2261534Z Updating files:  86% (12329/14336)
+2026-10-09T21:28:27.2499905Z Updating files:  87% (12473/14336)
+2026-10-09T21:28:27.2738171Z Updating files:  88% (12616/14336)
+2026-10-09T21:28:27.2971215Z Updating files:  89% (12760/14336)
+2026-10-09T21:28:27.3203439Z Updating files:  90% (12903/14336)
+2026-10-09T21:28:27.3441040Z Updating files:  91% (13046/14336)
+2026-10-09T21:28:27.3683181Z Updating files:  92% (13190/14336)
+2026-10-09T21:28:27.3927654Z Updating files:  93% (13333/14336)
+2026-10-09T21:28:27.4192155Z Updating files:  94% (13476/14336)
+2026-10-09T21:28:27.4429696Z Updating files:  95% (13620/14336)
+2026-10-09T21:28:27.4664738Z Updating files:  96% (13763/14336)
+2026-10-09T21:28:27.4896305Z Updating files:  97% (13906/14336)
+2026-10-09T21:28:27.5137172Z Updating files:  98% (14050/14336)
+2026-10-09T21:28:27.5368554Z Updating files:  99% (14193/14336)
+2026-10-09T21:28:27.5369268Z Updating files: 100% (14336/14336)
+2026-10-09T21:28:27.5369562Z Updating files: 100% (14336/14336), done.
+2026-10-09T21:28:27.8145986Z Selecting pinned vcpkg commit 9e593bb18ea69cc5095e012465dcd675a822ed0d
+2026-10-09T21:28:28.3765112Z From https://github.com/microsoft/vcpkg
+2026-10-09T21:28:28.3765471Z  * branch                9e593bb18ea69cc5095e012465dcd675a822ed0d -> FETCH_HEAD
+2026-10-09T21:28:29.9978288Z HEAD is now at 9e593bb18 Release vcpkg-tool 2026-07-27. (#53109)
+2026-10-09T21:28:30.0075898Z Bootstrapping vcpkg...
+2026-10-09T21:28:32.7087815Z Downloading https://github.com/microsoft/vcpkg-tool/releases/download/2026-07-27/vcpkg.exe -> D:\a\DxUi\DxUi\.build\vcpkg-tool\vcpkg.exe... done.
+2026-10-09T21:28:32.7989613Z Validating signature... done.
+2026-10-09T21:28:32.8095182Z 
+2026-10-09T21:28:32.8462439Z vcpkg package management program version 2026-07-27-98d7cb0cf1f4686a3e43aa5672b6230c1d56bce8
+2026-10-09T21:28:32.8462939Z 
+2026-10-09T21:28:32.8463088Z See LICENSE.txt for license information.
+2026-10-09T21:28:32.9429108Z Overlay triplet D:\a\DxUi\DxUi\.build\vcpkg-triplets\x64\x64-windows.cmake written
+2026-10-09T21:28:32.9432855Z Installing DxUi dependencies (x64-windows)
+2026-10-09T21:28:34.0175663Z Detecting compiler hash for triplet x64-windows...
+2026-10-09T21:28:42.9835971Z Compiler found: C:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+2026-10-09T21:28:42.9923507Z The following packages will be built and installed:
+2026-10-09T21:28:42.9923787Z   * vcpkg-cmake:x64-windows@2024-04-23
+2026-10-09T21:28:42.9924017Z   * vcpkg-cmake-config:x64-windows@2026-07-21
+2026-10-09T21:28:42.9924406Z     wil:x64-windows@1.0.260126.7
+2026-10-09T21:28:42.9924665Z Additional packages (*) will be modified to complete this operation.
+2026-10-09T21:28:43.1099968Z Restored 0 package(s) from C:\Users\runneradmin\AppData\Local\vcpkg\archives in 66.4 us. Use --debug to see more details.
+2026-10-09T21:28:43.1100498Z Installing 1/3 vcpkg-cmake-config:x64-windows@2026-07-21...
+2026-10-09T21:28:43.1100962Z vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 2169879b5b64f074dcbf3cf595109791fee92922d010b7c7fc914b6983a87857
+2026-10-09T21:28:43.1101392Z Building vcpkg-cmake-config:x64-windows@2026-07-21...
+2026-10-09T21:28:43.1101755Z D:\a\DxUi\DxUi\.build\vcpkg-triplets\x64\x64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:28:43.1361687Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/vcpkg_cmake_config_fixup.cmake
+2026-10-09T21:28:43.1366807Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/vcpkg-port-config.cmake
+2026-10-09T21:28:43.1371203Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/copyright
+2026-10-09T21:28:43.1413799Z -- Skipping post-build validation due to VCPKG_POLICY_EMPTY_PACKAGE
+2026-10-09T21:28:43.1562107Z Starting submission of vcpkg-cmake-config:x64-windows@2026-07-21 to 1 binary cache(s) in the background
+2026-10-09T21:28:43.1562831Z Elapsed time to handle vcpkg-cmake-config:x64-windows: 46.3 ms
+2026-10-09T21:28:43.1563149Z Installing 2/3 vcpkg-cmake:x64-windows@2024-04-23...
+2026-10-09T21:28:43.1563577Z vcpkg-cmake:x64-windows@2024-04-23 package ABI: 045c39a8cc6efe24b690eeb3fdad9cebd08f870e27d632ffc645bb5647028d5b
+2026-10-09T21:28:43.1563990Z Building vcpkg-cmake:x64-windows@2024-04-23...
+2026-10-09T21:28:43.1564334Z D:\a\DxUi\DxUi\.build\vcpkg-triplets\x64\x64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:28:43.1881122Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_configure.cmake
+2026-10-09T21:28:43.1887537Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_build.cmake
+2026-10-09T21:28:43.1893990Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_install.cmake
+2026-10-09T21:28:43.1898880Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg-port-config.cmake
+2026-10-09T21:28:43.1903883Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/vcpkg-cmake_x64-windows/share/vcpkg-cmake/copyright
+2026-10-09T21:28:43.1948132Z -- Performing post-build validation
+2026-10-09T21:28:43.2391366Z Starting submission of vcpkg-cmake:x64-windows@2024-04-23 to 1 binary cache(s) in the background
+2026-10-09T21:28:43.2391825Z Elapsed time to handle vcpkg-cmake:x64-windows: 82.9 ms
+2026-10-09T21:28:43.2392883Z Installing 3/3 wil:x64-windows@1.0.260126.7...
+2026-10-09T21:28:43.2393275Z wil:x64-windows@1.0.260126.7 package ABI: ab9f4a9c5e9c340b07c77501ff27b0023c3880b45f32d502e53b3ca3fc7ca744
+2026-10-09T21:28:43.2393778Z Building wil:x64-windows@1.0.260126.7...
+2026-10-09T21:28:43.2394122Z D:\a\DxUi\DxUi\.build\vcpkg-triplets\x64\x64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:28:43.2755595Z Downloading https://github.com/Microsoft/wil/archive/v1.0.260126.7.tar.gz -> Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:28:43.4769096Z Successfully downloaded Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:28:43.4871551Z -- Extracting source D:/a/DxUi/DxUi/.build/vcpkg_downloads/Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:28:43.7065005Z -- Applying patch cpp14.patch
+2026-10-09T21:28:43.7372186Z -- Using source at D:/a/DxUi/DxUi/.build/vcpkg_buildtrees/x64/wil/src/0.260126.7-f396d2605e.clean
+2026-10-09T21:28:43.7573952Z -- Configuring x64-windows
+2026-10-09T21:28:45.9990298Z -- Building x64-windows-rel
+2026-10-09T21:28:46.0744336Z -- Up-to-date: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/wil_x64-windows/share/wil/natvis
+2026-10-09T21:28:46.0745373Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/wil_x64-windows/share/wil/natvis/wil.natstepfilter
+2026-10-09T21:28:46.0750208Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/wil_x64-windows/share/wil/natvis/wil.natvis
+2026-10-09T21:28:46.0757110Z -- Installing: D:/a/DxUi/DxUi/.build/vcpkg_packages/x64/wil_x64-windows/share/wil/copyright
+2026-10-09T21:28:46.0825983Z -- Performing post-build validation
+2026-10-09T21:28:46.1177663Z Starting submission of wil:x64-windows@1.0.260126.7 to 1 binary cache(s) in the background
+2026-10-09T21:28:46.1178255Z Elapsed time to handle wil:x64-windows: 2.9 s
+2026-10-09T21:28:46.1190145Z Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+2026-10-09T21:28:46.1190966Z Packages installed in this vcpkg installation declare the following licenses:
+2026-10-09T21:28:46.1191270Z MIT
+2026-10-09T21:28:46.1191584Z wil provides CMake targets:
+2026-10-09T21:28:46.1191752Z 
+2026-10-09T21:28:46.1191927Z   # this is heuristically generated, and may not be correct
+2026-10-09T21:28:46.1192305Z   find_package(wil CONFIG REQUIRED)
+2026-10-09T21:28:46.1196778Z   target_link_libraries(main PRIVATE WIL::WIL)
+2026-10-09T21:28:46.1196976Z 
+2026-10-09T21:28:46.1197207Z Completed submission of vcpkg-cmake-config:x64-windows@2026-07-21 to 1 binary cache(s) in 204 ms
+2026-10-09T21:28:46.1197689Z Completed submission of vcpkg-cmake:x64-windows@2024-04-23 to 1 binary cache(s) in 46.3 ms
+2026-10-09T21:28:46.1198043Z Waiting for 1 remaining binary cache submissions...
+2026-10-09T21:28:46.2235992Z Completed submission of wil:x64-windows@1.0.260126.7 to 1 binary cache(s) in 106 ms (1/1)
+2026-10-09T21:28:46.2236842Z All requested installations completed successfully in: 3 s
+2026-10-09T21:28:46.2269322Z vcpkg dependencies are ready.
+2026-10-09T21:28:46.2599182Z ##[group]Run ./test.ps1 -Full -SkipTooling -Configuration "Release" -Platform x64
+2026-10-09T21:28:46.2599703Z [36;1m./test.ps1 -Full -SkipTooling -Configuration "Release" -Platform x64[0m
+2026-10-09T21:28:46.2655567Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-09T21:28:46.2655838Z ##[endgroup]
+2026-10-09T21:28:46.7350573Z ╭────────────────────────────────────────────────────────────────────────╮
+2026-10-09T21:28:46.7443691Z │                                                                        │
+2026-10-09T21:28:46.7448430Z │                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+2026-10-09T21:28:46.7452370Z │                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+2026-10-09T21:28:46.7456695Z │                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+2026-10-09T21:28:46.7460650Z │                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+2026-10-09T21:28:46.7464737Z │                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+2026-10-09T21:28:46.7468652Z │                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+2026-10-09T21:28:46.7472413Z │                                                                        │
+2026-10-09T21:28:46.7476438Z │      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+2026-10-09T21:28:46.7504521Z │                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+2026-10-09T21:28:46.7508482Z │                                                                        │
+2026-10-09T21:28:46.7512793Z ╰────────────────────────────────────────────────────────────────────────╯
+2026-10-09T21:28:46.7517050Z 
+2026-10-09T21:28:46.7524735Z Locating Visual Studio and MSBuild...
+2026-10-09T21:28:46.9375915Z Build configuration:
+2026-10-09T21:28:46.9379524Z   Configuration: Release
+2026-10-09T21:28:46.9383644Z   Platform:      x64
+2026-10-09T21:28:46.9387611Z   Target:        Build
+2026-10-09T21:28:46.9391653Z   Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Enterprise
+2026-10-09T21:28:46.9395377Z   Output:        D:\a\DxUi\DxUi\.build\
+2026-10-09T21:28:46.9399238Z 
+2026-10-09T21:28:46.9402867Z Compiling DxUi...
+2026-10-09T21:28:51.8279260Z 
+2026-10-09T21:28:55.6581123Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+2026-10-09T21:28:55.6587778Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+2026-10-09T21:28:55.7620135Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+2026-10-09T21:28:55.7626940Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+2026-10-09T21:28:56.4073396Z   ControlCatalog.cpp
+2026-10-09T21:29:04.6306452Z   NativeMenuInterop.cpp
+2026-10-09T21:29:07.5814697Z   Embedded.cpp
+2026-10-09T21:29:11.2522340Z   FrameRuntime.cpp
+2026-10-09T21:29:11.7185120Z   DxUi.Accessibility.cpp
+2026-10-09T21:29:15.8922143Z   DxUi.ComboBox.cpp
+2026-10-09T21:29:18.9561305Z   DxUi.Controls.cpp
+2026-10-09T21:29:22.7647576Z   DxUi.EditorControls.cpp
+2026-10-09T21:29:25.7866726Z   DxUi.cpp
+2026-10-09T21:29:28.8208148Z   DxUi.Grid.cpp
+2026-10-09T21:29:33.0465778Z   DxUi.Menu.cpp
+2026-10-09T21:29:44.6934110Z   DxUi.NativeTextInput.cpp
+2026-10-09T21:29:47.7849663Z   DxUi.PointerInput.cpp
+2026-10-09T21:29:48.2575463Z   DxUi.Scrollbar.cpp
+2026-10-09T21:29:50.8914559Z   DxUi.SingleLineTextEditing.cpp
+2026-10-09T21:29:53.9237569Z   DxUi.TextInput.cpp
+2026-10-09T21:29:56.9229740Z   DxUi.TextStoreACP.cpp
+2026-10-09T21:29:59.8146838Z   TextInputServices.cpp
+2026-10-09T21:30:02.6734133Z   TextClipboard.cpp
+2026-10-09T21:30:05.7193099Z   DxUi.Theme.cpp
+2026-10-09T21:30:09.1016491Z   Generating Code...
+2026-10-09T21:30:36.7601698Z   Compiling...
+2026-10-09T21:30:36.7607379Z   DxUi.Tree.cpp
+2026-10-09T21:30:39.7594046Z   DxUi.Typeahead.cpp
+2026-10-09T21:30:42.3851691Z   DxUi.WindowHost.cpp
+2026-10-09T21:30:46.6956510Z   Generating Code...
+2026-10-09T21:30:51.7229932Z   DxUi.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.lib
+2026-10-09T21:30:52.0077843Z   Foundation.Tests.Foundation.cpp
+2026-10-09T21:30:52.1116625Z   InteractiveLease.Tests.Runner.cpp
+2026-10-09T21:30:52.1754312Z   DxUi.Tests.Accessibility.cpp
+2026-10-09T21:30:52.7698432Z   Main.cpp
+2026-10-09T21:30:53.7437843Z   Foundation.Tests.PublicHelpers.cpp
+2026-10-09T21:30:55.0457163Z   Embedded.Tests.Embedded.cpp
+2026-10-09T21:30:57.5355101Z   Generating Code...
+2026-10-09T21:31:06.6674929Z   DxUi.FoundationTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+2026-10-09T21:31:07.1066161Z   DxUi.EmbeddedControls.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+2026-10-09T21:31:08.2855160Z   DxUi.InteractiveLease.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.InteractiveLease.exe
+2026-10-09T21:31:12.2411291Z   DxUi.Tests.Animation.cpp
+2026-10-09T21:31:14.4095819Z   DxUi.EmbeddedTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+2026-10-09T21:31:16.3511387Z   DxUi.Tests.ComboBox.cpp
+2026-10-09T21:31:20.3095086Z   DxUi.Tests.Controls.cpp
+2026-10-09T21:31:24.8729537Z   DxUi.Tests.Runner.cpp
+2026-10-09T21:31:28.8393464Z   DxUi.Tests.EditorControls.cpp
+2026-10-09T21:31:33.1659139Z   DxUi.Tests.Gallery.cpp
+2026-10-09T21:31:37.5002669Z   DxUi.Tests.Grid.cpp
+2026-10-09T21:31:42.4578412Z   DxUi.Tests.InteractiveLease.cpp
+2026-10-09T21:31:46.7081907Z   DxUi.Tests.Menu.cpp
+2026-10-09T21:31:53.0228992Z   DxUi.Tests.MultilineText.cpp
+2026-10-09T21:31:56.9370086Z   DxUi.Tests.NativeTextInput.cpp
+2026-10-09T21:32:01.7887026Z   DxUi.Tests.NewControls.cpp
+2026-10-09T21:32:06.1918184Z   DxUi.Tests.ReadOnly.cpp
+2026-10-09T21:32:09.9561276Z   DxUi.Tests.Rendering.cpp
+2026-10-09T21:32:14.6018620Z   DxUi.Tests.TextField.cpp
+2026-10-09T21:32:18.7427716Z   DxUi.Tests.Theme.cpp
+2026-10-09T21:32:22.7860541Z   DxUi.Tests.Tooltip.cpp
+2026-10-09T21:32:26.7821540Z   DxUi.Tests.Tree.cpp
+2026-10-09T21:32:31.3576572Z   DxUi.Tests.WindowHost.cpp
+2026-10-09T21:32:39.5186189Z   Generating Code...
+2026-10-09T21:33:54.7588440Z   DxUi.ControlTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+2026-10-09T21:33:54.8431475Z 
+2026-10-09T21:33:54.8435738Z ========================================
+2026-10-09T21:33:54.8461546Z DxUi build passed in 05:07
+2026-10-09T21:33:54.8465235Z Output: D:\a\DxUi\DxUi\.build\
+2026-10-09T21:33:54.8468597Z Log: D:\a\DxUi\DxUi\.build\logs\build-x64-Release-8502fd472d1745128110e499f096bbee.log
+2026-10-09T21:33:54.8471602Z ========================================
+2026-10-09T21:33:56.0290397Z ok   the filter runs only the named tests, in suite order
+2026-10-09T21:33:56.0293525Z ok   an unknown name fails the run instead of passing with nothing run
+2026-10-09T21:33:56.0297156Z ok   one unknown name fails a run that also names a known test
+2026-10-09T21:33:56.0300412Z ok   names are exact and case-sensitive
+2026-10-09T21:33:56.0303992Z ok   an empty or malformed list is rejected
+2026-10-09T21:33:56.0307740Z ok   a fixture suite without named tests rejects the filter before it runs
+2026-10-09T21:33:56.0311585Z ok   no runner calls a test directly, so the filter can select every test
+2026-10-09T21:33:56.0315162Z ok   without the filter a suite runs every test its runner registers
+2026-10-09T21:33:56.0331778Z Test filter: 8 of 8 passed
+2026-10-09T21:34:14.7381271Z ok   a test that never returns ends the run at its deadline, named
+2026-10-09T21:34:14.7382215Z ok   a fixture suite without named tests is bounded as a whole
+2026-10-09T21:34:14.7383783Z ok   a fixture that reports progress outlives its deadline as a whole
+2026-10-09T21:34:14.7395703Z ok   without a deadline the same test never returns
+2026-10-09T21:34:14.7397706Z ok   an armed watchdog waits instead of polling
+2026-10-09T21:34:14.7399521Z ok   the deadline defaults to 300 seconds and --test-timeout sets it
+2026-10-09T21:34:14.7403134Z ok   a test that finishes in time is not ended and reports its duration
+2026-10-09T21:34:14.7404314Z ok   a malformed --test-timeout is rejected before any test runs
+2026-10-09T21:34:14.7406128Z ok   the self-test is a switch of its own
+2026-10-09T21:34:14.7408438Z ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+2026-10-09T21:34:14.7444396Z ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+2026-10-09T21:34:14.7445347Z ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+2026-10-09T21:34:14.7534893Z Test watchdog: 12 of 12 passed
+2026-10-09T21:34:20.4879091Z ok   the self-test passes: children, the session's lease, the confirmation and the warning
+2026-10-09T21:34:20.4882358Z ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+2026-10-09T21:34:20.4885796Z ok   a malformed command line is a usage error before anything is shown
+2026-10-09T21:34:20.4889251Z ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+2026-10-09T21:34:20.4892347Z ok   the lease ends only the processes it started
+2026-10-09T21:34:20.4895741Z Interactive lease: 5 of 5 passed
+2026-10-09T21:34:22.2908227Z Complex UI clean round 1: 370.075 completed offscreen FPS; p95 2.8388 ms; private 23486464 bytes
+2026-10-09T21:34:22.2909070Z Complex UI clean round 2: 336.156 completed offscreen FPS; p95 4.0159 ms; private 23420928 bytes
+2026-10-09T21:34:22.2910001Z Complex UI clean round 3: 366.591 completed offscreen FPS; p95 2.9473 ms; private 23425024 bytes
+2026-10-09T21:34:22.2911048Z Complex UI clean round 4: 371.825 completed offscreen FPS; p95 2.8131 ms; private 23371776 bytes
+2026-10-09T21:34:22.2911818Z Complex UI clean round 5: 372.169 completed offscreen FPS; p95 2.7992 ms; private 23322624 bytes
+2026-10-09T21:34:22.2912532Z Complex UI dirty round 1: 153.756 completed offscreen FPS; p95 8.2677 ms; private 23699456 bytes
+2026-10-09T21:34:22.2913263Z Complex UI dirty round 2: 196.451 completed offscreen FPS; p95 7.3825 ms; private 24162304 bytes
+2026-10-09T21:34:22.2913951Z Complex UI dirty round 3: 222.411 completed offscreen FPS; p95 4.565 ms; private 24170496 bytes
+2026-10-09T21:34:22.2914692Z Complex UI dirty round 4: 212.166 completed offscreen FPS; p95 5.621 ms; private 24174592 bytes
+2026-10-09T21:34:22.2915389Z Complex UI dirty round 5: 222.408 completed offscreen FPS; p95 4.5616 ms; private 24154112 bytes
+2026-10-09T21:36:46.8203233Z Performance comparison: unpaired
+2026-10-09T21:36:46.8238266Z Performance receipt: D:\a\DxUi\DxUi\.build\reports\Performance-x64-Release-c2bb5d5e2f7e4250875fc2b7b12b8ebe.json
+2026-10-09T21:36:46.8340369Z Running Foundation (x64 Release)
+2026-10-09T21:36:46.9474232Z PASS Foundation (0 capability skips recorded)
+2026-10-09T21:36:46.9486884Z Running Embedded (x64 Release)
+2026-10-09T21:37:12.1815111Z PASS Embedded (0 capability skips recorded)
+2026-10-09T21:37:12.1850437Z Running Grid (x64 Release)
+2026-10-09T21:37:12.7464369Z PASS Grid (0 capability skips recorded)
+2026-10-09T21:37:12.7490309Z Running Theme (x64 Release)
+2026-10-09T21:37:12.8191228Z PASS Theme (0 capability skips recorded)
+2026-10-09T21:37:12.8215783Z Running Control (x64 Release)
+2026-10-09T21:37:12.9722425Z PASS Control (0 capability skips recorded)
+2026-10-09T21:37:12.9739242Z Running MenuExitLifetime (x64 Release)
+2026-10-09T21:37:13.1213064Z PASS MenuExitLifetime (0 capability skips recorded)
+2026-10-09T21:37:13.1224473Z Running NewControls (x64 Release)
+2026-10-09T21:37:13.2377303Z PASS NewControls (0 capability skips recorded)
+2026-10-09T21:37:13.2398567Z Running EditorControls (x64 Release)
+2026-10-09T21:37:16.3174003Z PASS EditorControls (0 capability skips recorded)
+2026-10-09T21:37:16.3194973Z Running TextField (x64 Release)
+2026-10-09T21:37:17.0505168Z PASS TextField (0 capability skips recorded)
+2026-10-09T21:37:17.0524889Z Running MultilineText (x64 Release)
+2026-10-09T21:37:17.2919382Z PASS MultilineText (0 capability skips recorded)
+2026-10-09T21:37:17.2939446Z Running ReadOnly (x64 Release)
+2026-10-09T21:37:17.5005892Z PASS ReadOnly (0 capability skips recorded)
+2026-10-09T21:37:17.5024298Z Running ComboBox (x64 Release)
+2026-10-09T21:37:17.9515643Z PASS ComboBox (0 capability skips recorded)
+2026-10-09T21:37:17.9535823Z Running Tree (x64 Release)
+2026-10-09T21:37:18.2012352Z PASS Tree (0 capability skips recorded)
+2026-10-09T21:37:18.2029999Z Running Tooltip (x64 Release)
+2026-10-09T21:37:18.6465017Z PASS Tooltip (0 capability skips recorded)
+2026-10-09T21:37:18.6478030Z Running Rendering (x64 Release)
+2026-10-09T21:37:45.1600692Z PASS Rendering (0 capability skips recorded)
+2026-10-09T21:37:45.1629070Z Running Animation (x64 Release)
+2026-10-09T21:37:46.1884398Z PASS Animation (0 capability skips recorded)
+2026-10-09T21:37:46.1899799Z Running Accessibility (x64 Release)
+2026-10-09T21:39:25.7937216Z PASS Accessibility (0 capability skips recorded)
+2026-10-09T21:39:25.7982830Z Running WindowHost (x64 Release)
+2026-10-09T21:39:28.8133125Z PASS WindowHost (0 capability skips recorded)
+2026-10-09T21:39:28.8159891Z Running InteractiveLease (x64 Release)
+2026-10-09T21:39:28.8639637Z PASS InteractiveLease (0 capability skips recorded)
+2026-10-09T21:39:28.8653851Z Running Menu (x64 Release)
+2026-10-09T21:40:13.0506819Z PASS Menu (0 capability skips recorded)
+2026-10-09T21:40:13.0541939Z Running NativeTextInput (x64 Release)
+2026-10-09T21:40:22.0448812Z FAIL NativeTextInput exited with code 1
+2026-10-09T21:40:22.0453058Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:40:22.0454605Z     [TRACE] attached host dtor: begin
+2026-10-09T21:40:22.0455367Z     [TRACE] attached host dtor: host detached
+2026-10-09T21:40:22.0455847Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:40:22.0457028Z   [DONE] TestNativeTextInputBackendEditMessagesRejectIneligibleReplaceBeforeReadingPointer (0.043 s)
+2026-10-09T21:40:22.0458090Z   [START] TestNativeTextInputPublicSetTextClearsComposition
+2026-10-09T21:40:22.0458662Z     [TRACE] attached host dtor: begin
+2026-10-09T21:40:22.0459095Z     [TRACE] attached host dtor: host detached
+2026-10-09T21:40:22.0459454Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:40:22.0459844Z   [DONE] TestNativeTextInputPublicSetTextClearsComposition (0.028 s)
+2026-10-09T21:40:22.0460307Z   [START] TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput
+2026-10-09T21:40:22.0460829Z FAILED: native edit-message shim dispatches default handling without a focused native text input
+2026-10-09T21:40:22.1089163Z [31;1mException: [0mD:\a\DxUi\DxUi\test.ps1:218[0m
+2026-10-09T21:40:22.1089714Z [31;1m[0m[36;1mLine |[0m
+2026-10-09T21:40:22.1090393Z [31;1m[0m[36;1m[36;1m 218 | [0m … es.Count) { [36;1mthrow "DxUi failed suites: $($failures -join '; '). See .[0m …[0m
+2026-10-09T21:40:22.1091290Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-10-09T21:40:22.1092425Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mDxUi failed suites: NativeTextInput exited with code 1. See .build/logs and .build/reports.[0m
+2026-10-09T21:40:22.1352825Z ##[error]Process completed with exit code 1.
+2026-10-09T21:40:22.1555383Z ##[group]Run ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -SkipTooling -Suites MenuResourceScaling,MenuTextLayoutResources
+2026-10-09T21:40:22.1556335Z [36;1m./test.ps1 -Configuration Release -Platform x64 -SkipBuild -SkipTooling -Suites MenuResourceScaling,MenuTextLayoutResources[0m
+2026-10-09T21:40:22.1620705Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-09T21:40:22.1621077Z ##[endgroup]
+2026-10-09T21:40:23.5006065Z ok   the filter runs only the named tests, in suite order
+2026-10-09T21:40:23.5010569Z ok   an unknown name fails the run instead of passing with nothing run
+2026-10-09T21:40:23.5015462Z ok   one unknown name fails a run that also names a known test
+2026-10-09T21:40:23.5019649Z ok   names are exact and case-sensitive
+2026-10-09T21:40:23.5024032Z ok   an empty or malformed list is rejected
+2026-10-09T21:40:23.5028265Z ok   a fixture suite without named tests rejects the filter before it runs
+2026-10-09T21:40:23.5032891Z ok   no runner calls a test directly, so the filter can select every test
+2026-10-09T21:40:23.5036672Z ok   without the filter a suite runs every test its runner registers
+2026-10-09T21:40:23.5061185Z Test filter: 8 of 8 passed
+2026-10-09T21:40:42.2634652Z ok   a test that never returns ends the run at its deadline, named
+2026-10-09T21:40:42.2637737Z ok   a fixture suite without named tests is bounded as a whole
+2026-10-09T21:40:42.2640165Z ok   a fixture that reports progress outlives its deadline as a whole
+2026-10-09T21:40:42.2642350Z ok   without a deadline the same test never returns
+2026-10-09T21:40:42.2644643Z ok   an armed watchdog waits instead of polling
+2026-10-09T21:40:42.2646830Z ok   the deadline defaults to 300 seconds and --test-timeout sets it
+2026-10-09T21:40:42.2648954Z ok   a test that finishes in time is not ended and reports its duration
+2026-10-09T21:40:42.2651059Z ok   a malformed --test-timeout is rejected before any test runs
+2026-10-09T21:40:42.2653708Z ok   the self-test is a switch of its own
+2026-10-09T21:40:42.2657203Z ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+2026-10-09T21:40:42.2660186Z ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+2026-10-09T21:40:42.2664347Z ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+2026-10-09T21:40:42.2668477Z Test watchdog: 12 of 12 passed
+2026-10-09T21:40:44.1638540Z Complex UI clean round 1: 356.799 completed offscreen FPS; p95 3.0861 ms; private 23597056 bytes
+2026-10-09T21:40:44.1639408Z Complex UI clean round 2: 369.412 completed offscreen FPS; p95 2.9113 ms; private 23527424 bytes
+2026-10-09T21:40:44.1640129Z Complex UI clean round 3: 359.635 completed offscreen FPS; p95 3.0446 ms; private 23527424 bytes
+2026-10-09T21:40:44.1640884Z Complex UI clean round 4: 333.228 completed offscreen FPS; p95 4.0467 ms; private 23453696 bytes
+2026-10-09T21:40:44.1641639Z Complex UI clean round 5: 367.267 completed offscreen FPS; p95 2.9653 ms; private 23420928 bytes
+2026-10-09T21:40:44.1642301Z Complex UI dirty round 1: 169.281 completed offscreen FPS; p95 6.5964 ms; private 23752704 bytes
+2026-10-09T21:40:44.1644480Z Complex UI dirty round 2: 161.386 completed offscreen FPS; p95 8.0355 ms; private 23752704 bytes
+2026-10-09T21:40:44.1645402Z Complex UI dirty round 3: 213.398 completed offscreen FPS; p95 4.792 ms; private 23760896 bytes
+2026-10-09T21:40:44.1646258Z Complex UI dirty round 4: 212.188 completed offscreen FPS; p95 4.7886 ms; private 23760896 bytes
+2026-10-09T21:40:44.1647102Z Complex UI dirty round 5: 187.317 completed offscreen FPS; p95 6.1725 ms; private 23748608 bytes
+2026-10-09T21:40:48.6018470Z Performance comparison: unpaired
+2026-10-09T21:40:48.6043548Z Performance receipt: D:\a\DxUi\DxUi\.build\reports\Performance-x64-Release-7ba4b641b8ad4d219d7ea5e446b83eaa.json
+2026-10-09T21:40:48.6165684Z Running MenuResourceScaling (x64 Release)
+2026-10-09T21:41:02.9162396Z PASS MenuResourceScaling (0 capability skips recorded)
+2026-10-09T21:41:02.9303551Z Running MenuTextLayoutResources (x64 Release)
+2026-10-09T21:41:03.1256770Z PASS MenuTextLayoutResources (0 capability skips recorded)
+2026-10-09T21:41:03.1293003Z All 2 requested suites passed.
+2026-10-09T21:41:03.1751987Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-09T21:41:03.1752418Z with:
+2026-10-09T21:41:03.1752641Z   name: native-x64-Release
+2026-10-09T21:41:03.1753087Z   path: .build/logs/*.log
+.build/reports/*.json
+.build/test-artifacts/**
+.build/gallery/**
+
+2026-10-09T21:41:03.1753477Z   retention-days: 14
+2026-10-09T21:41:03.1753725Z   if-no-files-found: warn
+2026-10-09T21:41:03.1753971Z   compression-level: 6
+2026-10-09T21:41:03.1754192Z   overwrite: false
+2026-10-09T21:41:03.1754398Z   include-hidden-files: false
+2026-10-09T21:41:03.1754627Z ##[endgroup]
+2026-10-09T21:41:03.3327711Z (node:2076) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-09T21:41:03.3328682Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-09T21:41:03.3572282Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-09T21:41:03.3575109Z The least common ancestor is D:\a\DxUi\DxUi\.build. This will be the root directory of the artifact
+2026-10-09T21:41:03.3575566Z With the provided path, there will be 86 files uploaded
+2026-10-09T21:41:03.3580207Z Artifact name is valid!
+2026-10-09T21:41:03.3581509Z Root directory input is valid!
+2026-10-09T21:41:03.5695574Z Beginning upload of artifact content to blob storage
+2026-10-09T21:41:03.6727871Z (node:2076) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-09T21:41:03.7382229Z Uploaded bytes 258783
+2026-10-09T21:41:03.7557919Z Finished uploading artifact content to blob storage!
+2026-10-09T21:41:03.7558657Z SHA256 digest of uploaded artifact zip is 893887063ef1bda03629e12dd8ba71aa47d00996b26574ec982913b70a8ce786
+2026-10-09T21:41:03.7560647Z Finalizing artifact upload
+2026-10-09T21:41:03.9628085Z Artifact native-x64-Release.zip successfully finalized. Artifact ID 11646412677
+2026-10-09T21:41:03.9629514Z Artifact native-x64-Release has been successfully uploaded! Final size is 258783 bytes. Artifact ID is 11646412677
+2026-10-09T21:41:03.9637292Z Artifact download URL: https://github.com/RedSalamanders/DxUi/actions/runs/37993602279/artifacts/11646412677
+2026-10-09T21:41:04.0065560Z Post job cleanup.
+2026-10-09T21:41:04.1448810Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-09T21:41:04.1680679Z git version 2.55.0.windows.5
+2026-10-09T21:41:04.1735470Z Temporarily overriding HOME='D:\a\_temp\7f55049f-ec93-4d14-928f-788b2f420c11' before making global git config changes
+2026-10-09T21:41:04.1736426Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:41:04.1745516Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\DxUi\DxUi
+2026-10-09T21:41:04.2034090Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:41:04.2356368Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-09T21:41:04.7101350Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:41:04.7320272Z http.https://github.com/.extraheader
+2026-10-09T21:41:04.7356689Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-09T21:41:04.7605554Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-09T21:41:05.2492092Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:41:05.2742225Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-09T21:41:05.7200217Z Cleaning up orphan processes
+2026-10-09T21:41:05.7290315Z Terminate orphan process: pid (8760) (MSBuild)
+2026-10-09T21:41:05.7346294Z Terminate orphan process: pid (8924) (MSBuild)
+2026-10-09T21:41:05.7382697Z Terminate orphan process: pid (7232) (MSBuild)
+2026-10-09T21:41:05.7549056Z Terminate orphan process: pid (1252) (vctip)
+2026-10-09T21:41:05.7659728Z Terminate orphan process: pid (4736) (mspdbsrv)
+2026-10-09T21:41:05.7887437Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

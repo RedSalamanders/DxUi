@@ -1,7 +1,7 @@
 # Embedded D3D11 hosting
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-10-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -51,6 +51,20 @@ callback is synchronous and must not re-enter the host. Dirty requests coalesce;
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+
+Preparation rechecks the root after DPI notification and between paint and overlay calls. Root retirement or
+interaction-geometry replacement during painting returns `E_ABORT`, retains pending preparation and leaves the
+surface incoherent. A later explicit successful preparation restores composition. Standard paint exceptions restore
+draw state and return a failure without publishing the partial surface.
+Model notifications invalidate the interaction revision as well as pixels. A page installed during paint defers its
+bounds to the next explicit Prepare, including transition pages; no resize or animation tick is required. Preparation
+executes this layout before rendering, and a reentrant pending replacement keeps the frame unpublished.
+Flow, density and Tree/Grid metric changes revoke prepared hit geometry. Pointer dispatch rechecks coherence after
+pruning, uncaptured hover callbacks and hit testing, so a reentrant change cannot retarget the current Down against an
+old surface. Captured controls receive each event once directly; a completed drag handler may invalidate sibling pane
+layout and retains its draft through the following preparation while its captured bounds and effective state survive.
+Color-only theme changes outside painting keep dirty-pixel pointer input available; in-paint palette replacement
+rejects the mixed frame.
 
 AdvanceAnimation marks the view dirty only through control invalidation. Every `Tick` that changes visual state
 invalidates its host: an indeterminate progress bar on every tick, a caret only when its blink phase flips, a

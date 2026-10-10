@@ -14,6 +14,10 @@ function New-Receipt {
     $receipt.hiddenPreparations = 0
     $receipt.hiddenComposites = 0
     foreach ($key in @('sourceCommit', 'sourceFingerprint', 'executableSha256', 'benchmarkSha256')) { $receipt[$key] = 'a' }
+    foreach ($key in @('harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity')) { $receipt[$key] = 'fixture' }
+    $receipt.identityStatus = 'verifiable'
+    $receipt.warpVersion = 'fixture'
+    $receipt.warpSha256 = 'a'
     $receipt.scenarios = @(foreach ($name in @('clean', 'dirty')) {
             [ordered]@{ name = $name; rounds = @(foreach ($round in 1..5) {
                         $metrics = [ordered]@{}
@@ -25,6 +29,168 @@ function New-Receipt {
     return $receipt
 }
 
+$before = New-Receipt
+
+function New-ReceiptWithTimingDiagnostics {
+    $receipt = New-Receipt
+    $receipt.clock = [ordered]@{ name='std::chrono::steady_clock'; implementation='QueryPerformanceCounter'; ticksPerSecond=10000000; tickNanoseconds=100; nominalPeriodNanoseconds=1 }
+    foreach ($scenario in $receipt.scenarios) {
+        foreach ($round in $scenario.rounds) {
+            # Reverse frame order so the validator must compute percentiles without assuming sorted raw samples.
+            $round.timingSamplesMs = [ordered]@{ frame=@(40..1); prepare=@(40..1 | ForEach-Object { $_ * 0.0001 }); composeCpu=@(39..0 | ForEach-Object { $_ * 0.01 }) }
+            $round.fps = 40000.0 / 820.0
+            $round.frameP50Ms = 20; $round.frameP95Ms = 38
+            $round.prepareP95Ms = 0.0038; $round.composeCpuP95Ms = 0.37
+        }
+    }
+    return $receipt
+}
+
+Invoke-TestCase 'timing diagnostics preserve legacy decisions and validate complete clock and ordered samples' {
+    Assert-PerformanceReceipt $before
+    $receipt = New-ReceiptWithTimingDiagnostics
+    Assert-PerformanceReceipt $receipt
+    $result = Compare-PerformanceReceipt $receipt (Copy-JsonValue $receipt)
+    Assert-Equal 26 $result.changes.Count 'diagnostic fields do not enlarge the judged family'
+    Assert-Equal 'within-noise-budget' $result.status 'identical diagnostic receipts retain the original decision'
+    Assert-Equal 40 $receipt.scenarios[0].rounds[0].timingSamplesMs.frame[0] 'validation preserves frame order'
+    foreach ($field in @('clock', 'samples', 'frequency', 'frequencyRange', 'period', 'positivePeriod', 'tick', 'count', 'group', 'string', 'negative', 'nonfinite', 'zeroFrame', 'fps', 'frameP50Ms', 'frameP95Ms', 'prepareP95Ms', 'composeCpuP95Ms')) {
+        $bad = Copy-JsonValue $receipt
+        $round = $bad.scenarios[0].rounds[0]
+        switch ($field) {
+            'clock' { [void]$bad.Remove('clock') }
+            'samples' { [void]$round.Remove('timingSamplesMs') }
+            'frequency' { $bad.clock.ticksPerSecond=0 }
+            'frequencyRange' { $bad.clock.ticksPerSecond=1e30; $bad.clock.tickNanoseconds=1e-21 }
+            'period' { $bad.clock.nominalPeriodNanoseconds='1' }
+            'positivePeriod' { $bad.clock.nominalPeriodNanoseconds=2 }
+            'tick' { $bad.clock.tickNanoseconds=1 }
+            'count' { $round.timingSamplesMs.frame=@(1..39) }
+            'group' { [void]$round.timingSamplesMs.Remove('prepare') }
+            'string' { $round.timingSamplesMs.prepare[0]='0.004' }
+            'negative' { $round.timingSamplesMs.prepare[0]=-0.0001 }
+            'nonfinite' { $round.timingSamplesMs.composeCpu[0]=[double]::NaN }
+            'zeroFrame' { $round.timingSamplesMs.frame[0]=0 }
+            default { $round[$field] = [double]$round[$field] * 1.01 }
+        }
+        Assert-Throws { Assert-PerformanceReceipt $bad } "incomplete or inconsistent diagnostics rejected: $field"
+    }
+    $partial = Copy-JsonValue $before; $partial.clock=$receipt.clock
+    Assert-Throws { Assert-PerformanceReceipt $partial } 'clock metadata cannot omit all raw samples'
+    $changedClock = Copy-JsonValue $receipt
+    $changedClock.clock.ticksPerSecond=20000000; $changedClock.clock.tickNanoseconds=50
+    Assert-Throws { Compare-PerformanceReceipt $receipt $changedClock } 'matched measurements require the same clock tick'
+    Assert-Throws { Compare-PerformanceReceipt $before $receipt } 'new clock diagnostics cannot be mixed with an uninstrumented receipt'
+    $rounded = Copy-JsonValue $receipt
+    $rounded.scenarios[0].rounds[0].fps=48.78048780
+    Assert-PerformanceReceipt $rounded
+    $zeroPrepare = Copy-JsonValue $receipt
+    $zeroPrepare.scenarios[0].rounds[0].timingSamplesMs.prepare = @((1..40) | ForEach-Object { 0 })
+    $zeroPrepare.scenarios[0].rounds[0].prepareP95Ms=0
+    Assert-PerformanceReceipt $zeroPrepare
+    $overflow = Copy-JsonValue $receipt
+    $overflow.scenarios[0].rounds[0].timingSamplesMs.frame = @((1..40) | ForEach-Object { 1e-320 })
+    Assert-Throws { Assert-PerformanceReceipt $overflow } 'non-finite derived timing rejected'
+    $overflowSum = Copy-JsonValue $receipt
+    $overflowSum.scenarios[0].rounds[0].timingSamplesMs.frame = @((1..40) | ForEach-Object { 1e308 })
+    $overflowSum.scenarios[0].rounds[0].frameP50Ms=1e308; $overflowSum.scenarios[0].rounds[0].frameP95Ms=1e308
+    $overflowSum.scenarios[0].rounds[0].fps=1e-20
+    Assert-Throws { Assert-PerformanceReceipt $overflowSum } 'an overflowing finite-sample sum cannot validate falsely tiny FPS'
+}
+
+Invoke-TestCase 'the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks' {
+    $p = Get-ExactSignFlipPValue -Effects ([double[]]@(1,1,1,1,1,1,1,1,1,1,1,1))
+    Assert-Equal ([double](2.0 / 4096.0)) $p 'attainable two-sided p at twelve blocks'
+    Assert-True ($p -lt (0.05 / 26.0)) 'the minimum p can pass the first Holm threshold across the full family'
+    Assert-Throws { Get-ExactSignFlipPValue -Effects ([double[]]@([double]::NaN,1)) } 'non-finite block effect rejected'
+    $holm = Get-HolmAdjustedPValues -PValues ([double[]]@(0.001,0.01,0.04))
+    Assert-Equal '0.003 0.02 0.04' (($holm | ForEach-Object { $_.ToString('0.###',[Globalization.CultureInfo]::InvariantCulture) }) -join ' ') 'Holm step-down adjustment'
+}
+
+Invoke-TestCase 'the migrated block judge uses identity, independent paired effects and separate exact budgets' {
+    $blocks = @(foreach ($i in 1..12) {
+        $baseline1 = Copy-JsonValue $before; $baseline2 = Copy-JsonValue $before
+        $candidate1 = Copy-JsonValue $before; $candidate2 = Copy-JsonValue $before
+        $baseline1.sourceCommit='base'; $baseline2.sourceCommit='base'; $baseline1.sourceFingerprint='base'; $baseline2.sourceFingerprint='base'
+        $candidate1.sourceCommit='candidate'; $candidate2.sourceCommit='candidate'; $candidate1.sourceFingerprint='candidate'; $candidate2.sourceFingerprint='candidate'
+        foreach ($row in $candidate1.scenarios) { foreach ($round in $row.rounds) { $round.fps=80 } }
+        foreach ($row in $candidate2.scenarios) { foreach ($round in $row.rounds) { $round.fps=80 } }
+        foreach ($row in $candidate1.scenarios) { foreach ($round in $row.rounds) { $round.surfaceBytes=101 } }
+        foreach ($row in $candidate2.scenarios) { foreach ($round in $row.rounds) { $round.surfaceBytes=101 } }
+        [ordered]@{ Baseline=@($baseline1,$baseline2); Candidate=@($candidate1,$candidate2) }
+    })
+    $result = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
+    Assert-Equal 3 $result.schemaVersion 'current inference has a distinct schema'
+    Assert-Equal 'independent-ABBA-BAAB-v1' $result.assignmentProtocol 'the decision retains its assignment mechanism'
+    Assert-Throws { Compare-PairedBlockSet -Blocks $blocks } 'an unspecified design cannot use independent sign-flip inference'
+    Assert-Throws { Compare-PairedBlockSet -Blocks $blocks -AssignmentProtocol 'balanced-ABBA-BAAB' } 'a globally constrained historical design cannot use the new judge'
+    Assert-Equal 'advice-required' $result.status 'large consistent timing regression is significant after Holm'
+    Assert-Equal 26 $result.familySize 'all declared phase and metric slots remain in family'
+    Assert-Equal 12 $result.blockCount 'blocks are independent analysis units'
+    $missingWarp = Copy-JsonValue $blocks
+    $missingWarp[0].Candidate[0].Remove('warpSha256')
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $missingWarp).status 'a migrated judge cannot qualify a report without the WARP binary hash'
+    $exact = @($result.metrics | Where-Object { $_.metric -eq 'surfaceBytes' })[0]
+    Assert-True $exact.exact 'surface allocation remains an exact budget'
+    Assert-Equal 1.0 $exact.pValue 'exact budgets do not use timing inference'
+    Assert-Equal 'regressed' $exact.verdict 'any candidate observation above baseline median still gates'
+    $missing = Copy-JsonValue $blocks[0].Baseline[0]; $missing.Remove('harnessIdentity')
+    $blocks[0].Baseline[0] = $missing
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks).status 'missing harness provenance fails closed as inconclusive evidence'
+    $missing.harnessIdentity = 'fixture'; $missing.identityStatus = 'identity-unverifiable'; $missing.identityError = 'missing resolved compiler'
+    $blocks[0].Baseline[0] = $missing
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks).status 'explicitly unresolved provenance cannot pass with populated identity strings'
+    $missing.identityStatus = 'verifiable'; $missing.Remove('identityError')
+    $blocks[0].Baseline[0] = $missing
+    $changedTool = Copy-JsonValue $blocks[1].Candidate[0]; $changedTool.toolchainIdentity = 'different toolchain'
+    $blocks[1].Candidate[0] = $changedTool
+    $toolMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $toolMismatch.status 'one binary cannot mix a changed toolchain identity into its runs'
+    Assert-Equal 'toolchainIdentity' $toolMismatch.mismatchedIdentity 'toolchain mismatch is named'
+    $changedTool.toolchainIdentity = 'fixture'; $blocks[1].Candidate[0] = $changedTool
+    $changedWarp = Copy-JsonValue $blocks[1].Candidate[0]; $changedWarp.warpSha256 = 'different WARP binary'
+    $blocks[1].Candidate[0] = $changedWarp
+    $warpMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $warpMismatch.status 'migrated runs cannot mix WARP binary bytes'
+    Assert-Equal 'warpSha256' $warpMismatch.mismatchedIdentity 'WARP binary mismatch is named'
+    $changedWarp.warpSha256 = 'a'; $blocks[1].Candidate[0] = $changedWarp
+    $changedExe = Copy-JsonValue $blocks[1].Candidate[0]; $changedExe.executableSha256 = 'other executable'
+    $blocks[1].Candidate[0] = $changedExe
+    $exeMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $exeMismatch.status 'runs of one candidate binary cannot mix executable hashes'
+    Assert-Equal 'Candidate.executableSha256' $exeMismatch.mismatchedIdentity 'executable mismatch is named'
+    $changedExe.executableSha256 = 'a'; $blocks[1].Candidate[0] = $changedExe
+    $aaBlocks = Copy-JsonValue $blocks
+    foreach ($block in $aaBlocks) {
+        foreach ($receipt in @($block.Baseline) + @($block.Candidate)) { $receipt.sourceCommit='same'; $receipt.sourceFingerprint='same'; $receipt.executableSha256='same-exe' }
+    }
+    foreach ($block in $aaBlocks) { foreach ($receipt in $block.Candidate) { $receipt.executableSha256='changed-exe' } }
+    $aaMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $aaBlocks -CalibrationAA
+    Assert-Equal 'identity-mismatch' $aaMismatch.status 'A/A cannot be calibrated with different executable bytes'
+    Assert-Equal 'A/A.executableSha256' $aaMismatch.mismatchedIdentity 'A/A executable mismatch is named'
+
+    $spikeBlocks = Copy-JsonValue $blocks
+    foreach ($block in $spikeBlocks) {
+        foreach ($receipt in $block.Candidate) { foreach ($scenario in $receipt.scenarios) { foreach ($round in $scenario.rounds) { $round.surfaceBytes = 100 } } }
+    }
+    $spikeReceipt = $spikeBlocks[0].Candidate[0]
+    $spikeReceipt.scenarios[0].rounds[0].surfaceBytes = 101
+    $spikeResult = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $spikeBlocks
+    $surface = @($spikeResult.metrics | Where-Object { $_.phase -eq 'clean' -and $_.metric -eq 'surfaceBytes' })[0]
+    Assert-Equal 'advice-required' $spikeResult.status 'a one-round exact-budget spike fails despite unchanged per-run medians'
+    Assert-Equal 100.0 $surface.baselineMaximum 'the retained raw baseline maximum is reported'
+    Assert-Equal 101.0 $surface.candidateMaximum 'the raw candidate maximum is reported'
+    Assert-Equal 'within-budget' $surface.medianBudgetVerdict 'the median budget result is reported independently'
+    Assert-Equal 'regressed' $surface.peakBudgetVerdict 'the no-tolerance raw peak result is reported independently'
+
+    $badFixtureBlocks = Copy-JsonValue $blocks
+    $badFixtureBlocks[0].Candidate[0].width = 1920
+    Assert-Throws { Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $badFixtureBlocks } 'a migrated pair with different workload identity is invalid'
+    $shortBlocks = Copy-JsonValue $blocks
+    $shortBlocks[0].Candidate[0].scenarios[0].rounds = @($shortBlocks[0].Candidate[0].scenarios[0].rounds | Select-Object -First 4)
+    Assert-Throws { Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $shortBlocks } 'a migrated receipt missing a round is invalid'
+}
+
 function Set-DirtyMetric([Collections.IDictionary] $Receipt, [string] $Metric, [object] $Value) {
     foreach ($row in $Receipt['scenarios'][1]['rounds']) { $row[$Metric] = $Value }
 }
@@ -32,8 +198,6 @@ function Set-DirtyMetric([Collections.IDictionary] $Receipt, [string] $Metric, [
 function Get-Status([Collections.IDictionary] $Before, [Collections.IDictionary] $After) {
     return (Compare-PerformanceReceipt -Before $Before -After $After)['status']
 }
-
-$before = New-Receipt
 
 Invoke-TestCase 'identical and new source are comparable' {
     $after = Copy-JsonValue $before

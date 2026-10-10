@@ -62,6 +62,18 @@ Invoke-FixtureCase 'an explicit rename retains the origin' {
     Assert-Equal 0 (Get-TestPortFailureCount $root) 'failures'
 }
 
+Invoke-FixtureCase 'a contextual source rename preserves historical accounting' {
+    param($root)
+    $manifest = New-TestPortManifest
+    $manifest.tests[0].currentFile = 'Tests/Controls/Example.Tests.Toggle.cpp'
+    Set-TestPortFixture $root $manifest
+    Remove-Item -LiteralPath (Join-Path $root 'Tests/Controls/Example.cpp')
+    Set-FixtureFile $root 'Tests/Controls/Example.Tests.Toggle.cpp' "void TestToggle() {}`n"
+    Assert-Equal 0 (Get-TestPortFailureCount $root) 'renamed current file retains origin'
+    Set-FixtureFile $root 'Tests/Controls/Example.Tests.Toggle.cpp' ''
+    Assert-True (Get-TestPortFailureCount $root) 'deleted current case still fails'
+}
+
 Invoke-FixtureCase 'an exclusion needs a reason' {
     param($root)
     $manifest = New-TestPortManifest

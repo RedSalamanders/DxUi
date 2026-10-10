@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -10,12 +10,36 @@ Controls retain state independently of GPU resources. Buttons, toggles, sliders,
 implementations, not application-local clones. An active gesture has a defined preview, commit and cancel lifecycle.
 External state acknowledgement is separate from local intent. Hidden controls leave focus and accessibility trees.
 
+If both requested and fallback solid-brush creation fail, painters omit that primitive without passing null to
+Direct2D. Other prepared content and later recovery remain usable. Overlay dismissal revalidates container lifetime
+after extensible child callbacks and stops if the container was retired.
+StackPanel layout reacquires owned child storage after each bounds callback and stops an outer pass after owner/child
+retirement or a nested change to layout inputs. It allocates no traversal snapshot. Call ApplyLayout after changing
+children, bounds or layout settings; a nested completed reflow is not overwritten by stale outer geometry.
+
+Registered `std::function` callbacks own shared callable storage. Dispatch retains that storage rather than copying
+the target, preserving mutable callback state across invocations without allocating callback storage during dispatch,
+including when the callback replaces its registration or retires the sender. TagPicker selection notification arguments refer to a
+dispatch-owned snapshot for the duration of the call. Callers that continue the original
+action release their dispatch snapshot before revalidating the sender's lifetime: final captured-resource destruction
+can itself retire the sender. A destroyed sender consumes the accepted input without further
+mutation, invalidation or focus changes through its stale pointer.
+
+If replacement callback-storage allocation fails, the existing subscription remains installed. Passing an empty
+callback clears the registration. Replacing private callback storage changes the library's C++ object layouts;
+consumers must rebuild against the matching pinned headers and static library.
+
 Layout accepts explicit bounds/DPI, reports usable minimums and prepares coherent visuals/hit rectangles together.
 Do not reduce a touch target below the consumer's minimum to hide an overflow. Labels and state values may not clip
 or overlap. Optional content is removed before required controls. Geometry is recomputed on relevant changes only.
 Consumers own density tiers and responsive policy; DxUi contains no AV profile or XENEON dimension rules.
 
 ### Described native menu entries
+
+Context menu sessions default to left-to-right flow. A right-to-left session mirrors menu columns,
+uses right-to-left text shaping, and opens submenus toward the left before flipping to the right when
+the work area requires it. It does not reverse the characters in any menu string. The popup's hit
+geometry and keyboard navigation follow the same flow direction.
 
 The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
 rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
@@ -24,15 +48,30 @@ paint/hit geometry. The lane decision uses the viewport the popup will actually 
 height rounded to whole device pixels inside the work area. Overflow of at most half a device pixel
 is rounding slack; it neither reserves the lane nor scrolls, so the lane reserved before sizing and
 the final scrollbar always agree at fractional scales. Both fields wrap without silent truncation.
-Retain prepared layouts across unchanged paints; a failed reflow closes the menu without selecting
-a command, and a popup whose session closed while it was being positioned is never shown. Long individual
+Retain prepared layouts across unchanged paints. When creation or measurement of one optional
+description row fails and its primary label can still be prepared, keep that command row using
+ordinary primary-label rendering and preserve its command/accessibility identity. Failures in shared
+format/resource preparation or later scrollbar-width/DPI reflow still abort the popup if preparation
+cannot complete; this row fallback does not promise recovery from every reflow failure. A popup whose
+session closed while it was being positioned is never shown. Long individual
 rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
 interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
-Identical text with the same font role and available width may share native layout storage within
-one popup preparation. Sharing must preserve separate command IDs, accessible identities, row state
-and hit rectangles. The lookup is preparation-local and released before paint; no process-wide
-text cache is retained. Scrollbar reflow sets an absolute final width, including for shared layouts,
-so repeated rows cannot cumulatively narrow one another. DPI changes prepare a fresh coherent set.
+A described row holds one native text layout for both fields, because the shaping storage a layout keeps is
+mostly per layout (about 17 KB) and little per character (about 30 bytes): its text is the label, an empty spacer
+paragraph and the description. The description range takes the small text format's font (family, size, weight,
+style, stretch, locale) and the layout its tab stop, since only the description can hold a tab, while everything
+else a layout holds for all its text comes from the body format, which the host creates like the small one.
+The two fields keep the geometry two separate layouts gave them. Both wrap at the row's text width, the label at
+its own height, and the description starts a fixed 3 DIP gap below the label's height rounded up to whole DIPs:
+the spacer paragraph's font size is set per row and width until its height is exactly what that distance needs, and
+a layout whose spacer cannot reach it fails the preparation like any other failure. The row is 16 DIP of padding
+around the two rounded heights and the gap. One call draws the row: the label in the row's text color and the
+description, through a drawing effect on its range, in the accelerator color of the row's state, so disabled,
+hovered and plain rows keep their colors, and color glyphs, tab stops and line breaks stay as in a layout of its
+own. The effect is one brush per popup and device, recolored for each row and recreated with the device. Rows never
+share a layout, whatever their text; command IDs, accessible identities, row state and hit rectangles stay
+independent. DPI changes prepare a fresh coherent set, and scrollbar reflow narrows each row to an absolute final
+width from the width it was prepared at, so repeated reflows cannot narrow a row cumulatively.
 Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
 
 ### Localized adaptive layout acceptance
@@ -125,6 +164,9 @@ physical application DPI presentation and real assistive-technology journeys req
   stack layouts, tree and grid row metrics) is current in its new place, and one that keys its layout on them (the
   menu bar) was never stale. A child leaves a panel by moving its owning pointer out of `Panel::GetChildren()` (while
   the panel and the child's host still exist); the empty slot is skipped by every panel operation.
+  PageHost participates in the same inheritance chain as Panel; its pages resolve through the PageHost rather than
+  directly through the host. Root replacement snapshots the incoming control's previous inherited values before
+  interaction-reset callbacks can retire its old parent, then reparents without dereferencing that old chain.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -142,6 +184,8 @@ geometry from already measured sizes, with unchanged outputs on invalid/capacity
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
+partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
 uses acknowledged state and exposes the ExpandCollapse contract in the input/accessibility domain.
 Native x64/ARM64 Debug, Release and ASan suites, WARP scenes and reviewed five-theme gallery sheets
@@ -189,30 +233,35 @@ false and every paint is identical. Restoring motion resumes the sweep at the ne
 ### Slider
 
 Painted chrome and pointer geometry are independent. The gray chrome disc is ink only. Hit testing may be larger than any
-painted disc so a fat finger can grab the thumb. Neither layer is sized from the other.
+painted disc so a fat finger can grab the thumb. Neither layer is sized from the other. While a touch contact drags the
+slider, a translucent touch halo paints the 48 DIP grab area, so feedback shows around the finger that covers the thumb.
 
 ```
   cross-axis (horizontal slider, DIP)
 
-  48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted)
-  20  ████████ chrome disc (fixed) ████████
-  16                                           hovered inner thumb
-  12                                           pressed inner thumb
-   6  ══════════════════════════════════════    track and rest inner thumb
+  48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted); touch halo while a touch drags
+  24  ████████ chrome disc (fixed) ████████
+  20                                           hovered inner thumb
+  16                                           pressed inner thumb
+  14                                           resting inner thumb
+   6  ══════════════════════════════════════    track
    0
 ```
 
 | Layer | Rest | Hover | Pressed | Role |
 | --- | --- | --- | --- | --- |
 | Track | 6 DIP capsule | — | — | Paint. Fill and remainder share that thickness with no extra stroke. Inset 12 DIP from each end. |
-| Inner thumb | 6 DIP | 16 DIP | 12 DIP | Paint. Accent fill matching the track. Rest equals the track so the chrome reads as a gray ring; hover grows the inner until a thin chrome rim remains. |
-| Chrome disc | 20 DIP | 20 DIP | 20 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
+| Inner thumb | 14 DIP | 20 DIP | 16 DIP | Paint. Accent fill matching the track: visible at rest, with a thin chrome rim on hover and clear pressed feedback. |
+| Chrome disc | 24 DIP | 24 DIP | 24 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
+| Touch halo | — | — | 48 DIP while a touch drags | Paint. The accent at 24% opacity under the chrome disc. It grows from the disc to the grab area as the drag begins and shrinks away after the release; a cancelled drag removes it at once. High contrast draws it as an opaque 2 DIP accent ring. Paint is clipped to the Slider's bounds and any active ancestor viewport and host clips; a short Slider shows only the part that fits and never enlarges its hit target. A mouse or pen drag never shows it. |
 | Hit band | 48 DIP | 48 DIP | 48 DIP | Pointer only. Centered on the track. Clipped to control bounds when the control is shorter. Not painted. |
 | Thumb grab | 24 DIP radius from thumb center | same | same | Pointer only. Half the hit band. A contact in this circle drags from the current value; a contact on the track outside it seeks. |
 
 Keyboard and `RequestValue` ease the painted inner thumb to the new value; pointer drags and `SetValue` snap.
 Reduced motion snaps every visual. Keyboard steps still use `SetStep` / `SetLargeStep`. Consumers that need a
-fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the chrome disc to match.
+fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the chrome disc to match. Give the
+Slider 48 DIP of cross-axis room to show the full touch halo and keep neighboring content outside its bounds; a scrolled
+viewport or host edge clips both the halo and the control's rendering. Popup and menu overlay layers paint above the halo.
 An acknowledgement through `SetValue` snaps and stops position animation even when it equals the accepted target.
 Non-finite values, range limits and steps leave the previous valid state unchanged. A range whose span overflows
 also leaves the prior range intact. Off-center thumb grabs retain the pointer offset, continue outside bounds under
@@ -306,6 +355,14 @@ dilute that pair. Disabled primary buttons use the button surface and disabled t
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
 
+### Tree rows at the viewport edge
+
+A tree paints its rows only inside its viewport, the frame's interior within its 2 DIP inset. A row can straddle the
+viewport's top or bottom edge: the viewport need not hold a whole number of rows, and a thumb drag can leave a fraction of
+one. Such a row shows only its part inside: its fill, focus ring, text, badge and expander are clipped at the edge. The
+same applies to rows an expansion or collapse animates. The reorder marker is clipped 1 DIP past the viewport, inside
+the inset, so an insertion line on the edge keeps its full 2 DIP.
+
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
@@ -320,7 +377,126 @@ retargets the row now under the pointer, and moving within one drop zone repaint
 decides the drop, a second (right) button cancels, and model id 0 is an ordinary row. A click that does not travel
 4 DIP selects as before, does not reorder and reports its release unhandled. Row drag is pointer-only: consumers
 provide the keyboard or command equivalent. Row `iconText` in the private-use range uses the icon font; any other
-icon text keeps the small UI font, as in Grid.
+icon text keeps the small UI font, as in Grid. With multi-select the drag keeps this single-source contract: see
+the next section for how a press on a selected row and a drop relate to the selection.
+
+### Tree multi-select
+
+`Tree::SetMultiSelectEnabled(true)` opts a tree into several selected items. It is off by default. The call is silent.
+Enabling starts with the selected item alone; disabling keeps the focused item if it is
+selected, else the last selected one, else nothing. The selection is a `GridSelectionModel` (the class Grid uses), so
+its ids, anchor and gestures are Grid's; the model stays UI-thread only.
+
+The focused (current) item and the selection set are distinct. `GetFocusedItemId` reports the focused row, which owns
+the focus ring and is where the keys start. `GetSelectedItemId` reports the primary selected member; focus-only moves
+do not change it. A replacement or range gesture makes its row primary, toggling or adding a row makes that row primary,
+and removing the primary chooses the last remaining selected row in visible order. A model change preserves the primary
+while it remains selected, otherwise choosing the last remaining member. Ctrl+A preserves the primary, or uses the
+focused row if no primary exists, falling back to the last visible row when there is no focus. `GetSelectedItemIds` returns the selection in
+visible order and `IsItemSelected` tests one id; both also answer for a single-select tree (its one item, or none).
+`SetSelectedItemId` selects one item alone, `SetSelectedItemIds` selects the listed ids that are visible rows (the last
+listed visible row is the primary, focus and anchor) and `SetFocusedItemId` moves the focus alone; all are silent.
+
+| Gesture (multi-select on) | Effect |
+| --- | --- |
+| Click | Selects the row alone; it is the anchor. |
+| Ctrl+click | Toggles the row and focuses it; the touched row becomes the range anchor, including when toggled off. |
+| Shift+click | Replaces the selection with the visible range from the anchor to the row, which is focused. With no anchor the focused row is one; with neither, or when the anchor is no longer a visible row, the row alone. |
+| Up, Down, Home, End, Page Up, Page Down | As before for a single tree: select and focus the row reached. |
+| Shift + those keys | Range from the anchor to the row reached, like Shift+click. |
+| Ctrl + those keys | Moves the focus alone. |
+| Left, Right | Collapse or expand the focused group and leave the selection alone, even with Shift or Ctrl held. Where they move to the parent or to the first row of an expanded group they follow the keys above (plain selects, Shift extends, Ctrl moves the focus alone). |
+| Ctrl+Space | Toggles the focused row (Space alone still invokes it). The space character it sends is not typeahead. |
+| Ctrl+A | Selects every visible row. The primary stays if still selected; otherwise the focused item becomes primary, or the last visible row if there is no focus. Focus stays, or moves to the first row if there is none. |
+| Typeahead | Selects the match alone, as a plain key does. |
+| Expander | Expands or collapses and focuses its row; the selection is untouched, even with Ctrl or Shift held. |
+| Right-click | On a row of a multi-selection it keeps the selection and focuses the row, so the command applies to `GetSelectedItemIds`; on any other row it selects that row alone. |
+| Double-click | Activates as before; with Ctrl or Shift held it leaves the selection alone. |
+
+A first key on a tree with no focused item starts from the first row, which only takes the focus, so that
+Ctrl+Space selects it and Shift+Down selects it and the next. Grid's current row is also independent of its selected set.
+Ctrl+Up and Ctrl+Down move Grid focus without changing membership, Ctrl+Space toggles the focused row, and Space
+toggles a checkbox in the active row. Shift movement extends selection from the anchor. In both controls Ctrl
+toggles the touched row and makes it the new range anchor. A tree has no checkboxes and a focused item apart from its
+selection, so it follows the list-view convention in which Ctrl with a movement key moves the focus and Ctrl+Space
+toggles the focused item. Shift (range from the anchor, replacing the selection), Ctrl+click (toggle), Ctrl+A, the
+right-click rule and the anchor are Grid's.
+
+`ITreeDelegate::OnTreeSelectionChanged(id)` reports the primary selected member when nonempty membership changes;
+focus-only moves use `OnTreeFocusedItemChanged(tree, id)`. `OnTreeSelectionSetChanged(ids)` reports the full membership
+change (default no-op, so existing delegates compile), including an empty single-select selection. It is called once per
+change after the primary callback when that callback has a member to report; `ids` is an owned copy in visible order.
+The same selection is never reported twice: a click on the one selected row, Ctrl+A on a full selection, and a model
+change that only moved rows notify the set not at all. State is complete before each callback, so a delegate reads the
+finished selection from the tree, may change it, or may destroy the tree (nothing is touched after the call). The setters,
+`SetMultiSelectEnabled` and `SetFocusedItemId` call nothing.
+
+The selection survives what the model does to other rows. `NotifyDataChanged` and `SetModel` drop selected ids that are
+no longer visible rows (removed, or hidden by a collapsed ancestor: a collapse that hides selected rows deselects
+them, and expanding does not bring them back, as a single selection always behaved) and put the rest in the model's
+order. A dropped focused item is cleared without a callback, as before. Scrolling changes nothing and a click after it
+toggles the row under the pointer. After `NotifyDataChanged` the set holds visible rows only, and its membership tests are
+linear in its size, as in Grid.
+
+Row drag and the selection: a press with Ctrl or Shift is a selection gesture and never starts a drag. A press on a
+row outside the selection selects it alone and arms the drag. A plain press on a row of a multi-selection (with
+`SetReorderEnabled(true)`) keeps the selection while the pointer is down; the row takes the focus, and if the press
+becomes a drag the drop names that row alone (`TreeDrop::sourceId`) and leaves the selection as it was, so a delegate
+that finds the source in `GetSelectedItemIds` may apply the drop to all of them (the library moves nothing and invents
+no multi-item drop). A release that never became a drag selects that row alone (one `OnTreeSelectionSetChanged`, no
+second `OnTreeSelectionChanged`). Escape, capture loss, a second button, `SetModel` and a removed row cancel the drag
+and leave the multi-selection intact. Without `SetReorderEnabled` a press on a selected row selects it alone at once,
+as in Grid.
+
+Painting: every selected row takes the selection roles (`selectionFill` and `selectionText`, or `selectionInactiveFill`
+with text checked against its painted fill while the tree lacks focus; rainbow mode tints each selected row by its own
+hash), and only the focused row shows the focus ring, even when it is not selected. Inactive Tree text prefers `text`
+and Grid text prefers `selectionText` when the configured ink reaches 4.5:1 after compositing; otherwise it uses the
+most contrasting neutral. High contrast retains the supplied HighlightText pair. A selected Tree focus ring contrasts
+with the actual resolved row fill, including its rainbow tint.
+
+UI Automation reports the selection set. The tree's Selection pattern reports `CanSelectMultiple` true and lists every
+selected item in visible order; each selected item reports `IsSelected`; only the focused item reports
+`HasKeyboardFocus`. `SelectionItem.Select` replaces the selection, `AddToSelection` adds the item (and focuses it;
+adding a selected item changes nothing) and `RemoveFromSelection` removes it and leaves the focus; each goes through the
+same callbacks as the gesture it stands for. `SetFocus` on an item moves the focus and leaves the selection. The events
+follow WPF's rules for its selectors: a selection that became exactly one item that was not selected before raises
+`ElementSelected` for it, any other change raises `ElementAddedToSelection` and `ElementRemovedFromSelection` per item,
+and more than 20 changed items, or a selected item that left the tree, raise one `Selection_Invalidated` on the tree
+instead; items named one by one also raise the `IsSelected` property change, and a republish that changed no
+selection, or rows that only moved, raise nothing. A tree without multi-select reports what it always did, and its one
+selected item raises the same events when it changes (`ElementSelected` for an item that became the selection,
+`ElementRemovedFromSelection` when it is cleared), as a Grid's rows do; turning multi-select off removes the items it
+drops. The events are raised with the same publish that raises focus changes (window hosts after the focus
+announcement, embedded hosts from `UpdateAccessibility`). They reach a client subscribed to the window in a window whose
+only semantic control is the tree as in any other: the window's root element stands for the tree, is the parent of its
+items, and is where the invalidation is raised (see the collapsed semantic root and the
+[selection events](UI_InputAndAccessibility.md#selection-events) in Input and accessibility).
+
+### Grid focus, selection and inspection
+
+Grid focus is a stable row identity independent of selected membership. `RequestFocusRow`, Ctrl+Up/Down and UIA
+`SetFocus` move focus without selecting a row or changing the range anchor. `RequestFocusCell(row, column)` also makes
+that column active and reveals it horizontally; it does not alter selection or anchor. `GetFocusedRowId` names the
+focused row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
+Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Space toggles the focused
+row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
+empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
+preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.
+
+Selection callbacks report membership changes and focused-row callbacks report focus changes. State is committed before
+callbacks; callers stop if callback reentrancy retires the Grid. Model reconciliation drops rows that are no longer
+visible and clears an anchor whose row left the visible model. UIA focus and selection operations do not activate rows.
+
+Ctrl+C copies the selected rows in visible selection order and columns in displayed order. Fields containing quotes,
+tabs or line breaks use quoted TSV syntax and embedded quotes are doubled; all other Unicode values are preserved. F1
+inspects the full value in the focused row and active column. Touch double-tap on a cell opens the same persistent,
+scrollable inspection surface. After a selection callback, inspection and activation resolve the touched stable row
+again; inspection also resolves a nonempty column ID again and reads the current cell. Removing that row or column,
+or replacing the model, cancels the action. Unnamed columns retain their ordinal contract. Group collapse reports
+any replacement focus through the focused-row callback and stops when that callback retires the Grid.
+RTL mirrors column geometry, adornments, keyboard left/right behavior and horizontal
+scrollbar direction; offscreen cell focus reveals the cell using the same logical scroll offset.
 
 ### Localized built-in text
 

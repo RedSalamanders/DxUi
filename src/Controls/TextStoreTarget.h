@@ -2,6 +2,8 @@
 
 #include <DxUi/DxUi.h>
 #include <DxUi/TextInputServices.h>
+#include <cstdint>
+#include <memory>
 #include <msctf.h>
 #include <textstor.h>
 
@@ -13,6 +15,9 @@ struct TextStoreDispatch
 {
     void* context                       = nullptr;
     bool (*requestLock)(void*) noexcept = nullptr;
+    // Retains immutable per-store dispatch state when context is owned by the service.
+    std::shared_ptr<void> owner;
+    bool (*ownsClientSuccessor)(void*, const TextInputClient*, uint64_t) noexcept = nullptr;
 };
 class TextStoreTarget
 {
@@ -38,10 +43,6 @@ public:
     {
         return S_OK;
     }
-    [[nodiscard]] virtual bool NotifyDuringLock() const noexcept
-    {
-        return true;
-    }
     virtual HRESULT StartComposition(ITfCompositionView*, BOOL* accepted) noexcept
     {
         *accepted = TRUE;
@@ -59,7 +60,19 @@ public:
 
 [[nodiscard]] ITextStoreACP* CreateTextStore(std::shared_ptr<TextStoreTarget> target) noexcept;
 [[nodiscard]] ITextStoreACP* CreateClientTextStore(HWND hwnd, std::shared_ptr<TextInputClient> client, TextStoreDispatch dispatch = {}) noexcept;
+[[nodiscard]] ITextStoreACP* CreateClientTextStoreForFocus(HWND hwnd,
+                                                           std::shared_ptr<TextInputClient> client,
+                                                           uint64_t focusId,
+                                                           TextStoreDispatch dispatch = {}) noexcept;
 HRESULT DispatchPendingTextStoreLock(ITextStoreACP* store) noexcept;
+// Consumes one posted deferred-lock notification. TS_E_NOLOCK means the owning lock is still unwinding; the store
+// schedules the pending request once that lock is released rather than reposting from a nested message loop.
+HRESULT DispatchDeferredTextStoreLock(ITextStoreACP* store, bool& messagePosted) noexcept;
 void NotifyTextStoreChanged(ITextStoreACP* store) noexcept;
 void NotifyTextStoreLayoutChanged(ITextStoreACP* store) noexcept;
+// Mark an activated production store for a bounded posted reconciliation after TSF callbacks finish.
+void ScheduleTextStoreReconciliation(ITextStoreACP* store) noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+void DebugGetTextStoreNotificationCountsForTest(ITextStoreACP* store, uint64_t& textChanges, uint64_t& selectionChanges, uint64_t& layoutChanges) noexcept;
+#endif
 } // namespace DxUi

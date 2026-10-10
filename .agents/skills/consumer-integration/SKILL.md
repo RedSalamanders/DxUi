@@ -13,4 +13,4 @@ Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. F
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded
 in `capabilities.json`; library tests do not replace consumer product qualification or deferred native-platform/IME/AT coverage.
 
-Consume only DxUi.lib (API revision 3, lock target DxUi), and call or import only the consumer interface `capabilities.json` lists (see the contract's compatibility section). Restore pinned dependencies into the consumer output root before building. The public example must compile without private headers or consumer test flags.
+Consume only DxUi.lib (API revision 4, lock target DxUi), and call or import only the consumer interface `capabilities.json` lists (see the contract's compatibility section). Restore pinned dependencies into the consumer output root before building. The public example and frozen revision-4 API fixture must compile without private headers or consumer test flags.

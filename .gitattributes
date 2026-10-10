@@ -33,3 +33,12 @@ Measurements/GridSelection/2026-10-01/*.json -text -whitespace
 Measurements/GridSelection/2026-10-01/*.txt -text -whitespace
 Measurements/GridSelection/2026-10-01/SHA256SUMS -text -whitespace
 Measurements/GridSelection/2026-10-01/refine-SHA256SUMS -text -whitespace
+Measurements/HostedPairedGate/**/reports.zip binary
+Measurements/HostedPairedGate/**/SHA256SUMS -text -whitespace
+# Retained review packets and hashed explanatory records keep their original bytes in every checkout.
+Measurements/Review-2026-10-08/** -text -whitespace
+Measurements/Review-2026-10-09/**/*.json -text -whitespace
+Measurements/Review-2026-10-09/**/*.jsonl -text -whitespace
+Measurements/Review-2026-10-09/**/*.log -text -whitespace
+Measurements/Review-2026-10-09/**/*.txt -text -whitespace
+Measurements/Review-2026-10-09/**/*.zip binary

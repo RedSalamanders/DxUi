@@ -114,7 +114,7 @@ private:
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) noexcept;
 
     ThemePalette _theme = MakeDefaultThemePalette(false);
-    RefreshMenuStateCallback _refreshMenuState;
+    std::shared_ptr<const RefreshMenuStateCallback> _refreshMenuState;
     ControlHost _host;
     MenuBar* _menuBar = nullptr;
     wil::unique_hwnd _hwnd;

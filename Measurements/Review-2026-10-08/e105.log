@@ -1,0 +1,93 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent
+=================================================================
+==94460==ERROR: AddressSanitizer: heap-use-after-free on address 0x11ee96ba0071 at pc 0x7ff7951d90fc bp 0x009ed657c6a0 sp 0x009ed657c6a8
+READ of size 1 at 0x11ee96ba0071 thread T0
+    #0 0x7ff7951d90fb in std::optional<enum DxUi::FlowDirection>::has_value C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\optional:448
+    #1 0x7ff7951c6272 in DxUi::Control::GetFlowDirection Z:\src\DxUi\src\Controls\DxUi.cpp:677
+    #2 0x7ff7951c6391 in DxUi::Control::GetFlowDirection Z:\src\DxUi\src\Controls\DxUi.cpp:682
+    #3 0x7ff7951c8d26 in DxUi::Control::Reparent Z:\src\DxUi\src\Controls\DxUi.cpp:966
+    #4 0x7ff7953b0d88 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1378
+    #5 0x7ff794f5098e in `anonymous namespace'::TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2107
+    #6 0x7ff7946770e7 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #7 0x7ff794f7a6f8 in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:3935
+    #8 0x7ff7947f21d5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #9 0x7ff7947ed4a6 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #10 0x7ff79565cdc8 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #11 0x7ff79565cce1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #12 0x7ff79565cb9d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #13 0x7ff79565ce3d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #14 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #15 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x11ee96ba0071 is located 49 bytes inside of 440-byte region [0x11ee96ba0040,0x11ee96ba01f8)
+freed by thread T0 here:
+    #0 0x7ff79565aae3 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff794657950 in DxUi::Panel::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402a7950)
+    #2 0x7ff794655cc3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff794629a70 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff7953b12b9 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1392
+    #5 0x7ff794f5152e in ``anonymous namespace'::TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent'::`2'::FocusProbe::OnFocusChanged Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2084
+    #6 0x7ff7953d03d2 in DxUi::ControlHost::ResetRootInteractionState Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:4277
+    #7 0x7ff7953b0b9a in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1367
+    #8 0x7ff794f5098e in `anonymous namespace'::TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2107
+    #9 0x7ff7946770e7 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #10 0x7ff794f7a6f8 in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:3935
+    #11 0x7ff7947f21d5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #12 0x7ff7947ed4a6 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #13 0x7ff79565cdc8 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #14 0x7ff79565cce1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #15 0x7ff79565cb9d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #16 0x7ff79565ce3d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #17 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #18 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+previously allocated by thread T0 here:
+    #0 0x7ff79565a9c5 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff7945dec47 in std::make_unique<DxUi::Panel,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff794f50756 in `anonymous namespace'::TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2098
+    #3 0x7ff7946770e7 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #4 0x7ff794f7a6f8 in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:3935
+    #5 0x7ff7947f21d5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #6 0x7ff7947ed4a6 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #7 0x7ff79565cdc8 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #8 0x7ff79565cce1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #9 0x7ff79565cb9d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #10 0x7ff79565ce3d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #11 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #12 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\optional:448 in std::optional<enum DxUi::FlowDirection>::has_value
+Shadow bytes around the buggy address:
+  0x11ee96b9fd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x11ee96b9fe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x11ee96b9fe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x11ee96b9ff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x11ee96b9ff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x11ee96ba0000: fa fa fa fa fa fa fa fa fd fd fd fd fd fd[fd]fd
+  0x11ee96ba0080: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11ee96ba0100: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11ee96ba0180: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa
+  0x11ee96ba0200: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x11ee96ba0280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==94460==ABORTING

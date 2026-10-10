@@ -1,3 +1,5 @@
+This directory is DxUi's design system and is versioned in Git with the library. It contains the [tokens](tokens.json), [theming guidance](Theming.md), and a guideline and static preview for each catalog control under `components/`. The [harness-generated gallery](../../docs/gallery/README.md) contains the authoritative rendered captures. Update the affected files together and commit them with the library change.
+
 DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWrite. Its look is quiet, Fluent-adjacent Windows chrome: neutral surfaces, one blue accent, 4 DIP corners, 1 DIP hairlines and a two-stroke keyboard focus ring. Every value here is a DIP (device-independent pixel) and maps 1:1 to a field of `ThemePalette` or a `k…Dip` constant.
 
 ## Themes and where colors come from
@@ -12,7 +14,7 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 - Grounds: `windowBackground` for the page, `surfaceBackground` / `cardBackground` for tiles and panels, `overlayBackground` for menus and popups, `headerBackground` for grid headers, menu bars and tab strips.
 - Text: `text` on every ground; `subduedText` for captions, units and accelerators; `disabledText` only for disabled controls (it is deliberately below 4.5:1).
-- Selection: `selectionFill` carries `selectionText`. When a list loses focus, switch to `selectionInactiveFill`. Hover and press are translucent washes, `hoverFill` and `pressedFill`, laid over whatever is below.
+- Selection: `selectionFill` carries `selectionText`. When a list loses focus, switch to `selectionInactiveFill`; Grid prefers `selectionText` and Tree prefers `text`, retaining that color at 4.5:1 or falling back to pure black or white against the composited row fill. High contrast preserves supplied `selectionText`. Tree's focused-row ring also resolves against the actual row fill, including selection and rainbow tints. Hover and press are translucent washes, `hoverFill` and `pressedFill`, laid over whatever is below.
 - Controls: Buttons use `buttonFill` / `buttonBorder` → `buttonHotFill` → `buttonPressedFill`. Inputs use `inputFill` / `inputBorder`, and paint `focusStroke` as the border when focused.
 - Primary actions: `buttonPrimaryFill` is a blend of `buttonFill` and `selectionFill` (a pale blue in light). Its caption is `buttonPrimaryText`, which is `selectionText` only when that reaches 4.5:1 — otherwise `text`. Keep this rule when adding accents.
 - Status: pair `infoFill`/`infoText`, `warningFill`/`warningText`, `errorFill`/`errorText`, and always include a word ("Info", "Warn") or glyph — never color alone. An app theme that supplies no alert colors keeps the default tones; a high-contrast one, like the gallery's input, gets `text` on `windowBackground` for all three.
@@ -51,6 +53,6 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 ## Rendering and captures
 
-- Every screenshot in **Assets › Gallery** was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 30 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
+- Every screenshot in [`docs/gallery`](../../docs/gallery/README.md) was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 30 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
 - The component previews in this system are static HTML renditions of the Direct2D controls. Where they differ, the gallery captures are authoritative.
 - Every one of the 30 catalog controls has a guideline and a preview. A new control is not complete until it has both, alongside its `docs/controls.md` entry and gallery tile.

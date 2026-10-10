@@ -1,0 +1,1 @@
+- Persistent full-value inspections inherit text flow, mirror placement in RTL, and consume the complete outside-dismissal gesture without activating underlying controls.

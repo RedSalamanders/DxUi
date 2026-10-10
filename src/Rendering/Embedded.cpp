@@ -1,5 +1,6 @@
 #include "../Controls/DxUi.Internal.h"
 #include <DxUi/Embedded.h>
+#include <DxUi/FrameRuntime.h>
 #include <DxUiCompositePS.h>
 #include <DxUiCompositeVS.h>
 #include <algorithm>
@@ -292,8 +293,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         return S_FALSE;
     s.coherent                   = false;
     s.interactionLayoutAvailable = false;
+    s.dirty                      = true;
     try
     {
+        FrameStage preparationStage = FrameStage::Idle;
+        FrameStageScope updateStage(preparationStage, FrameStage::Update);
         if (width != s.width || height != s.height || ! s.texture)
         {
             wil::com_ptr_nothrow<ID3D11Texture2D> texture;
@@ -336,8 +340,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         {
             if (dpiChanged)
                 _host._root->OnHostDpiChanged(_host);
-            _host._root->SetBounds(D2D1::RectF(0, 0, float(width) * 96 / dpi, float(height) * 96 / dpi));
+            if (_host._root)
+                _host._root->SetBounds(D2D1::RectF(0, 0, float(width) * 96 / dpi, float(height) * 96 / dpi));
         }
+        if (! _host.PreparePendingPageLayout())
+            return E_ABORT;
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
         _host._d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
@@ -345,14 +352,23 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const auto interactionRevision = _host._interactionRevision;
         auto* dc                       = _host._d2dContext.get();
         _host.TrimCaches();
+        FrameStageScope renderStage(preparationStage, FrameStage::Render);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { dc->EndDraw(); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
         dc->Clear(D2D1::ColorF(0, 0, 0, 0));
+        Control* const paintRoot    = _host._root.get();
+        const auto rootLifetime     = paintRoot ? GetControlLifetimeToken(*paintRoot) : std::weak_ptr<int>{};
+        const auto treeStillCurrent = [&]() noexcept
+        { return (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot && _host._interactionRevision == interactionRevision; };
         if (_host._root)
         {
             _host._root->Paint(_host);
+            if (! treeStillCurrent())
+                return E_ABORT;
             _host._root->PaintOverlay(_host);
+            if (! treeStillCurrent())
+                return E_ABORT;
         }
         if (_host._tooltipLayer.HasTooltip())
             _host._tooltipLayer.Paint(_host);
@@ -473,7 +489,7 @@ bool EmbeddedHost::CapturedDragContinues() const noexcept
     return bounds.left == capturedAt.left && bounds.top == capturedAt.top && bounds.right == capturedAt.right && bounds.bottom == capturedAt.bottom;
 }
 
-void EmbeddedHost::CancelPointer() noexcept
+void EmbeddedHost::CancelPointer(bool clearPendingDoubleClick) noexcept
 {
     auto* captured         = _host._capturedControl;
     _host._capturedControl = nullptr;
@@ -483,7 +499,11 @@ void EmbeddedHost::CancelPointer() noexcept
         // membership is resolved without dereferencing a possibly removed captured pointer.
         if (captured && IsControlInTree(_host._root.get(), captured))
             captured->OnCaptureLost(_host);
-        _host.ClearPendingPointerDoubleClick();
+        // A host commonly releases OS capture after every successful Up, which produces a Cancel notification even
+        // though no press remains active. Keep that completed click as a candidate for the next double-click. A real
+        // cancellation of an active press or an internal suspension/device-loss reset invalidates the candidate.
+        if (clearPendingDoubleClick)
+            _host.ClearPendingPointerDoubleClick();
         _host.PruneStaleInteractionState();
     }
     catch (const std::exception&)
@@ -516,15 +536,34 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
     try
     {
         _host.PruneStaleInteractionState();
+        if (! InputIsCoherent(true))
+            return false;
         if (event.action == PointerAction::Down || event.action == PointerAction::Move || event.action == PointerAction::Up ||
             event.action == PointerAction::Wheel)
         {
             _host.SetInputModality(InputModality::Pointer);
+            _host.SetPointerDevice(event.device);
         }
         const auto point = D2D1::Point2F(event.xPixels * 96 / _state->dpi, event.yPixels * 96 / _state->dpi);
+        {
+            UINT inspectionMessage = WM_MOUSEMOVE;
+            switch (event.action)
+            {
+                case PointerAction::Down: inspectionMessage = WM_LBUTTONDOWN; break;
+                case PointerAction::Up: inspectionMessage = WM_LBUTTONUP; break;
+                case PointerAction::Wheel: inspectionMessage = WM_MOUSEWHEEL; break;
+                case PointerAction::Cancel: inspectionMessage = WM_CAPTURECHANGED; break;
+                case PointerAction::Leave: inspectionMessage = WM_MOUSELEAVE; break;
+                default: break;
+            }
+            if (_host.HandleTooltipInspectionPointer(inspectionMessage, point, event.wheelDelta))
+            {
+                return true;
+            }
+        }
         if (event.action == PointerAction::Cancel)
         {
-            CancelPointer();
+            CancelPointer(_host._capturedControl != nullptr);
             return true;
         }
         if (event.action == PointerAction::Leave)
@@ -532,9 +571,16 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             _host.UpdateHover(D2D1::Point2F(-1e6f, -1e6f), event.modifiers);
             return true;
         }
-        _host.UpdateHover(point, event.modifiers);
+        // A captured control receives its event once through the dispatch below. A synthetic hover Move here
+        // would advance the same draft twice and could mutate pane geometry before the actual captured event.
+        if (! _host._capturedControl)
+        {
+            _host.UpdateHover(point, event.modifiers);
+            if (! InputIsCoherent(true))
+                return false;
+        }
         auto* target = _host._capturedControl ? _host._capturedControl : _host.HitTestControl(point);
-        if (! target)
+        if (! InputIsCoherent(true) || ! target)
             return false;
         switch (event.action)
         {
@@ -546,7 +592,7 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                     doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers) : target->OnMouseDown(_host, point, false, event.modifiers);
                 Control* const live = (! lifetime.expired() && target->GetHost() == &_host) ? target : nullptr;
                 // Like the native host, capture a handled press after the callback; the callback may remove its control.
-                if (handled && live)
+                if (handled && live && ! _host.IsTooltipInspectionActive())
                 {
                     _host.CaptureMouse(live);
                     if (doubleClick)
@@ -588,7 +634,11 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
     try
     {
         _host.PruneStaleInteractionState();
+        if (! InputIsCoherent(true))
+            return false;
         _host.SetInputModality(InputModality::Keyboard);
+        if (down && _host.HandleTooltipInspectionKey(key))
+            return true;
         if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
             return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
@@ -608,6 +658,8 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
     try
     {
         _host.PruneStaleInteractionState();
+        if (! InputIsCoherent(true))
+            return false;
         auto* target = _host.GetFocusControl();
         return target && target->OnChar(_host, character, modifiers);
     }
@@ -729,7 +781,7 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
             const auto base = _host._nativeTextInputImeBaseState;
             _host.ClearNativeTextInputCompositionState();
             if (base && ! control->ImportTextInputState(_host, *base, false))
-                return E_FAIL;
+                return stillLive() ? E_FAIL : S_OK;
         }
         else
         {
@@ -740,6 +792,9 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
             edit.firstVisibleLine     = state.firstVisibleLine;
             if (action == EmbeddedTextInputAction::Preview)
             {
+                // Allocate the ownership marker before importing the preview so cancellation can identify
+                // exactly which text it owns even after the host's synchronized cache has changed.
+                std::wstring previewText = edit.text;
                 if (! _host._nativeTextInputImeComposing)
                     _host._nativeTextInputImeBaseState = actual;
                 _host._nativeTextInputImeComposing                = true;
@@ -750,7 +805,10 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
                 _host._nativeTextInputCompositionCursorIndex      = state.compositionCursorIndex;
                 _host._nativeTextInputCompositionClauseBoundaries = state.compositionClauseBoundaries;
                 if (! control->ImportTextInputState(_host, edit, false))
-                    return E_FAIL;
+                    return stillLive() ? E_FAIL : S_OK;
+                if (! stillLive())
+                    return S_OK;
+                _host._nativeTextInputImePreviewText = std::move(previewText);
             }
             else
             {
@@ -758,11 +816,11 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
                 const auto base = _host._nativeTextInputImeBaseState;
                 _host.ClearNativeTextInputCompositionState();
                 if (base && ! control->ImportTextInputState(_host, *base, false))
-                    return E_FAIL;
+                    return stillLive() ? E_FAIL : S_OK;
                 if (! stillLive())
                     return S_OK;
                 if (! control->ImportTextInputState(_host, edit, true))
-                    return E_FAIL;
+                    return stillLive() ? E_FAIL : S_OK;
             }
         }
         ++_state->revision;
@@ -896,7 +954,7 @@ void EmbeddedHost::CancelTextInput() noexcept
     if (! _state || (_state->graphics && _state->graphics->_state->thread != GetCurrentThreadId()))
         return;
     ++_state->revision;
-    _host.DeactivateTextInput(false);
+    _host.DeactivateTextInput();
     _host.SetFocusControl(nullptr);
 }
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept

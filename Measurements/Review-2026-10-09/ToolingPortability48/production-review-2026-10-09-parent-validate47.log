@@ -1,0 +1,19 @@
+== validate-skills.ps1
+== validate-specs.ps1
+== validate-dependencies.ps1
+== validate-test-port.ps1
+== validate-build-matrix.ps1
+== Tools/tests/Invoke-ToolingTests.ps1
+warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Test-Changes.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Tools/ScopedTesting.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test.ps1', LF will be replaced by CRLF the next time Git touches it
+
+Validation summary:
+  ok     validate-skills.ps1
+  ok     validate-specs.ps1
+  ok     validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  ok     Tools/tests/Invoke-ToolingTests.ps1
+All validation passed.

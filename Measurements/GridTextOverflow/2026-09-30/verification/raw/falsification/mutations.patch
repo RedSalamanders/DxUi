@@ -1,0 +1,359 @@
+diff --git a/Tests/Embedded/EmbeddedTests.cpp b/Tests/Embedded/EmbeddedTests.cpp
+index 8258506..747ad79 100644
+--- a/Tests/Embedded/EmbeddedTests.cpp
++++ b/Tests/Embedded/EmbeddedTests.cpp
+@@ -535,6 +535,12 @@ __declspec(noinline) static int RunFunctionalTests()
+     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
+     GraphicsFixture gpu;
+     Hr(gpu.Create(), "supplied WARP device");
++    if (GetEnvironmentVariableA("DXUI_ONLY_FRENCH", nullptr, 0) != 0)
++    {
++        TestEmbeddedMultilineGridFrenchCells(gpu);
++        std::cout << "French grid test passed\n";
++        return 0;
++    }
+     TestEmbeddedTextInput(gpu);
+     TestEmbeddedAccessibility(gpu);
+     TestLocalizedShortViewport(gpu,
+diff --git a/include/DxUi/DxUi.h b/include/DxUi/DxUi.h
+index a77ad14..f4b3348 100644
+--- a/include/DxUi/DxUi.h
++++ b/include/DxUi/DxUi.h
+@@ -3699,6 +3699,8 @@ private:
+         uint32_t lineClamp = 0u;
+         bool truncated     = false; // Paint cannot show the whole value; hover offers it in full.
+         bool prefixOnly    = false; // text is the shaped prefix of a longer value.
++        mutable D2D1_COLOR_F mutantColor{};
++        mutable bool mutantHasColor = false;
+         uint8_t breakShape = 0u;    // With prefixOnly: how that value continues (none, a line break, a CR LF pair).
+     };
+     // The layout of an omitted tail (the visible lines and the omission marker), shared by the values whose visible
+diff --git a/src/Controls/DxUi.Accessibility.cpp b/src/Controls/DxUi.Accessibility.cpp
+index dc93c9b..7099bb4 100644
+--- a/src/Controls/DxUi.Accessibility.cpp
++++ b/src/Controls/DxUi.Accessibility.cpp
+@@ -1317,7 +1317,8 @@ void AppendGridAccessibilityPointHits(const Grid& grid,
+         {
+             if (const std::optional<D2D1_RECT_F> cellRect = grid.GetVisibleCellRect(rowIndex.value(), columnIndex))
+             {
+-                AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::GridCell, path, cellRect.value(), context, 0u, rowId, columnIndex);
++                AppendTransformedAccessibilityPointHit(
++                    snapshot, AccessibilityFragmentKind::GridCell, path, Mutant("uiaUnclipped") ? InflateRect(cellRect.value(), 2.0f, 2.0f) : cellRect.value(), context, 0u, rowId, columnIndex);
+             }
+         }
+ 
+@@ -3357,7 +3358,7 @@ struct TextRangeSpanMoveResult
+ 
+     if (! cellData.text.empty())
+     {
+-        text.append(cellData.text);
++        text.append(Mutant("uiaTruncate") ? std::wstring_view(cellData.text).substr(0u, 4096u) : std::wstring_view(cellData.text));
+     }
+     else if (cellData.kind == GridCellKind::ColorSwatch && cellData.hasSwatchValue)
+     {
+@@ -3379,6 +3380,8 @@ struct TextRangeSpanMoveResult
+         text.push_back(L']');
+     }
+ 
++    if (Mutant("uiaNfc"))
++        std::erase(text, L'\x0301');
+     return text;
+ }
+ 
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 2027369..16f7486 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -72,7 +72,7 @@ void ResetGridCellData(GridCellData& cellData) noexcept
+ 
+     if (! cellData.text.empty())
+     {
+-        text.append(cellData.text);
++        text.append(Mutant("copy4096") ? std::wstring_view(cellData.text).substr(0u, 4096u) : std::wstring_view(cellData.text));
+     }
+     else if (cellData.kind == GridCellKind::ColorSwatch && cellData.hasSwatchValue)
+     {
+@@ -94,6 +94,8 @@ void ResetGridCellData(GridCellData& cellData) noexcept
+         text.push_back(L']');
+     }
+ 
++    if (Mutant("copyNfc"))
++        std::erase(text, L'\x0301');
+     return text;
+ }
+ 
+@@ -375,6 +377,13 @@ constexpr size_t kMaxRetainedCellTextUnits     = 4096u;
+ // Cell boxes come from scrolled coordinates, so boxes of one size differ in their last float bits from row to row. A
+ // key rounds them to 1/64 DIP, so such cells share one entry: its layout keeps the exact box of the cell that built it,
+ // and the others differ from it by far less than a pixel.
++[[nodiscard]] HRESULT MutantScaleFontForDpi(IDWriteTextLayout& layout, const ControlHost& host, IDWriteTextFormat* format, size_t units) noexcept
++{
++    if (! Mutant("dpiStale"))
++        return S_OK;
++    return layout.SetFontSize(format->GetFontSize() * host.GetDpi() / 96.0f, DWRITE_TEXT_RANGE{0u, static_cast<UINT32>(units)});
++}
++
+ [[nodiscard]] float RoundCellTextKeyDip(float value) noexcept
+ {
+     return std::round(value * 64.0f) / 64.0f;
+@@ -406,6 +415,8 @@ enum class CellTextDirection : uint8_t
+ // direction of the text it ends. A surrogate pair is read as its character, so an emoji ending the text is passed over.
+ [[nodiscard]] std::optional<wchar_t> ResolveOmissionMarkDirection(std::wstring_view text, DWRITE_READING_DIRECTION paragraphDirection) noexcept
+ {
++    if (Mutant("noMarkDirection"))
++        return std::nullopt;
+     size_t index = text.size();
+     while (index > 0u)
+     {
+@@ -917,6 +928,8 @@ void Grid::OnHidden() noexcept
+     // A painting grid keeps the layouts of its visible cells so that repaints and scrolling shape nothing. A grid that is
+     // not painted has no next paint to release the ones it used last, so it returns them all until it is shown again.
+     ReleaseCellTextResources();
++    if (Mutant("hideCorrupts"))
++        _lineClamp = 1u;
+     Control::OnHidden();
+ }
+ 
+@@ -1013,6 +1026,8 @@ void Grid::SetLineClamp(uint32_t lineClamp) noexcept
+ void Grid::OnDensityChanged() noexcept
+ {
+     Control::OnDensityChanged();
++    if (Mutant("densityDeaf"))
++        return;
+     _rowHeightDip = _effectiveRowHeightDip.value_or(ResolveDensityScaledMetricDip(_rowHeightBaseDip, kMinimumInteractiveTextRowHeightDip, GetDensity()));
+     _groupHeaderHeightDip = ResolveDensityScaledMetricDip(_groupHeaderHeightBaseDip, kMinimumInteractiveTextRowHeightDip, GetDensity());
+     _headerHeightDip =
+@@ -2015,12 +2030,13 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+                                                      ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit),
+                                                      [&](const CellTextLayoutCache& candidate)
+     {
+-        if (candidate.format.get() != format || candidate.width != keyWidth || candidate.height != keyHeight || candidate.lineClamp != clamp)
++        if ((! Mutant("noFormatKey") && candidate.format.get() != format) || candidate.width != keyWidth || candidate.height != keyHeight || candidate.lineClamp != clamp)
+             return false;
+         if (! candidate.prefixOnly)
+             return content == candidate.text;
+         const size_t length = candidate.text.size();
+-        return content.size() > length && CellTextBreakShapeAt(content, length) == candidate.breakShape && content.starts_with(candidate.text);
++        return content.size() > length && (Mutant("noBreakShape") || CellTextBreakShapeAt(content, length) == candidate.breakShape) &&
++               (Mutant("hashOnlyPrefix") ? content.substr(0u, (std::min)(length, size_t{4096u})).starts_with(candidate.text.substr(0u, 4096u)) : content.starts_with(candidate.text));
+     },
+                                                      hit);
+     if (hit)
+@@ -2045,8 +2061,10 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+     size_t prefixUnits        = (wrap ? (static_cast<size_t>(lineBudget) + 2u) * lineUnits : lineUnits) + 32u;
+     // A key as long as the text a cell can show is kept: a larger cell keeps a longer one.
+     const size_t retainedUnits = std::max(kMaxRetainedCellTextUnits, 2u * prefixUnits);
+-    size_t doublings           = 0u;
+-    size_t paragraphs          = 1u;
++    if (Mutant("shortPrefix") && wrap && content.size() > 4096u)
++        prefixUnits = 100u;
++    size_t doublings  = 0u;
++    size_t paragraphs = 1u;
+     size_t paragraphsEnd       = paragraphEnd(0u);
+     size_t measuredLength      = 0u;
+     wil::com_ptr<IDWriteTextLayout> measured;
+@@ -2054,17 +2072,17 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+     for (;;)
+     {
+         measuredLength = std::min(paragraphsEnd, prefixUnits);
+-        if (measuredLength < paragraphsEnd && IS_HIGH_SURROGATE(content[measuredLength - 1u]))
++        if (! Mutant("noSurrogateGuard") && measuredLength < paragraphsEnd && IS_HIGH_SURROGATE(content[measuredLength - 1u]))
+             --measuredLength; // Never shape half of a surrogate pair.
+         measured.reset();
+         ++_debugTextLayoutCreations;
+         _debugTextLayoutShapedUnits += measuredLength;
+         if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, measured.put())) ||
+-            FAILED(measured->GetMetrics(&metrics)))
++            FAILED(MutantScaleFontForDpi(*measured.get(), host, format, measuredLength)) || FAILED(measured->GetMetrics(&metrics)))
+             return nullptr;
+         if (measuredLength < paragraphsEnd)
+         {
+-            if (metrics.lineCount > lineBudget + 1u)
++            if (metrics.lineCount > lineBudget + 1u || (Mutant("shortPrefix") && wrap && content.size() > 4096u))
+                 break;
+             if (! wrap && metrics.width > width)
+             {
+@@ -2166,7 +2184,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+                 return false;
+         }
+         const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0u, 0u};
+-        return SUCCEEDED(layout.SetTrimming(&trimming, _cellEllipsis.get())) && SUCCEEDED(layout.SetMaxHeight(cache.paintHeight));
++        return (Mutant("noTrimSign") || SUCCEEDED(layout.SetTrimming(&trimming, _cellEllipsis.get()))) && SUCCEEDED(layout.SetMaxHeight(cache.paintHeight));
+     };
+     if (! omitted)
+     {
+@@ -2194,10 +2212,11 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+         if (i != 0u)
+             visibleText.push_back(L'\n');
+         const UINT32 tailLength = (i + 1u == visibleLines) ? lines[i].trailingWhitespaceLength : lines[i].newlineLength;
+-        visibleText.append(content.substr(offset, lines[i].length - tailLength));
++        visibleText.append(content.substr(offset, lines[i].length - tailLength - ((Mutant("dropLastUnit") && i + 1u == visibleLines && lines[i].length - tailLength > 0u) ? 1u : 0u)));
+         offset += lines[i].length;
+     }
+-    visibleText.push_back(L'\x2026');
++    if (! Mutant("noMarker"))
++        visibleText.push_back(L'\x2026');
+     if (const std::optional<wchar_t> mark = ResolveOmissionMarkDirection(visibleText, format->GetReadingDirection()))
+         visibleText.push_back(*mark);
+     const auto buildVisibleLayout = [&](std::wstring_view text, wil::com_ptr<IDWriteTextLayout>& layout) -> bool
+@@ -2205,7 +2224,8 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+         ++_debugTextLayoutCreations;
+         _debugTextLayoutShapedUnits += text.size();
+         return SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, cache.paintHeight, layout.put())) &&
+-               SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)) && trim(*layout.get());
++               SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)) && SUCCEEDED(MutantScaleFontForDpi(*layout.get(), host, format, text.size())) &&
++               trim(*layout.get());
+     };
+     if (visibleText.size() > kMaxRetainedCellTextUnits)
+     {
+@@ -2426,7 +2446,17 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
+     const CellTextLayoutCache* prepared = PrepareCellTextLayout(host, cellData, bounds.right - bounds.left, height, temporary);
+     if (! prepared)
+         return;
+-    auto* brush = host.GetSolidBrush(color);
++    D2D1_COLOR_F drawColor = color;
++    if (Mutant("themeColorCache"))
++    {
++        if (! prepared->mutantHasColor)
++        {
++            prepared->mutantColor    = color;
++            prepared->mutantHasColor = true;
++        }
++        drawColor = prepared->mutantColor;
++    }
++    auto* brush = host.GetSolidBrush(drawColor);
+     if (! brush)
+         return;
+     // Like DrawCenteredText, a first line taller than the text rectangle is
+@@ -2763,7 +2793,7 @@ void Grid::Paint(ControlHost& host) const
+             else
+             {
+                 const GridColumnDesc columnDesc    = _model->GetColumn(columnIndex);
+-                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
++                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, Mutant("reflowClipped") ? visibleCellRect : cellRect, columnDesc, cellData);
+                 GridResolvedCellVisuals cellVisuals{};
+                 if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
+                 {
+@@ -3319,7 +3349,7 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
+             // Paint lays multiline text out against the full cell rectangle, so
+             // the tooltip consults that same prepared layout and its omissions.
+             const GridCellLayoutMetrics cellMetrics = ComputeCellLayoutMetrics(host, hit.rectDip, columnDesc, cellData);
+-            visibleTextClipped                      = IsMultilineCellTextClipped(host, cellData, cellMetrics.textRect, contentRect);
++            visibleTextClipped                      = ! Mutant("noTooltip") && IsMultilineCellTextClipped(host, cellData, cellMetrics.textRect, contentRect);
+         }
+         else
+         {
+diff --git a/src/Controls/DxUi.Internal.h b/src/Controls/DxUi.Internal.h
+index e2c9635..800acfe 100644
+--- a/src/Controls/DxUi.Internal.h
++++ b/src/Controls/DxUi.Internal.h
+@@ -10,6 +10,19 @@
+ 
+ namespace DxUi
+ {
++[[nodiscard]] inline bool Mutant(const char* name) noexcept
++{
++    static const std::string selected = []
++    {
++        char buffer[64]{};
++        const DWORD length = GetEnvironmentVariableA("DXUI_MUTANT", buffer, 64);
++        return length != 0 && length < 64 ? std::string(buffer) : std::string();
++    }();
++    return selected == name;
++}
++
++inline bool g_mutantLossSeen = false;
++
+ [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
+ 
+ // Retained text layouts (the Grid's multiline cells and their omitted tails) live in set-associative tables: a mixed
+@@ -121,8 +134,8 @@ template <typename Entry, typename Matches>
+         hit = false;
+         if (victim)
+             return *victim;
+-        if (table.size() >= maxEntries)
+-            return *std::ranges::min_element(ways, {}, &Entry::lastUse);
++        if (! Mutant("noCeiling") && table.size() >= maxEntries)
++            return Mutant("evictNewest") ? *std::ranges::max_element(ways, {}, &Entry::lastUse) : *std::ranges::min_element(ways, {}, &Entry::lastUse);
+         ResizeTextLayoutTable(table, table.size() * 2u, generation);
+     }
+ }
+@@ -142,7 +155,7 @@ void EndTextLayoutPaint(std::vector<Entry>& table, uint64_t generation, size_t i
+         }
+         release(entry);
+     }
+-    if (table.size() > initialEntries && used * 8u < table.size())
++    if (! Mutant("noHalving") && table.size() > initialEntries && used * 8u < table.size())
+     {
+         try
+         {
+diff --git a/src/Controls/DxUi.WindowHost.cpp b/src/Controls/DxUi.WindowHost.cpp
+index 773287d..c57ab1a 100644
+--- a/src/Controls/DxUi.WindowHost.cpp
++++ b/src/Controls/DxUi.WindowHost.cpp
+@@ -2284,6 +2284,9 @@ IRawElementProviderFragmentRoot* ControlHost::DebugCreateAccessibilityProvider()
+ 
+ void ControlHost::DebugSimulateDeviceLoss() noexcept
+ {
++    g_mutantLossSeen = true;
++    if (Mutant("lossClearsFormats"))
++        _configuredTextFormats.clear();
+     DiscardSizeDependentResources(L"debug-simulate-device-loss");
+     DiscardDeviceResources();
+     ResetSharedWindowHostGraphicsResources();
+@@ -3251,6 +3254,8 @@ bool ControlHost::EnsureDeviceResources() noexcept
+     _sharedGraphicsGeneration = shared.generation;
+     _d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
+     _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
++    if (g_mutantLossSeen && Mutant("lossAliased"))
++        _d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_ALIASED);
+     RecreateBrushCache();
+     return true;
+ }
+diff --git a/src/Controls/DxUi.cpp b/src/Controls/DxUi.cpp
+index 0432a11..9db88f4 100644
+--- a/src/Controls/DxUi.cpp
++++ b/src/Controls/DxUi.cpp
+@@ -906,6 +906,7 @@ void Control::Reparent(Panel* parent, ControlHost* host) noexcept
+     // to tell what differs, so it must still exist (as the old host, which PropagateHost reads, always had to).
+     const FlowDirection flowDirection = GetFlowDirection();
+     const Density density             = GetDensity();
++    const bool wasHosted              = _host != nullptr;
+     _parent                           = parent;
+     PropagateHost(parent ? parent->_host : nullptr);
+     if (host != _host)
+@@ -916,7 +917,7 @@ void Control::Reparent(Panel* parent, ControlHost* host) noexcept
+     {
+         OnFlowDirectionChanged();
+     }
+-    if (GetDensity() != density)
++    if (GetDensity() != density && ! (Mutant("noMoveAnnouncement") && wasHosted))
+     {
+         OnDensityChanged();
+     }
+diff --git a/src/Rendering/Embedded.cpp b/src/Rendering/Embedded.cpp
+index b192072..fc57fc1 100644
+--- a/src/Rendering/Embedded.cpp
++++ b/src/Rendering/Embedded.cpp
+@@ -146,8 +146,10 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
+     if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
+         return E_INVALIDARG;
+     ReleaseSurface();
+-    auto& s = *_state;
+-    auto& g = *graphics->_state;
++    auto& s              = *_state;
++    auto& g              = *graphics->_state;
++    const bool replacing = static_cast<bool>(s.graphics);
++    const bool wasHidden = ! s.visible;
+     s.graphics.reset();
+     _host.DiscardDeviceResources();
+     _host._d3dDevice     = g.device.get();
+@@ -158,6 +160,8 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
+     RETURN_IF_FAILED(g.d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
+     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
+     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
++    if ((replacing && Mutant("replaceAliased")) || (replacing && wasHidden && Mutant("replaceHiddenAliased")))
++        _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_ALIASED);
+     if (! _host.EnsureDeviceIndependentResources())
+         return E_FAIL;
+     _host.RecreateBrushCache();

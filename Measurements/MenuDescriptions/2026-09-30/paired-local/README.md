@@ -1,6 +1,6 @@
 # Local paired described-menu benchmark, 30 September 2026
 
-The quiet local sets the [memory optimization plan](../../../../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md)
+The quiet local sets the [memory optimization plan](../../../../Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md)
 asks for, comparing `e47c836` (main after #27, before #24) with `6f769ab` (#24's described menus merged) in the
 Default scenario. `performance-paired.ps1 -BaselineRevision e47c836 -CandidateRevision 6f769ab -Scenario Default
 -Repetitions 3` ran three interleaved A, B, B, A passes, so six runs per side. The runner judges each metric with an

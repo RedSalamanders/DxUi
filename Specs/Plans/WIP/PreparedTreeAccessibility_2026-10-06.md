@@ -1,4 +1,27 @@
 # Prepared Tree accessibility — 2026-10-06
+## Current library finish - 2026-10-10
+
+Scope: finish the library branch against main `60e1cbff8f7a75757e9447073965d09101d9833c`.
+The older checklist and receipts below are historical source-specific evidence. RedPrism adoption is a separate
+HOLD in the API revision 4 consumer handoff register; no consumer pin or production activation is changed here.
+
+- [x] Reconcile current main's borrowed-model lifetime/revision guards, Grid assignment identity, Tree focus/selection
+  and canonical native test inventory. Preserve the dirty detached historical baseline and all failed evidence.
+- [x] Preserve a freshly built current-main Release baseline before the production repair.
+- [x] Reproduce native missing delivery, the transient embedded sender's null creation-snapshot runtime-ID crash
+  (ASan), and a real held property callback occupying publication for 20 seconds. Keep the failed source/products.
+- [x] Repair source capture guards, native delivery, snapshot-free sender runtime identity and embedded property
+  transport using one coalesced work item with properly marshalled STA providers.
+- [ ] Validate the final current-source fallback/reentrant getter, arbitrary IDs/Unicode/offscreen rows, independent
+  multi-selection/focus, real native and embedded re-entry, held structure/property bursts and source retirement.
+- [ ] Complete exact-source x64 Debug/Release/ASan suites and ARM64 build/runtime CI, consumer API fixtures,
+  validators/format and a fresh matched paired Release study. Report every unavailable or inconclusive gate.
+- [ ] Review retained results, reconcile capability/documentation claims and merge only a correct, qualified candidate.
+
+Documentation/gallery review: the source API, owner-thread pumping and notification ownership are documented.
+No paint/blend/theme/gallery fixture changes are introduced; accessibility rows/transport and input acknowledgement
+leave gallery pixels unchanged. Interaction-only preparation leaves pixels dirty for the later full Prepare.
+
 
 ## Implementation checklist
 

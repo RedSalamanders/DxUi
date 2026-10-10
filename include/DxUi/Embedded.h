@@ -44,6 +44,8 @@ struct PointerEvent
     float yPixels        = 0;
     UINT modifiers       = 0;
     float wheelDelta     = 0;
+    // The contact's device; a touch drag shows touch feedback (PointerDeviceFromMessageExtraInfo for mouse messages).
+    PointerDevice device = PointerDevice::Mouse;
 };
 // Owned snapshot for an application-side text service; never pass this C++ record across a plugin ABI.
 // The revision belongs to this EmbeddedHost instance and is invalidated by any view change.
@@ -77,7 +79,8 @@ struct EmbeddedStatistics
 };
 
 // One retained view and cached surface. Applications with two density variants create two views with one shared pool
-// and bind both views to the same application model. No HWND, swap chain, worker, timer or device is created here.
+// and bind both views to the same application model. No rendering HWND, swap chain, render worker, timer or device is created here.
+// Optional accessibility notifications use one bounded event-driven delivery work item; preparation remains owner-driven.
 class EmbeddedHost final
 {
 public:
@@ -148,7 +151,7 @@ private:
     // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
     uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
-    void CancelPointer() noexcept;
+    void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor
     // are enabled and visible. Hiding or disabling it or an ancestor, removing it, or resizing the view still cancels.
     [[nodiscard]] bool CapturedDragContinues() const noexcept;

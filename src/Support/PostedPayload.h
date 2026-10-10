@@ -10,6 +10,7 @@ struct PayloadEntry
 {
     LPARAM token                    = 0;
     HWND window                     = nullptr;
+    UINT message                    = 0u;
     void* value                     = nullptr;
     void (*destroy)(void*) noexcept = nullptr;
 };
@@ -38,21 +39,32 @@ template <class T> void DestroyPayload(void* value) noexcept
 } // namespace DxUi::Detail
 namespace DxUi
 {
-inline void InitPostedPayloadWindow(HWND hwnd) noexcept
+inline bool InitPostedPayloadWindow(HWND hwnd) noexcept
 {
-    if (! hwnd)
-        return;
+    DWORD processId = 0u;
+    if (! hwnd || ! GetWindowThreadProcessId(hwnd, &processId))
+    {
+        SetLastError(ERROR_INVALID_WINDOW_HANDLE);
+        return false;
+    }
+    if (processId != GetCurrentProcessId())
+    {
+        SetLastError(ERROR_ACCESS_DENIED);
+        return false;
+    }
     auto& r = DxUi::Detail::Payloads();
     std::lock_guard lock(r.mutex);
     for (auto w : r.windows)
         if (w == hwnd)
-            return;
+            return true;
     for (auto& w : r.windows)
         if (! w)
         {
             w = hwnd;
-            return;
+            return true;
         }
+    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    return false;
 }
 inline size_t DrainPostedPayloadsForWindow(HWND hwnd) noexcept
 {
@@ -85,11 +97,14 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
     for (auto w : r.windows)
         registered = registered || (w && w == hwnd);
     if (! registered || r.next == (std::numeric_limits<LPARAM>::max)())
+    {
+        SetLastError(registered ? ERROR_ARITHMETIC_OVERFLOW : ERROR_INVALID_WINDOW_HANDLE);
         return false;
+    }
     for (auto& e : r.entries)
         if (! e.token)
         {
-            e = {r.next++, hwnd, value.get(), &DxUi::Detail::DestroyPayload<T>};
+            e = {r.next++, hwnd, msg, value.get(), &DxUi::Detail::DestroyPayload<T>};
             if (! PostMessageW(hwnd, msg, wp, e.token))
             {
                 e = {};
@@ -98,29 +113,77 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
             value.release();
             return true;
         }
+    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
     return false;
 }
-template <class T> std::unique_ptr<T> TakeMessagePayload(LPARAM token) noexcept
+// Sends a payload and waits at most timeoutMs; true once the window procedure has returned. After a timeout the receiving thread
+// may still take the payload, so it stays registered until then or until its window is destroyed, and a late answer never reaches
+// the sender's frame. A payload whose message was never delivered is freed here.
+template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::unique_ptr<T> value, UINT timeoutMs) noexcept
+{
+    if (! value)
+        return false;
+    LPARAM token = 0;
+    {
+        auto& r = DxUi::Detail::Payloads();
+        std::lock_guard lock(r.mutex);
+        bool registered = false;
+        for (auto w : r.windows)
+            registered = registered || (w && w == hwnd);
+        if (! registered || r.next == (std::numeric_limits<LPARAM>::max)())
+        {
+            SetLastError(registered ? ERROR_ARITHMETIC_OVERFLOW : ERROR_INVALID_WINDOW_HANDLE);
+            return false;
+        }
+        for (auto& e : r.entries)
+            if (! e.token)
+            {
+                e     = {r.next++, hwnd, msg, value.release(), &DxUi::Detail::DestroyPayload<T>};
+                token = e.token;
+                break;
+            }
+    }
+    if (! token)
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        return false;
+    }
+    DWORD_PTR answer = 0;
+    if (SendMessageTimeoutW(hwnd, msg, wp, token, SMTO_BLOCK | SMTO_ABORTIFHUNG, timeoutMs, &answer) != 0)
+        return true;
+    if (GetLastError() == ERROR_TIMEOUT)
+        return false;
+    DxUi::Detail::PayloadEntry removed{};
+    {
+        auto& r = DxUi::Detail::Payloads();
+        std::lock_guard lock(r.mutex);
+        for (auto& e : r.entries)
+            if (e.token == token)
+            {
+                removed = e;
+                e       = {};
+                break;
+            }
+    }
+    if (removed.destroy)
+        removed.destroy(removed.value);
+    return false;
+}
+template <class T> std::unique_ptr<T> TakeMessagePayload(HWND expectedWindow, UINT expectedMessage, LPARAM token) noexcept
 {
     DxUi::Detail::PayloadEntry taken{};
     {
         auto& r = DxUi::Detail::Payloads();
         std::lock_guard lock(r.mutex);
         for (auto& e : r.entries)
-            if (token && e.token == token)
+            if (token && e.token == token && e.window == expectedWindow && e.message == expectedMessage && e.destroy == &DxUi::Detail::DestroyPayload<T>)
             {
                 taken = e;
                 e     = {};
                 break;
             }
     }
-    if (taken.destroy != &DxUi::Detail::DestroyPayload<T>)
-    {
-        if (taken.destroy)
-            taken.destroy(taken.value);
-        return {};
-    }
-    return std::unique_ptr<T>(static_cast<T*>(taken.value));
+    return taken.destroy ? std::unique_ptr<T>(static_cast<T*>(taken.value)) : std::unique_ptr<T>{};
 }
 
 } // namespace DxUi

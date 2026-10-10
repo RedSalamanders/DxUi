@@ -1,0 +1,37 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                 ⚡  ASAN DEBUG  /  ARM64  /  BUILD  ⚡                 │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      ARM64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.InteractiveLease.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUi.Tests.Gallery.cpp
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\ARM64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:05
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-ARM64-ASan Debug-7aeb4e5473784119ba202b277deae7a7.log
+========================================

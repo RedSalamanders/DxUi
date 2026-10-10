@@ -7,11 +7,27 @@ Application adoption measurements belong in their application's repository.
 - [Embedded interaction layout, 2026-10-06](EmbeddedInteractionLayout/README.md): six matched Release runs per side,
   unchanged surface/composition budgets and all raw noisy controls retained. Consumer qualification remains separate.
 
+- [Recent-merge production review, 2026-10-08](Review-2026-10-08/README.md): retained baseline, independently
+  reproduced lifetime/state failures, final library qualification and paired measurements; unresolved
+  product/platform/interactive gates remain in the active remediation plan.
+
 - [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
   entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; resource
   acceptance and native platform/consumer handoff remain open.
+- [Described-menu row layout, 2026-09-30](MenuDescriptions/2026-09-30/row-layout/README.md): one formatted layout per
+  described row against main's two shared layouts; byte-identical captures and gallery sheets, live heap a third lower
+  where labels differ and up to 7% higher where every row repeats one label.
+- [Menu rows without descriptions as UI Automation elements, 2026-10-02](PlainMenuUia/2026-10-02/README.md): three
+  sets of six interleaved runs per side (x64 Release, nonactivating harness) of main, the port of an element for every
+  row of every menu and the port with pre-sized snapshots: about 1.6 KB of live heap per open command row and 0.3 ms plus
+  1.4 to 2.6 µs per row for each key or wheel notch that moves the rows (6.1 ms at 4,096 rows, where pre-sizing saves
+  24%); described menus are unchanged.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
+- [Grid multiline verification, 2026-09-30](GridTextOverflow/2026-09-30/verification/README.md): x64 Debug, Release and
+  ASan Debug logs and receipts of the Grid, Rendering, Accessibility, Embedded and MultilineText suites with 16 new tests of
+  bounded multiline cells, and the temporary mutations each failed under; its benchmark lines are unpaired, and native ARM64
+  execution, resource acceptance and consumer adoption remain open.
 - [Hosted paired grid benchmark, 2026-09-27](GridTextOverflow/2026-09-27/paired-hosted/README.md): one serial
   A1/B1/B2/A2 set per scenario on a hosted x64 runner; the merged grid stays within the accepted V11 envelope.
 - [Hosted paired described-menu benchmark, 2026-09-27](MenuDescriptions/2026-09-27/paired-hosted/README.md): one
@@ -27,6 +43,11 @@ Application adoption measurements belong in their application's repository.
   ids with the room of a large selection given back): in the order of the ids on a screen a binary search costs more than a
   scan below 512 ids (5 to 20 ns a call at 8 to 128 ids), a model that held 3.2 MB after Ctrl+A and `Clear` now holds
   nothing, and `PreserveOrdered` over a long list needed a table of bits.
+- [Hosted paired gate calibration, 2026-10-01](HostedPairedGate/2026-10-01/README.md): an A/A set (the same library code
+  built twice, six runs per side, three scenarios) on a hosted x64 runner. Nothing is flagged in 78 metric tests, all 18
+  same-binary controls drift beyond a band in some metric (so the gate judges the controls of the flagged metric), and the
+  exact budgets never drift. A [second A/A set](HostedPairedGate/2026-10-01/aa-2/README.md) flags five clean-phase timings
+  of identical code, each with a drifted control: inconclusive per metric, so a hosted run can need a re-run.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

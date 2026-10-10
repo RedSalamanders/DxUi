@@ -27,38 +27,38 @@
       "files": {
         "theme-controls-light.png": {
           "name": "theme-controls-light.png",
-          "blob": "e454037d0d4b1f1bdb4d85c59906cc2a",
-          "size": 337834,
+          "blob": "c07a046ba5b110b806e425d248cb7ac6",
+          "size": 357475,
           "type": "image/png"
         },
         "theme-controls-dark.png": {
           "name": "theme-controls-dark.png",
-          "blob": "f6167baf07b012d233df468896b33676",
-          "size": 339345,
+          "blob": "d8b026afef3121cdd74cc98928226f83",
+          "size": 357747,
           "type": "image/png"
         },
         "theme-controls-high-contrast.png": {
           "name": "theme-controls-high-contrast.png",
-          "blob": "ba75902964f9c31e4d2dfc26758992a1",
-          "size": 335346,
+          "blob": "fe6fa3369254145c30234de0f87300c8",
+          "size": 352929,
           "type": "image/png"
         },
         "theme-controls-rainbow-light.png": {
           "name": "theme-controls-rainbow-light.png",
-          "blob": "3a02424ac34ccbb86cac1e891a526287",
-          "size": 339288,
+          "blob": "5a973cefb2db14c546f10713995b27c2",
+          "size": 359171,
           "type": "image/png"
         },
         "theme-controls-rainbow-dark.png": {
           "name": "theme-controls-rainbow-dark.png",
-          "blob": "0942eab85e0f0bb78216ff6d28e72532",
-          "size": 340765,
+          "blob": "64df56dfd896c36d02ef2a40b3377259",
+          "size": 359454,
           "type": "image/png"
         },
         "embedded-controls.png": {
           "name": "embedded-controls.png",
-          "blob": "74c23e6cccb551e5df9adddef5086d87",
-          "size": 6375,
+          "blob": "b590e095ecb829d431720733b885f4aa",
+          "size": 6622,
           "type": "image/png"
         }
       }
@@ -71,8 +71,8 @@
   },
   "lastChange": {
     "by": "eric-jesover",
-    "at": "2026-09-30T18:15:43Z",
-    "via": "Claude Code · RedSalamanders/DxUi@improve/reliability-follow-ups",
-    "note": "Guidelines from PR 29: alert colors keep their default tones unless an app supplies them, the disclosure chevron's timing, ColorPicker and NumericStepper translation and right-to-left layout, Grid and Tree interface names; gallery sheets regenerated from 3acb196."
+    "at": "2026-10-04T11:58:30Z",
+    "via": "Claude Code · RedSalamanders/DxUi@improve/slider-touch-thumb",
+    "note": "Slider touch thumb and halo: its guideline, preview, preview styles and tokens; gallery sheets regenerated from b1099d2, with the Slider / Touch pressed tile."
   }
 }

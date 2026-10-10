@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns
+FAILED: tree item expand-collapse pattern can expand the parent item hr=0x80040204

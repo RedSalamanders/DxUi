@@ -21,7 +21,7 @@ The repository is public and its default branch is `main`. Use focused feature b
   renderer HWND, worker or periodic timer. Preparation and composition are separate contracts.
 - Validate the control and embedded suites for UI changes; Foundation alone cannot establish their correctness.
 - New controls require a catalog/factory entry, meaningful interaction tests, a populated gallery tile, a
-  docs/controls.md entry and a design-system guideline and preview (Specs/UI/UI_DesignSystem.md), republished.
+  docs/controls.md entry and a design-system guideline and preview (Specs/UI/UI_DesignSystem.md), committed here.
 - Application screenshots for specifications, documentation, and UI reviews must be generated through the
   application's test harness with deterministic scenarios and no desktop takeover. Reuse or extend harness
   capture support rather than using Computer Use or manual desktop screenshots. Preserve scenario/build
@@ -75,3 +75,12 @@ spec-workflow, or consumer-integration. These are repository-local skills and th
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
 restoration; static captures remain non-activating. Never substitute desktop screenshots.
+
+DxUi's own suites that take real focus (`Menu`, `NativeTextInput` and the two menu resource fixtures) run deliberately through
+`test.ps1 -Interactive`, which refuses without an interactive desktop, asks first, warns while it runs and restores the foreground
+window, keyboard focus and pointer however the run ends. Run it, or any of those suites, only when the person at the desktop has
+agreed to the time; otherwise leave them out of `-Suites`.
+
+## Scoped testing policy (2026-10-05)
+
+The user's accepted workflow replaces unconditional full-test iteration. Use `Test-Changes.ps1 -Explain` and the affected default while editing; use `-Mode PrePush` to account for full local/PR coverage without duplicate identical obligations. A forthcoming enabled CI gate is pending acceptance, never an already passed result. Explicit Full remains available. Active native test files use `Scope.Tests.Something.h/.cpp` and the native file inventory. Follow [Specs/Testing/Testing_Validation.md](Specs/Testing/Testing_Validation.md) and [the test guide](Tests/README.md). Focus-taking work requires agreement to the time; no scoped pass closes that gate. Build/runtime/platform qualification still applies to changed behavior, with exact prior evidence reusable only under the owning contract.

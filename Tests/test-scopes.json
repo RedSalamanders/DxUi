@@ -1,0 +1,541 @@
+{
+  "version": 1,
+  "repository": "RedSalamanders/DxUi",
+  "defaultBranch": "main",
+  "scopes": [
+    {
+      "name": "Foundation",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Embedded",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Grid",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Theme",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Control",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "MenuExitLifetime",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "NewControls",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "EditorControls",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "TextField",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "MultilineText",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "ReadOnly",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "ComboBox",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Tree",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Tooltip",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Rendering",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Animation",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Accessibility",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "WindowHost",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "InteractiveLease",
+      "native": true,
+      "reuse": true
+    },
+    {
+      "name": "Tooling",
+      "native": false,
+      "reuse": true
+    }
+  ],
+  "rules": [
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Grid.cpp",
+      "scopes": [
+        "Grid"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Theme.cpp",
+      "scopes": [
+        "Theme"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Controls.cpp",
+      "scopes": [
+        "Control"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
+      "scopes": [
+        "NewControls"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.EditorControls.cpp",
+      "scopes": [
+        "EditorControls"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.TextField.cpp",
+      "scopes": [
+        "TextField"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.MultilineText.cpp",
+      "scopes": [
+        "MultilineText"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.ReadOnly.cpp",
+      "scopes": [
+        "ReadOnly"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.ComboBox.cpp",
+      "scopes": [
+        "ComboBox"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Tree.cpp",
+      "scopes": [
+        "Tree"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Tooltip.cpp",
+      "scopes": [
+        "Tooltip"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Rendering.cpp",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Animation.cpp",
+      "scopes": [
+        "Animation"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "active GridPattern provider coverage"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.WindowHost.cpp",
+      "scopes": [
+        "WindowHost"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.InteractiveLease.cpp",
+      "scopes": [
+        "InteractiveLease"
+      ],
+      "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Foundation/**",
+      "scopes": [
+        "Foundation"
+      ],
+      "reason": "foundation scenarios"
+    },
+    {
+      "pattern": "Tests/Embedded/**",
+      "scopes": [
+        "Embedded"
+      ],
+      "reason": "embedded scenarios and benchmark"
+    },
+    {
+      "pattern": "Tools/tests/**",
+      "scopes": [
+        "Tooling"
+      ],
+      "reason": "tooling regression tests"
+    },
+    {
+      "pattern": "Tools/tests/TestSupport.psm1",
+      "scopes": [
+        "Grid",
+        "InteractiveLease"
+      ],
+      "reason": "shared helper used by native filter, watchdog and desktop lease integration fixtures"
+    },
+    {
+      "pattern": "Tools/tests/Test-TestFilter.ps1",
+      "scopes": [
+        "Grid"
+      ],
+      "reason": "native test-runner filter fixture executes Grid tests"
+    },
+    {
+      "pattern": "Tools/tests/Test-TestWatchdog.ps1",
+      "scopes": [
+        "Grid"
+      ],
+      "reason": "native test-runner watchdog fixture executes Grid tests"
+    },
+    {
+      "pattern": "Tools/tests/Test-InteractiveLease.ps1",
+      "scopes": [
+        "InteractiveLease"
+      ],
+      "reason": "interactive desktop lease integration fixture"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Grid.*",
+      "scopes": [
+        "Grid",
+        "Control",
+        "Rendering",
+        "Accessibility",
+        "Embedded",
+        "WindowHost",
+        "Tooltip",
+        "Animation",
+        "EditorControls",
+        "Theme",
+        "Tree"
+      ],
+      "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
+    },
+    {
+      "pattern": "src/Controls/DxUi.Tree.*",
+      "scopes": [
+        "Tree",
+        "Control",
+        "Rendering",
+        "Accessibility",
+        "Embedded",
+        "WindowHost",
+        "Tooltip",
+        "EditorControls"
+      ],
+      "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
+    },
+    {
+      "pattern": "src/Controls/DxUi.ComboBox.*",
+      "scopes": [
+        "ComboBox",
+        "Control",
+        "NewControls",
+        "Rendering",
+        "Accessibility",
+        "Embedded",
+        "WindowHost",
+        "Theme",
+        "TextField",
+        "Animation"
+      ],
+      "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
+    }
+  ],
+  "toolingCommands": [
+    "validate.ps1",
+    "Tools/tests/Test-AsanRuntime.ps1"
+  ],
+  "interactiveObligations": [
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Menu.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "menu pointer, activation and capture scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.MenuResources.h",
+      "suites": [
+        "MenuResources",
+        "MenuResourceScaling"
+      ],
+      "reason": "menu resource fixtures require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
+      "suites": [
+        "NativeTextInput"
+      ],
+      "reason": "native text-input focus and IME scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Menu.*",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "menu implementation changes require the interactive menu suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.NativeTextInput.*",
+      "suites": [
+        "NativeTextInput"
+      ],
+      "reason": "native text-input implementation changes require the interactive suite"
+    }
+  ],
+  "prCoverage": [
+    {
+      "configuration": "Debug",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "x64"
+    },
+    {
+      "configuration": "Release",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "x64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "Release",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "scopes": [
+        "Foundation",
+        "Embedded",
+        "Grid",
+        "Theme",
+        "Control",
+        "MenuExitLifetime",
+        "NewControls",
+        "EditorControls",
+        "TextField",
+        "MultilineText",
+        "ReadOnly",
+        "ComboBox",
+        "Tree",
+        "Tooltip",
+        "Rendering",
+        "Animation",
+        "Accessibility",
+        "WindowHost",
+        "InteractiveLease",
+        "Tooling"
+      ],
+      "platform": "ARM64"
+    }
+  ],
+  "prWorkflowDigest": "1404978e11f48d98d5966f6b2e494c64e7d67389e77f066191e75bf844138066",
+  "prNativeScopeModule": "Tools/NativeScope.psm1"
+}

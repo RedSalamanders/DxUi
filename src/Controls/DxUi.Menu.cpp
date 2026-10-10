@@ -8,12 +8,10 @@
 #include <exception>
 #include <format>
 #include <limits>
-#include <map>
 #include <mutex>
 #include <new>
 #include <shellscalingapi.h>
 #include <system_error>
-#include <tuple>
 #include <utility>
 #include <wil/win32_helpers.h>
 #include <wincodec.h>
@@ -421,6 +419,18 @@ struct MenuBackdropSnapshot
     return D2D1::ColorF(color.r, color.g, color.b, (std::clamp)(alpha, 0.0f, 1.0f));
 }
 
+[[nodiscard]] D2D1_COLOR_F ResolveDisabledMenuColor(const ThemePalette& theme, const D2D1_COLOR_F& color) noexcept
+{
+    if (! theme.highContrast)
+        return WithAlpha(color, 0.4f);
+
+    const COLORREF grayText = GetSysColor(COLOR_GRAYTEXT);
+    return D2D1::ColorF(static_cast<float>(GetRValue(grayText)) / 255.0f,
+                        static_cast<float>(GetGValue(grayText)) / 255.0f,
+                        static_cast<float>(GetBValue(grayText)) / 255.0f,
+                        1.0f);
+}
+
 [[nodiscard]] MenuResolvedItemPaintStyle ResolveMenuItemPaintStyle(
     const ThemePalette& theme, const MenuItemVisualStyle& style, const MenuFlyoutItem& item, std::wstring_view rainbowSeed, bool hovered) noexcept
 {
@@ -442,6 +452,13 @@ struct MenuBackdropSnapshot
     }
 
     resolved.showHighlightFill = true;
+    if (theme.highContrast)
+    {
+        resolved.fill          = theme.selectionFill;
+        resolved.compositeFill = theme.selectionFill;
+        resolved.text = resolved.accelText = resolved.iconColor = resolved.checkColor = resolved.chevronColor = theme.selectionText;
+        return resolved;
+    }
     if (theme.rainbowMode && ! theme.highContrast && ! rainbowSeed.empty())
     {
         resolved.usesRainbowHighlight = true;
@@ -945,7 +962,7 @@ void DrawMenuBitmapIcon(ControlHost& host, const MenuFlyoutItem::BitmapIcon& ico
                        itemRect.top + kSliderTrackTopDip + kSliderTrackHeightDip);
 }
 
-[[nodiscard]] uint32_t HitTestSliderStop(const MenuFlyoutItem& item, const D2D1_RECT_F& itemRect, D2D1_POINT_2F pointDip) noexcept
+[[nodiscard]] uint32_t HitTestSliderStop(const MenuFlyoutItem& item, const D2D1_RECT_F& itemRect, D2D1_POINT_2F pointDip, bool rightToLeft = false) noexcept
 {
     const size_t stopCount = item.sliderStops.size();
     if (stopCount <= 1u)
@@ -955,7 +972,8 @@ void DrawMenuBitmapIcon(ControlHost& host, const MenuFlyoutItem::BitmapIcon& ico
 
     const D2D1_RECT_F trackRect = GetSliderTrackRect(itemRect);
     const float trackWidth      = (std::max)(1.0f, trackRect.right - trackRect.left);
-    const float normalized      = std::clamp((pointDip.x - trackRect.left) / trackWidth, 0.0f, 1.0f);
+    const float physical        = std::clamp((pointDip.x - trackRect.left) / trackWidth, 0.0f, 1.0f);
+    const float normalized      = rightToLeft ? 1.0f - physical : physical;
     const float scaled          = normalized * static_cast<float>(stopCount - 1u);
     return static_cast<uint32_t>(std::lround(scaled));
 }
@@ -976,14 +994,30 @@ struct MenuItemLayoutRects
            (item.kind == MenuItemKind::Standard || item.kind == MenuItemKind::Toggle || item.kind == MenuItemKind::Radio || item.kind == MenuItemKind::Info);
 }
 
+// The size of one field of a described row, as its layout reports it.
+struct MenuFieldMetrics
+{
+    float height     = 0.0f;
+    UINT32 lineCount = 0u;
+};
+
+// A described row's two fields share one DirectWrite layout, because the shaping storage a layout keeps is mostly per layout
+// (about 17 KB), not per character: its text is the label, an empty spacer paragraph and the description, and the description
+// range carries the small text format's font. Two separate layouts drew the label at the row's text origin and the description
+// kDescriptionGapDip below the label's height rounded up to whole DIPs; the spacer paragraph, whose font size
+// MeasureMenuDescriptionRow calibrates, keeps exactly that distance. Only the layout's own line heights are summed, so the
+// rounded heights equal those of two separate layouts.
 struct MenuDescriptionLayout
 {
-    wil::com_ptr<IDWriteTextLayout> primary;
-    wil::com_ptr<IDWriteTextLayout> secondary;
-    DWRITE_TEXT_METRICS primaryMetrics{};
-    DWRITE_TEXT_METRICS secondaryMetrics{};
-    float heightDip    = 0.0f;
-    float textWidthDip = 0.0f;
+    wil::com_ptr<IDWriteTextLayout> layout;
+    DWRITE_TEXT_RANGE description{};   // The description's text positions.
+    UINT32 spacerPosition = 0u;        // The spacer paragraph's newline: the first text position after the label's own newline.
+    float spacerSizeDip   = 0.0f;      // The font size that gives the spacer paragraph its height.
+    MenuFieldMetrics primaryMetrics;   // The label's lines (spacer and description excluded).
+    MenuFieldMetrics secondaryMetrics; // The description's lines.
+    float heightDip              = 0.0f;
+    float textWidthDip           = 0.0f;
+    ID2D1Brush* descriptionBrush = nullptr; // The brush bound as the description range's drawing effect. Identity only: the layout owns it.
 };
 
 [[nodiscard]] int RoundToIntSaturated(double value) noexcept
@@ -1030,20 +1064,28 @@ struct MenuAccessibilityRequest
     size_t index;
 };
 
-void PostMenuAccessibilityRequest(HWND target, WndMsg::RegisteredMessage message, size_t index) noexcept
+HRESULT PostMenuAccessibilityRequest(HWND target, WndMsg::RegisteredMessage message, size_t index) noexcept
 {
     // The bounded existing registry drains payloads on WM_NCDESTROY; a queued
     // action cannot outlive its popup or be reinterpreted after HWND reuse.
-    // Without its registered message the request is dropped, as a failed post drops it.
     if (! message)
-        return;
+        return HRESULT_FROM_WIN32(ERROR_INVALID_FUNCTION);
     std::unique_ptr<MenuAccessibilityRequest> request(new (std::nothrow) MenuAccessibilityRequest{target, index});
-    if (request)
-        static_cast<void>(PostMessagePayload(target, message.value, 0, std::move(request)));
+    if (! request)
+        return E_OUTOFMEMORY;
+    if (! PostMessagePayload(target, message.value, 0, std::move(request)))
+    {
+        const DWORD error = GetLastError();
+        return HRESULT_FROM_WIN32(error ? error : ERROR_GEN_FAILURE);
+    }
+    return S_OK;
 }
 static std::atomic<bool> s_classRegistered = false;
 #if DXUI_ENABLE_DIAGNOSTICS
 static constexpr DWORD kMenuDebugStateDispatchTimeoutMs = 1000u;
+// The other cross-thread probes, a software-rendered capture under AddressSanitizer among them, answer within a second: a popup
+// thread that does not answer in three seconds is wedged or blocked, and its probe fails instead of holding the caller for good.
+static constexpr DWORD kMenuDebugProbeTimeoutMs = 3000u;
 #endif
 
 struct MenuController; // forward
@@ -1088,6 +1130,11 @@ struct MenuPopup
     // What DebugGetContextMenuResources reports for this popup while it lives: itself and the layouts its rows hold.
     Detail::LiveResourceCount livePopup{Detail::LiveResource::MenuPopup, 1u};
     Detail::LiveResourceCount liveRowLayouts;
+    // The brush every described row's layout carries as the drawing effect of its description, so a row is one layout drawn by
+    // one call: paint sets its color for each row just before that row's draw. It belongs to one Direct2D device, which it
+    // keeps alive, so a new device gets a new brush and the layouts carry that one from their next draw.
+    wil::com_ptr<ID2D1SolidColorBrush> descriptionBrush;
+    wil::com_ptr<ID2D1Device> descriptionBrushDevice;
     uint64_t descriptionPreparationCount = 0;
     const MenuFlyoutItem* items          = nullptr;
     size_t itemCount                     = 0;
@@ -1110,6 +1157,7 @@ struct MenuPopup
     bool usesSystemBackdrop           = false;
     bool usesAppBackdropBlur          = false;
     bool isSubmenu                    = false;
+    FlowDirection flowDirection       = FlowDirection::LeftToRight;
     bool mouseInsideMenu              = false;
     float scrollOffsetDip             = 0.0f;
     bool draggingScrollbarThumb       = false;
@@ -1150,15 +1198,14 @@ struct MenuPopup
                items[index].kind != MenuItemKind::Info;
     }
 
-    // Whole-pixel sizing can leave a described popup's viewport up to half a device pixel shorter
-    // than content that fits. That rounding slack neither reserves a scrollbar lane nor scrolls,
-    // so the lane PrepareMenuDescriptionSize reserves before sizing matches the final viewport.
-    // Plain popups keep their established strict comparison.
+    // Whole-pixel sizing can leave a popup's viewport up to half a device pixel shorter than
+    // content that fits. That rounding slack is not useful scroll range and must not create a
+    // scrollbar lane or fractional scroll offset.
     [[nodiscard]] bool ContentOverflowsViewport(float viewportHeightDip) const noexcept
     {
         if (! (viewportHeightDip > 0.0f))
             return false;
-        return descriptionLayouts.empty() ? contentHeightDip > viewportHeightDip : contentHeightDip - viewportHeightDip > PixelToDip(0.5f);
+        return contentHeightDip - viewportHeightDip > PixelToDip(0.5f);
     }
 
     [[nodiscard]] bool NeedsScrollbar() const noexcept
@@ -1279,13 +1326,22 @@ struct MenuPopup
             return;
         }
 
-        if (itemRect.bottom - itemRect.top > menuHeightDip || itemRect.top < scrollOffsetDip)
+        // Before the first navigable row and after the last there is only padding, headers and separators, so reaching
+        // either row (Home, End or a wrapping arrow) brings that edge of the menu into view with it when both fit.
+        float revealTop    = FindFirstNavigableItem() == index ? 0.0f : itemRect.top;
+        float revealBottom = FindLastNavigableItem() == index ? (std::max)(itemRect.bottom, contentHeightDip) : itemRect.bottom;
+        if (revealBottom - revealTop > menuHeightDip)
         {
-            scrollOffsetDip = itemRect.top;
+            revealTop    = itemRect.top;
+            revealBottom = itemRect.bottom;
         }
-        else if (itemRect.bottom > (scrollOffsetDip + menuHeightDip))
+        if (revealBottom - revealTop > menuHeightDip || revealTop < scrollOffsetDip)
         {
-            scrollOffsetDip = itemRect.bottom - menuHeightDip;
+            scrollOffsetDip = revealTop;
+        }
+        else if (revealBottom > (scrollOffsetDip + menuHeightDip))
+        {
+            scrollOffsetDip = revealBottom - menuHeightDip;
         }
         ClampScrollOffset();
     }
@@ -1337,20 +1393,31 @@ struct MenuPopup
         return std::nullopt;
     }
 
-    [[nodiscard]] std::optional<size_t> FindMnemonicItem(wchar_t ch) const noexcept
+    [[nodiscard]] std::optional<size_t> FindMnemonicItem(wchar_t ch, size_t& matches) const noexcept
     {
         const wchar_t upper = NormalizeMenuMnemonicChar(ch);
-        for (size_t i = 0; i < itemCount; ++i)
+        matches             = 0u;
+        std::optional<size_t> first;
+        std::optional<size_t> next;
+        const size_t current = keyboardIndex.value_or(hoveredIndex.value_or(itemCount));
+        for (bool explicitOnly : {true, false})
         {
-            if (! IsNavigableItem(i) || ! items[i].enabled)
-                continue;
-
-            const ParsedMenuLabel label = ParseMenuLabel(DecodeMenuItemText(items[i]).labelText);
-            const wchar_t itemMnemonic  = ResolveMenuLabelMnemonic(label);
-            if (itemMnemonic != L'\0' && NormalizeMenuMnemonicChar(itemMnemonic) == upper)
+            for (size_t i = 0; i < itemCount; ++i)
             {
-                return i;
+                if (! IsNavigableItem(i) || ! items[i].enabled)
+                    continue;
+                const ParsedMenuLabel label = ParseMenuLabel(DecodeMenuItemText(items[i]).labelText);
+                const wchar_t mnemonic      = explicitOnly ? label.mnemonic : ResolveMenuLabelMnemonic(label);
+                if (mnemonic == L'\0' || NormalizeMenuMnemonicChar(mnemonic) != upper || (! explicitOnly && label.mnemonic != L'\0'))
+                    continue;
+                ++matches;
+                if (! first)
+                    first = i;
+                if (! next && i > current)
+                    next = i;
             }
+            if (matches != 0u)
+                return next ? next : first;
         }
         return std::nullopt;
     }
@@ -1631,7 +1698,7 @@ void UpdateSliderInteractionAtPoint(MenuPopup& popup, size_t itemIndex, D2D1_POI
         return;
     }
 
-    const uint32_t stopIndex = HitTestSliderStop(item, GetVisibleItemRect(popup, itemIndex), pointDip);
+    const uint32_t stopIndex = HitTestSliderStop(item, GetVisibleItemRect(popup, itemIndex), pointDip, popup.flowDirection == FlowDirection::RightToLeft);
     if (stopIndex == ClampSliderValue(item) && popup.sliderAnimationInitialized)
     {
         return;
@@ -1906,31 +1973,16 @@ void RememberRootSwitchPointerPoint(MenuController& controller, POINT screenPoin
 // ---------------------------------------------------------------------------
 
 #if DXUI_ENABLE_DIAGNOSTICS
-struct MenuDebugGetItemTextRequest
+// A test probe of a popup that lives on another thread is answered by that thread, into this state, which the caller and the
+// probe's payload share. The caller waits a bounded time and then gives up; an answer that comes later lands here, never in the
+// caller's frame, and a payload the popup thread never takes is freed with its window.
+template <class Result> struct MenuDebugDispatch
 {
-    size_t itemIndex      = 0u;
-    std::wstring* outText = nullptr;
-};
-
-struct MenuDebugGetItemRectRequest
-{
-    size_t itemIndex        = 0u;
-    D2D1_RECT_F* outRectDip = nullptr;
-};
-
-struct MenuDebugGetItemPaintRequest
-{
-    size_t itemIndex                              = 0u;
-    ContextMenuPopupItemPaintDebugState* outState = nullptr;
-};
-
-struct MenuDebugGetStateDispatch
-{
-    MenuDebugGetStateDispatch()                                            = default;
-    MenuDebugGetStateDispatch(const MenuDebugGetStateDispatch&)            = delete;
-    MenuDebugGetStateDispatch& operator=(const MenuDebugGetStateDispatch&) = delete;
-    MenuDebugGetStateDispatch(MenuDebugGetStateDispatch&&)                 = delete;
-    MenuDebugGetStateDispatch& operator=(MenuDebugGetStateDispatch&&)      = delete;
+    MenuDebugDispatch()                                    = default;
+    MenuDebugDispatch(const MenuDebugDispatch&)            = delete;
+    MenuDebugDispatch& operator=(const MenuDebugDispatch&) = delete;
+    MenuDebugDispatch(MenuDebugDispatch&&)                 = delete;
+    MenuDebugDispatch& operator=(MenuDebugDispatch&&)      = delete;
 
     enum class State : uint8_t
     {
@@ -1940,39 +1992,132 @@ struct MenuDebugGetStateDispatch
     };
 
     std::atomic<State> state{State::Pending};
-    ContextMenuPopupDebugState result;
+    Result result{};
     wil::unique_event_nothrow completedEvent;
     bool succeeded = false;
 };
 
-struct MenuDebugGetStatePayload
+template <class Result> struct MenuDebugPayload
 {
-    MenuDebugGetStatePayload()                                           = default;
-    MenuDebugGetStatePayload(const MenuDebugGetStatePayload&)            = delete;
-    MenuDebugGetStatePayload& operator=(const MenuDebugGetStatePayload&) = delete;
-    MenuDebugGetStatePayload(MenuDebugGetStatePayload&&)                 = delete;
-    MenuDebugGetStatePayload& operator=(MenuDebugGetStatePayload&&)      = delete;
+    MenuDebugPayload()                                   = default;
+    MenuDebugPayload(const MenuDebugPayload&)            = delete;
+    MenuDebugPayload& operator=(const MenuDebugPayload&) = delete;
+    MenuDebugPayload(MenuDebugPayload&&)                 = delete;
+    MenuDebugPayload& operator=(MenuDebugPayload&&)      = delete;
 
-    ~MenuDebugGetStatePayload() noexcept
+    ~MenuDebugPayload() noexcept
     {
         if (! dispatch)
         {
             return;
         }
-        MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
+        // A payload freed unanswered leaves its dispatch abandoned; an answered one was taken. Either way its caller wakes.
+        auto expected = MenuDebugDispatch<Result>::State::Pending;
         static_cast<void>(dispatch->state.compare_exchange_strong(
-            expected, MenuDebugGetStateDispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire));
+            expected, MenuDebugDispatch<Result>::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire));
         if (dispatch->completedEvent)
         {
             static_cast<void>(SetEvent(dispatch->completedEvent.get()));
         }
     }
 
-    std::shared_ptr<MenuDebugGetStateDispatch> dispatch;
+    std::shared_ptr<MenuDebugDispatch<Result>> dispatch;
+    size_t itemIndex = 0u;
+    WindowHostBitmapCapture backdrop; // What DebugSetContextMenuPopupBackdropCapture installs.
 };
+
+[[nodiscard]] bool IsAnotherThreadsWindow(HWND hwnd) noexcept
+{
+    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
+    return windowThreadId != 0 && windowThreadId != GetCurrentThreadId();
+}
+
+// Asks the thread of `hwnd` for `out` and waits at most `timeoutMs`. A posted probe reaches the menu loop's priority peek, ahead of
+// owner traffic; a sent one is answered at the popup thread's next message retrieval, as SendMessage would be.
+template <class Result>
+[[nodiscard]] bool CallMenuPopupDebugProbe(
+    HWND hwnd, WndMsg::RegisteredMessage probe, bool post, DWORD timeoutMs, size_t itemIndex, const WindowHostBitmapCapture* backdrop, Result& out) noexcept
+{
+    using Dispatch = MenuDebugDispatch<Result>;
+    if (! probe)
+    {
+        return false;
+    }
+    auto dispatch = std::shared_ptr<Dispatch>(new (std::nothrow) Dispatch());
+    if (! dispatch)
+    {
+        return false;
+    }
+    dispatch->completedEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! dispatch->completedEvent)
+    {
+        return false;
+    }
+    auto payload = std::unique_ptr<MenuDebugPayload<Result>>(new (std::nothrow) MenuDebugPayload<Result>());
+    if (! payload)
+    {
+        return false;
+    }
+    payload->dispatch  = dispatch;
+    payload->itemIndex = itemIndex;
+    if (backdrop)
+    {
+        try
+        {
+            payload->backdrop = *backdrop;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return false; // A capture that cannot be copied is not installed.
+        }
+    }
+
+    const bool answered =
+        post ? PostMessagePayload(hwnd, probe.value, 0, std::move(payload)) && WaitForSingleObject(dispatch->completedEvent.get(), timeoutMs) == WAIT_OBJECT_0
+             : SendMessagePayload(hwnd, probe.value, 0, std::move(payload), timeoutMs) &&
+                   WaitForSingleObject(dispatch->completedEvent.get(), 0u) == WAIT_OBJECT_0;
+    if (! answered)
+    {
+        auto expected = Dispatch::State::Pending;
+        if (dispatch->state.compare_exchange_strong(expected, Dispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire))
+        {
+            return false;
+        }
+        // The popup thread took the probe and may be answering now: its answer counts only once it is complete.
+        if (expected != Dispatch::State::Taken || WaitForSingleObject(dispatch->completedEvent.get(), 0u) != WAIT_OBJECT_0)
+        {
+            return false;
+        }
+    }
+    if (! dispatch->succeeded)
+    {
+        return false;
+    }
+    out = std::move(dispatch->result);
+    return true;
+}
+
+// Answers a probe on the popup's own thread, into its dispatch, unless its caller has given up already.
+template <class Result, class Answer> [[nodiscard]] LRESULT AnswerMenuPopupDebugProbe(HWND hwnd, UINT message, LPARAM lp, Answer&& answer) noexcept
+{
+    using Dispatch = MenuDebugDispatch<Result>;
+    auto payload   = TakeMessagePayload<MenuDebugPayload<Result>>(hwnd, message, lp);
+    if (! payload || ! payload->dispatch)
+    {
+        return FALSE;
+    }
+    auto expected = Dispatch::State::Pending;
+    if (! payload->dispatch->state.compare_exchange_strong(expected, Dispatch::State::Taken, std::memory_order_acq_rel, std::memory_order_acquire))
+    {
+        return FALSE;
+    }
+    payload->dispatch->succeeded = answer(*payload, payload->dispatch->result);
+    return payload->dispatch->succeeded ? TRUE : FALSE;
+}
 
 std::atomic<HANDLE> g_menuDebugStateHandlerEnteredEvent{nullptr};
 std::atomic<HANDLE> g_menuDebugStateHandlerReleaseEvent{nullptr};
+std::atomic<size_t> g_menuDescriptionPreparationFailureRowPlusOne{0u};
 
 bool TryGetMenuPopupItemText(const MenuPopup& popup, size_t itemIndex, std::wstring& outText)
 {
@@ -1992,7 +2137,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     if (msg == WM_NCCREATE)
     {
-        InitPostedPayloadWindow(hwnd);
+        if (! InitPostedPayloadWindow(hwnd))
+        {
+            Debug::Error(L"DxUi::Menu: bounded posted-payload window registry is exhausted ({})", GetLastError());
+            return FALSE;
+        }
     }
     if (msg == WM_MOUSEACTIVATE)
     {
@@ -2005,7 +2154,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         MenuController* const controller = popup->controller;
         if (WndMsg::MenuPopupAccessibleInvoke().Matches(msg))
         {
-            auto request       = TakeMessagePayload<MenuAccessibilityRequest>(lp);
+            auto request       = TakeMessagePayload<MenuAccessibilityRequest>(hwnd, msg, lp);
             const size_t index = request ? request->index : SIZE_MAX;
             if (request && request->target == hwnd && controller && controller->running && index < popup->itemCount && popup->IsNavigableItem(index))
             {
@@ -2023,9 +2172,18 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         if (WndMsg::MenuPopupAccessibleFocus().Matches(msg))
         {
-            auto request = TakeMessagePayload<MenuAccessibilityRequest>(lp);
+            auto request = TakeMessagePayload<MenuAccessibilityRequest>(hwnd, msg, lp);
             if (request && request->target == hwnd)
+            {
                 InvalidatePopup(*popup);
+                Control* const root = popup->host.GetRoot();
+                if (root && request->index < root->GetLogicalChildCount())
+                {
+                    Control* const focused = root->GetLogicalChild(request->index);
+                    if (popup->keyboardIndex == request->index && popup->host.GetFocusControl() == focused)
+                        RaiseWindowHostFocusChanged(hwnd, focused);
+                }
+            }
             return 0;
         }
         if (WndMsg::MenuPopupForwardCursor().Matches(msg))
@@ -2048,35 +2206,22 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 #if DXUI_ENABLE_DIAGNOSTICS
+        // Cross-thread test probes, answered here on the popup's thread into a dispatch their caller shares (see
+        // CallMenuPopupDebugProbe). The same-thread Debug* functions below take their direct path on this thread.
         if (WndMsg::MenuPopupDebugCaptureBitmap().Matches(msg))
         {
-            auto* const outCapture = reinterpret_cast<WindowHostBitmapCapture*>(lp);
-            if (! outCapture)
-            {
-                return FALSE;
-            }
-
-            *outCapture = {};
-            return popup->host.DebugCaptureBitmap(*outCapture) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<WindowHostBitmapCapture>(
+                hwnd, msg, lp, [&](MenuDebugPayload<WindowHostBitmapCapture>&, WindowHostBitmapCapture& out) { return popup->host.DebugCaptureBitmap(out); });
         }
         if (WndMsg::MenuPopupDebugGetItemText().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemTextRequest*>(lp);
-            if (! request || ! request->outText)
-            {
-                return FALSE;
-            }
-
-            return TryGetMenuPopupItemText(*popup, request->itemIndex, *request->outText) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<std::wstring>(hwnd, msg, lp, [&](MenuDebugPayload<std::wstring>& request, std::wstring& out) {
+                return TryGetMenuPopupItemText(*popup, request.itemIndex, out);
+            });
         }
         if (WndMsg::MenuPopupDebugGetState().Matches(msg))
         {
-            auto request = TakeMessagePayload<MenuDebugGetStatePayload>(lp);
-            if (! request || ! request->dispatch)
-            {
-                return FALSE;
-            }
-
+            // A test can wedge this handler, standing for a popup thread that stops answering.
             const HANDLE enteredEvent = g_menuDebugStateHandlerEnteredEvent.load(std::memory_order_acquire);
             const HANDLE releaseEvent = g_menuDebugStateHandlerReleaseEvent.load(std::memory_order_acquire);
             if (enteredEvent)
@@ -2085,52 +2230,52 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             if (releaseEvent)
             {
-                static_cast<void>(WaitForSingleObject(releaseEvent, kMenuDebugStateDispatchTimeoutMs + 2000u));
+                static_cast<void>(WaitForSingleObject(releaseEvent, kMenuDebugProbeTimeoutMs + 2000u));
             }
-
-            MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
-            if (! request->dispatch->state.compare_exchange_strong(
-                    expected, MenuDebugGetStateDispatch::State::Taken, std::memory_order_acq_rel, std::memory_order_acquire))
-            {
-                return FALSE;
-            }
-            request->dispatch->succeeded = DebugGetContextMenuPopupState(hwnd, request->dispatch->result);
-            return request->dispatch->succeeded ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupDebugState>(
+                hwnd, msg, lp, [&](MenuDebugPayload<ContextMenuPopupDebugState>&, ContextMenuPopupDebugState& out) {
+                return DebugGetContextMenuPopupState(hwnd, out);
+            });
         }
         if (WndMsg::MenuPopupDebugGetItemRect().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemRectRequest*>(lp);
-            if (! request || ! request->outRectDip)
-            {
-                return FALSE;
-            }
-
-            return DebugGetContextMenuPopupItemRect(hwnd, request->itemIndex, *request->outRectDip) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<D2D1_RECT_F>(hwnd, msg, lp, [&](MenuDebugPayload<D2D1_RECT_F>& request, D2D1_RECT_F& out) {
+                return DebugGetContextMenuPopupItemRect(hwnd, request.itemIndex, out);
+            });
         }
         if (WndMsg::MenuPopupDebugGetItemPaint().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemPaintRequest*>(lp);
-            if (! request || ! request->outState)
-            {
-                return FALSE;
-            }
-
-            return DebugGetContextMenuPopupItemPaint(hwnd, request->itemIndex, *request->outState) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupItemPaintDebugState>(
+                hwnd, msg, lp, [&](MenuDebugPayload<ContextMenuPopupItemPaintDebugState>& request, ContextMenuPopupItemPaintDebugState& out) {
+                return DebugGetContextMenuPopupItemPaint(hwnd, request.itemIndex, out);
+            });
+        }
+        if (WndMsg::MenuPopupDebugGetItemLayout().Matches(msg))
+        {
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupItemLayoutDebugState>(
+                hwnd, msg, lp, [&](MenuDebugPayload<ContextMenuPopupItemLayoutDebugState>& request, ContextMenuPopupItemLayoutDebugState& out) {
+                return DebugGetContextMenuPopupItemLayout(hwnd, request.itemIndex, out);
+            });
         }
         if (WndMsg::MenuPopupDebugSetBackdrop().Matches(msg))
         {
-            const auto* const capture = reinterpret_cast<const WindowHostBitmapCapture*>(lp);
-            if (! capture || capture->widthPx == 0u || capture->heightPx == 0u || capture->bgraPixels.empty())
+            return AnswerMenuPopupDebugProbe<bool>(hwnd,
+                                                   msg,
+                                                   lp,
+                                                   [&](MenuDebugPayload<bool>& request, bool&)
             {
-                return FALSE;
-            }
-
-            popup->backdropSnapshot.capture      = *capture;
-            popup->backdropSnapshot.cachedBitmap = nullptr;
-            popup->backdropSnapshot.cachedDevice = nullptr;
-            popup->usesAppBackdropBlur           = true;
-            popup->host.Invalidate();
-            return TRUE;
+                const WindowHostBitmapCapture& capture = request.backdrop;
+                if (capture.widthPx == 0u || capture.heightPx == 0u || capture.bgraPixels.empty())
+                {
+                    return false;
+                }
+                popup->backdropSnapshot.capture      = std::move(request.backdrop);
+                popup->backdropSnapshot.cachedBitmap = nullptr;
+                popup->backdropSnapshot.cachedDevice = nullptr;
+                popup->usesAppBackdropBlur           = true;
+                popup->host.Invalidate();
+                return true;
+            });
         }
 #endif
         if (msg == WM_NCDESTROY)
@@ -2174,16 +2319,24 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return HTCLIENT;
         }
 
-        if (controller && controller->asyncSession && controller->asyncInteractionActive && ! controller->asyncFinalizing &&
+        if (controller && controller->running && (! controller->asyncSession || controller->asyncInteractionActive) && ! controller->asyncFinalizing &&
             ! controller->destroyingPopupWindow)
         {
             const bool dismissForActivation = (msg == WM_ACTIVATEAPP && wp == FALSE) ||
                                               (msg == WM_ACTIVATE && LOWORD(static_cast<DWORD_PTR>(wp)) == WA_INACTIVE) ||
                                               (msg == WM_NCACTIVATE && wp == FALSE);
             const bool dismissForCancel     = msg == WM_CANCELMODE;
+            if (dismissForActivation || dismissForCancel)
+            {
+                controller->Dismiss();
+                if (controller->asyncSession && controller->asyncInteractionActive)
+                    FinalizeAsyncMenuController(*controller);
+                return 0;
+            }
+
             const bool dismissForCaptureLoss =
                 msg == WM_CAPTURECHANGED && (! controller->GetRootPopup() || reinterpret_cast<HWND>(lp) != controller->GetRootPopup()->hwnd);
-            if (dismissForActivation || dismissForCancel || dismissForCaptureLoss)
+            if (controller->asyncSession && controller->asyncInteractionActive && dismissForCaptureLoss)
             {
                 controller->Dismiss();
                 FinalizeAsyncMenuController(*controller);
@@ -2200,7 +2353,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 
-        if (msg == WM_SETFOCUS && ! popup->descriptionLayouts.empty())
+        if (msg == WM_SETFOCUS)
         {
             // Native activation restores only a row that keyboard or UIA navigation chose. The host's
             // first-focusable fallback would otherwise make row 0 the keyboard target of a pointer-opened
@@ -2264,9 +2417,25 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         const auto& item = items[i];
         if (HasMenuDescription(item))
         {
-            // Detailed entries use the bounded menu width; their complete fields are
-            // measured below after monitor/scrollbar constraints are known.
-            maxTextWidth = kMenuMaxWidthDip;
+            // Natural width includes the description; the final wrapped layout still obeys the monitor bound.
+            if (auto* factory = host.GetWriteFactory())
+            {
+                if (auto* format = host.GetTextFormat(FontRole::Small))
+                {
+                    wil::com_ptr<IDWriteTextLayout> layout;
+                    if (SUCCEEDED(factory->CreateTextLayout(item.secondaryText.data(),
+                                                            static_cast<UINT32>(item.secondaryText.size()),
+                                                            format,
+                                                            kTextMeasureWidthDip,
+                                                            kTextMeasureWidthDip,
+                                                            &layout)))
+                    {
+                        DWRITE_TEXT_METRICS metrics{};
+                        if (SUCCEEDED(layout->GetMetrics(&metrics)))
+                            maxTextWidth = (std::max)(maxTextWidth, metrics.widthIncludingTrailingWhitespace);
+                    }
+                }
+            }
         }
         switch (item.kind)
         {
@@ -2401,6 +2570,188 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     return D2D1::SizeF(width, totalHeight);
 }
 
+// How the small text format's font differs from the body format's: what a row layout built from the body format must override
+// on the description range for DirectWrite to shape the description as a layout made from the small format would.
+struct MenuDescriptionFont
+{
+    std::wstring family;
+    std::wstring locale;
+    wil::com_ptr<IDWriteFontCollection> collection;
+    float size                  = 0.0f;
+    float tabStop               = 0.0f;
+    DWRITE_FONT_WEIGHT weight   = DWRITE_FONT_WEIGHT_NORMAL;
+    DWRITE_FONT_STYLE style     = DWRITE_FONT_STYLE_NORMAL;
+    DWRITE_FONT_STRETCH stretch = DWRITE_FONT_STRETCH_NORMAL;
+    bool overridesFamily        = false;
+    bool overridesCollection    = false;
+    bool overridesLocale        = false;
+    bool overridesSize          = false;
+    bool overridesWeight        = false;
+    bool overridesStyle         = false;
+    bool overridesStretch       = false;
+    bool overridesTabStop       = false;
+};
+
+[[nodiscard]] bool ReadMenuFormatNames(IDWriteTextFormat& format, std::wstring& family, std::wstring& locale)
+{
+    family.assign(static_cast<size_t>(format.GetFontFamilyNameLength()) + 1u, L'\0');
+    locale.assign(static_cast<size_t>(format.GetLocaleNameLength()) + 1u, L'\0');
+    if (FAILED(format.GetFontFamilyName(family.data(), static_cast<UINT32>(family.size()))) ||
+        FAILED(format.GetLocaleName(locale.data(), static_cast<UINT32>(locale.size()))))
+        return false;
+    family.resize(std::wcslen(family.c_str()));
+    locale.resize(std::wcslen(locale.c_str()));
+    return true;
+}
+
+// Every property a DirectWrite layout holds per range is read back from the formats rather than assumed, so a host that
+// configures its small format differently still gets the small format's description. Properties a layout holds for all its text
+// (alignment, wrapping, directions, line spacing) come from the body format: the host creates both formats alike, and a test
+// holds them to it.
+[[nodiscard]] bool ReadMenuDescriptionFont(IDWriteTextFormat& bodyFormat, IDWriteTextFormat& smallFormat, MenuDescriptionFont& font)
+{
+    std::wstring bodyFamily;
+    std::wstring bodyLocale;
+    wil::com_ptr<IDWriteFontCollection> bodyCollection;
+    if (! ReadMenuFormatNames(bodyFormat, bodyFamily, bodyLocale) || ! ReadMenuFormatNames(smallFormat, font.family, font.locale) ||
+        FAILED(bodyFormat.GetFontCollection(bodyCollection.put())) || FAILED(smallFormat.GetFontCollection(font.collection.put())))
+        return false;
+    font.size                = smallFormat.GetFontSize();
+    font.tabStop             = smallFormat.GetIncrementalTabStop();
+    font.weight              = smallFormat.GetFontWeight();
+    font.style               = smallFormat.GetFontStyle();
+    font.stretch             = smallFormat.GetFontStretch();
+    font.overridesFamily     = font.family != bodyFamily;
+    font.overridesLocale     = font.locale != bodyLocale;
+    font.overridesCollection = font.collection.get() != bodyCollection.get();
+    font.overridesSize       = font.size != bodyFormat.GetFontSize();
+    font.overridesWeight     = font.weight != bodyFormat.GetFontWeight();
+    font.overridesStyle      = font.style != bodyFormat.GetFontStyle();
+    font.overridesStretch    = font.stretch != bodyFormat.GetFontStretch();
+    font.overridesTabStop    = font.tabStop != bodyFormat.GetIncrementalTabStop();
+    return true;
+}
+
+// The spacer paragraph's font size before any measurement. Font metrics scale with the size, so one measurement at any size
+// tells what size gives the wanted height.
+constexpr float kDescriptionSpacerReferenceSizeDip = kDescriptionGapDip;
+// How far the spacer's height may be from the wanted one, in DIPs. DirectWrite reports heights as floats: the calibration
+// reaches them to a few millionths, and this is far below what shifts a glyph onto another device pixel.
+constexpr float kDescriptionSpacerToleranceDip = 1.0f / 8192.0f;
+
+// What preparing a popup's described rows carries from one row to the next.
+struct MenuDescriptionPreparation
+{
+    MenuDescriptionFont font;
+    // The spacer size the last row settled on. A row whose label is as tall starts from it and needs no correction, so the
+    // first measurement confirms it and the row's layout is computed once.
+    float spacerSizeDip = kDescriptionSpacerReferenceSizeDip;
+    std::vector<DWRITE_LINE_METRICS> lines; // Scratch for the measurements.
+};
+
+// Creates the row's layout: the label, the spacer paragraph and the description, wrapped at textWidthDip. The caller measures it.
+[[nodiscard]] bool CreateMenuDescriptionLayout(IDWriteFactory& factory,
+                                               IDWriteTextFormat& bodyFormat,
+                                               const MenuDescriptionFont& font,
+                                               float spacerSizeDip,
+                                               FlowDirection flowDirection,
+                                               std::wstring_view primary,
+                                               std::wstring_view secondary,
+                                               float textWidthDip,
+                                               MenuDescriptionLayout& row)
+{
+    // One newline ends the label's paragraph and one is the spacer paragraph. A label never ends in a carriage return that the
+    // first newline would join into a line break of its own: DecodeMenuItemText trims its trailing white space.
+    constexpr size_t kSeparatorLength = 2u;
+    if (primary.size() > (std::numeric_limits<UINT32>::max)() || secondary.size() > (std::numeric_limits<UINT32>::max)() - primary.size() - kSeparatorLength)
+        return false;
+    std::wstring text;
+    text.reserve(primary.size() + kSeparatorLength + secondary.size());
+    text.append(primary).append(L"\n\n").append(secondary);
+
+    wil::com_ptr<IDWriteTextLayout> layout;
+    const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
+    if (FAILED(factory.CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), &bodyFormat, textWidthDip, 1000000.0f, layout.put())) ||
+        FAILED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) || FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) ||
+        FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) || FAILED(layout->SetReadingDirection(ResolveReadingDirection(flowDirection))) ||
+        FAILED(layout->SetTrimming(&trimming, nullptr)))
+        return false;
+
+    const UINT32 spacerPosition = static_cast<UINT32>(primary.size()) + 1u;
+    const DWRITE_TEXT_RANGE description{spacerPosition + 1u, static_cast<UINT32>(secondary.size())};
+    if ((font.overridesFamily && FAILED(layout->SetFontFamilyName(font.family.c_str(), description))) ||
+        (font.overridesCollection && FAILED(layout->SetFontCollection(font.collection.get(), description))) ||
+        (font.overridesLocale && FAILED(layout->SetLocaleName(font.locale.c_str(), description))) ||
+        (font.overridesSize && FAILED(layout->SetFontSize(font.size, description))) ||
+        (font.overridesWeight && FAILED(layout->SetFontWeight(font.weight, description))) ||
+        (font.overridesStyle && FAILED(layout->SetFontStyle(font.style, description))) ||
+        (font.overridesStretch && FAILED(layout->SetFontStretch(font.stretch, description))) ||
+        // A tab stop is a property of the whole layout; only the description can hold a tab, since the label ends at the first one.
+        (font.overridesTabStop && FAILED(layout->SetIncrementalTabStop(font.tabStop))) ||
+        FAILED(layout->SetFontSize(spacerSizeDip, DWRITE_TEXT_RANGE{spacerPosition, 1u})))
+        return false;
+
+    row.layout           = std::move(layout);
+    row.description      = description;
+    row.spacerPosition   = spacerPosition;
+    row.spacerSizeDip    = spacerSizeDip;
+    row.descriptionBrush = nullptr;
+    return true;
+}
+
+// Measures the row's layout at its current width and sizes the spacer paragraph so that the description begins where a layout
+// of its own would be drawn: kDescriptionGapDip below the label's height rounded up to whole DIPs. The heights are the sums of
+// the layout's line heights, as a separate layout reports its own, so the rounded heights agree with two separate layouts'.
+// False when DirectWrite cannot report the lines or the spacer cannot reach its height. `lines` is scratch.
+[[nodiscard]] bool MeasureMenuDescriptionRow(MenuDescriptionLayout& row, std::vector<DWRITE_LINE_METRICS>& lines)
+{
+    IDWriteTextLayout* const layout = row.layout.get();
+    // The first pass may find the spacer at another height: its size was chosen for another label height or none. The
+    // correction is exact to the float, so the second pass confirms it; the rest is margin.
+    for (int pass = 0; pass < 4; ++pass)
+    {
+        UINT32 lineCount = 0u;
+        static_cast<void>(layout->GetLineMetrics(nullptr, 0u, &lineCount)); // Reports the count with E_NOT_SUFFICIENT_BUFFER.
+        lines.assign(lineCount, DWRITE_LINE_METRICS{});
+        if (lineCount == 0u || FAILED(layout->GetLineMetrics(lines.data(), lineCount, &lineCount)))
+            return false;
+        MenuFieldMetrics primary;
+        MenuFieldMetrics secondary;
+        float spacerHeight = 0.0f;
+        UINT32 position    = 0u;
+        for (const DWRITE_LINE_METRICS& line : lines)
+        {
+            if (position < row.spacerPosition)
+            {
+                primary.height += line.height;
+                ++primary.lineCount;
+            }
+            else if (position == row.spacerPosition)
+                spacerHeight = line.height;
+            else
+            {
+                secondary.height += line.height;
+                ++secondary.lineCount;
+            }
+            position += line.length;
+        }
+        if (! (spacerHeight > 0.0f))
+            return false;
+        const float wantedHeight = std::ceil(primary.height) - primary.height + kDescriptionGapDip;
+        if (std::abs(spacerHeight - wantedHeight) <= kDescriptionSpacerToleranceDip)
+        {
+            row.primaryMetrics   = primary;
+            row.secondaryMetrics = secondary;
+            row.heightDip        = 2.0f * kDescriptionPaddingDip + std::ceil(primary.height) + kDescriptionGapDip + std::ceil(secondary.height);
+            return true;
+        }
+        row.spacerSizeDip *= wantedHeight / spacerHeight;
+        if (! (row.spacerSizeDip > 0.0f) || FAILED(layout->SetFontSize(row.spacerSizeDip, DWRITE_TEXT_RANGE{row.spacerPosition, 1u})))
+            return false;
+    }
+    return false;
+}
+
 [[nodiscard]] bool PrepareMenuDescriptionLayouts(MenuPopup& popup, float contentWidthDip) noexcept
 {
     const bool hasDescriptions = std::any_of(popup.items, popup.items + popup.itemCount, HasMenuDescription);
@@ -2411,61 +2762,62 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     }
     try
     {
-        std::vector<MenuDescriptionLayout> prepared(popup.itemCount);
-        struct PreparedText
-        {
-            wil::com_ptr<IDWriteTextLayout> layout;
-            DWRITE_TEXT_METRICS metrics{};
-        };
-        // Preparation-local interning: identical text/font/width shares native
-        // shaping storage only within this popup. No global cache or row identity.
-        std::map<std::tuple<FontRole, float, std::wstring>, PreparedText, std::less<>> textLayouts;
-        auto* factory = popup.host.GetWriteFactory();
-        if (! factory)
+        auto* factory     = popup.host.GetWriteFactory();
+        auto* bodyFormat  = popup.host.GetTextFormat(FontRole::Body);
+        auto* smallFormat = popup.host.GetTextFormat(FontRole::Small);
+        MenuDescriptionPreparation preparation;
+        if (! factory || ! bodyFormat || ! smallFormat || ! ReadMenuDescriptionFont(*bodyFormat, *smallFormat, preparation.font))
             return false;
+        std::vector<MenuDescriptionLayout> prepared(popup.itemCount);
+        size_t layoutCount = 0u;
         for (size_t i = 0; i < popup.itemCount; ++i)
         {
             const auto& item = popup.items[i];
             if (! HasMenuDescription(item))
                 continue;
-            auto& row                 = prepared[i];
-            const auto decoded        = DecodeMenuItemText(item);
-            const auto label          = ParseMenuLabel(decoded.labelText);
-            const float reservedAccel = decoded.acceleratorText.empty() ? 0.0f : popup.acceleratorColumnWidthDip + kTextToAccelGapDip;
-            const float textWidth     = (std::max)(1.0f,
-                                                   contentWidthDip - kTextLeftPaddingDip - kAccelRightPaddingDip -
-                                                       (popup.hasSubmenuItems ? kChevronAreaWidthDip : 0.0f) - reservedAccel);
-            const auto prepare        = [&](std::wstring_view text, FontRole role, wil::com_ptr<IDWriteTextLayout>& layout, DWRITE_TEXT_METRICS& metrics)
+            auto& row                           = prepared[i];
+            const auto decoded                  = DecodeMenuItemText(item);
+            const auto label                    = ParseMenuLabel(decoded.labelText);
+            const float reservedAccel           = decoded.acceleratorText.empty() ? 0.0f : popup.acceleratorColumnWidthDip + kTextToAccelGapDip;
+            const float textWidth               = (std::max)(1.0f,
+                                                             contentWidthDip - kTextLeftPaddingDip - kAccelRightPaddingDip -
+                                                                 (popup.hasSubmenuItems ? kChevronAreaWidthDip : 0.0f) - reservedAccel);
+            size_t requestedFailureRowPlusOne   = i + 1u;
+            const bool injectPreparationFailure = g_menuDescriptionPreparationFailureRowPlusOne.compare_exchange_strong(
+                requestedFailureRowPlusOne, 0u, std::memory_order_acq_rel, std::memory_order_acquire);
+            if (injectPreparationFailure ||
+                ! CreateMenuDescriptionLayout(*factory,
+                                              *bodyFormat,
+                                              preparation.font,
+                                              preparation.spacerSizeDip,
+                                              popup.flowDirection,
+                                              label.displayText,
+                                              item.secondaryText,
+                                              textWidth,
+                                              row) ||
+                ! MeasureMenuDescriptionRow(row, preparation.lines))
             {
-                const auto cached = textLayouts.find(std::tuple{role, textWidth, text});
-                if (cached != textLayouts.end())
+                // A failed optional description must not hide an otherwise valid command. Prove that its primary
+                // label can still be prepared before falling back to the ordinary row; UIA retains the description.
+                wil::com_ptr<IDWriteTextLayout> primary;
+                if (label.displayText.empty() || FAILED(factory->CreateTextLayout(label.displayText.data(),
+                                                                                  static_cast<UINT32>(label.displayText.size()),
+                                                                                  bodyFormat,
+                                                                                  textWidth,
+                                                                                  ResolveMenuItemHeightDip(popup.host.GetTheme()),
+                                                                                  &primary)))
                 {
-                    layout  = cached->second.layout;
-                    metrics = cached->second.metrics;
-                    return true;
+                    Debug::Warning(L"DxUi::Menu: failed to prepare command identity for row {}", i);
+                    return false;
                 }
-                auto* format = popup.host.GetTextFormat(role);
-                if (! format || text.size() > (std::numeric_limits<UINT32>::max)())
-                    return false;
-                if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, textWidth, 1000000.0f, &layout)) ||
-                    FAILED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) ||
-                    FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) || FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)))
-                    return false;
-                const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
-                if (FAILED(layout->SetTrimming(&trimming, nullptr)) || FAILED(layout->GetMetrics(&metrics)))
-                    return false;
-                textLayouts.try_emplace(std::tuple{role, textWidth, std::wstring(text)}, PreparedText{layout, metrics});
-                return true;
-            };
-            if (! prepare(label.displayText, FontRole::Body, row.primary, row.primaryMetrics) ||
-                ! prepare(item.secondaryText, FontRole::Small, row.secondary, row.secondaryMetrics))
-                return false;
-            row.textWidthDip = textWidth;
-            row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
+                row = {};
+                Debug::Warning(L"DxUi::Menu: description preparation failed for row {}; using its primary label", i);
+                continue;
+            }
+            preparation.spacerSizeDip = row.spacerSizeDip;
+            row.textWidthDip          = textWidth;
+            ++layoutCount;
         }
-        size_t layoutCount = 0u;
-        for (const MenuDescriptionLayout& row : prepared)
-            layoutCount += (row.primary ? 1u : 0u) + (row.secondary ? 1u : 0u);
         popup.descriptionLayouts = std::move(prepared);
         popup.liveRowLayouts     = Detail::LiveResourceCount(Detail::LiveResource::MenuRowLayout, layoutCount);
         popup.RebuildItemOffsets();
@@ -2500,17 +2852,22 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         // scrollbar changes only their width: do not allocate a second full set
         // while the first set is still alive. A failed reflow rejects opening
         // or dismisses the existing popup through the caller's failure path.
-        for (auto& row : popup.descriptionLayouts)
+        try
         {
-            if (! row.primary)
-                continue;
-            // Shared layouts may occur in several rows: use the original width,
-            // never repeatedly subtract from the same native object's width.
-            const float textWidth = (std::max)(1.0f, row.textWidthDip - kScrollbarThicknessDip);
-            if (FAILED(row.primary->SetMaxWidth(textWidth)) || FAILED(row.secondary->SetMaxWidth(textWidth)) ||
-                FAILED(row.primary->GetMetrics(&row.primaryMetrics)) || FAILED(row.secondary->GetMetrics(&row.secondaryMetrics)))
-                return false;
-            row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
+            std::vector<DWRITE_LINE_METRICS> lines;
+            for (auto& row : popup.descriptionLayouts)
+            {
+                if (! row.layout)
+                    continue;
+                // The width is absolute, from the width the row was prepared at: never subtracted from the layout's own.
+                const float textWidth = (std::max)(1.0f, row.textWidthDip - kScrollbarThicknessDip);
+                if (FAILED(row.layout->SetMaxWidth(textWidth)) || ! MeasureMenuDescriptionRow(row, lines))
+                    return false;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return false;
         }
         popup.RebuildItemOffsets();
         popup.contentHeightDip = popup.itemOffsetsDip.back() + kMenuPaddingBottomDip;
@@ -2571,36 +2928,42 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     const float surfaceLeftDip              = popup.GetSurfaceRect().left;
     const std::wstring_view acceleratorText = DecodeMenuItemText(item).acceleratorText;
 
-    layout.itemRectDip = GetVisibleItemRect(popup, targetIndex);
-    rowHeightDip       = layout.itemRectDip.bottom - layout.itemRectDip.top;
-    layout.iconRectDip = D2D1::RectF(surfaceLeftDip + kIconSlotLeftInsetDip,
-                                     layout.itemRectDip.top,
-                                     surfaceLeftDip + kIconSlotLeftInsetDip + kIconSlotWidthDip,
-                                     layout.itemRectDip.top + rowHeightDip);
+    layout.itemRectDip          = GetVisibleItemRect(popup, targetIndex);
+    rowHeightDip                = layout.itemRectDip.bottom - layout.itemRectDip.top;
+    const bool rightToLeft      = popup.flowDirection == FlowDirection::RightToLeft;
+    const float surfaceRightDip = surfaceLeftDip + contentWidthDip;
+    layout.iconRectDip          = rightToLeft ? D2D1::RectF(surfaceRightDip - kIconSlotLeftInsetDip - kIconSlotWidthDip,
+                                                            layout.itemRectDip.top,
+                                                            surfaceRightDip - kIconSlotLeftInsetDip,
+                                                            layout.itemRectDip.top + rowHeightDip)
+                                              : D2D1::RectF(surfaceLeftDip + kIconSlotLeftInsetDip,
+                                                            layout.itemRectDip.top,
+                                                            surfaceLeftDip + kIconSlotLeftInsetDip + kIconSlotWidthDip,
+                                                            layout.itemRectDip.top + rowHeightDip);
 
     const float reservedChevronWidthDip   = popup.hasSubmenuItems ? kChevronAreaWidthDip : 0.0f;
     const float acceleratorColumnWidthDip = acceleratorText.empty() ? 0.0f : popup.acceleratorColumnWidthDip;
     const float reservedAccelWidthDip     = acceleratorColumnWidthDip > 0.0f ? (acceleratorColumnWidthDip + kTextToAccelGapDip) : 0.0f;
-    const float textRightDip              = surfaceLeftDip + contentWidthDip - kAccelRightPaddingDip - reservedChevronWidthDip - reservedAccelWidthDip;
-    layout.textRectDip                    = ClampHorizontalRect(surfaceLeftDip + kTextLeftPaddingDip,
-                                                                textRightDip,
-                                                                layout.itemRectDip.top,
-                                                                layout.itemRectDip.top + rowHeightDip,
-                                                                surfaceLeftDip + kTextLeftPaddingDip);
+    const float textLeftDip =
+        rightToLeft ? surfaceLeftDip + kAccelRightPaddingDip + reservedChevronWidthDip + reservedAccelWidthDip : surfaceLeftDip + kTextLeftPaddingDip;
+    const float textRightDip =
+        rightToLeft ? surfaceRightDip - kTextLeftPaddingDip : surfaceRightDip - kAccelRightPaddingDip - reservedChevronWidthDip - reservedAccelWidthDip;
+    layout.textRectDip = ClampHorizontalRect(textLeftDip, textRightDip, layout.itemRectDip.top, layout.itemRectDip.top + rowHeightDip, textLeftDip);
 
     if (acceleratorColumnWidthDip > 0.0f)
     {
-        const float accelRightDip = surfaceLeftDip + contentWidthDip - kAccelRightPaddingDip - reservedChevronWidthDip;
-        const float accelLeftDip  = accelRightDip - acceleratorColumnWidthDip;
+        const float accelLeftDip  = rightToLeft ? surfaceLeftDip + kAccelRightPaddingDip + reservedChevronWidthDip
+                                                : surfaceRightDip - kAccelRightPaddingDip - reservedChevronWidthDip - acceleratorColumnWidthDip;
+        const float accelRightDip = accelLeftDip + acceleratorColumnWidthDip;
         layout.acceleratorRectDip =
-            ClampHorizontalRect(accelLeftDip, accelRightDip, layout.itemRectDip.top, layout.itemRectDip.top + rowHeightDip, layout.textRectDip.right);
+            ClampHorizontalRect(accelLeftDip, accelRightDip, layout.itemRectDip.top, layout.itemRectDip.top + rowHeightDip, layout.textRectDip.left);
     }
 
     if (! item.children.empty())
     {
-        layout.chevronRectDip = D2D1::RectF(surfaceLeftDip + contentWidthDip - kChevronRightPaddingDip - 16.0f,
+        layout.chevronRectDip = D2D1::RectF(rightToLeft ? surfaceLeftDip + kChevronRightPaddingDip : surfaceRightDip - kChevronRightPaddingDip - 16.0f,
                                             layout.itemRectDip.top,
-                                            surfaceLeftDip + contentWidthDip - kChevronRightPaddingDip,
+                                            rightToLeft ? surfaceLeftDip + kChevronRightPaddingDip + 16.0f : surfaceRightDip - kChevronRightPaddingDip,
                                             layout.itemRectDip.top + rowHeightDip);
     }
 
@@ -2609,17 +2972,17 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         const float sliderTextTopDip    = layout.itemRectDip.top + 6.0f;
         const float sliderTextBottomDip = sliderTextTopDip + 22.0f;
         layout.iconRectDip              = D2D1::RectF();
-        layout.textRectDip              = ClampHorizontalRect(
-            surfaceLeftDip + kAccelRightPaddingDip, textRightDip, sliderTextTopDip, sliderTextBottomDip, surfaceLeftDip + kAccelRightPaddingDip);
+        layout.textRectDip              = ClampHorizontalRect(textLeftDip, textRightDip, sliderTextTopDip, sliderTextBottomDip, textLeftDip);
         if (acceleratorColumnWidthDip > 0.0f)
         {
-            const float accelRightDip = surfaceLeftDip + contentWidthDip - kAccelRightPaddingDip - reservedChevronWidthDip;
-            const float accelLeftDip  = accelRightDip - acceleratorColumnWidthDip;
-            layout.acceleratorRectDip = ClampHorizontalRect(accelLeftDip, accelRightDip, sliderTextTopDip, sliderTextBottomDip, layout.textRectDip.right);
+            const float accelLeftDip  = rightToLeft ? surfaceLeftDip + kAccelRightPaddingDip + reservedChevronWidthDip
+                                                    : surfaceRightDip - kAccelRightPaddingDip - reservedChevronWidthDip - acceleratorColumnWidthDip;
+            const float accelRightDip = accelLeftDip + acceleratorColumnWidthDip;
+            layout.acceleratorRectDip = ClampHorizontalRect(accelLeftDip, accelRightDip, sliderTextTopDip, sliderTextBottomDip, layout.textRectDip.left);
         }
     }
 
-    if (! popup.descriptionLayouts.empty() && HasMenuDescription(item))
+    if (! popup.descriptionLayouts.empty() && popup.descriptionLayouts[targetIndex].layout && HasMenuDescription(item))
     {
         const auto& row             = popup.descriptionLayouts[targetIndex];
         layout.textRectDip.top      = layout.itemRectDip.top + kDescriptionPaddingDip;
@@ -2669,33 +3032,58 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 // Paint menu content (called from WM_PAINT via ControlHost)
 // ---------------------------------------------------------------------------
 
-// Draws a described row's two prepared fields, in the colors of the row's label and secondary text. False leaves a plain
-// row to the caller. Color glyphs (emoji) render as in plain rows; like the Grid, no clip to the fractional layout box.
+// The brush that draws a row's description in `color`: the popup's one brush, recolored here (Direct2D resolves a brush's color
+// when the draw is issued, so each row's draw keeps its own) and bound to the row's layout the first time it draws with it.
+// Null when the brush cannot be made or bound; the row then draws nothing, like a null brush from the host.
+[[nodiscard]] ID2D1SolidColorBrush* BindMenuDescriptionBrush(ID2D1DeviceContext& dc,
+                                                             MenuPopup& popup,
+                                                             MenuDescriptionLayout& row,
+                                                             const D2D1_COLOR_F& color) noexcept
+{
+    wil::com_ptr<ID2D1Device> device;
+    dc.GetDevice(device.put());
+    if (! device)
+        return nullptr;
+    if (! popup.descriptionBrush || popup.descriptionBrushDevice.get() != device.get())
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        if (FAILED(dc.CreateSolidColorBrush(color, brush.put())) || ! brush)
+            return nullptr;
+        popup.descriptionBrush       = std::move(brush);
+        popup.descriptionBrushDevice = std::move(device);
+    }
+    popup.descriptionBrush->SetColor(color);
+    if (row.descriptionBrush != popup.descriptionBrush.get())
+    {
+        if (FAILED(row.layout->SetDrawingEffect(popup.descriptionBrush.get(), row.description)))
+            return nullptr;
+        row.descriptionBrush = popup.descriptionBrush.get();
+    }
+    return popup.descriptionBrush.get();
+}
+
+// Draws a described row's layout: the label in primaryColor and the description in secondaryColor, at the row's text origin,
+// where two separate layouts drew them a measured gap apart. False leaves a plain row to the caller. Color glyphs (emoji)
+// render as in plain rows; like the Grid, no clip to the fractional layout box.
 [[nodiscard]] bool DrawMenuDescription(ControlHost& host,
                                        ID2D1DeviceContext& dc,
-                                       const MenuPopup& popup,
+                                       MenuPopup& popup,
                                        size_t index,
                                        const MenuItemLayoutRects& layout,
                                        const D2D1_COLOR_F& primaryColor,
                                        const D2D1_COLOR_F& secondaryColor) noexcept
 {
-    if (popup.descriptionLayouts.empty() || ! HasMenuDescription(popup.items[index]))
+    if (popup.descriptionLayouts.empty() || ! popup.descriptionLayouts[index].layout || ! HasMenuDescription(popup.items[index]))
     {
         return false;
     }
     // GetSolidBrush can return null; like every other draw here, skip rather than pass it.
-    const auto& row = popup.descriptionLayouts[index];
-    if (auto* primaryBrush = host.GetSolidBrush(primaryColor); primaryBrush && row.primary)
+    auto& row                   = popup.descriptionLayouts[index];
+    const auto descriptionColor = host.GetTheme().highContrast ? primaryColor : secondaryColor;
+    if (auto* primaryBrush = host.GetSolidBrush(primaryColor); primaryBrush && row.layout && BindMenuDescriptionBrush(dc, popup, row, descriptionColor))
     {
         dc.DrawTextLayout(
-            D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), primaryBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-    }
-    if (auto* secondaryBrush = host.GetSolidBrush(secondaryColor); secondaryBrush && row.secondary)
-    {
-        dc.DrawTextLayout(D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top),
-                          row.secondary.get(),
-                          secondaryBrush,
-                          D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.layout.get(), primaryBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     }
     return true;
 }
@@ -2797,10 +3185,15 @@ public:
                 // Header text (Caption font, subdued)
                 const MenuItemLayoutRects layout = GetMenuItemLayoutRects(*popup, i);
                 const ParsedMenuLabel label      = ParseMenuLabel(DecodeMenuItemText(item).labelText);
-                const D2D1_RECT_F textRect =
-                    D2D1::RectF(layout.textRectDip.left, layout.textRectDip.top, surfaceLeft + contentWidth - kAccelRightPaddingDip, layout.textRectDip.bottom);
-                DrawCenteredText(
-                    host, label.displayText, textRect, FontRole::Small, style.headerText, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                DrawCenteredText(host,
+                                 label.displayText,
+                                 layout.textRectDip,
+                                 FontRole::Small,
+                                 style.headerText,
+                                 DWRITE_TEXT_ALIGNMENT_LEADING,
+                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 false,
+                                 popup->flowDirection);
                 continue;
             }
 
@@ -2813,9 +3206,8 @@ public:
                 const DecodedMenuItemText decoded          = DecodeMenuItemText(item);
                 const ParsedMenuLabel label                = ParseMenuLabel(decoded.labelText);
                 const MenuResolvedItemPaintStyle itemPaint = ResolveMenuItemPaintStyle(theme, style, item, label.displayText, isHovered);
-                const D2D1_COLOR_F textColor = isDisabled ? D2D1::ColorF(itemPaint.text.r, itemPaint.text.g, itemPaint.text.b, 0.4f) : itemPaint.text;
-                const D2D1_COLOR_F accelColor =
-                    isDisabled ? D2D1::ColorF(itemPaint.accelText.r, itemPaint.accelText.g, itemPaint.accelText.b, 0.4f) : itemPaint.accelText;
+                const D2D1_COLOR_F textColor               = isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.text) : itemPaint.text;
+                const D2D1_COLOR_F accelColor              = isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.accelText) : itemPaint.accelText;
 
                 if (itemPaint.showHighlightFill)
                 {
@@ -2825,8 +3217,15 @@ public:
                     DrawRoundedRect(host, hoverRect, itemPaint.fill, transparent, kItemHoverRadiusDip);
                 }
 
-                DrawCenteredText(
-                    host, label.displayText, layout.textRectDip, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                DrawCenteredText(host,
+                                 label.displayText,
+                                 layout.textRectDip,
+                                 FontRole::Body,
+                                 textColor,
+                                 DWRITE_TEXT_ALIGNMENT_LEADING,
+                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 false,
+                                 popup->flowDirection);
 
                 if (! decoded.acceleratorText.empty())
                 {
@@ -2836,16 +3235,16 @@ public:
                                      FontRole::Body,
                                      accelColor,
                                      DWRITE_TEXT_ALIGNMENT_TRAILING,
-                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                     false,
+                                     popup->flowDirection);
                 }
 
-                const D2D1_RECT_F trackRect = GetSliderTrackRect(layout.itemRectDip);
-                const D2D1_COLOR_F trackColor =
-                    isDisabled ? D2D1::ColorF(style.separatorColor.r, style.separatorColor.g, style.separatorColor.b, 0.45f) : style.separatorColor;
-                const D2D1_COLOR_F activeColor =
-                    isDisabled ? D2D1::ColorF(itemPaint.checkColor.r, itemPaint.checkColor.g, itemPaint.checkColor.b, 0.45f) : itemPaint.checkColor;
-                auto* trackBrush  = host.GetSolidBrush(trackColor);
-                auto* activeBrush = host.GetSolidBrush(activeColor);
+                const D2D1_RECT_F trackRect    = GetSliderTrackRect(layout.itemRectDip);
+                const D2D1_COLOR_F trackColor  = isDisabled ? ResolveDisabledMenuColor(theme, style.separatorColor) : style.separatorColor;
+                const D2D1_COLOR_F activeColor = isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.checkColor) : itemPaint.checkColor;
+                auto* trackBrush               = host.GetSolidBrush(trackColor);
+                auto* activeBrush              = host.GetSolidBrush(activeColor);
                 if (trackBrush)
                 {
                     DrawRoundedRect(host, trackRect, trackColor, D2D1::ColorF(0, 0, 0, 0), kSliderTrackHeightDip * 0.5f);
@@ -2859,19 +3258,22 @@ public:
                     const float animatedPosition = popup->sliderAnimationItemIndex == std::optional<size_t>{i} && popup->sliderAnimationInitialized
                                                        ? popup->sliderAnimatedPosition
                                                        : static_cast<float>(sliderValue);
-                    const float activeRight =
-                        stopCount <= 1u ? trackRect.left
-                                        : trackRect.left + ((trackRect.right - trackRect.left) * animatedPosition / static_cast<float>(stopCount - 1u));
-                    if (activeRight > trackRect.left)
+                    const float activeT          = stopCount <= 1u ? 0.0f : animatedPosition / static_cast<float>(stopCount - 1u);
+                    const float activeX          = popup->flowDirection == FlowDirection::RightToLeft ? std::lerp(trackRect.right, trackRect.left, activeT)
+                                                                                                      : std::lerp(trackRect.left, trackRect.right, activeT);
+                    const float activeLeft       = popup->flowDirection == FlowDirection::RightToLeft ? activeX : trackRect.left;
+                    const float activeRight      = popup->flowDirection == FlowDirection::RightToLeft ? trackRect.right : activeX;
+                    if (activeRight > activeLeft)
                     {
-                        const D2D1_RECT_F activeRect = D2D1::RectF(trackRect.left, trackRect.top, activeRight, trackRect.bottom);
+                        const D2D1_RECT_F activeRect = D2D1::RectF(activeLeft, trackRect.top, activeRight, trackRect.bottom);
                         DrawRoundedRect(host, activeRect, activeColor, D2D1::ColorF(0, 0, 0, 0), kSliderTrackHeightDip * 0.5f);
                     }
 
                     for (size_t stopIndex = 0u; stopIndex < stopCount; ++stopIndex)
                     {
                         const float t      = stopCount <= 1u ? 0.0f : static_cast<float>(stopIndex) / static_cast<float>(stopCount - 1u);
-                        const float x      = trackRect.left + ((trackRect.right - trackRect.left) * t);
+                        const float x      = popup->flowDirection == FlowDirection::RightToLeft ? trackRect.right - ((trackRect.right - trackRect.left) * t)
+                                                                                                : trackRect.left + ((trackRect.right - trackRect.left) * t);
                         const float extent = ResolveSliderStopVisualExtentDip(stopIndex, stopCount);
                         const D2D1_ROUNDED_RECT stopRect{
                             D2D1::RectF(x - extent * 0.5f, trackCenterY - extent * 0.5f, x + extent * 0.5f, trackCenterY + extent * 0.5f),
@@ -2889,7 +3291,8 @@ public:
                     }
 
                     const float animatedT   = stopCount <= 1u ? 0.0f : std::clamp(animatedPosition / static_cast<float>(stopCount - 1u), 0.0f, 1.0f);
-                    const float thumbX      = std::lerp(trackRect.left, trackRect.right, animatedT);
+                    const float thumbX      = popup->flowDirection == FlowDirection::RightToLeft ? std::lerp(trackRect.right, trackRect.left, animatedT)
+                                                                                                 : std::lerp(trackRect.left, trackRect.right, animatedT);
                     const float thumbExtent = std::lerp(kSliderStopMinExtentDip, kSliderStopMaxExtentDip, animatedT);
                     const D2D1_ROUNDED_RECT thumbRect{
                         D2D1::RectF(
@@ -2922,7 +3325,9 @@ public:
                                      FontRole::Body,
                                      infoLabelColor,
                                      DWRITE_TEXT_ALIGNMENT_LEADING,
-                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                     false,
+                                     popup->flowDirection);
                 }
 
                 if (! decoded.acceleratorText.empty())
@@ -2933,7 +3338,9 @@ public:
                                      FontRole::Body,
                                      style.text,
                                      DWRITE_TEXT_ALIGNMENT_TRAILING,
-                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                     false,
+                                     popup->flowDirection);
                 }
 
                 continue;
@@ -2947,9 +3354,8 @@ public:
             const DecodedMenuItemText decoded          = DecodeMenuItemText(item);
             const ParsedMenuLabel label                = ParseMenuLabel(decoded.labelText);
             const MenuResolvedItemPaintStyle itemPaint = ResolveMenuItemPaintStyle(theme, style, item, label.displayText, isHovered);
-            const D2D1_COLOR_F textColor               = isDisabled ? D2D1::ColorF(itemPaint.text.r, itemPaint.text.g, itemPaint.text.b, 0.4f) : itemPaint.text;
-            const D2D1_COLOR_F accelColor =
-                isDisabled ? D2D1::ColorF(itemPaint.accelText.r, itemPaint.accelText.g, itemPaint.accelText.b, 0.4f) : itemPaint.accelText;
+            const D2D1_COLOR_F textColor               = isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.text) : itemPaint.text;
+            const D2D1_COLOR_F accelColor              = isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.accelText) : itemPaint.accelText;
 
             // Hover backplate
             if (itemPaint.showHighlightFill)
@@ -2969,8 +3375,7 @@ public:
                                      kCheckMarkGlyph,
                                      layout.iconRectDip,
                                      FontRole::Icon,
-                                     isDisabled ? D2D1::ColorF(itemPaint.checkColor.r, itemPaint.checkColor.g, itemPaint.checkColor.b, 0.4f)
-                                                : itemPaint.checkColor,
+                                     isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.checkColor) : itemPaint.checkColor,
                                      DWRITE_TEXT_ALIGNMENT_CENTER,
                                      DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
                 }
@@ -2980,8 +3385,7 @@ public:
                                      kRadioBulletGlyph,
                                      layout.iconRectDip,
                                      FontRole::Icon,
-                                     isDisabled ? D2D1::ColorF(itemPaint.checkColor.r, itemPaint.checkColor.g, itemPaint.checkColor.b, 0.4f)
-                                                : itemPaint.checkColor,
+                                     isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.checkColor) : itemPaint.checkColor,
                                      DWRITE_TEXT_ALIGNMENT_CENTER,
                                      DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
                 }
@@ -2992,20 +3396,27 @@ public:
                                  item.iconGlyph,
                                  layout.iconRectDip,
                                  FontRole::Icon,
-                                 isDisabled ? D2D1::ColorF(itemPaint.iconColor.r, itemPaint.iconColor.g, itemPaint.iconColor.b, 0.4f) : itemPaint.iconColor,
+                                 isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.iconColor) : itemPaint.iconColor,
                                  DWRITE_TEXT_ALIGNMENT_CENTER,
                                  DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             }
             else if (item.iconBitmap)
             {
-                DrawMenuBitmapIcon(host, *item.iconBitmap, layout.iconRectDip, isDisabled ? 0.4f : 1.0f);
+                DrawMenuBitmapIcon(host, *item.iconBitmap, layout.iconRectDip, isDisabled && ! theme.highContrast ? 0.4f : 1.0f);
             }
 
             // Detailed text is prepared at the final available width outside paint.
             if (! DrawMenuDescription(host, *dc, *popup, i, layout, textColor, accelColor))
             {
-                DrawCenteredText(
-                    host, label.displayText, layout.textRectDip, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                DrawCenteredText(host,
+                                 label.displayText,
+                                 layout.textRectDip,
+                                 FontRole::Body,
+                                 textColor,
+                                 DWRITE_TEXT_ALIGNMENT_LEADING,
+                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 false,
+                                 popup->flowDirection);
             }
 
             // Accelerator text
@@ -3017,18 +3428,20 @@ public:
                                  FontRole::Body,
                                  accelColor,
                                  DWRITE_TEXT_ALIGNMENT_TRAILING,
-                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 false,
+                                 popup->flowDirection);
             }
 
             // Submenu chevron
             if (! item.children.empty())
             {
+                const wchar_t* chevronGlyph = popup->flowDirection == FlowDirection::RightToLeft ? L"\uE76B" : kChevronRightGlyph;
                 DrawCenteredText(host,
-                                 kChevronRightGlyph,
+                                 std::wstring_view(chevronGlyph, 1u),
                                  layout.chevronRectDip,
                                  FontRole::Icon,
-                                 isDisabled ? D2D1::ColorF(itemPaint.chevronColor.r, itemPaint.chevronColor.g, itemPaint.chevronColor.b, 0.4f)
-                                            : itemPaint.chevronColor,
+                                 isDisabled ? ResolveDisabledMenuColor(theme, itemPaint.chevronColor) : itemPaint.chevronColor,
                                  DWRITE_TEXT_ALIGNMENT_CENTER,
                                  DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             }
@@ -3054,7 +3467,7 @@ public:
 };
 
 // ---------------------------------------------------------------------------
-// Accessible described menus use the same retained row identities and geometry.
+// Every menu row is a UI Automation element, with the row's retained identity and geometry.
 // ---------------------------------------------------------------------------
 
 template <typename Base> class MenuAccessibilityItem final : public Base
@@ -3077,11 +3490,18 @@ protected:
     void OnFocusChanged(ControlHost& host, bool focused) override
     {
         Base::OnFocusChanged(host, focused);
-        if (focused && _popup.keyboardIndex != _index)
+        if (focused)
         {
+            const bool changed   = _popup.keyboardIndex != _index || _popup.hoveredIndex.has_value();
             _popup.keyboardIndex = _index;
+            _popup.hoveredIndex.reset();
             _popup.EnsureItemVisible(_index);
-            PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
+            if (changed)
+            {
+                const HRESULT result = PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
+                if (FAILED(result))
+                    Debug::Error(L"Menu accessibility focus post failed: 0x{:08X}", static_cast<unsigned long>(result));
+            }
         }
     }
 
@@ -3093,8 +3513,6 @@ private:
 [[nodiscard]] bool PopulateMenuAccessibility(MenuContentControl& content, MenuPopup& popup) noexcept
 try
 {
-    if (popup.descriptionLayouts.empty())
-        return true;
     for (size_t i = 0; i < popup.itemCount; ++i)
     {
         const auto& item = popup.items[i];
@@ -3112,10 +3530,9 @@ try
         if (name.empty())
         {
             name = label.displayText;
-            if (HasMenuDescription(item))
-                name += L"\n" + item.secondaryText;
         }
         child->SetAccessibleName(std::move(name));
+        child->SetAccessibleHelpText(item.secondaryText);
         child->SetAccessibleAutomationId(std::format(L"menu.item.{}", i));
         child->SetEnabled(item.enabled);
         child->SetFocusable(popup.IsNavigableItem(i));
@@ -3124,10 +3541,10 @@ try
         if (command)
         {
             child->SetAccessibilityRole(AccessibilityRole::MenuItem);
-            child->SetAccessibleInvoke([hwnd = popup.hwnd, i](ControlHost&)
+            child->SetAccessibleInvokeResult([hwnd = popup.hwnd, i](ControlHost&)
             {
                 // Post to the existing dispatcher so provider calls never destroy their own tree.
-                PostMenuAccessibilityRequest(hwnd, WndMsg::MenuPopupAccessibleInvoke(), i);
+                return PostMenuAccessibilityRequest(hwnd, WndMsg::MenuPopupAccessibleInvoke(), i);
             });
         }
         child->SetVisible(item.kind != MenuItemKind::Separator);
@@ -3143,8 +3560,6 @@ catch (const std::bad_alloc&)
 
 void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
 {
-    if (popup.descriptionLayouts.empty())
-        return;
     auto* root = dynamic_cast<MenuContentControl*>(popup.host.GetRoot());
     if (! root || root->GetChildren().size() != popup.itemCount)
         return;
@@ -3227,7 +3642,8 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
                                         ContextMenuRootHorizontalAlignment rootHorizontalAlignment,
                                         ContextMenuRootVerticalPlacement rootVerticalPlacement,
                                         const RECT* parentRect,
-                                        const RECT* parentItemRect) noexcept
+                                        const RECT* parentItemRect,
+                                        FlowDirection flowDirection = FlowDirection::LeftToRight) noexcept
 {
     const float scale         = static_cast<float>(dpi) / 96.0f;
     const int desiredWidthPx  = DipExtentToPixels(widthDip, dpi);
@@ -3247,12 +3663,13 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
 
     if (isSubmenu && parentItemRect)
     {
-        x = parentItemRect->right;
+        x = flowDirection == FlowDirection::RightToLeft ? parentItemRect->left - widthPx : parentItemRect->right;
         y = parentItemRect->top + static_cast<int>(kSubmenuVerticalOffsetDip * scale + 0.5f);
     }
     else if (! isSubmenu)
     {
-        if (rootHorizontalAlignment == ContextMenuRootHorizontalAlignment::End)
+        const bool alignEnd = (rootHorizontalAlignment == ContextMenuRootHorizontalAlignment::End) != (flowDirection == FlowDirection::RightToLeft);
+        if (alignEnd)
         {
             x -= widthPx;
             if (x < work.left)
@@ -3282,6 +3699,12 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         }
         else
             x = work.right - widthPx;
+    }
+
+    if (isSubmenu && flowDirection == FlowDirection::RightToLeft && x < work.left)
+    {
+        const int anchorRight = parentItemRect ? parentItemRect->right : (parentRect ? parentRect->right : x + widthPx);
+        x                     = anchorRight;
     }
 
     // Flip vertically if would go off-screen bottom
@@ -3569,10 +3992,11 @@ bool CreateMenuPopupWindow(MenuController& controller,
     {
         popup->ownedItems.assign(items, items + itemCount);
     }
-    popup->items      = popup->ownedItems.data();
-    popup->itemCount  = popup->ownedItems.size();
-    popup->controller = &controller;
-    popup->isSubmenu  = isSubmenu;
+    popup->items         = popup->ownedItems.data();
+    popup->itemCount     = popup->ownedItems.size();
+    popup->controller    = &controller;
+    popup->isSubmenu     = isSubmenu;
+    popup->flowDirection = controller.sessionCallbacks.flowDirection;
     for (size_t itemIndex = 0u; itemIndex < popup->ownedItems.size(); ++itemIndex)
     {
         const auto& item = popup->ownedItems[itemIndex];
@@ -3658,7 +4082,8 @@ bool CreateMenuPopupWindow(MenuController& controller,
                                                                 controller.sessionCallbacks.rootHorizontalAlignment,
                                                                 controller.sessionCallbacks.rootVerticalPlacement,
                                                                 parentWindowRect,
-                                                                parentItemRect);
+                                                                parentItemRect,
+                                                                popup->flowDirection);
     if (! PrepareMenuDescriptionSize(*popup, sizeDip, availableRectPx))
         return false;
     const float requestedVisibleHeightDip = (! isSubmenu && controller.sessionCallbacks.maxRootHeightDip > 0.0f)
@@ -3674,7 +4099,8 @@ bool CreateMenuPopupWindow(MenuController& controller,
                                                         controller.sessionCallbacks.rootHorizontalAlignment,
                                                         controller.sessionCallbacks.rootVerticalPlacement,
                                                         parentWindowRect,
-                                                        parentItemRect);
+                                                        parentItemRect,
+                                                        popup->flowDirection);
     const RECT windowRect        = ComputePopupWindowRect(surfaceRectPx, popup->shadowMargins, popup->dpi);
     const float visibleWidthDip  = popup->PixelToDip(static_cast<float>(surfaceRectPx.right - surfaceRectPx.left));
     const float visibleHeightDip = popup->PixelToDip(static_cast<float>(surfaceRectPx.bottom - surfaceRectPx.top));
@@ -3803,11 +4229,14 @@ void OpenSubmenu(MenuController& controller, MenuPopup& parent, size_t itemIndex
     }
 
     // Compute position: right edge of the parent item using the spec-defined cascade offset
+    const float previousScrollOffsetDip = parent.scrollOffsetDip;
     parent.EnsureItemVisible(itemIndex);
+    if (parent.scrollOffsetDip != previousScrollOffsetDip)
+        InvalidatePopup(parent);
     RECT parentWindowRect{};
     GetWindowRect(parent.hwnd, &parentWindowRect);
     const RECT parentItemRect = GetPopupItemScreenRect(parent, itemIndex);
-    POINT subPt{parentItemRect.right, parentItemRect.top};
+    POINT subPt{parent.flowDirection == FlowDirection::RightToLeft ? parentItemRect.left : parentItemRect.right, parentItemRect.top};
 
     const auto startedAt = std::chrono::steady_clock::now();
     if (CreateMenuPopupWindow(
@@ -3939,6 +4368,18 @@ void ScheduleSubmenuOpenTimer(MenuPopup& popup, size_t itemIndex) noexcept
     popup.hoverTimerItemIndex = itemIndex;
 }
 
+void ReconcileOpenSubmenuAfterScroll(MenuController& controller, MenuPopup& popup) noexcept
+{
+    const std::optional<size_t> popupIndex = FindPopupIndex(controller, popup);
+    if (! popupIndex.has_value() || popupIndex.value() + 1u >= controller.popups.size())
+        return;
+
+    if (PopupHoverOwnsOpenChild(controller, popupIndex.value(), popup))
+        CancelSubmenuHoverTimer(popup);
+    else if (! HasPendingSubmenuOpenTimer(popup))
+        ScheduleSubmenuCloseTimer(popup);
+}
+
 void CloseSubmenuChainFrom(MenuController& controller, MenuPopup& parent) noexcept
 {
     bool closedAny = false;
@@ -3957,8 +4398,8 @@ void CloseSubmenuChainFrom(MenuController& controller, MenuPopup& parent) noexce
 }
 
 // Fires a pending submenu hover timer on a popup: opens the deferred submenu or
-// closes the open submenu chain. Shared by the async WndProc path and the modal
-// loop path, which receive the WM_TIMER through different message routes.
+// closes the open submenu chain. Both async and modal sessions dispatch popup
+// timers through this window procedure; unrelated thread timers use normal dispatch.
 void HandleSubmenuHoverTimer(MenuController& controller, MenuPopup& popup)
 {
     if (popup.hoverTimerId == 0 || popup.hoverTimerKind == MenuPopup::SubmenuHoverTimerKind::None)
@@ -3999,16 +4440,23 @@ void HandleMenuMouseMoveAtPointDip(MenuController& controller, MenuPopup& popup,
 
     if (popup.draggingScrollbarThumb)
     {
-        const D2D1_RECT_F track = popup.GetScrollbarTrackRect();
-        const D2D1_RECT_F thumb = popup.GetScrollbarThumbRect();
-        const float thumbHeight = thumb.bottom - thumb.top;
-        const float available   = (std::max)(0.0f, (track.bottom - track.top) - thumbHeight);
+        const float previousScrollOffsetDip = popup.scrollOffsetDip;
+        const D2D1_RECT_F track             = popup.GetScrollbarTrackRect();
+        const D2D1_RECT_F thumb             = popup.GetScrollbarThumbRect();
+        const float thumbHeight             = thumb.bottom - thumb.top;
+        const float available               = (std::max)(0.0f, (track.bottom - track.top) - thumbHeight);
         if (available > 0.0f)
         {
             const float thumbTop  = (std::clamp)(pointDip.y - popup.scrollbarDragOffsetDip, track.top, track.bottom - thumbHeight);
             popup.scrollOffsetDip = ((thumbTop - track.top) / available) * popup.GetScrollExtent();
             popup.ClampScrollOffset();
-            InvalidatePopup(popup);
+            if (popup.scrollOffsetDip != previousScrollOffsetDip)
+            {
+                popup.hoveredIndex.reset();
+                CancelSubmenuHoverTimer(popup);
+                InvalidatePopup(popup);
+                ReconcileOpenSubmenuAfterScroll(controller, popup);
+            }
         }
         return;
     }
@@ -4027,15 +4475,15 @@ void HandleMenuMouseMoveAtPointDip(MenuController& controller, MenuPopup& popup,
     const std::optional<size_t> hit = HitTestMenuItem(popup, pointDip);
     const bool changed              = (hit != popup.hoveredIndex);
     popup.hoveredIndex              = hit;
-    if (pointerTakesKeyboardFocus)
-    {
+    const bool keyboardFocusCleared = pointerTakesKeyboardFocus && popup.keyboardIndex.has_value();
+    if (keyboardFocusCleared)
         popup.keyboardIndex.reset();
-    }
+
+    if (changed || keyboardFocusCleared)
+        InvalidatePopup(popup);
 
     if (changed)
     {
-        InvalidatePopup(popup);
-
         // Start/cancel submenu hover timer
         if (popup.hoverTimerId)
         {
@@ -4099,6 +4547,11 @@ std::vector<std::unique_ptr<MenuController>>& ActiveAsyncMenuControllers() noexc
     thread_local std::vector<std::unique_ptr<MenuController>> controllers;
     return controllers;
 }
+
+// Process-exit shutdown runs before the window-host registry is swept. Keep async menus
+// disabled for the rest of this UI thread so reentrant teardown callbacks cannot add a
+// popup host after that sweep has taken its snapshot.
+thread_local bool g_asyncMenuProcessExit = false;
 
 [[nodiscard]] bool BeginAsyncMenuInteraction(MenuController& controller) noexcept
 {
@@ -4708,10 +5161,17 @@ void TraceMenuPointerRoute(MenuController& controller,
     {
         if (targetPopup && targetPopup->NeedsScrollbar())
         {
-            const short wheelDelta = GET_WHEEL_DELTA_WPARAM(event.wParam);
-            const float steps      = static_cast<float>(wheelDelta) / static_cast<float>(WHEEL_DELTA);
+            const float previousScrollOffsetDip = targetPopup->scrollOffsetDip;
+            const short wheelDelta              = GET_WHEEL_DELTA_WPARAM(event.wParam);
+            const float steps                   = static_cast<float>(wheelDelta) / static_cast<float>(WHEEL_DELTA);
             targetPopup->scrollOffsetDip -= steps * ResolveMenuItemHeightDip(targetPopup->host.GetTheme());
             targetPopup->ClampScrollOffset();
+            if (targetPopup->scrollOffsetDip != previousScrollOffsetDip)
+            {
+                if (const auto pointDip = ResolvePointerPopupPointDip(*targetPopup, event); pointDip.has_value())
+                    HandleMenuMouseMoveAtPointDip(controller, *targetPopup, pointDip.value(), false);
+                ReconcileOpenSubmenuAfterScroll(controller, *targetPopup);
+            }
             InvalidatePopup(*targetPopup);
             return finish(MenuInputDisposition::Consumed);
         }
@@ -4764,10 +5224,17 @@ void TraceMenuPointerRoute(MenuController& controller,
                 }
                 else
                 {
-                    const float pageStep = targetPopup->menuHeightDip * 0.8f;
+                    const float pageStep                = targetPopup->menuHeightDip * 0.8f;
+                    const float previousScrollOffsetDip = targetPopup->scrollOffsetDip;
                     targetPopup->scrollOffsetDip += pointDip->y < thumb.top ? -pageStep : pageStep;
                     targetPopup->ClampScrollOffset();
                     targetPopup->scrollbarHotPart = MenuPopup::ScrollbarHotPart::Track;
+                    if (targetPopup->scrollOffsetDip != previousScrollOffsetDip)
+                    {
+                        targetPopup->hoveredIndex.reset();
+                        CancelSubmenuHoverTimer(*targetPopup);
+                        ReconcileOpenSubmenuAfterScroll(controller, *targetPopup);
+                    }
                 }
                 InvalidatePopup(*targetPopup);
             }
@@ -4858,7 +5325,7 @@ void TraceMenuPointerRoute(MenuController& controller,
                 if (pointDip.has_value())
                 {
                     const D2D1_RECT_F itemRect = GetVisibleItemRect(*targetPopup, idx);
-                    const uint32_t stopIndex   = HitTestSliderStop(item, itemRect, pointDip.value());
+                    const uint32_t stopIndex   = HitTestSliderStop(item, itemRect, pointDip.value(), targetPopup->flowDirection == FlowDirection::RightToLeft);
                     const int commandId        = GetSliderCommandId(item, stopIndex);
                     if (commandId != 0)
                     {
@@ -5061,20 +5528,26 @@ void TraceMenuPointerRoute(MenuController& controller,
         case MenuKeyboardKind::Alt: controller.Dismiss(); return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Right:
         {
-            if (invokeFocusedSliderDelta(1))
+            const bool rightToLeft = topmost->flowDirection == FlowDirection::RightToLeft;
+            if (invokeFocusedSliderDelta(rightToLeft ? -1 : 1))
             {
                 return controller.running ? MenuInputDisposition::Consumed : MenuInputDisposition::Invoked;
             }
             auto idx = topmost->keyboardIndex.has_value() ? topmost->keyboardIndex : topmost->hoveredIndex;
-            if (idx.has_value() && idx.value() < topmost->itemCount && ! topmost->items[idx.value()].children.empty() && topmost->items[idx.value()].enabled)
+            if (! rightToLeft && idx.has_value() && idx.value() < topmost->itemCount && ! topmost->items[idx.value()].children.empty() &&
+                topmost->items[idx.value()].enabled)
             {
                 OpenSubmenu(controller, *topmost, idx.value(), true);
                 return MenuInputDisposition::Consumed;
             }
 
+            if (rightToLeft && controller.popups.size() > 1)
+            {
+                controller.CloseTopmostSubmenu();
+            }
             if (controller.sessionCallbacks.switchRootFromDirection)
             {
-                if (auto request = controller.sessionCallbacks.switchRootFromDirection(true); request.has_value())
+                if (auto request = controller.sessionCallbacks.switchRootFromDirection(! rightToLeft); request.has_value())
                 {
                     if (SwitchRootPopup(controller, std::move(request.value()), L"root-switch-keyboard", true))
                     {
@@ -5087,17 +5560,24 @@ void TraceMenuPointerRoute(MenuController& controller,
         }
         case MenuKeyboardKind::Left:
         {
-            if (invokeFocusedSliderDelta(-1))
+            const bool rightToLeft = topmost->flowDirection == FlowDirection::RightToLeft;
+            if (invokeFocusedSliderDelta(rightToLeft ? 1 : -1))
             {
                 return controller.running ? MenuInputDisposition::Consumed : MenuInputDisposition::Invoked;
             }
-            if (controller.popups.size() > 1)
+            auto idx = topmost->keyboardIndex.has_value() ? topmost->keyboardIndex : topmost->hoveredIndex;
+            if (rightToLeft && idx.has_value() && idx.value() < topmost->itemCount && ! topmost->items[idx.value()].children.empty() &&
+                topmost->items[idx.value()].enabled)
+            {
+                OpenSubmenu(controller, *topmost, idx.value(), true);
+            }
+            else if (controller.popups.size() > 1)
             {
                 controller.CloseTopmostSubmenu();
             }
             else if (controller.sessionCallbacks.switchRootFromDirection)
             {
-                if (auto request = controller.sessionCallbacks.switchRootFromDirection(false); request.has_value())
+                if (auto request = controller.sessionCallbacks.switchRootFromDirection(rightToLeft); request.has_value())
                 {
                     if (SwitchRootPopup(controller, std::move(request.value()), L"root-switch-keyboard", true))
                     {
@@ -5110,9 +5590,18 @@ void TraceMenuPointerRoute(MenuController& controller,
         }
         case MenuKeyboardKind::Mnemonic:
         {
-            auto match = topmost->FindMnemonicItem(event.mnemonic);
+            size_t matches = 0u;
+            auto match     = topmost->FindMnemonicItem(event.mnemonic, matches);
             if (match.has_value())
             {
+                if (matches > 1u)
+                {
+                    topmost->keyboardIndex = match;
+                    topmost->hoveredIndex.reset();
+                    topmost->EnsureItemVisible(match.value());
+                    InvalidatePopup(*topmost);
+                    return MenuInputDisposition::Consumed;
+                }
                 const auto& item = topmost->items[match.value()];
                 if (! item.children.empty() && item.enabled)
                 {
@@ -5149,12 +5638,7 @@ void TraceMenuPointerRoute(MenuController& controller,
         case VK_TAB: return MenuKeyboardKind::Tab;
         case VK_F10: return MenuKeyboardKind::F10;
         case VK_MENU: return MenuKeyboardKind::Alt;
-        default:
-            if (virtualKey >= 'A' && virtualKey <= 'Z')
-            {
-                return MenuKeyboardKind::Mnemonic;
-            }
-            return std::nullopt;
+        default: return std::nullopt;
     }
 }
 
@@ -5299,10 +5783,11 @@ void TraceMenuKeyboardRoute(const MenuController& controller,
         return disposition != MenuInputDisposition::Ignored;
     }
 
-    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
+    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN || msg == WM_CHAR || msg == WM_SYSCHAR)
     {
         const UINT virtualKey                      = static_cast<UINT>(wp);
-        const std::optional<MenuKeyboardKind> kind = MenuKeyboardKindFromVirtualKey(virtualKey);
+        const bool character                       = msg == WM_CHAR || msg == WM_SYSCHAR;
+        const std::optional<MenuKeyboardKind> kind = character ? std::optional{MenuKeyboardKind::Mnemonic} : MenuKeyboardKindFromVirtualKey(virtualKey);
         if (! kind.has_value())
         {
             DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.popup-message",
@@ -5319,7 +5804,7 @@ void TraceMenuKeyboardRoute(const MenuController& controller,
             .kind        = kind.value(),
             .hwnd        = hwnd,
             .virtualKey  = virtualKey,
-            .mnemonic    = static_cast<wchar_t>(virtualKey),
+            .mnemonic    = character ? static_cast<wchar_t>(wp) : L'\0',
             .messageTime = CurrentMessageTime(),
             .lParam      = lp,
         };
@@ -5590,17 +6075,6 @@ void RunMenuModalLoop(MenuController& controller)
             }
         }
 
-        // Timer messages for submenu hover delay stay in the menu loop because
-        // they mutate the popup cascade, not the individual popup window.
-        if (msg.message == WM_TIMER && msg.wParam == kSubmenuHoverTimerId)
-        {
-            if (MenuPopup* popup = controller.FindPopupForHwnd(msg.hwnd))
-            {
-                HandleSubmenuHoverTimer(controller, *popup);
-            }
-            continue;
-        }
-
         if (popupMessage)
         {
             DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.loop-dispatch-popup",
@@ -5650,10 +6124,12 @@ void RunMenuModalLoop(MenuController& controller)
         }
 
         // Keyboard messages — route to topmost popup
-        if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN)
+        if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN || msg.message == WM_CHAR || msg.message == WM_SYSCHAR)
         {
-            const UINT virtualKey                              = static_cast<UINT>(msg.wParam);
-            const std::optional<MenuKeyboardKind> keyboardKind = MenuKeyboardKindFromVirtualKey(virtualKey);
+            const UINT virtualKey = static_cast<UINT>(msg.wParam);
+            const bool character  = msg.message == WM_CHAR || msg.message == WM_SYSCHAR;
+            const std::optional<MenuKeyboardKind> keyboardKind =
+                character ? std::optional{MenuKeyboardKind::Mnemonic} : MenuKeyboardKindFromVirtualKey(virtualKey);
             if (keyboardKind.has_value())
             {
                 const MenuKeyboardEvent event{
@@ -5661,7 +6137,7 @@ void RunMenuModalLoop(MenuController& controller)
                     .kind        = keyboardKind.value(),
                     .hwnd        = msg.hwnd,
                     .virtualKey  = virtualKey,
-                    .mnemonic    = static_cast<wchar_t>(virtualKey),
+                    .mnemonic    = character ? static_cast<wchar_t>(msg.wParam) : L'\0',
                     .messageTime = msg.time,
                     .lParam      = msg.lParam,
                 };
@@ -5732,6 +6208,20 @@ void RunMenuModalLoop(MenuController& controller)
 }
 
 } // anonymous namespace
+
+void DismissAsyncMenusForProcessExit() noexcept
+{
+    g_asyncMenuProcessExit = true;
+    auto& controllers      = ActiveAsyncMenuControllers();
+    while (! controllers.empty())
+    {
+        MenuController& controller = *controllers.back();
+        // Closing callbacks are application code. Do not run them during process
+        // teardown: they can throw through this noexcept path or reopen a menu.
+        controller.asyncOnClosed = nullptr;
+        FinalizeAsyncMenuController(controller);
+    }
+}
 
 bool IsNativeMenuPopupWindow(HWND hwnd) noexcept
 {
@@ -5843,7 +6333,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
                             ContextMenuClosedCallback onClosed,
                             const ContextMenuSessionCallbacks& sessionCallbacks)
 {
-    if (items.empty() || ! ownerHwnd)
+    if (g_asyncMenuProcessExit || items.empty() || ! ownerHwnd)
     {
         return false;
     }
@@ -6023,57 +6513,11 @@ bool TryGetMenuPopupState(const MenuPopup& popup, ContextMenuPopupDebugState& ou
 
 bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept
 {
-    outState                   = {};
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        auto dispatch = std::shared_ptr<MenuDebugGetStateDispatch>(new (std::nothrow) MenuDebugGetStateDispatch());
-        if (! dispatch)
-        {
-            return false;
-        }
-        dispatch->completedEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-        if (! dispatch->completedEvent)
-        {
-            return false;
-        }
-        auto payload = std::unique_ptr<MenuDebugGetStatePayload>(new (std::nothrow) MenuDebugGetStatePayload());
-        if (! payload)
-        {
-            return false;
-        }
-        payload->dispatch                     = dispatch;
-        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
-        if (! probe || ! PostMessagePayload(hwnd, probe.value, 0, std::move(payload)))
-        {
-            return false;
-        }
-
-        const DWORD waitResult = WaitForSingleObject(dispatch->completedEvent.get(), kMenuDebugStateDispatchTimeoutMs);
-        if (waitResult == WAIT_TIMEOUT)
-        {
-            MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
-            if (dispatch->state.compare_exchange_strong(
-                    expected, MenuDebugGetStateDispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire))
-            {
-                return false;
-            }
-            if (expected != MenuDebugGetStateDispatch::State::Taken || WaitForSingleObject(dispatch->completedEvent.get(), 0u) != WAIT_OBJECT_0)
-            {
-                return false;
-            }
-        }
-        else if (waitResult != WAIT_OBJECT_0)
-        {
-            return false;
-        }
-
-        if (! dispatch->succeeded)
-        {
-            return false;
-        }
-        outState = std::move(dispatch->result);
-        return true;
+        // Posted, so the menu loop answers it ahead of owner traffic.
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetState(), true, kMenuDebugStateDispatchTimeoutMs, 0u, nullptr, outState);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6096,6 +6540,11 @@ void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE relea
 {
     g_menuDebugStateHandlerEnteredEvent.store(enteredEvent, std::memory_order_release);
     g_menuDebugStateHandlerReleaseEvent.store(releaseEvent, std::memory_order_release);
+}
+
+void DebugFailContextMenuDescriptionPreparationForTest(size_t rowIndexPlusOne) noexcept
+{
+    g_menuDescriptionPreparationFailureRowPlusOne.store(rowIndexPlusOne, std::memory_order_release);
 }
 
 void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept
@@ -6137,13 +6586,10 @@ bool TryGetMenuPopupItemRect(const MenuPopup& popup, size_t itemIndex, D2D1_RECT
 
 bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept
 {
-    outRectDip                 = D2D1::RectF();
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outRectDip = D2D1::RectF();
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemRectRequest request{.itemIndex = itemIndex, .outRectDip = &outRectDip};
-        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemRect();
-        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemRect(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outRectDip);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6184,13 +6630,10 @@ bool TryGetMenuPopupItemPaint(const MenuPopup& popup, size_t itemIndex, ContextM
 
 bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuPopupItemPaintDebugState& outState) noexcept
 {
-    outState                   = {};
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemPaintRequest request{.itemIndex = itemIndex, .outState = &outState};
-        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemPaint();
-        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemPaint(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outState);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6205,12 +6648,9 @@ bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuP
 bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring& outText) noexcept
 {
     outText.clear();
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemTextRequest request{.itemIndex = itemIndex, .outText = &outText};
-        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemText();
-        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemText(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outText);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6224,7 +6664,12 @@ bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring&
 
 bool DebugGetContextMenuPopupItemLayout(HWND hwnd, size_t itemIndex, ContextMenuPopupItemLayoutDebugState& outState) noexcept
 {
-    outState          = {};
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemLayout(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outState);
+    }
+
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd || itemIndex >= popup->itemCount)
     {
@@ -6240,11 +6685,21 @@ bool DebugGetContextMenuPopupItemLayout(HWND hwnd, size_t itemIndex, ContextMenu
     outState.secondaryTextRectDip    = layout.secondaryTextRectDip;
     if (! popup->descriptionLayouts.empty())
     {
-        outState.primaryLineCount        = popup->descriptionLayouts[itemIndex].primaryMetrics.lineCount;
-        outState.secondaryLineCount      = popup->descriptionLayouts[itemIndex].secondaryMetrics.lineCount;
-        const auto& row                  = popup->descriptionLayouts[itemIndex];
-        outState.primaryLayoutWidthDip   = row.primary ? row.primary->GetMaxWidth() : 0.0f;
-        outState.secondaryLayoutWidthDip = row.secondary ? row.secondary->GetMaxWidth() : 0.0f;
+        const auto& row             = popup->descriptionLayouts[itemIndex];
+        outState.primaryLineCount   = row.primaryMetrics.lineCount;
+        outState.secondaryLineCount = row.secondaryMetrics.lineCount;
+        // One layout holds both fields, so both wrap at its width.
+        outState.primaryLayoutWidthDip   = row.layout ? row.layout->GetMaxWidth() : 0.0f;
+        outState.secondaryLayoutWidthDip = outState.primaryLayoutWidthDip;
+        if (row.layout)
+        {
+            // Where DirectWrite starts the description: the top of the line that holds its first character.
+            float pointX = 0.0f;
+            float pointY = 0.0f;
+            DWRITE_HIT_TEST_METRICS hit{};
+            if (SUCCEEDED(row.layout->HitTestTextPosition(row.description.startPosition, FALSE, &pointX, &pointY, &hit)))
+                outState.descriptionOffsetDip = hit.top;
+        }
     }
     outState.hasBitmapIcon = popup->items[itemIndex].iconBitmap != nullptr;
     return outState.itemRectDip.right > outState.itemRectDip.left && outState.itemRectDip.bottom > outState.itemRectDip.top;
@@ -6256,43 +6711,53 @@ bool DebugSetContextMenuPopupBackdropCapture(HWND hwnd, const WindowHostBitmapCa
     {
         return false;
     }
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        // The popup is read only on its own thread, which may be freeing it now.
+        bool installed = false;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugSetBackdrop(), false, kMenuDebugProbeTimeoutMs, 0u, &capture, installed);
+    }
 
     auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd)
     {
         return false;
     }
+    popup->backdropSnapshot.capture      = capture;
+    popup->backdropSnapshot.cachedBitmap = nullptr;
+    popup->backdropSnapshot.cachedDevice = nullptr;
+    popup->usesAppBackdropBlur           = true;
+    popup->host.Invalidate();
+    return true;
+}
 
-    if (GetWindowThreadProcessId(hwnd, nullptr) == GetCurrentThreadId())
+bool DebugSimulateContextMenuPopupDeviceLoss(HWND hwnd) noexcept
+{
+    auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (! popup || popup->hwnd != hwnd || GetWindowThreadProcessId(hwnd, nullptr) != GetCurrentThreadId())
     {
-        popup->backdropSnapshot.capture      = capture;
-        popup->backdropSnapshot.cachedBitmap = nullptr;
-        popup->backdropSnapshot.cachedDevice = nullptr;
-        popup->usesAppBackdropBlur           = true;
-        popup->host.Invalidate();
-        return true;
+        return false;
     }
 
-    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugSetBackdrop();
-    return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&capture)) != FALSE;
+    popup->host.DebugSimulateDeviceLoss();
+    return true;
 }
 
 bool DebugCaptureContextMenuPopupBitmap(HWND hwnd, WindowHostBitmapCapture& outCapture) noexcept
 {
-    outCapture  = {};
+    outCapture = {};
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        // The popup is read only on its own thread, which may be freeing it now.
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugCaptureBitmap(), false, kMenuDebugProbeTimeoutMs, 0u, nullptr, outCapture);
+    }
+
     auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd)
     {
         return false;
     }
-
-    if (GetWindowThreadProcessId(hwnd, nullptr) == GetCurrentThreadId())
-    {
-        return popup->host.DebugCaptureBitmap(outCapture);
-    }
-
-    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugCaptureBitmap();
-    return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&outCapture)) != FALSE;
+    return popup->host.DebugCaptureBitmap(outCapture);
 }
 
 bool DebugComputeContextMenuPopupPosition(POINT screenPoint,

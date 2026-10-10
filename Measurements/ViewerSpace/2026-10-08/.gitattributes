@@ -1,0 +1,4 @@
+# Preserve the original evidence bytes bound by manifest.txt, including CRLF.
+*.json -text
+*.txt -text
+*.log -text

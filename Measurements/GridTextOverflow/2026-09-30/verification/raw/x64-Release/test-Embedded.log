@@ -1,0 +1,8 @@
+Embedded multiline grid cell 0,0: twin ink from 17, changed inside or on rows the twin leaves blank 0, marker pixels 12
+Embedded multiline grid cell 0,1: twin ink from 236, changed inside or on rows the twin leaves blank 0, marker pixels 14
+Embedded multiline grid row 1: ink rows 29 at clamp 2, 43 at clamp 3
+Embedded multiline grid at 144 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 96 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+PASS 2838 checks; 1000 warm composites 10213 us; C++ allocations 0; changed toggle pixels 13291

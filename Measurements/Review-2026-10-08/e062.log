@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets
+  [DONE] TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets (0.000 s)
+[DONE] Control (0.001 s)
+All DxUi tests passed.

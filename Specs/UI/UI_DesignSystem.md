@@ -1,19 +1,19 @@
 # Design system
 
 Status: normative current contract
-Last reviewed: 2026-09-23
+Last reviewed: 2026-10-09
 
 [DesignSystem](../DesignSystem/README.md) is the canonical, reviewable design system of DxUi. It restates the
 shipped visual language as named tokens, usage rules and one guideline and preview per catalog control, so that
-consumers, reviewers and agents can design with DxUi without reading renderer code. It is published as a private
-Design System artifact (https://claude.ai/artifact/Wqp8iF8K9GNF7VehTSGjLF); the files in this repository are the
-source of truth and the artifact is republished from them.
+consumers, reviewers and agents can design with DxUi without reading renderer code. The design system lives under
+`Specs/DesignSystem` and is committed to Git with the rest of the project. Its rendered control captures live under
+[`docs/gallery`](../../docs/gallery/README.md) in the same repository.
 
 ## Contents
 
 | Path under `Specs/DesignSystem` | Holds |
 | --- | --- |
-| `design-system.json` | The artifact index: title, namespace, asset records. Keep its `createdOnFiles` marker. |
+| `design-system.json` | Legacy index metadata, including historical external asset IDs. It does not define publication; the local source files and gallery captures are authoritative. |
 | `tokens.json` | Colors per theme, type styles, spacing, radii, shadows, sizes and strokes. |
 | `README.md` | Usage rules that name tokens: themes, color roles, focus, motion, typography, spacing, iconography. |
 | `Theming.md` | How an application feeds the palette through `ThemeColors` or role overrides, and which roles keep library defaults. |
@@ -21,7 +21,7 @@ source of truth and the artifact is republished from them.
 | `components/<Control>/preview.html` | Static HTML rendition, line 1 `<!-- @dsCard group="…" height=N -->`. |
 | `components/bundle.css` | The stylesheet that renders every preview from the tokens. |
 | `components/Cover/preview.html` | The cover. It is not a control. |
-| `assets/Gallery/README.md` | Describes the uploaded gallery captures, which are copies of `docs/gallery` PNGs. |
+| `assets/Gallery/README.md` | Points to the committed gallery captures under `docs/gallery`. |
 
 ## Rules
 
@@ -37,7 +37,7 @@ source of truth and the artifact is republished from them.
   Adding, renaming or removing a control updates its folder in the same change; no folder may remain for a
   control that is not in `ControlCatalog.h`. `validate-specs.ps1` enforces this.
 - A change to palette defaults, derivation, resolver colors, typography, metrics, motion or control states
-  updates the affected tokens, README and previews in the same change, then republishes the artifact.
-- Republishing copies these files to the artifact's `project/` folder: all changed files first, then the index
-  last. The gallery PNGs are artifact uploads recorded in the index; re-upload them after `gallery.ps1 -PublishDocs`
-  changes them and update their records.
+  updates the affected tokens, README and previews in the same change. Commit those files with the corresponding
+  implementation and documentation changes.
+- Regenerate changed gallery captures with `gallery.ps1 -PublishDocs`, review them, and commit the resulting
+  `docs/gallery` files with the design-system changes. No separate design-system publication is required.

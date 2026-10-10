@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityProviderExposesSliderRangeValuePattern
+FAILED: UIA reads the changed minimum and its clamped value immediately

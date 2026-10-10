@@ -1,0 +1,124 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Gallery
+  [GALLERY] Rendering Light
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+=================================================================
+==4012==ERROR: AddressSanitizer: heap-use-after-free on address 0x11cf4a9b46d0 at pc 0x7ff6912b9646 bp 0x000cf3fc5e90 sp 0x000cf3fc5e90
+READ of size 8 at 0x11cf4a9b46d0 thread T0
+    #0 0x7ff6912b9645 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1796
+    #1 0x7ff6912bc10e in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1975
+    #2 0x7ff6912c9043 in DxUi::`anonymous namespace'::PublishWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:909
+    #3 0x7ff69128e449 in DxUi::RefreshWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:9968
+    #4 0x7ff6914f72bd in DxUi::Slider::NotifyChange Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:4840
+    #5 0x7ff6914ef34b in DxUi::Slider::OnCaptureLost Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:5461
+    #6 0x7ff6916b0c71 in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:3076
+    #7 0x7ff6908d32d4 in AttachedHostWindow::WndProc Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:937
+    #8 0x7ff8eaca52c5 in CallWindowProcW+0x6a5 (C:\WINDOWS\System32\USER32.dll+0x1800152c5)
+    #9 0x7ff8eaca4b4b in GetFocus+0x1e3b (C:\WINDOWS\System32\USER32.dll+0x180014b4b)
+    #10 0x7ff8eaccf672 in GetWindowDpiAwarenessContext+0x4d2 (C:\WINDOWS\System32\USER32.dll+0x18003f672)
+    #11 0x7ff8ec2e4de3 in KiUserCallbackDispatcher+0x23 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x180164de3)
+    #12 0x7ff8e990b623 in NtUserReleaseCapture+0x13 (C:\WINDOWS\System32\win32u.dll+0x18000b623)
+    #13 0x7ff6916b282c in DxUi::ControlHost::Detach Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1295
+    #14 0x7ff6916a0c70 in DxUi::ControlHost::Detach Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1237
+    #15 0x7ff690882b74 in AttachedHostWindow::~AttachedHostWindow Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:832
+    #16 0x7ff690b2dea4 in `anonymous namespace'::CaptureThemeSection Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1338
+    #17 0x7ff690b37e36 in RunGalleryGeneratorPerTheme Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1853
+    #18 0x7ff690a71b40 in `wmain'[::K]::<lambda_10>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:487
+    #19 0x7ff690a7471b in `wmain'::`2'::<lambda_9>::operator()<`wmain'[::K]::<lambda_10> > Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #20 0x7ff690a6ecda in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:482
+    #21 0x7ff691950098 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #22 0x7ff69194ffb1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #23 0x7ff69194fe6d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #24 0x7ff69195010d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #25 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #26 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x11cf4a9b46d0 is located 0 bytes inside of 40-byte region [0x11cf4a9b46d0,0x11cf4a9b46f8)
+freed by thread T0 here:
+    #0 0x7ff69194ddb3 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff690b17b00 in `anonymous namespace'::GalleryTreeModel::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140517b00)
+    #2 0x7ff690b19dcb in std::default_delete<`anonymous namespace'::GalleryTreeModel>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff690b19ee0 in std::unique_ptr<`anonymous namespace'::GalleryTreeModel,std::default_delete<`anonymous namespace'::GalleryTreeModel> >::~unique_ptr<`anonymous namespace'::GalleryTreeModel,std::default_delete<`anonymous namespace'::GalleryTreeModel> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff690b19d68 in `anonymous namespace'::GalleryScene::~GalleryScene Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:722
+    #5 0x7ff690b2de99 in `anonymous namespace'::CaptureThemeSection Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1338
+    #6 0x7ff690b37e36 in RunGalleryGeneratorPerTheme Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1853
+    #7 0x7ff690a71b40 in `wmain'[::K]::<lambda_10>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:487
+    #8 0x7ff690a7471b in `wmain'::`2'::<lambda_9>::operator()<`wmain'[::K]::<lambda_10> > Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #9 0x7ff690a6ecda in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:482
+    #10 0x7ff691950098 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #11 0x7ff69194ffb1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #12 0x7ff69194fe6d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #13 0x7ff69195010d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #14 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #15 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+previously allocated by thread T0 here:
+    #0 0x7ff69194dc95 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff690b5d537 in std::make_unique<`anonymous namespace'::GalleryTreeModel,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff690b2ae5b in `anonymous namespace'::BuildGalleryScene Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1153
+    #3 0x7ff690b2d46d in `anonymous namespace'::CaptureThemeSection Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1275
+    #4 0x7ff690b37e36 in RunGalleryGeneratorPerTheme Z:\src\DxUi\Tests\Controls\DxUi.Tests.Gallery.cpp:1853
+    #5 0x7ff690a71b40 in `wmain'[::K]::<lambda_10>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:487
+    #6 0x7ff690a7471b in `wmain'::`2'::<lambda_9>::operator()<`wmain'[::K]::<lambda_10> > Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff690a6ecda in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:482
+    #8 0x7ff691950098 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff69194ffb1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff69194fe6d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff69195010d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1796 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation
+Shadow bytes around the buggy address:
+  0x11cf4a9b4400: fa fa 00 00 00 00 00 04 fa fa 00 00 00 00 02 fc
+  0x11cf4a9b4480: fa fa 00 00 00 00 00 02 fa fa 00 00 00 00 00 04
+  0x11cf4a9b4500: fa fa 00 00 00 00 04 fc fa fa 00 00 00 00 04 fc
+  0x11cf4a9b4580: fa fa 00 00 00 00 00 06 fa fa 00 00 00 00 00 02
+  0x11cf4a9b4600: fa fa 00 00 00 00 00 06 fa fa fd fd fd fd fd fd
+=>0x11cf4a9b4680: fa fa 00 00 00 00 02 fc fa fa[fd]fd fd fd fd fa
+  0x11cf4a9b4700: fa fa 00 00 00 00 00 fc fa fa fd fd fd fd fd fa
+  0x11cf4a9b4780: fa fa 00 00 00 00 00 02 fa fa fd fd fd fd fd fd
+  0x11cf4a9b4800: fa fa 00 00 00 00 00 04 fa fa 00 00 00 00 00 02
+  0x11cf4a9b4880: fa fa 00 00 00 00 00 06 fa fa 00 00 00 00 00 fc
+  0x11cf4a9b4900: fa fa 00 00 00 06 fc fc fa fa 00 00 00 06 fc fc
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==4012==ABORTING

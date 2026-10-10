@@ -16,12 +16,14 @@ Every supported capability has executable evidence and a truthful status in `cap
 The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
 without bitmap capture. It rotates and reverses cases across 32 cycles, varying
 0/1/2/4/8/12 descriptions in a fixed twelve-entry menu and comparing plain/described
-12/24/48-entry menus. All cases must retain the same window extent; report DPI and
+12/24/48-entry menus. Fixture v5 adds described 12/24/48-entry menus whose captions
+all differ, because the native layouts a menu holds can depend on whether captions
+repeat (every earlier case repeats one caption in every row). All cases must retain the same window extent; report DPI and
 before/rendered/closed process and handle counters. The caller's item vector is
 already built at the before sample. Object `sizeof` values exclude native resources
 and dynamic allocations. Process-private deltas are not per-entry allocation sizes.
 Fixture v2 additionally samples busy/free bytes, entry overhead and region counters
-from process heaps using the bounded shared `Tests/Support/HeapDiagnostic.h` helper.
+from process heaps using the bounded shared `Tests/Support/Support.Tests.HeapDiagnostic.h` helper.
 It records errors per heap, allocates nothing while walking and holds only one heap
 lock at a time. These totals exclude non-heap native allocations and cannot identify
 call stacks or attribute a native text-layout object's exact cost. Heap sampling is
@@ -31,12 +33,16 @@ results do not waive that failure or establish before/after source non-regressio
 Fixture v4 places a visible, owned parent on one native monitor and records the
 actual pixel extent and DPI for every opening. `MenuResources` and
 `MenuResourceScaling` require normal foreground menu interaction; `--no-activate`
-is rejected. Locally use the authorized warning/desktop-lease harness and verify
-focus and physical cursor restoration. A blocked activation path can leave a
+is rejected. Locally run them with `test.ps1 -Interactive -Suites <Suite>`, which
+holds the desktop lease and verifies focus and physical cursor restoration (see
+Interactive tests below). A blocked activation path can leave a
 temporary 1-by-1 HWND despite correct internal layout, invalidating the measurement.
 Do not change the general activation guard or count failed v2/v3 samples as passes.
 `MenuTextLayoutResources` separately measures creation, metric computation and
-release for twelve primary layouts, twelve secondary layouts and their pairs.
+release for twelve primary layouts, twelve secondary layouts, their pairs (what a
+described row held before it held one layout) and twelve rows of one formatted
+layout each (the label, a spacer paragraph and the description in one layout, which
+is what a described row holds now; fixture v2 adds this mode).
 It uses the same French strings and Body/Small formats, at a declared 396-DIP
 width, with no popup, semantic tree or paint. The 32 rotated cycles distinguish
 native layout costs from the rest of a menu; they are not a substitute for actual
@@ -47,7 +53,12 @@ architecture, configuration, time and executable path under `.build/reports`. Fa
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
+`-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
+(see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
+A pull request to `main` that changes something the benchmark measures also runs the paired benchmark on a hosted runner
+(the contract's [hosted paired gate](../Core/Core_PerformanceAndResources.md#hosted-paired-gate)), and
+`Tools/tests/Test-BenchmarkGate.ps1` runs with the other tooling tests in every `validate.ps1` and `test.ps1` run.
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
 `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` (`test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]`) runs
 only the named test functions of the selected suite, so one test iterates in seconds instead of a whole suite in minutes.
@@ -66,7 +77,7 @@ printed nothing for the 35 minutes between starting the Menu suite and the job's
 `DXUI_RUN_TEST` arms a watchdog before each test and disarms it after, and the runner arms a fixture suite without named tests
 (`MenuResources`, `MenuResourceScaling`, `MenuTextLayoutResources`, `MenuExitLifetime`, `Gallery`, `ButtonContrast`) as one
 unit; the three resource fixtures call `NoteDxUiTestProgress` at every sample, so their deadline restarts and bounds a cycle
-instead of the whole fixture. One watchdog thread (`Tests/Support/TestWatchdog.h`) waits for the armed deadline on a condition
+instead of the whole fixture. One watchdog thread (`Tests/Support/Support.Tests.TestWatchdog.h`) waits for the armed deadline on a condition
 variable with a timeout and never polls. A test that outlives its deadline ends the run: the watchdog writes
 `TIMEOUT: <TestName> after <N> s` to the stderr handle and terminates the process with exit code 124 (the code of
 `timeout(1)`; a failed check exits 1 and a usage error 2). It terminates instead of unwinding because the test thread is stuck
@@ -97,7 +108,7 @@ when the script gives up on it after 6 s (the falsification of the rest: every r
 child, and a broken watchdog fails a case instead of hanging the script); the option's defaults and its rejection of malformed
 values; and that the log of a redirected run, as `test.ps1` writes it, yields a failure report naming the exit code and the hung
 test. `test.ps1` runs it after the build in every run that includes a control suite.
-A test process never waits on a dialog. Every native test executable first calls `Tests/Support/FailureReports.h`.
+A test process never waits on a dialog. Every native test executable first calls `Tests/Support/Support.Tests.FailureReports.h`.
 - In a Debug build, a failed runtime check (an STL range check, a CRT assertion) writes its report to stderr and ends the
   run with exit code 3, instead of opening the CRT's modal Abort/Retry/Ignore box.
 - Windows Error Reporting's dialog is suppressed.
@@ -134,14 +145,16 @@ human movement. Failed hover assertions must report a failure, including outside
 Cursor fixtures retain the original and actual aligned positions in physical coordinates,
 and restore only while the cursor still has that aligned position. Popup-context alignment
 must not apply a second DPI conversion. An outer harness verifies restoration and must not
-force the saved cursor position over unexpected movement merely to make the check pass.
+force the saved cursor position over unexpected movement merely to make the check pass: the
+desktop lease of `test.ps1 -Interactive` is that harness, and it reports the position the run left (`cursor.atExit`) beside
+the one it restored, so a pointer the fixtures did not put back is shown, never counted as theirs.
 A blocking `ContextMenu::Show` runs its modal loop on the owner thread and returns only when the menu closes, and the driver
 thread is what closes it, so a driver that fails before it has a popup to dismiss (the popup can come up later than the driver's
 wait on a slow runner) once left the owner thread there for good: the test hung where it should have reported the failure the
 driver recorded. Every driver in the Menu suite therefore begins with `DismissMenusIfDriverFails`, which does nothing when the
 driver succeeded and otherwise keeps closing the popups of its owner for up to eight seconds, stopping early once the ones it
-closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group, so also in the
-nonactivating NewControls lane) has a driver that fails at once, before its popup exists, and requires the guard to close the
+closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group) has a driver
+that fails at once, before its popup exists, and requires the guard to close the
 menu that then comes up and the owner thread's `Show` to return, and a source scan in `Tools/tests/Test-TestWatchdog.ps1`
 requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
@@ -176,8 +189,24 @@ must update the owning runtime contract and its tests; helper names and statemen
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
 animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
 receipts, and `test.ps1` prints each under its suite with the test it belongs to (`skipped <Test>: <reason>`), so a CI log
-shows which tests a missing capability left unrun; a skip is not proof of that capability. CI defines all six native jobs;
+shows which tests a missing capability left unrun; a skip is not proof of that capability, and an interactive run
+(`test.ps1 -Interactive`, see below) fails on one. CI defines all six native jobs;
 their fresh receipts establish execution results.
+
+Each profile's relocated exact-pin consumer fixture is independent of the native suite's foreground lease and
+build output. Its CI steps run after a native-suite failure unless the run is cancelled, including both ASan
+annotation variants. A successful consumer fixture cannot erase the preceding native failure or make the aggregate
+gate pass. Preserve separate receipts for each result; cancellation or an unrun step supplies no qualification.
+
+The validation workflow runs once per change: for every pull request on its merge ref, for every push to main and by
+hand. A push to another branch starts nothing, since its pull request validates the same code; a run started by hand
+validates a branch that has none. Its `native-scope` job decides whether the six native jobs run
+(`Tools/NativeScope.psm1`): always for a push to main and a manual run, because consumers adopt the main commit whose
+latest push run succeeded, and for a pull request unless every path it changes is documentation (Markdown, `Specs`,
+`Changes`, `Measurements`, `docs`, `.agents`, `LICENSE` and the formatting and gallery workflows), which the validation
+job still checks. Any other path, including one the rules do not name, runs them, and so does a scope job that fails. A
+documentation-only pull request reports the native jobs skipped under their unexpanded matrix name, so no required check
+names a native job; its merge to main runs all six.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
@@ -200,6 +229,21 @@ allocations or extra preparations. Its elapsed time is reported, not a machine-i
 benchmark additionally fails a clean round with any C++ allocation and a dirty round above the configuration's
 per-frame allocation ceiling recorded in its receipt. Readback and PNG generation are fixture-only operations. The
 public standalone consumer must compile without private headers.
+
+The Grid's bounded multiline cells are verified by 16 tests that never compare stored pixels. Each paints a scenario and a
+fresh twin on one device (the same cells in a new grid, a short twin of a long value, the unscrolled capture shifted, a
+value with a literal ellipsis) and requires them equal, so a difference is a defect whatever the machine's rasterization.
+They are `TestGridCopyOfTrimmedMultilineCellsIsExact` and
+`TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves` (Grid), eleven `TestGridMultiline...` tests in
+`Tests/Controls/Controls.Tests.GridMultilineRendering.h` (Rendering), two multiline-cell tests (Accessibility) and
+`TestEmbeddedMultilineGridFrenchCells` (Embedded, read back from a WARP device). `Grid::DebugSetTextLayoutEntryLimit`
+lowers the layout tables' 16,384-entry ceiling so a window can reach it; the Grid test drives the real tables at the
+production ceiling. Fixtures that move a control between hosts are shared in `Tests/Controls/Controls.Tests.DxUiTestMovedControls.h`. Each
+test was also run against a temporary mutation of the library (a switch compiled into a scratch build and never committed) and
+fails at the assertion that names the defect. The reviewed table of 33 pairs of a mutant and a test, the x64 Debug, Release
+and ASan Debug logs and receipts, and the limits (a pixel test cannot see a cache eviction order or the surrogate guard)
+are in [the verification packet](../../Measurements/GridTextOverflow/2026-09-30/verification/README.md). CI's native ARM64
+Debug, Release and ASan Debug jobs run the same suites; workflow run 36951713344 passed them with no capability skip.
 
 `validate-test-port.ps1` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
 `test.ps1` also runs the deterministic advisory fixture in `Tools/tests/Test-ConsumerUpdate.ps1`.
@@ -224,12 +268,21 @@ so it holds on a software renderer (WARP, or the Basic Render Driver of a GPU-le
 The process heap is printed beside it for diagnosis only: a software renderer's surfaces and caches share it and swing by
 up to about 3 MB between identical open/close cycles.
 
+A menu without descriptions has the same elements. `TestPlainMenuAccessibilityInvokesAndDisconnects` reads a plain popup's
+rows through its provider: a radio row's Toggle state, a disabled command's `IsEnabled` and refused Invoke, an information
+row with no Invoke, and a command's exact name, MenuItem role and retained bounds. It then focuses and invokes that command
+and asserts that the closed popup returned every record. `TestPlainMenuAccessibilityScrollsFocusedRow` checks that a row
+the viewport cuts off is offscreen without a rectangle until UIA focus scrolls it in, and that the first row then is.
+`TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne` gives a plain and a described popup native focus with nothing
+chosen (no row is selected), then again after a Down (the chosen row is UIA's focus again). It is in the described-menu
+group and runs only in the interactive Menu lane.
+
 Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
 session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
 `WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,
 TSF document included, as designed, so a fixture that asserts state which only holds while the window keeps the
 foreground failed on a takeover it says nothing about. Such a fixture runs its focus-and-pump sequence through
-`RunWhileForegroundHeld` (`Tests/Controls/DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
+`RunWhileForegroundHeld` (`Tests/Controls/Controls.Tests.DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
 deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
 at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
 thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
@@ -246,11 +299,26 @@ builds its scenario afresh. An expectation that fails records the first failure,
 client heard, instead of ending the test, and a wait in an attempt that failed or lost the foreground returns at once.
 The attempt that kept the foreground decides, so its first failure fails the test. Under `--foreground-thief`, which
 takes the foreground within 95 ms of every activation, these fixtures record the skip after five attempts.
+
+Authorized foreground fixtures use `TryActivateDxUiTestWindow`, which requires actual desktop foreground ownership,
+not just the calling thread's active/focus window. If a direct foreground request is refused, it reuses the lease
+backend's scoped foreground-thread input attachment, detached before the result is checked. The current-thread
+activation blocker refuses this path before any focus request, even if a fixture removed `WS_EX_NOACTIVATE`; the
+noninteractive WindowHost regression covers that case. Modal context-menu fixtures establish their owner's foreground
+before opening. Desktop availability alone establishes no foreground grant, and failure to acquire it still fails
+qualification. Production deactivation/dismissal behavior, skip rules and local desktop consent remain unchanged.
+
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
+`TestMenuChoosesTheCursorWhenItOpensAndCloses` (Menu) plays its attempts the same way. Its windows
+never activate in the nonactivating lane, but its menu activates its popup, and another application that takes the
+foreground dismisses the menu as designed, under AddressSanitizer before the test has read the popup. The owner, a
+top-level window of the same thread, counts the `WM_ACTIVATEAPP` (FALSE). Every attempt puts the physical cursor back,
+a failing one included, and one whose expectation failed prints `[MENU CURSOR]` with how often its owner lost the
+foreground and which process holds it.
 
 Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
 animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's
@@ -273,6 +341,22 @@ Windows-generated capture moves must describe the same position. It restores the
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
 flood, hover/paint assertions and 800 ms hover/invocation bounds remain unchanged.
 
+A menu test that probes a popup living on another thread waits a bounded time for the answer. The probes cover the popup's
+state, item rectangles, paint, text and layout, its backdrop, and a bitmap capture.
+- **Where the answer goes.** The popup's own thread answers into a dispatch shared by the caller and the probe's payload. The
+  popup is never read from the caller's thread.
+- **The bounds.** The state probe is posted, so the menu loop answers it ahead of owner traffic, and is bounded at one second.
+  The others are sent, answered at the popup thread's next message retrieval, and bounded at three seconds.
+- **A popup thread that does not answer.** The probe fails instead of holding its driver, and with it the open menu, until the
+  watchdog ends the run.
+- **A late answer.** An answer that comes after the caller gave up lands in the shared dispatch, never in the caller's frame.
+  A payload that is never taken is freed with its window.
+- **The fixtures.** `TestContextMenuDebugStateProbeBoundsWedgedWindowThread` and
+  `TestContextMenuDebugCaptureBoundsWedgedWindowThread` wedge the popup thread in a stalled handler. They require each probe
+  to fail at its bound, before the release, and the next capture to succeed.
+- **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
+  stopped answering.
+
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
 allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Acknowledged expansion, collapse
@@ -280,7 +364,220 @@ and unsubscribe keep their 3000 ms deadlines. Every run logs the setup stage, HR
 longest owner-thread pump, which separates a stalled provider thread from slow UIA client initialization.
 This is a bounded setup allowance, not a root-cause fix.
 
+UI Automation navigation and events are tested with an in-process client, `Tests/Support/Support.Tests.UiaTestClient.h`, which the control and
+the embedded suites share, so that a test asserts what a client sees and not what a provider says about itself. The client runs
+on an MTA thread of its own, as a screen reader is another process, and the thread that owns the providers pumps its messages
+in every wait. It subscribes at a window's element (and its subtree) to the automation events, property changes, structure
+changes and, desktop-wide, focus changes a test names, and records each with the name, control type and automation id UI
+Automation cached for its sender. It walks the content view with a tree walker (the title bar UI Automation adds to every
+window is not part of it): the first and last child, the siblings and the parent of an element, a search of an element's
+children, and the elements the Selection, SelectionItem and GridItem patterns name, which it compares as UI Automation does,
+by runtime id. A client that does not start, or a request unanswered after 20 s, ends the run with a message; a failed
+expectation first prints the tree the client walks and the events it heard, and an event that takes a second or more to arrive
+is logged.
+
+The Accessibility suite uses it on an `AttachedHostWindow` for the collapsed semantic root of the
+[input and accessibility contract](../UI/UI_InputAndAccessibility.md). A window whose only control is a Tree, a Grid or a masked
+TextField is walked and listened to beside the same control in a window with a button, under the same expectations, so that
+what a client sees of the control's parts is held to be the same in both: the first and last child and the siblings of the
+control's element, a search of its children, the parent of each part, the selection container and containing grid they name,
+and the canonical identity of the element (the parent of an item, and its fragment root, is the same COM object the window's
+root provider is). The twin with a second control passed before the fix; the single-control tests failed, with no child below
+the window's element and with no item event heard while an event raised on the window's element itself was.
+
+The Accessibility suite also holds a window-host element to the control it was created for when the controls are rebuilt under
+it. `TestNativeAccessibilityProvidersRejectReplacementAtSamePath` replaces a button and a text field at their paths, by
+replacing their children and by replacing the root: every call on the old elements and their text range, their runtime id
+included, reports `UIA_E_ELEMENTNOTAVAILABLE` and changes nothing of the replacements, while a fresh element reaches them with a
+new runtime id. `TestNativeAccessibilityPostedInvokeRejectsReplacement` and `…PostedSelectRejectsReplacement` queue an action from
+another thread (`DebugSetAccessibilityUiActionPostedEventForTest` says when it is queued) and replace the control before the
+window's thread runs it: the queued action is refused and reaches neither control. A window whose only control collapses into
+its element is held the same way: `TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement` has the button's own
+action replace it, after which the retained element invokes nothing and a fresh one invokes the replacement once, and
+`TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt` retires a root acquired while the window held no control.
+`TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction` rebuilds the controls from the focus-changed callback that an
+element's `SetFocus` or `Invoke` runs: the element reports itself gone, its button's action does not run, and the callback's
+focus choice stands. These tests come from the `codex/fileops-ui-qualified` branch; all but the queued `Select` failed against
+the library before its port ([plan](../Plans/WIP/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
+`TestMultilineCaretViewport`, which renders a multiline field's caret on a WARP surface at 96, 144 and 192 DPI, editable and
+read-only, and requires no caret pixel outside the text viewport: on a partly visible bottom line, scrolled above and below the
+viewport, and restored.
+
+`TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus` has a grid's and a tree's selection delegate replace every
+control while a UI Automation Select or AddToSelection runs on a row or an item, or SetFocus on a row (which selects it; a tree
+item's focus selects silently): the action reports its element gone and nothing is left focused. Before the fix the grid's
+own selection went on refreshing the destroyed grid, which crashed the Debug test.
+`TestGridSelectionDelegateReplacementStopsTheInput` has the grid's selection delegate replace every control during a click,
+a Down key and Ctrl+A. Each control that focuses itself from an
+input handler gets the same test from
+`RequireFocusReplacementLeavesControlAlone` (`Controls.Tests.DxUiTestHelpers.h`), whose host's focus-changed callback replaces every control
+the first time that control gains the focus: a button's press, right press and `Invoke`, a toggle's and a radio button's
+mnemonic, a page indicator's, a slider's and a color swatch's press, a menu bar's press and mnemonic, a tab control's tab
+press, close press and End key and the removal of the tab that held the focus (the Control suite), a splitter's and a color
+picker's press (EditorControls), a combo box's press, double click and context menu (ComboBox), a single-line and a
+multiline text field's (TextField), and a grid's and a tree's press and double click (Grid, Tree). A handler that went on
+using its destroyed control is caught by AddressSanitizer; every build checks that the replacement happened and left
+nothing focused. `TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput` (Grid) has the selection delegate replace
+every control while a Left key or a press on a group's header collapses the group of the selected row, and
+`TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid` while `NotifyDataChanged`, `SetModel`,
+`SetSelectionMode` or a checkbox toggle (Space) whose delegate removes the selected row changes the selection.
+
+The accessibility publish that follows a selection is a reentrancy boundary of its own. With a client listening, the
+Accessibility suite's `TestTreeSelectionPublishReplacement*`, `TestTreeDataChangedPublishReplacementSkipsSelectionDelegate`,
+`TestGridSelectionPublishReplacement*` and `TestGridGroupSelectionPublishReplacementStopsKeyboardHandler` replace the window's
+root at the first selection event that publish raises (`UiaTest::SelectionEventInterruption`): a tree's Select,
+AddToSelection and RemoveFromSelection requests, press, expander, double click, context menu, release of a click on a
+multi-selection, arrow key, type-ahead, Ctrl+A, multi-select change and model reconciliation, and a grid's press, double
+click, Down, Ctrl+A and keyboard group collapse, each for a control that fills its window and for its twin beside a button.
+The request reports the tree gone, the input stays handled, nothing is focused, captured, activated or invalidated after
+the replacement, and the model change calls no selection-set delegate. Each failed against the library before its guard
+(AddressSanitizer, or the result, capture or invalidation check), as did the two delegate tests above, except the release
+of a click on a multi-selection, which the library already stopped; each of the fourteen guards removed on its own fails
+a named test ([plan](../Plans/Done/SelectionPublishLifetime_2026-10-03.md)).
+
+The [selection events](../UI/UI_InputAndAccessibility.md#selection-events) are the library's own, heard from the right sender (an
+item or a row, and the control's element for the invalidation of a selection) by a client subscribed to the window, again for a
+control that fills its window and for its twin beside a button or a label. A test step drives a change through the window's own
+messages (a click with its MK_CONTROL or MK_SHIFT flags, keys with Ctrl held, which need no foreground), a UI Automation request
+or the application's setters, and `UiaTest::HearSelectionEvents` returns the different selection events heard for that step once
+the stream of events stopped, which the step requires to be exactly what it expects. The steps cover a single-selection tree's
+click, Up and setters, its clearing and items that leave it; a grid's click, Down, Ctrl+click, Shift+click, clearing, Ctrl+A,
+exactly 20 and 21 changes, rows out of view and a selected row that leaves the model; and a multi-select tree's set (selected,
+added, removed, invalidated, 30 selected rows that only moved, and the items that turning multi-select off drops). In both
+trees, a selected item that leaves the tree while another becomes the whole selection is heard as that item being selected,
+and one that leaves without that is an invalidation. A diagnostics
+hook, `DebugSetAccessibilitySelectionEventHookForTest` (`Tests/Support/Support.Tests.SelectionEventInterruption.h`), runs after each selection
+event the library raises and stands for what can run while they are raised: hiding the grid, replacing the window's root or
+detaching the host there must end the raising after that one event. Each of these tests failed against the library as it was
+before single selections and grids raised the events (the client heard nothing, or for the multi-select tree nothing when
+multi-select was turned off), and single-point mutants of the change each fail a named step. The text events of a field are the
+library's own, raised by its native text-input session as the test drives it. A cell's events, which the library raises none of,
+are raised by the test on the cell's element to show that they reach the client through its row. The focus change the host
+announces for the item the keyboard reached needs the window to hold the foreground: the Menu suite tests it for a tree and a
+grid that fill their window, and records a capability skip where no desktop is available. `test.ps1 -Interactive` runs it, with the
+person's agreement (see [Interactive tests](#interactive-tests)).
+
+The embedded suite uses the same client through `Tests/Embedded/Embedded.Tests.EmbeddedUiaBridge.h`, which plays the application: a window
+whose provider hosts the window and has the view's root element for its only child, with the view's site adapted to it (the
+parent of the view's root and the fragment root of every element in it are that provider) and COM threading, as the view's own
+providers have. `Embedded.Tests.EmbeddedUia.h` attaches views whose only control is a Tree and a Grid to it. The client walks from the
+application's element through the view's root and the control to its parts and back; hears the events the view raises when it
+publishes a change (the control takes the keyboard focus the application reports); and hears the selection events the view
+raises itself from `UpdateAccessibility`: a single-selection tree's click, Up, setter and clearing, a grid's click, Ctrl+click,
+Shift+click, clearing and Ctrl+A, and a multi-select tree's selected, added, removed and invalidated items, with none for a
+publish that changed no selection. Hiding the view or replacing its root while they are raised (the hook again) ends the raising.
+The embedded host never collapses its root, so the walk and the multi-select events did not fail before the collapsed-root fix;
+they hold the chain a collapsed window host's root must match and prove the client against the embedded providers.
+
+## Interactive tests
+
+The control suites whose contract needs real focus (`Menu`, `NativeTextInput` and the `MenuResources` and `MenuResourceScaling`
+fixtures) take the person's foreground window, keyboard focus and pointer, and record a capability skip where a run cannot get them.
+`DxUi.ControlTests.exe` rejects `--no-activate` for exactly these four, and `Tools/tests/Test-InteractiveMode.ps1` keeps the list in
+`Tools/InteractiveRun.psm1` equal to the runner's. `test.ps1 -Interactive` runs them, with the person's agreement, under the
+interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`; its logic is `Tests/Support/Support.Tests.DesktopLease.h` and
+`Tests/Support/Support.Tests.InteractiveLease.h`, which the control tests exercise without a desktop).
+
+- **Selection.** Without `-Suites` the run is `Menu` and `NativeTextInput`; the two fixtures run when they are named. Any other name
+  is refused, by name, before anything is built, so the lease holds only what needs the desktop. `-Tests` and `-TestTimeout` work as
+  for any run. Every other control suite keeps `--no-activate`. Local foreground suites require `-Interactive`;
+  a verified GitHub-hosted Windows job uses the hosted lease below for only its requested foreground suites.
+- **Refusal.** A run refuses, before anything is built, in a CI job (`CI`, `GITHUB_ACTIONS`, `TF_BUILD` and the like are set) and in
+  a process without an interactive window station (a service, a scheduled task, a remote shell). After the build the lease checks the
+  session natively (`DxUi.InteractiveLease.exe --check`, which shows and takes nothing) and checks again when it is about to ask: the
+  window station is the visible one, the session is not 0 and is active, the input desktop can be opened and is this process's (a
+  locked screen, a secure desktop and a disconnected session fail here), no screen saver runs and the pointer position can be read.
+  The reason is printed, the run produces no receipt and nothing was shown or taken.
+- **After everything else.** The run does what every `test.ps1` run does before its suites (consumer advisory, tooling tests, runtime
+  staging, build, the filter, watchdog and lease self-tests, the benchmark), then takes the desktop for the suites alone, so the
+  watchdog contract, which bounds a hung test while the suites hold the desktop, has been proved against this executable first.
+  The development machine spends about a minute and a half on that, then about a minute and a half on the lease in x64 Debug
+  (`Menu` 43 s and `NativeTextInput` 16 s on 2026-09-30; 54 s and 22 s in ASan Debug), and the person's confirmation in between.
+- **Asking.** The lease records the desktop, then shows a dialog that says what will happen, for about how long, and that the
+  person's window, focus and pointer are restored afterwards. Its default button is Cancel, so a key pressed by accident as the dialog
+  appears cannot start a takeover; Start needs a click or Alt+S. If nobody answers within two minutes the answer is Cancel: nothing
+  was taken and the run exits with code 21. Ctrl+C while it asks ends the run as well.
+- **During the run.** A banner at the top of the primary monitor, above every window and click-through, says that the tests are
+  running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
+  `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
+  the display stay awake. Each suite is a child of its own, in a kill-on-close job, with its output in its log. The foreground is
+  granted to that child alone and never to any process, and the lease ends only a process it started: a child that outlives its bound
+  (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
+- **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
+  window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
+  three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing
+  suites, a failing suite, the watchdog's 124, a hung child, a child that cannot start, a cancelled or unanswered confirmation, a
+  warning that cannot be shown, and Ctrl+C or a closing console. It cannot happen if the lease process itself is killed; its job then
+  ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
+  while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
+- **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
+  left it as the person had it), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
+  that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
+  person had (`cursor.saved`) and the one the run left (`cursor.atExit`), and whether the run had moved anything
+  (`runMovedSomething`): restoring is an action, not a check, so a pointer the fixtures did not put back is shown and never counted
+  as theirs.
+- **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
+  means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
+  (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
+  lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+
+Verified GitHub-hosted Windows foreground runs MUST use the same lease's anchor, child-specific foreground grant,
+bounded child lifetime and verified restoration. `test.ps1` and `DxUi.InteractiveLease.exe --run-hosted` each independently
+require exact `CI=true`, `GITHUB_ACTIONS=true`, `RUNNER_ENVIRONMENT=github-hosted` and `RUNNER_OS=Windows` markers.
+Native refusal precedes desktop inspection or mutation. This mode substitutes hosted-runner authorization for the
+person-facing confirmation; it retains the desktop probe, mutex, warning anchor, failure/skip checks and restoration.
+It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts use `.hosted` and explicitly retain the
+lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
+stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
+
+When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
+marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
+held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
+and verify that the warning owns the point before and after moving the pointer. Capture checks MUST inspect the
+foreground thread as well as the lease thread: `GetCapture` alone cannot rule out another thread's capture. The warning
+MUST be temporarily clipped to an opaque, nonlayered patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
+down/up messages and released button state, verify actual warning foreground, and restore/read back the original
+extended style, layered alpha/color-key attributes and full window region before starting a child. A refused target
+retains read-only point/hit-window/geometry/style/region/DPI diagnostics; it sends no input to that foreign window.
+Failed insertion, release, activation or restoration
+MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
+checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
+
+`DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
+command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
+the lease, 23 when the warning could not be shown (the desktop was not taken), 24 when a suite could not be started, 25 when the
+suites passed but the desktop could not be given back and 26 when the run was stopped; `Tools/tests/Test-InteractiveMode.ps1` keeps
+`Tools/InteractiveRun.psm1`'s table equal to `LeaseExit` in `Tests/Support/Support.Tests.InteractiveLease.h`.
+
+The `InteractiveLease` control suite (in every `test.ps1` run, with `--no-activate`) restores a desktop built of fake windows, a fake
+pointer and a fake foreground, so no window is activated and no pointer moves: untouched, moved, refused, never-sticking and
+closed-window foregrounds, a focus a window resets, a pointer an activation moves, and each refusal the desktop check names; and it
+runs the whole lease against fake services on every path (declined, unanswered, stopped, a warning that cannot be shown, a child
+that cannot start, fails or is ended by the watchdog, a desktop that cannot be restored) and requires the restoration, the release
+of the session's lease and of the display after each. Its few tests of the Windows backend only read the desktop, or read a window
+the test created and never showed. `DxUi.InteractiveLease.exe --self-test` proves the Windows services without anyone's desktop:
+children with their logs, exit codes, bound and stop, the session's lease, and the dialog (every answer, the unanswered one included)
+and the warning, which open on a private desktop that is never the input desktop. `Tools/tests/Test-InteractiveLease.ps1` runs it
+with `--check` and the usage errors (`test.ps1` runs it after the build in a run that includes the `InteractiveLease` suite, and
+before an interactive run takes the desktop), and `Tools/tests/Test-InteractiveMode.ps1` covers the selection, the refusals (two runs of
+`test.ps1`, under a CI environment and bounded, end before anything is built), the plan and result files and that `test.ps1` reaches
+the lease only through `-Interactive`. What none of them proves is the foreground hand-off on a real desktop: only an interactive run
+does, and its receipts are that evidence. The six runs of 2026-09-30 ran under RedSalamander's harness and are evidence for what they
+ran, not for this lease.
+
 ## Independent library workloads
+
+The described-menu test and `FocusEventClient` use `CUIAutomation8` on a dedicated MTA thread with two-second provider connection and
+three-second provider transaction timeouts. Desktop-wide subscription must not give an unrelated provider an
+unbounded wait. Setup still has its separate 20-second allowance, and the expected DxUi focus events must arrive
+within three seconds; a setup timeout or a missing event fails rather than skips. The described-menu test prints
+its setup stage, readiness and HRESULT so a stalled call is distinct from an API failure. Test-window creation
+failures print their Win32 error before ending the run.
+
+The PowerShell desktop lease wrapper streams executable progress to the host separately from its structured
+return value. Successful and failed children retain their exit codes and result data even when the executable
+prints restoration diagnostics.
 
 The complex benchmark uses the same synthetic scene as `DxUi.EmbeddedControls.exe --complex-ui`, with no application
 services, settings or checkout. EmbeddedTests covers the sample's slider/progress preview and cancellation binding.
@@ -308,3 +605,32 @@ public compilation/link/render proof without changing the user's clipboard or cl
 Embedded tests cover missing/dirty/stale geometry, 144-DPI DIP output and cancellation before device-loss draft
 capture. Native text tests cover insertion flags, capacity prediction, staged NOLAYOUT, prepared notification,
 and sink callbacks releasing the final caller reference. The initial optional sample capture is visually reviewed.
+
+## Scoped iteration and PR coverage
+
+Active native test sources, helpers, fixtures and seams MUST use `Scope.Tests.Something.h/.cpp`. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+
+`Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
+
+Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
+
+Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
+includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
+the complete external compiler or Windows SDK installation. Consequently, `SkipBuild` and a reused native receipt
+cannot establish buildability with a newly serviced compiler/SDK. Retain fresh canonical build evidence for that
+toolchain gate. Paired performance studies separately require the resolved toolchain and SDK content identity
+specified by the performance contract.
+
+`-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
+
+Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+
+`Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
+
+RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
+
+`Tests/test-scopes.json` owns the standalone scope and verified PR-profile mapping; RedSalamander's `Tools/validation-impact.json` and canonical plan continue to own its affected execution. Specific standalone test-source rules use their semantic entry tags, while common support and unknown paths retain conservative fan-out. New source/build/runtime/runner dependencies must extend the relevant manifest and focused regression coverage.
+
+CI invokes explicit full gates rather than the affected default. The forthcoming PR executes its candidate workflow; a reviewed local workflow digest and the enabled GitHub workflow gate delegation. Workflow edits invalidate that digest until the scope contract is reviewed and updated. RedXe's independent Windows tooling/skill tests execute once in its tooling job. DxUi's tooling has one Windows host qualification and one Linux portability qualification; its MSBuild-only staging fixture executes once on Windows; native runner/watchdog checks stay profile-specific. RedSalamander schedules skip unchanged commits only after successful matching workflow history; manual dispatch and unreadable/failed history execute. Hosted timing investigations still use paired, fixture-matched resource evidence; cached historical observations are not new measurements.
+
+PR delegation MUST account for conditional workflow jobs. DxUi uses the existing NativeScope contract to keep native obligations local when a documentation-only PR skips native CI; always-running Windows/Linux tooling remains covered. Native success identities exclude validator prose while tooling identities include it.

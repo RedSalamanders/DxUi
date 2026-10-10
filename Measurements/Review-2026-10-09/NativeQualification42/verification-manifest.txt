@@ -1,0 +1,633 @@
+{
+  "schemaVersion": 1,
+  "purpose": "independent-current-source-receipt-verification",
+  "verifiedUtc": "2026-10-09T21:07:08.3410748Z",
+  "sourceCommit": "bea676a1f8418141f61cab9326b9b910e89a14b4",
+  "sourceDirty": true,
+  "compiledSourceIdentity": "6eecb659b29a22e494cb18bf7dfaac08b1574f0fc057f1c86c2fbafc500ea1ff",
+  "dependencyIdentity": "15f14002b9f997bf9f9fe7a80fb55b45f6fc82fc4acc9b21a5b9513d9417a5c1",
+  "buildInputIdentity": "8b958f97c8e898f78c22b0b6b996576fa4f13d4b155001fb5f3e73e4200cd14e",
+  "environmentIdentity": "011ab7e1b17b75e7d9dfd0abf35f44adfc65232d2942233d0f802015868d1bc9",
+  "nativeScopeCount": 19,
+  "nativeProfileCount": 3,
+  "wholeScopeReceiptsVerified": 57,
+  "capabilitySkips": 0,
+  "profiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "buildArtifactIdentity": "97f97c1556fd3e6f293e8106039cf175f28f88fbba3adf69e8da177b4c26feac",
+      "commonRunIdentity": "51ef9c4879c7fd57c569ab745f2ffd7875d70461bcdace432846915386325b6b",
+      "buildReceiptSha256": "6CF650B51773FF11C2FD0526B5E4EC35B917FD776BFDF28500DB35006ED79B81",
+      "scopes": [
+        {
+          "scope": "Foundation",
+          "identity": "c719328ba82a6cec273dd33fec8af6c58acc4ce56831710e6e2f2bf9b5d735ce",
+          "reportSha256": "D6855C1148FFC2E8B7F3D4A60CB1B86FA5A024424D0AE08C72FE8EEA507BCCAA",
+          "receiptSha256": "27636D88762B00D52DC90CF19F804D7A40D1ABD47C6685F1276147D1ED4D8224",
+          "executableSha256": "3CA45EA3EAA1AF52F2CDB467975471BF07E3EB46275417D560DEA098B039C6B4",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:03.287992Z"
+        },
+        {
+          "scope": "Embedded",
+          "identity": "de2ca1281a656d5129defe2adb6727c400c88292ee9a022fb552fddd00a7895f",
+          "reportSha256": "15A313F65D947D8E1CD7D03521516011ACCDD65497B5CB42030AA6A99D3B9D7F",
+          "receiptSha256": "7F811A67BE48A8CBE84E5F9CBB05953B7061FFDAA790F17EE36F6E24BF7B982E",
+          "executableSha256": "385F95C2068DECD088B651EBFF70B016B58B2ABEF4279B5FD1602D4A4B370AE3",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:31.985232Z"
+        },
+        {
+          "scope": "Grid",
+          "identity": "06d8c8c4ea321b254f72cb1255867c03ce635d7ff34c7b2478c2ce51e80b26d4",
+          "reportSha256": "DE8C366F7FC9C67985C7D455633C9833EA400CC4B0D1307302ADEC68794F8A13",
+          "receiptSha256": "DA91C45EBD7E38C7C4CCB6DFD26A40FB28223E79BCA7C68118BB8AA10039EED1",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:35.4124771Z"
+        },
+        {
+          "scope": "Theme",
+          "identity": "43971916f12f1f7b8720bc2efeb15613263bb68c37d7730267822dbfcce56be7",
+          "reportSha256": "E96136EB9745B08308BADD1F80C519667CA5C4EEDFFF5A77B3AF28971C991F14",
+          "receiptSha256": "5D14B41FC31E2F0A8C58F6E997551444DEABF44309FC24407B2BC393433BF9D4",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:35.4570716Z"
+        },
+        {
+          "scope": "Control",
+          "identity": "7e75a3c9afe85a6c5ca2f96e199d84b36c2a1b178915b4c73ff05e98c0c17343",
+          "reportSha256": "4D7E6D7750A0F062C78A413B957DE647EC4015FF8D78D92CE332FFFEC394539C",
+          "receiptSha256": "5C0A24FA56ACAE952AE05DFDE8B10DD23C67248124FB02E0C89356ED029CEF7E",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:36.2676764Z"
+        },
+        {
+          "scope": "MenuExitLifetime",
+          "identity": "722ff56ee078420c19c4640d4bc1607f82cef22922eab06131154e8393594d59",
+          "reportSha256": "AB54F3959E01991C103B766AAC66400FE63596D0FE6D614399D6EF4F8CBF7B32",
+          "receiptSha256": "697C71192514A3F43FE76F8F90F9430CD54CD9CE2F33A2851A38FB16012CD61E",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:36.6153458Z"
+        },
+        {
+          "scope": "NewControls",
+          "identity": "527a61ec3c740502be82df8ca3d77e7aa4d6d80b7c45acf5733634dc6bd22f11",
+          "reportSha256": "E25865124302DBB115E2E33D40B0A05D57FF4A90FBEF5D9BDB908F601EE1EB7F",
+          "receiptSha256": "8B5B819C4C8E65F745687DE9E8C356C0117ECB436EADE11100629A4A8260FB71",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:37.2002639Z"
+        },
+        {
+          "scope": "EditorControls",
+          "identity": "c09d88d636fd69aeca4044c15080eb30dae055cecacdf21d1219e8f3e2008ae8",
+          "reportSha256": "B3D8E41CB0733967FBCDC37F2D71A78984A32F2E367FA7FF484199505AE9DDC4",
+          "receiptSha256": "0BB9D87998C5685442DB54962369126867D4974B7CE636B289557868F05DF45A",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:43.0590324Z"
+        },
+        {
+          "scope": "TextField",
+          "identity": "63cf1f7d8cdfee50e7c61445ea7054fe42f66e848fdcad3d22c87e3781b435a0",
+          "reportSha256": "604B658ED8BC24EC70E82C05BC776B6E08EAAC952962278C2484C17FF2BAD5C5",
+          "receiptSha256": "CDD9D93EE1533594894AF29E500877E7B7AA6546C1915E13BB3E4F9B8FFB9588",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:46.5830092Z"
+        },
+        {
+          "scope": "MultilineText",
+          "identity": "02cfee1fdedf8cf8cebfbbc222c313d09872581bad7f1e41a9226d09cb8e973a",
+          "reportSha256": "47F033290BCB96DF3A1EF7F04761E7A6D6E8B9FBB6571CC04A7D92A1F14F898B",
+          "receiptSha256": "7B5A7AE5995ABD082565A65C95744FB30EACF3226760CDB6F4153BF36E262E64",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:52.5681681Z"
+        },
+        {
+          "scope": "ReadOnly",
+          "identity": "3e1cc63a30ed7146ddc513a0c09a5d157183b0877fff948592fefb788cb9311c",
+          "reportSha256": "56D63F8B318F3FF79FD0F2B1FA21E2E32B908A6036780D00175E4687E71EC17B",
+          "receiptSha256": "E147E6A90A6DC9C90096414150BC41628B57F6418987350F3438F8B48BF53135",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:56.0279677Z"
+        },
+        {
+          "scope": "ComboBox",
+          "identity": "c5e5ffabb8d9f547b240d3acb2b1c372914d08013a44d4bc0e0bb55a23a67edc",
+          "reportSha256": "7AEEB92600960F177260389C29E6CE8E317D14EAB477D86247F7D50920063685",
+          "receiptSha256": "1465CD97E4D709DF35FBC9F1A6EC6EAE5B81EE6D9866A6B81D0E2C6CAB02FD38",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:57.2917561Z"
+        },
+        {
+          "scope": "Tree",
+          "identity": "6031fbf56bfe30261a987780bc7a80f15f8994daf742513314f23f10139d11c0",
+          "reportSha256": "7AA7F0851DE67BD4C1A429398A71927D8E96DF1C8F4E6B1CAA35DA5BA3B7821B",
+          "receiptSha256": "A846DEF9F6447AB95B64A276DBB35FC4FCAC0594B6D313C1A0942D35D87D27AE",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:58.2490669Z"
+        },
+        {
+          "scope": "Tooltip",
+          "identity": "3a456373cb6c612ca2d7f2b8e31e66819c47d35e46ec8bc813c6c17c5bd0a5da",
+          "reportSha256": "5E36CDB342F0305A94CAE13B689E4BF037AD9FC80090CF95643F79FD946B01A0",
+          "receiptSha256": "90DA186AC1D66E0C1B960146D7146EC63728FB80D91001BA6091FD95330221BF",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:51:59.7401697Z"
+        },
+        {
+          "scope": "Rendering",
+          "identity": "bcfbb9d99e3b658389dd3eb069c8c8c6d63259744bd1ba52d5cc8ae3b5f26096",
+          "reportSha256": "DE47AC801CFCB6499E78C95DDE0513EFD0952256A8D975BA51B9EC7E8A370D58",
+          "receiptSha256": "24F0148488911F5BA865D00F3E77A1A30D778C5D5A5DA5DE2291B5F182AE3BAB",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:52:25.6607107Z"
+        },
+        {
+          "scope": "Animation",
+          "identity": "bf38f3182e1111360c93010449821f35f519cbcbe677d17f49a27ad78bf61c9f",
+          "reportSha256": "DB76FDC73BB741058B045DFF11CCD0C044B131D89E3E5B08C8C66A8075A22187",
+          "receiptSha256": "7FCD05D009309C97D6E6EF5A590B4C2618797A0A8E0A0520EF0B03C7AF91EB8B",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:52:26.9775966Z"
+        },
+        {
+          "scope": "Accessibility",
+          "identity": "3bee7e86520cea7aa95f9ce439bbea1ffee819afd82c85899ab41c2ea03b4067",
+          "reportSha256": "437EA2265A0C5113699B463B1110182F1AD31118DB06D2E0A0F374266F3E185C",
+          "receiptSha256": "036112998332BA8772B28FE50DE6529D055FCF67ECFC6340485C2FDE73DBA1C1",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:54:21.2750332Z"
+        },
+        {
+          "scope": "WindowHost",
+          "identity": "f0df2fff30e9f9a5d46d2dd1d37b90509814b56f22c59ac383e185a5898b989d",
+          "reportSha256": "3C74B7CCB242E966C53D7A4BD591CEF3872B03921AE3A471C648073F9DAE915D",
+          "receiptSha256": "8213549A3A38D012C4E9CEFAF38AA3C772512C3F569D95AD52BE7C0108ACE981",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:54:28.0491878Z"
+        },
+        {
+          "scope": "InteractiveLease",
+          "identity": "77f0283fe30c0dbafd36830517aa5b481fc990417fb3c068b02efd6e35d39a03",
+          "reportSha256": "0ADBFD98BB4DD543C1E0AB14707E5083493A99D1F760FF6B44AB43874177B442",
+          "receiptSha256": "BCACD0FB7DEDC9DECCC17A4B2941674CA48C808B801074C56A51C0F540A47233",
+          "executableSha256": "E81C5EBF8DDF4B9B90E3A9C3337CF35A15D6CEA3D85931A2DBC76385FB41125A",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:54:28.1104198Z"
+        }
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "buildArtifactIdentity": "cf6a65ad290c3fa177dfe65d4abe0521e4d2580eec74193fd0f77c7a733d24e0",
+      "commonRunIdentity": "f5425cbc4c95e341acbb4c99a1d50fa4d35f2aa1010981106aa58eddc2dc0295",
+      "buildReceiptSha256": "579A492786A789971339412CA6C75AA08CB207F9DF8D8CE51F28ECDC0C2026A0",
+      "scopes": [
+        {
+          "scope": "Foundation",
+          "identity": "6c2075689fb0f26fcae57c48afa024f790fada71e5298bc7397a97c50c55fb73",
+          "reportSha256": "BC66E7EE4A60ABBF4E6E12FB8F4E4ADC0892EC3252093BAD3A98C99EA0CC4BF6",
+          "receiptSha256": "CA7D1B679A47107993C1499B45A22FD36FC25274AEAD9AC50820DE66F7A60F43",
+          "executableSha256": "507095DDA6BD9E51104E6985444C51A6567D9BAD554FE177F345471477C1DC47",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:15.4086131Z"
+        },
+        {
+          "scope": "Embedded",
+          "identity": "5e6e2b52259ba4ffe9a3c2a9bd12b1f13f907bc8f87b2006b435dffac738fc18",
+          "reportSha256": "537F35C24C08EB84E46DA3736C3B5EECBAE59A0F1DB1A3ABE8F5DA1BD1F6342F",
+          "receiptSha256": "67A7FBFE5A6EA6C780E9C813730C66789B56C4741B342A38D2EEBAFD34BD8EFE",
+          "executableSha256": "2BC3095B82A7EC26A078240DA422958C83DC3EA62765B8ED9EA8DB265A8C4B3F",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:44.9911473Z"
+        },
+        {
+          "scope": "Grid",
+          "identity": "8eda48f07cdbf65f10b5e508579fb69bd0dbc8b5a91a9fb0cdffa60941691bff",
+          "reportSha256": "A940C63C29492078A60F2183656055956246B310D37F7FEB0092A0B158963F03",
+          "receiptSha256": "AE9F86C9C49B6F301C83987C74CE91F410D25248A07C5EF22438F88077E92F1A",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:45.9720898Z"
+        },
+        {
+          "scope": "Theme",
+          "identity": "87108980799ca073baf51a303fe73352a0d7cc1ef49f5f8dee5326061b74595e",
+          "reportSha256": "C080B0C888F2E77EB63F812BE1BBC9E86325C72B34CFED65A3831D3E0194DBF8",
+          "receiptSha256": "F59D6D30DFC6A40B25003DF1CBB359B555EA64B6B794F0D63DC75C4AA700559C",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:46.0076408Z"
+        },
+        {
+          "scope": "Control",
+          "identity": "e1a3e551971b5ad944fbfbdde10abcd1fa738a25efa597dcba302567d38ac3ac",
+          "reportSha256": "B601B482E43EDBC40E0696355DFD4D83CA862294E0FCB9B359AF07DC4229B704",
+          "receiptSha256": "2E881F2F8E17542A3C623BF598A2923952163E35A9932F8EF33EC14719BF7ECC",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:46.7204467Z"
+        },
+        {
+          "scope": "MenuExitLifetime",
+          "identity": "eb359d76e8494839efdd1dfd7e68e45b44450fb091b9bb48ad66f2d4460cf6b7",
+          "reportSha256": "CBE63F834B7F12D1C1377B9CA23FCB1CF4C15C2B93154446FE1B015AE0F7DFE4",
+          "receiptSha256": "7A05D6ABD7B9ADA3B01E0153FA931C8F51D5BC3E084D2FB828F3ED72184A7A9B",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:47.0703109Z"
+        },
+        {
+          "scope": "NewControls",
+          "identity": "b9f39e6ce715678b089c3092ee2c761bc150e00b137431a23c5307353c49e72f",
+          "reportSha256": "E876CE9BBE5C1795FAFBFB2846DF9EE6007D75F388EE5B0A5408FE9F62A0EC3C",
+          "receiptSha256": "440CAB6D7C19E2A4717F7C6B9F387E9B6B51E21EC2CD544AC5EB7A6972F749D6",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:47.6131948Z"
+        },
+        {
+          "scope": "EditorControls",
+          "identity": "2f2c7ac76557170faaaacf416ce17a93757449677eaa86245e0f904a1f0ad6a2",
+          "reportSha256": "5997135A4F60C8329990BBC8B56F98378760FF2425E700F4E16F7FA69641C98A",
+          "receiptSha256": "3F8865AC792148AD6DC2814242D9B16C40464538060EE41848887069B55DF957",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:53.091145Z"
+        },
+        {
+          "scope": "TextField",
+          "identity": "75a1011a885e77b4955b5529dfccd7968323d4063690fcb6db692e72d187c476",
+          "reportSha256": "E54F4F09BA60F12E7586E7EBBDCE69B4BCDE8BBCC5E0209C45C6B4500CD22ED6",
+          "receiptSha256": "03FEB682905773B9E5B3689CCE2D50A0758270420E1B1B917D8D75101E7BB385",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:55:56.5064842Z"
+        },
+        {
+          "scope": "MultilineText",
+          "identity": "a0a18b2c7bed7e1f613b1984ae0d68e988604d4f699b40b60a3af1eaaee4f57d",
+          "reportSha256": "9F2BA2C1E638CBF4BF0EA3D0A58A1201083371B6E7CF193E703BB759B0731337",
+          "receiptSha256": "C9B2412E163ECC9F9B5A8AF8A88721E15EDE71354B46AF2CEF186EAB1DD9FC9E",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:01.3622891Z"
+        },
+        {
+          "scope": "ReadOnly",
+          "identity": "94e1f1322220dced98e5d7bf17b45b820f1f5aaec6660c5101df8bb5c2d6ec2c",
+          "reportSha256": "D1F8CDB773A8B4786853B9B5D99A0CED4FE3D97B2EA186EA01B2E98B85BF1702",
+          "receiptSha256": "CE17F376481385B7E0A6DA0B42F2189A32BE18E5A0BCE2BA9FE8AD04DA9B3150",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:03.9951175Z"
+        },
+        {
+          "scope": "ComboBox",
+          "identity": "d3da8dcf1ae041eb06fd499b31cb1ab3a794e51ff43ba37ba61e03b42b504557",
+          "reportSha256": "CE8CB72156CBEC7CA7C5D64DA06A493BB944A082597CCE899267380EE1C7E87A",
+          "receiptSha256": "EFD04D1700ADE3D5230DB4A73251483B46EF3D7CB74874FF0D6800E522337688",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:05.6581286Z"
+        },
+        {
+          "scope": "Tree",
+          "identity": "8d693dd2a9a5232bf9aed6c9149cb73bfaf7fc02fe2affd610daad2c63e1c371",
+          "reportSha256": "6F610A1129201316D0CFF4188768BBCDE1F29FB3BA6F4F385C2472A5EB2692FD",
+          "receiptSha256": "5D98842106A3478F3F6AD4A8F910BAF31365133FDBB4D5E8C8833CBDD342DF63",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:06.5660021Z"
+        },
+        {
+          "scope": "Tooltip",
+          "identity": "8b02693725dee884fdab6409e9bfabe3944ea256fa005448ebdb9fc6a3291d75",
+          "reportSha256": "4B6C73199C61F283A40313FAED8914C6058F4A524F415D32ACA410E8C84F470E",
+          "receiptSha256": "9F7EE7F3A4811C4D4A996CE76ABA498BFAB65857ABE515BAFCC3348C401883F2",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:07.9357294Z"
+        },
+        {
+          "scope": "Rendering",
+          "identity": "b31872dd0e8f9cbe42b701a720f3515e9a7e19e04c5c1df44ad8d9ef3012baf4",
+          "reportSha256": "79DE22B6F9A28A378A496E07F6E3D1D780A2E217C712864339D4D39A89132179",
+          "receiptSha256": "A638DE1DB9E17FCF8825427E5D1446CD66A324D195D0D2FBF91685CD4EFCFA91",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:32.1682224Z"
+        },
+        {
+          "scope": "Animation",
+          "identity": "13e425627e8576dfbf4ef73bb395f3be797900f93437274d9ef5ab8ecacc386c",
+          "reportSha256": "A4A2EDF2CC143FEA26A82E2D60F6265ED69F400333F346FAD00996307BBBC465",
+          "receiptSha256": "54472585D1D98544EEA0A0D19C58E5ADA7CBEE8602A4D86E9C4E27EDCC6BA773",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:56:33.4380954Z"
+        },
+        {
+          "scope": "Accessibility",
+          "identity": "901cc28870dd5709955f5ba66cadc6ff7d3e338c3bd2cf03889d236083688a09",
+          "reportSha256": "8A923DF8F97398332D45B30122532C5D303CE383F380E3152CA7A6D2ED97E6C7",
+          "receiptSha256": "8F05C90D932B17827F844252F34F4695844D45CA3D783254ADD3C9989D66437D",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:58:29.9503978Z"
+        },
+        {
+          "scope": "WindowHost",
+          "identity": "6c299698aa4a02a74fdba8b8ca5f63736aa2125f46c6f8c4cc95650a9ebadc17",
+          "reportSha256": "37E341F45F35CFA74B4917DD911A8C5E4F9DF9D76DD980C21241EC4B43B5B810",
+          "receiptSha256": "E4E07494EBF9E7B75E28188DEF432AC05EAAEB7E248A3BFE914B2B9B79763C26",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:58:36.8044991Z"
+        },
+        {
+          "scope": "InteractiveLease",
+          "identity": "befaa6250e37c048b85ad629bbe252f9489973e866d23b198f561ce9b6a259ed",
+          "reportSha256": "058D00E8BD24516ED378AC843D230BF59C77186D2D1D4D8E1DD7659E954C0739",
+          "receiptSha256": "B58F381F5CE08E08F9E9ABD9EE1AB99DD4FC922320684EDFAF78A5F445AFDE3F",
+          "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T20:58:36.8562705Z"
+        }
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "buildArtifactIdentity": "0f8433a908fcb34e7cb943e3b29b5c056b079e41ece026cabd72fdcc42638bfd",
+      "commonRunIdentity": "0e4073f1651884338d59880b06cdd05e857d454825b4fd5db4dd2ce775cfbbfd",
+      "buildReceiptSha256": "811347390206A3046F7F4612721FCAF792606654163D3C10169FE0A5554BD7A8",
+      "scopes": [
+        {
+          "scope": "Foundation",
+          "identity": "13e77ec93dad46666e8c992eb6ca4dd13280f89da8efd59b88c08edd951441e9",
+          "reportSha256": "E0E865CEA69A48367D10E7590D169EFB90ED4ECE31B73543442092F0CB2F3B88",
+          "receiptSha256": "F610791D2B74EAA0498B8D9327003CB409F6E37FCA96FFD48ADAE137980A7FB7",
+          "executableSha256": "71060B865BE598ADE79E02884EF04F2D0E8D5F97AE57C607B18C6AAF3CD1D53F",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:05.5160993Z"
+        },
+        {
+          "scope": "Embedded",
+          "identity": "4ba933a36ec07ab1bfba990630d7d19c2d106989d12848274a25f1fe3103365c",
+          "reportSha256": "C4F3DCB24D4B2F2FEC5AAD3061441C1D6246EA529A994FC6BD8F725B002961C1",
+          "receiptSha256": "B58B44E4D7EFB21CAA047A981FD04266392DF03474CF0D34A04095A071E548B8",
+          "executableSha256": "E0C52FDEF700E5AFF77372C7BB77E19E56D896E772C0F174494B1E4A2BDCE1C8",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:31.4579675Z"
+        },
+        {
+          "scope": "Grid",
+          "identity": "a6b68d84e92b2175df1b0bd9481d6410ea55ca77e5a1fde238de3c1b9b5079b7",
+          "reportSha256": "5AEC0DE68CC1BA3187F12F86FD19ECDFF69216AE99F7D3457DE902192BD9C6B6",
+          "receiptSha256": "227E7D1D9DA302F6888310E8035E224A1700A7D17E6301571C4E65600B6D203B",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:40.8977441Z"
+        },
+        {
+          "scope": "Theme",
+          "identity": "d7bdb912dab1f7ea3d0ea17910faa3fa34e13aa05cb384e3b645f6094a85a99c",
+          "reportSha256": "B7A6BAF2874E272FFADB0D071255B6ECD8C79642730044EC2DBAF4A64ADF868C",
+          "receiptSha256": "2E330BF2B63FDAB7CD6A75CD9A36210B12D095CECBA8A106DF95E46BB8C0D65F",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:40.9812785Z"
+        },
+        {
+          "scope": "Control",
+          "identity": "410f6ff0c1a58e74c0cec943b7d1c0536b2c65675ef0391e57d44f9d93fa7303",
+          "reportSha256": "A55FA3AD944EE63C2400806CA3D7BE3A87242D2B611E4C5E8B87050BE39A388B",
+          "receiptSha256": "6F7A95C3A10B36FA1B04F305A407A29191917E9AA9C810F7D24BCBF7D5DD95AC",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:42.7868442Z"
+        },
+        {
+          "scope": "MenuExitLifetime",
+          "identity": "63a561745acde2bad4a033b93f8d398c2eea3ce8e6c4f7e1f31f273c875e7228",
+          "reportSha256": "A26FFB410ABE7A5C9DDF12F03CFEC75E8D54C4AD139AEBDE110D79CD9CB02DC5",
+          "receiptSha256": "C9E8367F40C05ECA0BF8416C15DE49A2B602E29645E4A7C69CE827FCAF8048A8",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:43.7152695Z"
+        },
+        {
+          "scope": "NewControls",
+          "identity": "bbb2bcc0e0afd81197aaf4fd8e81a63ab0192be00efdab786fd38a87696268e6",
+          "reportSha256": "C238F3FFB7F45ADC1F1CE0D1EB904993913740A8B7DD34C35C8D0D5D3DA0F771",
+          "receiptSha256": "BEC3694C9FEC16CF20C32FB581AF52CCF9D37EE09EE7ED0730076F6DE7DA7423",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:45.1371281Z"
+        },
+        {
+          "scope": "EditorControls",
+          "identity": "16154db11eb04ee8bb4b8ac43361ec02663689252e6278d0b26c02841dafcb22",
+          "reportSha256": "DA0BA87C8706E80960ED3785EAA7026D1C9E291BE179710D680A6D2922FF2D56",
+          "receiptSha256": "9DDADC005F4E5EB33B4771674C2DE7161F32FFC3E4C7EBD946582C5B8D58F49C",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:01:54.7595492Z"
+        },
+        {
+          "scope": "TextField",
+          "identity": "0678211f67f2971bbc989581f29b957942683411ec7956fcd5a82b5e8f1b313a",
+          "reportSha256": "0A4FD339D114F11FA59A5CA3262028E2202D5D947C68B4FE886B59F9F818169F",
+          "receiptSha256": "F65CDCE6E7011CCD8DDC2EC1F1E4852A10FB5509E30EC59FCC8DE5460D9BF7CA",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:02.6193164Z"
+        },
+        {
+          "scope": "MultilineText",
+          "identity": "69f42d42e0fd703eaba6d385f861d4343e358f551b997fbaa29df6a009a8aec1",
+          "reportSha256": "DB991C3940A650947DFABEB55FE9E7F820265ECDD53B979E6F27FAC8F6B8C3B0",
+          "receiptSha256": "56AF9C4BFF09792335FF477CC378BBE1B15D49FD7F01E011C42124BAA26D5C60",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:12.9742131Z"
+        },
+        {
+          "scope": "ReadOnly",
+          "identity": "92aac8795142d4f7592ddafa2dd3133c1363a6b66969fd79a99daee0b4eb2b52",
+          "reportSha256": "F1570E06E2BE0B479C4D23E0A025D36D7F5C81D093B2686B3EBDA9CC92CAA395",
+          "receiptSha256": "1B9629920745BC6CD3EC1C72C929AE870A2CE2564A64F8B787C1FD217374BB78",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:19.2210013Z"
+        },
+        {
+          "scope": "ComboBox",
+          "identity": "e5d48f54236727ec0b8186eb4a4a4e5815dd9e58fe52efc679711d574a60f67e",
+          "reportSha256": "BBCBBB1E8E29B5D7E61234BBB7646E8129F809D203094196E8B7CB9417643E25",
+          "receiptSha256": "1D21709A66BD044F1462725784DFF95ED35F37B4C46E610110D29AB5A09FF49D",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:21.579355Z"
+        },
+        {
+          "scope": "Tree",
+          "identity": "e7eff0062534548e7025320a0514cdad5c08362feef30c01545a5412d16a6e8a",
+          "reportSha256": "05F8F9084C7EB0F30E7797E48E0C1EA0D783F9DF69BCD2D1E45E8248491FF1F0",
+          "receiptSha256": "5948BF615C97613D69960CBE197B4DC750D36D9E08AFA04A0D1D81E5D31A406E",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:23.526234Z"
+        },
+        {
+          "scope": "Tooltip",
+          "identity": "c17ee59ae80e059901632d96eddb587ba0b708fdcd3081e3cbfc01f22acb353f",
+          "reportSha256": "FC81C30F9504C74DB5CC111F6BD99462763C83BA2800A8FDAAB14A5572092D30",
+          "receiptSha256": "E0F7D1BC4C4B33357CB279B49732478362F6404529FB6F76582D5BBE120735FA",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:02:26.2999529Z"
+        },
+        {
+          "scope": "Rendering",
+          "identity": "44a492d56c59923849172109775df040903264675f44036f54f7ca7a5650d412",
+          "reportSha256": "B54933C82CCC0D2B011922327334C90B1DED97E05871F181E95400F0F2912205",
+          "receiptSha256": "AB70F2F2CF3F6C2A77F3AF22CB0D29E8D1AF66EB46F5E5F8FF158E261E86B425",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:03:13.1438597Z"
+        },
+        {
+          "scope": "Animation",
+          "identity": "2c91a36589d09d986c5ba7aa146ee4d45a6aeb1d26e4b7d82272b78380f4a0f4",
+          "reportSha256": "EA6A34D6AA4E5C3F8781BE71E2882C63A4923DC520BFAEEEF35334548D4E4D8E",
+          "receiptSha256": "1DAFDCB37D5E102348BC895576AB3168548B0BAB2B88EF4B9BD98DAA6EBB88EE",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:03:15.3279341Z"
+        },
+        {
+          "scope": "Accessibility",
+          "identity": "547e585c416e698af52e0931d8310d42beeea6b13dfb06f5a46417a2555cc108",
+          "reportSha256": "BD409A30FA19532C8A4C0C29B0980484E5BDB5C9FC793F6060606650E2E51E8F",
+          "receiptSha256": "3B3D06764CEA490563F502B11D91C64F4C4180CFFBFE6717BF2FCAC0950E6D35",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:05:06.9886639Z"
+        },
+        {
+          "scope": "WindowHost",
+          "identity": "79e7f586b21f2742dc871a39cbab9bc9fbbe025b363095977748dfab62cbaedc",
+          "reportSha256": "6B182E6DCA17359BB9B63CCF9C725FE4AEBED209DEE77F72CE802C0924AA4E9A",
+          "receiptSha256": "D9A66E7D427AAF1057FF3D67EE751132940469A6AA92974105E387C1FECA296D",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:05:18.2656351Z"
+        },
+        {
+          "scope": "InteractiveLease",
+          "identity": "0f4bd4c5e3568765c429f98afaeda9ebdf93e6d8014cdd82cecf2934c0bcd356",
+          "reportSha256": "6360D2EA7B33277F8033BFFCB60096CF376E74A9754BAED82CC6387D509E82C6",
+          "receiptSha256": "3B044CD297AF680AA7DA9B37E57071429DBEC1BC491E640E8EA9AF7A1949A626",
+          "executableSha256": "9F076209C444FF00665525B6DCD64A5176886AE81BF5D2AF8961C8FB7104630D",
+          "exitCode": 0,
+          "skips": 0,
+          "completedUtc": "2026-10-09T21:05:18.3678012Z"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "All 19 scopes executed in each profile in iteration 42 after the receipt-preservation attributes changed the conservative source identity.",
+    "ARM64 receipts are cross-build evidence only; native ARM64 runtime is NOT RUN.",
+    "Menu, NativeTextInput and Menu resource fixtures remain separate interactive obligations.",
+    "Unpaired complex-UI samples in the suite reports are reporting evidence, not paired non-regression acceptance.",
+    "Compiler/SDK buildability and performance-policy qualification remain separate gates."
+  ],
+  "extraNonInteractiveChecks": [
+    {
+      "suite": "MenuTextLayoutResources",
+      "platform": "x64",
+      "configuration": "Release",
+      "exitCode": 0,
+      "skips": 0,
+      "reportSha256": "C5A888BEAA1AC5076E8DCE2799BF12A399B87CE5B3C7611D477845577AD28144",
+      "executableSha256": "E7626F102E04D6DF04CBF265AEB944E43A3FED8FCAB0385EF359D45DFCC8A024",
+      "receiptReuse": false
+    }
+  ]
+}

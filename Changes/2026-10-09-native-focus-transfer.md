@@ -1,0 +1,1 @@
+- 2026-10-09: Preserve the newer native text-input session activated synchronously by HWND focus transfer, and verify plain-menu accessibility record publication after the provider is requested.

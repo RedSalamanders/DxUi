@@ -3,12 +3,35 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## October 2 menus without descriptions
+
+A menu without descriptions now gives every row a UI Automation element, as a described menu does; until then a
+screen reader found no row in it (RedSalamander's destination-menu test, 27 September). The change ports the
+`codex/menu-description-layout` correction (`15be545`, `d45c361`) and its snapshot pre-sizing (`65b0257`). The
+statements below that per-entry elements exist only in described popups describe the implementation before it. The
+[plain-menu packet](../../../Measurements/PlainMenuUia/2026-10-02/README.md) measures its cost against main: about
+1.6 KB of live heap per open command row, and 0.3 ms plus 1.4 to 2.6 µs per row for each key or wheel notch that moves
+the rows. The developer accepted that cost on 2 October, and the
+[performance contract](../../Core/Core_PerformanceAndResources.md) records it. Described menus are unchanged. The consumer
+handoff remains open.
+
+## September 30 one layout per row
+
+A described row now holds one DirectWrite layout for its label and its description, instead of two that a popup
+shared where labels repeated. The [controls contract](../../UI/UI_ControlsAndLayout.md) states the geometry and
+drawing it keeps; the [memory plan](../Done/MenuDescriptionMemory_2026-09-27.md) and the
+[row-layout packet](../../../Measurements/MenuDescriptions/2026-09-30/row-layout/README.md) hold the measurements:
+byte-identical captures and gallery sheets, about a third less live heap wherever labels differ, and up to 7% more
+where every row repeats one label, which the developer accepted on 2 October 2026. The earlier statements below that a
+row holds two layouts, and that equal text shares one, describe the implementation before this change. Gallery pixels
+are unchanged, so `docs/gallery` needs no update; the consumer handoff remains open.
+
 ## September 27 memory waiver, removed on September 30
 
 The user directed a waiver for the repeated clean private-memory flag and asked for the cost to be
 optimized. The [performance contract](../../Core/Core_PerformanceAndResources.md) recorded the waiver
 and its envelope: at most 1,175,552 clean-round private bytes (+4.6%) on the default fixture. The
-[optimization plan](MenuDescriptionMemory_2026-09-27.md) owned the remaining work. On 30 September a local paired set
+[optimization plan](../Done/MenuDescriptionMemory_2026-09-27.md) owned the remaining work. On 30 September a local paired set
 of six runs per side found clean private memory +0.36% (p = 0.70), within the band, as the hosted set had, and the
 waiver is removed.
 
@@ -205,7 +228,7 @@ qualification remains in RedSalamander's File Operations plan.
   skips, restoring the foreground window, focus and cursor exactly. The first attempt stopped on one skip, a test
   covered by the desktop application's own window; that attempt is kept, and the fix makes the test's window topmost.
 - [x] Qualify paired performance/resources: nothing flags timing against main, and the repeated clean
-  private-memory flag is waived pending the [optimization plan](MenuDescriptionMemory_2026-09-27.md).
+  private-memory flag is waived pending the [optimization plan](../Done/MenuDescriptionMemory_2026-09-27.md).
 - [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
 - [x] Run all six native configuration profiles on the sharing candidate, retaining ARM64 desktop skips.
 - [x] Resolve resource gates: the memory waiver above, recorded 2026-09-27.

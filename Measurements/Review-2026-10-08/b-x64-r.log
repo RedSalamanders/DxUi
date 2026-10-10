@@ -1,0 +1,113 @@
+Native test naming: 56 files checked.
+Test plan: Affected (x64 Release); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease
+  (explicit): explicit scope => Foundation
+  (explicit): explicit scope => Embedded
+  (explicit): explicit scope => Grid
+  (explicit): explicit scope => Theme
+  (explicit): explicit scope => Control
+  (explicit): explicit scope => MenuExitLifetime
+  (explicit): explicit scope => NewControls
+  (explicit): explicit scope => EditorControls
+  (explicit): explicit scope => TextField
+  (explicit): explicit scope => MultilineText
+  (explicit): explicit scope => ReadOnly
+  (explicit): explicit scope => ComboBox
+  (explicit): explicit scope => Tree
+  (explicit): explicit scope => Tooltip
+  (explicit): explicit scope => Rendering
+  (explicit): explicit scope => Animation
+  (explicit): explicit scope => Accessibility
+  (explicit): explicit scope => WindowHost
+  (explicit): explicit scope => InteractiveLease
+REUSED Accessibility (identical successful local evidence)
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+ok   the lease ends only the processes it started
+Interactive lease: 5 of 5 passed
+Complex UI clean round 1: 2528.05 completed offscreen FPS; p95 0.5461 ms; private 27672576 bytes
+Complex UI clean round 2: 2689.76 completed offscreen FPS; p95 0.4214 ms; private 27521024 bytes
+Complex UI clean round 3: 2773.33 completed offscreen FPS; p95 0.3686 ms; private 27500544 bytes
+Complex UI clean round 4: 2808.99 completed offscreen FPS; p95 0.3778 ms; private 27471872 bytes
+Complex UI clean round 5: 2742.6 completed offscreen FPS; p95 0.4379 ms; private 27480064 bytes
+Complex UI dirty round 1: 660.037 completed offscreen FPS; p95 1.595 ms; private 28663808 bytes
+Complex UI dirty round 2: 566.504 completed offscreen FPS; p95 1.6654 ms; private 29421568 bytes
+Complex UI dirty round 3: 520.394 completed offscreen FPS; p95 3.5103 ms; private 29597696 bytes
+Complex UI dirty round 4: 630.25 completed offscreen FPS; p95 1.7182 ms; private 29609984 bytes
+Complex UI dirty round 5: 622.914 completed offscreen FPS; p95 1.8581 ms; private 29495296 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-a95163602eee47348f680986e2d018af.json
+Running Foundation (x64 Release)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Release)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running MenuExitLifetime (x64 Release)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Release)
+PASS NewControls (12 capability skips recorded)
+  skipped TestWindowHostTabRaisesAutomationFocusChanges: DxUi window-host UIA focus changes require an interactive desktop
+  skipped TestWindowHostTreeArrowAnnouncesTheFocusedItem: DxUi tree item UIA focus changes require an interactive desktop
+  skipped TestWindowHostSingleTreeArrowAnnouncesTheFocusedItem: DxUi single-control tree item UIA focus changes require an interactive desktop
+  skipped TestWindowHostSingleGridArrowAnnouncesTheFocusedRow: DxUi single-control grid row UIA focus changes require an interactive desktop
+  skipped TestWindowHostElementSetFocusAnnouncesOnlyThatElement: DxUi element SetFocus announcements require an interactive desktop
+  skipped TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce: DxUi click activation announcements require an interactive desktop
+  skipped TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus: DxUi click activation announcements require an interactive desktop
+  skipped TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce: DxUi reactivation announcements require an interactive desktop
+  skipped TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange: DxUi foreground focus announcements require an interactive desktop
+  skipped TestMenuChoosesTheCursorWhenItOpensAndCloses: the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane
+  skipped TestPlainMenuFractionalDpiRoundingDoesNotCreateScrollbar: plain-menu half-pixel layout case requires a 125% or 175% monitor
+  skipped TestModalMenuDispatchesUnrelatedTimerWithSubmenuId: the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane
+Running EditorControls (x64 Release)
+PASS EditorControls (0 capability skips recorded)
+Running TextField (x64 Release)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Release)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Release)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Release)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Release)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Release)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Release)
+PASS Animation (0 capability skips recorded)
+Running WindowHost (x64 Release)
+PASS WindowHost (0 capability skips recorded)
+Running InteractiveLease (x64 Release)
+PASS InteractiveLease (0 capability skips recorded)
+All 18 requested suites passed.
+PASSED_WITH_CAPABILITY_SKIPS NewControls (not reusable)
+SELECTED_PASSED_WITH_CAPABILITY_SKIPS; repository NOT_EVALUATED

@@ -1,0 +1,12 @@
+mutant	Count	Gap	Color	Tabs	Policy	DeviceLoss
+0	pass	pass	pass	pass	pass	pass
+1	pass	FAIL	pass	pass	pass	pass
+2	pass	pass	pass	pass	pass	FAIL
+3	pass	pass	FAIL	pass	pass	pass
+4	pass	pass	pass	FAIL	pass	pass
+5	pass	pass	FAIL	pass	pass	pass
+6	pass	pass	FAIL	pass	pass	FAIL
+7	pass	FAIL	pass	pass	FAIL	pass
+9	pass	pass	FAIL	pass	pass	FAIL
+11	FAIL	pass	pass	pass	pass	pass
+12	pass	FAIL	pass	pass	pass	pass
