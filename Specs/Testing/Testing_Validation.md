@@ -188,6 +188,11 @@ shows which tests a missing capability left unrun; a skip is not proof of that c
 (`test.ps1 -Interactive`, see below) fails on one. CI defines all six native jobs;
 their fresh receipts establish execution results.
 
+Each profile's relocated exact-pin consumer fixture is independent of the native suite's foreground lease and
+build output. Its CI steps run after a native-suite failure unless the run is cancelled, including both ASan
+annotation variants. A successful consumer fixture cannot erase the preceding native failure or make the aggregate
+gate pass. Preserve separate receipts for each result; cancellation or an unrun step supplies no qualification.
+
 The validation workflow runs once per change: for every pull request on its merge ref, for every push to main and by
 hand. A push to another branch starts nothing, since its pull request validates the same code; a run started by hand
 validates a branch that has none. Its `native-scope` job decides whether the six native jobs run

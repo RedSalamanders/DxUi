@@ -74,6 +74,8 @@ later changes. The candidate's proposed source hashes are review targets; no wor
 `test-consumer.ps1` restores and builds a relocated exact-pin public consumer in an isolated output directory,
 compiles the frozen API revision-4 fixture and public helper headers, renders the supplied-device example, and rejects invalid-pin/dirty-source cases. `gallery.ps1` generates the
 five-theme control catalog, supplied-device image and HTML index from compiled native code.
+CI runs the relocated consumer checks even after a native-suite failure unless the run is cancelled. They build
+their own clean pin, do not require foreground input, and cannot erase a failed native or aggregate result.
 Add `-PublishDocs` to publish reviewed gallery snapshots to docs. `performance.ps1` captures completed offscreen
 complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes that report even for filtered suites and,
 with `-Tests`, runs only the named tests of a control suite (`--test=` of `DxUi.ControlTests.exe`).

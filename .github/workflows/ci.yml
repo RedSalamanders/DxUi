@@ -118,11 +118,16 @@ jobs:
         timeout-minutes: 25
         # Tooling has one qualification per host. Native runner/filter/watchdog checks remain per profile.
         run: ./test.ps1 -Full -SkipTooling -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
-      - shell: pwsh
+      # The relocated consumer builds its own clean pin and does not require the foreground lease. Retain its
+      # independent result after a native-suite failure; a failed step still fails this job and the aggregate gate.
+      - name: Qualify the relocated public consumer
+        if: ${{ !cancelled() }}
+        shell: pwsh
         timeout-minutes: 15
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
-      - shell: pwsh
-        if: matrix.configuration == 'ASan Debug'
+      - name: Qualify the consumer with STL annotations disabled
+        if: ${{ !cancelled() && matrix.configuration == 'ASan Debug' }}
+        shell: pwsh
         timeout-minutes: 15
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} -DisableStlAnnotations
       - name: Characterize menu resource scaling without capture

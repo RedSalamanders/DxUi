@@ -483,6 +483,8 @@ try {
         foreach($profile in $manifest.prCoverage){foreach($scope in $profile.scopes){Assert-Scope ($scope -in $manifest.scopes.name) "PR profile declares nonexistent scope $scope"}}
         if($manifest.repository -like '*/DxUi') {
             Assert-Scope ($manifest.prCoverage.Count -eq 6 -and $workflow.Contains('MenuResourceScaling,MenuTextLayoutResources')) 'DxUi profile/resource coverage was narrowed'
+            Assert-Scope ($workflow -match '(?m)^      - name: Qualify the relocated public consumer\r?\n        if: \$\{\{ !cancelled\(\) \}\}') 'Native failure hides independent consumer qualification'
+            Assert-Scope ($workflow -match '(?m)^      - name: Qualify the consumer with STL annotations disabled\r?\n        if: \$\{\{ !cancelled\(\) && matrix.configuration == ''ASan Debug'' \}\}') 'Native or first consumer failure hides the ASan annotation variant'
             Assert-Scope ($workflow.Contains('run: ./validate.ps1')) 'Portable tooling gate missing'
             Assert-Scope ($workflow.Contains('windows-tooling:') -and ([regex]::Matches($workflow,'run: ./validate.ps1')).Count -eq 2) 'One qualification per Windows/Linux host was not retained'
             Assert-Scope (([regex]::Matches($workflow,'run: ./Tools/tests/Test-AsanRuntime.ps1')).Count -eq 1) 'Runtime staging fixture is repeated or missing'

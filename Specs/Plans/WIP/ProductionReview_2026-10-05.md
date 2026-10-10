@@ -30,13 +30,15 @@ Grid/Tree, text-input and tooling work. Prior receipts qualify their exact archi
 The accepted implementation is integrated. The checkboxes below remain open until their associated qualification
 obligations finish; the performance policy remains a proposed migration awaiting concrete calibration and review.
 
-Current qualification limits (10 October): all three x64 profiles of hosted candidate `2b06792` pass their 21 suites
-with zero skips and four API 4 consumer cases. All ARM64 profiles build and pass 19 noninteractive suites; Menu and
-NativeTextInput refuse warning ownership before input, so native foreground/consumer completion is still open.
+Current qualification limits (10 October): all three x64 profiles of hosted candidate `7f2e959` (actual merge
+`0ebf482`) pass their 21 suites with zero skips and four API 4 consumer cases. All ARM64 profiles build and pass
+19 noninteractive suites; Menu and NativeTextInput refuse warning ownership before input, including after the
+opaque-patch experiment, so native foreground/consumer completion is still open.
 The isolated same-binary A/A study has zero migrated flags, but all 72 short controls are unstable and 50 of 54 timing/
 memory cells have excursions. It does not qualify policy seeding. Keep the required CI rule deferred until the trusted
-base policy and a concrete candidate pass are established. The capture, opaque-patch and raw-timing follow-up needs
-fresh final-source six-profile/paired CI. Physical IME, assistive technology, touch and consumer adoption remain
+base policy and a concrete candidate pass are established. The lead independently checks all 126 native reports and
+reproduces 350 timing fields from 8,400 ordered samples. The tooling-only aggregate-validation repair and final
+evidence update need current PR coverage. Physical IME, assistive technology, touch and consumer adoption remain
 explicit separate obligations; these records establish no product-wide production approval.
 
 - [ ] Q1/Q2: ownership-safe child/tab extraction, compatible API guidance and measured dispatch retirement.
@@ -1844,3 +1846,29 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   retains the original accepted-invalid witness, corrected source snapshots, independent rejections, complete affected
   Tooling scope validation and formatting. Valid receipts remain accepted; normalized judge review target `EB1B3047`
   is still unqualified. No native compiled source changed and no new runtime/performance acceptance is inferred.
+- Hosted run 38010688230 measures head `7f2e959` as merge `0ebf482`; the lead independently verifies equal trees,
+  both parents, all 126 suite/log pairs, raw source/artifact identities, sanitizer probes, four x64 consumer cases
+  and both Release resource fixtures. All three x64 profiles pass 21 suites with zero skips. ARM64 profiles build
+  and pass 19 noninteractive suites, then refuse both foreground suites before input; subsequent consumers do not run.
+  Opaque warning styles, enabled/visible state and point/region geometry are read back correctly, but hit testing
+  still returns the saved foreground CoreWindow. All three lease restorations are unchanged. A separate source
+  reviewer and the lead find no demonstrated geometry defect; the winning window's exact occlusion cause is not proven.
+  Do not add an unproven activation workaround or weaken the refusal gate. The lead also reproduces 350 timing
+  fields from 8,400 ordered samples across seven raw reports, with unchanged allocation/hidden-work budgets.
+  The recorded 100 ns QPC tick exceeds the 25 ns investigation band of the main Release clean-prepare P95; this
+  limitation neither explains all instability nor waives any metric. Clean committed `9ec25d9` passes complete
+  Linux validation/tooling. [Follow-up 66](../../../Measurements/Review-2026-10-09/HostedQualificationFollowup66/README.md)
+  seals 527 native entries and fifteen review/portability entries with independent reopened SHA/length verification.
+- Remaining environment question: which provisioned ARM64 input desktop and controlled quiet measurement host
+  can provide the outstanding runtime/calibration evidence? Recommendation: keep the current warning-ownership
+  capability gate, execute the unchanged suites on a verified interactive ARM64 host, and rerun the frozen paired
+  protocol after documenting the measurement host's workload. A private input-desktop switch would require its
+  own lifecycle, child-desktop, input/TSF/UIA and restoration qualification; it is not an obvious corrective edit.
+  No personal input/focus permission is requested again here, and no physical or policy-seeding gate is closed.
+- The hosted failures exposed a workflow evidence dependency: the default successful-step condition suppresses
+  relocated consumer qualification after a failed native foreground lease. Both consumer steps now run unless
+  cancelled, with the annotation-disabled variant still restricted to ASan. The consumer restores/builds its own
+  exact clean pin, uses nonactivating rendering/module fixtures and does not depend on the failed warning target.
+  Native and aggregate failures remain failures; current CI execution must verify the independent ARM64 cases.
+  Existing six-profile workflow-contract and aggregate-failure tooling checks cover the new obligation; the
+  reviewed workflow digest is refreshed without changing the benchmark policy or required-rule status.
