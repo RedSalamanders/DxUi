@@ -108,7 +108,9 @@ function Assert-PerformanceTimingDiagnostics([System.Collections.IDictionary] $R
             throw 'Invalid timing diagnostic clock frequency/period'
         }
     }
-    if ([double]$frequency -ne [Math]::Floor([double]$frequency)) { throw 'Clock frequency must be an integer' }
+    if ([double]$frequency -ne [Math]::Floor([double]$frequency) -or [bigint]$frequency -gt [bigint][long]::MaxValue) {
+        throw 'Clock frequency must be a positive Int64 counter frequency'
+    }
     if (-not (Test-SameJsonValue $period 1)) { throw 'The MSVC steady clock nominal period must be one nanosecond' }
     Assert-TimingDiagnosticValue (Get-ReceiptValue $clock 'tickNanoseconds') (1e9 / [double]$frequency) 'clock tick'
     foreach ($round in $rounds) {
@@ -125,6 +127,7 @@ function Assert-PerformanceTimingDiagnostics([System.Collections.IDictionary] $R
             $sorted[$key] = @($values | Sort-Object { [double]$_ })
         }
         $totalMs = [double]($samples['frame'] | Measure-Object -Sum).Sum
+        if (-not [double]::IsFinite($totalMs) -or $totalMs -le 0) { throw 'Invalid timing diagnostic frame total' }
         Assert-TimingDiagnosticValue $round['fps'] (40000.0 / $totalMs) 'fps'
         Assert-TimingDiagnosticValue $round['frameP50Ms'] $sorted['frame'][19] 'frame p50'
         Assert-TimingDiagnosticValue $round['frameP95Ms'] $sorted['frame'][37] 'frame p95'

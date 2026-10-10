@@ -54,13 +54,14 @@ Invoke-TestCase 'timing diagnostics preserve legacy decisions and validate compl
     Assert-Equal 26 $result.changes.Count 'diagnostic fields do not enlarge the judged family'
     Assert-Equal 'within-noise-budget' $result.status 'identical diagnostic receipts retain the original decision'
     Assert-Equal 40 $receipt.scenarios[0].rounds[0].timingSamplesMs.frame[0] 'validation preserves frame order'
-    foreach ($field in @('clock', 'samples', 'frequency', 'period', 'positivePeriod', 'tick', 'count', 'group', 'string', 'negative', 'nonfinite', 'zeroFrame', 'fps', 'frameP50Ms', 'frameP95Ms', 'prepareP95Ms', 'composeCpuP95Ms')) {
+    foreach ($field in @('clock', 'samples', 'frequency', 'frequencyRange', 'period', 'positivePeriod', 'tick', 'count', 'group', 'string', 'negative', 'nonfinite', 'zeroFrame', 'fps', 'frameP50Ms', 'frameP95Ms', 'prepareP95Ms', 'composeCpuP95Ms')) {
         $bad = Copy-JsonValue $receipt
         $round = $bad.scenarios[0].rounds[0]
         switch ($field) {
             'clock' { [void]$bad.Remove('clock') }
             'samples' { [void]$round.Remove('timingSamplesMs') }
             'frequency' { $bad.clock.ticksPerSecond=0 }
+            'frequencyRange' { $bad.clock.ticksPerSecond=1e30; $bad.clock.tickNanoseconds=1e-21 }
             'period' { $bad.clock.nominalPeriodNanoseconds='1' }
             'positivePeriod' { $bad.clock.nominalPeriodNanoseconds=2 }
             'tick' { $bad.clock.tickNanoseconds=1 }
@@ -90,6 +91,11 @@ Invoke-TestCase 'timing diagnostics preserve legacy decisions and validate compl
     $overflow = Copy-JsonValue $receipt
     $overflow.scenarios[0].rounds[0].timingSamplesMs.frame = @((1..40) | ForEach-Object { 1e-320 })
     Assert-Throws { Assert-PerformanceReceipt $overflow } 'non-finite derived timing rejected'
+    $overflowSum = Copy-JsonValue $receipt
+    $overflowSum.scenarios[0].rounds[0].timingSamplesMs.frame = @((1..40) | ForEach-Object { 1e308 })
+    $overflowSum.scenarios[0].rounds[0].frameP50Ms=1e308; $overflowSum.scenarios[0].rounds[0].frameP95Ms=1e308
+    $overflowSum.scenarios[0].rounds[0].fps=1e-20
+    Assert-Throws { Assert-PerformanceReceipt $overflowSum } 'an overflowing finite-sample sum cannot validate falsely tiny FPS'
 }
 
 Invoke-TestCase 'the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks' {

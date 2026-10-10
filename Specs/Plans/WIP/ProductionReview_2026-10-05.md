@@ -1832,3 +1832,15 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
 - Clean committed `283288c` passes full native-filesystem Linux validation/tooling. [Follow-up 62](../../../Measurements/Review-2026-10-09/PairedAndPortabilityFollowup62/README.md)
   seals that exact-source portability log and the completed PR study/auditors. Final-source hosted execution and trusted
   policy seeding remain open. The next published candidate must preserve these limits in its draft PR and CI receipts.
+- Published `7f2e959` starts fresh six-profile CI run 38010688230; Windows tooling, Linux validation and formatting
+  pass, while native/paired execution remains pending. Six-profile PrePush accounting delegates matching obligations
+  to that concrete candidate and retains foreground/hardware gates explicitly; CI_PENDING is not a pass.
+- A further lead audit reproduces a new diagnostic-validator overflow gap: forty individually finite frame samples
+  can overflow their sum, while a falsely tiny positive FPS slips through rounding tolerance near zero. Reject
+  nonfinite/nonpositive totals and frequencies outside the QPC Int64 carrier; add meaningful malformed-receipt cases.
+  This tooling-only repair leaves metrics, bands, inference, compiled native source and workload unchanged; retain
+  the reproduction and validate the renewed proposed judge hash without self-qualification.
+- [Timing aggregate follow-up 64](../../../Measurements/Review-2026-10-09/TimingAggregateFollowup64/README.md)
+  retains the original accepted-invalid witness, corrected source snapshots, independent rejections, complete affected
+  Tooling scope validation and formatting. Valid receipts remain accepted; normalized judge review target `EB1B3047`
+  is still unqualified. No native compiled source changed and no new runtime/performance acceptance is inferred.
