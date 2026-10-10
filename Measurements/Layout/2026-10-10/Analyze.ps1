@@ -144,35 +144,55 @@ $nativeRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')) {
     foreach ($name in $testNames) { Require ($testLog.Contains('[DONE] '+$name+' (')) "New test did not complete: $configuration $name" }
 })
 $pendingInteractive = [Collections.Generic.List[object]]::new()
+$asanControlReceipt = Read-Packet 'Control-ASanDebug.receipt.txt'
+$incompleteInteractiveRows = @(foreach ($attempt in @('timeout','retry-timeout','third-timeout')) {
+    $expectedRestoration = if ($attempt -ceq 'third-timeout') {
+        [ordered]@{foreground='failed';focus='skipped';cursor='failed'}
+    } else { [ordered]@{foreground='unchanged';focus='unchanged';cursor='unchanged'} }
+    $leaseLines = [IO.File]::ReadAllLines((Join-Path $packet ('lease-ASanDebug-'+$attempt+'.txt')))
+    Require ($leaseLines -ccontains 'state: timedout' -and $leaseLines -ccontains 'exit: 21' -and
+        $leaseLines -ccontains 'confirmation: timedout') 'Incomplete raw interactive lease differs.'
+    Require (@($leaseLines | Where-Object { $_ -cmatch '^child:' }).Count -eq 0) 'An incomplete lease launched a child.'
+    foreach ($part in @('foreground','focus','cursor')) {
+        Require ($leaseLines -ccontains ('restoration.'+$part+': '+$expectedRestoration[$part])) "Incomplete raw lease restoration differs: $part"
+    }
+    foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
+        $receipt = Read-Packet ($scope+'-ASanDebug-'+$attempt+'.receipt.txt')
+        Require ($receipt.suite -ceq $scope -and $receipt.configuration -ceq 'ASan Debug' -and
+            $receipt.exitCode -eq 24 -and $receipt.lease.exitCode -eq 21 -and
+            $receipt.lease.state -ceq 'timedout' -and $receipt.lease.confirmation -ceq 'timedout' -and
+            $null -eq $receipt.lease.seconds) 'The recorded incomplete interactive profile differs.'
+        Require ($receipt.interactive -eq $true -and $receipt.lease.mode -ceq 'local-confirmed' -and
+            $receipt.lease.hosted -eq $false -and $receipt.platform -ceq 'x64' -and
+            $receipt.nativeArchitecture -ceq 'X64') 'Incomplete interactive profile or lease mode differs.'
+        Require ($receipt.sha256 -ceq $asanControlReceipt.sha256) 'Incomplete interactive profile used a different executable.'
+        foreach ($part in @('foreground','focus','cursor')) {
+            Require ($receipt.lease[$part] -ceq $expectedRestoration[$part]) "Incomplete interactive lease restoration differs: $part"
+        }
+        Require ($receipt.lease.runMovedSomething -eq $false) 'An incomplete lease reported moving the desktop.'
+        if ($attempt -ceq 'third-timeout') {
+            Require ($receipt.lease.cursorAtExit -ceq 'unknown') 'The third attempt unexpectedly recorded a cursor position.'
+            $testLog = [IO.File]::ReadAllText((Join-Path $packet ($scope+'-ASanDebug-third-timeout.log')))
+            Require ($testLog.Contains('[LEASE] '+$scope+' did not run under the foreground lease') -and
+                -not $testLog.Contains('[DONE] ')) 'An incomplete child log contains execution evidence.'
+        } else {
+            Require ($receipt.lease.cursorSaved -ceq $receipt.lease.cursorAtExit) 'An earlier incomplete lease moved the pointer.'
+        }
+        foreach ($fact in @(('foreground.saved: '+$receipt.lease.savedForeground),('cursor.saved: '+$receipt.lease.cursorSaved),
+            ('cursor.atExit: '+$receipt.lease.cursorAtExit),'restoration.runMovedSomething: 0')) {
+            Require ($leaseLines -ccontains $fact) 'Raw incomplete lease and receipt facts differ.'
+        }
+    }
+    [ordered]@{attempt=$attempt;configuration='ASanDebug';scopes=4;status='NOT_RUN';sha256=$receipt.sha256;lease=$receipt.lease}
+})
+$desktopCheck = [IO.File]::ReadAllText((Join-Path $packet 'asan-desktop-check-after-third-confirmation.log'))
+Require ($desktopCheck.Contains('[LEASE] no interactive desktop: the input desktop cannot be opened (error 5)')) 'Post-confirmation desktop refusal differs.'
 $interactiveRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')) {
     $controlReceipt = Read-Packet ('Control-'+$configuration+'.receipt.txt')
     if (-not (Test-Path -LiteralPath (Join-Path $packet ('Menu-'+$configuration+'-interactive.receipt.txt')))) {
         Require ($configuration -ceq 'ASanDebug') 'An expected completed Debug/Release interactive profile is missing.'
-        foreach ($attempt in @('timeout','retry-timeout')) {
-            $leaseLines = [IO.File]::ReadAllLines((Join-Path $packet ('lease-'+$configuration+'-'+$attempt+'.txt')))
-            Require ($leaseLines -ccontains 'state: timedout' -and $leaseLines -ccontains 'exit: 21' -and
-                $leaseLines -ccontains 'confirmation: timedout') 'Incomplete raw interactive lease differs.'
-            Require (@($leaseLines | Where-Object { $_ -cmatch '^child:' }).Count -eq 0) 'An incomplete lease launched a child.'
-            foreach ($part in @('foreground','focus','cursor')) {
-                Require ($leaseLines -ccontains ('restoration.'+$part+': unchanged')) "Incomplete raw lease changed the desktop: $part"
-            }
-            foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
-                $receipt = Read-Packet ($scope+'-'+$configuration+'-'+$attempt+'.receipt.txt')
-                Require ($receipt.exitCode -eq 24 -and $receipt.lease.exitCode -eq 21 -and
-                    $receipt.lease.state -ceq 'timedout' -and $receipt.lease.confirmation -ceq 'timedout' -and
-                    $null -eq $receipt.lease.seconds) 'The recorded incomplete interactive profile differs.'
-                Require ($receipt.interactive -eq $true -and $receipt.lease.mode -ceq 'local-confirmed' -and
-                    $receipt.lease.hosted -eq $false -and $receipt.platform -ceq 'x64' -and
-                    $receipt.nativeArchitecture -ceq 'X64') 'Incomplete interactive profile or lease mode differs.'
-                Require ($receipt.sha256 -ceq $controlReceipt.sha256) 'Incomplete interactive profile used a different executable.'
-                foreach ($part in @('foreground','focus','cursor')) {
-                    Require ($receipt.lease[$part] -ceq 'unchanged') "Incomplete interactive lease changed the desktop: $part"
-                }
-                Require ($receipt.lease.runMovedSomething -eq $false -and
-                    $receipt.lease.cursorSaved -ceq $receipt.lease.cursorAtExit) 'Incomplete interactive lease moved the pointer.'
-            }
-        }
-        $pendingInteractive.Add([ordered]@{configuration=$configuration;scopes=4;status='NOT_RUN';reason='Both local Start confirmations timed out before any child suite ran.'})
+        $pendingInteractive.Add([ordered]@{configuration=$configuration;scopes=4;status='NOT_RUN';
+            reason='Three local Start confirmations timed out before any child suite ran. The third failed foreground/pointer restoration; its subsequent desktop check reported error 5.'})
         continue
     }
     foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
@@ -195,6 +215,7 @@ $analysis = [ordered]@{classification='descriptive-only';formTimingMethod='Media
     formRawSha256=$forms.rawReportSha256;formMeasuredFrames=$frameCount;unchangedZeroWorkFrames=$noOpFrames;
     formTimings=$formRows;formMemory=$retirement;formLifecycle=$cycles;grid=$gridRows;nativeSuites=$nativeRows;
     interactiveSuites=$interactiveRows;interactivePendingProfiles=$pendingInteractive.ToArray();
+    interactiveIncompleteAttempts=$incompleteInteractiveRows;postThirdConfirmationDesktopCheck=$desktopCheck.Trim();
     interactiveChildSeconds=($interactiveRows.seconds | Measure-Object -Sum).Sum;
     newTestsPerConfiguration=$testNames.Count;limits='No paired regression/policy/consumer/native-ARM64/hardware qualification. C++ counters exclude COM/driver heaps; plain-live deltas exclude aligned blocks. Process snapshots and retained pools are not leak attribution.'}
 [IO.File]::WriteAllText((Join-Path $packet 'analysis.txt'), (ConvertTo-Json -InputObject $analysis -Depth 40)+[Environment]::NewLine, [Text.UTF8Encoding]::new($false))

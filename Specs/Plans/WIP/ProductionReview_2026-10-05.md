@@ -42,6 +42,9 @@ unstable, while exact budgets remain constant; it establishes no non-regression 
 - [ ] Establish stable controls and independently qualify a seed policy. The repaired study still has 72/72 unstable
   controls, with excursions in all 54 timing/memory cells; no threshold relaxation or qualified pass is inferred.
 - [ ] Verify an ordinary candidate against the qualified trusted base before enabling the required CI rule.
+- [ ] Correct the foreground-run human summary in `test.ps1`: `RunMovedSomething=false` does not establish an
+  unchanged desktop when restoration is failed/skipped/unknown. Retain the original third ASan attempt, preserve
+  fail-closed accounting and add tooling coverage for failed and unavailable restoration summaries before a runner update.
 
 The policy is still unqualified. Provisioned native ARM64 foreground execution and physical IME/AT/touch acceptance
 remain separate obligations. Implementation readiness does not close these recorded gates.
@@ -62,8 +65,10 @@ does not attribute or dismiss the earlier roughly 1.05 MB working-set flag. The 
 one 100 ns QPC tick, with real overhead still plausible. Thresholds, exact budgets and frozen judges are unchanged.
 An initial ASan UIA client event failure passes isolation and a whole same-binary rerun, with its cause unproven.
 Two initial Debug lease confirmations time out before Start; the later confirmed Debug and Release runs each
-pass all four focus suites with zero skips and successful restoration. Two ASan Debug confirmations time out
-before any child runs, so its local desktop gate remains open. All attempts are retained separately.
+pass all four focus suites with zero skips and successful restoration. Three ASan Debug confirmations time out
+before any child runs. The third reports failed foreground/pointer restoration and its subsequent native desktop
+check reports an inaccessible input desktop (error 5). Its local desktop gate remains open; all attempts and the
+refusal are retained separately without a restoration claim for the third attempt.
 [The repaired v2 A/A packet](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes the authorized
 quiet-window repeat in about 64 minutes. All 72 controls remain unstable despite both judges' zero aggregate flags;
 611/1,872 control observations exceed the frozen bands. All 24 exact-budget cells hold. Initialization/warm-up

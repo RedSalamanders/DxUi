@@ -8,7 +8,8 @@ an accepted paired regression result or a consumer pin update.
 All nineteen noninteractive suites pass without capability skips in x64 Debug, Release and ASan Debug: 57
 suite/log pairs. All 38 newly registered intrinsic/Flex/form/form-accessibility tests complete in each profile.
 The four focus suites additionally pass in Debug and Release with zero skips: eight completed suite/log pairs.
-ASan Debug's two Start confirmations time out before any focus child runs; that desktop gate remains open.
+ASan Debug's three Start confirmations time out before any focus child runs. The third reports failed
+foreground/pointer restoration, followed by an unavailable-input-desktop check; that desktop gate remains open.
 All six x64/ARM64 Debug, Release and ASan Debug configurations build successfully. ARM64 code was not executed
 on this x64 computer. Complete Windows validators/tooling and clang-format 22.1.3 checking passed at the frozen
 native source; later documentation/evidence changes require their own tooling check.
@@ -52,7 +53,20 @@ results report foreground, keyboard focus and pointer unchanged; no focus child 
 After the form/Grid diagnostics and calibration, the confirmed Debug and Release runs passed Menu,
 NativeTextInput, MenuResources and MenuResourceScaling with zero skips. Their summed child runtimes are
 301.1 and 118.5 seconds. Both leases completed, left foreground/focus unchanged and restored the pointer.
-Two ASan Debug confirmations subsequently timed out without launching a child, leaving its focus gate open.
+Two ASan Debug confirmations subsequently timed out without launching a child and preserved the desktop.
+A third attempt, after the person reported being at the desktop, also timed out before launching a child.
+This attempt reports foreground and pointer restoration failed, focus restoration skipped and an unknown final
+cursor position. Its subsequent native `DxUi.InteractiveLease.exe --check` exits 20 and reports that the input
+desktop cannot be opened (Windows error 5: a locked session or secure desktop has input). This observes desktop
+unavailability after the timeout; it does not prove when the desktop changed or claim successful restoration.
+The four ASan focus suites remain unrun pending an accessible desktop and local Start. The analyzer retains
+and checks all three incomplete attempts, including the third attempt's restoration failure, independently of
+any later successful run.
+The preserved third-attempt wrapper log also contains a contradictory suffix saying that the run left the
+desktop as the person had it. The frozen `test.ps1` chooses that suffix from `RunMovedSomething=false`, which
+also occurs when restoration fails; it does not establish an unchanged desktop. Its failure accounting rejects
+the run correctly. The raw restoration statuses and subsequent native refusal are authoritative; the reporting
+defect remains a separate runner follow-up in the production review plan.
 All failures/timeouts and successful results are retained separately. The person's time authorization remains
 recorded in the task; the restoring lease still requires its local Start choice.
 
@@ -63,8 +77,8 @@ a fixture records its entry position. No post-confirmation or per-child pointer 
 source of the outer displacement, so the warning does not establish a fixture leak. The cursor helpers and
 lease are unchanged from the baseline. Both outer restorations passed; a future attribution diagnostic should
 retain positions after confirmation and around each child while preserving the pre-confirmation restore target.
-The three retained `interactive-performance-*.json` reports are unpaired preflight measurements, not accepted
-non-regression evidence. The repeated isolated ASan detection probe is also retained.
+The retained `interactive-performance-*.json` reports are unpaired preflight measurements, not accepted
+non-regression evidence. The repeated isolated ASan detection probes are also retained.
 
 ## Candidate-only manual/form diagnostic
 

@@ -656,8 +656,9 @@ For each implemented stage:
 - [x] Verify UIA navigation/events with the existing client helpers and provider disconnection on detach; synthetic
   assertions alone do not qualify real assistive-technology, IME or touch behavior.
 - [ ] Run Menu, NativeTextInput, MenuResources and MenuResourceScaling only through `test.ps1 -Interactive`, at a
-  time the person at the desktop has agreed to. Debug and Release each pass all four with zero skips/restoration;
-  ASan Debug's two confirmations time out before any child runs. Its desktop gate remains outstanding.
+  time the person at the desktop has agreed to. Debug and Release each pass all four with zero skips and successful
+  restoration. ASan Debug's three confirmations time out before any child runs; the third reports restoration
+  failure and its subsequent native check finds an inaccessible input desktop (error 5). Its gate remains outstanding.
 - [ ] Establish accepted paired non-regression and a qualified trusted policy; candidate-only Manual/Form costs
   and unpaired complex-UI receipts do not close this gate.
 
@@ -666,7 +667,9 @@ paired-performance receipts before closing them; library qualification does not 
 
 [The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains all local results,
 initial Embedded and ASan Accessibility failures, isolated/repeated retests and two initial Debug lease timeouts.
-The later Debug/Release focus runs pass; two ASan confirmations time out before Start, with no child executed.
+The later Debug/Release focus runs pass; three ASan confirmations time out before Start, with no child executed.
+The third ASan attempt reports failed foreground/pointer restoration; the following native desktop check reports
+Windows error 5, so it cannot qualify the remaining focus suites. The attempt and refusal are retained separately.
 The eight-field Manual/Form diagnostic has matching pre-timing
 pixels/geometry/metadata, zero unchanged/composition work, 7 KiB of extra warm retained plain C++ Form memory and
 zero tracked plain-live bytes after each fixture's destruction. These are bounded diagnostics, with no speedup,
