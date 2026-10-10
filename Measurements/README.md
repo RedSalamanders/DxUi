@@ -2,12 +2,17 @@
 
 - [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
   noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
-  observations; original failures/retests and interactive confirmation timeouts retained. Focus/native ARM64,
-  consumer and paired-policy qualification remain open.
+  observations; original failures/retests and interactive confirmations retained. Debug/Release focus suites
+  pass; ASan focus, native ARM64, consumer and paired-policy qualification remain open.
 
 This directory retains reviewed evidence from DxUi's own samples and benchmarks. Scenarios may be inspired by real
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
+
+- [Guarded v2 A/A calibration, 2026-10-10](Performance/2026-10-10-aa-v2/README.md): 144 exact-byte guarded reports,
+  both fully replayed judges and 72 controls. Every control remains unstable; all 54 timing/memory cells drift
+  while all 24 exact-budget cells hold. The seed policy and required CI gate remain unqualified, with the
+  original Grid flags open and a bounded initialization/scheduler attribution pilot recommended.
 
 - [Same-binary paired calibration, 2026-10-10](Performance/2026-10-10-aa/README.md): all 144 original raw receipts,
   both frozen judge results, 72 same-side controls and a reproducible descriptive analysis. All aggregate sets

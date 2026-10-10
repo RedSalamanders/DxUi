@@ -143,9 +143,59 @@ $nativeRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')) {
         [IO.File]::ReadAllText((Join-Path $packet ('Accessibility-'+$configuration+'.log')))
     foreach ($name in $testNames) { Require ($testLog.Contains('[DONE] '+$name+' (')) "New test did not complete: $configuration $name" }
 })
+$pendingInteractive = [Collections.Generic.List[object]]::new()
+$interactiveRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')) {
+    $controlReceipt = Read-Packet ('Control-'+$configuration+'.receipt.txt')
+    if (-not (Test-Path -LiteralPath (Join-Path $packet ('Menu-'+$configuration+'-interactive.receipt.txt')))) {
+        Require ($configuration -ceq 'ASanDebug') 'An expected completed Debug/Release interactive profile is missing.'
+        foreach ($attempt in @('timeout','retry-timeout')) {
+            $leaseLines = [IO.File]::ReadAllLines((Join-Path $packet ('lease-'+$configuration+'-'+$attempt+'.txt')))
+            Require ($leaseLines -ccontains 'state: timedout' -and $leaseLines -ccontains 'exit: 21' -and
+                $leaseLines -ccontains 'confirmation: timedout') 'Incomplete raw interactive lease differs.'
+            Require (@($leaseLines | Where-Object { $_ -cmatch '^child:' }).Count -eq 0) 'An incomplete lease launched a child.'
+            foreach ($part in @('foreground','focus','cursor')) {
+                Require ($leaseLines -ccontains ('restoration.'+$part+': unchanged')) "Incomplete raw lease changed the desktop: $part"
+            }
+            foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
+                $receipt = Read-Packet ($scope+'-'+$configuration+'-'+$attempt+'.receipt.txt')
+                Require ($receipt.exitCode -eq 24 -and $receipt.lease.exitCode -eq 21 -and
+                    $receipt.lease.state -ceq 'timedout' -and $receipt.lease.confirmation -ceq 'timedout' -and
+                    $null -eq $receipt.lease.seconds) 'The recorded incomplete interactive profile differs.'
+                Require ($receipt.interactive -eq $true -and $receipt.lease.mode -ceq 'local-confirmed' -and
+                    $receipt.lease.hosted -eq $false -and $receipt.platform -ceq 'x64' -and
+                    $receipt.nativeArchitecture -ceq 'X64') 'Incomplete interactive profile or lease mode differs.'
+                Require ($receipt.sha256 -ceq $controlReceipt.sha256) 'Incomplete interactive profile used a different executable.'
+                foreach ($part in @('foreground','focus','cursor')) {
+                    Require ($receipt.lease[$part] -ceq 'unchanged') "Incomplete interactive lease changed the desktop: $part"
+                }
+                Require ($receipt.lease.runMovedSomething -eq $false -and
+                    $receipt.lease.cursorSaved -ceq $receipt.lease.cursorAtExit) 'Incomplete interactive lease moved the pointer.'
+            }
+        }
+        $pendingInteractive.Add([ordered]@{configuration=$configuration;scopes=4;status='NOT_RUN';reason='Both local Start confirmations timed out before any child suite ran.'})
+        continue
+    }
+    foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
+        $receipt = Read-Packet ($scope+'-'+$configuration+'-interactive.receipt.txt')
+        Require ($receipt.exitCode -eq 0 -and $receipt.skips.Count -eq 0) 'Interactive suite failed or skipped.'
+        Require ($receipt.platform -ceq 'x64' -and $receipt.nativeArchitecture -ceq 'X64') 'Interactive suite profile differs.'
+        Require ($receipt.sha256 -ceq $controlReceipt.sha256) 'Interactive suite used a different ControlTests executable.'
+        Require ($receipt.lease.mode -ceq 'local-confirmed' -and $receipt.lease.confirmation -ceq 'started' -and
+            $receipt.lease.state -ceq 'completed' -and $receipt.lease.exitCode -eq 0) 'Interactive lease did not complete after local confirmation.'
+        foreach ($part in @('foreground','focus','cursor')) {
+            Require ($receipt.lease[$part] -cin @('unchanged','restored')) "Interactive desktop restoration failed: $part"
+        }
+        $testLog = [IO.File]::ReadAllText((Join-Path $packet ($scope+'-'+$configuration+'-interactive.log')))
+        Require ($testLog.Contains('[DONE] '+$scope+' (') -and $testLog.Contains('All DxUi tests passed.')) 'Interactive log lacks successful completion.'
+        [ordered]@{scope=$scope;configuration=$configuration;sha256=$receipt.sha256;exitCode=$receipt.exitCode;skips=$receipt.skips.Count;
+            seconds=$receipt.lease.seconds;lease=$receipt.lease}
+    }
+})
 $analysis = [ordered]@{classification='descriptive-only';formTimingMethod='Median of twelve block centers; each center averages its two variant run frame medians. Milliseconds. No inferential verdict.';
     formRawSha256=$forms.rawReportSha256;formMeasuredFrames=$frameCount;unchangedZeroWorkFrames=$noOpFrames;
     formTimings=$formRows;formMemory=$retirement;formLifecycle=$cycles;grid=$gridRows;nativeSuites=$nativeRows;
+    interactiveSuites=$interactiveRows;interactivePendingProfiles=$pendingInteractive.ToArray();
+    interactiveChildSeconds=($interactiveRows.seconds | Measure-Object -Sum).Sum;
     newTestsPerConfiguration=$testNames.Count;limits='No paired regression/policy/consumer/native-ARM64/hardware qualification. C++ counters exclude COM/driver heaps; plain-live deltas exclude aligned blocks. Process snapshots and retained pools are not leak attribution.'}
 [IO.File]::WriteAllText((Join-Path $packet 'analysis.txt'), (ConvertTo-Json -InputObject $analysis -Depth 40)+[Environment]::NewLine, [Text.UTF8Encoding]::new($false))
-Write-Output 'Verified 57 native suite receipts, 38 new tests per profile, 11520 form frames and all three Grid diagnostics.'
+Write-Output "Verified 57 noninteractive and $($interactiveRows.Count) completed interactive native receipts, 38 new tests per profile, 11520 form frames and all three Grid diagnostics; $($pendingInteractive.Count) interactive profile(s) remain pending."

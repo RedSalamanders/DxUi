@@ -7,6 +7,8 @@ an accepted paired regression result or a consumer pin update.
 
 All nineteen noninteractive suites pass without capability skips in x64 Debug, Release and ASan Debug: 57
 suite/log pairs. All 38 newly registered intrinsic/Flex/form/form-accessibility tests complete in each profile.
+The four focus suites additionally pass in Debug and Release with zero skips: eight completed suite/log pairs.
+ASan Debug's two Start confirmations time out before any focus child runs; that desktop gate remains open.
 All six x64/ARM64 Debug, Release and ASan Debug configurations build successfully. ARM64 code was not executed
 on this x64 computer. Complete Windows validators/tooling and clang-format 22.1.3 checking passed at the frozen
 native source; later documentation/evidence changes require their own tooling check.
@@ -45,11 +47,24 @@ late repeat crossing that mark is plausible, but the retained log has no provide
 timestamps to establish the cause. The original failure remains visible; neither the isolated pass nor the
 rerun proves transport attribution.
 
-Two Debug `test.ps1 -Interactive` attempts reached the native confirmation and timed out before Start was
-chosen. Both retained lease results report foreground, keyboard focus and pointer unchanged. Menu,
-NativeTextInput, MenuResources and MenuResourceScaling did not execute. The person's time authorization is
-recorded in the task; the restoring lease still requires its local Start choice. The focus gate remains open
-in all three x64 profiles.
+Two initial Debug `test.ps1 -Interactive` attempts timed out before Start was chosen. Both retained lease
+results report foreground, keyboard focus and pointer unchanged; no focus child ran in those attempts.
+After the form/Grid diagnostics and calibration, the confirmed Debug and Release runs passed Menu,
+NativeTextInput, MenuResources and MenuResourceScaling with zero skips. Their summed child runtimes are
+301.1 and 118.5 seconds. Both leases completed, left foreground/focus unchanged and restored the pointer.
+Two ASan Debug confirmations subsequently timed out without launching a child, leaving its focus gate open.
+All failures/timeouts and successful results are retained separately. The person's time authorization remains
+recorded in the task; the restoring lease still requires its local Start choice.
+
+The successful leases warn that their final pointer differs from the pre-lease position. All four cursor-moving
+Menu cases in both completed profiles log `restored=1 exact=1`. Source review confirms that the outer lease
+captures its restoration target before requesting Start; the confirmation itself can move the pointer before
+a fixture records its entry position. No post-confirmation or per-child pointer observations identify the
+source of the outer displacement, so the warning does not establish a fixture leak. The cursor helpers and
+lease are unchanged from the baseline. Both outer restorations passed; a future attribution diagnostic should
+retain positions after confirmation and around each child while preserving the pre-confirmation restore target.
+The three retained `interactive-performance-*.json` reports are unpaired preflight measurements, not accepted
+non-regression evidence. The repeated isolated ASan detection probe is also retained.
 
 ## Candidate-only manual/form diagnostic
 
@@ -136,5 +151,5 @@ virtual allocations remain part of the process snapshots.
 QPC runs at 10 MHz (100 ns per tick). The earlier Grid clean-prepare flag from 600 to 700 ns is one tick; a small
 real overhead remains plausible. The unchanged raw flags, 5% timing/FPS and 2% memory bands and exact budgets
 remain in force. A separate batched no-op diagnostic would change metric scope and require contract/policy
-review. The new controlled same-binary calibration and subsequent trusted-policy/ordinary-candidate gates are
-separate from this packet.
+review. The [new guarded same-binary calibration](../../Performance/2026-10-10-aa-v2/README.md) completes all
+144 reports but retains 72/72 unstable controls. Trusted-policy and ordinary-candidate gates remain open.

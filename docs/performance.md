@@ -49,6 +49,13 @@ receipts and the independent audit. All 72 short controls are unstable despite z
 100-nanosecond QPC tick limits interpretation of sub-microsecond clean preparation; process-memory spread is already
 wider before capture. These observations do not attribute the memory to a control, establish a quiet host or qualify
 the policy. The original reports retain their original harness identity.
+The [guarded v2 A/A study](../Measurements/Performance/2026-10-10-aa-v2/README.md) repeats the three fixtures with
+the repaired provenance harness and exact compiler/dependency/artifact byte guards around all 144 reports.
+Both full judges reproduce zero aggregate flags, but all 72 controls remain unstable and every timing/memory
+cell drifts at least once. The agreed quiet window provides no continuous ambient-load trace. Initialization
+spread and large same-binary outliers justify a bounded attribution pilot before another full calibration;
+the original Grid flags, thresholds, unqualified-policy status and required-CI hold remain unchanged.
+
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)

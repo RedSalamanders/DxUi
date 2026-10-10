@@ -37,8 +37,10 @@ unstable, while exact budgets remain constant; it establishes no non-regression 
   and retain actual preparation clocks, surfaces, handles and process/heap snapshots.
 - [ ] Attribute the earlier preparation/resident-memory excursions; current bounded runs do not resolve their paired flags.
 - [x] Repair demonstrated receipt replay/build-provenance defects with failing regression fixtures and independent reruns.
-- [ ] Repeat affected studies after repairs; independently review the frozen judge, assignment protocol, unchanged
-  thresholds and both decisions before proposing a qualified seed policy.
+- [x] Repeat the same-binary calibration after repairs and independently replay the frozen judges, complete raw/control
+  inventories and seeded assignment. All 144 v2-guarded reports complete; both full decisions reproduce exactly.
+- [ ] Establish stable controls and independently qualify a seed policy. The repaired study still has 72/72 unstable
+  controls, with excursions in all 54 timing/memory cells; no threshold relaxation or qualified pass is inferred.
 - [ ] Verify an ordinary candidate against the qualified trusted base before enabling the required CI rule.
 
 The policy is still unqualified. Provisioned native ARM64 foreground execution and physical IME/AT/touch acceptance
@@ -59,8 +61,15 @@ frames. Process memory ends below the starting sample, while heap busy-byte dire
 does not attribute or dismiss the earlier roughly 1.05 MB working-set flag. The 600-to-700 ns clean-prepare flag is
 one 100 ns QPC tick, with real overhead still plausible. Thresholds, exact budgets and frozen judges are unchanged.
 An initial ASan UIA client event failure passes isolation and a whole same-binary rerun, with its cause unproven.
-Two native Debug lease confirmations time out before Start; all four focus suites remain unrun. Fresh v2 A/A
-calibration is authorized for the longer quiet window and remains pending here.
+Two initial Debug lease confirmations time out before Start; the later confirmed Debug and Release runs each
+pass all four focus suites with zero skips and successful restoration. Two ASan Debug confirmations time out
+before any child runs, so its local desktop gate remains open. All attempts are retained separately.
+[The repaired v2 A/A packet](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes the authorized
+quiet-window repeat in about 64 minutes. All 72 controls remain unstable despite both judges' zero aggregate flags;
+611/1,872 control observations exceed the frozen bands. All 24 exact-budget cells hold. Initialization/warm-up
+spread precedes PNG capture, and Default A07/A19 are extreme same-binary FPS outliers. This identifies an attribution
+lead, not a cause. Recommend a bounded initialization/backend/scheduler pilot before another complete calibration;
+the seed policy, ordinary trusted-base comparison and required-rule acceptance remain open.
 
 ### Accepted implementation (9 October)
 

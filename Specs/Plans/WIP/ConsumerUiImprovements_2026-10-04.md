@@ -19,6 +19,9 @@ Execute intrinsic measurement, opt-in flow layout and reusable form composition 
 unimplemented. The work follows Q22's original calibration and retained baseline; code, behavior tests, normative
 contracts, usage documentation, catalog/gallery and design-system previews accompany each implemented stage.
 Consumer pins and actual product adoption require separately qualified library commits and consumer-owned changes.
+The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
+but all 72 controls remain unstable. It does not qualify the seed policy or establish performance acceptance for
+S0-S2; the ordinary trusted-base and consumer gates stay open with unchanged thresholds.
 Recheck the 4 October source inventory rather than treating its historical pins as current.
 
 The largest immediate benefit is reducing repeated measurement, field placement and focus bookkeeping without
@@ -653,8 +656,8 @@ For each implemented stage:
 - [x] Verify UIA navigation/events with the existing client helpers and provider disconnection on detach; synthetic
   assertions alone do not qualify real assistive-technology, IME or touch behavior.
 - [ ] Run Menu, NativeTextInput, MenuResources and MenuResourceScaling only through `test.ps1 -Interactive`, at a
-  time the person at the desktop has agreed to. Without that agreement, omit them from `-Suites` and record the gate
-  as outstanding. Other suites continue through the non-activating harness.
+  time the person at the desktop has agreed to. Debug and Release each pass all four with zero skips/restoration;
+  ASan Debug's two confirmations time out before any child runs. Its desktop gate remains outstanding.
 - [ ] Establish accepted paired non-regression and a qualified trusted policy; candidate-only Manual/Form costs
   and unpaired complex-UI receipts do not close this gate.
 
@@ -662,8 +665,9 @@ These are implementation gates for the S0/S1/S2 code in this branch. Record fres
 paired-performance receipts before closing them; library qualification does not imply that a consumer pilot ran.
 
 [The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains all local results,
-initial Embedded and ASan Accessibility failures, isolated/repeated retests and two Debug lease timeouts before
-Start was chosen. Focus suites did not execute. The eight-field Manual/Form diagnostic has matching pre-timing
+initial Embedded and ASan Accessibility failures, isolated/repeated retests and two initial Debug lease timeouts.
+The later Debug/Release focus runs pass; two ASan confirmations time out before Start, with no child executed.
+The eight-field Manual/Form diagnostic has matching pre-timing
 pixels/geometry/metadata, zero unchanged/composition work, 7 KiB of extra warm retained plain C++ Form memory and
 zero tracked plain-live bytes after each fixture's destruction. These are bounded diagnostics, with no speedup,
 consumer, hardware or paired-policy acceptance claim. The ASan event failure's cause remains unproven.
