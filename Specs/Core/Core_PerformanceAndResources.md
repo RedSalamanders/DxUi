@@ -378,6 +378,11 @@ they MUST NOT be reported as actual placement or scheduler-delay attribution. Di
 are distinct from the canonical workload. Retain every scheduled process, outlier, unavailable field and partial
 failure; enforce an owned-child timeout and a declared overall pilot budget. Exact before/after provenance and native
 byte retention apply to these reports too. This diagnostic supplies no policy or regression acceptance verdict.
+Sampling outside timed frames can still change later backend/cache readiness. The diagnostic MUST report total
+sampling duration and the optional heap sampling block separately; the heap block includes enumeration, traversal
+and JSON construction/parsing. A subtraction is a derived non-heap residual, not an independently timed causal
+effect. Differing profiles MUST NOT imply convergence or isolate a heap observer effect. Coarse cumulative CPU times may yield zero deltas during real work; available
+cycle deltas MUST remain raw consumption counters rather than fabricated time or scheduler-delay estimates.
 
 The opt-in
 `MenuResources` control suite records 96 open/render/capture/close cycles for twelve

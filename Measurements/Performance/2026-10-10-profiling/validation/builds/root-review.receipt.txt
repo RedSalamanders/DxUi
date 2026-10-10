@@ -1,0 +1,68 @@
+[
+  {
+    "platform": "x64",
+    "configuration": "Debug",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "8AC6D3EC41EE7360A42436B29868E44D27234AF1F4601A5BEFD7F0FA68695EAE",
+    "buildAttestationIdentity": "5698bfe4d296216080294811bd7442a4dcf94a4c4a9d5d100924a5a0454cea57",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "separate-57-suite-receipts"
+  },
+  {
+    "platform": "x64",
+    "configuration": "Release",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "E3076EB1EE770FB9A2EDC0E48D71B812574EFA510280A3A468D930B49852C4AB",
+    "buildAttestationIdentity": "6614e2d8bd3a32cc8fc1a140fbe8207992e53a147e39d9fdf25d18eb6e927b29",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "separate-57-suite-receipts"
+  },
+  {
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "073047ACD4C71F9D18A83D2C124975B9A7F07425ECCD32657312DE6271017E36",
+    "buildAttestationIdentity": "8d1f1c164d0f3cb72bfa0fd15e17a73de3a2f80706334323cbeefa603d245a69",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "separate-57-suite-receipts"
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "1A9BAD7EC525DEC160013290579BDC3C56CD3E964359CBDC494CF3F1EB6E6757",
+    "buildAttestationIdentity": "12fe6e65a0dfc5c6a65f27a1f49341b0cfbd1e84daa81a1eaf1ea1376240ba91",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "not-run-cross-compilation"
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "Release",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "1886F992E4E5F34105633AB1084B9CD9A51E8264F1822EEE512CAF34A955CF65",
+    "buildAttestationIdentity": "fcedf7cfced0a062e665416c67378792c98df9fa5bcae4c6fb42f27a8f21d1b2",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "not-run-cross-compilation"
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "59015790C7514C166B6B94520F7228CC4D7123E6D53A6532632B0B460C55C461",
+    "buildAttestationIdentity": "ffa9f1cdc58f3cc1d6cdb54ae809875d13cdfe6109b6e7fc4da4e68856ef1d2f",
+    "exactCurrentAttestation": "passed",
+    "runtimeExecution": "not-run-cross-compilation"
+  }
+]

@@ -1,0 +1,26 @@
+FAIL Measurements/Performance/2026-10-10-profiling/Invoke-Pilot.ps1 keeps identity guards callable after real module imports
+     Assert-PerformanceMeasurementState: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\tooling-fixtures\1a0ee4c253474878accadbc94a514141\imports.ps1:8
+Line |
+   8 |  Assert-PerformanceMeasurementState -Before $before -After $after
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The term 'Assert-PerformanceMeasurementState' is not recognized as a name of a cmdlet, function, script file, or
+     | executable program. Check the spelling of the name, or if a path was included, verify that the path is correct
+     | and try again.: expected <0>, got <1> (line 41)
+FAIL Measurements/Performance/2026-10-10-profiling/Analyze.ps1 keeps identity guards callable after real module imports
+     Assert-PerformanceMeasurementState: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\tooling-fixtures\ecbdd2a624d44fd1a82259156d0cb6d7\imports.ps1:8
+Line |
+   8 |  Assert-PerformanceMeasurementState -Before $before -After $after
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The term 'Assert-PerformanceMeasurementState' is not recognized as a name of a cmdlet, function, script file, or
+     | executable program. Check the spelling of the name, or if a path was included, verify that the path is correct
+     | and try again.: expected <0>, got <1> (line 41)
+FAIL Measurements/UiaSelection/2026-10-10/Invoke-Reproduction.ps1 keeps identity guards callable after real module imports
+     Assert-PerformanceMeasurementState: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\tooling-fixtures\c10f2a1d796949eb8ea590c263c69b5a\imports.ps1:8
+Line |
+   8 |  Assert-PerformanceMeasurementState -Before $before -After $after
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The term 'Assert-PerformanceMeasurementState' is not recognized as a name of a cmdlet, function, script file, or
+     | executable program. Check the spelling of the name, or if a path was included, verify that the path is correct
+     | and try again.: expected <0>, got <1> (line 41)
+ProfilingDriverImports: 0 of 3 passed
+Exception: ProfilingDriverImports: 3 test(s) failed

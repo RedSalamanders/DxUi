@@ -1,0 +1,13 @@
+Diagnostic pilot 1/12: Default, heap=False
+Diagnostic pilot 2/12: MultilineGrid, heap=False
+Diagnostic pilot 3/12: Default, heap=True
+Diagnostic pilot 4/12: MultilineGrid, heap=True
+Diagnostic pilot 5/12: MultilineGrid, heap=True
+Diagnostic pilot 6/12: Default, heap=True
+Diagnostic pilot 7/12: MultilineGrid, heap=False
+Diagnostic pilot 8/12: Default, heap=False
+Diagnostic pilot 9/12: Default, heap=False
+Diagnostic pilot 10/12: MultilineGrid, heap=False
+Diagnostic pilot 11/12: Default, heap=True
+Diagnostic pilot 12/12: MultilineGrid, heap=True
+Completed all twelve declared diagnostic reports in 357.4 seconds.

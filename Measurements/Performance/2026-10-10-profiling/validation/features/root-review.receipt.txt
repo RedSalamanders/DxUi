@@ -1,0 +1,62 @@
+[
+  {
+    "report": "validation-01-Default-Debug.json",
+    "configuration": "Debug",
+    "scenario": "Default",
+    "heap": false,
+    "completeness": "complete",
+    "rawFieldsMatched": 28,
+    "companionHashesMatched": 4,
+    "frames": 280,
+    "stages": 12,
+    "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+    "executableSha256": "8AC6D3EC41EE7360A42436B29868E44D27234AF1F4601A5BEFD7F0FA68695EAE",
+    "sourceCommit": "01f1aed1017e5c83dfdbf85a226444bbb1c63419",
+    "sourceDirty": true
+  },
+  {
+    "report": "validation-02-MultilineGrid-Debug.json",
+    "configuration": "Debug",
+    "scenario": "MultilineGrid",
+    "heap": true,
+    "completeness": "complete",
+    "rawFieldsMatched": 28,
+    "companionHashesMatched": 4,
+    "frames": 280,
+    "stages": 12,
+    "captureSha256": "B3BEEFFC0DDABBB19CACE83B091BCDD67A3AB0830B9B747E73CB423214F94549",
+    "executableSha256": "8AC6D3EC41EE7360A42436B29868E44D27234AF1F4601A5BEFD7F0FA68695EAE",
+    "sourceCommit": "01f1aed1017e5c83dfdbf85a226444bbb1c63419",
+    "sourceDirty": true
+  },
+  {
+    "report": "validation-03-Default-ASanDebug.json",
+    "configuration": "ASan Debug",
+    "scenario": "Default",
+    "heap": false,
+    "completeness": "complete",
+    "rawFieldsMatched": 28,
+    "companionHashesMatched": 4,
+    "frames": 280,
+    "stages": 12,
+    "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+    "executableSha256": "073047ACD4C71F9D18A83D2C124975B9A7F07425ECCD32657312DE6271017E36",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false
+  },
+  {
+    "report": "validation-04-MultilineGrid-ASanDebug.json",
+    "configuration": "ASan Debug",
+    "scenario": "MultilineGrid",
+    "heap": true,
+    "completeness": "complete",
+    "rawFieldsMatched": 28,
+    "companionHashesMatched": 4,
+    "frames": 280,
+    "stages": 12,
+    "captureSha256": "B3BEEFFC0DDABBB19CACE83B091BCDD67A3AB0830B9B747E73CB423214F94549",
+    "executableSha256": "073047ACD4C71F9D18A83D2C124975B9A7F07425ECCD32657312DE6271017E36",
+    "sourceCommit": "cc77bec21322b5aedfe6ee6709465581e6f24e53",
+    "sourceDirty": false
+  }
+]

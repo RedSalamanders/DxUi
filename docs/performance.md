@@ -66,6 +66,11 @@ every process in a declared finite schedule and compare heap-off/on profiles for
 CPU consumption and allowed affinity, not actual scheduling delays or per-component native allocation ownership. The
 kernel-tracing preflight on this machine was refused; no quiet-host or scheduler attribution follows from its absence.
 The canonical fixture, acceptance metrics, bands and required-CI hold remain unchanged.
+The completed twelve-report pilot still varies after 200 warm frames. Total stage sampling costs 0.840-1.521 seconds
+per process, including heap accounting when enabled. The shared sampler remains enabled with heap accounting off,
+so its own effect needs measurement before attributing
+the variability. CPU-time quantization also makes some clean-window deltas zero; raw cycle counts are consumption
+observations rather than elapsed durations. See the retained packet for exact ranges and validation limits.
 
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.

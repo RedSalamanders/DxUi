@@ -29,6 +29,9 @@ only its owned child to 120 seconds and requires exact v2 build/source/tool/depe
 warm-up checkpoints and heap-off/on observations do not change canonical performance acceptance or qualify the CI policy.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
+The [retained UIA investigation](../Measurements/UiaSelection/2026-10-10/README.md) also supplies a fifteen-case
+source-only corruption replay. It checks the archived reader without launching native tests; use a fresh output
+directory and keep its synthetic cases separate from runtime evidence.
 ```powershell
 ./Test-Changes.ps1 -Scopes <name> -SkipBuild
 ./Test-Changes.ps1 -Mode Full -Force

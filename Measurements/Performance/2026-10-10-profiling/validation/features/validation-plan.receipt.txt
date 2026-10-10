@@ -1,0 +1,35 @@
+{
+  "purpose": "finite-native-profiling-validation",
+  "reportBudget": 4,
+  "nativeChildBudgetSeconds": 120,
+  "acceptance": "not-established",
+  "declaredUtc": "2026-10-10T22:04:17.3886962Z",
+  "sourceCommitAtDeclaration": "01f1aed1017e5c83dfdbf85a226444bbb1c63419",
+  "schedule": [
+    {
+      "index": 1,
+      "configuration": "Debug",
+      "scenario": "Default",
+      "heap": false
+    },
+    {
+      "index": 2,
+      "configuration": "Debug",
+      "scenario": "MultilineGrid",
+      "heap": true
+    },
+    {
+      "index": 3,
+      "configuration": "ASan Debug",
+      "scenario": "Default",
+      "heap": false
+    },
+    {
+      "index": 4,
+      "configuration": "ASan Debug",
+      "scenario": "MultilineGrid",
+      "heap": true
+    }
+  ],
+  "notes": "Four native feature-validation reports supplement the separate fixed twelve-report Release pilot. Individual full before/after v2 guards bind each report. No failed case is silently replaced."
+}

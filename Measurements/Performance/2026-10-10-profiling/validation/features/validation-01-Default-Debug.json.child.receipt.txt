@@ -1,0 +1,22 @@
+{
+  "processId": 39256,
+  "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+  "arguments": [
+    "--benchmark-complex-ui-profile",
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\native-profile-validation-20261010T2203Z\\validation-01-Default-Debug.json",
+    "Default",
+    "Off"
+  ],
+  "workingDirectory": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi",
+  "startedUtc": "2026-10-10T22:05:09.2912946Z",
+  "completedUtc": "2026-10-10T22:05:11.2600525Z",
+  "timeoutSeconds": 120.0,
+  "drainTimeoutSeconds": 5.0,
+  "exitCode": 0,
+  "timedOut": false,
+  "terminationError": "",
+  "drainError": "",
+  "pipeCharacterLimit": 1048576,
+  "stdoutTruncated": false,
+  "stderrTruncated": false
+}

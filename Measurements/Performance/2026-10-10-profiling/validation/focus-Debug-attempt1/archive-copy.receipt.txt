@@ -1,0 +1,86 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\copy.receipt.txt",
+    "copy": "copy.receipt.txt",
+    "bytes": 3112,
+    "sha256": "E160C2B1E96A66B34A5988CFBC544C1F3B570627AB7B6953B80CC204D0D1997C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\interactive-plan.txt",
+    "copy": "interactive-plan.txt",
+    "bytes": 965,
+    "sha256": "A73AAFA227C1C7D1F42AA9F28E5FA6470BABA2E24C2ABBD683F1849AAD731CA4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\interactive-result.txt",
+    "copy": "interactive-result.txt",
+    "bytes": 376,
+    "sha256": "04117EEEB8B114C895A665F967712198207A5BC2D59572B09A7B9E2FDCA55E8B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\Menu-x64-Debug.interactive.receipt.txt",
+    "copy": "Menu-x64-Debug.interactive.receipt.txt",
+    "bytes": 36167,
+    "sha256": "E669F189E120D56C0FED2967A59741F4F696B92AB681F8E0F6F311E84C2129BF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\MenuResources-x64-Debug.interactive.receipt.txt",
+    "copy": "MenuResources-x64-Debug.interactive.receipt.txt",
+    "bytes": 36176,
+    "sha256": "CEAC0C637666CB57D4FB57B26AF5CE93D8E40920AB2FAFCA309EBA91308C8B6A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\MenuResourceScaling-x64-Debug.interactive.receipt.txt",
+    "copy": "MenuResourceScaling-x64-Debug.interactive.receipt.txt",
+    "bytes": 36182,
+    "sha256": "EED285813C29DC600CFFB431AB3124FDA3B85807980AE9095A5C9DA9C42BA35A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\NativeTextInput-x64-Debug.interactive.receipt.txt",
+    "copy": "NativeTextInput-x64-Debug.interactive.receipt.txt",
+    "bytes": 36178,
+    "sha256": "D9E36E9BFED0BB6D329CF619B102217C09F790F47C7CE7FC9873F6A60072D493"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\Performance-x64-Debug-92d6d85accb240688e1750302fc4eb4f.json.comparison.receipt.txt",
+    "copy": "canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\Performance-x64-Debug-92d6d85accb240688e1750302fc4eb4f.receipt.txt",
+    "copy": "canonical-performance.receipt.txt",
+    "bytes": 38482,
+    "sha256": "29A6A03AFC87ADBA9BBA0380205EB5645B9BC5785925129E8FA9C78AA222B3A0"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\profiling-focus-Debug-attempt1.txt",
+    "copy": "profiling-focus-Debug-attempt1.txt",
+    "bytes": 5277,
+    "sha256": "D3CBACC04EAD72B72DAAAD3F74FA6B18ED9CB2273CCAD8761FEC4CBADBD757CD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\test-Menu-x64-Debug.interactive.log",
+    "copy": "test-Menu-x64-Debug.interactive.log",
+    "bytes": 53,
+    "sha256": "4E29934373528A8C39BED81849B5C99744093B40AA94911D3A4CFD646C88D7A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\test-MenuResources-x64-Debug.interactive.log",
+    "copy": "test-MenuResources-x64-Debug.interactive.log",
+    "bytes": 62,
+    "sha256": "3986DDB5E525D99B15170013B0C2B9DB9616ED706013CFDB431D075F44176BD1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\test-MenuResourceScaling-x64-Debug.interactive.log",
+    "copy": "test-MenuResourceScaling-x64-Debug.interactive.log",
+    "bytes": 68,
+    "sha256": "74CE82A5C133925D2FB9044BCA8F55ED3B84A7A26C963A4C12DD021DC7C7A8F6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-cc77bec2-attempt1\\test-NativeTextInput-x64-Debug.interactive.log",
+    "copy": "test-NativeTextInput-x64-Debug.interactive.log",
+    "bytes": 64,
+    "sha256": "115F131FCBF56B2C3879A145297008DDA92E6E7E6F45B52E02B9CE51D59AA796"
+  }
+]

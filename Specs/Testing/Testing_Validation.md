@@ -44,6 +44,12 @@ allowed affinity do not establish actual processor placement, context-switch del
 failed tracing preflights; unavailable kernel tracing is not evidence of a quiet machine. These diagnostics change
 neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets or required-CI qualification hold.
 
+Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and
+truncation flags, exact log bindings, quiet intervals and matching callback/provider snapshot cutoffs. Callback
+entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.
+A quiet interval does not guarantee no later delivery. Provider attempts MUST NOT substitute for semantic event
+payloads or delivery success, and partial callback completion MUST NOT be reported as a complete timeline.
+
 Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
 while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
 judges are replayed from the same hashed native reports, including every same-side control. Historical v1 reports

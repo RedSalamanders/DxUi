@@ -1,0 +1,26 @@
+{
+  "processId": 57068,
+  "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+  "arguments": [
+    "--suite=Accessibility",
+    "--no-activate",
+    "--test=TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow",
+    "--test-timeout=60"
+  ],
+  "workingDirectory": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi",
+  "startedUtc": "2026-10-10T22:52:16.7355227Z",
+  "completedUtc": "2026-10-10T22:52:37.9805759Z",
+  "timeoutSeconds": 120.0,
+  "drainTimeoutSeconds": 5.0,
+  "exitCode": 0,
+  "timedOut": false,
+  "terminationError": "",
+  "drainError": "",
+  "pipeCharacterLimit": 1048576,
+  "stdoutTruncated": false,
+  "stderrTruncated": false,
+  "logSha256": "8C19D8DC75042D089C1D35AC81FA3C2172B83CAD35A7569D6BB6E923BB8AEF22",
+  "executableSha256": "6E4589B982E254CEF993F487D734CF50CA86AE8079AE8F43609FCDBB778969E9",
+  "inventoryIndex": 3,
+  "kind": "isolated"
+}

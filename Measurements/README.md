@@ -11,11 +11,12 @@ interfaces, but use synthetic data and require no RedXe or RedSalamander checkou
 Application adoption measurements belong in their application's repository.
 
 - [Bounded profiling pilot, 2026-10-10](Performance/2026-10-10-profiling/README.md): six original frozen baseline
-  reports, separate startup/CPU/cache/heap observations and retained tracing refusal. Diagnostic evidence leaves
-  the original flags and required-CI qualification hold open.
+  reports, twelve guarded diagnostic reports, four native feature cases and 57 zero-skip x64 suite passes;
+  all six configurations build. Sampling cost and variability leave the original flags and required-CI hold open;
+  fresh focus validation still needs local Start confirmation.
 - [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
-  timeout regressions and bounded provider/client timelines for the intermittent ASan Grid event failure;
-  unchanged event assertions and original failure evidence remain authoritative.
+  timeout regressions and eleven passing ASan reproduction processes with bounded provider/client timelines;
+  unchanged event assertions and original failure evidence remain authoritative, with the original cause unproven.
 
 - [Guarded v2 A/A calibration, 2026-10-10](Performance/2026-10-10-aa-v2/README.md): 144 exact-byte guarded reports,
   both fully replayed judges and 72 controls. Every control remains unstable; all 54 timing/memory cells drift

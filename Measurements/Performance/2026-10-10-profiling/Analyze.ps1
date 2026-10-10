@@ -11,12 +11,11 @@ function Get-Median($Values) {
 }
 
 $manifestPath = Join-Path $PacketRoot 'SHA256SUMS'
-if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
-    foreach ($line in Get-Content -LiteralPath $manifestPath) {
-        if ($line -notmatch '^([A-Fa-f0-9]{64})  (.+)$') { throw "Malformed packet hash: $line" }
-        $actual = (Get-FileHash -LiteralPath (Join-Path $PacketRoot $Matches[2]) -Algorithm SHA256).Hash
-        if ($actual -cne $Matches[1].ToUpperInvariant()) { throw "Packet hash mismatch: $($Matches[2])" }
-    }
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw 'The retained packet SHA256SUMS is required for replay.' }
+foreach ($line in Get-Content -LiteralPath $manifestPath) {
+    if ($line -notmatch '^([A-Fa-f0-9]{64})  (.+)$') { throw "Malformed packet hash: $line" }
+    $actual = (Get-FileHash -LiteralPath (Join-Path $PacketRoot $Matches[2]) -Algorithm SHA256).Hash
+    if ($actual -cne $Matches[1].ToUpperInvariant()) { throw "Packet hash mismatch: $($Matches[2])" }
 }
 
 $plan = Get-Content -LiteralPath (Join-Path $PacketRoot 'baseline/pilot-plan.receipt.txt') -Raw | ConvertFrom-Json
@@ -56,9 +55,15 @@ $analysis = [ordered]@{ purpose='descriptive-bounded-pilot'; qualification='not-
 $diagnosticDirectory = Join-Path $PacketRoot 'diagnostic'
 if (Test-Path -LiteralPath $diagnosticDirectory -PathType Container) {
     $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
+    $diagnosticPlan = Get-Content -LiteralPath (Join-Path $diagnosticDirectory 'pilot-plan.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+    foreach ($helper in @('Tools/PerformanceProfiling.psm1','Tools/PerformancePolicy.psm1','Tools/ScopedTesting.psm1')) {
+        if (-not $diagnosticPlan.anchor.profilingInputs.Contains($helper) -or
+            (Get-FileHash -LiteralPath (Join-Path $repositoryRoot $helper) -Algorithm SHA256).Hash -cne $diagnosticPlan.anchor.profilingInputs[$helper]) {
+            throw "Replay helper bytes differ from the recorded profiling closure: $helper"
+        }
+    }
     Import-Module (Join-Path $repositoryRoot 'Tools/PerformanceProfiling.psm1') -Force
     Import-Module (Join-Path $repositoryRoot 'Tools/PerformancePolicy.psm1')
-    $diagnosticPlan = Get-Content -LiteralPath (Join-Path $diagnosticDirectory 'pilot-plan.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
     $completion = Get-Content -LiteralPath (Join-Path $diagnosticDirectory 'pilot-completion.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
     if ($diagnosticPlan.reportBudget -ne 12 -or $diagnosticPlan.acceptance -cne 'not-established' -or
         $diagnosticPlan.schedule.Count -ne 12 -or $completion.scheduled -ne 12 -or $completion.attempted -ne 12 -or $completion.results.Count -ne 12) {
@@ -102,7 +107,7 @@ if (Test-Path -LiteralPath $diagnosticDirectory -PathType Container) {
             }
         }
         $windows = @(foreach ($window in $r.windows) {
-            $mainCpu = $null; $processCpu = $null
+            $mainCpu = $null; $processCpu = $null; $mainCycles = $null; $processCycles = $null
             if ($window.cpuBefore.main.timesAvailable -and $window.cpuAfter.main.timesAvailable) {
                 $mainCpu = ([double]$window.cpuAfter.main.kernel100ns + $window.cpuAfter.main.user100ns -
                     $window.cpuBefore.main.kernel100ns - $window.cpuBefore.main.user100ns) / 10000
@@ -111,13 +116,20 @@ if (Test-Path -LiteralPath $diagnosticDirectory -PathType Container) {
                 $processCpu = ([double]$window.cpuAfter.process.kernel100ns + $window.cpuAfter.process.user100ns -
                     $window.cpuBefore.process.kernel100ns - $window.cpuBefore.process.user100ns) / 10000
             }
+            if ($window.cpuBefore.main.cyclesAvailable -and $window.cpuAfter.main.cyclesAvailable) {
+                $mainCycles = [decimal]$window.cpuAfter.main.cycles - [decimal]$window.cpuBefore.main.cycles
+            }
+            if ($window.cpuBefore.process.cyclesAvailable -and $window.cpuAfter.process.cyclesAvailable) {
+                $processCycles = [decimal]$window.cpuAfter.process.cycles - [decimal]$window.cpuBefore.process.cycles
+            }
             $frameTotal = ($window.frames.completedMs | Measure-Object -Sum).Sum
             [ordered]@{ window=$window.window; frames=$window.frames.Count; wallMs=$window.wallMs;
                 completedFps=($window.frames.Count * 1000 / $frameTotal); medianCompletedMs=(Get-Median $window.frames.completedMs);
                 minimumCompletedMs=($window.frames.completedMs | Measure-Object -Minimum).Minimum;
                 maximumCompletedMs=($window.frames.completedMs | Measure-Object -Maximum).Maximum;
                 medianPrepareMs=(Get-Median $window.frames.prepareMs); medianCompositeMs=(Get-Median $window.frames.compositeMs);
-                mainCpuMs=$mainCpu; processCpuMs=$processCpu; processMinusMainReadOrderEstimateMs=$(if ($null -ne $mainCpu -and $null -ne $processCpu) { $processCpu - $mainCpu } else { $null }) }
+                mainCpuMs=$mainCpu; processCpuMs=$processCpu; mainCycleDelta=$mainCycles; processCycleDelta=$processCycles;
+                processMinusMainReadOrderEstimateMs=$(if ($null -ne $mainCpu -and $null -ne $processCpu) { $processCpu - $mainCpu } else { $null }) }
         })
         $stages = @(foreach ($stage in $r.stages) {
             $heapSummary = $null
@@ -137,8 +149,9 @@ if (Test-Path -LiteralPath $diagnosticDirectory -PathType Container) {
     })
     $analysis['diagnostic'] = $diagnostic
     $analysis['diagnosticWallSeconds'] = $completion.wallSeconds
-    $analysis['limits'] = 'Instrumented and canonical workloads differ. Heap-on can perturb later frames. CPU times are coarse sequential reads, not scheduling attribution. Heap accounting excludes non-heap virtual memory and component ownership. No acceptance, warm-up policy change or causation follows.'
+    $analysis['limits'] = 'Instrumented and canonical workloads differ. Common sampling and heap-on can perturb later frames. CPU times are coarse sequential reads; raw cycle deltas are not durations or scheduling attribution. Heap accounting excludes non-heap virtual memory and component ownership. No acceptance, warm-up policy change or causation follows.'
 }
 $json = (ConvertTo-Json -InputObject $analysis -Depth 16) + "`n"
 [IO.File]::WriteAllText((Join-Path $PacketRoot 'analysis.txt'), $json, [Text.UTF8Encoding]::new($false))
-Write-Host "Verified and analyzed $($baseline.Count) baseline reports. Diagnostic-only; no qualification verdict."
+$diagnosticCount = if ($analysis.Contains('diagnostic')) { $analysis.diagnostic.Count } else { 0 }
+Write-Host "Verified and analyzed $($baseline.Count) baseline and $diagnosticCount diagnostic reports. Diagnostic-only; no qualification verdict."

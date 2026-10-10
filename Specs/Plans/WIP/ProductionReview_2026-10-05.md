@@ -42,7 +42,7 @@ unstable, while exact budgets remain constant; it establishes no non-regression 
 - [ ] Establish stable controls and independently qualify a seed policy. The repaired study still has 72/72 unstable
   controls, with excursions in all 54 timing/memory cells; no threshold relaxation or qualified pass is inferred.
 - [ ] Verify an ordinary candidate against the qualified trusted base before enabling the required CI rule.
-- [ ] Correct the foreground-run human summary in `test.ps1`: `RunMovedSomething=false` does not establish an
+- [x] Correct the foreground-run human summary in `test.ps1`: `RunMovedSomething=false` does not establish an
   unchanged desktop when restoration is failed/skipped/unknown. Retain the original third ASan attempt, preserve
   fail-closed accounting and add tooling coverage for failed and unavailable restoration summaries before a runner update.
 
@@ -83,17 +83,31 @@ The user accepted a bounded performance profiling pilot first, correction of the
 investigation of the intermittent ASan UIA selection-event failure. Continue on `codex/performance-forms` from
 `01f1aed1`; preserve all original measurement/failure receipts and keep the judges, thresholds and required-CI hold.
 
-- [ ] Retain six serial fresh-process Release/x64 reports on the frozen executable, alternating Default and
+- [x] Retain six serial fresh-process Release/x64 reports on the frozen executable, alternating Default and
   MultilineGrid, before implementation. Stop at the fixed inventory; this pilot is descriptive, not calibration.
-- [ ] Add only the bounded diagnostic telemetry needed to distinguish initialization/backend warm-up, process/thread
-  CPU scheduling and heap residency; reuse existing helpers and record sampling overhead and unavailable observations.
-- [ ] Run the instrumented pilot serially, retain every outlier and independently review what it establishes.
-- [ ] Correct the human desktop summary from restoration statuses and cover unchanged/restored, failed/skipped,
+- [x] Add bounded initialization/backend warm-up, process/thread CPU consumption, allowed scheduling properties and
+  heap-residency observations; record sampling overhead and unavailable observations. Actual scheduler attribution is unavailable.
+- [x] Run all twelve instrumented reports serially, retain every outlier and independently review the 3,360 frames.
+  Longer warm-up does not establish convergence; total sampling costs 0.840-1.521 seconds per report, including
+  optional heap accounting. Keep policy unqualified.
+- [x] Correct the human desktop summary from restoration statuses and cover unchanged/restored, failed/skipped,
   missing/unrecorded and canceled/timed-out results without changing fail-closed lease accounting.
-- [ ] Investigate client-observed UIA events and provider emission paths; reproduce any confirmed synchronization
-  defect with an executable regression rather than weakening event assertions or assuming delayed delivery.
-- [ ] Complete affected native/tooling checks and required build/profile accounting, update usage/domain contracts
-  and changelog fragments, and review delegated code and evidence before accepting them.
+- [x] Investigate client-observed UIA events and provider emission paths; fix the discarded quiescence timeout with
+  four executable regressions. All eleven declared ASan reproduction processes pass with unchanged event assertions;
+  unchanged republishing has zero provider attempts/client arrivals. The original extra-event cause remains unproven.
+- [x] Complete affected noninteractive checks and six-profile build accounting, update usage/domain contracts and
+  changelog fragments, and independently review delegated code/evidence. The lead repeats all fifteen UIA replay
+  cases; the strengthened reader rejects the twelve corruptions the earlier reader accepted.
+- [ ] Complete fresh Debug/Release/ASan focus suites through confirmed local leases; the first fresh Debug Start
+  confirmation times out before any child launches. Earlier focus evidence qualifies its own binaries only.
+
+Current follow-up validation: 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips), four
+native profiling feature cases and six-profile builds. The lead independently verifies exact v2 build/executable
+identities, raw/stamped data, archive copies, timings and UIA timelines; delegated evidence receives independent review.
+The fresh Debug Start dialog times out before any focus child launches, with all three desktop states recorded
+unchanged. Retain this attempt separately and keep fresh Debug/Release/ASan foreground validation open pending
+confirmed local leases. [The profiling packet](../../../Measurements/Performance/2026-10-10-profiling/README.md)
+and [UIA packet](../../../Measurements/UiaSelection/2026-10-10/README.md) preserve the exact inventories and limits.
 
 This follow-up changes diagnostics/test reporting, not control visuals; review the documentation/gallery contract
 and retain the published design-system/gallery assets unless investigation changes visible product behavior.
