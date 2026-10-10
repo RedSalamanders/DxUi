@@ -12,18 +12,33 @@ HOLD in the API revision 4 consumer handoff register; no consumer pin or product
   (ASan), and a real held property callback occupying publication for 20 seconds. Keep the failed source/products.
 - [x] Repair source capture guards, native delivery, snapshot-free sender runtime identity and embedded property
   transport using one coalesced work item with properly marshalled STA providers.
-- [ ] Validate the final current-source fallback/reentrant getter, arbitrary IDs/Unicode/offscreen rows, independent
+- [x] Validate the final current-source fallback/reentrant getter, arbitrary IDs/Unicode/offscreen rows, independent
   multi-selection/focus, real native and embedded re-entry, held structure/property bursts and source retirement.
-- [ ] Complete exact-source x64 Debug/Release/ASan suites and ARM64 build/runtime CI, consumer API fixtures,
+- [x] Complete exact-source x64 Debug/Release/ASan suites and ARM64 build/runtime CI, consumer API fixtures,
   validators/format and a fresh matched paired Release study. Report every unavailable or inconclusive gate.
-- [ ] Review retained results, reconcile capability/documentation claims and merge only a correct, qualified candidate.
+- [x] Independently review retained results and reconcile capability/documentation claims for the authorized library integration. Formal performance-policy approval is explicitly separate from these scoped functional results.
+
+Status: **LIBRARY IMPLEMENTATION COMPLETE.** Source `8e446386e06d10eaf3035cdd703206e75eaf7ab6`
+and its identical PR merge tree pass 122 suite executions across the six x64/ARM64 Debug, Release and ASan Debug
+profiles, eight relocated consumer fixtures and both deliberate sanitizer probes. All four native prepared-Tree
+cases and four real embedded client cases pass in every profile. Local Debug/ASan affected suites, validators
+and formatting also pass. The [current evidence](../../../Measurements/PreparedTreeAccessibility/2026-10-10/README.md)
+retains source/product identities, failures, raw reports and the independent audits.
+
+Remaining qualification is transferred explicitly, rather than reported as passed: ARM64 Menu and NativeTextInput
+each refused the hosted foreground lease in all three profiles (six unexecuted suites); Q22 in
+[ProductionReview](../WIP/ProductionReview_2026-10-05.md) owns formal performance-policy acceptance. Two fresh
+12-block, three-scenario paired studies retain 288 reports with zero regression flags under either method and
+unchanged exact budgets, but both formal verdicts remain `inconclusive`: the base policy is unqualified and controls
+are frequently unstable. RedPrism adoption, charged-source ownership and product activation remain **HOLD** in
+the [API-4 consumer register](../WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md). No consumer migration is closed.
 
 Documentation/gallery review: the source API, owner-thread pumping and notification ownership are documented.
 No paint/blend/theme/gallery fixture changes are introduced; accessibility rows/transport and input acknowledgement
 leave gallery pixels unchanged. Interaction-only preparation leaves pixels dirty for the later full Prepare.
 
 
-## Implementation checklist
+## Historical implementation checklist - 2026-10-06
 
 - [x] Qualify the DxUi embedded structure-delivery library matrix for pushed source
   `cd645ea2375725ed7a899bb6e681ef41d0a3000d`: x64 Debug, Release and ASan Debug each pass all 20 requested
@@ -33,8 +48,8 @@ leave gallery pixels unchanged. Interaction-only preparation leaves pixels dirty
   [matrix summary](../../../Measurements/PreparedTreeAccessibility/2026-10-06/embedded-structure-matrix-summary.json).
   RedPrism held-client/re-entry and current-source paired scenes remain pending; prior failed receipts remain intact.
 - [x] Qualify the internal embedded property-event lifetime repair as a library change. The pushed source `36c0ff66bd7574038ed2e255f79847a81bf054c7` has passing x64 Debug/Release/ASan Debug test suites and ARM64 Debug/Release/ASan Debug cross-builds; the independent readback supplement preserves the original helper failures and verifies their actual-child evidence.
-- [ ] Complete exact-pin consumer qualification: real embedded UIA event re-entry and held-client delivery, charged-source admission/retirement and large-row host fixtures. Consumer r211 passes interaction/retry/edit and provider16/capacity12, then stalls during embedded notification publication. Its dump proves inline owner delivery; shape and the full current consumer matrix remain unexecuted. Production activation remains open.
-- [ ] Run and review matched paired complex-UI non-regression for source `cd645ea2375725ed7a899bb6e681ef41d0a3000d`. The older `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired result remains historical evidence only and does not qualify this source.
+- **Transferred consumer HOLD (historically unexecuted):** Complete exact-pin consumer qualification: real embedded UIA event re-entry and held-client delivery, charged-source admission/retirement and large-row host fixtures. Consumer r211 passes interaction/retry/edit and provider16/capacity12, then stalls during embedded notification publication. Its dump proves inline owner delivery; shape and the full current consumer matrix remain unexecuted. Production activation remains open.
+- **Superseded historical obligation (not executed for that source):** Run and review matched paired complex-UI non-regression for source `cd645ea2375725ed7a899bb6e681ef41d0a3000d`. The older `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired result remains historical evidence only and does not qualify this source.
 
 - [x] Isolate work from the consumer's exact `271bd54be24eadf3f03ba5221d1be7be069860f2` pin. The unrelated dirty native checkout is preserved.
 - [x] Review a deterministic library-only 10,000-row /1,024-unit-name counting model and draft an opt-in snapshot benchmark with complete offscreen-name/navigation/disconnection checks.
@@ -44,9 +59,9 @@ leave gallery pixels unchanged. Interaction-only preparation leaves pixels dirty
 - [x] Verify replacement, root destruction, retained providers and same-count/same-ID updates against independent native/embedded expectations. Real native UIA callback read/root replacement and the blocked-callback burst pass in all x64 profiles; embedded root-only retirement and retained-provider/COM action suites also pass.
 - [x] Compare baseline/candidate snapshot work and paired complex-UI costs without weakening existing gates. The x64 Debug, Release and real ASan Debug suites, and ARM64 Debug/Release/ASan Debug cross-builds are qualified; all three paired Release scene sets have zero confirmed regressions. The original Debug receipt-time checker failure is preserved and the corrected UTC supplement verifies all 20 receipts. Validators pass after measurement provenance annotations.
 - [x] Update lasting contracts, public usage, capability evidence and changelog; commit and push the verified library step as `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` on `codex/p1-prepared-tree-accessibility` (upstream synchronized).
-- [ ] Qualify RedPrism's admitted source/retirement ownership and actual large-row host matrix before adopting the new pin or activating its prepared rows.
+- **Transferred consumer HOLD (historically unexecuted):** Qualify RedPrism's admitted source/retirement ownership and actual large-row host matrix before adopting the new pin or activating its prepared rows.
 
-Status: **ACTIVE; the embedded structure-delivery library matrix is complete for pushed source `cd645ea2375725ed7a899bb6e681ef41d0a3000d` (x64 Debug/Release/ASan Debug suites and ARM64 Debug/Release/ASan Debug cross-builds). The earlier paired Release scene qualification belongs to `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4`; it does not qualify the current source. Current-source paired scenes and exact-pin RedPrism client event/re-entry, charged-source retirement and large-row qualification remain open. RedPrism r212 build exits 0; focused r213 exits 5 at the interaction fixture quit closeout before reaching notification or shape. The managed consumer uses this exact pin for qualification. Production activation, completed consumer qualification, native ARM64 runtime and P1 completion remain unclaimed. See the [structure-delivery matrix summary](../../../Measurements/PreparedTreeAccessibility/2026-10-06/embedded-structure-matrix-summary.json) and [property-event matrix supplement](../../../Measurements/PreparedTreeAccessibility/2026-10-06/property-event-qualification.md).**
+Historical status: the following source-specific record predates the current library closeout. Its old pending consumer and paired requirements are superseded by the current evidence and explicitly transferred qualification above; no old receipt is requalified.
 
 The original `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired qualification and its `paired-summary.json` are retained as historical evidence. They do not establish paired non-regression for `36c0ff66bd7574038ed2e255f79847a81bf054c7` or current source `cd645ea2375725ed7a899bb6e681ef41d0a3000d`.
 

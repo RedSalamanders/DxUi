@@ -21,12 +21,11 @@ One entry per plan, separated by blank lines, so that changes to different plans
 - **ACTIVE**: [CI run scope](CiRunScope_2026-10-04.md). The validation workflow runs once per change (pushes validate main alone), and a documentation-only pull request skips the six native jobs; the hosted behavior remains to be observed.
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
-`../Done/RedSalamanderMigration.md`, `../Done/EditorConsumerControls_2026-09-20.md` and
-`../Done/EmbeddedInteractionLayout_2026-10-06.md`. Further ARM64 and ASan qualification is
+`../Done/RedSalamanderMigration.md`, `../Done/EditorConsumerControls_2026-09-20.md`,
+`../Done/EmbeddedInteractionLayout_2026-10-06.md` and
+`../Done/PreparedTreeAccessibility_2026-10-06.md`. Further ARM64 and ASan qualification is
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
 RedXe retains its separately owned hardware, real IME and assistive-technology gates.
 
 Plans never override normative contracts. Completed plans move to Done after
 validation and normative closeout.
-
-- **ACTIVE**: [Prepared Tree accessibility](PreparedTreeAccessibility_2026-10-06.md). Optional immutable snapshot rows, bounded viewport capture and native reentrant notification delivery are library-qualified in x64 Debug/Release/ASan, all ARM64 builds and paired Release common scenes. Consumer charged-source adoption and activation remain open.

@@ -37,9 +37,7 @@ source can be read; storing row strings in the immutable shared snapshot is a st
 lifetime. The consumer owns bounded, allocation-free query/capture behavior, source preparation and admission, and
 the lane on which final source destruction occurs. Account for retained references released by foreign readers.
 DxUi does not start a row-preparation worker or choose a preparation lane. The default null source preserves the existing behavior.
-The [library qualification](../../../../Measurements/PreparedTreeAccessibility/2026-10-06/README.md) covers the source API and
+The [current library evidence](../../../../Measurements/PreparedTreeAccessibility/2026-10-10/README.md) covers the source API and
 notification/lifetime behavior; the consumer's admission, retirement and latency qualification remains separate.
-
-The preview is a static HTML rendition styled by `bundle.css` from the tokens; the real control is painted by DxUi.lib with Direct2D. The gallery captures under Assets › Gallery are the authoritative rendering.
 
 The preview shows the default palette's resolved contrast colors. Custom fills, alpha and rainbow tints are resolved by the native control. This is a static HTML rendition styled by `bundle.css`; the gallery captures under Assets › Gallery are the authoritative rendering.

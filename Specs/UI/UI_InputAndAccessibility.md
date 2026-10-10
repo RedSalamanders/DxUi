@@ -537,8 +537,8 @@ This invalidation carries no historical property values, so the slot and held de
 provider reads resolve the current coherent epoch. Disconnect clears pending work and revokes the registration on
 the owner before releasing the canonical provider. Already resolved proxies enforce the disconnected target
 guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
-allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Property/text/
-focus events retain their separate event contracts. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
+allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Selection, text and
+focus events retain their separate event contracts; embedded control-property transport is described below. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
 
 The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
 non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;

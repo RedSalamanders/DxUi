@@ -4,6 +4,10 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Prepared Tree accessibility finish, 2026-10-10](PreparedTreeAccessibility/2026-10-10/README.md): current-main integration,
+  real native/embedded UIA reentry and source retirement, six-profile scoped validation and two fresh paired studies.
+  Formal benchmark-policy acceptance and ARM64 foreground qualification remain open; consumer adoption is separate.
+
 - [Embedded interaction layout, 2026-10-06](EmbeddedInteractionLayout/README.md): six matched Release runs per side,
   unchanged surface/composition budgets and all raw noisy controls retained. Consumer qualification remains separate.
 
