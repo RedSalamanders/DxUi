@@ -694,7 +694,7 @@ void ComboBox::SetTextAndNotify(std::wstring text)
     if (callback)
     {
         const std::wstring snapshot = _text;
-        callback(snapshot);
+        (*callback)(snapshot);
     }
 }
 
@@ -715,22 +715,22 @@ void ComboBox::SetPlaceholder(std::wstring text)
 
 void ComboBox::SetOnTextChanged(std::function<void(std::wstring_view)> onTextChanged)
 {
-    _onTextChanged = std::move(onTextChanged);
+    ReplaceControlCallback(_onTextChanged, std::move(onTextChanged));
 }
 
 void ComboBox::SetOnSelectionChanged(std::function<void(size_t)> onSelectionChanged)
 {
-    _onSelectionChanged = std::move(onSelectionChanged);
+    ReplaceControlCallback(_onSelectionChanged, std::move(onSelectionChanged));
 }
 
 void ComboBox::SetOnSubmitted(std::function<void()> onSubmitted)
 {
-    _onSubmitted = std::move(onSubmitted);
+    ReplaceControlCallback(_onSubmitted, std::move(onSubmitted));
 }
 
 void ComboBox::SetOnPopupRequested(std::function<bool()> onPopupRequested)
 {
-    _onPopupRequested = std::move(onPopupRequested);
+    ReplaceControlCallback(_onPopupRequested, std::move(onPopupRequested));
 }
 
 void ComboBox::Paint(ControlHost& host) const
@@ -754,10 +754,10 @@ void ComboBox::Paint(ControlHost& host) const
     {
         if (auto* dc = host.GetDeviceContext())
         {
-            dc->DrawLine(D2D1::Point2F(buttonRect.left, GetBounds().top + 3.0f),
-                         D2D1::Point2F(buttonRect.left, GetBounds().bottom - 3.0f),
-                         host.GetSolidBrush(style.splitStroke),
-                         1.0f);
+            if (auto* brush = host.GetSolidBrush(style.splitStroke))
+            {
+                dc->DrawLine(D2D1::Point2F(buttonRect.left, GetBounds().top + 3.0f), D2D1::Point2F(buttonRect.left, GetBounds().bottom - 3.0f), brush, 1.0f);
+            }
         }
     }
     if (_chromeVisible && style.showLeftFocusAccent)
@@ -876,7 +876,10 @@ void ComboBox::PaintOverlay(ControlHost& host) const
             const D2D1_ROUNDED_RECT rounded = D2D1::RoundedRect(itemRect, 4.0f, 4.0f);
             if (auto* dc = host.GetDeviceContext())
             {
-                dc->FillRoundedRectangle(&rounded, host.GetSolidBrush(highlighted ? style.popupActiveFill : style.popupSelectedFill));
+                if (auto* brush = host.GetSolidBrush(highlighted ? style.popupActiveFill : style.popupSelectedFill))
+                {
+                    dc->FillRoundedRectangle(&rounded, brush);
+                }
             }
         }
         DrawCenteredText(host,
@@ -900,9 +903,15 @@ void ComboBox::PaintOverlay(ControlHost& host) const
     {
         if (auto* dc = host.GetDeviceContext())
         {
-            dc->FillRectangle(popupScrollbar, host.GetSolidBrush(style.popupScrollbarTrack));
+            if (auto* brush = host.GetSolidBrush(style.popupScrollbarTrack))
+            {
+                dc->FillRectangle(popupScrollbar, brush);
+            }
             const D2D1_ROUNDED_RECT thumb = D2D1::RoundedRect(GetPopupScrollbarThumbRect(), 4.0f, 4.0f);
-            dc->FillRoundedRectangle(&thumb, host.GetSolidBrush(_dragPopupScrollbar ? style.popupScrollbarThumbHot : style.popupScrollbarThumb));
+            if (auto* brush = host.GetSolidBrush(_dragPopupScrollbar ? style.popupScrollbarThumbHot : style.popupScrollbarThumb))
+            {
+                dc->FillRoundedRectangle(&thumb, brush);
+            }
         }
     }
 }
@@ -919,6 +928,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
     {
         return true;
     }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_open)
     {
         UpdatePopupLayout(&host);
@@ -987,6 +997,10 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         else if (const std::optional<size_t> hitIndex = HitTestPopupItem(point))
         {
             CommitSelection(host, hitIndex.value(), true);
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
         else
         {
@@ -1016,6 +1030,10 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         else if (! _items.empty())
         {
             static_cast<void>(RequestPopup(host));
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
     }
 
@@ -1219,6 +1237,7 @@ bool ComboBox::OnMouseLeave(ControlHost& host)
 bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (virtualKey == VK_ESCAPE && _open)
     {
         ClosePopup();
@@ -1489,6 +1508,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         else
         {
             static_cast<void>(RequestPopup(host));
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
         Invalidate(host);
         return true;
@@ -1498,6 +1521,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (! _open)
         {
             static_cast<void>(RequestPopup(host));
+            if (lifetime.expired())
+            {
+                return true;
+            }
             Invalidate(host);
         }
         return true;
@@ -1527,11 +1554,15 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         return std::nullopt;
     };
-    const auto commitPopupListIndex = [this, &host](size_t popupListIndex) -> bool
+    const auto commitPopupListIndex = [this, &host, &lifetime](size_t popupListIndex) -> bool
     {
         if (const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex))
         {
             CommitSelection(host, itemIndex.value(), false);
+            if (lifetime.expired())
+            {
+                return true;
+            }
             if (_open)
             {
                 _activePopupIndex = itemIndex.value();
@@ -1554,6 +1585,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_editable && ! _open)
         {
             static_cast<void>(RequestPopup(host));
+            if (lifetime.expired())
+            {
+                return true;
+            }
             Invalidate(host);
             return true;
         }
@@ -1578,6 +1613,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_editable && ! _open)
         {
             static_cast<void>(RequestPopup(host));
+            if (lifetime.expired())
+            {
+                return true;
+            }
             Invalidate(host);
             return true;
         }
@@ -1634,12 +1673,21 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_open && GetHighlightedPopupIndex())
         {
             CommitSelection(host, GetHighlightedPopupIndex().value(), true);
+            if (lifetime.expired())
+            {
+                return true;
+            }
             Invalidate(host);
             return true;
         }
         if (_onSubmitted)
         {
-            _onSubmitted();
+            const auto onSubmitted = _onSubmitted;
+            (*onSubmitted)();
+            if (lifetime.expired())
+            {
+                return true;
+            }
             Invalidate(host);
             return true;
         }
@@ -1667,6 +1715,7 @@ bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_PO
 bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (! _editable)
     {
         if (ch < 0x20u || _items.empty())
@@ -1685,6 +1734,10 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
         if (const std::optional<size_t> matchIndex = FindTypeaheadMatch(_typeaheadBuffer))
         {
             CommitSelection(host, matchIndex.value(), false);
+            if (lifetime.expired())
+            {
+                return true;
+            }
             if (_open)
             {
                 _activePopupIndex = matchIndex.value();
@@ -1699,6 +1752,10 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
         if (const std::optional<size_t> matchIndex = FindTypeaheadMatch(_typeaheadBuffer))
         {
             CommitSelection(host, matchIndex.value(), false);
+            if (lifetime.expired())
+            {
+                return true;
+            }
             if (_open)
             {
                 _activePopupIndex = matchIndex.value();
@@ -1731,7 +1788,10 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
     RebuildPopupItems(&host);
     EnsurePopupSelectionVisible(&host);
     MaybeAutoOpenPopup(host);
-    NotifyTextChanged();
+    if (! NotifyTextChanged())
+    {
+        return true;
+    }
     ResetEditableCaretBlink(host);
     EnsureEditableCaretVisible(&host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
     Invalidate(host);
@@ -1968,6 +2028,10 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
 
     const std::wstring previousText = _text;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
+    if (notifyChange && previousText != state.text)
+    {
+        RecordUndoStateForEditableEdit();
+    }
     _text       = state.text;
     _caretIndex = std::min(state.caretIndex, _text.size());
     if (state.selectionAnchorIndex)
@@ -1992,7 +2056,10 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
     EnsureEditableCaretVisible(&host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
     if (notifyChange && previousText != _text)
     {
-        NotifyTextChanged();
+        if (! NotifyTextChanged())
+        {
+            return false;
+        }
     }
     Invalidate(host);
     return true;
@@ -2081,7 +2148,10 @@ void ComboBox::RefreshEditableTextAfterMutation(ControlHost& host)
     SyncEditableSelectionFromText();
     RebuildPopupItems(&host);
     EnsurePopupSelectionVisible(&host);
-    NotifyTextChanged();
+    if (! NotifyTextChanged())
+    {
+        return;
+    }
     ResetEditableCaretBlink(host);
     EnsureEditableCaretVisible(&host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
     Invalidate(host);
@@ -2307,13 +2377,20 @@ std::optional<size_t> ComboBox::GetHighlightedPopupIndex() const noexcept
     return _hoveredPopupIndex ? _hoveredPopupIndex : _activePopupIndex;
 }
 
-void ComboBox::NotifyTextChanged() const
+bool ComboBox::NotifyTextChanged() const
 {
-    if (_onTextChanged)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (const auto callback = _onTextChanged; callback)
     {
-        _onTextChanged(_text);
+        const std::wstring snapshot = _text;
+        (*callback)(snapshot);
+    }
+    if (lifetime.expired())
+    {
+        return false;
     }
     RefreshAccessibilitySnapshot();
+    return ! lifetime.expired();
 }
 
 void ComboBox::RefreshAccessibilitySnapshot() const noexcept
@@ -2353,9 +2430,17 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 
 bool ComboBox::RequestPopup(ControlHost& host)
 {
-    if (_onPopupRequested && _onPopupRequested())
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    auto onPopupRequested             = _onPopupRequested;
+    const bool handled                = onPopupRequested && (*onPopupRequested)();
+    onPopupRequested.reset();
+    if (handled)
     {
         return true;
+    }
+    if (lifetime.expired())
+    {
+        return false;
     }
 
     OpenPopup(host);
@@ -2634,6 +2719,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     {
         return;
     }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
 
     _selectedIndex    = itemIndex;
     _activePopupIndex = itemIndex;
@@ -2643,7 +2729,10 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
         _caretIndex = _text.size();
         _selectionAnchorIndex.reset();
         _dragSelecting = false;
-        NotifyTextChanged();
+        if (! NotifyTextChanged())
+        {
+            return;
+        }
     }
     if (closePopup)
     {
@@ -2655,14 +2744,23 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     // including replacing the callback itself. The callback intentionally fires
     // after ClosePopup so consumers observe the popup as closed.
     const bool wasEditable = _editable;
-    if (const std::function<void(size_t)> onSelectionChanged = _onSelectionChanged; onSelectionChanged)
+    if (auto onSelectionChanged = _onSelectionChanged; onSelectionChanged)
     {
-        onSelectionChanged(itemIndex);
+        (*onSelectionChanged)(itemIndex);
+        onSelectionChanged.reset();
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     EnsurePopupSelectionVisible(closePopup ? nullptr : &host);
     if (wasEditable)
     {
         host.SyncTextInput(this);
+    }
+    if (lifetime.expired())
+    {
+        return;
     }
     Invalidate(host);
 }

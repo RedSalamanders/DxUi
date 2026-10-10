@@ -59,10 +59,18 @@ struct RegisteredMessage final
     return message;
 }
 
-// Sent from another thread to create the window's root UI Automation provider; lParam is where it is stored.
+// Sent from another thread to create the window's root UI Automation provider; lParam is a bounded payload token.
+// Version 2 replaces version 1's writable pointer parameter with owned token transport.
 [[nodiscard]] inline RegisteredMessage AccessibilityCreateProvider() noexcept
 {
-    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.Accessibility.CreateProvider.v1");
+    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.Accessibility.CreateProvider.v2");
+    return message;
+}
+
+// Coalesced owner-thread publication. wParam is an attachment cookie; no pointer or payload is borrowed.
+[[nodiscard]] inline RegisteredMessage AccessibilityFlush() noexcept
+{
+    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.Accessibility.Flush.v1");
     return message;
 }
 
@@ -154,6 +162,13 @@ struct RegisteredMessage final
 [[nodiscard]] inline RegisteredMessage TextInputServicesDeferredLock() noexcept
 {
     static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.TextInputServices.DeferredLock.v1");
+    return message;
+}
+
+// Posted by an attached native text store to report external edits after a TSF lock unwinds; wParam is a host session cookie.
+[[nodiscard]] inline RegisteredMessage NativeTextStoreDeferredWork() noexcept
+{
+    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.NativeTextStore.DeferredWork.v1");
     return message;
 }
 } // namespace DxUi::WndMsg

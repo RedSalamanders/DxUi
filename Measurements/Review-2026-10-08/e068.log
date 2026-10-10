@@ -1,0 +1,105 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestControlContextMenuCallbackCanReplaceItsOwnCallable
+=================================================================
+==97404==ERROR: AddressSanitizer: heap-use-after-free on address 0x1239ee4a12a8 at pc 0x7ff6d13579dd bp 0x00ee765bc5e0 sp 0x00ee765bc5e8
+READ of size 8 at 0x1239ee4a12a8 thread T0
+    #0 0x7ff6d13579dc in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator= C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484
+    #1 0x7ff6d14b687a in ``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1063
+    #2 0x7ff6d15087bf in std::invoke<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1> &,tagPOINT,bool> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1811
+    #3 0x7ff6d14d8d1a in std::_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1005
+    #4 0x7ff6d1f32891 in std::_Func_class<void,tagPOINT,bool>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #5 0x7ff6d1f21063 in DxUi::Control::OnContextMenu Z:\src\DxUi\src\Controls\DxUi.cpp:560
+    #6 0x7ff6d14b6545 in `anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1066
+    #7 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #8 0x7ff6d14cf0b2 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1835
+    #9 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #10 0x7ff6d1521544 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #11 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #12 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #13 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #14 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #15 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #16 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x1239ee4a12a8 is located 40 bytes inside of 56-byte region [0x1239ee4a1280,0x1239ee4a12b8)
+freed by thread T0 here:
+    #0 0x7ff6d23b5453 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff6d1492040 in std::_Ref_count_obj2<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403c2040)
+    #2 0x7ff6d1494ce2 in std::_Ref_count_obj2<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:2153
+    #3 0x7ff6d13b3c91 in std::_Ref_count_base::_Decwref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1190
+    #4 0x7ff6d13b3aba in std::_Ref_count_base::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1184
+    #5 0x7ff6d1494be7 in std::_Ptr_base<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1408
+    #6 0x7ff6d1491a4e in std::shared_ptr<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::~shared_ptr<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1713
+    #7 0x7ff6d14b6de9 in ``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>::~<lambda_1>+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403e6de9)
+    #8 0x7ff6d14d8e09 in std::_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>::~_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140408e09)
+    #9 0x7ff6d14d8e36 in std::_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140408e36)
+    #10 0x7ff6d14d8dc4 in std::_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1027
+    #11 0x7ff6d13d2d20 in std::_Func_class<void,tagPOINT,bool>::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1138
+    #12 0x7ff6d1f321f5 in std::function<void __cdecl(tagPOINT,bool)>::operator= C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1299
+    #13 0x7ff6d1f22ab1 in DxUi::Control::SetOnContextMenu Z:\src\DxUi\src\Controls\DxUi.cpp:861
+    #14 0x7ff6d14b67a8 in ``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1062
+    #15 0x7ff6d15087bf in std::invoke<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1> &,tagPOINT,bool> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1811
+    #16 0x7ff6d14d8d1a in std::_Func_impl_no_alloc<``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>,void,tagPOINT,bool>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1005
+    #17 0x7ff6d1f32891 in std::_Func_class<void,tagPOINT,bool>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #18 0x7ff6d1f21063 in DxUi::Control::OnContextMenu Z:\src\DxUi\src\Controls\DxUi.cpp:560
+    #19 0x7ff6d14b6545 in `anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1066
+    #20 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #21 0x7ff6d14cf0b2 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1835
+    #22 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #23 0x7ff6d1521544 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #24 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #25 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #26 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #27 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #28 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+
+previously allocated by thread T0 here:
+    #0 0x7ff6d23b5335 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff6d150923c in std::make_shared<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >,wchar_t const (&)[6]> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:2944
+    #2 0x7ff6d14b6a17 in ``anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable'::`2'::<lambda_1>::<lambda_1> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1060
+    #3 0x7ff6d14b623c in `anonymous namespace'::TestControlContextMenuCallbackCanReplaceItsOwnCallable Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1060
+    #4 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6d14cf0b2 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1835
+    #6 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6d1521544 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #8 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484 in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator=
+Shadow bytes around the buggy address:
+  0x1239ee4a1000: 00 00 04 fa fa fa fa fa 00 00 00 00 00 00 07 fc
+  0x1239ee4a1080: fa fa fa fa 00 00 00 00 00 00 00 00 fa fa fa fa
+  0x1239ee4a1100: fd fd fd fd fd fd fd fa fa fa fa fa 00 00 00 00
+  0x1239ee4a1180: 00 00 00 00 fa fa fa fa 00 00 00 00 00 00 00 fa
+  0x1239ee4a1200: fa fa fa fa 00 00 00 00 00 00 00 fa fa fa fa fa
+=>0x1239ee4a1280: fd fd fd fd fd[fd]fd fa fa fa fa fa fd fd fd fd
+  0x1239ee4a1300: fd fd fd fd fa fa fa fa fd fd fd fd fd fd fd fd
+  0x1239ee4a1380: fa fa fa fa fd fd fd fd fd fd fd fd fa fa fa fa
+  0x1239ee4a1400: fd fd fd fd fd fd fd fd fa fa fa fa fd fd fd fd
+  0x1239ee4a1480: fd fd fd fd fa fa fa fa fd fd fd fd fd fd fd fd
+  0x1239ee4a1500: fa fa fa fa fd fd fd fd fd fd fd fd fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==97404==ABORTING

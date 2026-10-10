@@ -1,5 +1,9 @@
 # Feeding the palette from an application theme
 
+Inactive Tree/Grid selections check their text contrast against the alpha-composited fill, retaining a configured
+ink when it reaches 4.5:1 and falling back to measured black/white otherwise. High contrast keeps HighlightText.
+The focused selected Tree row uses a ring contrasting with its resolved fill, including rainbow tints.
+
 DxUi owns no theme files, theme keys or settings. An application resolves its own theme and hands DxUi colors through one of two adapters. Everything in this system is expressed in `ThemePalette` roles so that either path can be checked against it.
 
 ## Path A: `ThemeColors` → `MakeThemePalette`
@@ -38,4 +42,7 @@ When overriding, write every role in the same family (all grounds, all borders, 
 - **Windows high contrast**: take grounds, text and selection from `GetSysColor` (`COLOR_WINDOW`, `COLOR_WINDOWTEXT`, `COLOR_HIGHLIGHT`, `COLOR_HIGHLIGHTTEXT`, `COLOR_GRAYTEXT`) and set `highContrast`. System palettes have no alert colors, so applications commonly map all three severities to the highlight pair — which makes them identical — or supply none and get `text` on `windowBackground`. Status in DxUi therefore MUST always carry a word or glyph. Outside high contrast, supplying none keeps the default tones.
 - **App high contrast** is a normal theme with `highContrast` set, for example the gallery's black / white / `#003b80` / yellow input used for this system's High contrast values. Its alert pairs are whatever the application supplies. The gallery supplies none, so its high-contrast sheet shows the `text` on `windowBackground` fallback.
 - **Rainbow** is a flag, never a palette. Keep a fixed per-application seed so hues are stable across sessions.
+- **Derived contrast** uses measured linear WCAG luminance: `ChooseContrastingTextColor` returns pure black or white,
+  whichever contrasts more with the painted fill. Composite translucent fills over their actual ground first. This
+  governs derived tooltip text, toggle knobs, rainbow popup text and tag text; it does not override supplied text colors.
 - **Fonts** are not theme data. Themes change colors only; type roles and the Segoe UI Variable / Fluent Icons / Consolas families stay fixed.

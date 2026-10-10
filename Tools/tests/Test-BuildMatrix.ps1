@@ -18,6 +18,19 @@ Invoke-FixtureCase 'every project requires real configuration entries' {
     Assert-True @(Test-DxUiProjectConfigurations $path | Where-Object { $_.Contains('duplicate') }).Count 'a duplicate is reported'
 }
 
+Invoke-FixtureCase 'the consumer validator resolves a relative Root from another working directory' {
+    param($root)
+    $matrix = @(Get-BuildMatrix)
+    Set-FixtureFile $root 'consumer.vcxproj' ('<Project><ItemGroup>' + (($matrix | ForEach-Object { "<ProjectConfiguration Include=`"$_`" />" }) -join '') + '</ItemGroup></Project>')
+    & git -C $root init --quiet
+    Assert-Equal 0 $LASTEXITCODE 'fixture git init'
+    $caller = Split-Path -Parent $root
+    $relativeRoot = Split-Path -Leaf $root
+    $entry = Join-Path $PSScriptRoot '../../validate-build-matrix.ps1'
+    Push-Location $caller
+    try { & $entry -Root $relativeRoot } finally { Pop-Location }
+}
+
 Invoke-FixtureCase 'a silent Debug fallback and a missing build are rejected' {
     param($root)
     $path = Join-Path $root 'consumer.sln'

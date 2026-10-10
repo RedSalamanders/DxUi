@@ -1,0 +1,134 @@
+[
+  {
+    "name": "TestControlContextMenuCallbackCanReplaceItsOwnCallable",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-01.log"
+  },
+  {
+    "name": "TestControlAccessibleInvokeCallbackCanDestroyItsOwner",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-02.log"
+  },
+  {
+    "name": "TestPageIndicatorSelectionCallbackCanReplaceItsOwnCallable",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-03.log"
+  },
+  {
+    "name": "TestScrollPanelScrollCallbackCanReplaceItsOwnCallable",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-04.log"
+  },
+  {
+    "name": "TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-05.log"
+  },
+  {
+    "name": "TestScrollPanelScrollbarDragCallbackCanDestroyItsOwner",
+    "suite": "Control",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-06.log"
+  },
+  {
+    "name": "TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField",
+    "suite": "TextField",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-07.log"
+  },
+  {
+    "name": "TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself",
+    "suite": "TextField",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-08.log"
+  },
+  {
+    "name": "TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive",
+    "suite": "TextField",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-09.log"
+  },
+  {
+    "name": "TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself",
+    "suite": "TextField",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-10.log"
+  },
+  {
+    "name": "TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself",
+    "suite": "TextField",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-11.log"
+  },
+  {
+    "name": "TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox",
+    "suite": "ComboBox",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-12.log"
+  },
+  {
+    "name": "TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself",
+    "suite": "ComboBox",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-13.log"
+  },
+  {
+    "name": "TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-14.log"
+  },
+  {
+    "name": "TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-15.log"
+  },
+  {
+    "name": "TestTagPickerSelectionCallbackCanReplaceItself",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-16.log"
+  },
+  {
+    "name": "TestMenuBarHoverMoveCallbackCanRetireRoot",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-17.log"
+  },
+  {
+    "name": "TestMenuBarHoverLeaveCallbackCanRetireRoot",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-18.log"
+  },
+  {
+    "name": "TestMenuBarHoverCallbackCanReplaceItself",
+    "suite": "NewControls",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-19.log"
+  },
+  {
+    "name": "TestWindowHostTabBoundaryCallbackCanReplaceItself",
+    "suite": "WindowHost",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-20.log"
+  },
+  {
+    "name": "TestWindowHostTabBoundaryCanRetireTheNextTarget",
+    "suite": "WindowHost",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-21.log"
+  },
+  {
+    "name": "TestWindowHostEscapeCallbackCanReplaceItself",
+    "suite": "WindowHost",
+    "exitCode": 1,
+    "log": ".build/reports/ProductionReview-2026-10-08/red-cb-22.log"
+  }
+]

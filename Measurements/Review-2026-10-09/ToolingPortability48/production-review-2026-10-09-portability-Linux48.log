@@ -1,0 +1,341 @@
+Native Linux fixture root: /tmp/DxUi-review-linux-461dcc19c8dd48e3902164ce63f7d4e7
+Linux PowerShell 7.6.6; Ubuntu 24.04.4 LTS
+== validate-skills.ps1
+Validated build-dxui
+Validated consumer-integration
+Validated control-development
+Validated embedded-rendering
+Validated input-accessibility
+Validated modern-cpp-wil
+Validated performance-resources
+Validated spec-workflow
+Validated win32-host
+== validate-specs.ps1
+Validated 292 Markdown files, 22 authority files and 9 active plans
+== validate-dependencies.ps1
+Validated 58 historical origins, 56 owned paths, 0 pending dependency records, supported-source independence, 4309 paths within 150 characters and 13 consumer interface entries at API revision 4
+== validate-test-port.ps1
+Accounted for 941 inherited cases: 853 retained, 88 excluded with reasons
+== validate-build-matrix.ps1
+7 native project/solution files; 0 six-configuration mapping errors. Build definitions do not establish instrumentation or native runtime qualification.
+== Tools/tests/Invoke-ToolingTests.ps1
+== Test-Validation.ps1
+(expected in this test: a step printing to the success stream)
+ok   owned source can evolve without rewriting its historical hash
+ok   new owned source needs no fake historical origin
+ok   missing owned source is rejected
+ok   a parent path cannot escape the owned tree
+ok   developer settings cannot be owned source
+ok   a duplicate original source tree is rejected
+ok   application debt cannot be reintroduced
+ok   supported source cannot waive an application dependency
+ok   independent controls can enter the single supported build
+ok   owned source can use other owned headers
+ok   the old application namespace is rejected
+ok   a second static library is rejected
+ok   a nested checkout under owned source is not scanned
+ok   a path longer than a consumer's pinned restore can check out is rejected
+ok   in a checkout the path budget covers what a commit would hold, not ignored output
+ok   a consumer script that is removed or loses a parameter a consumer passes is rejected
+ok   new mandatory consumer parameters and undeclared PowerShell versions are rejected
+ok   a consumer function that stops being exported or loses a parameter is rejected
+ok   a missing consumer MSBuild file or header root, or an API revision that is not a positive integer, is rejected
+ok   every validation step runs and every failure is reported
+ok   every tooling test script is strict itself, so a direct run fails as its run under test.ps1 does
+ok   the validation entry point covers every validator and is what CI and test.ps1 run
+ok   invalid skill metadata is rejected
+ok   valid skill metadata passes
+ok   CRLF skill files and quoted values read like YAML
+ok   front matter outside the strict subset is rejected
+ok   values YAML types as non-strings are not names or descriptions
+ok   missing front matter and empty instructions are rejected
+Validation: 28 of 28 passed
+== Test-Docs.ps1
+ok   complete docs pass
+ok   missing control usage fails
+ok   changed gallery bytes fail
+ok   lambdas in fenced code are not links
+ok   raw measurements cannot return to docs
+ok   measurements require library ownership and an explanation
+ok   a complete design system passes
+ok   a new control requires a design-system preview
+ok   a preview requires its card marker
+ok   a removed control leaves no stale component
+ok   a complete specification tree passes
+ok   nested git checkouts are not part of the tree
+ok   measurement receipts of a nested checkout are not this tree's
+ok   a changelog fragment is one dated bullet
+ok   folding puts the fragments newest first under Unreleased and removes them
+ok   a fold without fragments, or with a malformed one, changes nothing
+ok   merging keeps the changelog's own line endings
+ok   a regenerated sheet is committed and pushed with the gallery only
+ok   a new generation receipt or an identical rewrite alone is not a change
+ok   a changed index or README is committed even when no sheet changed
+ok   the push is never forced
+ok   nothing is pushed when asked not to
+ok   the gallery workflow publishes only on manual dispatch, with the safeguards of the formatting workflow
+Docs: 23 of 23 passed
+== Test-TestPort.ps1
+ok   a retained case is accounted for
+ok   silently deleting a case fails
+ok   discarding a disposition fails
+ok   an explicit rename retains the origin
+ok   a contextual source rename preserves historical accounting
+ok   an exclusion needs a reason
+ok   a current runtime replacement passes
+ok   a missing current policy fails
+ok   a deleted replacement fails
+ok   a duplicate policy fails
+TestPort: 10 of 10 passed
+== Test-BuildMatrix.ps1
+1 native project/solution files; 0 six-configuration mapping errors. Build definitions do not establish instrumentation or native runtime qualification.
+ok   every project requires real configuration entries
+ok   the consumer validator resolves a relative Root from another working directory
+ok   a silent Debug fallback and a missing build are rejected
+BuildMatrix: 3 of 3 passed
+== Test-PerformanceComparison.ps1
+ok   the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks
+ok   the migrated block judge uses identity, independent paired effects and separate exact budgets
+ok   identical and new source are comparable
+ok   an FPS regression requires advice
+ok   a memory regression requires advice
+ok   surface growth has no tolerance
+ok   an improvement passes
+ok   a mismatched fixture is rejected
+ok   missing rounds are rejected
+ok   a missing or non-finite metric is rejected
+ok   an allocating composition is rejected
+ok   hidden work is rejected
+ok   the command writes the status and returns its exit code
+ok   every stored paired comparison is reproduced exactly
+ok   every stored unpaired receipt still validates
+ok   the exact rank test gives the closed-form p-value of complete separation
+ok   the exact rank test reproduces the documented reference example
+ok   the exact rank test counts ties as an enumeration of every rank assignment does
+ok   six runs against six reach p < 0.05 for exactly the nominal share of rank patterns
+ok   the p-value a set can reach depends on its runs per side
+ok   identical distributions are within noise
+ok   a 20% FPS drop with 3% jitter is regressed with p < 0.05
+ok   a significant shift inside the band is within noise
+ok   a shift beyond the band that the runs cannot separate from noise is within noise
+ok   an increase in an exact budget in any single candidate run is regressed
+ok   a clear improvement is reported and needs no advice
+ok   every metric keeps its own band and direction
+ok   a run is judged by the median of its rounds
+ok   a same-binary spread is reported and never a veto
+ok   two runs per side establish no timing shift but still catch a budget rise
+ok   a set of one binary per side on one fixture is required
+ok   the set verdict prints its status, the smallest attainable p and each finding
+PerformanceComparison: 32 of 32 passed
+== Test-PairedRun.ps1
+ok   the baseline and candidate are chosen by revision, named tree or checkout
+ok   an ambiguous or missing selection is rejected
+ok   revisions and this checkout are refused on one commit and only on the commit
+ok   a named tree is refused on identical library sources, not on one commit
+ok   a fingerprint that is not known yet defers the refusal, and the same tree is refused at once
+ok   a named tree must be the top of a git working tree with the DxUi scripts
+ok   the harness overlay leaves identical files alone, stamps what it writes and restores the tree
+ok   original include names receive the current renamed fixture and restore their historical inputs
+ok   a restore keeps a directory that gained other files
+ok   a tree that is the harness source is never rewritten
+ok   a failed overlay leaves the tree as it was found
+ok   one repetition is the single pass a set has always been
+ok   repetitions repeat the interleaved pass and keep every pass its own comparisons
+ok   the qualification schedule is reproducible, randomized, balanced and uses independent blocks
+ok   A/A assigns both randomized labels to one root and one build, while ordinary pairs keep two roots
+ok   only an overlay that changed a compiled input forbids reusing a build
+ok   the harness is the driver, the comparator and every benchmark input, all present
+ok   the source fingerprint is the one receipts have always recorded, over the library inputs only
+ok   the measurement scripts parse
+ok   the legacy judge is loaded from the measured base Git object in an isolated module
+PairedRun: 20 of 20 passed
+== Test-PerformancePolicy.ps1
+ok   only an independently qualified policy present in the measured base is trusted
+ok   a missing or unqualified base policy cannot be bootstrapped by the candidate
+ok   receipt identity reports every missing provenance element
+ok   platform-only identity cannot qualify a benchmark receipt and Full still requires the harness
+ok   Full identity requires the harness while PlatformOnly skips only harness hashing
+ok   expanded MSBuild project identity normalizes only roots and line endings and validates XML
+ok   resolved compiler identity is stable across equivalent source roots and changes with effective options
+ok   the migrated acceptance policy describes the implemented family and exact peak rules without self-qualification
+PerformancePolicy: 8 of 8 passed
+== Test-BenchmarkGate.ps1
+ok   every library, build, benchmark and measurement path is measured, with the reason that says why
+ok   documentation, specifications, measurements, other tests and other tools are not measured
+ok   one measured path among documentation is enough, and the paths are normalized and counted once
+ok   the rules cover what a receipt hashes: the library inputs and the harness
+ok   every tracked library input, benchmark source and measurement script of this repository is measured
+ok   everything the benchmark executable includes is measured, so a new header cannot escape the rules
+ok   every module the build and measurement scripts import is measured
+ok   the baseline is the merge commit's first parent, so only this pull request is compared
+ok   a checkout that is not a merge commit falls back to the merge base with the base branch
+ok   a file moved out of a measured directory is still a measured change
+ok   a path with a space is named as it is
+ok   a regressed metric whose same-binary controls stayed inside its band is a confirmed degradation
+ok   a regressed metric whose controls drifted beyond its band is inconclusive, listed and never dismissed
+ok   the controls of the flagged metric decide, not those of the twenty-six together
+ok   no regressed metric is a pass, with the metrics the controls could not hold counted, not hidden
+ok   an exact budget is confirmed only when its same-binary controls are exactly equal
+ok   a confirmed degradation is not softened by another metric whose controls drifted
+ok   a control that did not measure the flagged metric does not hold it
+ok   a budget is exact by its band of zero even when a summary does not say so
+ok   controls that cannot be read confirm nothing
+ok   identical library inputs alone never classify timing flags as chance; exact budgets still gate
+ok   a set too small to reach p below 0.05 cannot pass a timing it could not judge
+ok   invalid evidence is invalid, and the worst scenario decides the run
+ok   the migrated gate independently rejects historic, candidate-asserted and unqualified policies
+ok   both judges are bound to the exact same retained receipt bytes
+ok   a summary the gate cannot read is invalid, never an exception
+ok   the conclusion reads the summaries performance-paired.ps1 retained
+ok   the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held
+ok   the second retained hosted A/A set: five flags remain inconclusive without policy-qualified calibration
+ok   the legacy job summary stays readable and labels its old judge read-only
+ok   migrated gate projection preserves Holm evidence and separate exact median and peak findings
+ok   the summary is the same in every culture and keeps a pipe from breaking a table
+ok   a run with no flagged metric says none, and an inconclusive one says what it does not establish
+ok   annotations match what each scenario means for the check
+ok   an annotation lists a few flagged metrics and points to the job summary for the rest
+ok   workflow commands escape what the runner reads as syntax
+ok   step outputs and summaries go to the files the runner names, and only one line at a time
+ok   the verdict step fails a pull request on a degradation or an inconclusive run and passes a pass
+ok   the strict reading cannot bypass the migrated policy requirement
+ok   the scope step measures a library change and skips a documentation one, with the commits to compare
+ok   the workflow runs the benchmark for measured pull requests to main and still on manual dispatch
+ok   the benchmark job runs the contract's scenarios and independent blocks, and a dispatch keeps its inputs
+ok   the workflow cancels what a push supersedes, bounds its runtime and pins what it runs
+ok   the gate scripts parse and are strict
+BenchmarkGate: 44 of 44 passed
+== Test-CiGate.ps1
+ok   aggregate accepts complete PR qualification and positively classified skips
+ok   aggregate rejects missing, failed and cancelled required jobs
+ok   native skipped without positive classification and unclassifiable outputs fail closed
+ok   paired benchmark is required on stacked and main PRs and explicit manual runs
+CI gate: 4 of 4 passed
+== Test-CapabilitySkipPolicy.ps1
+ok   moved Menu-only skip cases are no longer allowed in the NewControls lane
+ok   new, changed, duplicated and self-hosted skips fail closed
+ok   skip logs are associated with exact test and suite names
+ok   empty and multiple skip logs preserve collection boundaries
+ok   parsing preserves the caller suite-reporting functions
+Capability skip policy: 5 of 5 passed
+== Test-NativeScope.ps1
+ok   documentation alone leaves the native jobs out, whichever kind it is
+ok   every other path needs the native jobs, a path the rules do not know included
+ok   one such path among documentation is enough, and paths are normalized and counted once
+ok   a change whose paths could not be read is not known to be documentation
+ok   every tracked source, test, sample, build input and tool needs the native jobs, and every tracked document does not
+ok   a push or a manual run always builds natively, without reading the repository
+ok   a pull request builds natively unless it changes documentation alone
+ok   a push validates main alone, and every pull request and manual run is validated
+ok   the native jobs follow the scope job, and run when it cannot decide
+ok   the scope scripts parse and are strict
+NativeScope: 10 of 10 passed
+== Test-SuiteFailure.ps1
+ok   a run the watchdog ended is reported with its exit code and the hung test
+ok   the TIMEOUT line is found even when it is not among the last lines
+ok   a failed check is not called a timeout
+ok   a watchdog exit code without a TIMEOUT line says so
+ok   a missing log does not hide the exit code
+ok   each capability skip is named after the test it belongs to
+ok   a skip outside a test is named after its suite, or said to come before any test
+ok   each skip is printed on a line of its own, and a suite without skips prints nothing
+ok   test.ps1 reports a failing suite through it, gives its receipt the timeout and passes -TestTimeout on
+Suite failure report: 9 of 9 passed
+== Test-VcpkgTriplet.ps1
+     skipped: cmake is not on PATH (a restore evaluates the triplet with it)
+     skipped the 5.1 parse: powershell.exe is not here
+ok   the default toolset is the version the installation names, whatever ends the file
+ok   a missing version file fails with the file and what to repair
+ok   a malformed version file fails with what it holds, never a guessed toolset
+ok   the overlay is the stock text unchanged, then the two pins, in the stock line endings
+ok   a stock triplet without a final newline, or without text, still gives a valid overlay
+ok   the installation path is quoted so CMake reads back exactly what vswhere reported
+ok   CMake, which vcpkg evaluates the triplet with, reads the stock settings and both pins back
+ok   the overlay is written under the stock name, and only when its contents change
+ok   a stock triplet the checkout lacks fails with its path and writes nothing
+ok   vcpkg-install.ps1 keeps its interface, fails early and passes the overlay to vcpkg
+ok   build.ps1 and vcpkg-install.ps1 share one Visual Studio discovery
+ok   the installer and its modules stay ASCII and parse in Windows PowerShell 5.1, which RedSalamander runs the pinned installer with
+VcpkgTriplet: 12 of 12 passed
+== Test-InteractiveMode.ps1
+[LEASE] suite output
+Restoration: foreground=restored focus=restored cursor=restored
+[LEASE] suite output
+Restoration: foreground=restored focus=restored cursor=restored
+ok   the interactive suites are the suites DxUi.ControlTests.exe runs with real focus
+ok   a run without -Suites takes Menu and NativeTextInput, and the fixtures only when they are named
+ok   a suite that does not need the desktop is refused by name, and the interactive ones are listed
+ok   a run refuses where there is no desktop to take, and says why
+ok   only verified GitHub-hosted Windows jobs bypass the interactive desktop lease
+ok   the estimate is the suites and the lease overhead, per configuration
+ok   a command line is quoted as CreateProcess reads it
+ok   the plan is one tab-separated line per child
+ok   the result is read back as the lease writes it
+ok   a result that is missing, empty or not the lease's is no result
+ok   what is wrong with a finished lease is said in a message
+ok   the exit codes of the lease are the ones the PowerShell side reads
+ok   the lease is reached only through -Interactive
+ok   an interactive run is settled before anything is built or run
+ok   a suite that needs real focus is never given --no-activate, and every other control suite always is
+ok   test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built
+ok   test.ps1 -Interactive refuses in a CI job before it builds or runs anything
+ok   lease console output cannot replace the result object or hide a failed child
+Interactive mode: 18 of 18 passed
+== Test-ConsumerUpdate.ps1
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+== Test-ScopedTesting.ps1
+PASS all active native tests satisfy naming and inventory
+PASS every scope rule matches a current repository input
+PASS foreground source changes produce explicit interactive not-run obligations
+PASS one PrePush entry point accounts for six profiles and the revision-4 fixture is wired into consumers
+PASS active names require exact Tests spelling and reject historical inventory membership
+PASS committed, staged, working, deleted, both rename sides and spaced untracked paths count
+PASS unmapped executable input widens to every scope
+PASS executable schema changes are never mistaken for prose
+PASS prose selects only independent validators, and empty changes select nothing
+PASS unmatched non-Markdown docs, measurement and change files select validators
+PASS invalid explicit scope and nonrelative paths fail before execution
+PASS selection explains every changed path and accumulates integration consumers
+PASS native runner tooling fixtures select the native suites they execute
+PASS ComboBox implementation selects NewControls for TagPicker coverage
+PASS shared tooling fixture helpers select every native integration consumer
+PASS only intact identical success can be reused
+PASS tooling identities include documentation, skills and source-origin mappings
+PASS UTF-8 Git paths remain in full and compiled source identities
+PASS tooling identity is stable and hashes installed Git and GitHub CLI binaries
+PASS deleted source identity is stable before staging, after staging, and after commit
+PASS uncommon executable input extensions invalidate build attestation
+PASS runtime DLL mutation invalidates even with unchanged executable
+PASS configuration, scope and sanitizer environment differ
+PASS runtime instrumentation changes identity and cannot be misclassified as ordinary work
+PASS skip-build attestation rejects changed source and executable bytes
+PASS library-only mutation invalidates build and run attestation while executable bytes stay fixed
+PASS installed dependency bytes bind build and run identities while output artifacts stay fixed
+PASS dependency identity fails closed when required vcpkg metadata is absent
+PASS dependency identities isolate the selected platform
+PASS PR delegation binds clean committed bytes and rejects concurrent changes
+PASS a profile outside actual PR coverage cannot be delegated
+PASS PR coverage accounts for conditional native jobs without an API dependency
+PASS reviewed CI preserves full native coverage and separates independent tooling
+PASS public runner executes once, reuses success and never retains failed or mutated runs
+Scoped testing: 34 cases passed.
+All tooling tests passed.
+
+Validation summary:
+  ok     validate-skills.ps1
+  ok     validate-specs.ps1
+  ok     validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  ok     Tools/tests/Invoke-ToolingTests.ps1
+All validation passed.
+LINUX_PORTABILITY_VALIDATION_PASS

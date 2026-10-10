@@ -22,7 +22,7 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 
 ## Consume the library
 
-Pin a tested full Git commit, API revision **3** and target `["DxUi"]` in the consumer's
+Pin a tested full Git commit, API revision **4** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and
 [consumer validator](../Tools/validate_consumer.ps1); branch names are not release pins.
@@ -36,7 +36,7 @@ New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
     repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
-    apiRevision = 3
+    apiRevision = 4
     targets = @('DxUi')
 } | ConvertTo-Json | Set-Content Dependencies/DxUi.lock.json -Encoding utf8
 ```

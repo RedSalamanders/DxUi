@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 30 s; a test that outlives it ends the run with exit code 124
+[START] Tree
+  [START] TestTreeUnhandledKeysLeaveAnEmptySelectionAlone
+FAILED: an unhandled key does not select or focus the first row

@@ -16,9 +16,11 @@ function Set-DependencyFixture([string] $Root) {
             }) }
     Set-FixtureJson $Root 'Specs/Done/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @() }
     # A consumer interface of one of each kind of entry.
-    Set-FixtureJson $Root 'capabilities.json' @{ apiRevision = 3; consumerInterface = @{
+    Set-FixtureJson $Root 'capabilities.json' @{ apiRevision = 4; consumerInterface = @{
             scripts = @{ 'install.ps1' = @('Platform', 'OutputRoot') }
             modules = @{ 'Tools/Consumer.psm1' = @{ 'Get-ConsumerIdentity' = @('Root') } }
+            mandatoryParameters = @{ scripts = @{}; modules = @{} }
+            powershell = @{ scripts = @{ 'install.ps1' = @('5.1','7') }; modules = @{ 'Tools/Consumer.psm1' = @('7') } }
             msbuild = @('Build/Consumer.props'); headers = @('include/DxUi')
         } }
     Set-FixtureFile $Root 'install.ps1' "param([string] `$Platform, [string] `$OutputRoot)`n"
@@ -179,6 +181,21 @@ Invoke-FixtureCase 'a consumer script that is removed or loses a parameter a con
     Assert-Equal 'Consumer script install.ps1 has no -OutputRoot parameter' $failures[0] 'the renamed parameter is named'
     Remove-Item -LiteralPath (Join-Path $root 'install.ps1')
     Assert-Contains (Get-DependencyFailures $root) 'Consumer script is missing: install.ps1' 'the removed script is named'
+}
+
+Invoke-FixtureCase 'new mandatory consumer parameters and undeclared PowerShell versions are rejected' {
+    param($root)
+    Set-DependencyFixture $root
+    Set-FixtureFile $root 'install.ps1' "param([string] `$Platform, [Parameter(Mandatory)][string] `$OutputRoot)`n"
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer script install.ps1 added undeclared mandatory -OutputRoot parameter' 'new required script parameter'
+    $capabilities=Get-FixtureJson $root 'capabilities.json'
+    $capabilities['consumerInterface']['mandatoryParameters']['scripts']['install.ps1']=@('OutputRoot')
+    $capabilities['consumerInterface']['powershell']['scripts']['install.ps1']=@('6')
+    Set-FixtureJson $root 'capabilities.json' $capabilities
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer scripts entry install.ps1 must declare supported PowerShell versions (5.1 and/or 7).' 'unsupported runtime promise'
+    $capabilities['consumerInterface']['powershell']['scripts']['install.ps1']=@('5.1','7')
+    Set-FixtureJson $root 'capabilities.json' $capabilities
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'explicit mandatory/version contracts pass'
 }
 
 Invoke-FixtureCase 'a consumer function that stops being exported or loses a parameter is rejected' {

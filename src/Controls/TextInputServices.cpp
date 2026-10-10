@@ -2,11 +2,13 @@
 #include "DxUi.Internal.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
+#include "TsfFocus.h"
 
 #include <algorithm>
 #include <atomic>
 #include <limits>
 #include <new>
+#include <utility>
 
 namespace DxUi
 {
@@ -83,17 +85,24 @@ public:
     {
         if (_thread != GetCurrentThreadId())
             return;
-        auto client = std::move(_client);
-        _hwnd       = nullptr;
-        _editing    = false;
-        _dirty      = false;
+        auto client                    = std::move(_client);
+        const auto dispatchOwner       = _dispatch.owner;
+        const auto dispatchContext     = _dispatch.context;
+        const auto ownsClientSuccessor = _dispatch.ownsClientSuccessor;
+        _hwnd                          = nullptr;
+        _editing                       = false;
+        _dirty                         = false;
         _composition.reset();
         _snapshot = {};
         _dispatch = {};
         if (client)
         {
+            const auto successorOwnsClient = [&]() noexcept { return ownsClientSuccessor && ownsClientSuccessor(dispatchContext, client.get(), _focusId); };
+            static_cast<void>(dispatchOwner);
+            if (successorOwnsClient())
+                return;
             EmbeddedTextInputSnapshot current;
-            if (client->Read(current) == S_OK && current.focusId == _focusId)
+            if (client->Read(current) == S_OK && current.focusId == _focusId && ! successorOwnsClient())
                 client->Cancel();
         }
     }
@@ -103,13 +112,12 @@ public:
     }
     bool ScheduleLock() noexcept override
     {
-        return Available() && _dispatch.requestLock && _dispatch.requestLock(_dispatch.context);
+        const auto owner       = _dispatch.owner;
+        const auto context     = _dispatch.context;
+        const auto requestLock = _dispatch.requestLock;
+        static_cast<void>(owner);
+        return Available() && requestLock && requestLock(context);
     }
-    bool NotifyDuringLock() const noexcept override
-    {
-        return false;
-    }
-
     bool ReadState(TextInputState& state) const noexcept override
     {
         state = {};
@@ -126,6 +134,8 @@ public:
                     return false;
                 source = &current.state;
             }
+            if (source->masked)
+                return false;
             state.text                 = source->text;
             state.caretIndex           = source->caretIndex;
             state.selectionAnchorIndex = source->selectionAnchorIndex;
@@ -143,8 +153,9 @@ public:
     }
     bool ApplyState(const TextInputState& state, bool) noexcept override
     {
-        if (! Available() || ! _editing || ! _writable || state.text.size() > kMaximumTextUnits || state.caretIndex > state.text.size() ||
-            (state.selectionAnchorIndex && *state.selectionAnchorIndex > state.text.size()) || (_snapshot.state.readOnly && state.text != _snapshot.state.text))
+        if (! Available() || ! _editing || ! _writable || _snapshot.state.masked || state.masked || state.text.size() > kMaximumTextUnits ||
+            state.caretIndex > state.text.size() || (state.selectionAnchorIndex && *state.selectionAnchorIndex > state.text.size()) ||
+            (_snapshot.state.readOnly && state.text != _snapshot.state.text))
             return false;
         try
         {
@@ -173,6 +184,8 @@ public:
         const HRESULT hr  = client->Read(current);
         if (hr != S_OK || ! current.revision || current.focusId != _focusId || ! ValidState(current.state))
             return FAILED(hr) ? hr : TS_E_INVALIDPOS;
+        if (current.state.masked)
+            return E_ACCESSDENIED;
         if (client != _client)
             return TF_E_DISCONNECTED;
         _snapshot      = std::move(current);
@@ -212,7 +225,9 @@ public:
             RETURN_IF_FAILED(BeginEdit(true));
         size_t start = 0, end = 0;
         HRESULT hr = ReadCompositionRange(composition, nullptr, start, end);
-        if (SUCCEEDED(hr) && (end > _snapshot.state.text.size() || _snapshot.state.readOnly))
+        if (SUCCEEDED(hr) && _snapshot.state.masked)
+            hr = E_ACCESSDENIED;
+        else if (SUCCEEDED(hr) && (end > _snapshot.state.text.size() || _snapshot.state.readOnly))
             hr = E_INVALIDARG;
         if (SUCCEEDED(hr))
         {
@@ -424,9 +439,16 @@ ITextStoreACP* CreateClientTextStore(HWND hwnd, std::shared_ptr<TextInputClient>
     EmbeddedTextInputSnapshot snapshot;
     if (client->Read(snapshot) != S_OK || ! snapshot.focusId || ! snapshot.revision || ! ValidState(snapshot.state))
         return nullptr;
+    return CreateClientTextStoreForFocus(hwnd, std::move(client), snapshot.focusId, std::move(dispatch));
+}
+
+ITextStoreACP* CreateClientTextStoreForFocus(HWND hwnd, std::shared_ptr<TextInputClient> client, uint64_t focusId, TextStoreDispatch dispatch) noexcept
+{
+    if (! client || ! focusId)
+        return nullptr;
     try
     {
-        return CreateTextStore(std::make_shared<ClientTextStoreTarget>(hwnd, std::move(client), snapshot.focusId, dispatch));
+        return CreateTextStore(std::make_shared<ClientTextStoreTarget>(hwnd, std::move(client), focusId, std::move(dispatch)));
     }
     catch (const std::bad_alloc&)
     {
@@ -434,8 +456,20 @@ ITextStoreACP* CreateClientTextStore(HWND hwnd, std::shared_ptr<TextInputClient>
     }
 }
 
+HRESULT DispatchDeferredTextStoreLock(ITextStoreACP* store, bool& messagePosted) noexcept
+{
+    messagePosted = false;
+    return DispatchPendingTextStoreLock(store);
+}
+
 struct TextInputServices::State
 {
+    struct DispatchContext final
+    {
+        State* state    = nullptr;
+        UINT_PTR cookie = 0;
+    };
+
     HWND hwnd    = nullptr;
     DWORD thread = GetCurrentThreadId();
     std::shared_ptr<TextInputClient> client;
@@ -443,11 +477,26 @@ struct TextInputServices::State
     wil::com_ptr_nothrow<ITfDocumentMgr> document, previousDocument;
     wil::com_ptr_nothrow<ITfContext> context;
     wil::com_ptr_nothrow<ITextStoreACP> store;
-    TfClientId clientId     = 0;
-    bool associated         = false;
-    uint64_t focusId        = 0;
-    UINT_PTR dispatchCookie = NextDispatchCookie();
-    bool lockPosted         = false;
+    TfClientId clientId        = 0;
+    bool associated            = false;
+    uint64_t focusId           = 0;
+    UINT_PTR dispatchCookie    = NextDispatchCookie();
+    uint64_t operationRevision = 0;
+    bool lockPosted            = false;
+    bool detaching             = false;
+
+    uint64_t BeginOperation() noexcept
+    {
+        if (++operationRevision == 0u)
+            ++operationRevision;
+        dispatchCookie = NextDispatchCookie();
+        lockPosted     = false;
+        return operationRevision;
+    }
+    bool IsCurrent(uint64_t revision) const noexcept
+    {
+        return operationRevision == revision;
+    }
     bool ScheduleLock() noexcept
     {
         if (lockPosted)
@@ -459,36 +508,46 @@ struct TextInputServices::State
         lockPosted = PostMessageW(hwnd, lockMessage.value, dispatchCookie, 0) != FALSE;
         return lockPosted;
     }
+    bool ScheduleLock(UINT_PTR cookie) noexcept
+    {
+        return ! detaching && cookie == dispatchCookie && ScheduleLock();
+    }
 
     bool OnThread() const noexcept
     {
         return thread == GetCurrentThreadId();
     }
-    void Clear() noexcept
+    void Clear(uint64_t revision, HWND retiredHwnd) noexcept
     {
-        // Move retained objects before callbacks; a repeated Clear sees no active client/store.
-        auto oldStore  = std::move(store);
-        auto oldClient = std::move(client);
-        dispatchCookie = NextDispatchCookie();
-        lockPosted     = false;
-        focusId        = 0;
+        // Publish the empty state before application callbacks can install a successor.
+        auto oldStore            = std::move(store);
+        auto oldClient           = std::move(client);
+        auto oldDocument         = std::move(document);
+        auto oldContext          = std::move(context);
+        auto oldPreviousDocument = std::move(previousDocument);
+        auto oldManager          = manager;
+        const bool wasAssociated = std::exchange(associated, false);
+        dispatchCookie           = NextDispatchCookie();
+        lockPosted               = false;
+        focusId                  = 0;
         if (oldStore)
             DisconnectNativeTextInputTextStore(oldStore.get());
         oldStore.reset();
-        oldClient.reset();
-        if (manager && associated)
+        if (oldManager && wasAssociated)
         {
-            wil::com_ptr_nothrow<ITfDocumentMgr> replaced;
-            static_cast<void>(manager->SetFocus(nullptr));
-            if (IsWindow(hwnd))
-                static_cast<void>(manager->AssociateFocus(hwnd, previousDocument.get(), replaced.put()));
+            Internal::ClearThreadManagerFocusIfOwnedBy(oldManager.get(), oldDocument.get());
+            if (retiredHwnd && IsWindow(retiredHwnd))
+            {
+                Internal::RestoreThreadManagerFocusAssociation(
+                    oldManager.get(), retiredHwnd, oldDocument.get(), oldPreviousDocument.get(), [this, revision]() noexcept { return IsCurrent(revision); });
+            }
         }
-        associated = false;
-        previousDocument.reset();
-        if (document)
-            static_cast<void>(document->Pop(TF_POPF_ALL));
-        context.reset();
-        document.reset();
+        if (oldDocument)
+            static_cast<void>(oldDocument->Pop(TF_POPF_ALL));
+        oldContext.reset();
+        oldDocument.reset();
+        oldPreviousDocument.reset();
+        oldClient.reset();
     }
 };
 
@@ -503,6 +562,8 @@ HRESULT TextInputServices::Attach(HWND hwnd) noexcept
 {
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
+    if (_state->detaching)
+        return E_UNEXPECTED;
     if (! hwnd || GetWindowThreadProcessId(hwnd, nullptr) != GetCurrentThreadId())
         return E_INVALIDARG;
     if (_state->hwnd == hwnd)
@@ -513,24 +574,37 @@ HRESULT TextInputServices::Attach(HWND hwnd) noexcept
     if (! WndMsg::TextInputServicesDeferredLock())
         return E_FAIL;
     Detach();
+    if (_state->detaching || _state->hwnd)
+        return E_UNEXPECTED;
+    static_cast<void>(_state->BeginOperation());
     _state->hwnd = hwnd;
     return S_OK;
 }
 void TextInputServices::Detach() noexcept
 {
-    if (! _state->OnThread())
+    if (! _state->OnThread() || _state->detaching)
         return;
-    _state->Clear();
+    const uint64_t revision = _state->BeginOperation();
+    const HWND retiredHwnd  = std::exchange(_state->hwnd, nullptr);
+    _state->detaching       = true;
+    _state->Clear(revision, retiredHwnd);
+    if (! _state->IsCurrent(revision))
+    {
+        _state->detaching = false;
+        return;
+    }
     if (_state->manager && _state->clientId)
         static_cast<void>(_state->manager->Deactivate());
     _state->clientId = 0;
     _state->manager.reset();
-    _state->hwnd = nullptr;
+    _state->detaching = false;
 }
 void TextInputServices::ClearClient() noexcept
 {
-    if (_state->OnThread())
-        _state->Clear();
+    if (! _state->OnThread() || _state->detaching)
+        return;
+    const uint64_t revision = _state->BeginOperation();
+    _state->Clear(revision, _state->hwnd);
 }
 bool TextInputServices::HasClient() const noexcept
 {
@@ -540,51 +614,187 @@ HRESULT TextInputServices::SetClient(std::shared_ptr<TextInputClient> client) no
 {
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
+    if (_state->detaching)
+        return E_UNEXPECTED;
     if (! _state->hwnd || ! IsWindow(_state->hwnd))
         return E_UNEXPECTED;
     if (client == _state->client)
         return S_OK;
-    _state->Clear();
+    const uint64_t revision = _state->BeginOperation();
+    const HWND hwnd         = _state->hwnd;
+    _state->Clear(revision, hwnd);
+    if (! _state->IsCurrent(revision))
+        return TF_E_DISCONNECTED;
     if (! client)
         return S_OK;
     EmbeddedTextInputSnapshot snapshot;
     const HRESULT read = client->Read(snapshot);
+    if (! _state->IsCurrent(revision))
+        return TF_E_DISCONNECTED;
     if (read != S_OK)
         return read;
     if (! snapshot.revision || ! snapshot.focusId || ! ValidState(snapshot.state))
         return E_INVALIDARG;
-    if (! _state->manager)
+    if (snapshot.state.masked)
+        return E_ACCESSDENIED;
+    wil::com_ptr_nothrow<ITfThreadMgr> manager = _state->manager;
+    TfClientId clientId                        = _state->clientId;
+    if (! manager)
     {
-        RETURN_IF_FAILED(CoCreateInstance(CLSID_TF_ThreadMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(_state->manager.put())));
-        const HRESULT activate = _state->manager->Activate(&_state->clientId);
-        if (FAILED(activate))
+        const HRESULT create = CoCreateInstance(CLSID_TF_ThreadMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(manager.put()));
+        if (! _state->IsCurrent(revision))
+            return TF_E_DISCONNECTED;
+        if (FAILED(create) || ! manager)
+            return FAILED(create) ? create : E_FAIL;
+        clientId               = 0;
+        const HRESULT activate = manager->Activate(&clientId);
+        if (! _state->IsCurrent(revision))
         {
-            _state->manager.reset();
-            _state->clientId = 0;
-            return activate;
+            // Balance this successful activation even when a nested request activated the same thread manager.
+            // Its separate Activate call owns a separate count and remains active.
+            if (SUCCEEDED(activate))
+                static_cast<void>(manager->Deactivate());
+            return TF_E_DISCONNECTED;
         }
+        if (FAILED(activate))
+            return activate;
+        _state->manager  = manager;
+        _state->clientId = clientId;
     }
-    auto rollback   = wil::scope_exit([this]() noexcept { _state->Clear(); });
-    _state->client  = std::move(client);
-    _state->focusId = snapshot.focusId;
-    _state->store.attach(CreateClientTextStore(
-        _state->hwnd, _state->client, {_state.get(), [](void* context) noexcept { return static_cast<State*>(context)->ScheduleLock(); }}));
-    if (! _state->store)
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    wil::com_ptr_nothrow<ITfDocumentMgr> document, previousDocument;
+    wil::com_ptr_nothrow<ITfContext> context;
+    bool pushed               = false;
+    bool associated           = false;
+    const auto rollbackStaged = [&]() noexcept
+    {
+        if (store)
+            DisconnectNativeTextInputTextStore(store.get());
+        if (manager && associated)
+        {
+            Internal::ClearThreadManagerFocusIfOwnedBy(manager.get(), document.get());
+            if (_state->IsCurrent(revision) && IsWindow(hwnd))
+            {
+                Internal::RestoreThreadManagerFocusAssociation(
+                    manager.get(), hwnd, document.get(), previousDocument.get(), [this, revision]() noexcept { return _state->IsCurrent(revision); });
+            }
+        }
+        if (pushed && document)
+            static_cast<void>(document->Pop(TF_POPF_ALL));
+    };
+    std::shared_ptr<State::DispatchContext> dispatchContext;
+    try
+    {
+        dispatchContext = std::make_shared<State::DispatchContext>(State::DispatchContext{_state.get(), _state->dispatchCookie});
+    }
+    catch (const std::bad_alloc&)
+    {
         return E_OUTOFMEMORY;
-    RETURN_IF_FAILED(_state->manager->CreateDocumentMgr(_state->document.put()));
+    }
+    TextStoreDispatch dispatch{dispatchContext.get(),
+                               [](void* value) noexcept
+    {
+        auto* const request = static_cast<State::DispatchContext*>(value);
+        return request && request->state && request->state->ScheduleLock(request->cookie);
+    },
+                               dispatchContext,
+                               [](void* value, const TextInputClient* client, uint64_t focusId) noexcept
+    {
+        auto* const request = static_cast<State::DispatchContext*>(value);
+        auto* const state   = request ? request->state : nullptr;
+        return state && state->dispatchCookie != request->cookie && state->store && state->client.get() == client && state->focusId == focusId;
+    }};
+    store.attach(CreateClientTextStoreForFocus(hwnd, client, snapshot.focusId, std::move(dispatch)));
+    if (! _state->IsCurrent(revision))
+        return TF_E_DISCONNECTED;
+    if (! store)
+        return E_OUTOFMEMORY;
+    HRESULT hr = manager->CreateDocumentMgr(document.put());
+    if (! _state->IsCurrent(revision))
+    {
+        DisconnectNativeTextInputTextStore(store.get());
+        return TF_E_DISCONNECTED;
+    }
+    if (FAILED(hr) || ! document)
+    {
+        DisconnectNativeTextInputTextStore(store.get());
+        return FAILED(hr) ? hr : E_FAIL;
+    }
     TfEditCookie cookie = 0;
-    RETURN_IF_FAILED(_state->document->CreateContext(_state->clientId, 0, _state->store.get(), _state->context.put(), &cookie));
-    RETURN_IF_FAILED(_state->document->Push(_state->context.get()));
-    RETURN_IF_FAILED(_state->manager->AssociateFocus(_state->hwnd, _state->document.get(), _state->previousDocument.put()));
-    _state->associated = true;
-    RETURN_IF_FAILED(_state->manager->SetFocus(_state->document.get()));
-    rollback.release();
+    hr                  = document->CreateContext(clientId, 0, store.get(), context.put(), &cookie);
+    if (! _state->IsCurrent(revision))
+    {
+        DisconnectNativeTextInputTextStore(store.get());
+        return TF_E_DISCONNECTED;
+    }
+    if (FAILED(hr) || ! context)
+    {
+        DisconnectNativeTextInputTextStore(store.get());
+        return FAILED(hr) ? hr : E_FAIL;
+    }
+    hr     = document->Push(context.get());
+    pushed = SUCCEEDED(hr);
+    if (! _state->IsCurrent(revision))
+    {
+        rollbackStaged();
+        return TF_E_DISCONNECTED;
+    }
+    if (FAILED(hr))
+    {
+        rollbackStaged();
+        return hr;
+    }
+    hr         = manager->AssociateFocus(hwnd, document.get(), previousDocument.put());
+    associated = SUCCEEDED(hr);
+    if (! _state->IsCurrent(revision))
+    {
+        rollbackStaged();
+        return TF_E_DISCONNECTED;
+    }
+    if (FAILED(hr))
+    {
+        rollbackStaged();
+        return hr;
+    }
+    hr = manager->SetFocus(document.get());
+    if (! _state->IsCurrent(revision))
+    {
+        rollbackStaged();
+        return TF_E_DISCONNECTED;
+    }
+    if (FAILED(hr))
+    {
+        rollbackStaged();
+        return hr;
+    }
+    _state->client           = std::move(client);
+    _state->focusId          = snapshot.focusId;
+    _state->store            = std::move(store);
+    _state->document         = std::move(document);
+    _state->context          = std::move(context);
+    _state->previousDocument = std::move(previousDocument);
+    _state->associated       = associated;
     return S_OK;
 }
 void TextInputServices::NotifyChanged() noexcept
 {
-    if (_state->OnThread() && _state->store)
-        NotifyTextStoreChanged(_state->store.get());
+    if (! _state->OnThread() || ! _state->store)
+        return;
+    EmbeddedTextInputSnapshot snapshot;
+    const auto client       = _state->client;
+    const auto store        = _state->store;
+    const uint64_t revision = _state->operationRevision;
+    const uint64_t focusId  = _state->focusId;
+    if (client && client->Read(snapshot) == S_OK && _state->IsCurrent(revision) && client == _state->client && store.get() == _state->store.get() &&
+        snapshot.focusId == focusId && snapshot.state.masked)
+    {
+        // A focused editor can become a password field without changing focus identity. Disconnect the TSF store
+        // immediately; its target cancels any live preview before the service drops the client.
+        ClearClient();
+        return;
+    }
+    if (_state->IsCurrent(revision) && store.get() == _state->store.get())
+        NotifyTextStoreChanged(store.get());
 }
 void TextInputServices::NotifyLayoutChanged() noexcept
 {
@@ -730,15 +940,14 @@ HRESULT TextInputServices::HandleMessage(UINT message, WPARAM wParam, LPARAM, bo
         return RPC_E_WRONG_THREAD;
     if (! WndMsg::TextInputServicesDeferredLock().Matches(message) || wParam != _state->dispatchCookie)
         return S_FALSE;
-    handled            = true;
-    _state->lockPosted = false;
-    auto store         = _state->store;
+    handled    = true;
+    auto store = _state->store;
     if (! store)
+    {
+        _state->lockPosted = false;
         return S_FALSE;
-    const HRESULT hr = DispatchPendingTextStoreLock(store.get());
-    if (hr == TS_E_NOLOCK)
-        static_cast<void>(_state->ScheduleLock());
-    return hr;
+    }
+    return DispatchDeferredTextStoreLock(store.get(), _state->lockPosted);
 }
 
 bool TextInputServices::CancelComposition() noexcept
@@ -746,11 +955,15 @@ bool TextInputServices::CancelComposition() noexcept
     if (! _state->OnThread() || ! _state->client)
         return false;
     EmbeddedTextInputSnapshot snapshot;
-    auto client = _state->client;
-    if (client->Read(snapshot) != S_OK || client != _state->client || snapshot.focusId != _state->focusId || ! snapshot.state.compositionStartIndex)
+    const auto client       = _state->client;
+    const auto store        = _state->store;
+    const uint64_t revision = _state->operationRevision;
+    const uint64_t focusId  = _state->focusId;
+    if (client->Read(snapshot) != S_OK || ! _state->IsCurrent(revision) || client != _state->client || store.get() != _state->store.get() ||
+        snapshot.focusId != focusId || ! snapshot.state.compositionStartIndex)
         return false;
     // Clearing disconnects the store before the service is told to end its composition.
-    _state->Clear();
+    ClearClient();
     return true;
 }
 } // namespace DxUi

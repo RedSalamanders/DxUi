@@ -9,6 +9,7 @@
   "Tests/Controls/Controls.Tests.GridMultilineRendering.h",
   "Tests/Controls/Controls.Tests.LocalizedLayoutFixture.h",
   "Tests/Controls/Controls.Tests.TextInputServices.h",
+  "Tests/Controls/Controls.Tests.TextStoreComposition.h",
   "Tests/Controls/DxUi.Tests.Accessibility.cpp",
   "Tests/Controls/DxUi.Tests.Animation.cpp",
   "Tests/Controls/DxUi.Tests.ComboBox.cpp",

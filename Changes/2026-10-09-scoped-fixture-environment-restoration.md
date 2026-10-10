@@ -1,0 +1,1 @@
+- Scoped-testing fixtures restore both environment-variable presence and value, including originally absent and present-empty values, so running tooling cannot alter later native receipt identities.

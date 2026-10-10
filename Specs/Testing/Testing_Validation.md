@@ -148,8 +148,8 @@ thread is what closes it, so a driver that fails before it has a popup to dismis
 wait on a slow runner) once left the owner thread there for good: the test hung where it should have reported the failure the
 driver recorded. Every driver in the Menu suite therefore begins with `DismissMenusIfDriverFails`, which does nothing when the
 driver succeeded and otherwise keeps closing the popups of its owner for up to eight seconds, stopping early once the ones it
-closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group, so also in the
-nonactivating NewControls lane) has a driver that fails at once, before its popup exists, and requires the guard to close the
+closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group) has a driver
+that fails at once, before its popup exists, and requires the guard to close the
 menu that then comes up and the owner thread's `Show` to return, and a source scan in `Tools/tests/Test-TestWatchdog.ps1`
 requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
@@ -187,6 +187,11 @@ receipts, and `test.ps1` prints each under its suite with the test it belongs to
 shows which tests a missing capability left unrun; a skip is not proof of that capability, and an interactive run
 (`test.ps1 -Interactive`, see below) fails on one. CI defines all six native jobs;
 their fresh receipts establish execution results.
+
+Each profile's relocated exact-pin consumer fixture is independent of the native suite's foreground lease and
+build output. Its CI steps run after a native-suite failure unless the run is cancelled, including both ASan
+annotation variants. A successful consumer fixture cannot erase the preceding native failure or make the aggregate
+gate pass. Preserve separate receipts for each result; cancellation or an unrun step supplies no qualification.
 
 The validation workflow runs once per change: for every pull request on its merge ref, for every push to main and by
 hand. A push to another branch starts nothing, since its pull request validates the same code; a run started by hand
@@ -264,8 +269,8 @@ row with no Invoke, and a command's exact name, MenuItem role and retained bound
 and asserts that the closed popup returned every record. `TestPlainMenuAccessibilityScrollsFocusedRow` checks that a row
 the viewport cuts off is offscreen without a rectangle until UIA focus scrolls it in, and that the first row then is.
 `TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne` gives a plain and a described popup native focus with nothing
-chosen (no row is selected), then again after a Down (the chosen row is UIA's focus again). They are in the described-menu
-group, so they run in the Menu lane and in the nonactivating NewControls lane.
+chosen (no row is selected), then again after a Down (the chosen row is UIA's focus again). It is in the described-menu
+group and runs only in the interactive Menu lane.
 
 Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
 session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
@@ -289,12 +294,21 @@ builds its scenario afresh. An expectation that fails records the first failure,
 client heard, instead of ending the test, and a wait in an attempt that failed or lost the foreground returns at once.
 The attempt that kept the foreground decides, so its first failure fails the test. Under `--foreground-thief`, which
 takes the foreground within 95 ms of every activation, these fixtures record the skip after five attempts.
+
+Authorized foreground fixtures use `TryActivateDxUiTestWindow`, which requires actual desktop foreground ownership,
+not just the calling thread's active/focus window. If a direct foreground request is refused, it reuses the lease
+backend's scoped foreground-thread input attachment, detached before the result is checked. The current-thread
+activation blocker refuses this path before any focus request, even if a fixture removed `WS_EX_NOACTIVATE`; the
+noninteractive WindowHost regression covers that case. Modal context-menu fixtures establish their owner's foreground
+before opening. Desktop availability alone establishes no foreground grant, and failure to acquire it still fails
+qualification. Production deactivation/dismissal behavior, skip rules and local desktop consent remain unchanged.
+
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
-`TestMenuChoosesTheCursorWhenItOpensAndCloses` (NewControls and Menu) plays its attempts the same way. Its windows
+`TestMenuChoosesTheCursorWhenItOpensAndCloses` (Menu) plays its attempts the same way. Its windows
 never activate in the nonactivating lane, but its menu activates its popup, and another application that takes the
 foreground dismisses the menu as designed, under AddressSanitizer before the test has read the popup. The owner, a
 top-level window of the same thread, counts the `WM_ACTIVATEAPP` (FALSE). Every attempt puts the physical cursor back,
@@ -461,9 +475,8 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
 
 - **Selection.** Without `-Suites` the run is `Menu` and `NativeTextInput`; the two fixtures run when they are named. Any other name
   is refused, by name, before anything is built, so the lease holds only what needs the desktop. `-Tests` and `-TestTimeout` work as
-  for any run. Every other control suite keeps `--no-activate`, and the lease is reached only through `-Interactive`. A run without
-  it is unchanged: it passes these four suites no `--no-activate`, which the runner rejects, so on a desktop someone is working at it
-  can take focus; leave them out of `-Suites` there, and ask for them through `-Interactive`.
+  for any run. Every other control suite keeps `--no-activate`. Local foreground suites require `-Interactive`;
+  a verified GitHub-hosted Windows job uses the hosted lease below for only its requested foreground suites.
 - **Refusal.** A run refuses, before anything is built, in a CI job (`CI`, `GITHUB_ACTIONS`, `TF_BUILD` and the like are set) and in
   a process without an interactive window station (a service, a scheduled task, a remote shell). After the build the lease checks the
   session natively (`DxUi.InteractiveLease.exe --check`, which shows and takes nothing) and checks again when it is about to ask: the
@@ -502,6 +515,29 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
   lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+
+Verified GitHub-hosted Windows foreground runs MUST use the same lease's anchor, child-specific foreground grant,
+bounded child lifetime and verified restoration. `test.ps1` and `DxUi.InteractiveLease.exe --run-hosted` each independently
+require exact `CI=true`, `GITHUB_ACTIONS=true`, `RUNNER_ENVIRONMENT=github-hosted` and `RUNNER_OS=Windows` markers.
+Native refusal precedes desktop inspection or mutation. This mode substitutes hosted-runner authorization for the
+person-facing confirmation; it retains the desktop probe, mutex, warning anchor, failure/skip checks and restoration.
+It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts use `.hosted` and explicitly retain the
+lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
+stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
+
+When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
+marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
+held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
+and verify that the warning owns the point before and after moving the pointer. Capture checks MUST inspect the
+foreground thread as well as the lease thread: `GetCapture` alone cannot rule out another thread's capture. The warning
+MUST be temporarily clipped to an opaque, nonlayered patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
+down/up messages and released button state, verify actual warning foreground, and restore/read back the original
+extended style, layered alpha/color-key attributes and full window region before starting a child. A refused target
+retains read-only point/hit-window/geometry/style/region/DPI diagnostics; it sends no input to that foreign window.
+Failed insertion, release, activation or restoration
+MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
+checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
 
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
@@ -571,9 +607,20 @@ Active native test sources, helpers, fixtures and seams MUST use `Scope.Tests.So
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
-Successful whole-scope results are reused only for equal repository content, complete executable/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Build attestation binds source inputs to those artifacts before SkipBuild. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
+Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
 
-`-Mode Full` selects the full local obligation. `-Mode PrePush` accounts for full coverage across local execution and the forthcoming PR gate. Delegation requires a clean committed candidate, the enabled GitHub workflow, matching candidate workflow bytes and their reviewed manifest digest, and a matching native profile. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree or changed HEAD during the coverage lookup also rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass its required checks. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
+includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
+the complete external compiler or Windows SDK installation. Consequently, `SkipBuild` and a reused native receipt
+cannot establish buildability with a newly serviced compiler/SDK. Retain fresh canonical build evidence for that
+toolchain gate. Paired performance studies separately require the resolved toolchain and SDK content identity
+specified by the performance contract.
+
+`-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
+
+Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+
+`Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
 
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 

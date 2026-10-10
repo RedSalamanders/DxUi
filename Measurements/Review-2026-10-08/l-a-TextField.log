@@ -1,0 +1,229 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] TextField
+  [START] TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField
+  [DONE] TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField (0.003 s)
+  [START] TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself
+  [DONE] TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself (0.000 s)
+  [START] TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive
+  [DONE] TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive (0.000 s)
+  [START] TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself
+  [DONE] TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself (0.000 s)
+  [START] TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself
+  [DONE] TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself (0.000 s)
+  [START] TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications
+  [DONE] TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications (0.000 s)
+  [START] TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions
+  [DONE] TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions (0.000 s)
+  [START] TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys
+  [DONE] TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys (0.000 s)
+  [START] TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses
+  [DONE] TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses (0.000 s)
+  [START] TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable
+  [DONE] TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable (0.000 s)
+  [START] TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues
+  [DONE] TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues (0.000 s)
+  [START] TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues
+  [DONE] TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues (0.000 s)
+  [START] TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate
+  [DONE] TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate (0.000 s)
+  [START] TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed
+  [DONE] TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed (0.808 s)
+  [START] TestTextFieldHoverStyleUsesSharedOverlayChrome
+  [DONE] TestTextFieldHoverStyleUsesSharedOverlayChrome (0.000 s)
+  [START] TestTextFieldHighContrastFocusStaysVisibleWithoutKeyboardFocus
+  [DONE] TestTextFieldHighContrastFocusStaysVisibleWithoutKeyboardFocus (0.000 s)
+  [START] TestTextFieldHighContrastDisabledBorderStaysVisible
+  [DONE] TestTextFieldHighContrastDisabledBorderStaysVisible (0.000 s)
+  [START] TestTextFieldCaretOverrideLeavesFocusBorderUnchanged
+  [DONE] TestTextFieldCaretOverrideLeavesFocusBorderUnchanged (0.000 s)
+  [START] TestTextInputCaretRectsTolerateSubDipTextViewport
+  [DONE] TestTextInputCaretRectsTolerateSubDipTextViewport (0.001 s)
+  [START] TestTextFieldUsesViewerDerivedInputChrome
+  [DONE] TestTextFieldUsesViewerDerivedInputChrome (0.000 s)
+  [START] TestWindowHostSpaceAndReturnToggleFocusedNonEditableComboWithoutDefaultButtonFallback
+  [DONE] TestWindowHostSpaceAndReturnToggleFocusedNonEditableComboWithoutDefaultButtonFallback (0.000 s)
+  [START] TestWindowHostReturnStaysOnFocusedEditableComboWithoutDefaultButtonFallback
+  [DONE] TestWindowHostReturnStaysOnFocusedEditableComboWithoutDefaultButtonFallback (0.000 s)
+  [START] TestEditableComboBoxDoesNotAutoSelectFirstHistoryEntry
+  [DONE] TestEditableComboBoxDoesNotAutoSelectFirstHistoryEntry (0.000 s)
+  [START] TestEditableComboBoxTypingAndSubmit
+  [DONE] TestEditableComboBoxTypingAndSubmit (0.001 s)
+  [START] TestEditableComboBoxThirdClickAfterWordSelectionSelectsAll
+  [DONE] TestEditableComboBoxThirdClickAfterWordSelectionSelectsAll (0.001 s)
+  [START] TestTextFieldThirdClickAfterWordSelectionSelectsAll
+  [DONE] TestTextFieldThirdClickAfterWordSelectionSelectsAll (0.002 s)
+  [START] TestEditableComboBoxDropDownSelectionSyncsText
+  [DONE] TestEditableComboBoxDropDownSelectionSyncsText (0.000 s)
+  [START] TestEditableComboBoxPopupFiltersByPrefix
+  [DONE] TestEditableComboBoxPopupFiltersByPrefix (0.001 s)
+  [START] TestEditableComboBoxCanAutoOpenSuggestionsOnTyping
+  [DONE] TestEditableComboBoxCanAutoOpenSuggestionsOnTyping (0.001 s)
+  [START] TestEditableComboBoxKeyboardNavigationUsesFilteredPopupOrder
+  [DONE] TestEditableComboBoxKeyboardNavigationUsesFilteredPopupOrder (0.001 s)
+  [START] TestEditableComboBoxNoMatchPopupKeepsTypedText
+  [DONE] TestEditableComboBoxNoMatchPopupKeepsTypedText (0.001 s)
+  [START] TestTextFieldCopyWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestTextFieldCopyWithoutSelectionLeavesClipboardUnchanged (0.048 s)
+  [START] TestTextFieldCtrlInsertCopiesSelection
+  [DONE] TestTextFieldCtrlInsertCopiesSelection (0.266 s)
+  [START] TestTextFieldShiftInsertPastesClipboard
+  [DONE] TestTextFieldShiftInsertPastesClipboard (0.256 s)
+  [START] TestTextFieldCtrlVPasteStripsSingleLineControlCharacters
+  [DONE] TestTextFieldCtrlVPasteStripsSingleLineControlCharacters (0.255 s)
+  [START] TestEditableComboCopyWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestEditableComboCopyWithoutSelectionLeavesClipboardUnchanged (0.013 s)
+  [START] TestEditableComboShiftInsertPastesClipboard
+  [DONE] TestEditableComboShiftInsertPastesClipboard (0.261 s)
+  [START] TestEditableComboShiftInsertStripsSingleLineControlCharacters
+  [DONE] TestEditableComboShiftInsertStripsSingleLineControlCharacters (0.249 s)
+  [START] TestTextFieldCtrlBackspaceDeletesPreviousWord
+  [DONE] TestTextFieldCtrlBackspaceDeletesPreviousWord (0.232 s)
+  [START] TestTextFieldCtrlWordNavigationMovesCaretByWord
+  [DONE] TestTextFieldCtrlWordNavigationMovesCaretByWord (0.001 s)
+  [START] TestTextFieldCtrlDeleteDeletesNextWord
+  [DONE] TestTextFieldCtrlDeleteDeletesNextWord (0.001 s)
+  [START] TestTextFieldClickPlacesCaretNearPointer
+  [DONE] TestTextFieldClickPlacesCaretNearPointer (0.001 s)
+  [START] TestTextFieldShiftArrowSelectionReplacesSelectedText
+  [DONE] TestTextFieldShiftArrowSelectionReplacesSelectedText (0.001 s)
+  [START] TestTextFieldCtrlASelectionReplacesAllText
+  [DONE] TestTextFieldCtrlASelectionReplacesAllText (0.001 s)
+  [START] TestTextFieldDoubleClickSelectsWordThroughHostMessage
+  [DONE] TestTextFieldDoubleClickSelectsWordThroughHostMessage (0.001 s)
+  [START] TestTextFieldMouseDragSelectionReplacesDraggedRange
+  [DONE] TestTextFieldMouseDragSelectionReplacesDraggedRange (0.002 s)
+  [START] TestTextFieldSurrogatePairBackspaceDeletesWholeCodePoint
+  [DONE] TestTextFieldSurrogatePairBackspaceDeletesWholeCodePoint (0.001 s)
+  [START] TestTextFieldSurrogatePairDeleteDeletesWholeCodePoint
+  [DONE] TestTextFieldSurrogatePairDeleteDeletesWholeCodePoint (0.001 s)
+  [START] TestTextFieldUndoAfterSurrogatePairInsertionRemovesWholeCodePoint
+  [DONE] TestTextFieldUndoAfterSurrogatePairInsertionRemovesWholeCodePoint (0.001 s)
+  [START] TestTextFieldUndoCoalescesTypingRun
+  [DONE] TestTextFieldUndoCoalescesTypingRun (0.001 s)
+  [START] TestTextFieldUndoSplitsTypingRunsAfterCaretMove
+  [DONE] TestTextFieldUndoSplitsTypingRunsAfterCaretMove (0.001 s)
+  [START] TestTextFieldUndoCoalescesBackspaceRun
+  [DONE] TestTextFieldUndoCoalescesBackspaceRun (0.001 s)
+  [START] TestTextFieldUndoCoalescesDeleteRun
+  [DONE] TestTextFieldUndoCoalescesDeleteRun (0.001 s)
+  [START] TestTextFieldEmojiZwJBackspaceDeletesWholeTextElement
+  [DONE] TestTextFieldEmojiZwJBackspaceDeletesWholeTextElement (0.001 s)
+  [START] TestTextFieldEmojiZwJDeleteDeletesWholeTextElement
+  [DONE] TestTextFieldEmojiZwJDeleteDeletesWholeTextElement (0.001 s)
+  [START] TestTextFieldRegionalIndicatorFlagBackspaceDeletesWholeTextElement
+  [DONE] TestTextFieldRegionalIndicatorFlagBackspaceDeletesWholeTextElement (0.001 s)
+  [START] TestTextFieldRegionalIndicatorFlagDeleteDeletesWholeTextElement
+  [DONE] TestTextFieldRegionalIndicatorFlagDeleteDeletesWholeTextElement (0.001 s)
+  [START] TestTextFieldEmojiSuffixBackspaceAndDeleteDeletesWholeTextElement
+  [DONE] TestTextFieldEmojiSuffixBackspaceAndDeleteDeletesWholeTextElement (0.003 s)
+  [START] TestTextFieldEmojiShiftArrowSelectionExpandsByWholeTextElement
+  [DONE] TestTextFieldEmojiShiftArrowSelectionExpandsByWholeTextElement (0.003 s)
+  [START] TestEditableComboBoxCtrlBackspaceDeletesPreviousWord
+  [DONE] TestEditableComboBoxCtrlBackspaceDeletesPreviousWord (0.001 s)
+  [START] TestEditableComboBoxShiftArrowSelectionReplacesSelectedText
+  [DONE] TestEditableComboBoxShiftArrowSelectionReplacesSelectedText (0.001 s)
+  [START] TestEditableComboBoxCtrlASelectionReplacesAllText
+  [DONE] TestEditableComboBoxCtrlASelectionReplacesAllText (0.001 s)
+  [START] TestEditableComboBoxCtrlWordNavigationMovesCaretByWord
+  [DONE] TestEditableComboBoxCtrlWordNavigationMovesCaretByWord (0.001 s)
+  [START] TestEditableComboBoxCtrlDeleteDeletesNextWord
+  [DONE] TestEditableComboBoxCtrlDeleteDeletesNextWord (0.001 s)
+  [START] TestEditableComboBoxDoubleClickSelectsWord
+  [DONE] TestEditableComboBoxDoubleClickSelectsWord (0.001 s)
+  [START] TestEditableComboBoxMouseDragSelectionReplacesDraggedRange
+  [DONE] TestEditableComboBoxMouseDragSelectionReplacesDraggedRange (0.001 s)
+  [START] TestEditableComboBoxSurrogatePairBackspaceDeletesWholeCodePoint
+  [DONE] TestEditableComboBoxSurrogatePairBackspaceDeletesWholeCodePoint (0.001 s)
+  [START] TestEditableComboBoxSurrogatePairDeleteDeletesWholeCodePoint
+  [DONE] TestEditableComboBoxSurrogatePairDeleteDeletesWholeCodePoint (0.001 s)
+  [START] TestTextFieldSubmit
+  [DONE] TestTextFieldSubmit (0.000 s)
+  [START] TestSingleLineTextFieldTabDoesNotInsertCharacter
+  [DONE] TestSingleLineTextFieldTabDoesNotInsertCharacter (0.000 s)
+  [START] TestMaskedTextFieldPreservesSecretValueAndSuppressesCopy
+  [DONE] TestMaskedTextFieldPreservesSecretValueAndSuppressesCopy (0.001 s)
+  [START] TestMaskedTextFieldExactMaskUsesTextElementCount
+  [DONE] TestMaskedTextFieldExactMaskUsesTextElementCount (0.000 s)
+  [START] TestNativeTextFieldDoesNotTakeOverHostCaptionMessages
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextFieldDoesNotTakeOverHostCaptionMessages (0.047 s)
+  [START] TestNativeTextFieldEditSelectionPreservesReversedEndpoints
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextFieldEditSelectionPreservesReversedEndpoints (0.278 s)
+  [START] TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification (0.278 s)
+  [START] TestMaskedTextFieldGeometryMapsUtf16SourceToDisplayElements
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMaskedTextFieldGeometryMapsUtf16SourceToDisplayElements (0.261 s)
+  [START] TestTextFieldCompactDensityShrinksDefaultVerticalPadding
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldCompactDensityShrinksDefaultVerticalPadding (0.274 s)
+  [START] TestTextFieldLongSelectionPaintStaysInsideTextViewport
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldLongSelectionPaintStaysInsideTextViewport (0.275 s)
+  [START] TestTextFieldBidiSelectionPaintStaysOutsideTrailingButtons
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBidiSelectionPaintStaysOutsideTrailingButtons (0.536 s)
+  [START] TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds (0.268 s)
+  [START] TestTextFieldSelectedEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldSelectedEmojiUsesColorFontRendering (0.523 s)
+  [START] TestNativeTextFieldUnselectedEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextFieldUnselectedEmojiUsesColorFontRendering (0.462 s)
+  [START] TestNativeTextFieldSelectedEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextFieldSelectedEmojiUsesColorFontRendering (0.597 s)
+  [START] TestNativeMultilineTextFieldEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMultilineTextFieldEmojiUsesColorFontRendering (0.472 s)
+  [START] TestNativeMixedBidiTextFieldEmojiUsesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMixedBidiTextFieldEmojiUsesColorFontRendering (0.389 s)
+  [START] TestNativeMaskedTextFieldEmojiSuppressesColorFontRendering
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMaskedTextFieldEmojiSuppressesColorFontRendering (0.478 s)
+  [START] TestTextFieldClearButtonClickClearsTextWhenFocused
+  [DONE] TestTextFieldClearButtonClickClearsTextWhenFocused (0.000 s)
+  [START] TestTextFieldClearButtonNotVisibleWhenReadOnly
+  [DONE] TestTextFieldClearButtonNotVisibleWhenReadOnly (0.244 s)
+  [START] TestTextFieldClearButtonStopsAfterTextChangedDestroysField
+  [DONE] TestTextFieldClearButtonStopsAfterTextChangedDestroysField (0.000 s)
+  [START] TestTextFieldImportReportsWhenTextChangedDestroysField
+  [DONE] TestTextFieldImportReportsWhenTextChangedDestroysField (0.001 s)
+[DONE] TextField (7.821 s)
+All DxUi tests passed.

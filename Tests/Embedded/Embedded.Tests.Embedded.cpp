@@ -11,10 +11,12 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <malloc.h>
 #include <new>
+#include <stdexcept>
 
 // Counts library C++ heap calls within the deliberately isolated composition loop, not driver allocations. The bytes they ask
 // for are counted beside them, for the opt-in measurement of Embedded.Tests.GridSelectionBenchmark.h. That measurement also asks what this
@@ -483,6 +485,41 @@ __declspec(noinline) static void TestEmbeddedTouchDragShowsTheSliderTouchHalo(Gr
     static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Up, x, y}));
 }
 
+__declspec(noinline) static void TestTooltipInspectionDismissalConsumesEmbeddedGesture(GraphicsFixture& gpu)
+{
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tooltip gesture device pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "tooltip gesture embedded host");
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* button = root->AddChild<DxUi::Button>(L"Underlying action");
+    button->SetBounds(D2D1::RectF(200.0f, 100.0f, 310.0f, 150.0f));
+    size_t activations = 0u;
+    button->SetOnClick([&] { ++activations; });
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320u, 180u), "prepare tooltip gesture host");
+    Check(view.Controls().InspectTooltip(L"Persistent inspection", D2D1::Point2F(12.0f, 12.0f)), "embedded inspection opens");
+
+    constexpr float x = 250.0f;
+    constexpr float y = 125.0f;
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, x, y}) && ! view.Controls().IsTooltipInspectionActive(),
+          "outside down dismisses and consumes the embedded gesture");
+    Check(view.DispatchPointer({DxUi::PointerAction::Move, x, y}), "dismissal consumes embedded movement");
+    Check(view.DispatchPointer({DxUi::PointerAction::Up, x, y}), "dismissal consumes embedded release");
+    Check(activations == 0u, "the dismissing gesture cannot activate the underlying button");
+
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, x, y}), "a later independent embedded press reaches the button");
+    Check(view.DispatchPointer({DxUi::PointerAction::Up, x, y}), "a later independent embedded release reaches the button");
+    Check(activations == 1u, "normal interaction resumes after the consumed gesture completes");
+
+    Check(view.Controls().InspectTooltip(L"Second inspection", D2D1::Point2F(12.0f, 12.0f)), "inspection reopens for cancellation");
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, x, y}), "second outside down is consumed");
+    Check(view.DispatchPointer({DxUi::PointerAction::Cancel}), "cancel consumes and clears the active dismissal gesture");
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, x, y}), "a new press after cancellation reaches the button");
+    Check(view.DispatchPointer({DxUi::PointerAction::Up, x, y}), "new release after cancellation reaches the button");
+    Check(activations == 2u, "cancellation clears the dismissal latch without activating the canceled press");
+}
+
 // Host ticks dirty a view only through control invalidation: an idle root or an unchanged caret phase leaves a
 // clean prepared view clean; a blink-phase flip prepares exactly once.
 __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
@@ -566,6 +603,518 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
     Check(trimmed.cachedBrushes == painted.cachedBrushes, "the trimmed brush cache holds exactly the painted working set");
 }
 
+__declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(GraphicsFixture& gpu)
+{
+    struct State final
+    {
+        std::function<void()> mutateGeometry;
+        size_t mutations = 0u;
+        size_t actions   = 0u;
+        bool checked     = false;
+        bool rightAction = false;
+        void Mutate()
+        {
+            auto callback = std::move(mutateGeometry);
+            if (callback)
+            {
+                ++mutations;
+                callback();
+            }
+        }
+    };
+    class Model final : public DxUi::IGridModel
+    {
+    public:
+        explicit Model(State& state) noexcept : _state(&state)
+        {
+        }
+        size_t GetRowCount() const noexcept override
+        {
+            return 1u;
+        }
+        size_t GetColumnCount() const noexcept override
+        {
+            return 2u;
+        }
+        DxUi::GridColumnDesc GetColumn(size_t column) const override
+        {
+            return {.id       = column == 0u ? L"check" : L"text",
+                    .title    = column == 0u ? L"Check" : L"Text",
+                    .widthDip = 160.0f,
+                    .kind     = column == 0u ? DxUi::GridColumnKind::Checkbox : DxUi::GridColumnKind::Text};
+        }
+        std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+        {
+            return id == 0u ? std::optional<size_t>(0u) : std::nullopt;
+        }
+        void GetCellData(size_t, size_t column, DxUi::GridCellData& cell) const override
+        {
+            cell.kind    = column == 0u ? DxUi::GridCellKind::Checkbox : DxUi::GridCellKind::Text;
+            cell.text    = column == 0u ? L"" : L"Text cell";
+            cell.checked = _state->checked;
+            _state->Mutate();
+        }
+
+    private:
+        State* _state;
+    };
+    class Delegate final : public DxUi::IGridDelegate
+    {
+    public:
+        explicit Delegate(State& state) noexcept : _state(&state)
+        {
+        }
+        void OnGridCheckboxToggled(size_t row, size_t column, bool checked) override
+        {
+            Check(row == 0u && column == 0u, "the recovered click toggles the stable checkbox cell");
+            ++_state->actions;
+            _state->checked = checked;
+        }
+
+    private:
+        State* _state;
+    };
+    class MutatingControl final : public DxUi::Control
+    {
+    public:
+        MutatingControl(State& state, bool mutateFromHit) noexcept : _state(&state), _mutateFromHit(mutateFromHit)
+        {
+        }
+        void Paint(DxUi::ControlHost& host) const override
+        {
+            const auto bounds  = GetBounds();
+            const float middle = (bounds.left + bounds.right) * 0.5f;
+            if (auto* dc = host.GetDeviceContext())
+            {
+                if (auto* brush = host.GetSolidBrush(D2D1::ColorF(0.12f, 0.72f, 0.24f, 1.0f)))
+                    dc->FillRectangle(IsRightToLeft() ? D2D1::RectF(middle, bounds.top, bounds.right, bounds.bottom)
+                                                      : D2D1::RectF(bounds.left, bounds.top, middle, bounds.bottom),
+                                      brush);
+            }
+        }
+        DxUi::Control* HitTest(D2D1_POINT_2F point) override
+        {
+            auto* result = Control::HitTest(point);
+            if (result && _mutateFromHit)
+                _state->Mutate();
+            return result;
+        }
+        void OnHoverChanged(DxUi::ControlHost& host, bool hovered) override
+        {
+            Control::OnHoverChanged(host, hovered);
+            if (hovered && ! _mutateFromHit)
+                _state->Mutate();
+        }
+        bool OnMouseDown(DxUi::ControlHost&, D2D1_POINT_2F point, bool, UINT) override
+        {
+            ++_state->actions;
+            const auto bounds   = GetBounds();
+            _state->rightAction = (point.x >= (bounds.left + bounds.right) * 0.5f) != IsRightToLeft();
+            return true;
+        }
+
+    private:
+        State* _state;
+        bool _mutateFromHit;
+    };
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for pointer reentrancy tests");
+    for (const unsigned mutationSource : {0u, 1u, 2u})
+    {
+        State state;
+        Model model(state);
+        Delegate delegate(state);
+        DxUi::EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach pointer reentrancy test view");
+        auto root             = std::make_unique<DxUi::Panel>();
+        DxUi::Control* target = nullptr;
+        if (mutationSource == 0u)
+        {
+            auto* grid = root->AddChild<DxUi::Grid>();
+            grid->SetHeaderHeightDip(24.0f);
+            grid->SetRowHeightDip(24.0f);
+            grid->SetModel(&model);
+            grid->SetDelegate(&delegate);
+            target = grid;
+        }
+        else
+            target = root->AddChild<MutatingControl>(state, mutationSource == 2u);
+        target->SetBounds(D2D1::RectF(0, 0, 320, 160));
+        view.Controls().SetRoot(std::move(root));
+        Hr(view.Prepare(320, 160), "prepare LTR pointer geometry");
+        state.mutateGeometry = [&] { target->SetFlowDirection(DxUi::FlowDirection::RightToLeft); };
+        Check(! view.DispatchPointer({DxUi::PointerAction::Down, 240, 36}), "hover or hit mutation cannot retarget the current pointer Down");
+        Check(state.mutations == 1u && state.actions == 0u && ! state.checked,
+              "the one-shot geometry mutation performs no action against previously painted LTR content");
+        Check(view.NeedsPreparation() && view.Controls().GetCapturedControl() == nullptr,
+              "geometry-mutated pointer dispatch leaves preparation pending without capturing a rejected press");
+        gpu.Bind();
+        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "the outdated pointer surface cannot be composited");
+        Hr(view.Prepare(320, 160), "prepare the current RTL pointer geometry");
+        Check(view.DispatchPointer({DxUi::PointerAction::Down, 240, 36}), "a retried Down reaches the newly painted RTL target");
+        Check(state.actions == 1u && (mutationSource == 0u ? state.checked : ! state.rightAction),
+              "only the retried press activates the logical action now displayed under the pointer");
+        static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, 240, 36}));
+        Check(view.Controls().GetCapturedControl() == nullptr, "the recovered action releases pointer capture");
+    }
+}
+
+// Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
+__declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu)
+{
+    struct State final
+    {
+        std::function<void()> paint;
+        std::function<void()> overlay;
+        std::function<void()> dpi;
+        size_t paintCalls   = 0u;
+        size_t overlayCalls = 0u;
+    };
+    class CallbackRoot final : public DxUi::Panel
+    {
+    public:
+        explicit CallbackRoot(State& state) noexcept : _state(&state)
+        {
+        }
+        void Paint(DxUi::ControlHost&) const override
+        {
+            State* const state = _state;
+            ++state->paintCalls;
+            auto callback = std::move(state->paint);
+            if (callback)
+                callback();
+        }
+        void PaintOverlay(DxUi::ControlHost&) const override
+        {
+            State* const state = _state;
+            ++state->overlayCalls;
+            auto callback = std::move(state->overlay);
+            if (callback)
+                callback();
+        }
+        void OnHostDpiChanged(DxUi::ControlHost&) noexcept override
+        {
+            auto callback = std::move(_state->dpi);
+            if (callback)
+                callback();
+        }
+
+    private:
+        State* _state;
+    };
+
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for preparation retirement tests");
+    for (const bool duringOverlay : {false, true})
+    {
+        for (const bool replaceRoot : {false, true})
+        {
+            State state;
+            DxUi::EmbeddedHost view;
+            Hr(view.Attach(graphics), "attach preparation retirement host");
+            view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
+            auto& callback = duringOverlay ? state.overlay : state.paint;
+            callback       = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
+            Check(view.Prepare(320, 160) == E_ABORT, "preparation aborts the frame whose paint callback retired the root");
+            Check(state.paintCalls == 1u && state.overlayCalls == (duringOverlay ? 1u : 0u), "no stale overlay follows root retirement during painting");
+            Check(view.NeedsPreparation(), "root replacement remains pending after the aborted frame");
+            gpu.Bind();
+            Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "the incomplete old-root surface cannot compose");
+            Hr(view.Prepare(320, 160), "prepare the current root after retirement");
+            Check(! view.NeedsPreparation(), "successful current-root preparation settles pending work");
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose the coherent current-root surface");
+        }
+    }
+    for (const bool replaceRoot : {false, true})
+    {
+        State state;
+        DxUi::EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach DPI retirement host");
+        view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
+        state.dpi = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
+        Hr(view.Prepare(320, 160, 144.0f), "DPI notification may replace or clear the root before layout");
+        Check(state.paintCalls == 0u && state.overlayCalls == 0u, "DPI retirement does not paint the old root");
+    }
+    {
+        State state;
+        DxUi::EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach failing preparation host");
+        view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
+        state.paint = [] { throw std::runtime_error("injected paint failure"); };
+        Check(view.Prepare(320, 160) == E_FAIL && view.NeedsPreparation(), "a standard paint exception leaves preparation pending");
+        gpu.Bind();
+        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "failed painting suppresses composition");
+        Hr(view.Prepare(320, 160), "draw state is restored for a later successful preparation");
+        Check(state.paintCalls == 2u && state.overlayCalls == 1u, "only successful preparation reaches overlay painting");
+    }
+}
+
+__declspec(noinline) static void TestPageReplacementDuringPaintDefersBoundsUntilPreparation(GraphicsFixture& gpu)
+{
+    struct State final
+    {
+        DxUi::PageHost* pageHost   = nullptr;
+        DxUi::Control* replacement = nullptr;
+        size_t calls               = 0u;
+    };
+    class ReplacingPage final : public DxUi::Control
+    {
+    public:
+        explicit ReplacingPage(State& state) noexcept : _state(&state)
+        {
+        }
+        void Paint(DxUi::ControlHost&) const override
+        {
+            State* const state = _state;
+            if (++state->calls == 1u)
+            {
+                auto next          = std::make_unique<DxUi::Panel>();
+                state->replacement = next.get();
+                state->pageHost->SetPage(std::move(next));
+            }
+        }
+
+    private:
+        State* _state;
+    };
+    State state;
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for deferred page bounds");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach deferred page bounds host");
+    auto pageHost  = std::make_unique<DxUi::PageHost>();
+    state.pageHost = pageHost.get();
+    pageHost->SetPage(std::make_unique<ReplacingPage>(state));
+    view.Controls().SetRoot(std::move(pageHost));
+    Check(view.Prepare(320, 160) == E_ABORT, "page replacement discards the partially painted embedded frame");
+    Check(state.calls == 1u && state.pageHost->GetPage() == state.replacement, "the paint callback installs one replacement page");
+    gpu.Bind();
+    Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "deferred page geometry cannot be composited");
+    Hr(view.Prepare(320, 160), "the next explicit preparation applies page layout");
+    const auto bounds = state.replacement->GetBounds();
+    Check(bounds.left == 0.0f && bounds.top == 0.0f && bounds.right == 320.0f && bounds.bottom == 160.0f,
+          "replacement page receives complete current bounds without resize or Advance");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose the fully laid out replacement page");
+}
+
+// A model may synchronously change while the Grid asks for a cell during paint. The old row image and hit geometry must
+// not become a coherent embedded frame after replacing the model, notifying a changed row count or replacing the delegate.
+__declspec(noinline) static void TestGridModelMutationDuringCellPaintAbortsPreparation(GraphicsFixture& gpu)
+{
+    struct QueryState final
+    {
+        std::function<void()> onNextCellQuery;
+        size_t cellQueryCount = 0u;
+        size_t callbackCount  = 0u;
+    };
+    struct Model final : DxUi::IGridModel
+    {
+        Model(QueryState& queryState, size_t rowTotal) noexcept : state(&queryState), rows(rowTotal)
+        {
+        }
+
+        size_t GetRowCount() const noexcept override
+        {
+            return rows;
+        }
+        size_t GetColumnCount() const noexcept override
+        {
+            return 1u;
+        }
+        DxUi::GridColumnDesc GetColumn(size_t) const override
+        {
+            return {L"value", L"Value", 240.0f};
+        }
+        void GetCellData(size_t row, size_t, DxUi::GridCellData& cell) const override
+        {
+            cell.text = L"Row " + std::to_wstring(row);
+            ++state->cellQueryCount;
+            auto callback = std::move(state->onNextCellQuery);
+            if (callback)
+            {
+                ++state->callbackCount;
+                callback();
+            }
+        }
+        std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+        {
+            return id < rows ? std::optional<size_t>(static_cast<size_t>(id)) : std::nullopt;
+        }
+
+        QueryState* state = nullptr;
+        size_t rows       = 0u;
+    };
+
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for reentrant Grid model query tests");
+
+    for (const unsigned mutation : {0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 11u})
+    {
+        QueryState queryState;
+        Model originalModel(queryState, 2u);
+        Model replacementModel(queryState, 5u);
+        DxUi::IGridDelegate replacementDelegate;
+        DxUi::EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach Grid model query host");
+        auto root  = std::make_unique<DxUi::Panel>();
+        auto* grid = root->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(0, 0, 320, 160));
+        grid->SetHeaderHeightDip(24.0f);
+        grid->SetRowHeightDip(24.0f);
+        if (mutation == 9u)
+            grid->SetFlowDirection(DxUi::FlowDirection::RightToLeft);
+        if (mutation == 10u)
+            grid->SetDensity(DxUi::Density::Compact);
+        grid->SetModel(&originalModel);
+        view.Controls().SetRoot(std::move(root));
+
+        Hr(view.Prepare(320, 160), "prepare the initial Grid model");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose the initial Grid model");
+        Check(! view.NeedsPreparation(), "the initial Grid model has coherent prepared geometry");
+        auto colorOnlyTheme             = view.Controls().GetTheme();
+        colorOnlyTheme.windowBackground = D2D1::ColorF(0.12f, 0.18f, 0.24f, 1.0f);
+        view.Controls().SetTheme(colorOnlyTheme);
+        Check(view.NeedsPreparation() && view.DispatchPointer({DxUi::PointerAction::Move, 160, 50}),
+              "a color-only theme update outside paint permits pointer dispatch on still-current geometry");
+        Hr(view.Prepare(320, 160), "prepare the color-only theme update");
+
+        queryState.cellQueryCount  = 0u;
+        queryState.callbackCount   = 0u;
+        queryState.onNextCellQuery = [&]
+        {
+            switch (mutation)
+            {
+                case 0u:
+                    originalModel.rows = 5u;
+                    grid->NotifyDataChanged();
+                    break;
+                case 1u: grid->SetModel(&replacementModel); break;
+                case 2u: grid->SetDelegate(&replacementDelegate); break;
+                case 3u: grid->SetFlowDirection(DxUi::FlowDirection::RightToLeft); break;
+                case 4u: grid->SetDensity(DxUi::Density::Compact); break;
+                case 5u: grid->SetRowHeightDip(36.0f); break;
+                case 6u: grid->SetEffectiveRowHeightDip(40.0f); break;
+                case 7u: grid->SetHeaderHeightDip(40.0f); break;
+                case 8u:
+                case 11u:
+                {
+                    auto theme = view.Controls().GetTheme();
+                    if (mutation == 8u)
+                        theme.density = DxUi::Density::Compact;
+                    else
+                        theme.windowBackground = D2D1::ColorF(0.24f, 0.18f, 0.12f, 1.0f);
+                    view.Controls().SetTheme(theme);
+                    break;
+                }
+                case 9u: grid->ClearFlowDirection(); break;
+                case 10u: grid->ClearDensity(); break;
+            }
+        };
+        view.MarkDirty();
+
+        Check(view.Prepare(320, 160) == E_ABORT, "cell-query model mutation aborts the partially painted Grid frame");
+        Check(queryState.callbackCount == 1u && queryState.cellQueryCount > 0u, "the external one-shot callback runs from GetCellData exactly once");
+        Check(view.NeedsPreparation(), "the aborted model-change frame remains pending preparation");
+        gpu.Bind();
+        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "the partial model-change frame is not composited");
+        Check(! view.DispatchPointer({DxUi::PointerAction::Down, 16, 40}), "pointer dispatch refuses geometry from the aborted model-change frame");
+
+        Hr(view.Prepare(320, 160), "prepare the current Grid model and row list");
+        Check(! view.NeedsPreparation(), "successful preparation settles the current model geometry");
+        DxUi::IGridModel* const currentModel =
+            mutation == 1u ? static_cast<DxUi::IGridModel*>(&replacementModel) : static_cast<DxUi::IGridModel*>(&originalModel);
+        Check(grid->GetModel() == currentModel, "recovery preparation keeps the current model installed");
+        const size_t expectedRows = mutation >= 2u ? 2u : 5u;
+        Check(grid->GetVisibleRowCount() == expectedRows && grid->GetVisibleRowAt(expectedRows - 1u) == std::optional<size_t>(expectedRows - 1u),
+              "recovery preparation exposes the current visible row list");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose the fully prepared current Grid model");
+        Check(queryState.callbackCount == 1u, "recovery does not repeat the consumed one-shot callback");
+        grid->SetFlowDirection(grid->IsRightToLeft() ? DxUi::FlowDirection::LeftToRight : DxUi::FlowDirection::RightToLeft);
+        Check(view.NeedsPreparation() && ! view.DispatchPointer({DxUi::PointerAction::Down, 160, 50}),
+              "an external flow change revokes prepared pointer geometry before another paint begins");
+        Hr(view.Prepare(320, 160), "prepare externally changed flow geometry");
+        Check(view.DispatchPointer({DxUi::PointerAction::Down, 160, 50}), "fresh preparation restores pointer dispatch against current row geometry");
+        static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, 160, 50}));
+        Check(view.Controls().GetCapturedControl() == nullptr, "release the recovered row-selection gesture regardless of its handled return value");
+    }
+}
+
+__declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPreparation(GraphicsFixture& gpu)
+{
+    struct QueryState final
+    {
+        std::function<void()> onNextItemQuery;
+        size_t callbackCount = 0u;
+    };
+    struct Model final : DxUi::ITreeModel
+    {
+        explicit Model(QueryState& queryState) noexcept : state(&queryState)
+        {
+        }
+        size_t GetVisibleItemCount() const noexcept override
+        {
+            return 2u;
+        }
+        void GetVisibleItem(size_t index, DxUi::TreeItemData& item) const override
+        {
+            item          = {.id          = index + 1u,
+                             .text        = L"Item " + std::to_wstring(index),
+                             .depth       = static_cast<uint32_t>(index),
+                             .hasChildren = index == 0u,
+                             .expanded    = true};
+            auto callback = std::move(state->onNextItemQuery);
+            if (callback)
+            {
+                ++state->callbackCount;
+                callback();
+            }
+        }
+        std::optional<size_t> FindVisibleItemById(uint64_t id) const noexcept override
+        {
+            return id >= 1u && id <= 2u ? std::optional<size_t>(static_cast<size_t>(id - 1u)) : std::nullopt;
+        }
+        QueryState* state;
+    };
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for reentrant Tree delegate query test");
+    for (const unsigned mutation : {0u, 1u, 2u})
+    {
+        QueryState state;
+        Model model(state);
+        DxUi::ITreeDelegate replacementDelegate;
+        DxUi::EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach Tree delegate query host");
+        auto root  = std::make_unique<DxUi::Panel>();
+        auto* tree = root->AddChild<DxUi::Tree>();
+        tree->SetBounds(D2D1::RectF(0, 0, 320, 160));
+        tree->SetModel(&model);
+        view.Controls().SetRoot(std::move(root));
+        Hr(view.Prepare(320, 160), "prepare the initial Tree delegate binding");
+        state.onNextItemQuery = [&]
+        {
+            switch (mutation)
+            {
+                case 0u: tree->SetDelegate(&replacementDelegate); break;
+                case 1u: tree->SetRowHeightDip(36.0f); break;
+                case 2u: tree->SetIndentDip(32.0f); break;
+            }
+        };
+        view.MarkDirty();
+        Check(view.Prepare(320, 160) == E_ABORT, "item-query delegate replacement aborts the partially painted Tree frame");
+        Check(state.callbackCount == 1u && view.NeedsPreparation(), "one-shot delegate replacement leaves Tree preparation pending");
+        gpu.Bind();
+        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "partial Tree delegate-change frame is not composited");
+        Check(! view.DispatchPointer({DxUi::PointerAction::Down, 16, 40}), "pointer dispatch refuses the aborted Tree frame geometry");
+        Hr(view.Prepare(320, 160), "prepare Tree with the current delegate binding");
+        Check(state.callbackCount == 1u && ! view.NeedsPreparation(), "recovery settles the new Tree binding without repeating the callback");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose the fully prepared current Tree binding");
+    }
+}
+
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
@@ -592,6 +1141,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
     TestEmbeddedUiaEventHarness(gpu);
+    TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
+    TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
+    TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
+    TestPageReplacementDuringPaintDefersBoundsUntilPreparation(gpu);
     TestLocalizedShortViewport(gpu,
                                [](DxUi::Button& action) { action.SetMultiline(true); },
                                [](const auto& sizes, float width, auto& bounds, float& height)
@@ -607,10 +1160,12 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    TestPreparationCallbacksCanRetireRoot(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
     TestEmbeddedMultilineGridFrenchCells(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestEmbeddedTouchDragShowsTheSliderTouchHalo(gpu);
+    TestTooltipInspectionDismissalConsumesEmbeddedGesture(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
     EmbeddedScene scene;
@@ -900,12 +1455,64 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(DxUi::DrainPostedPayloadsForWindow(payloadWindow.get()) == 128 && destroyed == 129, "drain releases each payload once");
     MSG stale{};
     while (PeekMessageW(&stale, payloadWindow.get(), WM_APP + 77, WM_APP + 77, PM_REMOVE))
-        Check(! DxUi::TakeMessagePayload<Payload>(stale.lParam), "drained tokens cannot resurrect payload");
+        Check(! DxUi::TakeMessagePayload<Payload>(payloadWindow.get(), WM_APP + 77, stale.lParam), "drained tokens cannot resurrect payload");
     DxUi::InitPostedPayloadWindow(payloadWindow.get());
     Check(DxUi::PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "reinitialize window generation");
     Check(PeekMessageW(&stale, payloadWindow.get(), WM_APP + 77, WM_APP + 77, PM_REMOVE) != FALSE, "take new token");
-    Check(! DxUi::TakeMessagePayload<int>(stale.lParam) && destroyed == 130, "wrong payload type rejected and released");
+    wil::unique_hwnd otherPayloadWindow(CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Check(bool(otherPayloadWindow), "wrong-window payload fixture");
+    Check(! DxUi::TakeMessagePayload<Payload>(otherPayloadWindow.get(), WM_APP + 77, stale.lParam) && destroyed == 129,
+          "a foreign window cannot consume or destroy a valid token");
+    Check(! DxUi::TakeMessagePayload<int>(payloadWindow.get(), WM_APP + 77, stale.lParam) && destroyed == 129,
+          "strict protocol mismatch leaves the genuine payload available");
+    auto genuinePayload = DxUi::TakeMessagePayload<Payload>(payloadWindow.get(), WM_APP + 77, stale.lParam);
+    Check(bool(genuinePayload), "matching window and protocol consume the payload");
+    genuinePayload.reset();
+    Check(destroyed == 130, "matching payload is released exactly once");
+    Check(DxUi::PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "legacy type mismatch fixture");
+    Check(PeekMessageW(&stale, payloadWindow.get(), WM_APP + 77, WM_APP + 77, PM_REMOVE) != FALSE, "take legacy type mismatch token");
+    Check(! DxUi::TakeMessagePayload<int>(payloadWindow.get(), WM_APP + 77, stale.lParam) && destroyed == 130,
+          "wrong payload type is rejected without consuming the registered entry");
+    auto matchingAfterWrongType = DxUi::TakeMessagePayload<Payload>(payloadWindow.get(), WM_APP + 77, stale.lParam);
+    Check(bool(matchingAfterWrongType), "the matching type can still take the entry after a mismatch");
+    matchingAfterWrongType.reset();
+    Check(destroyed == 131, "matching payload is released exactly once after a type mismatch");
     DxUi::DrainPostedPayloadsForWindow(payloadWindow.get());
+    Check(! DxUi::InitPostedPayloadWindow(nullptr) && GetLastError() == ERROR_INVALID_WINDOW_HANDLE,
+          "invalid payload hosts fail with a diagnosed handle error");
+    size_t registeredBefore = 0u;
+    {
+        auto& registry = DxUi::Detail::Payloads();
+        const std::scoped_lock lock(registry.mutex);
+        registeredBefore = static_cast<size_t>(std::ranges::count_if(registry.windows, [](HWND window) { return window != nullptr; }));
+    }
+    std::vector<wil::unique_hwnd> registryWindows;
+    const auto drainRegistryWindows = wil::scope_exit([&]
+    {
+        for (const auto& window : registryWindows)
+            DxUi::DrainPostedPayloadsForWindow(window.get());
+    });
+    const size_t freeHostSlots      = 128u - registeredBefore;
+    for (size_t index = 0u; index <= freeHostSlots; ++index)
+    {
+        registryWindows.emplace_back(CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr));
+        Check(bool(registryWindows.back()), "host capacity fixture creates a real message-only window");
+        const bool registered = DxUi::InitPostedPayloadWindow(registryWindows.back().get());
+        if (index < freeHostSlots)
+        {
+            Check(registered, "remaining bounded host slots accept registration");
+            Check(DxUi::InitPostedPayloadWindow(registryWindows.back().get()), "duplicate host registration consumes no additional slot");
+        }
+        else
+            Check(! registered && GetLastError() == ERROR_NOT_ENOUGH_MEMORY, "host registry exhaustion is diagnosed");
+    }
+    Check(freeHostSlots > 0u, "host capacity fixture has a slot to release");
+    DxUi::DrainPostedPayloadsForWindow(registryWindows.front().get());
+    Check(DxUi::InitPostedPayloadWindow(registryWindows.back().get()), "a drained host slot admits a previously rejected registration");
+    Check(DxUi::PostMessagePayload(registryWindows.back().get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)),
+          "registration recovery restores payload delivery");
+    Check(DxUi::DrainPostedPayloadsForWindow(registryWindows.back().get()) == 1u && destroyed == 132u,
+          "recovered registration drains its payload exactly once");
     // A callback may destroy the current tree, including the slider dispatching the event.
     scene.slider->SetOnChange([&](DxUi::SliderChange) { scene.view.Controls().SetRoot(std::make_unique<DxUi::Panel>()); });
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 100, 184}), "root replacement during slider callback");

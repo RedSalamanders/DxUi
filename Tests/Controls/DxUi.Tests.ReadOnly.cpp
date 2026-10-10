@@ -76,6 +76,7 @@ void TestAttachedReadOnlyMultilineNativeHostSuppressesMutatingMessages()
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -83,7 +84,7 @@ void TestAttachedReadOnlyMultilineNativeHostSuppressesMutatingMessages()
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         Require(field->ExportTextInputState(state), "attached read-only multiline text field exports starting state");
@@ -153,6 +154,7 @@ void TestReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText()
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -160,7 +162,7 @@ void TestReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText()
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr, "native read-only multiline copy-shortcut test does not create a bridge child");
         Require(window.Host().HasActiveTextInput(), "native read-only multiline copy-shortcut test exposes active text input");
@@ -222,6 +224,7 @@ void TestReadOnlyMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboar
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -229,7 +232,7 @@ void TestReadOnlyMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboar
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr,
                 "native read-only multiline no-selection copy/cut shortcut test does not create a bridge child");
@@ -322,6 +325,7 @@ void TestAttachedReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndTex
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -329,7 +333,7 @@ void TestAttachedReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndTex
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(field->OnKeyDown(window.Host(), 'A', MK_CONTROL), "attached read-only multiline text field handles ctrl+a select-all");
         window.Host().SyncTextInput(field);
@@ -394,6 +398,7 @@ void TestAttachedReadOnlyMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchang
     using namespace DxUi;
 
     ::AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
     field->SetMultiline(true);
@@ -401,7 +406,7 @@ void TestAttachedReadOnlyMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchang
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
+    window.Host().SetFocusControl(field, false);
 
     Require(field->OnKeyDown(window.Host(), 'A', MK_CONTROL), "attached read-only multiline text field handles ctrl+a before undo/redo no-op checks");
     window.Host().SyncTextInput(field);
@@ -436,6 +441,7 @@ void TestAttachedReadOnlyMultilineNativeHostCopyWithoutSelectionLeavesClipboardU
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -443,7 +449,7 @@ void TestAttachedReadOnlyMultilineNativeHostCopyWithoutSelectionLeavesClipboardU
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -521,6 +527,7 @@ void TestAttachedReadOnlyMultilineNativeHostCutAndClearWithoutSelectionLeaveClip
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(L"alpha\nbeta\ncharlie");
         field->SetMultiline(true);
@@ -528,7 +535,7 @@ void TestAttachedReadOnlyMultilineNativeHostCutAndClearWithoutSelectionLeaveClip
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -663,6 +670,7 @@ void TestAttachedReadOnlyMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionL
     const auto verifyNoOp           = [&originalText](UINT virtualKey)
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(originalText);
         field->SetMultiline(true);
@@ -670,7 +678,7 @@ void TestAttachedReadOnlyMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionL
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -771,6 +779,7 @@ void TestAttachedReadOnlyMultilineNativeHostCtrlArrowKeepsCaretAligned()
     using namespace DxUi;
 
     ::AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ExposedTextField>(L"alpha beta\ngamma");
     field->SetMultiline(true);
@@ -778,7 +787,7 @@ void TestAttachedReadOnlyMultilineNativeHostCtrlArrowKeepsCaretAligned()
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 112.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
+    window.Host().SetFocusControl(field, false);
 
     Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr, "native read-only multiline ctrl+arrow sync test does not create a bridge child");
     Require(window.Host().HasActiveTextInput(), "native read-only multiline ctrl+arrow sync test exposes active text input");
@@ -897,6 +906,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostSuppressesMutatingMessages()
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -904,7 +914,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostSuppressesMutatingMessages()
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         Require(field->ExportTextInputState(state), "attached read-only wrapped multiline text field exports starting state");
@@ -975,6 +985,7 @@ void TestReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -982,7 +993,7 @@ void TestReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr, "native read-only wrapped multiline copy-shortcut test does not create a bridge child");
         Require(window.Host().HasActiveTextInput(), "native read-only wrapped multiline copy-shortcut test exposes active text input");
@@ -1044,6 +1055,7 @@ void TestReadOnlyWrappedMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveC
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -1051,7 +1063,7 @@ void TestReadOnlyWrappedMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveC
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr,
                 "native read-only wrapped multiline no-selection copy/cut shortcut test does not create a bridge child");
@@ -1143,6 +1155,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectio
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -1150,7 +1163,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectio
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         Require(field->OnKeyDown(window.Host(), 'A', MK_CONTROL), "attached read-only wrapped multiline text field handles ctrl+a select-all");
         window.Host().SyncTextInput(field);
@@ -1214,6 +1227,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostUndoRedoLeaveTextAndSelection
     using namespace DxUi;
 
     ::AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
     field->SetMultiline(true);
@@ -1221,7 +1235,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostUndoRedoLeaveTextAndSelection
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 96.0f, 96.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
+    window.Host().SetFocusControl(field, false);
 
     Require(field->OnKeyDown(window.Host(), 'A', MK_CONTROL), "attached read-only wrapped multiline text field handles ctrl+a before undo/redo no-op checks");
     window.Host().SyncTextInput(field);
@@ -1255,6 +1269,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCopyWithoutSelectionLeavesCli
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -1262,7 +1277,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCopyWithoutSelectionLeavesCli
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -1341,6 +1356,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCutAndClearWithoutSelectionLe
                 []() -> bool
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(std::wstring(kWrappedMultilineClipboardTextForTest));
         field->SetMultiline(true);
@@ -1348,7 +1364,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCutAndClearWithoutSelectionLe
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -1485,6 +1501,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCtrlBackspaceDeleteWithoutSel
     const auto verifyNoOp           = [&originalText](UINT virtualKey)
     {
         ::AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         auto root   = std::make_unique<Panel>();
         auto* field = root->AddChild<ExposedTextField>(originalText);
         field->SetMultiline(true);
@@ -1492,7 +1509,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCtrlBackspaceDeleteWithoutSel
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 96.0f));
 
         window.Host().SetRoot(std::move(root));
-        window.Host().SetFocusControl(field);
+        window.Host().SetFocusControl(field, false);
 
         TextInputState state{};
         state.text       = field->GetText();
@@ -1595,6 +1612,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCtrlArrowKeepsCaretAligned()
     using namespace DxUi;
 
     ::AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ExposedTextField>(L"alpha bravo charlie delta echo foxtrot golf hotel");
     field->SetMultiline(true);
@@ -1602,7 +1620,7 @@ void TestAttachedReadOnlyWrappedMultilineNativeHostCtrlArrowKeepsCaretAligned()
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 72.0f, 96.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
+    window.Host().SetFocusControl(field, false);
 
     Require(FindTextInputBridgeEdit(window.Hwnd()) == nullptr, "native read-only wrapped multiline ctrl+arrow sync test does not create a bridge child");
     Require(window.Host().HasActiveTextInput(), "native read-only wrapped multiline ctrl+arrow sync test exposes active text input");

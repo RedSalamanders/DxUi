@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 30 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries
+FAILED: application callbacks run without the global accessibility snapshot mutex

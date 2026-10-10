@@ -1,0 +1,1 @@
+- Git preserves original bytes in the retained production-review packet and hashed scheduling/qualification records, so checkout line-ending conversion cannot invalidate their recorded SHA-256 identities.

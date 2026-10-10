@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityTreeItemsReportClippedViewportVisibility
+FAILED: only the fully clipped row reports offscreen; a partially visible row remains onscreen

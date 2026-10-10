@@ -1,0 +1,106 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] ComboBox
+  [START] TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself
+=================================================================
+==29592==ERROR: AddressSanitizer: heap-use-after-free on address 0x11ccb36a12a8 at pc 0x7ff6d13579dd bp 0x0068c9d7b470 sp 0x0068c9d7b478
+READ of size 8 at 0x11ccb36a12a8 thread T0
+    #0 0x7ff6d13579dc in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator= C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484
+    #1 0x7ff6d147fed0 in ``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1278
+    #2 0x7ff6d148f72e in std::invoke<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1> &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1801
+    #3 0x7ff6d1483596 in std::_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1007
+    #4 0x7ff6d20a7162 in std::_Func_class<bool>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #5 0x7ff6d208dd23 in DxUi::ComboBox::RequestPopup Z:\src\DxUi\src\Controls\DxUi.ComboBox.cpp:2410
+    #6 0x7ff6d207fc14 in DxUi::ComboBox::OnKeyDown Z:\src\DxUi\src\Controls\DxUi.ComboBox.cpp:1506
+    #7 0x7ff6d147fb7a in `anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1282
+    #8 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #9 0x7ff6d1480435 in RunComboBoxTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1294
+    #10 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #11 0x7ff6d15216b8 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:549
+    #12 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #13 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #14 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #15 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #16 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #17 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x11ccb36a12a8 is located 40 bytes inside of 56-byte region [0x11ccb36a1280,0x11ccb36a12b8)
+freed by thread T0 here:
+    #0 0x7ff6d23b5453 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff6d1492040 in std::_Ref_count_obj2<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403c2040)
+    #2 0x7ff6d1494ce2 in std::_Ref_count_obj2<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:2153
+    #3 0x7ff6d13b3c91 in std::_Ref_count_base::_Decwref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1190
+    #4 0x7ff6d13b3aba in std::_Ref_count_base::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1184
+    #5 0x7ff6d1494be7 in std::_Ptr_base<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1408
+    #6 0x7ff6d1491a4e in std::shared_ptr<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > >::~shared_ptr<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1713
+    #7 0x7ff6d14803e5 in ``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>::~<lambda_1>+0x15 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403b03e5)
+    #8 0x7ff6d1483689 in std::_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>::~_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403b3689)
+    #9 0x7ff6d14836b6 in std::_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1403b36b6)
+    #10 0x7ff6d1483644 in std::_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1027
+    #11 0x7ff6d1450820 in std::_Func_class<bool>::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1138
+    #12 0x7ff6d20a6745 in std::function<bool __cdecl(void)>::operator= C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1299
+    #13 0x7ff6d20743d1 in DxUi::ComboBox::SetOnPopupRequested Z:\src\DxUi\src\Controls\DxUi.ComboBox.cpp:733
+    #14 0x7ff6d147fe02 in ``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1277
+    #15 0x7ff6d148f72e in std::invoke<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1> &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1801
+    #16 0x7ff6d1483596 in std::_Func_impl_no_alloc<``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>,bool>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1007
+    #17 0x7ff6d20a7162 in std::_Func_class<bool>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #18 0x7ff6d208dd23 in DxUi::ComboBox::RequestPopup Z:\src\DxUi\src\Controls\DxUi.ComboBox.cpp:2410
+    #19 0x7ff6d207fc14 in DxUi::ComboBox::OnKeyDown Z:\src\DxUi\src\Controls\DxUi.ComboBox.cpp:1506
+    #20 0x7ff6d147fb7a in `anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1282
+    #21 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #22 0x7ff6d1480435 in RunComboBoxTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1294
+    #23 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #24 0x7ff6d15216b8 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:549
+    #25 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #26 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #27 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #28 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+
+previously allocated by thread T0 here:
+    #0 0x7ff6d23b5335 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff6d148fa0c in std::make_shared<std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >,wchar_t const (&)[26]> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:2944
+    #2 0x7ff6d147ff5e in ``anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself'::`2'::<lambda_1>::<lambda_1> Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1275
+    #3 0x7ff6d147faa6 in `anonymous namespace'::TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1275
+    #4 0x7ff6d139b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6d1480435 in RunComboBoxTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.ComboBox.cpp:1294
+    #6 0x7ff6d1526425 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6d15216b8 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:549
+    #8 0x7ff6d23b7738 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6d23b7651 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6d23b750d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6d23b77ad in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1484 in std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::operator=
+Shadow bytes around the buggy address:
+  0x11ccb36a1000: 00 00 04 fa fa fa fa fa 00 00 00 00 00 00 00 05
+  0x11ccb36a1080: fa fa fa fa 00 00 00 00 00 00 00 00 fa fa fa fa
+  0x11ccb36a1100: fd fd fd fd fd fd fd fa fa fa fa fa 00 00 00 00
+  0x11ccb36a1180: 00 00 00 00 fa fa fa fa 00 00 00 00 00 00 00 fa
+  0x11ccb36a1200: fa fa fa fa 00 00 00 00 00 00 00 fa fa fa fa fa
+=>0x11ccb36a1280: fd fd fd fd fd[fd]fd fa fa fa fa fa fd fd fd fd
+  0x11ccb36a1300: fd fd fd fd fa fa fa fa fd fd fd fd fd fd fd fd
+  0x11ccb36a1380: fa fa fa fa fd fd fd fd fd fd fd fd fa fa fa fa
+  0x11ccb36a1400: fd fd fd fd fd fd fd fd fa fa fa fa fd fd fd fd
+  0x11ccb36a1480: fd fd fd fd fa fa fa fa fd fd fd fd fd fd fd fd
+  0x11ccb36a1500: fa fa fa fa fd fd fd fd fd fd fd fd fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==29592==ABORTING

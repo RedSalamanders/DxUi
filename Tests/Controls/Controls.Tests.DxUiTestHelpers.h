@@ -5,6 +5,7 @@
 #include "../../src/Controls/DxUi.h"
 #include "../../src/Support/Diagnostics.h"
 #include "../../src/Support/WindowMessages.h"
+#include "../Support/Support.Tests.DesktopLease.h"
 #include "../Support/Support.Tests.TestWatchdog.h"
 #include "../Support/Support.Tests.TestWindowActivationGuard.h"
 
@@ -178,6 +179,10 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
 [[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
+    if (DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread())
+    {
+        return false;
+    }
     if (! TryFocusDxUiTestWindow(hwnd, timeoutMs))
     {
         return false;
@@ -190,7 +195,18 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
     if (SetForegroundWindow(hwnd) == FALSE && GetForegroundWindow() != hwnd)
     {
-        return false;
+        // Authorized foreground fixtures need a real foreground grant, not only thread-local active/focus state.
+        // Reuse the lease backend's scoped input attachment; it detaches before this helper checks the result.
+        DxUi::TestSupport::Win32DesktopBackend desktop;
+        if (! desktop.BringToForeground(hwnd) && GetForegroundWindow() != hwnd)
+        {
+            return false;
+        }
+        // Input attachment shares focus state; re-establish this thread's target after the queues are detached.
+        if (GetFocus() != hwnd && ! TryFocusDxUiTestWindow(hwnd, timeoutMs))
+        {
+            return false;
+        }
     }
 
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
@@ -198,13 +214,13 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     {
         if (GetForegroundWindow() == hwnd)
         {
-            return true;
+            return GetFocus() == hwnd;
         }
 
         Sleep(10);
     } while (GetTickCount64() < deadline);
 
-    return GetForegroundWindow() == hwnd;
+    return GetForegroundWindow() == hwnd && GetFocus() == hwnd;
 }
 
 inline void RequireColorNear(const D2D1_COLOR_F& actual, const D2D1_COLOR_F& expected, const char* message)
@@ -248,6 +264,14 @@ inline void RequirePointNear(const POINT& actual, const POINT& expected, const c
         std::cerr << "FAILED: " << message << " hr=0x" << std::hex << static_cast<unsigned long>(hr) << std::dec << '\n';
         std::exit(1);
     }
+}
+
+[[nodiscard]] inline std::wstring ReadTextRangeText(ITextRangeProvider& range, int maxLength, const char* context)
+{
+    BSTR text = nullptr;
+    RequireSucceeded(range.GetText(maxLength, &text), context);
+    const auto freeText = wil::scope_exit([&] { SysFreeString(text); });
+    return std::wstring(text ? text : L"");
 }
 
 inline void RequireRectNear(const RECT& actual, const RECT& expected, const char* message)
@@ -661,8 +685,11 @@ inline D2D1_COLOR_F BlendForTest(const D2D1_COLOR_F& a, const D2D1_COLOR_F& b, f
 
 inline D2D1_COLOR_F ChooseContrastingTextColorForTest(const D2D1_COLOR_F& background) noexcept
 {
-    const float luminance = background.r * 0.2126f + background.g * 0.7152f + background.b * 0.0722f;
-    return luminance >= 0.55f ? D2D1::ColorF(0.06f, 0.06f, 0.06f, 1.0f) : D2D1::ColorF(0.98f, 0.98f, 0.98f, 1.0f);
+    const double luminance = DxUi::Detail::RelativeLuminanceFromSrgb(
+        std::clamp(background.r, 0.0f, 1.0f), std::clamp(background.g, 0.0f, 1.0f), std::clamp(background.b, 0.0f, 1.0f));
+    const double blackContrast = DxUi::Detail::ContrastRatioFromRelativeLuminance(luminance, 0.0);
+    const double whiteContrast = DxUi::Detail::ContrastRatioFromRelativeLuminance(1.0, luminance);
+    return whiteContrast >= blackContrast ? D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f) : D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 [[maybe_unused]] inline uint32_t PackColorForTest(const D2D1_COLOR_F& color) noexcept
@@ -1720,7 +1747,7 @@ public:
     }
 };
 
-class CollapsibleGroupedGridDelegate final : public RecordingGridDelegate
+class CollapsibleGroupedGridDelegate : public RecordingGridDelegate
 {
 public:
     using RecordingGridDelegate::OnGridGroupToggled;
@@ -2135,6 +2162,12 @@ private:
 class RecordingTreeDelegate final : public DxUi::ITreeDelegate
 {
 public:
+    void OnTreeFocusedItemChanged(DxUi::Tree&, std::optional<uint64_t> itemId) override
+    {
+        ++focusChangedCount;
+        lastFocusedItemId = itemId;
+    }
+
     void OnTreeSelectionChanged(uint64_t itemId) override
     {
         ++selectionChangedCount;
@@ -2183,6 +2216,7 @@ public:
 
     size_t selectionChangedCount    = 0u;
     size_t selectionSetChangedCount = 0u;
+    size_t focusChangedCount        = 0u;
     size_t invokedCount             = 0u;
     size_t toggleCount              = 0u;
     size_t contextMenuCount         = 0u;
@@ -2197,7 +2231,8 @@ public:
     std::vector<uint64_t> idsSeenByReorderCallback;
     std::string callOrder;
     DxUi::TreeDrop lastDrop{};
-    uint64_t lastSelectedItemId    = 0u;
+    uint64_t lastSelectedItemId = 0u;
+    std::optional<uint64_t> lastFocusedItemId;
     uint64_t lastInvokedItemId     = 0u;
     uint64_t lastToggledItemId     = 0u;
     uint64_t lastContextMenuItemId = 0u;

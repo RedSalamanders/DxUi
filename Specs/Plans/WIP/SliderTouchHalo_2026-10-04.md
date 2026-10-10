@@ -1,7 +1,9 @@
 # Slider touch thumb and halo
 
-- **Status**: ACTIVE (4 October 2026). Implemented and validated locally; the hosted paired benchmark, the merge and the
-  consumers' `PointerEvent::device` remain.
+- **Status**: ACTIVE (9 October 2026). The library implementation merged in #62 and the hosted paired comparison passed
+  before merge (run 37201375166). Physical-touch qualification and the accepted Q26 clipping/overlap checks remain;
+  consumer API-revision-4 pin and `PointerEvent::device` adoption are tracked separately in
+  [the handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 - **Owner**: Slider, input hosting, gallery and design system.
 - **Scope**: Adopt the thumb geometry of `codex/slider-touch-review` (`2b4f7bf`) on current main, whose behavior fixes
   #25 already ported, and add touch feedback: a translucent halo of the 48 DIP grab area while a touch contact drags
@@ -23,13 +25,19 @@ thumb, so feedback has to show around it.
 - [x] Gallery tile `Slider / Touch pressed` and regenerated sheets; the design system's Slider guideline, preview and
   tokens.
 - [x] Specifications and usage documentation.
-- [ ] The hosted paired benchmark's verdict on the pull request. On 9 September this geometry measured a median clean
+- [x] The hosted paired benchmark's verdict on the pull request: passed before merge in run 37201375166. On 9 September this geometry measured a median clean
   private-byte rise of about 0.5 MiB on the branch, which the developer accepted then; the halo paints only during a
   touch drag, which no benchmark scenario makes.
 - [x] Republish the design system artifact (version 19): the new gallery sheets, and the Slider guideline, preview,
   preview styles and tokens, with `design-system.json` naming the new uploads in the repository too.
-- [ ] Merge.
-- [ ] Consumers pass `PointerEvent::device` from their embedded input (RedXe, RedSalamander), each in its own change.
+- [x] Merge in #62.
+- [ ] Add/verify parent and viewport clipping for the halo and record visual-overlap plus hit-test behavior near
+  neighboring controls and menus, as accepted by Q26. The current spec permits painting beyond the control bounds;
+  this review has not qualified overlap behavior.
+- [ ] Qualify the behavior on physical touch hardware; synthetic `PointerDevice::Touch` and message-extra-info tests are
+  implementation evidence, not device acceptance.
+- [ ] Consumers pass `PointerEvent::device` from their embedded input in their own API-revision-4 pin/adoption changes;
+  see the handoff register.
 
 ## Validation
 

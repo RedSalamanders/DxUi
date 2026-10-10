@@ -130,13 +130,6 @@ using DxUi::Detail::StableVisualHash32Utf16V1;
     return ContrastRatio(white, color) >= ContrastRatio(black, color) ? white : black;
 }
 
-// How a possibly translucent color paints over an opaque ground.
-[[nodiscard]] D2D1_COLOR_F PaintedOver(const D2D1_COLOR_F& color, const D2D1_COLOR_F& ground) noexcept
-{
-    const float alpha = ClampUnit(color.a);
-    return D2D1::ColorF(ground.r + (color.r - ground.r) * alpha, ground.g + (color.g - ground.g) * alpha, ground.b + (color.b - ground.b) * alpha, 1.0f);
-}
-
 // One alert tone (a fill and its text). A pair the application supplies is used as given. A color it leaves out comes
 // from the tone's default, so info, warning and error stay distinct; a high-contrast theme, whose system palette has
 // no tones, uses its text on its window background instead. Contrast is measured on what paints: a fill over the
@@ -153,13 +146,20 @@ void ResolveAlertTone(uint32_t suppliedFillArgb,
                       D2D1_COLOR_F& text) noexcept
 {
     constexpr double kReadableContrast = 4.5;
-    const bool fillSupplied            = (suppliedFillArgb >> 24) != 0u;
-    const bool textSupplied            = (suppliedTextArgb >> 24) != 0u;
-    fill                               = fillSupplied ? ColorFromArgb(suppliedFillArgb) : (palette.highContrast ? palette.windowBackground : defaultFill);
-    text                               = textSupplied ? ColorFromArgb(suppliedTextArgb) : (palette.highContrast ? palette.text : defaultText);
-    const D2D1_COLOR_F window          = PaintedOver(palette.windowBackground, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f));
-    const auto contrastOn = [](const D2D1_COLOR_F& ink, const D2D1_COLOR_F& ground) noexcept { return ContrastRatio(PaintedOver(ink, ground), ground); };
-    const D2D1_COLOR_F paintedFill = PaintedOver(fill, window);
+    if (palette.highContrast)
+    {
+        fill = palette.windowBackground;
+        text = palette.text;
+        return;
+    }
+    const bool fillSupplied   = (suppliedFillArgb >> 24) != 0u;
+    const bool textSupplied   = (suppliedTextArgb >> 24) != 0u;
+    fill                      = fillSupplied ? ColorFromArgb(suppliedFillArgb) : (palette.highContrast ? palette.windowBackground : defaultFill);
+    text                      = textSupplied ? ColorFromArgb(suppliedTextArgb) : (palette.highContrast ? palette.text : defaultText);
+    const D2D1_COLOR_F window = CompositeOverBackground(palette.windowBackground, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f));
+    const auto contrastOn     = [](const D2D1_COLOR_F& ink, const D2D1_COLOR_F& ground) noexcept
+    { return ContrastRatio(CompositeOverBackground(ink, ground), ground); };
+    const D2D1_COLOR_F paintedFill = CompositeOverBackground(fill, window);
     if ((fillSupplied && textSupplied) || contrastOn(text, paintedFill) >= kReadableContrast)
         return;
     if (! textSupplied)
@@ -246,8 +246,22 @@ D2D1_COLOR_F RainbowFolderViewSelectionTint(uint32_t stableHash32, bool dark) no
 
 D2D1_COLOR_F ChooseContrastingTextColor(const D2D1_COLOR_F& background) noexcept
 {
-    const float luminance = background.r * 0.2126f + background.g * 0.7152f + background.b * 0.0722f;
-    return luminance >= 0.55f ? D2D1::ColorF(0.06f, 0.06f, 0.06f, 1.0f) : D2D1::ColorF(0.98f, 0.98f, 0.98f, 1.0f);
+    return MostContrastingNeutral(background);
+}
+
+D2D1_COLOR_F ResolveInactiveSelectionTextColor(const ThemePalette& theme, const D2D1_COLOR_F& preferredText, const D2D1_COLOR_F& paintedGround) noexcept
+{
+    if (theme.highContrast)
+    {
+        return theme.selectionText;
+    }
+
+    const D2D1_COLOR_F paintedFill = CompositeOverBackground(theme.selectionInactiveFill, paintedGround);
+    if (ContrastRatio(CompositeOverBackground(preferredText, paintedFill), paintedFill) >= 4.5)
+    {
+        return preferredText;
+    }
+    return ChooseContrastingTextColor(paintedFill);
 }
 
 void ResolveAdornmentColors(const ThemePalette& theme, AdornmentTone tone, D2D1_COLOR_F& fill, D2D1_COLOR_F& text) noexcept

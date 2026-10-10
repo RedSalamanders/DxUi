@@ -1,0 +1,547 @@
+[
+  {
+    "retained": "p001.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A1.json",
+    "sha256": "C3218B4A7E74D055675505C1722534FB276A7230E70F44D4B46C37E22C3EBA0E"
+  },
+  {
+    "retained": "p002.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p003.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A2-vs-A1-control.comparison.json",
+    "sha256": "CD9494CCB0DD9507C2576DED7ECB02AC860D2B8B4ECA18C93C0098BFE4DD31A8"
+  },
+  {
+    "retained": "p004.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A2.json",
+    "sha256": "360D4602EDE1CA07206CAEB9BD87E3A985A1913E54D1214B9CE16A153E842F15"
+  },
+  {
+    "retained": "p005.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p006.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A3.json",
+    "sha256": "7A7287A0DD83FDEC0C0AD7C4E60AFE754DC7F0845417962525853AA4269A3533"
+  },
+  {
+    "retained": "p007.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p008.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A4-vs-A3-control.comparison.json",
+    "sha256": "A00A7DC306B3F2AB5B05AF1F287E03675FD660E46F08F04DE812FA1C03A2D29C"
+  },
+  {
+    "retained": "p009.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A4.json",
+    "sha256": "C12CF868A11BE0025FCCD4C1AB0EFC5E461BFC2CE612E4B8B3D4050144B01ACC"
+  },
+  {
+    "retained": "p010.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p011.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A5.json",
+    "sha256": "F636D29C3E6E8827F74685F5947EEAD6CB69626447749F9444ABA97766100A06"
+  },
+  {
+    "retained": "p012.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p013.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A6-vs-A5-control.comparison.json",
+    "sha256": "76EA4857716E1C51F5531679F2BF6C3A81F9237BC4FE7D3DB272C03C76A44622"
+  },
+  {
+    "retained": "p014.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A6.json",
+    "sha256": "4D27757B1FB8C7327831EB0AFA24DA6DA5CFB008E5750AA2E610F03EA02F5A62"
+  },
+  {
+    "retained": "p015.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-A6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p016.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B1-vs-A1.comparison.json",
+    "sha256": "F329ADC55F2F325EA1C15C56133BA58FE92997DB92EA362CBCDB5CF50C6B8BAB"
+  },
+  {
+    "retained": "p017.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B1.json",
+    "sha256": "F41E8849A0437C1FBA0406D658B46B50BFEE21AF3FA04B8081A3D5D66870117D"
+  },
+  {
+    "retained": "p018.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p019.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B2-vs-A2.comparison.json",
+    "sha256": "29B3610F08808DB463DFB4E731E0375C8BE6795599C659A25E49636070F09533"
+  },
+  {
+    "retained": "p020.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B2-vs-B1-control.comparison.json",
+    "sha256": "15076DBA8FB35FD3326C69A15621708E9918A451AF4C32AEA6EC46494DA561DE"
+  },
+  {
+    "retained": "p021.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B2.json",
+    "sha256": "E02B2145B0558C602ABD6034B73BDB97B9F0420A70E91271325EA54E814FC003"
+  },
+  {
+    "retained": "p022.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p023.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B3-vs-A3.comparison.json",
+    "sha256": "5741E94A840D7EC5456F992CB4594228EAFE12375B73B1DA52DF9A44ED93F718"
+  },
+  {
+    "retained": "p024.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B3.json",
+    "sha256": "AB69BF16986CD71DAA254015439040EED071148B850EDC3F5B359BB9ED8F185B"
+  },
+  {
+    "retained": "p025.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p026.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B4-vs-A4.comparison.json",
+    "sha256": "A1F2ED4022951DDBB83F8703245659D90F8BCAC9BAB5EDB9A8A4F8EB8A14A327"
+  },
+  {
+    "retained": "p027.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B4-vs-B3-control.comparison.json",
+    "sha256": "C9F124A763A974C7A7940DBCFCA44C48CEBB35F71216358D28C3C8A88EE93340"
+  },
+  {
+    "retained": "p028.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B4.json",
+    "sha256": "83828F4B2E407DDA3714DF9AAE906526EAF8556B65560B6AC9C8AC1A2D0B9D73"
+  },
+  {
+    "retained": "p029.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p030.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B5-vs-A5.comparison.json",
+    "sha256": "C0A5F48D55AB762C7A467AFA7D58F769E52A5A32D74B362CC68EE4625CF6BDD0"
+  },
+  {
+    "retained": "p031.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B5.json",
+    "sha256": "E1BF06BD67008C9533DB58FA18EB374DBC1EC3E3DF9226111A9924AFA28AD2A2"
+  },
+  {
+    "retained": "p032.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p033.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B6-vs-A6.comparison.json",
+    "sha256": "404CB37FCAF82BC7B1DC0967FB7DFF88D89FA95D70DA5E1ED35C7AE30FB9910B"
+  },
+  {
+    "retained": "p034.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B6-vs-B5-control.comparison.json",
+    "sha256": "621BB79EFFD10D99EBBAFB735DF53ED886371C600D10F6F453CD9D99DE744C95"
+  },
+  {
+    "retained": "p035.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B6.json",
+    "sha256": "EBAE3DAA5111A48C34C17CDF8C48C8A90C7545491F7A1FAFA33915392CB2BFA6"
+  },
+  {
+    "retained": "p036.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\Default-B6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p037.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A1.json",
+    "sha256": "0986CAF1F7BE87D63033999719AA9E7B4CEA9469E7FE61D474ECDC91E37F9662"
+  },
+  {
+    "retained": "p038.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p039.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A2-vs-A1-control.comparison.json",
+    "sha256": "6FAA91D389279B65B45F67724EF873C5877FCB7BBED51F8390A4452EB3E27E88"
+  },
+  {
+    "retained": "p040.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A2.json",
+    "sha256": "5CA6854FC452D346C1DE3493954D9B7D8F24E0DD8305C4BF4B6A704447A41D02"
+  },
+  {
+    "retained": "p041.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p042.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A3.json",
+    "sha256": "14290D361449232FE4D50A434EDB4CE79600C22218205B97505D2188ABE7BF1F"
+  },
+  {
+    "retained": "p043.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p044.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A4-vs-A3-control.comparison.json",
+    "sha256": "15BFFC90F159FE43F0ABCB34782F9E4460910B2B1AA174E1CA72158826208C98"
+  },
+  {
+    "retained": "p045.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A4.json",
+    "sha256": "C84B6CB8D7E26F2A9AF8B383B590D7E5B10E5630BE1349A82A3055548FCF9590"
+  },
+  {
+    "retained": "p046.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p047.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A5.json",
+    "sha256": "E6493C7EDAEC82E9A4F7A7C7A726C5CCC645D03DC3BC6DB00431E66C0B4F6C61"
+  },
+  {
+    "retained": "p048.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p049.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A6-vs-A5-control.comparison.json",
+    "sha256": "6BBBAB191C4CBEBF27E4F531D599C3A3D0CD908419005ADFF3D6ABE8061A548B"
+  },
+  {
+    "retained": "p050.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A6.json",
+    "sha256": "1A7829DCF6EB29A0EB1D201F9AF1C5FD4E8B216282E99AA3834F5A652AF34715"
+  },
+  {
+    "retained": "p051.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-A6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p052.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B1-vs-A1.comparison.json",
+    "sha256": "7011F933277E42E393867DD2597BB9081257FE030794AF38BD6637FC6AC3CC84"
+  },
+  {
+    "retained": "p053.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B1.json",
+    "sha256": "F7F14F899B4B0A4B5396278E147149490F8091A132A3B87E18E42ADE131C7CB3"
+  },
+  {
+    "retained": "p054.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p055.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B2-vs-A2.comparison.json",
+    "sha256": "BFD90C58D39404E752996E6F6AC5EA8C7400C1FF36FCF52D081E5F0E59F58EB8"
+  },
+  {
+    "retained": "p056.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B2-vs-B1-control.comparison.json",
+    "sha256": "A87E60DF09ED7B88A42165882F0FA6E9A3D8356F9050DDE07FAEA42B08A12F7B"
+  },
+  {
+    "retained": "p057.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B2.json",
+    "sha256": "BE8279C0A36EA2385EEC4BD932353EC31AC8E40B16467BCB4D338F038312A7B1"
+  },
+  {
+    "retained": "p058.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p059.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B3-vs-A3.comparison.json",
+    "sha256": "9CFC94D7630FE7F29F7A5569CE867E3E130A40998FE6819CE0186A56D8C01CB0"
+  },
+  {
+    "retained": "p060.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B3.json",
+    "sha256": "33B7CFD10B218536F06CAEF644601A0B933156BD89752C2F3B91720C8B8048BE"
+  },
+  {
+    "retained": "p061.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p062.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B4-vs-A4.comparison.json",
+    "sha256": "73AC97AE27B138C847E44953EAB8CD10B819159F00D97124DE84CBE64EC7C85A"
+  },
+  {
+    "retained": "p063.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B4-vs-B3-control.comparison.json",
+    "sha256": "4C397A735A15E0AA75D6F1549B6894DA766C74CFC1B109C0C0806DCFF0D28935"
+  },
+  {
+    "retained": "p064.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B4.json",
+    "sha256": "0F7EA952E6CA9B94AE879F21958DB0BA64274BF1995BE81643232563B832DFD8"
+  },
+  {
+    "retained": "p065.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p066.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B5-vs-A5.comparison.json",
+    "sha256": "26FAA53B969A09AD7A984868E2B7C0C3CF4391497B73ED5D6C0108AF2099B31D"
+  },
+  {
+    "retained": "p067.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B5.json",
+    "sha256": "4E23AD3583A82433A43EA394BA8B76AD0563A8616F9A340572F1F8EF2483EBE0"
+  },
+  {
+    "retained": "p068.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p069.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B6-vs-A6.comparison.json",
+    "sha256": "1674B729C4F6658858666BC460B7FB4F9FDC8C4ECE2D0BD032D3943291FD6D8D"
+  },
+  {
+    "retained": "p070.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B6-vs-B5-control.comparison.json",
+    "sha256": "4ED1E0FB5EE9D7DFB65476C478257736209C2740809B160DA0218CED60B0561D"
+  },
+  {
+    "retained": "p071.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B6.json",
+    "sha256": "CC6F26234CF42F792DBD237CB8CFDF99D6C31EA96CC1F83A6E892F0749FC71DF"
+  },
+  {
+    "retained": "p072.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGrid-B6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p073.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A1.json",
+    "sha256": "4FCD2FBE662D207602038D54D10B7EB1E77A9D66E55B6FD31A6D6451AD245F2A"
+  },
+  {
+    "retained": "p074.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p075.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A2-vs-A1-control.comparison.json",
+    "sha256": "DF59FF92F9B50D719161AD9A0679DD89D0B9C95A0AA6A8D497BD20B6E4CE354E"
+  },
+  {
+    "retained": "p076.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A2.json",
+    "sha256": "5983385BE981A1BC7A3F8B13320CF3493D7D793F6E2C7627B2800FC409A0F254"
+  },
+  {
+    "retained": "p077.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p078.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A3.json",
+    "sha256": "0C9C69C28F965CEB0FC5C161343ED0D525A3C455548342BED6DDACB37D11D6FD"
+  },
+  {
+    "retained": "p079.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p080.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A4-vs-A3-control.comparison.json",
+    "sha256": "6C74315C88D755FFDDC1222204C3395B605FEB6355BFC1F222BD2D20748AF0CB"
+  },
+  {
+    "retained": "p081.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A4.json",
+    "sha256": "BD6CE900E95759FB067B1FEC2D6FE401235B277AE3F8A16B5E443C413F689693"
+  },
+  {
+    "retained": "p082.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p083.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A5.json",
+    "sha256": "FAFB7BF8A1B7D3CA71E21151F972E539E1B494CDAE668BA98DC1F52184115914"
+  },
+  {
+    "retained": "p084.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p085.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A6-vs-A5-control.comparison.json",
+    "sha256": "61D3F0E5B227487E097C2B7A46BC2BE15292707F0393F2268B19641713C6698A"
+  },
+  {
+    "retained": "p086.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A6.json",
+    "sha256": "DFD97087177FDE97215D025589A82BB80081E06C9B5C69B703E0FDCEFAA1E679"
+  },
+  {
+    "retained": "p087.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-A6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p088.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B1-vs-A1.comparison.json",
+    "sha256": "8E12D8DED00F7568D19725D2FAE640968A6DD0601B846A1DF4D7EE061CC37FE3"
+  },
+  {
+    "retained": "p089.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B1.json",
+    "sha256": "5AC653FB0A5AC9346795473FDBC66972D12AAD362A3E4E1A4C7768F18F3B88C9"
+  },
+  {
+    "retained": "p090.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B1.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p091.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B2-vs-A2.comparison.json",
+    "sha256": "457696CDBEEC03626CB37E21482A25FD8A2B21FA7CCED0C51C42176D98F80205"
+  },
+  {
+    "retained": "p092.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B2-vs-B1-control.comparison.json",
+    "sha256": "8A52CFE4ABE46133C317548F5A896723B9F01954D37F48889BEE56833967008B"
+  },
+  {
+    "retained": "p093.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B2.json",
+    "sha256": "A2A8CE6F217382C480B7F5AB37A665CD26A67C5BF5B78DEB750779E2F477E41B"
+  },
+  {
+    "retained": "p094.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B2.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p095.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B3-vs-A3.comparison.json",
+    "sha256": "75B20C5D59BE23031621BD9D872EF86FAEB2EBAD473899F699F0C4CFDB3C3392"
+  },
+  {
+    "retained": "p096.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B3.json",
+    "sha256": "BA57E0DB48F06F70330C787BCCE0FC1E50DE5322B105FEFD3C9FFF01F593E294"
+  },
+  {
+    "retained": "p097.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B3.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p098.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B4-vs-A4.comparison.json",
+    "sha256": "09E993295361D0DF4EA5B5A73F757823DF15480952860BF10DF0896FE5D1E410"
+  },
+  {
+    "retained": "p099.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B4-vs-B3-control.comparison.json",
+    "sha256": "404A24F7BFA199027CB7A4189CA8B93909C92152086EAF41C2162BA52C8D76F2"
+  },
+  {
+    "retained": "p100.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B4.json",
+    "sha256": "4CB9E945C58A4443BC74881B1D1B7DCC3AB72B5F4E7646ABB8844D8169C1FCAE"
+  },
+  {
+    "retained": "p101.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B4.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p102.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B5-vs-A5.comparison.json",
+    "sha256": "4A162C27E728562C0C4A148CB5FA3B62B7ACB05781DEA8A62FE2216AEE2A213D"
+  },
+  {
+    "retained": "p103.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B5.json",
+    "sha256": "B3977CF6A5BD9D018191583B94F728A1685A64054109BA492605822918274AE2"
+  },
+  {
+    "retained": "p104.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B5.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p105.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B6-vs-A6.comparison.json",
+    "sha256": "319BEA3040B6B0FC2D7D4AC7155CB6350A54E3FAD44C5FC942FD0D1B1FF4FB6D"
+  },
+  {
+    "retained": "p106.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B6-vs-B5-control.comparison.json",
+    "sha256": "4F3334E037BED1AE590E49BF5DE9C078BC09823A5223730E9D963A5859E5AB22"
+  },
+  {
+    "retained": "p107.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B6.json",
+    "sha256": "16273E9822E31B00732EEDFA9028E575AE49585D16ED37212F7BC2FA85E75EC6"
+  },
+  {
+    "retained": "p108.comparison.json",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\MultilineGridDistinct-B6.json.comparison.json",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "retained": "p109.txt",
+    "original": "Z:\\src\\DxUi\\.build\\paired\\20261009T002849Z-bea676a1f841\\reports\\summary.json",
+    "sha256": "F9881B70CA08143D4F1A0C2C12595679E062946A8244DEF3C296C80D38E8B274"
+  }
+]

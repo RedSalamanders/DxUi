@@ -4,6 +4,32 @@
 namespace
 {
 
+struct ReentrantTooltipCaptureState
+{
+    size_t captureLostCount = 0u;
+};
+
+class ReentrantTooltipCaptureControl final : public DxUi::Control
+{
+public:
+    explicit ReentrantTooltipCaptureControl(ReentrantTooltipCaptureState& state) : _state(&state)
+    {
+    }
+
+    void Paint(DxUi::WindowHost& /*host*/) const override
+    {
+    }
+
+    void OnCaptureLost(DxUi::WindowHost& host) override
+    {
+        ++_state->captureLostCount;
+        static_cast<void>(host.InspectTooltip(L"Newer callback inspection", D2D1::Point2F(40.0f, 40.0f)));
+    }
+
+private:
+    ReentrantTooltipCaptureState* _state = nullptr;
+};
+
 // A native tooltip's deadlines are on the UI thread's animation dispatcher clock, which a tick moves by the time since the last
 // tick but by no more than the dispatcher's hitch clamp: a runner that stalls for a second moves it 50 ms. So the timer tests
 // decide nothing by wall-clock time. They keep the dispatcher ticking with a subscription of their own, take a deadline from its
@@ -190,6 +216,143 @@ void TestTooltipLayerWrapsLongTextAndStaysClamped()
     Require(longBounds.top >= clientBounds.top + 7.5f, "wrapped tooltip respects the top viewport margin");
     Require(longBounds.right <= clientBounds.right - 7.5f, "wrapped tooltip respects the right viewport margin");
     Require(longBounds.bottom <= clientBounds.bottom - 7.5f, "wrapped tooltip respects the bottom viewport margin");
+}
+
+void TestTooltipLayerClampsBothAxesInTinyViewport()
+{
+    using namespace DxUi;
+    WindowHost host;
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_SIZE, 0, MAKELPARAM(12, 9), handled));
+    host.SetTooltip(std::wstring(2000u, L'W'), D2D1::Point2F(1000, -1000));
+    const auto bounds = host.DebugGetTooltipBoundsDip();
+    const auto client = host.GetClientBoundsDip();
+    RequireRectHasArea(bounds, "tiny tooltip viewport still has a bounded visible surface");
+    Require(bounds.left >= client.left && bounds.top >= client.top && bounds.right <= client.right && bounds.bottom <= client.bottom,
+            "even a viewport smaller than normal padding contains the entire tooltip");
+}
+
+void TestTooltipInspectionScrollsWithoutChangingFocusOrValue()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Existing focus");
+    button->SetBounds(D2D1::RectF(0, 0, 180, 28));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(button, false);
+    std::wstring value = L"FIRST LINE\n";
+    for (size_t line = 0u; line < 100u; ++line)
+        value += L"Long inspection content that wraps inside this viewport.\n";
+    value += L"LAST LINE";
+    Require(window.Host().InspectTooltip(value, D2D1::Point2F(24, 40)), "full-value inspection opens");
+    const auto bounds = window.Host().DebugGetTooltipBoundsDip();
+    const auto client = window.Host().GetClientBoundsDip();
+    Require(bounds.bottom <= client.bottom && bounds.right <= client.right, "tall inspection is bounded by the client viewport");
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    window.PumpMessages();
+    WindowHostBitmapCapture first;
+    Require(window.Host().DebugCaptureBitmap(first), "capture the first inspection page without desktop activation");
+    Require(! window.Host().BeginTooltipHideDelay(0u) && ! window.Host().SetTooltipDelayed(L"Hover", D2D1::Point2F()),
+            "inspection survives hover deadlines and replacement");
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_END, 0, handled));
+    Require(handled, "host routes End to the inspection before the focused control");
+    WindowHostBitmapCapture last;
+    Require(window.Host().DebugCaptureBitmap(last) && first.bgraPixels != last.bgraPixels,
+            "End reveals a different full-value page within the same bounded surface");
+    Require(window.Host().DebugIsTooltipInspectionAtEnd(), "End places the actual final glyph cluster inside the clipped text viewport");
+    Require(window.Host().HandleTooltipInspectionKey(VK_HOME), "Home returns to the first page");
+    const auto inside = D2D1::Point2F((bounds.left + bounds.right) * 0.5f, bounds.top + 30.0f);
+    Require(window.Host().HandleTooltipInspectionPointer(WM_LBUTTONDOWN, inside) &&
+                window.Host().HandleTooltipInspectionPointer(WM_MOUSEMOVE, D2D1::Point2F(inside.x, inside.y - 80.0f)) &&
+                window.Host().HandleTooltipInspectionPointer(WM_LBUTTONUP, inside),
+            "touch-style drag scrolls the inspection without a control capture");
+    WindowHostBitmapCapture dragged;
+    Require(window.Host().DebugCaptureBitmap(dragged) && first.bgraPixels != dragged.bgraPixels, "drag reveals later inspection text");
+    Require(window.Host().GetFocusControl() == button && window.Host().GetTooltipText() == value,
+            "scrolling keeps logical focus and the complete Unicode value");
+    Require(window.Host().HandleTooltipInspectionKey(VK_ESCAPE) && ! window.Host().HasTooltip(), "Escape dismisses persistent inspection");
+}
+
+void TestTooltipInspectionMirrorsMixedScriptLayoutAndPlacement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    SetWindowPos(window.Hwnd(), nullptr, -32000, -32000, 920, 600, SWP_NOZORDER | SWP_NOACTIVATE);
+    auto root   = std::make_unique<Panel>();
+    auto* panel = root.get();
+    window.Host().SetRoot(std::move(root));
+    const D2D1_POINT_2F origin       = D2D1::Point2F(460.0f, 180.0f);
+    constexpr std::wstring_view text = L"مرحبا — ACME 123";
+
+    panel->SetFlowDirection(FlowDirection::LeftToRight);
+    Require(window.Host().InspectTooltip(std::wstring(text), origin), "LTR mixed-script inspection opens");
+    const auto ltrBounds = window.Host().DebugGetTooltipBoundsDip();
+    Require(ltrBounds.left > origin.x, "LTR inspection prefers the right side of its origin");
+    Require(window.Host().HandleTooltipInspectionKey(VK_ESCAPE), "LTR inspection closes");
+
+    panel->SetFlowDirection(FlowDirection::RightToLeft);
+    Require(window.Host().InspectTooltip(std::wstring(text), origin), "RTL mixed-script inspection opens");
+    const auto rtlBounds = window.Host().DebugGetTooltipBoundsDip();
+    Require(rtlBounds.right < origin.x, "RTL inspection mirrors placement to the left of its origin");
+    Require(rtlBounds.right < ltrBounds.left, "RTL and LTR mixed-script inspection placements differ across the origin");
+    Require(window.Host().GetTooltipText() == text, "flow mirroring preserves the original mixed-script text");
+}
+
+void TestTooltipInspectionOutsideDismissalConsumesWholeGesture()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Underlying action");
+    button->SetBounds(D2D1::RectF(200.0f, 120.0f, 310.0f, 170.0f));
+    size_t activations = 0u;
+    button->SetOnClick([&] { ++activations; });
+    window.Host().SetRoot(std::move(root));
+    Require(window.Host().InspectTooltip(L"Persistent inspection", D2D1::Point2F(10.0f, 10.0f)), "inspection opens for dismissal test");
+    constexpr LPARAM outside = MAKELPARAM(250, 140);
+    SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, outside);
+    Require(! window.Host().IsTooltipInspectionActive(), "outside down dismisses inspection");
+    SendMessageW(window.Hwnd(), WM_MOUSEMOVE, MK_LBUTTON, outside);
+    SendMessageW(window.Hwnd(), WM_MOUSELEAVE, 0, 0);
+    SendMessageW(window.Hwnd(), WM_RBUTTONUP, 0, outside);
+    SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, outside);
+    Require(activations == 0u, "native dismissal survives leave and unrelated release, consuming the initiating release");
+    SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, outside);
+    SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, outside);
+    Require(activations == 1u, "the next independent native gesture reaches the underlying action");
+
+    Require(window.Host().InspectTooltip(L"Inspection replaced during a gesture", D2D1::Point2F(10.0f, 10.0f)), "inspection reopens for replacement coverage");
+    SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, outside);
+    Require(window.Host().InspectTooltip(L"Replacement inspection", D2D1::Point2F(20.0f, 20.0f)), "a replacement inspection opens during dismissal");
+    Require(GetCapture() == window.Hwnd(), "replacement preserves capture until the initiating gesture completes");
+    SendMessageW(window.Hwnd(), WM_MOUSEMOVE, MK_LBUTTON, outside);
+    SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, outside);
+    Require(GetCapture() != window.Hwnd() && window.Host().GetTooltipText() == L"Replacement inspection",
+            "the actual HWND capture-change raised by the old gesture release preserves the replacement inspection");
+    SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, outside);
+    Require(GetCapture() == window.Hwnd(), "a fresh outside dismissal owns the host capture");
+    window.Host().ClearTooltip();
+    Require(GetCapture() != window.Hwnd() && ! window.Host().HasTooltip(), "explicit clear releases only the dismissal capture and removes the overlay");
+    SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, outside);
+    Require(activations == 1u, "clearing during the dismissing press still cannot invoke the underlying action");
+}
+
+void TestTooltipInspectionCaptureCallbackWinsReentrantOpen()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    ReentrantTooltipCaptureState state;
+    auto root     = std::make_unique<Panel>();
+    auto* capture = root->AddChild<ReentrantTooltipCaptureControl>(state);
+    window.Host().SetRoot(std::move(root));
+    window.Host().CaptureMouse(capture);
+    Require(window.Host().InspectTooltip(L"Outer inspection", D2D1::Point2F(20.0f, 20.0f)), "outer inspection returns the reentrant active state");
+    Require(state.captureLostCount == 1u, "opening inspection cancels the current captured control exactly once");
+    Require(window.Host().GetTooltipText() == L"Newer callback inspection", "a newer inspection opened by capture cancellation is preserved");
 }
 
 void TestTooltipLayerHideDelayExpiresAfterTimerTicks()
@@ -502,6 +665,11 @@ void RunTooltipTests()
     DXUI_RUN_TEST(TestTooltipLayerFlipsAboveNearBottomEdge);
     DXUI_RUN_TEST(TestTooltipLayerFlipsLeftNearRightEdge);
     DXUI_RUN_TEST(TestTooltipLayerWrapsLongTextAndStaysClamped);
+    DXUI_RUN_TEST(TestTooltipLayerClampsBothAxesInTinyViewport);
+    DXUI_RUN_TEST(TestTooltipInspectionScrollsWithoutChangingFocusOrValue);
+    DXUI_RUN_TEST(TestTooltipInspectionMirrorsMixedScriptLayoutAndPlacement);
+    DXUI_RUN_TEST(TestTooltipInspectionOutsideDismissalConsumesWholeGesture);
+    DXUI_RUN_TEST(TestTooltipInspectionCaptureCallbackWinsReentrantOpen);
     DXUI_RUN_TEST(TestTooltipLayerHideDelayExpiresAfterTimerTicks);
     DXUI_RUN_TEST(TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick);
     DXUI_RUN_TEST(TestTooltipLayerTrackingMoveCancelsPendingHideDelay);

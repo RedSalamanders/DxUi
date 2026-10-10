@@ -188,6 +188,80 @@ Invoke-FixtureCase 'a failed overlay leaves the tree as it was found' {
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tests'))) 'the created file is gone'
 }
 
+Invoke-FixtureCase 'overlay corruption fails before use and restores both replaced and partially created files' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    Set-FixtureFile $source 'performance.ps1' "current harness`n"
+    Set-FixtureFile $target 'performance.ps1' "original tree`n"
+    $module = Get-Module PairedRun
+    & $module {
+        function script:Copy-Item {
+            param([string] $LiteralPath, [string] $Destination, [switch] $Force)
+            Microsoft.PowerShell.Management\Copy-Item -LiteralPath $LiteralPath -Destination $Destination -Force:$Force
+            if ((Split-Path (Split-Path $LiteralPath) -Leaf) -ceq 'harness') {
+                [IO.File]::AppendAllText($Destination, "`0")
+            }
+        }
+    }
+    try {
+        $message = Get-ErrorMessage { Copy-HarnessOverlay -Source $source -Target $target -Paths @('performance.ps1') -BackupDirectory $backup }
+        Assert-True $message.Contains('Benchmark harness bytes do not match') 'a copy that returns success with wrong bytes is refused'
+        Assert-Equal "original tree`n" ([IO.File]::ReadAllText((Join-Path $target 'performance.ps1'))) 'the current failed replacement is restored too'
+        $newTarget = Join-Path $root 'new-tree'
+        $message = Get-ErrorMessage { Copy-HarnessOverlay -Source $source -Target $newTarget -Paths @('performance.ps1') -BackupDirectory $backup }
+        Assert-True $message.Contains('Benchmark harness bytes do not match') 'an incomplete created copy is refused'
+        Assert-True (-not (Test-Path -LiteralPath $newTarget)) 'the failed created file and only its empty ancestors are removed'
+    } finally { & $module { Remove-Item Function:Copy-Item } }
+}
+
+Invoke-FixtureCase 'harness attestation rejects later mutation, missing inputs and changed legacy aliases' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $path = 'Tests/Embedded/Embedded.Tests.BenchmarkMain.h'
+    $legacy = 'Tests/Embedded/BenchmarkMain.h'
+    Set-FixtureFile $source $path "current compiled fixture`n"
+    Set-FixtureFile $target $legacy "old fixture`n"
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @($path))
+    Assert-HarnessOverlay -Target $target -Records $records
+    Set-FixtureFile $target $legacy "changed after overlay`n"
+    Assert-Throws { Assert-HarnessOverlay -Target $target -Records $records } 'a legacy alias changed after the overlay is rejected'
+    Set-FixtureFile $target $legacy "current compiled fixture`n"
+    Remove-Item -LiteralPath (Join-Path $target $path)
+    Assert-Throws { Assert-HarnessOverlay -Target $target -Records $records } 'a missing recorded input is rejected'
+}
+
+Invoke-FixtureCase 'a changed backup is refused without copying it and other originals still return' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    foreach ($path in @('first.ps1','second.ps1')) {
+        Set-FixtureFile $source $path "current $path`n"
+        Set-FixtureFile $target $path "original $path`n"
+    }
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @('first.ps1','second.ps1') -BackupDirectory $backup)
+    Set-FixtureFile $backup 'first.ps1' "corrupted backup`n"
+    $message = Get-ErrorMessage { Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup }
+    Assert-True $message.Contains('backup no longer matches the original: first.ps1') 'the changed backup is named'
+    Assert-Equal "current first.ps1`n" ([IO.File]::ReadAllText((Join-Path $target 'first.ps1'))) 'untrusted backup bytes never overwrite the target'
+    Assert-Equal "original second.ps1`n" ([IO.File]::ReadAllText((Join-Path $target 'second.ps1'))) 'later unaffected originals are restored despite the first failure'
+}
+
+Invoke-TestCase 'the driver verifies the overlaid bytes around every measurement and before build reuse' {
+    $text = [IO.File]::ReadAllText((Join-Path $repository 'performance-paired.ps1'))
+    $start = $text.IndexOf('function Invoke-Measurement(')
+    $end = $text.IndexOf('function Compare-Measurement(', $start)
+    $measurement = $text.Substring($start, $end - $start)
+    $call = $measurement.IndexOf("'performance.ps1'")
+    Assert-True ($measurement.IndexOf('Assert-HarnessOverlay') -lt $call) 'attestation precedes script execution'
+    Assert-True ($measurement.LastIndexOf('Assert-HarnessOverlay') -gt $call) 'attestation also follows script execution'
+    Assert-True $text.Contains('Assert-HarnessOverlay -Target $side.Root -Records $side.Overlay') 'existing builds are not reused without checking the overlay'
+    Assert-True $text.Contains('if ($studyCompleted -and $restoreFailures.Count) { throw') 'a completed study cannot report success after failed restoration'
+}
+
 Invoke-TestCase 'one repetition is the single pass a set has always been' {
     $schedule = Get-PairedRunSchedule -Repetitions 1
     Assert-Equal 'A1 B1 B2 A2' (($schedule.Steps | ForEach-Object { $_.Name }) -join ' ') 'run names'
@@ -224,6 +298,100 @@ Invoke-TestCase 'repetitions repeat the interleaved pass and keep every pass its
     Assert-Equal 40 @((Get-PairedRunSchedule -Repetitions 10).Steps).Count 'ten repetitions'
     Assert-Throws { Get-PairedRunSchedule -Repetitions 0 } 'no repetitions'
     Assert-Throws { Get-PairedRunSchedule -Repetitions 11 } 'more than ten repetitions'
+}
+
+Invoke-TestCase 'independent orders retain reproducible prefixes and balance runs within every block' {
+    $one = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3701
+    $two = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3701
+    Assert-Equal 12 $one.BlockCount 'minimum qualification sample'
+    Assert-Equal 48 @($one.Steps).Count 'four measurements per independent block'
+    Assert-Equal 'independent-ABBA-BAAB-v1' $one.Allocation 'the assignment protocol is explicit'
+    Assert-Equal 3 $one.SchemaVersion 'historical globally balanced schedules have a distinct schema'
+    Assert-Equal 'ABBA,BAAB,BAAB,BAAB,ABBA,BAAB,ABBA,ABBA,BAAB,ABBA,BAAB,BAAB' (($one.Blocks | ForEach-Object Order) -join ',') 'retained seed has a fixed independent draw sequence'
+    Assert-Equal 5 @($one.Blocks | Where-Object Order -eq 'ABBA').Count 'global order counts are allowed to differ'
+    Assert-Equal $one.Order $two.Order 'same seed reproduces literal order'
+    Assert-Equal '3701' ([string]$one.Seed) 'seed is retained'
+    foreach ($block in $one.Blocks) {
+        Assert-Equal 2 @($block.BaselineRuns).Count 'two baseline observations per block'
+        Assert-Equal 2 @($block.CandidateRuns).Count 'two candidate observations per block'
+        Assert-Contains @('ABBA','BAAB') $block.Order 'either complementary within-block order is valid'
+    }
+    foreach ($count in @(13,20)) {
+        $longer = Get-RandomizedPairedBlockSchedule -Blocks $count -Seed 3701
+        Assert-Equal $one.Order (($longer.Steps | Select-Object -First 48 | ForEach-Object Name) -join ', ') 'adding blocks does not reallocate any previous draw'
+        Assert-Equal (4 * $count) @($longer.Steps).Count 'odd and even counts preserve four runs per block'
+    }
+    $coincidentalBalance = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
+    Assert-Equal 6 @($coincidentalBalance.Blocks | Where-Object Order -eq 'ABBA').Count 'independent draws can also happen to give equal counts'
+    Assert-Throws { Get-RandomizedPairedBlockSchedule -Blocks 10 -Seed 2 } 'underpowered sample rejected'
+    Assert-Throws { Get-RandomizedPairedBlockSchedule -Blocks 21 -Seed 2 } 'unsupported exact-enumeration size rejected'
+}
+
+Invoke-FixtureCase 'A/A assigns both randomized labels to one root and one build, while ordinary pairs keep two roots' {
+    param($root)
+    $sameRevision = '0123456789abcdef0123456789abcdef01234567'
+    $aaBaseline = [ordered]@{ Role='baseline'; Kind='revision'; Commit=$sameRevision; Spec=$sameRevision }
+    $aaCandidate = [ordered]@{ Role='candidate'; Kind='revision'; Commit=$sameRevision; Spec=$sameRevision }
+    $aaPlan = New-PairedExecutionPlan -Baseline $aaBaseline -Candidate $aaCandidate -RunRoot (Join-Path $root 'aa') -CalibrationAA
+    Assert-Equal 1 @($aaPlan.PhysicalSides).Count 'A/A has one physical root to restore and build'
+    Assert-Equal 1 @($aaPlan.CreatedSides).Count 'A/A creates one worktree'
+    Assert-Equal $aaPlan.RoleRoots.baseline $aaPlan.RoleRoots.candidate 'both labels map to the same root'
+    $builds = 0
+    foreach ($side in $aaPlan.PhysicalSides) {
+        $builds++
+        $buildDirectory = Join-Path $side.Root 'build-output'
+        New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
+        # The fixture artifact includes its absolute output root, modeling embedded linker/PDB path bytes.
+        [IO.File]::WriteAllBytes((Join-Path $buildDirectory 'DxUi.EmbeddedTests.exe'), [Text.Encoding]::UTF8.GetBytes("binary-at:$($side.Root)"))
+    }
+    Assert-Equal 1 $builds 'the shared artifact is produced once'
+    $aaExe = Join-Path $aaPlan.RoleRoots.baseline 'build-output/DxUi.EmbeddedTests.exe'
+    $candidateExe = Join-Path $aaPlan.RoleRoots.candidate 'build-output/DxUi.EmbeddedTests.exe'
+    $aaHash = (Get-FileHash -LiteralPath $aaExe -Algorithm SHA256).Hash
+    Assert-Equal $aaHash (Get-FileHash -LiteralPath $candidateExe -Algorithm SHA256).Hash 'both roles read the exact same path-dependent binary bytes'
+
+    $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 1729
+    $reports = Join-Path $root 'aa-reports'
+    New-Item -ItemType Directory -Path $reports -Force | Out-Null
+    foreach ($step in $schedule.Steps) {
+        $roleRoot = $aaPlan.RoleRoots[[string]$step.Side]
+        $binaryPath = Join-Path $roleRoot 'build-output/DxUi.EmbeddedTests.exe'
+        $receipt = [ordered]@{ run=$step.Name; executableSha256=(Get-FileHash -LiteralPath $binaryPath -Algorithm SHA256).Hash }
+        $receiptPath = Join-Path $reports "Default-$($step.Name).json"
+        [IO.File]::WriteAllText($receiptPath, (ConvertTo-Json $receipt -Compress), [Text.UTF8Encoding]::new($false))
+    }
+    $outputs = @(Get-ChildItem -LiteralPath $reports -File -Filter '*.json')
+    Assert-Equal 48 $outputs.Count 'all 48 randomized role runs keep their own receipt'
+    Assert-Equal 48 @($outputs.BaseName | Select-Object -Unique).Count 'no run receipt path is reused'
+    $receiptHashes = @($outputs | ForEach-Object { (Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json).executableSha256 } | Select-Object -Unique)
+    Assert-Equal $aaHash $receiptHashes[0] 'every distinct raw receipt attests the one shared executable'
+    Assert-Equal 1 $receiptHashes.Count 'all A/A labels use identical executable bytes'
+
+    $normalBaseline = [ordered]@{ Role='baseline'; Kind='revision'; Commit='base'; Spec='base' }
+    $normalCandidate = [ordered]@{ Role='candidate'; Kind='revision'; Commit='candidate'; Spec='candidate' }
+    $normalPlan = New-PairedExecutionPlan -Baseline $normalBaseline -Candidate $normalCandidate -RunRoot (Join-Path $root 'normal')
+    Assert-Equal 2 @($normalPlan.PhysicalSides).Count 'a normal comparison retains two physical roots'
+    Assert-Equal 2 @($normalPlan.CreatedSides).Count 'a normal comparison creates two worktrees'
+    foreach ($side in $normalPlan.PhysicalSides) {
+        $buildDirectory = Join-Path $side.Root 'build-output'
+        New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
+        [IO.File]::WriteAllBytes((Join-Path $buildDirectory 'DxUi.EmbeddedTests.exe'), [Text.Encoding]::UTF8.GetBytes("binary-at:$($side.Root)"))
+    }
+    Assert-True ($normalPlan.RoleRoots.baseline -cne $normalPlan.RoleRoots.candidate) 'normal roles still have independent build paths'
+    Assert-True ((Get-FileHash (Join-Path $normalPlan.RoleRoots.baseline 'build-output/DxUi.EmbeddedTests.exe') -Algorithm SHA256).Hash -cne
+        (Get-FileHash (Join-Path $normalPlan.RoleRoots.candidate 'build-output/DxUi.EmbeddedTests.exe') -Algorithm SHA256).Hash) 'normal fixture builds contain root-dependent bytes'
+
+    $existingRoot = Join-Path $root 'existing-candidate'
+    $existingCandidate = [ordered]@{ Role='candidate'; Kind='path'; Commit='candidate'; Root=$existingRoot }
+    $mixedPlan = New-PairedExecutionPlan -Baseline $normalBaseline -Candidate $existingCandidate -RunRoot (Join-Path $root 'mixed')
+    Assert-Equal $existingRoot $mixedPlan.RoleRoots.candidate 'ordinary named-tree input retains its existing path'
+    Assert-Equal 2 @($mixedPlan.PhysicalSides).Count 'both ordinary sides are built and measured'
+    Assert-Equal 1 @($mixedPlan.CreatedSides).Count 'only the revision side creates a worktree'
+
+    $differentRevision = [ordered]@{ Role='candidate'; Kind='revision'; Commit='different'; Spec='different' }
+    $candidatePath = [ordered]@{ Role='candidate'; Kind='path'; Commit=$sameRevision; Spec='path' }
+    Assert-True (Get-ErrorMessage { New-PairedExecutionPlan -Baseline $aaBaseline -Candidate $differentRevision -RunRoot (Join-Path $root 'invalid') -CalibrationAA }).Contains('same explicit commit') 'different revision is rejected'
+    Assert-True (Get-ErrorMessage { New-PairedExecutionPlan -Baseline $aaBaseline -Candidate $candidatePath -RunRoot (Join-Path $root 'invalid') -CalibrationAA }).Contains('same explicit commit') 'a named path is rejected for A/A'
 }
 
 Invoke-TestCase 'only an overlay that changed a compiled input forbids reusing a build' {
@@ -296,6 +464,34 @@ Invoke-TestCase 'the measurement scripts parse' {
         [void][Management.Automation.Language.Parser]::ParseFile((Join-Path $repository $name), [ref]$tokens, [ref]$errors)
         Assert-Equal 0 @($errors).Count "$name has no syntax errors: $(@($errors | ForEach-Object { $_.Message }) -join '; ')"
     }
+}
+
+Invoke-FixtureCase 'the legacy judge is loaded from the measured base Git object in an isolated module' {
+    param($root)
+    & git -C $root -c user.name=fixture -c user.email=fixture@example.invalid init -q -b main
+    $baseSource = "function Compare-PerformanceSet { param(`$Baseline,`$Candidate) return [ordered]@{status='base-judge';source='immutable'} }`nExport-ModuleMember -Function Compare-PerformanceSet`n"
+    Set-FixtureFile $root 'Tools/PerformanceComparison.psm1' $baseSource
+    & git -C $root -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false add -A
+    & git -C $root -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit -q -m 'base judge'
+    $commit = (& git -C $root rev-parse HEAD).Trim()
+    $candidatePath = Join-Path $root 'candidate/PerformanceComparison.psm1'
+    Set-FixtureFile $root 'candidate/PerformanceComparison.psm1' "function Compare-PairedBlockSet { return [ordered]@{status='candidate-judge'} }`nfunction Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nExport-ModuleMember -Function Compare-PairedBlockSet, Get-PairedPerformanceJudgeVersion`n"
+    $loaded = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit $commit -CandidateModulePath $candidatePath
+    Assert-Equal 'available' $loaded.status 'the measured base source loads'
+    Assert-True ($loaded.module -is [System.Management.Automation.PSModuleInfo]) 'the judge has its own module context'
+    Assert-True ($loaded.candidateModule -is [System.Management.Automation.PSModuleInfo]) 'the candidate judge is also loaded into its own attested module context'
+    $decision = & $loaded.module { Compare-PerformanceSet -Baseline @(@{run='same'}) -Candidate @(@{run='same'}) }
+    Assert-Equal 'base-judge' $decision.status 'the call invokes the immutable base function'
+    Assert-Equal 'immutable' $decision.source 'the candidate implementation does not replace the base scope'
+    $candidateDecision = & $loaded.candidateModule { Compare-PairedBlockSet -Blocks @() }
+    Assert-Equal 'candidate-judge' $candidateDecision.status 'candidate judgment invokes the separately loaded candidate module'
+    Assert-Equal 'legacy-unversioned' $loaded.baseJudgeVersion 'an older measured-base judge is explicitly marked unversioned'
+    Assert-Equal 'dxui-fixture-v1' $loaded.candidateJudgeVersion 'the candidate version comes from its isolated source'
+    Assert-True ($loaded.baseJudgeSha256 -cmatch '^[A-F0-9]{64}$') 'the measured base source is retained by SHA-256'
+    Assert-True ($loaded.candidateJudgeSha256 -cmatch '^[A-F0-9]{64}$') 'the candidate source is independently retained by SHA-256'
+    $missing = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit '0000000000000000000000000000000000000000' -CandidateModulePath $candidatePath
+    Assert-Equal 'policy-review-required' $missing.status 'an unavailable base judge cannot use the candidate as a substitute'
+    Assert-Equal $null $missing.module 'and leaves no module to call'
 }
 
 Complete-TestRun 'PairedRun'

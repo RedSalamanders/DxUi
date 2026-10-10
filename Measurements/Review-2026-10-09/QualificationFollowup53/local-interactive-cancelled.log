@@ -1,0 +1,41 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+ok   the lease ends only the processes it started
+Interactive lease: 5 of 5 passed
+Complex UI clean round 1: 2381.01 completed offscreen FPS; p95 0.4861 ms; private 31047680 bytes
+Complex UI clean round 2: 2606.97 completed offscreen FPS; p95 0.4198 ms; private 31440896 bytes
+Complex UI clean round 3: 2567.59 completed offscreen FPS; p95 0.4227 ms; private 31813632 bytes
+Complex UI clean round 4: 2532.59 completed offscreen FPS; p95 0.4103 ms; private 31809536 bytes
+Complex UI clean round 5: 2423.45 completed offscreen FPS; p95 0.4371 ms; private 31920128 bytes
+Complex UI dirty round 1: 467.467 completed offscreen FPS; p95 2.4711 ms; private 32411648 bytes
+Complex UI dirty round 2: 470.55 completed offscreen FPS; p95 2.3534 ms; private 32522240 bytes
+Complex UI dirty round 3: 461.786 completed offscreen FPS; p95 2.3624 ms; private 32530432 bytes
+Complex UI dirty round 4: 484.679 completed offscreen FPS; p95 2.304 ms; private 32608256 bytes
+Complex UI dirty round 5: 433.524 completed offscreen FPS; p95 3.5145 ms; private 32485376 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Debug-ff17cbe99a60455ea7cae6edbc3934ec.json
+Interactive run: Menu, NativeTextInput (x64 Debug) takes the desktop for about 2 minute(s) once it is confirmed.

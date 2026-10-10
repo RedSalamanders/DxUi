@@ -1,0 +1,19 @@
+ok   the interactive suites are the suites DxUi.ControlTests.exe runs with real focus
+ok   a run without -Suites takes Menu and NativeTextInput, and the fixtures only when they are named
+ok   a suite that does not need the desktop is refused by name, and the interactive ones are listed
+ok   a run refuses where there is no desktop to take, and says why
+ok   only verified GitHub-hosted Windows jobs bypass the interactive desktop lease
+ok   the estimate is the suites and the lease overhead, per configuration
+ok   a command line is quoted as CreateProcess reads it
+ok   the plan is one tab-separated line per child
+ok   the result is read back as the lease writes it
+ok   a result that is missing, empty or not the lease's is no result
+ok   what is wrong with a finished lease is said in a message
+ok   the exit codes of the lease are the ones the PowerShell side reads
+ok   desktop takeover requires -Interactive; only the read-only probe also permits a verified hosted runner
+ok   an interactive run is settled before anything is built or run
+ok   a suite that needs real focus is never given --no-activate, and every other control suite always is
+ok   test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built
+ok   test.ps1 -Interactive refuses in a CI job before it builds or runs anything
+ok   lease console output cannot replace the result object or hide a failed child
+Interactive mode: 18 of 18 passed

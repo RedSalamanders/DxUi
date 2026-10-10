@@ -8,13 +8,161 @@
 #include <atomic>
 #include <chrono>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <limits>
 #include <numeric>
 #include <thread>
+#include <utility>
 #include <wrl/implements.h>
 
 namespace
 {
+
+class ReentrantAccessibilityTreeModel final : public DxUi::ITreeModel
+{
+public:
+    explicit ReentrantAccessibilityTreeModel(std::vector<DxUi::TreeItemData> items) : _items(std::move(items))
+    {
+    }
+
+    [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
+    {
+        return _items.size();
+    }
+
+    void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
+    {
+        outItem = _items.at(visibleIndex);
+        ++visibleItemCalls;
+        std::function<void()> callback = std::move(onGetVisibleItem);
+        if (callback)
+            callback();
+    }
+
+    [[nodiscard]] std::optional<size_t> FindVisibleItemById(uint64_t itemId) const noexcept override
+    {
+        ++findVisibleItemCalls;
+        std::function<void()> callback = std::move(onFindVisibleItemById);
+        if (callback)
+            callback();
+        const auto it = std::ranges::find(_items, itemId, &DxUi::TreeItemData::id);
+        return it == _items.end() ? std::nullopt : std::optional<size_t>(static_cast<size_t>(it - _items.begin()));
+    }
+
+    mutable size_t visibleItemCalls     = 0u;
+    mutable size_t findVisibleItemCalls = 0u;
+    mutable std::function<void()> onGetVisibleItem;
+    mutable std::function<void()> onFindVisibleItemById;
+
+private:
+    std::vector<DxUi::TreeItemData> _items;
+};
+
+class ReentrantAccessibilityGridModel final : public DxUi::IGridModel
+{
+public:
+    explicit ReentrantAccessibilityGridModel(std::wstring text, uint64_t rowId = 1u) : _text(std::move(text)), _rowId(rowId)
+    {
+    }
+
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return 1u;
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id          = L"value";
+        column.title       = L"Value";
+        column.widthDip    = 120.0f;
+        column.minWidthDip = 48.0f;
+        return column;
+    }
+
+    void GetCellData(size_t /*rowIndex*/, size_t /*columnIndex*/, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind = DxUi::GridCellKind::Text;
+        outCell.text = _text;
+        ++cellDataCalls;
+        std::function<void()> callback = std::move(onGetCellData);
+        if (callback)
+            callback();
+    }
+
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        ++stableRowIdCalls;
+        if (stableRowIdCalls == stableRowIdCallbackCall)
+        {
+            std::function<void()> callback = std::move(onGetStableRowId);
+            if (callback)
+                callback();
+        }
+        return _rowId + rowIndex;
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId == _rowId ? std::optional<size_t>(0u) : std::nullopt;
+    }
+
+    mutable size_t cellDataCalls           = 0u;
+    mutable size_t stableRowIdCalls        = 0u;
+    mutable size_t stableRowIdCallbackCall = 1u;
+    mutable std::function<void()> onGetCellData;
+    mutable std::function<void()> onGetStableRowId;
+
+private:
+    std::wstring _text;
+    uint64_t _rowId = 1u;
+};
+
+[[nodiscard]] std::unique_ptr<DxUi::Button> MakeAccessibilityReplacementButton()
+{
+    auto button = std::make_unique<DxUi::Button>(L"Replacement");
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 140.0f, 32.0f));
+    return button;
+}
+
+[[nodiscard]] std::wstring ReadPointProviderName(
+    HWND hwnd, DxUi::WindowHost& host, IRawElementProviderFragmentRoot& rootProvider, float x, float y, const char* context)
+{
+    auto fragment = GetProviderAtDipPoint(hwnd, host, rootProvider, x, y, context);
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.query_to(simple.put()), context);
+    return ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, context);
+}
+
+void RequireProviderIsRetired(IRawElementProviderFragment& fragment, const char* context)
+{
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.QueryInterface(IID_PPV_ARGS(simple.put())), context);
+    VARIANT value{};
+    VariantInit(&value);
+    const auto clearValue = wil::scope_exit([&] { VariantClear(&value); });
+    Require(simple->GetPropertyValue(UIA_NamePropertyId, &value) == UIA_E_ELEMENTNOTAVAILABLE, context);
+}
+
+void RequireReplacementButtonAtPoint(HWND hwnd, DxUi::WindowHost& host, IRawElementProviderFragmentRoot& rootProvider, float x, float y)
+{
+    // A collapsed semantic root belongs to its control. New clients reacquire the root after replacement.
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> replacementProvider;
+    replacementProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(hwnd));
+    Require(replacementProvider != nullptr, "the replacement root has a fresh provider");
+    Require(ReadPointProviderName(hwnd, host, *replacementProvider.get(), x, y, "replacement point resolves to a current provider") == L"Replacement",
+            "the next point query observes the coherent replacement root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> retiredHit;
+    // A retired native fragment root keeps the HWND protocol's successful empty hit result.
+    Require(rootProvider.ElementProviderFromPoint(0.0, 0.0, retiredHit.put()) == S_OK && retiredHit == nullptr,
+            "the old collapsed root cannot bind to its replacement");
+}
 
 class DisclosureChangeObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                            IUIAutomationPropertyChangedEventHandler,
@@ -403,14 +551,6 @@ void TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues()
     Require(secondValue != 0 || thirdValue != 0, "root runtime-id appends non-zero provider-specific identity values");
 }
 
-std::wstring ReadTextRangeText(ITextRangeProvider& range, int maxLength, const char* context)
-{
-    BSTR text = nullptr;
-    RequireSucceeded(range.GetText(maxLength, &text), context);
-    const auto freeText = wil::scope_exit([&] { SysFreeString(text); });
-    return std::wstring(text ? text : L"");
-}
-
 wil::com_ptr_nothrow<ITextRangeProvider> GetSingleTextRangeFromArray(SAFEARRAY* array, const char* context)
 {
     Require(array != nullptr, context);
@@ -547,9 +687,192 @@ void TestDisclosureButtonExpandCollapsePreservesAcknowledgedState()
         ++invoked;
         window.Host().SetRoot(std::make_unique<Panel>());
     });
-    RequireSucceeded(disclosure->Expand(), "disclosure callback may replace the entire root");
+    Require(disclosure->Expand() == UIA_E_ELEMENTNOTAVAILABLE, "disclosure reports its element gone when its callback replaces the entire root");
     Require(invoked == 3, "root replacement callback invokes once");
     Require(FAILED(disclosure->get_ExpandCollapseState(&state)), "retained disclosure provider disconnects after root replacement");
+}
+
+void TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* toggle = root->AddChild<Toggle>(L"Enabled");
+    toggle->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "toggle callback query fixture has a provider");
+    auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "toggle provider by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "toggle simple provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "toggle pattern lookup");
+    wil::com_ptr_nothrow<IToggleProvider> action;
+    RequireSucceeded(pattern.query_to(action.put()), "toggle action provider");
+    wil::unique_handle start(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle finished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(start && finished, "snapshot query synchronization events exist");
+    bool completedInsideCallback = false;
+    toggle->SetOnToggled([&](bool)
+    {
+        SetEvent(start.get());
+        completedInsideCallback = WaitForSingleObject(finished.get(), 2000u) == WAIT_OBJECT_0;
+    });
+    std::atomic<HRESULT> queryResult{E_PENDING};
+    std::thread query([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (SUCCEEDED(initialized))
+        {
+            if (WaitForSingleObject(start.get(), 5000u) == WAIT_OBJECT_0)
+            {
+                wil::unique_variant value;
+                queryResult.store(simple->GetPropertyValue(UIA_NamePropertyId, &value), std::memory_order_release);
+            }
+            CoUninitialize();
+        }
+        else
+            queryResult.store(initialized, std::memory_order_release);
+        SetEvent(finished.get());
+    });
+    const HRESULT actionResult = action->Toggle();
+    query.join();
+    RequireSucceeded(actionResult, "the UIA toggle action succeeds");
+    RequireSucceeded(queryResult.load(std::memory_order_acquire), "a worker can query the immutable snapshot");
+    Require(completedInsideCallback, "application callbacks run without the global accessibility snapshot mutex");
+}
+
+void TestAccessibilityActionsReportControlsDestroyedByCallbacks()
+{
+    using namespace DxUi;
+    {
+        AttachedHostWindow window;
+        auto root    = std::make_unique<Panel>();
+        auto* toggle = root->AddChild<Toggle>(L"Replace root");
+        toggle->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 40.0f));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "destructive toggle provider by point");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(provider.query_to(simple.put()), "destructive toggle simple provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(simple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "destructive toggle pattern lookup");
+        wil::com_ptr_nothrow<IToggleProvider> action;
+        RequireSucceeded(pattern.query_to(action.put()), "destructive toggle action interface");
+        toggle->SetOnToggled([&](bool) { window.Host().SetRoot(std::make_unique<Panel>()); });
+        Require(action->Toggle() == UIA_E_ELEMENTNOTAVAILABLE, "toggle reports its element gone when the callback replaces its root");
+        Require(window.Host().GetRoot() != nullptr, "destructive toggle callback installs its replacement root");
+    }
+
+    {
+        AttachedHostWindow window;
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"before");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 36.0f));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "destructive value provider by point");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(provider.query_to(simple.put()), "destructive value simple provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(simple->GetPatternProvider(UIA_ValuePatternId, pattern.put()), "destructive value pattern lookup");
+        wil::com_ptr_nothrow<IValueProvider> action;
+        RequireSucceeded(pattern.query_to(action.put()), "destructive value action interface");
+        field->SetOnTextChanged([&](std::wstring_view) { window.Host().SetRoot(std::make_unique<Panel>()); });
+        Require(action->SetValue(L"after") == UIA_E_ELEMENTNOTAVAILABLE, "SetValue reports its element gone when the callback replaces its root");
+        Require(window.Host().GetRoot() != nullptr, "destructive value callback installs its replacement root");
+    }
+}
+
+void TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"before");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 36.0f));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "value callback query fixture has a provider");
+    auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "value provider by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "value simple provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_ValuePatternId, pattern.put()), "value pattern lookup");
+    wil::com_ptr_nothrow<IValueProvider> action;
+    RequireSucceeded(pattern.query_to(action.put()), "value action provider");
+    wil::unique_handle start(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle finished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(start && finished, "value snapshot query synchronization events exist");
+    bool completedInsideCallback = false;
+    field->SetOnTextChanged([&](std::wstring_view)
+    {
+        SetEvent(start.get());
+        completedInsideCallback = WaitForSingleObject(finished.get(), 2000u) == WAIT_OBJECT_0;
+    });
+    std::atomic<HRESULT> queryResult{E_PENDING};
+    std::thread query([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (SUCCEEDED(initialized))
+        {
+            if (WaitForSingleObject(start.get(), 5000u) == WAIT_OBJECT_0)
+            {
+                wil::unique_variant value;
+                queryResult.store(simple->GetPropertyValue(UIA_NamePropertyId, &value), std::memory_order_release);
+            }
+            CoUninitialize();
+        }
+        else
+            queryResult.store(initialized, std::memory_order_release);
+        SetEvent(finished.get());
+    });
+    const HRESULT actionResult = action->SetValue(L"after");
+    query.join();
+    RequireSucceeded(actionResult, "UIA SetValue action succeeds");
+    RequireSucceeded(queryResult.load(std::memory_order_acquire), "worker can query the immutable snapshot during SetValue callback");
+    Require(completedInsideCallback, "value callbacks run without the global accessibility snapshot mutex");
+}
+
+void TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint()
+{
+    using namespace DxUi;
+    GridMultilineFixtures::TextTableModel model({{L"First"}, {L"Middle"}, {L"Last"}}, {180.0f}, false);
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 200.0f));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    Require(grid->RequestSelectRow(2u, 0u) && grid->RequestSelectRow(0u, MK_SHIFT), "upward range selects all three rows");
+    window.Host().SetFocusControl(grid, false);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "focused grid range exposes its window provider");
+    for (size_t row = 0u; row < 3u; ++row)
+    {
+        const auto bounds = grid->GetVisibleCellRect(row, 0u);
+        Require(bounds.has_value(), "the selected row has a visible cell");
+        auto cell = GetProviderAtDipPoint(window.Hwnd(),
+                                          window.Host(),
+                                          *rootProvider.get(),
+                                          (bounds->left + bounds->right) * 0.5f,
+                                          (bounds->top + bounds->bottom) * 0.5f,
+                                          "selected row cell provider");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> parent;
+        RequireSucceeded(cell->Navigate(NavigateDirection_Parent, parent.put()), "the cell's parent is its row");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> rowProvider;
+        RequireSucceeded(parent.query_to(rowProvider.put()), "the row has a simple provider");
+        Require(ReadProviderBoolProperty(*rowProvider.get(), UIA_SelectionItemIsSelectedPropertyId, "range row selection"), "each range row is selected");
+        Require(ReadProviderBoolProperty(*rowProvider.get(), UIA_HasKeyboardFocusPropertyId, "range row focus") == (row == 0u),
+                "only the upward range endpoint has keyboard focus");
+    }
+    grid->SetSelectionMode(GridSelectionMode::Single);
+    Require(grid->GetPrimarySelectedRow() == 0u && grid->GetSelectionModel().GetCount() == 1u, "switching to single selection retains the current row");
 }
 
 void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
@@ -701,6 +1024,427 @@ void TestAccessibilityProviderRefreshesButtonSemanticProperties()
             "button accessibility provider refreshes explicit accessible name changes");
 }
 
+void TestAccessibilityDisabledPanelDisablesDescendantControlsAndActions()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Run");
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 140.0f, 32.0f));
+    button->SetDisclosureExpanded(false);
+    size_t buttonInvocations = 0u;
+    size_t buttonClicks      = 0u;
+    button->SetAccessibleInvokeResult([&](ControlHost&)
+    {
+        ++buttonInvocations;
+        return S_OK;
+    });
+    button->SetOnClick([&]
+    {
+        ++buttonClicks;
+        button->SetDisclosureExpanded(true);
+    });
+
+    auto* toggle = root->AddChild<Toggle>(L"Enabled");
+    toggle->SetBounds(D2D1::RectF(0.0f, 40.0f, 140.0f, 72.0f));
+    toggle->SetChecked(false);
+
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(0.0f, 80.0f, 150.0f, 112.0f));
+    field->SetSelectionRange(1u, 3u);
+
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(160.0f, 40.0f, 310.0f, 72.0f));
+
+    auto* password = root->AddChild<TextField>(L"secret");
+    password->SetMasked(true);
+    password->SetPasswordRevealMode(PasswordRevealMode::Peek);
+    password->SetBounds(D2D1::RectF(160.0f, 0.0f, 310.0f, 32.0f));
+
+    Panel* const disabledAncestor = root.get();
+    window.Host().SetRoot(std::move(root));
+    // Establish the reveal affordance without transferring native window focus.
+    window.Host().SetFocusControl(password, false);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "disabled-ancestor fixture creates a native provider");
+    const auto simpleAt = [&](float x, float y, const char* context)
+    {
+        auto fragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), x, y, context);
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.query_to(simple.put()), context);
+        return simple;
+    };
+
+    // Hold the reveal peer before actions prune the disabled editor's logical focus and hide its affordance.
+    auto passwordSimple   = simpleAt(190.0f, 16.0f, "focused masked TextField exposes its parent peer");
+    auto passwordFragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 190.0f, 16.0f, "masked TextField fragment resolves");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> revealFragment;
+    RequireSucceeded(passwordFragment->Navigate(NavigateDirection_FirstChild, revealFragment.put()), "focused masked TextField exposes its reveal child");
+    Require(revealFragment != nullptr, "the focused masked TextField starts with a reveal element");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> revealSimple;
+    RequireSucceeded(revealFragment.query_to(revealSimple.put()), "password reveal child exposes simple properties");
+    wil::com_ptr_nothrow<IUnknown> revealPattern;
+    RequireSucceeded(revealSimple->GetPatternProvider(UIA_InvokePatternId, revealPattern.put()), "password reveal Invoke lookup succeeds");
+    wil::com_ptr_nothrow<IInvokeProvider> revealInvoke;
+    RequireSucceeded(revealPattern.query_to(revealInvoke.put()), "password reveal exposes Invoke");
+    disabledAncestor->SetEnabled(false);
+
+    auto buttonSimple = simpleAt(24.0f, 16.0f, "button under disabled Panel resolves from its visible row");
+    Require(! ReadProviderBoolProperty(*buttonSimple.get(), UIA_IsEnabledPropertyId, "button reports effective enabled state"),
+            "a button under a disabled nonsemantic Panel reports disabled");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "disabled descendant button Invoke lookup succeeds");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "disabled descendant button exposes Invoke");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTENABLED && buttonInvocations == 0u, "disabled ancestor blocks Button Invoke before its callback");
+    pattern.reset();
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "disabled descendant disclosure lookup succeeds");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> disclosure;
+    RequireSucceeded(pattern.query_to(disclosure.put()), "disabled descendant disclosure exposes its pattern");
+    Require(disclosure->Expand() == UIA_E_ELEMENTNOTENABLED && buttonClicks == 0u, "disabled ancestor blocks disclosure expansion without invoking the Button");
+    auto buttonFragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "button fragment resolves for SetFocus");
+    Require(buttonFragment->SetFocus() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks UIA focus transfer to a child control");
+
+    auto toggleSimple = simpleAt(24.0f, 56.0f, "Toggle under disabled Panel resolves from its visible row");
+    Require(! ReadProviderBoolProperty(*toggleSimple.get(), UIA_IsEnabledPropertyId, "Toggle reports effective enabled state"),
+            "a Toggle under a disabled nonsemantic Panel reports disabled");
+    pattern.reset();
+    RequireSucceeded(toggleSimple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "disabled descendant Toggle lookup succeeds");
+    wil::com_ptr_nothrow<IToggleProvider> togglePattern;
+    RequireSucceeded(pattern.query_to(togglePattern.put()), "disabled descendant Toggle exposes its pattern");
+    Require(togglePattern->Toggle() == UIA_E_ELEMENTNOTENABLED && ! toggle->IsChecked(), "disabled ancestor blocks Toggle without changing checked state");
+
+    auto fieldSimple = simpleAt(24.0f, 96.0f, "TextField under disabled Panel resolves from its visible row");
+    Require(! ReadProviderBoolProperty(*fieldSimple.get(), UIA_IsEnabledPropertyId, "TextField reports effective enabled state"),
+            "a TextField under a disabled nonsemantic Panel reports disabled");
+    pattern.reset();
+    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_ValuePatternId, pattern.put()), "disabled descendant TextField value lookup succeeds");
+    wil::com_ptr_nothrow<IValueProvider> value;
+    RequireSucceeded(pattern.query_to(value.put()), "disabled descendant TextField exposes Value");
+    Require(value->SetValue(L"changed") == UIA_E_ELEMENTNOTENABLED && field->GetText() == L"alpha beta",
+            "disabled ancestor blocks TextField SetValue without changing text");
+    pattern.reset();
+    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, pattern.put()), "disabled descendant TextField TextPattern lookup succeeds");
+    wil::com_ptr_nothrow<ITextProvider> text;
+    RequireSucceeded(pattern.query_to(text.put()), "disabled descendant TextField exposes TextPattern");
+    wil::com_ptr_nothrow<ITextRangeProvider> documentRange;
+    RequireSucceeded(text->get_DocumentRange(documentRange.put()), "disabled descendant TextField exposes its document range");
+    Require(documentRange->Select() == UIA_E_ELEMENTNOTENABLED && field->GetSelectionRange() == std::optional<std::pair<size_t, size_t>>{{1u, 3u}},
+            "disabled ancestor blocks TextRange Select without changing the existing text selection");
+    auto fieldFragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 96.0f, "TextField fragment resolves for SetFocus");
+    Require(fieldFragment->SetFocus() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks TextField focus transfer");
+
+    auto sliderSimple = simpleAt(220.0f, 56.0f, "Slider under disabled Panel resolves from its visible track");
+    Require(! ReadProviderBoolProperty(*sliderSimple.get(), UIA_IsEnabledPropertyId, "Slider reports effective enabled state"),
+            "a Slider under a disabled nonsemantic Panel reports disabled");
+    pattern.reset();
+    RequireSucceeded(sliderSimple->GetPatternProvider(UIA_RangeValuePatternId, pattern.put()), "disabled descendant Slider lookup succeeds");
+    wil::com_ptr_nothrow<IRangeValueProvider> range;
+    RequireSucceeded(pattern.query_to(range.put()), "disabled descendant Slider exposes RangeValue");
+    double initialSliderValue = 0.0;
+    RequireSucceeded(range->get_Value(&initialSliderValue), "disabled descendant Slider value is readable");
+    Require(range->SetValue(initialSliderValue + 1.0) == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks RangeValue SetValue");
+    double valueAfterRejectedSet = 0.0;
+    RequireSucceeded(range->get_Value(&valueAfterRejectedSet), "Slider value remains readable after the rejected mutation");
+    Require(valueAfterRejectedSet == initialSliderValue, "disabled ancestor leaves the Slider value unchanged");
+
+    Require(! ReadProviderBoolProperty(*passwordSimple.get(), UIA_IsEnabledPropertyId, "masked TextField reports effective enabled state"),
+            "a masked TextField under a disabled nonsemantic Panel reports disabled");
+    Require(! ReadProviderBoolProperty(*revealSimple.get(), UIA_IsEnabledPropertyId, "password reveal reports effective enabled state"),
+            "the password reveal child inherits its disabled ancestor state");
+    Require(revealInvoke->Invoke() == UIA_E_ELEMENTNOTENABLED && password->GetPasswordRevealState() == PasswordRevealState::Hidden,
+            "disabled ancestor blocks password reveal without exposing the secret");
+
+    disabledAncestor->SetEnabled(true);
+    Require(ReadProviderBoolProperty(*fieldSimple.get(), UIA_IsEnabledPropertyId, "TextField enabled state refreshes after ancestor recovery"),
+            "re-enabling the ancestor republishes enabled descendants");
+    RequireSucceeded(value->SetValue(L"changed"), "the same TextField provider can set value after ancestor recovery");
+    Require(field->GetText() == L"changed", "the enabled retry updates TextField data");
+    RequireSucceeded(invoke->Invoke(), "the same Button provider can invoke after ancestor recovery");
+    Require(buttonInvocations == 1u, "the enabled retry invokes the Button exactly once");
+}
+
+void TestAccessibilityDisabledPanelBlocksTreeAndGridItemActions()
+{
+    using namespace DxUi;
+    MutableTreeModel treeModel;
+    treeModel.SetVisibleItems({TreeItemData{.id = 1u, .text = L"Section", .hasChildren = true},
+                               TreeItemData{.id = 2u, .text = L"Selected"},
+                               TreeItemData{.id = 3u, .text = L"Available"}});
+    RecordingTreeDelegate treeDelegate;
+    CheckboxGridModel gridModel(0u);
+    gridModel.SetRows({CheckboxGridModel::Row{L"Rule A", false, true}, CheckboxGridModel::Row{L"Rule B", false, true}});
+    RecordingCheckboxGridDelegate gridDelegate(gridModel);
+    AttachedHostWindow window;
+
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 180.0f));
+    tree->SetModel(&treeModel);
+    tree->SetDelegate(&treeDelegate);
+    tree->SetMultiSelectEnabled(true);
+    const std::array<uint64_t, 1> selectedTreeItem{2u};
+    tree->SetSelectedItemIds(selectedTreeItem);
+
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(150.0f, 0.0f, 315.0f, 180.0f));
+    grid->SetModel(&gridModel);
+    grid->SetDelegate(&gridDelegate);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(gridModel.GetStableRowId(0u));
+
+    Panel* const disabledAncestor = root.get();
+    window.Host().SetRoot(std::move(root));
+    disabledAncestor->SetEnabled(false);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "disabled tree/grid fixture creates a native provider");
+
+    const auto treeItemProviderAt = [&](size_t visibleIndex, const char* context)
+    {
+        const auto rect = tree->GetVisibleItemHitRect(visibleIndex);
+        Require(rect.has_value(), context);
+        const float x = (rect->left + rect->right) * 0.5f;
+        const float y = (rect->top + rect->bottom) * 0.5f;
+        return GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), x, y, context);
+    };
+    auto expandableItem = treeItemProviderAt(0u, "expandable Tree item is visible under its disabled ancestor");
+    auto removableItem  = treeItemProviderAt(1u, "selected Tree item is visible under its disabled ancestor");
+    auto addableItem    = treeItemProviderAt(2u, "unselected Tree item is visible under its disabled ancestor");
+
+    wil::com_ptr_nothrow<IRawElementProviderSimple> expandableSimple;
+    RequireSucceeded(expandableItem.query_to(expandableSimple.put()), "expandable Tree item exposes properties");
+    Require(! ReadProviderBoolProperty(*expandableSimple.get(), UIA_IsEnabledPropertyId, "Tree item reports effective enabled state"),
+            "Tree items under a disabled Panel report disabled");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(expandableSimple->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "disabled Tree item ExpandCollapse lookup succeeds");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expandCollapse;
+    RequireSucceeded(pattern.query_to(expandCollapse.put()), "disabled Tree item exposes ExpandCollapse");
+    Require(expandCollapse->Expand() == UIA_E_ELEMENTNOTENABLED && treeDelegate.toggleCount == 0u,
+            "disabled ancestor blocks Tree item expansion before its delegate");
+    Require(expandableItem->SetFocus() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Tree item focus transfer");
+
+    const auto selectionPattern = [&](IRawElementProviderFragment& fragment, const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.QueryInterface(IID_PPV_ARGS(simple.put())), context);
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), context);
+        wil::com_ptr_nothrow<ISelectionItemProvider> selection;
+        RequireSucceeded(unknown.query_to(selection.put()), context);
+        return selection;
+    };
+    auto removableSelection = selectionPattern(*removableItem.get(), "selected Tree item exposes SelectionItem");
+    auto addableSelection   = selectionPattern(*addableItem.get(), "unselected Tree item exposes SelectionItem");
+    Require(removableSelection->RemoveFromSelection() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Tree RemoveFromSelection");
+    Require(addableSelection->Select() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Tree Select");
+    Require(addableSelection->AddToSelection() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Tree AddToSelection");
+    Require(tree->GetSelectedItemIds() == std::vector<uint64_t>{2u} && treeDelegate.selectionChangedCount == 0u && treeDelegate.selectionSetChangedCount == 0u,
+            "rejected Tree selection actions preserve membership and do not notify its delegate");
+
+    const auto cellRect = grid->GetVisibleCellRect(0u, 0u);
+    const auto rowRect  = grid->GetVisibleRowRect(0u);
+    Require(cellRect.has_value() && rowRect.has_value(), "Grid exposes visible cell and row bounds under a disabled ancestor");
+    const auto center = [](const D2D1_RECT_F& rect) noexcept { return D2D1_POINT_2F{(rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f}; };
+    const D2D1_POINT_2F cellCenter = center(cellRect.value());
+    auto cellFragment              = GetProviderAtDipPoint(
+        window.Hwnd(), window.Host(), *rootProvider.get(), cellCenter.x, cellCenter.y, "Grid cell resolves by its visible checkbox bounds");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> cellSimple;
+    RequireSucceeded(cellFragment.query_to(cellSimple.put()), "Grid cell exposes simple properties");
+    Require(! ReadProviderBoolProperty(*cellSimple.get(), UIA_IsEnabledPropertyId, "Grid cell reports effective enabled state"),
+            "a Grid cell under a disabled Panel reports disabled");
+    pattern.reset();
+    RequireSucceeded(cellSimple->GetPatternProvider(UIA_TogglePatternId, pattern.put()),
+                     "enabled checkbox cell retains its Toggle pattern under a disabled ancestor");
+    wil::com_ptr_nothrow<IToggleProvider> cellToggle;
+    RequireSucceeded(pattern.query_to(cellToggle.put()), "Grid cell exposes IToggleProvider");
+    Require(cellToggle->Toggle() == UIA_E_ELEMENTNOTENABLED && ! gridModel.IsChecked(0u) && gridDelegate.toggleCount == 0u,
+            "disabled ancestor blocks Grid cell Toggle without changing model state or calling its delegate");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rowFragment;
+    RequireSucceeded(cellFragment->Navigate(NavigateDirection_Parent, rowFragment.put()), "Grid cell navigates to its row");
+    Require(rowFragment != nullptr, "Grid row provider exists beneath the disabled ancestor");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> rowSimple;
+    RequireSucceeded(rowFragment.query_to(rowSimple.put()), "Grid row exposes simple properties");
+    Require(! ReadProviderBoolProperty(*rowSimple.get(), UIA_IsEnabledPropertyId, "Grid row reports effective enabled state"),
+            "Grid rows under a disabled Panel report disabled");
+    auto gridRowSelection = selectionPattern(*rowFragment.get(), "Grid row exposes SelectionItem");
+    Require(gridRowSelection->Select() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Grid row Select");
+    Require(gridRowSelection->AddToSelection() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Grid row AddToSelection");
+    Require(gridRowSelection->RemoveFromSelection() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Grid row RemoveFromSelection");
+    Require(rowFragment->SetFocus() == UIA_E_ELEMENTNOTENABLED, "disabled ancestor blocks Grid row focus transfer");
+    const auto selectedRows = grid->GetSelectionModel().GetOrderedSelection();
+    Require(selectedRows.size() == 1u && selectedRows.front() == gridModel.GetStableRowId(0u) && gridDelegate.selectionChangedCount == 0u,
+            "rejected Grid selection actions preserve membership and do not notify its delegate");
+
+    disabledAncestor->SetEnabled(true);
+    Require(ReadProviderBoolProperty(*expandableSimple.get(), UIA_IsEnabledPropertyId, "Tree item state refreshes after ancestor recovery"),
+            "Tree item state is republished as enabled after ancestor recovery");
+    RequireSucceeded(cellToggle->Toggle(), "the same Grid cell provider retries successfully after ancestor recovery");
+    Require(gridModel.IsChecked(0u) && gridDelegate.toggleCount == 1u, "the enabled Grid cell retry updates exactly once");
+}
+
+void TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityTreeModel model({TreeItemData{.id = 1u, .text = L"Old tree item"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    tree->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "Tree model-replacement test has a window provider");
+    auto oldItem = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "old Tree item provider is retained");
+
+    model.onGetVisibleItem = [&] { window.Host().SetRoot(MakeAccessibilityReplacementButton()); };
+    window.Host().RefreshAccessibilitySnapshot();
+    RequireReplacementButtonAtPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f);
+    Require(model.visibleItemCalls > 1u, "the reentrant Tree getter ran during snapshot rebuilding");
+    RequireProviderIsRetired(*oldItem.get(), "the retained Tree item peer reports itself unavailable after root replacement");
+}
+
+void TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityGridModel model(L"Old Grid cell");
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "Grid model-replacement test has a window provider");
+    auto oldCell = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 32.0f, 48.0f, "old Grid cell provider is retained");
+
+    model.onGetCellData = [&] { window.Host().SetRoot(MakeAccessibilityReplacementButton()); };
+    window.Host().RefreshAccessibilitySnapshot();
+    RequireReplacementButtonAtPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f);
+    Require(model.cellDataCalls > 1u, "the reentrant Grid getter ran during snapshot rebuilding");
+    RequireProviderIsRetired(*oldCell.get(), "the retained Grid cell peer reports itself unavailable after root replacement");
+}
+
+void TestAccessibilityTreeModelGetterCanReplaceItsModelDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityTreeModel original({TreeItemData{.id = 1u, .text = L"Old tree item"}});
+    ReentrantAccessibilityTreeModel replacement({TreeItemData{.id = 2u, .text = L"New tree item"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    tree->SetModel(&original);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "Tree model-swap test has a window provider");
+    auto oldItem = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "old Tree item provider is retained");
+
+    original.onGetVisibleItem = [&] { tree->SetModel(&replacement); };
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(ReadPointProviderName(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "new Tree item provider resolves") == L"New tree item",
+            "a Tree getter's model replacement publishes only rows from the new model");
+    Require(tree->GetModel() == &replacement && original.visibleItemCalls > 1u,
+            "the reentrant Tree getter replaced the model without replacing the Tree control");
+    RequireProviderIsRetired(*oldItem.get(), "the retained removed Tree item peer reports itself unavailable");
+}
+
+void TestAccessibilityGridModelGetterCanReplaceItsModelDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityGridModel original(L"Old Grid cell", 1u);
+    ReentrantAccessibilityGridModel replacement(L"New Grid cell", 2u);
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    grid->SetModel(&original);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "Grid model-swap test has a window provider");
+    auto oldCell = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 32.0f, 48.0f, "old Grid cell provider is retained");
+
+    original.onGetCellData = [&] { grid->SetModel(&replacement); };
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(ReadPointProviderName(window.Hwnd(), window.Host(), *rootProvider.get(), 32.0f, 48.0f, "new Grid cell provider resolves") == L"New Grid cell",
+            "a Grid getter's model replacement publishes only cell data from the new model");
+    Require(grid->GetModel() == &replacement && original.cellDataCalls > 1u, "the reentrant Grid getter replaced the model without replacing the Grid control");
+    RequireProviderIsRetired(*oldCell.get(), "the retained removed Grid cell peer reports itself unavailable");
+}
+
+void TestAccessibilityGridPointHitModelGetterCanReplaceItsModelDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityGridModel original(L"Old Grid cell", 1u);
+    ReentrantAccessibilityGridModel replacement(L"New Grid cell", 2u);
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    grid->SetModel(&original);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "Grid point-hit model-swap test has a window provider");
+    auto oldCell = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 32.0f, 48.0f, "original Grid cell provider is retained");
+
+    original.stableRowIdCallbackCall = original.stableRowIdCalls + 2u; // Navigation reads it once; point-hit construction reads it next.
+    original.onGetStableRowId        = [&] { grid->SetModel(&replacement); };
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(ReadPointProviderName(window.Hwnd(), window.Host(), *rootProvider.get(), 32.0f, 48.0f, "replacement Grid cell provider resolves") ==
+                L"New Grid cell",
+            "a point-hit model replacement discards the old navigation and hit geometry before publishing");
+    Require(grid->GetModel() == &replacement && original.stableRowIdCalls >= 2u,
+            "the point-hit getter replaced the model while its Grid control remained alive");
+    RequireProviderIsRetired(*oldCell.get(), "the retained old Grid cell peer reports itself unavailable");
+}
+
+void TestAccessibilityFocusedTreeModelLookupCanReplaceItsRootDuringSnapshotBuild()
+{
+    using namespace DxUi;
+    ReentrantAccessibilityTreeModel model({TreeItemData{.id = 1u, .text = L"Focused old item"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 100.0f));
+    tree->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    tree->SetFocusedItemId(1u);
+    window.Host().SetFocusControl(tree, false);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "focused Tree model-lookup test has a window provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> oldFocusedItem;
+    RequireSucceeded(rootProvider->GetFocus(oldFocusedItem.put()), "the initial focused Tree item is materialized");
+    Require(oldFocusedItem != nullptr, "the initial focused Tree item has a provider");
+
+    model.onFindVisibleItemById = [&] { window.Host().SetRoot(MakeAccessibilityReplacementButton()); };
+    window.Host().RefreshAccessibilitySnapshot();
+    RequireReplacementButtonAtPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> replacementProvider;
+    replacementProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(replacementProvider != nullptr, "the replacement root has a current focus provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focusedAfterReplacement;
+    RequireSucceeded(replacementProvider->GetFocus(focusedAfterReplacement.put()), "focus query completes after model-driven root replacement");
+    Require(focusedAfterReplacement == nullptr, "the replacement Button is not reported focused from the retired Tree snapshot");
+    Require(model.findVisibleItemCalls > 0u, "the focused-item model lookup ran during snapshot rebuilding");
+    RequireProviderIsRetired(*oldFocusedItem.get(), "the retained focused Tree item peer reports itself unavailable");
+}
+
 void TestAccessibilityProviderRefreshesLabelAssociations()
 {
     using namespace DxUi;
@@ -813,6 +1557,56 @@ void TestAccessibilityProviderExposesDirectSemanticRootControls()
             "all root-returning accessibility paths preserve one canonical COM identity per HWND");
 }
 
+void TestAccessibilityProviderCreationUsesBoundedTokenTransport()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().SetRoot(std::make_unique<Button>(L"Action"));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> expected;
+    expected.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(expected != nullptr, "create the canonical owner-thread provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> crossThread;
+    std::atomic<bool> finished{false};
+    std::jthread worker([&]
+    {
+        crossThread.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        finished.store(true, std::memory_order_release);
+    });
+    const ULONGLONG deadline = GetTickCount64() + 5000u;
+    while (! finished.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    {
+        window.PumpMessages();
+        Sleep(1u);
+    }
+    worker.join();
+    Require(crossThread != nullptr, "a pumping owner answers cross-thread provider creation");
+    wil::com_ptr_nothrow<IUnknown> a, b;
+    RequireSucceeded(expected.query_to(a.put()), "owner provider exposes identity");
+    RequireSucceeded(crossThread.query_to(b.put()), "cross-thread provider exposes identity");
+    Require(a.get() == b.get(), "token dispatch preserves canonical provider identity");
+
+    const auto message = WndMsg::AccessibilityCreateProvider();
+    Require(static_cast<bool>(message), "provider creation message is registered");
+    SendMessageW(window.Hwnd(), message.value, 0u, (std::numeric_limits<LPARAM>::max)());
+    Require(window.Host().GetRoot() != nullptr, "an unregistered payload token is ignored without an address write");
+
+    DebugSetAccessibilityUiActionDispatchTimeoutForTest(50u);
+    const auto restore = wil::scope_exit([] { DebugSetAccessibilityUiActionDispatchTimeoutForTest(0u); });
+    wil::unique_event completed(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(completed), "create the bounded-provider completion event");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> timedOut;
+    std::jthread stalled([&]
+    {
+        timedOut.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        SetEvent(completed.get());
+    });
+    // Do not pump the owner. The transport must return without requiring it to answer.
+    Require(WaitForSingleObject(completed.get(), 2000u) == WAIT_OBJECT_0, "unresponsive owner provider creation has a bounded wait");
+    stalled.join();
+    Require(timedOut == nullptr, "a timed-out provider request returns no borrowed output");
+    window.PumpMessages(); // A late delivery owns its reply independently of the caller's stack.
+}
+
 void TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach()
 {
     using namespace DxUi;
@@ -906,6 +1700,32 @@ void TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse()
     wil::com_ptr_nothrow<IRawElementProviderFragment> duplicateGrandchild;
     RequireSucceeded(firstChildProvider->Navigate(NavigateDirection_FirstChild, duplicateGrandchild.put()), "label-only child first-child lookup succeeds");
     Require(duplicateGrandchild == nullptr, "label-only label child does not expose a duplicate nested label");
+}
+
+void TestAccessibilityPanelRootIdentitySurvivesSiblingChangesForClient()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* panel  = root.get();
+    auto* button = panel->AddChild<Button>(L"Persistent action");
+    button->SetBounds(D2D1::RectF(0, 0, 180, 32));
+    window.Host().SetRoot(std::move(root));
+    UiaTest::Client client(window.Hwnd(), {}, [&] { window.PumpMessages(); });
+    const auto retainedRoot = client.Root();
+    const auto first        = client.Navigate(retainedRoot, UiaTest::Direction::FirstChild);
+    Require(first.has_value() && client.Describe(first.value()).name == L"Persistent action",
+            "a client reaches a Panel's sole semantic child without replacing the attachment root");
+    auto* sibling = panel->AddChild<Button>(L"Temporary sibling");
+    sibling->SetBounds(D2D1::RectF(0, 40, 180, 72));
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(client.Same(retainedRoot, client.Root()), "adding a sibling preserves the client-held root identity");
+    const auto next = client.Navigate(first.value(), UiaTest::Direction::NextSibling);
+    Require(next.has_value() && client.Describe(next.value()).name == L"Temporary sibling", "held child navigates to its new sibling");
+    auto taken = panel->TakeChild(1u);
+    Require(taken.get() == sibling, "extract the newly added sibling through the supported API");
+    Require(client.Same(retainedRoot, client.Root()) && ! client.Navigate(first.value(), UiaTest::Direction::NextSibling),
+            "removing the sibling leaves the root and original child coherent for the same client");
 }
 
 void TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree()
@@ -1221,6 +2041,53 @@ void TestAccessibilityProviderExposesTextPatternForTextField()
     wil::com_ptr_nothrow<ITextRangeProvider> clonedDocumentRange;
     RequireSucceeded(documentRange->Clone(clonedDocumentRange.put()), "text field TextPattern document range clones");
     Require(clonedDocumentRange != nullptr, "text field TextPattern document range clone is returned");
+    for (const TextUnit unit : {TextUnit_Document, TextUnit_Paragraph, TextUnit_Page})
+    {
+        wil::com_ptr_nothrow<ITextRangeProvider> terminalRange;
+        RequireSucceeded(clonedDocumentRange->Clone(terminalRange.put()), "document-sized TextRange clones for bounded Move checks");
+        int terminalMoved = 1;
+        size_t attempts   = 0u;
+        do
+        {
+            RequireSucceeded(terminalRange->Move(unit, 1, &terminalMoved), "document-sized TextRange Move succeeds at its boundary");
+            ++attempts;
+        } while (terminalMoved != 0 && attempts < 4u);
+        Require(terminalMoved == 0, "document, paragraph and page Move terminate when the range cannot move");
+        Require(attempts <= 2u, "terminal document-sized Move does not repeatedly report progress on an unchanged full span");
+        Require(ReadTextRangeText(*terminalRange.get(), -1, "terminal document-sized TextRange keeps its full span") == L"alpha beta",
+                "a boundary Move preserves the existing document-sized range");
+    }
+
+    wil::com_ptr_nothrow<ITextRangeProvider> lastCharacterRange;
+    RequireSucceeded(clonedDocumentRange->Clone(lastCharacterRange.put()), "text field document range clones for terminal character Move");
+    int lastCharacterPosition = 0;
+    RequireSucceeded(lastCharacterRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, 9, &lastCharacterPosition),
+                     "character range moves to the final text element");
+    Require(lastCharacterPosition == 9 && ReadTextRangeText(*lastCharacterRange.get(), -1, "last character range exposes text") == L"a",
+            "terminal character Move starts from the final selected text element");
+    int terminalCharacterMoved       = 1;
+    size_t terminalCharacterAttempts = 0u;
+    do
+    {
+        RequireSucceeded(lastCharacterRange->Move(TextUnit_Character, 1, &terminalCharacterMoved), "terminal character Move succeeds");
+        ++terminalCharacterAttempts;
+    } while (terminalCharacterMoved != 0 && terminalCharacterAttempts < 4u);
+    Require(terminalCharacterMoved == 0, "character Move stops at the final text element");
+    Require(terminalCharacterAttempts <= 2u, "terminal character Move does not report progress while retaining the same last character");
+
+    wil::com_ptr_nothrow<ITextRangeProvider> farCharacterRange;
+    RequireSucceeded(clonedDocumentRange->Clone(farCharacterRange.put()), "clone for bounded character-count movement");
+    int farMoved = 0;
+    RequireSucceeded(farCharacterRange->Move(TextUnit_Character, (std::numeric_limits<int>::max)(), &farMoved), "a large character move reaches the last unit");
+    Require(farMoved == 9 && ReadTextRangeText(*farCharacterRange.get(), -1, "large character move exposes the last unit") == L"a",
+            "nondegenerate movement counts the nine character units rather than the end caret boundary");
+    wil::com_ptr_nothrow<ITextRangeProvider> partialDocumentRange;
+    RequireSucceeded(clonedDocumentRange->Clone(partialDocumentRange.put()), "clone for partial-document normalization");
+    RequireSucceeded(partialDocumentRange->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, -1, &farMoved), "narrow the document range");
+    RequireSucceeded(partialDocumentRange->Move(TextUnit_Document, 1, &farMoved), "normalize a partial document range");
+    Require(farMoved == 0 && ReadTextRangeText(*partialDocumentRange.get(), -1, "normalized document range exposes text") == L"alpha beta",
+            "normalization to the only document unit is not reported as movement");
+
     BOOL sameRange = FALSE;
     RequireSucceeded(documentRange->Compare(clonedDocumentRange.get(), &sameRange), "text field TextPattern cloned range compares");
     Require(sameRange == TRUE, "text field TextPattern cloned range compares equal by content");
@@ -1976,6 +2843,17 @@ void TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines()
     Require(ReadTextRangeText(*selectedRange.get(), -1, "wrapped selected range exposes moved visual-line text") ==
                 text.substr(secondLineStart, thirdLineStart - secondLineStart),
             "wrapped selected range lands on the next visual line span");
+
+    moved = 0;
+    RequireSucceeded(selectedRange->Move(TextUnit_Line, std::numeric_limits<int>::max(), &moved), "visual-line Move safely clamps INT_MAX to the document end");
+    const size_t finalVisualLineIndex = visualLineStarts.size() - 1u;
+    Require(moved == static_cast<int>(finalVisualLineIndex - 1u), "INT_MAX visual-line Move reports only the remaining lines");
+    moved = 0;
+    RequireSucceeded(selectedRange->Move(TextUnit_Line, std::numeric_limits<int>::min(), &moved),
+                     "visual-line Move safely clamps INT_MIN to the document start");
+    Require(moved == -static_cast<int>(finalVisualLineIndex), "INT_MIN visual-line Move reports bounded backward movement without overflow");
+    Require(ReadTextRangeText(*selectedRange.get(), -1, "extreme visual-line movement returns to the first line") == text.substr(0u, secondLineStart),
+            "extreme signed visual-line counts clamp at the first visual line");
 }
 
 void TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread()
@@ -2871,7 +3749,7 @@ void TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement()
     RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "collapsed native root Invoke lookup");
     Require(pattern != nullptr, "collapsed native root exposes Invoke");
     RequireSucceeded(pattern.query_to(invoke.put()), "collapsed native root Invoke interface");
-    RequireSucceeded(invoke->Invoke(), "native callback may replace its semantic root");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "native invocation reports its element gone when its callback replaces the semantic root");
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE && originalCount == 1u && replacementCount == 0u,
             "retained collapsed-root provider cannot invoke callback replacement");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fresh;
@@ -2888,6 +3766,54 @@ void TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement()
     RequireSucceeded(pattern.query_to(freshInvoke.put()), "replacement semantic root Invoke interface");
     RequireSucceeded(freshInvoke->Invoke(), "fresh provider invokes replacement semantic root");
     Require(originalCount == 1u && replacementCount == 1u, "fresh semantic root callback runs exactly once");
+}
+
+void TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    size_t failureCount    = 0u;
+    size_t retirementCount = 0u;
+
+    auto failingButton = std::make_unique<Button>(L"Result callback");
+    failingButton->SetAccessibleInvokeResult([&failureCount](ControlHost&)
+    {
+        ++failureCount;
+        return E_ACCESSDENIED;
+    });
+    window.Host().SetRoot(std::move(failingButton));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "result-callback fixture has a native provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "result-callback root exposes simple properties");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "result-callback root exposes Invoke");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "result-callback root exposes IInvokeProvider");
+    Require(invoke->Invoke() == E_ACCESSDENIED && failureCount == 1u, "UIA Invoke returns the accessible callback's failure HRESULT");
+
+    auto retiringButton = std::make_unique<Button>(L"Retiring result callback");
+    retiringButton->SetAccessibleInvokeResult([&window, &retirementCount](ControlHost& host)
+    {
+        ++retirementCount;
+        host.SetRoot({});
+        return E_ACCESSDENIED;
+    });
+    window.Host().SetRoot(std::move(retiringButton));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> freshProvider;
+    freshProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(freshProvider != nullptr, "replacement result-callback root has a fresh native provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> freshSimple;
+    RequireSucceeded(freshProvider.query_to(freshSimple.put()), "replacement result-callback root exposes simple properties");
+    pattern.reset();
+    RequireSucceeded(freshSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "replacement result-callback root exposes Invoke");
+    wil::com_ptr_nothrow<IInvokeProvider> freshInvoke;
+    RequireSucceeded(pattern.query_to(freshInvoke.put()), "replacement result-callback root exposes IInvokeProvider");
+    Require(freshInvoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE && retirementCount == 1u,
+            "target retirement takes precedence over the callback HRESULT and prevents stale follow-up access");
 }
 
 void TestNativeAccessibilityPostedSelectRejectsReplacement()
@@ -2944,10 +3870,20 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
             if (onSelection)
                 onSelection();
         }
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t>) override
+        {
+            if (onSelection)
+                onSelection();
+        }
     };
     struct ReplacingTreeDelegate final : ITreeDelegate
     {
         std::function<void()> onSelection;
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t>) override
+        {
+            if (onSelection)
+                onSelection();
+        }
         void OnTreeSelectionChanged(uint64_t /*itemId*/) override
         {
             if (onSelection)
@@ -2969,9 +3905,6 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
     {
         for (const Action action : {Action::Select, Action::AddToSelection, Action::SetFocus})
         {
-            // A tree item's focus selects silently, as SetFocusedItemId does, so no delegate runs to replace anything.
-            if (tree && action == Action::SetFocus)
-                continue;
             const std::string name = std::format("{} {}",
                                                  tree ? "tree item" : "grid row",
                                                  action == Action::Select ? "Select" : (action == Action::AddToSelection ? "AddToSelection" : "SetFocus"));
@@ -3050,6 +3983,902 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
             Require(window.Host().GetFocusControl() == nullptr, std::format("{}: nothing of the replaced controls is focused", name).c_str());
         }
     }
+}
+
+void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivate()
+{
+    using namespace DxUi;
+    struct GridDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        size_t selections = 0u;
+        size_t focuses    = 0u;
+        void OnGridSelectionChanged(Grid&) override
+        {
+            ++selections;
+        }
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t>) override
+        {
+            ++focuses;
+        }
+    };
+    struct TreeDelegate final : ITreeDelegate
+    {
+        size_t selections = 0u;
+        size_t focuses    = 0u;
+        void OnTreeSelectionChanged(uint64_t) override
+        {
+            ++selections;
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+        {
+            ++selections;
+        }
+        void OnTreeFocusedItemChanged(Tree&, std::optional<uint64_t>) override
+        {
+            ++focuses;
+        }
+    };
+    for (const bool useTree : {false, true})
+    {
+        for (const bool multiple : {false, true})
+        {
+            MultiRowGridModel gridModel(3u);
+            MutableTreeModel treeModel;
+            treeModel.SetVisibleItems({TreeItemData{.id = 10u, .text = L"First"}, TreeItemData{.id = 20u, .text = L"Second"}});
+            GridDelegate gridDelegate;
+            TreeDelegate treeDelegate;
+            AttachedHostWindow window;
+            auto root    = std::make_unique<Panel>();
+            auto* button = root->AddChild<Button>(L"Original focus");
+            button->SetBounds(D2D1::RectF(0, 0, 180, 28));
+            Tree* tree = nullptr;
+            Grid* grid = nullptr;
+            if (useTree)
+            {
+                tree = root->AddChild<Tree>();
+                tree->SetBounds(D2D1::RectF(0, 40, 240, 180));
+                tree->SetModel(&treeModel);
+                tree->SetMultiSelectEnabled(multiple);
+                tree->SetSelectedItemId(10u);
+                tree->SetDelegate(&treeDelegate);
+            }
+            else
+            {
+                grid = root->AddChild<Grid>();
+                grid->SetBounds(D2D1::RectF(0, 40, 240, 180));
+                grid->SetModel(&gridModel);
+                grid->SetSelectionMode(multiple ? GridSelectionMode::Extended : GridSelectionMode::Single);
+                grid->GetSelectionModel().SetSingle(gridModel.GetStableRowId(0u));
+                grid->SetFocusedRowId(gridModel.GetStableRowId(0u));
+                grid->SetDelegate(&gridDelegate);
+            }
+            window.Host().SetRoot(std::move(root));
+            window.Host().SetFocusControl(button, false);
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+            provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+            auto buttonProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 40, 12, "original focus provider");
+            wil::com_ptr_nothrow<IRawElementProviderFragment> container;
+            RequireSucceeded(buttonProvider->Navigate(NavigateDirection_NextSibling, container.put()), "selector follows the original focus button");
+            wil::com_ptr_nothrow<IRawElementProviderFragment> first;
+            RequireSucceeded(container->Navigate(NavigateDirection_FirstChild, first.put()), "selector exposes its first child");
+            if (! useTree)
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+                RequireSucceeded(first->Navigate(NavigateDirection_NextSibling, row.put()), "first grid row follows its header");
+                first = std::move(row);
+            }
+            wil::com_ptr_nothrow<IRawElementProviderFragment> second;
+            RequireSucceeded(first->Navigate(NavigateDirection_NextSibling, second.put()), "selector exposes its second item");
+            const auto selection = [](IRawElementProviderFragment& item)
+            {
+                wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+                RequireSucceeded(item.QueryInterface(IID_PPV_ARGS(simple.put())), "selection item simple provider");
+                wil::com_ptr_nothrow<IUnknown> unknown;
+                RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), "selection item pattern");
+                wil::com_ptr_nothrow<ISelectionItemProvider> pattern;
+                RequireSucceeded(unknown.query_to(pattern.put()), "selection item interface");
+                return pattern;
+            };
+            auto firstSelection  = selection(*first.get());
+            auto secondSelection = selection(*second.get());
+            RequireSucceeded(second->SetFocus(), "UIA can focus an unselected item");
+            Require(useTree ? tree->IsItemSelected(10u) && ! tree->IsItemSelected(20u) : grid->IsRowSelected(0u) && ! grid->IsRowSelected(1u),
+                    "UIA SetFocus preserves membership in either selection mode");
+            Require((useTree ? treeDelegate.selections : gridDelegate.selections) == 0u && (useTree ? treeDelegate.focuses : gridDelegate.focuses) == 1u,
+                    "focus-only UIA request calls only the focus delegate");
+            RequireSucceeded(firstSelection->AddToSelection(), "adding an existing member succeeds idempotently");
+            Require((useTree ? tree->GetFocusedItemId() == std::optional<uint64_t>(20u)
+                             : grid->GetFocusedRowId() == std::optional<uint64_t>(gridModel.GetStableRowId(1u))) &&
+                        (useTree ? treeDelegate.focuses : gridDelegate.focuses) == 1u,
+                    "idempotent UIA Add preserves focused identity and does not notify focus");
+            if (! multiple)
+                Require(secondSelection->AddToSelection() == UIA_E_INVALIDOPERATION, "single selection rejects adding another member");
+            window.Host().SetFocusControl(button, false);
+            RequireSucceeded(secondSelection->Select(), "UIA Select changes membership");
+            Require(window.Host().GetFocusControl() == button, "UIA Select preserves the existing host focus");
+            RequireSucceeded(secondSelection->RemoveFromSelection(), "optional single or multiple selection can be cleared");
+            RequireSucceeded(secondSelection->RemoveFromSelection(), "removing an absent member is idempotent");
+            BOOL selected = TRUE;
+            RequireSucceeded(secondSelection->get_IsSelected(&selected), "query the cleared member");
+            Require(selected == FALSE, "membership and focused identity remain distinct after removal");
+        }
+    }
+}
+
+void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
+{
+    using namespace DxUi;
+    const uint64_t initialBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    AttachedHostWindow window;
+    auto field          = std::make_unique<TextField>(L"initial");
+    auto* retainedField = field.get();
+    field->SetBounds(D2D1::RectF(0, 0, 240, 28));
+    window.Host().SetRoot(std::move(field));
+    retainedField->SetText(L"before first query");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == initialBuilds, "attach and mutations construct no initial snapshot eagerly");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    Require(root && SUCCEEDED(root.query_to(simple.put())), "explicit first access obtains a provider");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "lazy first value") == L"before first query",
+            "first provider access publishes the latest committed value");
+    window.PumpMessages();
+    const uint64_t before = DebugGetAccessibilitySnapshotBuildCountForTest();
+    for (size_t index = 0; index < 128u; ++index)
+        retainedField->SetText(std::to_wstring(index));
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before, "a mutation batch performs no synchronous tree rebuild");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "fresh batched value") == L"127",
+            "an owner-thread query flushes the final state before the posted turn");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 1u, "the query builds only one final snapshot");
+    window.PumpMessages();
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 1u, "queued event publication reuses the snapshot built for the query");
+    retainedField->SetText(L"queued only");
+    window.PumpMessages();
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 2u, "a held provider receives one publication at the queued boundary");
+}
+
+void TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto firstRoot    = std::make_unique<Panel>();
+    auto* firstButton = firstRoot->AddChild<Button>(L"Captured focus A");
+    firstButton->SetBounds(D2D1::RectF(0, 0, 160, 28));
+    firstRoot->AddChild<Button>(L"Stable sibling")->SetBounds(D2D1::RectF(0, 36, 160, 64));
+    window.Host().SetRoot(std::move(firstRoot));
+    window.Host().SetFocusControl(firstButton);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "focus replacement test creates a stable window-root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> initialFocus;
+    RequireSucceeded(rootProvider->GetFocus(initialFocus.put()), "initial focus snapshot reports button A");
+    Require(initialFocus != nullptr, "button A is focused before the replacement race");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> initialSimple;
+    RequireSucceeded(initialFocus.query_to(initialSimple.put()), "initial focused button supports simple properties");
+    Require(ReadProviderStringProperty(*initialSimple.get(), UIA_NamePropertyId, "initial focused button name") == L"Captured focus A",
+            "the first snapshot identifies button A");
+
+    wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release, "create bounded focus-query gate events");
+    DebugSetAccessibilityFocusResolutionGateForTest(window.Hwnd(), entered.get(), release.get(), true);
+    std::atomic<HRESULT> workerResult{E_PENDING};
+    std::atomic<bool> returnedProvider{false};
+    std::jthread resolver;
+    bool gateArmed            = true;
+    const auto cleanup        = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(SetEvent(release.get()));
+        if (resolver.joinable())
+            resolver.join();
+        if (gateArmed)
+            DebugSetAccessibilityFocusResolutionGateForTest(nullptr, nullptr, nullptr);
+    });
+    resolver                  = std::jthread([&]
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+        const HRESULT hr = rootProvider->GetFocus(focused.put());
+        returnedProvider.store(focused != nullptr, std::memory_order_release);
+        workerResult.store(hr, std::memory_order_release);
+    });
+    const DWORD enteredResult = WaitForSingleObject(entered.get(), 5000u);
+    Require(enteredResult == WAIT_OBJECT_0, "worker GetFocus holds captured snapshot A before creating its peer");
+
+    auto replacementRoot    = std::make_unique<Panel>();
+    auto* replacementButton = replacementRoot->AddChild<Button>(L"Replacement focus B");
+    replacementButton->SetBounds(D2D1::RectF(0, 0, 160, 28));
+    replacementRoot->AddChild<Button>(L"Stable sibling")->SetBounds(D2D1::RectF(0, 36, 160, 64));
+    window.Host().SetRoot(std::move(replacementRoot));
+    window.Host().SetFocusControl(replacementButton);
+
+    Require(SetEvent(release.get()) != FALSE, "release worker after the same-path replacement is published");
+    resolver.join();
+    DebugSetAccessibilityFocusResolutionGateForTest(nullptr, nullptr, nullptr);
+    gateArmed = false;
+
+    RequireSucceeded(workerResult.load(std::memory_order_acquire), "captured focus query completes across root replacement");
+    Require(! returnedProvider.load(std::memory_order_acquire),
+            "a peer created after replacement cannot be returned as the focused provider from captured snapshot A");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> currentFocus;
+    RequireSucceeded(rootProvider->GetFocus(currentFocus.put()), "a fresh owner query reads replacement focus B");
+    Require(currentFocus != nullptr, "the replacement button is available to a fresh focus query");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> currentSimple;
+    RequireSucceeded(currentFocus.query_to(currentSimple.put()), "replacement focused button supports simple properties");
+    Require(ReadProviderStringProperty(*currentSimple.get(), UIA_NamePropertyId, "replacement focused button name") == L"Replacement focus B",
+            "the current snapshot reports button B at the same semantic path");
+}
+
+void TestAccessibilityTextRangeLineDispatchPreservesConcurrentEndpointChanges()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    const std::wstring text            = L"alpha beta\ngamma delta epsilon zeta";
+    const std::wstring replacementText = L"alpha beta gamma\ndelta epsilon zeta";
+    Require(text.size() == replacementText.size(), "queued line-conflict replacement keeps the document length unchanged");
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(text);
+    field->SetMultiline(true);
+    field->SetBounds(D2D1::RectF(20.0f, 24.0f, 118.0f, 112.0f));
+    window.Host().SetRoot(std::move(root));
+    const auto visualLineStarts = ResolveVisualLineStarts(window.Host(), *field, text, "concurrent line edits resolve native visual-line starts");
+    Require(visualLineStarts.size() >= 2u, "concurrent line-edit fixture wraps to at least two visual lines");
+    const size_t secondLineStart = visualLineStarts[1];
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    auto fieldProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 40.0f, "concurrent line-edit TextField provider is resolved by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+    RequireSucceeded(fieldProvider.query_to(fieldSimple.put()), "concurrent line-edit provider exposes simple provider");
+    wil::com_ptr_nothrow<IUnknown> textPatternUnknown;
+    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, textPatternUnknown.put()), "concurrent line-edit gets TextPattern");
+    wil::com_ptr_nothrow<ITextProvider> textPattern;
+    RequireSucceeded(textPatternUnknown.query_to(textPattern.put()), "concurrent line-edit exposes ITextProvider");
+
+    wil::unique_event_nothrow posted;
+    posted.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(posted != nullptr, "create bounded notification for queued line-range dispatch");
+    DebugSetAccessibilityUiActionPostedEventForTest(posted.get());
+    const auto clearHook = wil::scope_exit([]() noexcept { DebugSetAccessibilityUiActionPostedEventForTest(nullptr); });
+
+    const auto runConflict = [&](ITextRangeProvider& range,
+                                 auto&& dispatch,
+                                 auto&& concurrentEdit,
+                                 std::wstring_view expectedText,
+                                 bool expectMovedOutput,
+                                 const char* scenario,
+                                 bool replaceDocumentOnOwner)
+    {
+        static_cast<void>(ResetEvent(posted.get()));
+        constexpr HRESULT kPending = E_PENDING;
+        std::atomic<HRESULT> result{kPending};
+        std::atomic<HRESULT> editResult{kPending};
+        std::atomic<int> movedResult{0x1234};
+        std::thread worker([&]() noexcept
+        {
+            const HRESULT initResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+            if (FAILED(initResult))
+            {
+                result.store(initResult, std::memory_order_release);
+                return;
+            }
+            int moved        = 0;
+            const HRESULT hr = dispatch(moved);
+            movedResult.store(moved, std::memory_order_release);
+            result.store(hr, std::memory_order_release);
+            CoUninitialize();
+        });
+        std::thread editWorker;
+        const auto cleanup = wil::scope_exit([&]() noexcept
+        {
+            if (worker.joinable() || editWorker.joinable())
+            {
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(6);
+                while (((worker.joinable() && result.load(std::memory_order_acquire) == kPending) ||
+                        (editWorker.joinable() && editResult.load(std::memory_order_acquire) == kPending)) &&
+                       std::chrono::steady_clock::now() < deadline)
+                {
+                    window.PumpMessages();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                if (worker.joinable())
+                    worker.join();
+                if (editWorker.joinable())
+                    editWorker.join();
+            }
+        });
+        Require(WaitForSingleObject(posted.get(), 2000u) == WAIT_OBJECT_0, scenario);
+        Require(result.load(std::memory_order_acquire) == kPending, "line operation remains queued until the owner pumps dispatch");
+
+        if (replaceDocumentOnOwner)
+        {
+            field->SetText(replacementText);
+        }
+        else
+        {
+            editWorker              = std::thread([&]() noexcept
+            {
+                const HRESULT initResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+                if (FAILED(initResult))
+                {
+                    editResult.store(initResult, std::memory_order_release);
+                    return;
+                }
+                editResult.store(concurrentEdit(), std::memory_order_release);
+                CoUninitialize();
+            });
+            const auto editDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            while (editResult.load(std::memory_order_acquire) == kPending && std::chrono::steady_clock::now() < editDeadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (editResult.load(std::memory_order_acquire) == kPending)
+            {
+                const auto dispatchDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+                while (result.load(std::memory_order_acquire) == kPending && std::chrono::steady_clock::now() < dispatchDeadline)
+                {
+                    window.PumpMessages();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                if (editWorker.joinable())
+                    editWorker.join();
+                if (worker.joinable())
+                    worker.join();
+                Require(false, "second MTA endpoint edit finishes while the line dispatch is queued and unpumped");
+            }
+            editWorker.join();
+            RequireSucceeded(editResult.load(std::memory_order_acquire), "second MTA endpoint edit completes before the owner pumps the line dispatch");
+        }
+        wil::com_ptr_nothrow<ITextRangeProvider> expectedRange;
+        RequireSucceeded(range.Clone(expectedRange.put()), "clone range endpoints after the concurrent edit");
+        Require(ReadTextRangeText(range, -1, "the concurrent edit is visible before line dispatch") == expectedText,
+                "the concurrent edit is visible in the retained range before the queued result returns");
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (result.load(std::memory_order_acquire) == kPending && std::chrono::steady_clock::now() < deadline)
+        {
+            window.PumpMessages();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        worker.join();
+        Require(result.load(std::memory_order_acquire) == UIA_E_INVALIDOPERATION,
+                "a line dispatch whose captured endpoints became stale reports UIA_E_INVALIDOPERATION");
+        if (expectMovedOutput)
+            Require(movedResult.load(std::memory_order_acquire) == 0, "a rejected stale line dispatch reports zero movement");
+        int comparison = 1;
+        RequireSucceeded(range.CompareEndpoints(TextPatternRangeEndpoint_Start, expectedRange.get(), TextPatternRangeEndpoint_Start, &comparison),
+                         "compare retained start endpoint against the concurrent edit");
+        Require(comparison == 0, "the stale line dispatch preserves the concurrently edited start endpoint");
+        RequireSucceeded(range.CompareEndpoints(TextPatternRangeEndpoint_End, expectedRange.get(), TextPatternRangeEndpoint_End, &comparison),
+                         "compare retained end endpoint against the concurrent edit");
+        Require(comparison == 0, "the stale line dispatch preserves the concurrently edited end endpoint");
+        Require(ReadTextRangeText(range, -1, "range text after stale line dispatch") == expectedText,
+                "a stale line dispatch cannot overwrite the concurrent edit");
+    };
+
+    wil::com_ptr_nothrow<ITextRangeProvider> movedRange;
+    RequireSucceeded(textPattern->get_DocumentRange(movedRange.put()), "create full range for concurrent Move test");
+    const std::wstring movedExpected = text.substr(secondLineStart + 1u);
+    runConflict(*movedRange.get(),
+                [&](int& moved) { return movedRange->Move(TextUnit_Line, 1, &moved); },
+                [&]
+    {
+        int moved = 0;
+        return movedRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, static_cast<int>(secondLineStart + 1u), &moved);
+    },
+                movedExpected,
+                true,
+                "TextRange Move(TextUnit_Line) posts owner-thread dispatch before returning",
+                false);
+
+    wil::com_ptr_nothrow<ITextRangeProvider> endpointRange;
+    RequireSucceeded(textPattern->get_DocumentRange(endpointRange.put()), "create full range for concurrent endpoint test");
+    const std::wstring endpointExpected = text.substr(0u, text.size() - 1u);
+    runConflict(*endpointRange.get(),
+                [&](int& moved) { return endpointRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Line, 1, &moved); },
+                [&]
+    {
+        int moved = 0;
+        return endpointRange->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, -1, &moved);
+    },
+                endpointExpected,
+                true,
+                "TextRange MoveEndpointByUnit(TextUnit_Line) posts owner-thread dispatch before returning",
+                false);
+
+    wil::com_ptr_nothrow<ITextRangeProvider> contentMoveRange;
+    field->SetText(text);
+    RequireSucceeded(textPattern->get_DocumentRange(contentMoveRange.put()), "create full range for same-control content conflict Move test");
+    runConflict(*contentMoveRange.get(), [&](int& moved) { return contentMoveRange->Move(TextUnit_Line, 1, &moved); }, [] {
+        return S_OK;
+    }, replacementText, true, "TextRange Move(Line) rejects queued work after same-control text changes", true);
+
+    wil::com_ptr_nothrow<ITextRangeProvider> contentEndpointRange;
+    field->SetText(text);
+    RequireSucceeded(textPattern->get_DocumentRange(contentEndpointRange.put()), "create full range for same-control content conflict endpoint test");
+    runConflict(*contentEndpointRange.get(), [&](int& moved) {
+        return contentEndpointRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Line, 1, &moved);
+    }, [] { return S_OK; }, replacementText, true, "TextRange MoveEndpointByUnit(Line) rejects queued work after same-control text changes", true);
+
+    wil::com_ptr_nothrow<ITextRangeProvider> contentExpansionRange;
+    field->SetText(text);
+    RequireSucceeded(textPattern->get_DocumentRange(contentExpansionRange.put()), "create full range for same-control content conflict expansion test");
+    runConflict(*contentExpansionRange.get(), [&](int&) { return contentExpansionRange->ExpandToEnclosingUnit(TextUnit_Line); }, [] {
+        return S_OK;
+    }, replacementText, false, "TextRange ExpandToEnclosingUnit(Line) rejects queued work after same-control text changes", true);
+
+    wil::com_ptr_nothrow<ITextRangeProvider> expandingRange;
+    field->SetText(text);
+    RequireSucceeded(textPattern->get_DocumentRange(expandingRange.put()), "create full range for concurrent line expansion test");
+    int movedInsideLine = 0;
+    RequireSucceeded(
+        expandingRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, static_cast<int>(secondLineStart + 1u), &movedInsideLine),
+        "position expansion-test start within the second visual line");
+    const std::wstring expansionExpected = text.substr(secondLineStart + 1u, text.size() - secondLineStart - 2u);
+    runConflict(*expandingRange.get(),
+                [&](int&) { return expandingRange->ExpandToEnclosingUnit(TextUnit_Line); },
+                [&]
+    {
+        int moved = 0;
+        return expandingRange->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, -1, &moved);
+    },
+                expansionExpected,
+                false,
+                "TextRange ExpandToEnclosingUnit(TextUnit_Line) posts owner-thread dispatch before returning",
+                false);
+}
+
+void TestAccessibilityNativeTextRangeTracksFreshDocumentAndEnclosingElement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"before");
+    field->SetBounds(D2D1::RectF(0, 0, 180, 32));
+    root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostRoot;
+    hostRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fieldFragment;
+    wil::com_ptr_nothrow<IRawElementProviderFragment> hostFragment;
+    RequireSucceeded(hostRoot.query_to(hostFragment.put()), "fresh-range root exposes fragment navigation");
+    RequireSucceeded(hostFragment->Navigate(NavigateDirection_FirstChild, fieldFragment.put()), "fresh-range fixture navigates to TextField");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+    RequireSucceeded(fieldFragment.query_to(fieldSimple.put()), "fresh-range fixture gets simple field provider");
+    wil::com_ptr_nothrow<IUnknown> textUnknown;
+    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, textUnknown.put()), "fresh-range fixture gets TextPattern");
+    wil::com_ptr_nothrow<ITextProvider> text;
+    RequireSucceeded(textUnknown.query_to(text.put()), "fresh-range fixture exposes ITextProvider");
+    wil::com_ptr_nothrow<ITextRangeProvider> retainedRange;
+    RequireSucceeded(text->get_DocumentRange(retainedRange.put()), "retain native document range before text changes");
+
+    field->SetText(L"fresh!");
+    Require(ReadTextRangeText(*retainedRange.get(), -1, "retained native range reads fresh text") == L"fresh!",
+            "a retained native DocumentRange reads the newly published complete TextField value");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> enclosingElement;
+    RequireSucceeded(retainedRange->GetEnclosingElement(enclosingElement.put()), "retained native range resolves its enclosing element");
+    VARIANT controlType{};
+    const HRESULT typeHr = enclosingElement->GetPropertyValue(UIA_ControlTypePropertyId, &controlType);
+    RequireSucceeded(typeHr, "fresh range enclosing element exposes ControlType");
+    const bool isEdit = controlType.vt == VT_I4 && controlType.lVal == UIA_EditControlTypeId;
+    VariantClear(&controlType);
+    Require(isEdit, "fresh range remains enclosed by the TextField edit control");
+}
+
+void TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement()
+{
+    using namespace DxUi;
+    const auto runRace = [](AttachedHostWindow& window, auto&& invoke, auto&& replace, const char* scenario)
+    {
+        wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(entered && release, "create bounded peer-creation gate events");
+        DebugSetAccessibilityPeerCreationGateForTest(window.Hwnd(), entered.get(), release.get());
+        std::atomic<HRESULT> workerResult{E_PENDING};
+        std::atomic<bool> producedPeer{false};
+        std::jthread worker;
+        bool gateArmed     = true;
+        const auto cleanup = wil::scope_exit([&]() noexcept
+        {
+            static_cast<void>(SetEvent(release.get()));
+            if (worker.joinable())
+                worker.join();
+            if (gateArmed)
+                DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+        });
+        worker             = std::jthread([&]() noexcept
+        {
+            const auto [hr, produced] = invoke();
+            producedPeer.store(produced, std::memory_order_release);
+            workerResult.store(hr, std::memory_order_release);
+        });
+        Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, scenario);
+        replace();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> replacementRoot;
+        replacementRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(replacementRoot != nullptr, "the owner publishes replacement snapshot B before peer creation resumes");
+        Require(SetEvent(release.get()) != FALSE, "release worker after the replacement snapshot is published");
+        worker.join();
+        DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+        gateArmed            = false;
+        const HRESULT result = workerResult.load(std::memory_order_acquire);
+        Require(result != E_PENDING, "the gated peer-creation query completed after release");
+        Require(! producedPeer.load(std::memory_order_acquire), "snapshot-A query never returns a peer for replacement control B");
+        Require(FAILED(result) || result == S_OK, "retired peer factory result is an expected UIA failure or empty success");
+    };
+
+    {
+        AttachedHostWindow window;
+        auto root = std::make_unique<Panel>();
+        root->AddChild<Button>(L"A")->SetBounds(D2D1::RectF(0, 0, 100, 28));
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 36, 100, 64));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+        RequireSucceeded(provider.query_to(fragment.put()), "navigation race root exposes fragment navigation");
+        runRace(window,
+                [&]()
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+            const HRESULT hr = fragment->Navigate(NavigateDirection_FirstChild, child.put());
+            return std::pair{hr, child != nullptr};
+        },
+                [&]()
+        {
+            auto replacement = std::make_unique<Panel>();
+            replacement->AddChild<Button>(L"B")->SetBounds(D2D1::RectF(0, 0, 100, 28));
+            replacement->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 36, 100, 64));
+            window.Host().SetRoot(std::move(replacement));
+        },
+                "Navigate is gated after reading snapshot A and before creating its child peer");
+    }
+
+    {
+        AttachedHostWindow window;
+        auto root = std::make_unique<Panel>();
+        root->AddChild<Button>(L"Point A")->SetBounds(D2D1::RectF(0, 0, 120, 32));
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        const POINT point = window.Host().DipPointToScreenPoint(D2D1::Point2F(20, 12));
+        runRace(window,
+                [&]()
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragment> hit;
+            const HRESULT hr = provider->ElementProviderFromPoint(point.x, point.y, hit.put());
+            return std::pair{hr, hit != nullptr};
+        },
+                [&]()
+        {
+            auto replacement = std::make_unique<Panel>();
+            replacement->AddChild<Button>(L"Point B")->SetBounds(D2D1::RectF(0, 0, 120, 32));
+            replacement->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+            window.Host().SetRoot(std::move(replacement));
+        },
+                "ElementProviderFromPoint is gated after hit-testing snapshot A and before creating the hit peer");
+    }
+
+    {
+        AttachedHostWindow window;
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"document A");
+        field->SetBounds(D2D1::RectF(0, 0, 180, 32));
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostRoot;
+        hostRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fieldFragment;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> hostFragment;
+        RequireSucceeded(hostRoot.query_to(hostFragment.put()), "text factory root exposes fragment navigation");
+        RequireSucceeded(hostFragment->Navigate(NavigateDirection_FirstChild, fieldFragment.put()), "text factory race navigates to its TextField");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+        RequireSucceeded(fieldFragment.query_to(fieldSimple.put()), "text factory race resolves the field control peer");
+        wil::com_ptr_nothrow<IUnknown> textUnknown;
+        RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, textUnknown.put()), "text factory race gets TextPattern");
+        wil::com_ptr_nothrow<ITextProvider> text;
+        RequireSucceeded(textUnknown.query_to(text.put()), "text factory race exposes ITextProvider");
+        runRace(window,
+                [&]()
+        {
+            wil::com_ptr_nothrow<ITextRangeProvider> range;
+            const HRESULT hr = text->get_DocumentRange(range.put());
+            return std::pair{hr, range != nullptr};
+        },
+                [&]()
+        {
+            auto replacement       = std::make_unique<Panel>();
+            auto* replacementField = replacement->AddChild<TextField>(L"document B");
+            replacementField->SetBounds(D2D1::RectF(0, 0, 180, 32));
+            replacement->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+            window.Host().SetRoot(std::move(replacement));
+        },
+                "Text DocumentRange creation is gated after snapshot A and before constructing the range peer");
+    }
+
+    {
+        AttachedHostWindow window;
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"selection A");
+        field->SetBounds(D2D1::RectF(0, 0, 180, 32));
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostRoot;
+        hostRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fieldFragment;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> hostFragment;
+        RequireSucceeded(hostRoot.query_to(hostFragment.put()), "selection factory root exposes fragment navigation");
+        RequireSucceeded(hostFragment->Navigate(NavigateDirection_FirstChild, fieldFragment.put()), "selection factory race navigates to its TextField");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+        RequireSucceeded(fieldFragment.query_to(fieldSimple.put()), "selection factory race obtains the simple field peer");
+        wil::com_ptr_nothrow<IUnknown> textUnknown;
+        RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, textUnknown.put()), "selection factory race gets TextPattern");
+        wil::com_ptr_nothrow<ITextProvider> text;
+        RequireSucceeded(textUnknown.query_to(text.put()), "selection factory race exposes ITextProvider");
+        runRace(window,
+                [&]()
+        {
+            SAFEARRAY* ranges   = nullptr;
+            const HRESULT hr    = text->GetSelection(&ranges);
+            const bool produced = ranges != nullptr;
+            if (ranges)
+                static_cast<void>(SafeArrayDestroy(ranges));
+            return std::pair{hr, produced};
+        },
+                [&]()
+        {
+            auto replacement       = std::make_unique<Panel>();
+            auto* replacementField = replacement->AddChild<TextField>(L"selection B");
+            replacementField->SetBounds(D2D1::RectF(0, 0, 180, 32));
+            replacement->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+            window.Host().SetRoot(std::move(replacement));
+        },
+                "Text selection range creation is gated after snapshot A and before constructing its range peer");
+    }
+
+    {
+        class Model final : public IGridModel
+        {
+        public:
+            size_t GetRowCount() const noexcept override
+            {
+                return 1u;
+            }
+            size_t GetColumnCount() const noexcept override
+            {
+                return 2u;
+            }
+            GridColumnDesc GetColumn(size_t index) const override
+            {
+                return {.id = std::to_wstring(index), .title = std::to_wstring(index), .widthDip = 100.0f};
+            }
+            void GetCellData(size_t, size_t, GridCellData& data) const override
+            {
+                data.kind = GridCellKind::Text;
+                data.text = L"cell";
+            }
+            uint64_t GetStableRowId(size_t) const noexcept override
+            {
+                return 1u;
+            }
+            std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+            {
+                return id == 1u ? std::optional<size_t>(0u) : std::nullopt;
+            }
+        } model;
+        AttachedHostWindow window;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0, 0, 240, 120));
+        grid->SetModel(&model);
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 128, 120, 160));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostRoot;
+        hostRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> gridFragment;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> hostFragment;
+        RequireSucceeded(hostRoot.query_to(hostFragment.put()), "header factory root exposes fragment navigation");
+        RequireSucceeded(hostFragment->Navigate(NavigateDirection_FirstChild, gridFragment.put()), "header factory race navigates to its Grid");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> gridSimple;
+        RequireSucceeded(gridFragment.query_to(gridSimple.put()), "header factory race obtains the simple Grid peer");
+        wil::com_ptr_nothrow<IUnknown> tableUnknown;
+        RequireSucceeded(gridSimple->GetPatternProvider(UIA_TablePatternId, tableUnknown.put()), "header factory race gets TablePattern");
+        wil::com_ptr_nothrow<ITableProvider> table;
+        RequireSucceeded(tableUnknown.query_to(table.put()), "header factory race exposes ITableProvider");
+        runRace(window,
+                [&]()
+        {
+            SAFEARRAY* headers  = nullptr;
+            const HRESULT hr    = table->GetColumnHeaders(&headers);
+            const bool produced = headers != nullptr;
+            if (headers)
+                static_cast<void>(SafeArrayDestroy(headers));
+            return std::pair{hr, produced};
+        },
+                [&]()
+        {
+            auto replacement      = std::make_unique<Panel>();
+            auto* replacementGrid = replacement->AddChild<Grid>();
+            replacementGrid->SetBounds(D2D1::RectF(0, 0, 240, 120));
+            replacementGrid->SetModel(&model);
+            replacement->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 128, 120, 160));
+            window.Host().SetRoot(std::move(replacement));
+        },
+                "table header peer creation is gated after snapshot A and before constructing header peers");
+    }
+}
+
+void TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().SetRoot(std::make_unique<TextField>(L"retired"));
+    bool replaced = false;
+    window.SetApplicationMessageHandler([&](UINT message, WPARAM, LPARAM, LRESULT&)
+    {
+        if (message == WM_GETTEXT && ! std::exchange(replaced, true))
+            window.Host().SetRoot(std::make_unique<TextField>(L"replacement"));
+        return false;
+    });
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    Require(replaced && root && SUCCEEDED(root.query_to(simple.put())), "caption callback replaces the root while the first snapshot is being built");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "caption replacement") == L"replacement",
+            "caption reentrancy cannot overwrite the newly committed tree with retired controls");
+}
+
+void TestAccessibilityPostedPublicationDoesNotReachAReattachedHost()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().SetRoot(std::make_unique<TextField>(L"old attachment"));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> old;
+    old.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    window.Host().RefreshAccessibilitySnapshot();
+    window.Host().Detach();
+    Require(window.Host().Attach(window.Hwnd()), "host reattaches before its old publication message drains");
+    const uint64_t before = DebugGetAccessibilitySnapshotBuildCountForTest();
+    window.PumpMessages();
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before, "an old attachment cookie cannot publish into the new attachment");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> oldSimple;
+    RequireSucceeded(old.query_to(oldSimple.put()), "retain the detached provider identity");
+    VARIANT value{};
+    Require(oldSimple->GetPropertyValue(UIA_NamePropertyId, &value) == UIA_E_ELEMENTNOTAVAILABLE,
+            "retained old providers remain disconnected after reattachment");
+    VariantClear(&value);
+}
+
+void TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost()
+{
+    using namespace DxUi;
+    MultiRowGridModel model(32u);
+    AttachedHostWindow window;
+    auto panel  = std::make_unique<Panel>();
+    auto* field = panel->AddChild<TextField>(L"seed");
+    field->SetBounds(D2D1::RectF(0, 0, 240, 28));
+    auto* grid = panel->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0, 32, 300, 180));
+    grid->SetModel(&model);
+    for (size_t index = 0u; index < 32u; ++index)
+        panel->AddChild<Label>(std::format(L"Sibling {}", index))->SetBounds(D2D1::RectF(310, 0, 500, 24));
+    window.Host().SetRoot(std::move(panel));
+    window.Host().SetFocusControl(field, false);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "publication measurement retains the pre-mutation root provider");
+    auto fieldProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 20, 12, "publication measurement field provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fieldProvider.query_to(simple.put()), "publication measurement retains the field provider");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "publication measurement initial value") == L"seed",
+            "the retained provider starts with the committed initial text");
+
+    constexpr size_t iterations    = 128u;
+    const auto dispatchTextMessage = [&](UINT message, WPARAM key)
+    {
+        bool handled = false;
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), message, key, 0, handled));
+        Require(handled, "publication measurement text input uses the nonactivating host message path");
+    };
+    const auto measure = [&](const char* scenario, auto&& operation)
+    {
+        for (size_t repetition = 0u; repetition < 7u; ++repetition)
+        {
+            window.PumpMessages();
+            const uint64_t buildsBefore = DebugGetAccessibilitySnapshotBuildCountForTest();
+            const auto started          = std::chrono::steady_clock::now();
+            for (size_t index = 0u; index < iterations; ++index)
+                operation(index);
+            const auto stopped             = std::chrono::steady_clock::now();
+            const double elapsedUs         = std::chrono::duration<double, std::micro>(stopped - started).count();
+            const uint64_t operationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest() - buildsBefore;
+            const auto queryStarted        = std::chrono::steady_clock::now();
+            Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "first retained-provider query after the mutation batch") == L"seed",
+                    "every measured batch keeps the retained provider's complete final document fresh");
+            const auto queryStopped = std::chrono::steady_clock::now();
+            const double queryUs    = std::chrono::duration<double, std::micro>(queryStopped - queryStarted).count();
+            std::cout << "UIA_PUBLICATION_BENCHMARK {\"scenario\":\"" << scenario << "\",\"repetition\":" << repetition << ",\"operations\":" << iterations
+                      << ",\"microseconds\":" << elapsedUs << ",\"queryMicroseconds\":" << queryUs
+                      << ",\"totalMicroseconds\":" << std::chrono::duration<double, std::micro>(queryStopped - started).count()
+                      << ",\"operationSnapshotBuilds\":" << operationBuilds
+                      << ",\"snapshotBuilds\":" << DebugGetAccessibilitySnapshotBuildCountForTest() - buildsBefore
+                      << ",\"uiaListening\":" << (UiaClientsAreListening() ? "true" : "false") << "}\n";
+        }
+    };
+    measure("keystroke-batch",
+            [&](size_t)
+    {
+        dispatchTextMessage(WM_CHAR, static_cast<WPARAM>(L'a'));
+        dispatchTextMessage(WM_KEYDOWN, VK_BACK);
+    });
+    measure("selection-batch", [&](size_t index) { Require(grid->RequestSelectRow(index % 2u, 0u), "publication measurement selects a row"); });
+    dispatchTextMessage(WM_CHAR, static_cast<WPARAM>(L'!'));
+    Require(field->GetText() == L"seed!" && grid->IsRowSelected(1u), "mutation batches retain dirty final text and selection");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "mutation batch final value") == L"seed!",
+            "the retained provider's first post-mutation query observes dirty text published through the host message path");
+}
+
+void TestAccessibilityGridCellFocusChoosesTheInspectedColumn()
+{
+    using namespace DxUi;
+    struct Model final : IGridModel
+    {
+        size_t GetRowCount() const noexcept override
+        {
+            return 1u;
+        }
+        size_t GetColumnCount() const noexcept override
+        {
+            return 2u;
+        }
+        std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+        {
+            return id == GetStableRowId(0u) ? std::optional<size_t>(0u) : std::nullopt;
+        }
+        GridColumnDesc GetColumn(size_t index) const override
+        {
+            return {.id = std::to_wstring(index), .title = std::to_wstring(index), .widthDip = 130.0f};
+        }
+        void GetCellData(size_t, size_t column, GridCellData& cell) const override
+        {
+            cell.kind = GridCellKind::Text;
+            cell.text = column == 0u ? L"First value" : L"Full second value";
+        }
+    } model;
+    AttachedHostWindow window;
+    auto control = std::make_unique<Grid>();
+    auto* grid   = control.get();
+    grid->SetBounds(D2D1::RectF(0, 0, 300, 160));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(control));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(root != nullptr, "cell-focus fixture obtains the attached root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "cell-focus root exposes its fragment navigation");
+    const auto navigate = [](IRawElementProviderFragment& from, NavigateDirection direction, const char* step)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(from.Navigate(direction, next.put()), "cell-focus client navigation succeeds");
+        Require(next != nullptr, step);
+        return next;
+    };
+    auto container = std::move(rootFragment); // The single Grid is the semantic root and is collapsed into the HWND root.
+    auto header    = navigate(*container.get(), NavigateDirection_FirstChild, "cell-focus client reaches the first header");
+    // The Grid exposes all column headers before its row fragments.
+    auto secondHeader = navigate(*header.get(), NavigateDirection_NextSibling, "cell-focus client reaches the second header");
+    auto row          = navigate(*secondHeader.get(), NavigateDirection_NextSibling, "cell-focus client reaches the row after both headers");
+    auto first        = navigate(*row.get(), NavigateDirection_FirstChild, "cell-focus client reaches the first cell");
+    auto second       = navigate(*first.get(), NavigateDirection_NextSibling, "cell-focus client reaches the second cell");
+    Require(second != nullptr, "client can navigate to the second cell");
+    RequireSucceeded(second->SetFocus(), "UIA SetFocus accepts the second cell");
+    Require(grid->OnKeyDown(window.Host(), VK_F1, 0u), "F1 inspects the current cell after UIA focus");
+    Require(window.Host().IsTooltipInspectionActive() && window.Host().GetTooltipText() == L"Full second value",
+            "UIA cell focus and keyboard inspection use the same column");
 }
 
 void TestNativeAccessibilityPostedInvokeRejectsReplacement()
@@ -3446,117 +5275,6 @@ void TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageA
     Require(workerRectangles == nullptr, "late-handler timeout leaves caller SAFEARRAY output untouched");
 }
 
-void TestAccessibilityProviderExposesNativeImeTextEditRanges()
-{
-    using namespace DxUi;
-
-    AttachedHostWindow window;
-    window.Host().SetTextInputBackend(TextInputBackend::Native);
-
-    auto root   = std::make_unique<Panel>();
-    auto* field = root->AddChild<TextField>(L"alpha beta");
-    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
-    window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    field->SetSelectionRange(5u, 5u);
-    window.Host().SyncTextInput(field);
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
-
-    NativeTextInputImePayload payload;
-    payload.hasCompositionString  = true;
-    payload.compositionString     = L"-ime";
-    payload.compositionAttributes = {ATTR_INPUT, ATTR_TARGET_CONVERTED, ATTR_TARGET_CONVERTED, ATTR_INPUT};
-    payload.hasCursorPosition     = true;
-    payload.cursorPosition        = 3u;
-    window.Host().DebugSetNativeTextInputImePayloadForTest(payload);
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR | GCS_COMPATTR | GCS_CURSORPOS));
-
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
-    Require(rootProvider != nullptr, "native ime TextEditPattern test creates a root provider");
-
-    wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
-        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 16.0f, "native ime text field provider is resolved by point");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
-    RequireSucceeded(fieldProvider.query_to(fieldSimple.put()), "native ime text field provider exposes IRawElementProviderSimple");
-
-    wil::com_ptr_nothrow<IUnknown> textEditPatternUnknown;
-    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextEditPatternId, textEditPatternUnknown.put()), "native ime TextEditPattern lookup succeeds");
-    Require(textEditPatternUnknown != nullptr, "native ime text field exposes TextEditPattern");
-    wil::com_ptr_nothrow<ITextEditProvider> textEditPattern;
-    RequireSucceeded(textEditPatternUnknown.query_to(textEditPattern.put()), "native ime TextEditPattern supports ITextEditProvider");
-
-    wil::com_ptr_nothrow<ITextRangeProvider> activeComposition;
-    RequireSucceeded(textEditPattern->GetActiveComposition(activeComposition.put()), "native ime active-composition range lookup succeeds");
-    Require(activeComposition != nullptr, "native ime TextEditPattern exposes active composition range");
-    Require(ReadTextRangeText(*activeComposition.get(), -1, "native ime active-composition range exposes text") == L"-ime",
-            "native ime active-composition range returns the preview string");
-
-    wil::com_ptr_nothrow<ITextRangeProvider> conversionTarget;
-    RequireSucceeded(textEditPattern->GetConversionTarget(conversionTarget.put()), "native ime conversion-target range lookup succeeds");
-    Require(conversionTarget != nullptr, "native ime TextEditPattern exposes conversion target range");
-    Require(ReadTextRangeText(*conversionTarget.get(), -1, "native ime conversion-target range exposes text") == L"im",
-            "native ime conversion-target range returns the target-converted span");
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
-}
-
-void TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters()
-{
-    using namespace DxUi;
-
-    AttachedHostWindow window;
-    window.Host().SetTextInputBackend(TextInputBackend::Native);
-
-    auto root   = std::make_unique<Panel>();
-    auto* field = root->AddChild<TextField>(L"alpha beta");
-    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
-    window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    window.Host().SyncTextInput(field);
-
-    const NativeTextInputEventCounters baselineCounters = window.Host().DebugGetNativeTextInputEventCounters();
-
-    field->SetTextAndNotify(L"alpha beta edited");
-    window.Host().SyncTextInput(field);
-
-    NativeTextInputEventCounters counters = window.Host().DebugGetNativeTextInputEventCounters();
-    Require(counters.uiaTextChangedCount == baselineCounters.uiaTextChangedCount + 1u,
-            "native text input raises a UIA TextPattern text-changed event for retained text mutations");
-
-    const NativeTextInputEventCounters afterTextCounters = counters;
-    field->SetSelectionRange(6u, 10u);
-    window.Host().SyncTextInput(field);
-    counters = window.Host().DebugGetNativeTextInputEventCounters();
-    Require(counters.uiaTextSelectionChangedCount == afterTextCounters.uiaTextSelectionChangedCount + 1u,
-            "native text input raises a UIA TextPattern selection-changed event for retained selection mutations");
-
-    const NativeTextInputEventCounters afterSelectionCounters = counters;
-    field->SetSelectionRange(3u, 3u);
-    window.Host().SyncTextInput(field);
-    counters = window.Host().DebugGetNativeTextInputEventCounters();
-    Require(counters.uiaActiveTextPositionChangedCount == afterSelectionCounters.uiaActiveTextPositionChangedCount + 1u,
-            "native text input raises a UIA active text position event for retained caret moves");
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
-
-    NativeTextInputImePayload payload;
-    payload.hasCompositionString  = true;
-    payload.compositionString     = L"-ime";
-    payload.compositionAttributes = {ATTR_INPUT, ATTR_TARGET_CONVERTED, ATTR_TARGET_CONVERTED, ATTR_INPUT};
-    window.Host().DebugSetNativeTextInputImePayloadForTest(payload);
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR | GCS_COMPATTR));
-
-    counters = window.Host().DebugGetNativeTextInputEventCounters();
-    Require(counters.uiaTextEditTextChangedCount >= baselineCounters.uiaTextEditTextChangedCount + 1u,
-            "native IME composition raises a UIA TextEdit text-changed event");
-    Require(counters.uiaTextEditConversionTargetChangedCount == baselineCounters.uiaTextEditConversionTargetChangedCount + 1u,
-            "native IME target conversion raises a UIA TextEdit conversion-target-changed event");
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
-}
-
 void TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget()
 {
     using namespace DxUi;
@@ -3578,16 +5296,33 @@ void TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget()
     std::iota(selectedRowIds.begin(), selectedRowIds.end(), uint64_t{0u});
     liveGrid->GetSelectionModel().SetRange(selectedRowIds, selectedRowIds.front(), selectedRowIds.back());
 
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simpleProvider;
+    RequireSucceeded(rootProvider->QueryInterface(IID_PPV_ARGS(simpleProvider.put())), "10k-row grid provides a property query boundary");
+    const auto rebuildForQuery = [&]
+    {
+        const auto buildsBefore = DebugGetAccessibilitySnapshotBuildCountForTest();
+        liveGrid->RefreshAccessibilitySnapshot();
+        VARIANT value{};
+        RequireSucceeded(simpleProvider->GetPropertyValue(UIA_ControlTypePropertyId, &value), "the first provider query rebuilds the dirty grid snapshot");
+        const bool isGrid = value.vt == VT_I4 && value.lVal == UIA_DataGridControlTypeId;
+        VariantClear(&value);
+        Require(isGrid && DebugGetAccessibilitySnapshotBuildCountForTest() == buildsBefore + 1u,
+                "each budget sample measures one completed snapshot rebuild, including lazy first-query publication");
+    };
+
     DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(kRowCount);
     const auto resetMaterializationLimit = wil::scope_exit([]() noexcept { DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(0u); });
     const auto baselineStarted           = std::chrono::steady_clock::now();
-    liveGrid->RefreshAccessibilitySnapshot();
+    rebuildForQuery();
     const auto baselineElapsed = std::chrono::steady_clock::now() - baselineStarted;
 
     DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(256u);
     const auto candidateStarted = std::chrono::steady_clock::now();
-    liveGrid->RefreshAccessibilitySnapshot();
+    rebuildForQuery();
     const auto candidateElapsed = std::chrono::steady_clock::now() - candidateStarted;
+
+    std::cout << "10k-row completed snapshot rebuild: uncapped " << std::chrono::duration_cast<std::chrono::microseconds>(baselineElapsed).count()
+              << " us; capped " << std::chrono::duration_cast<std::chrono::microseconds>(candidateElapsed).count() << " us\n";
 
     Require(liveGrid->GetSelectionModel().GetCount() == kRowCount, "10k-row grid snapshot retains the complete Ctrl+A selection");
     Require(candidateElapsed < std::chrono::milliseconds(250), "10k-row grid Ctrl+A accessibility snapshot rebuild stays under the 250 ms Debug budget");
@@ -3706,6 +5441,43 @@ void TestAccessibilityProviderExposesTreeAndGridMetadata()
             "root provider focus lookup returns the selected tree item provider for a focused tree");
     Require(ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "focused tree item exposes accessibility name") == L"Panes",
             "root provider focus lookup returns the selected visible tree item");
+}
+
+void TestAccessibilityTreeItemsReportClippedViewportVisibility()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = L"First"}, TreeItemData{.id = 2u, .text = L"Partial"}, TreeItemData{.id = 3u, .text = L"Outside"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 45.0f));
+    tree->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the clipped tree creates its root provider");
+    auto treeProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 200.0f, 2.0f, "the tree is reached by its first row");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> treeContainer;
+    RequireSucceeded(treeProvider->Navigate(NavigateDirection_Parent, treeContainer.put()), "the row reaches its tree container");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> item;
+    RequireSucceeded(treeContainer->Navigate(NavigateDirection_FirstChild, item.put()), "the tree exposes its first row");
+    for (size_t index = 0u; index < 3u; ++index)
+    {
+        Require(item != nullptr, "all model rows remain navigable even outside the viewport");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(item.query_to(simple.put()), "the tree row exposes properties");
+        UiaRect bounds{};
+        RequireSucceeded(item->get_BoundingRectangle(&bounds), "the tree row exposes its clipped bounds");
+        const bool outside = index == 2u;
+        Require(ReadProviderBoolProperty(*simple.get(), UIA_IsOffscreenPropertyId, "tree row viewport visibility") == outside,
+                "only the fully clipped row reports offscreen; a partially visible row remains onscreen");
+        Require(outside ? bounds.width == 0.0 && bounds.height == 0.0 : bounds.width > 0.0 && bounds.height > 0.0,
+                "offscreen state agrees with nonempty clipped bounds");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(item->Navigate(NavigateDirection_NextSibling, next.put()), "tree row navigation reaches the next model row");
+        item = std::move(next);
+    }
 }
 
 void TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder()
@@ -4004,7 +5776,10 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
     wil::com_ptr_nothrow<ISelectionItemProvider> childSelectionPattern;
     RequireSucceeded(childSelectionUnknown.query_to(childSelectionPattern.put()), "child selection pattern supports ISelectionItemProvider");
 
-    RequireSucceeded(childSelectionPattern->AddToSelection(), "child tree-item selection pattern can select the child");
+    Require(childSelectionPattern->AddToSelection() == UIA_E_INVALIDOPERATION, "single-select Tree cannot add the child alongside its selected parent");
+    Require(tree->GetSelectedItemId() == std::optional<uint64_t>(10u) && delegate.selectionChangedCount == 1u,
+            "rejected AddToSelection preserves the parent selection without notifying the delegate");
+    RequireSucceeded(childSelectionPattern->Select(), "child tree-item selection pattern can replace the parent selection");
     Require(tree->GetSelectedItemId() && tree->GetSelectedItemId().value() == 11u, "child tree item selection updates the tree selection");
     Require(delegate.selectionChangedCount == 2u && delegate.lastSelectedItemId && delegate.lastSelectedItemId.value() == 11u,
             "child tree item selection continues to use the shared delegate path");
@@ -4685,6 +6460,11 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
     Require(ReadSelectionProviderNames(*gridSelectionProvider.get(), "grid selection provider updates after AddToSelection") ==
                 std::vector<std::wstring>({L"Alpha | Ready", L"Beta | Busy"}),
             "grid selection provider tracks the ordered visible row selection");
+    RequireSucceeded(secondSelectionPattern->AddToSelection(), "repeating grid AddToSelection succeeds");
+    Require(grid->IsRowSelected(0u) && grid->IsRowSelected(1u), "repeated grid AddToSelection preserves the selected row");
+    Require(delegate.selectionChangedCount == 2u && delegate.selectionCounts == std::vector<size_t>({1u, 2u}) &&
+                delegate.orderedSelection == std::vector<uint64_t>({100u, 200u}),
+            "repeated grid AddToSelection does not toggle or republish an unchanged selection");
 
     window.Host().SetFocusControl(grid);
     wil::com_ptr_nothrow<IRawElementProviderFragment> focusedProvider;
@@ -4846,6 +6626,113 @@ void TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure()
     RequireSucceeded(secondCellProvider.query_to(secondCellSimple.put()), "scrolled grid second cell provider exposes IRawElementProviderSimple");
     Require(ReadProviderStringProperty(*secondCellSimple.get(), UIA_NamePropertyId, "scrolled grid second cell exposes accessibility name") == L"Ready",
             "scrolled grid cell navigation continues through the full model column set");
+}
+
+void TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping()
+{
+    using namespace DxUi;
+
+    GridMultilineFixtures::TextTableModel model({{L"First"}, {L"Second"}, {L"Third"}, {L"Fourth"}, {L"Fifth"}}, {220.0f}, false);
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* label = root->AddChild<Label>(L"Nested results");
+    label->SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 24.0f));
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 28.0f, 260.0f, 108.0f));
+    scroll->SetContentHeight(640.0f);
+    auto* grid = scroll->AddChild<Grid>();
+    grid->SetAccessibleName(L"Nested results grid");
+    grid->SetBounds(D2D1::RectF(4.0f, 28.0f, 244.0f, 408.0f));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+
+    const D2D1_RECT_F viewport = scroll->GetViewportRect();
+    const auto headerRect      = grid->GetVisibleColumnHeaderRect(0u);
+    const auto row2Rect        = grid->GetVisibleRowRect(2u);
+    const auto row3Rect        = grid->GetVisibleRowRect(3u);
+    const auto cell2Rect       = grid->GetVisibleCellRect(2u, 0u);
+    const auto cell3Rect       = grid->GetVisibleCellRect(3u, 0u);
+    Require(headerRect && row2Rect && row3Rect && cell2Rect && cell3Rect,
+            "the header and tested rows/cells are visible in the Grid's own viewport before ancestor clipping");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "nested Grid clipping publishes a root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(rootProvider.query_to(rootFragment.put()), "the root exposes structural navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> labelProvider;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, labelProvider.put()), "root navigation reaches the named fixture label");
+    Require(labelProvider != nullptr, "the fixture label remains navigable");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> gridProvider;
+    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, gridProvider.put()), "the named label navigates to its nested Grid");
+    Require(gridProvider != nullptr, "the nested Grid remains a structural sibling through its ScrollPanel");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> headerProvider;
+    RequireSucceeded(gridProvider->Navigate(NavigateDirection_FirstChild, headerProvider.put()), "the Grid exposes its retained header fragment");
+    Require(headerProvider != nullptr, "the Grid has a retained header fragment");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rowProvider;
+    RequireSucceeded(headerProvider->Navigate(NavigateDirection_NextSibling, rowProvider.put()), "the header navigates to the first retained row");
+    std::array<wil::com_ptr_nothrow<IRawElementProviderFragment>, 5> rows{};
+    std::array<wil::com_ptr_nothrow<IRawElementProviderFragment>, 5> cells{};
+    for (size_t index = 0u; index < rows.size(); ++index)
+    {
+        Require(rowProvider != nullptr, "the nested Grid retains all model rows regardless of ancestor clipping");
+        rows[index] = rowProvider;
+        RequireSucceeded(rowProvider->Navigate(NavigateDirection_FirstChild, cells[index].put()), "a retained row exposes its first cell");
+        Require(cells[index] != nullptr, "each retained row has its model cell");
+        if (index + 1u < rows.size())
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragment> nextRow;
+            RequireSucceeded(rowProvider->Navigate(NavigateDirection_NextSibling, nextRow.put()), "a retained row navigates to the next model row");
+            rowProvider = std::move(nextRow);
+        }
+    }
+
+    const auto verifyVisibility =
+        [&](IRawElementProviderFragment& fragment, bool expectedOffscreen, bool expectedPartial, float unclippedHeightDip, const char* expectation)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.QueryInterface(IID_PPV_ARGS(simple.put())), "a retained Grid fragment exposes UIA properties");
+        Require(ReadProviderBoolProperty(*simple.get(), UIA_IsOffscreenPropertyId, expectation) == expectedOffscreen, expectation);
+        UiaRect bounds{};
+        RequireSucceeded(fragment.get_BoundingRectangle(&bounds), "a retained Grid fragment exposes its clipped bounds");
+        if (expectedOffscreen)
+        {
+            Require(bounds.width == 0.0 && bounds.height == 0.0, "a fully clipped Grid fragment has zero bounds");
+        }
+        else
+        {
+            Require(bounds.width > 0.0 && bounds.height > 0.0, "a visible or partially clipped Grid fragment has nonzero bounds");
+            if (expectedPartial)
+            {
+                Require(bounds.height + 1.0 < static_cast<double>(window.Host().DipsToPixels(unclippedHeightDip)),
+                        "a partially clipped Grid fragment reports less than its full row/header height");
+            }
+        }
+    };
+
+    const float headerPartialOffset = headerRect->top - viewport.top + 8.0f;
+    Require(headerPartialOffset > 0.0f && headerPartialOffset < headerRect->bottom - viewport.top,
+            "the first scroll offset clips only part of the Grid header");
+    scroll->SetScrollOffset(headerPartialOffset);
+    window.Host().RefreshAccessibilitySnapshot();
+    verifyVisibility(*headerProvider, false, true, headerRect->bottom - headerRect->top, "a partially ancestor-clipped Grid header remains onscreen");
+
+    const float rowPartialOffset = row2Rect->bottom - viewport.bottom - 8.0f;
+    Require(rowPartialOffset > 0.0f && row2Rect->top - rowPartialOffset < viewport.bottom && row2Rect->bottom - rowPartialOffset > viewport.top,
+            "the second scroll offset clips only the bottom of an otherwise visible Grid row");
+    scroll->SetScrollOffset(rowPartialOffset);
+    window.Host().RefreshAccessibilitySnapshot();
+    verifyVisibility(*rows[2], false, true, row2Rect->bottom - row2Rect->top, "a partially ancestor-clipped Grid row remains onscreen");
+    verifyVisibility(*cells[2], false, true, cell2Rect->bottom - cell2Rect->top, "a partially ancestor-clipped Grid cell remains onscreen");
+
+    const float fullyClippedOffset = row3Rect->bottom - viewport.top + 1.0f;
+    Require(fullyClippedOffset < 640.0f - (viewport.bottom - viewport.top), "the final scroll offset can fully clip the tested row within content bounds");
+    scroll->SetScrollOffset(fullyClippedOffset);
+    window.Host().RefreshAccessibilitySnapshot();
+    verifyVisibility(*headerProvider, true, false, headerRect->bottom - headerRect->top, "a fully ancestor-clipped Grid header reports offscreen");
+    verifyVisibility(*rows[3], true, false, row3Rect->bottom - row3Rect->top, "a fully ancestor-clipped Grid row reports offscreen");
+    verifyVisibility(*cells[3], true, false, cell3Rect->bottom - cell3Rect->top, "a fully ancestor-clipped Grid cell reports offscreen");
 }
 
 void TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren()
@@ -5223,6 +7110,28 @@ void TestAccessibilityProviderExposesSliderRangeValuePattern()
 
     RequireSucceeded(rangeValuePattern->SetValue(68.0), "slider range-value SetValue succeeds");
     Require(slider->GetValue() == 68.0, "slider range-value SetValue updates the underlying control value");
+    RequireSucceeded(rangeValuePattern->get_Value(&rangeValue), "slider snapshot updates after UIA SetValue");
+    Require(rangeValue == 68.0, "UIA reads the accepted slider value without an unrelated publish");
+    slider->SetValue(52.0);
+    RequireSucceeded(rangeValuePattern->get_Value(&rangeValue), "slider snapshot updates after programmatic SetValue");
+    Require(rangeValue == 52.0, "UIA reads a programmatic slider value immediately");
+    Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0u), "slider handles a nonactivating keyboard step");
+    RequireSucceeded(rangeValuePattern->get_Value(&rangeValue), "slider snapshot updates after a keyboard step");
+    Require(rangeValue == 54.0, "UIA reads the keyboard slider value immediately");
+    slider->SetMinimum(60.0);
+    RequireSucceeded(rangeValuePattern->get_Minimum(&rangeMinimum), "slider minimum updates without painting");
+    RequireSucceeded(rangeValuePattern->get_Value(&rangeValue), "the minimum publishes its clamped value");
+    Require(rangeMinimum == 60.0 && rangeValue == 60.0, "UIA reads the changed minimum and its clamped value immediately");
+    slider->SetMaximum(61.0);
+    RequireSucceeded(rangeValuePattern->get_Maximum(&rangeMaximum), "slider maximum updates without painting");
+    Require(rangeMaximum == 61.0, "UIA reads the changed maximum immediately");
+    slider->SetStep(12.0);
+    RequireSucceeded(rangeValuePattern->get_SmallChange(&rangeSmallChange), "slider small step updates without painting");
+    RequireSucceeded(rangeValuePattern->get_LargeChange(&rangeLargeChange), "slider small step publishes the adjusted large step");
+    Require(rangeSmallChange == 12.0 && rangeLargeChange == 12.0, "UIA reads both changed step sizes immediately");
+    slider->SetLargeStep(15.0);
+    RequireSucceeded(rangeValuePattern->get_LargeChange(&rangeLargeChange), "slider large step updates without painting");
+    Require(rangeLargeChange == 15.0, "UIA reads the changed large step immediately");
 }
 
 void TestAccessibilityProviderExposesSplitterRangeValuePattern()
@@ -5275,6 +7184,14 @@ void TestAccessibilityProviderExposesSplitterRangeValuePattern()
 
     RequireSucceeded(rangeValuePattern->SetValue(200.0), "splitter range-value SetValue succeeds");
     Require(splitter->GetPosition() == 200.0f && commits == 1u, "splitter range-value SetValue commits one position change");
+    RequireSucceeded(rangeValuePattern->get_Value(&value), "splitter snapshot updates after UIA SetValue");
+    Require(value == 200.0, "UIA reads the accepted splitter position immediately");
+    splitter->SetPosition(180.0f);
+    RequireSucceeded(rangeValuePattern->get_Value(&value), "splitter snapshot updates after programmatic SetPosition");
+    Require(value == 180.0, "UIA reads a programmatic splitter position immediately");
+    Require(splitter->OnKeyDown(window.Host(), VK_RIGHT, 0u), "splitter handles a nonactivating keyboard step");
+    RequireSucceeded(rangeValuePattern->get_Value(&value), "splitter snapshot updates after a keyboard step");
+    Require(value == 188.0, "UIA reads the keyboard splitter position immediately");
 }
 
 void TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke()
@@ -6827,6 +8744,54 @@ public:
     UiaTest::ElementId root;
 };
 
+void TestAccessibilityRangeValueChangesReachSubscribedClient()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    slider->SetAccessibleName(L"Opacity");
+    auto* progress = root->AddChild<ProgressBar>();
+    progress->SetBounds(D2D1::RectF(0.0f, 48.0f, 240.0f, 72.0f));
+    progress->SetAccessibleName(L"Transfer");
+    auto* splitter = root->AddChild<Splitter>();
+    splitter->SetBounds(D2D1::RectF(0.0f, 80.0f, 300.0f, 160.0f));
+    splitter->SetAccessibleName(L"Pane width");
+    window.Host().SetRoot(std::move(root));
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_RangeValueValuePropertyId,
+                               UIA_RangeValueMinimumPropertyId,
+                               UIA_RangeValueMaximumPropertyId,
+                               UIA_RangeValueSmallChangePropertyId,
+                               UIA_RangeValueLargeChangePropertyId};
+    SingleControlClient client(window, std::move(subscription));
+    const auto expectValue = [&](std::wstring_view name, double value, PROPERTYID property = UIA_RangeValueValuePropertyId)
+    {
+        client.Expect(client.client.WaitForEvent([&](const UiaTest::HeardEvent& event)
+        { return event.kind == UiaTest::EventKind::Property && event.id == property && event.name == name && event.value == std::to_wstring(value); }),
+                      "a subscribed client receives the changed range value without taking desktop focus");
+    };
+    slider->SetValue(42.0);
+    expectValue(L"Opacity", 42.0);
+    Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0u), "slider takes the keyboard range step");
+    expectValue(L"Opacity", 43.0);
+    progress->SetValue(64.0);
+    expectValue(L"Transfer", 64.0);
+    splitter->SetPosition(160.0f);
+    expectValue(L"Pane width", 160.0);
+    slider->SetMinimum(44.0);
+    expectValue(L"Opacity", 44.0);
+    expectValue(L"Opacity", 44.0, UIA_RangeValueMinimumPropertyId);
+    slider->SetMaximum(45.0);
+    expectValue(L"Opacity", 45.0, UIA_RangeValueMaximumPropertyId);
+    slider->SetStep(12.0);
+    expectValue(L"Opacity", 12.0, UIA_RangeValueSmallChangePropertyId);
+    expectValue(L"Opacity", 12.0, UIA_RangeValueLargeChangePropertyId);
+    slider->SetLargeStep(15.0);
+    expectValue(L"Opacity", 15.0, UIA_RangeValueLargeChangePropertyId);
+}
+
 void FillTreeModel(MutableTreeModel& model)
 {
     model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"Général"},
@@ -7002,7 +8967,7 @@ void ExpectClientSeesTreeItems(SingleControlClient& walk, UiaTest::ElementId tre
 }
 
 // What a client sees of a grid and its parts; `grid` is the grid's element.
-void ExpectClientSeesGridParts(SingleControlClient& walk, UiaTest::ElementId grid, DxUi::Grid& live)
+void ExpectClientSeesGridParts(SingleControlClient& walk, UiaTest::ElementId grid, DxUi::Grid& live, AttachedHostWindow& window)
 {
     using UiaTest::Direction;
     const UiaTest::ElementInfo info = walk.client.Describe(grid);
@@ -7045,6 +9010,7 @@ void ExpectClientSeesGridParts(SingleControlClient& walk, UiaTest::ElementId gri
     }
 
     Require(live.RequestSelectRow(1u, 0u), "the grid selects its second row");
+    window.PumpMessages(); // A client on another thread observes publication at the owner-loop boundary.
     const std::vector<UiaTest::ElementId> selection = walk.client.Selection(grid);
     walk.Expect(selection.size() == 1u && walk.Name(selection.front()) == L"Beta | Occupée" && walk.HasParent(selection.front(), grid),
                 "the selected row the grid's element reports is a child of that element");
@@ -7118,7 +9084,7 @@ void TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells()
 {
     SingleGridWindow test;
     SingleControlClient walk(test.window);
-    ExpectClientSeesGridParts(walk, walk.root, *test.grid);
+    ExpectClientSeesGridParts(walk, walk.root, *test.grid, test.window);
 
     // The element a client reaches through a provider call is the window's one canonical element, not an equal copy of it.
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
@@ -7146,7 +9112,7 @@ void TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells()
     SingleControlClient walk(test.window);
     const std::optional<UiaTest::ElementId> grid = walk.client.Navigate(walk.root, UiaTest::Direction::FirstChild);
     walk.Expect(grid.has_value() && walk.HasParent(*grid, walk.root), "the grid has an element of its own, a child of the window's");
-    ExpectClientSeesGridParts(walk, *grid, *test.grid);
+    ExpectClientSeesGridParts(walk, *grid, *test.grid, test.window);
 }
 
 void TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton()
@@ -7476,14 +9442,14 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
     ExpectHeard(
         walk, hear(3u, [&] { SendKey(test.window, VK_DOWN); }), {row(L"Selected", 3u), row(L"IsSelected:true", 3u), row(L"IsSelected:false", 2u)}, "Down");
 
-    // Several rows: Ctrl+click adds one, Shift+click the range from the anchor (Ligne 3), and Ctrl+click on a selected row removes it.
+    // Several rows: Ctrl+click establishes Ligne 5 as the range anchor; Shift-click replaces Ligne 3 with the anchor-to-target range.
     ExpectHeard(walk, hear(2u, [&] { click(5u, MK_CONTROL); }), {row(L"Added", 5u), row(L"IsSelected:true", 5u)}, "Ctrl+click");
     ExpectHeard(
         walk,
         hear(6u, [&] { click(7u, MK_SHIFT); }),
-        {row(L"Added", 4u), row(L"IsSelected:true", 4u), row(L"Added", 6u), row(L"IsSelected:true", 6u), row(L"Added", 7u), row(L"IsSelected:true", 7u)},
+        {row(L"Added", 6u), row(L"IsSelected:true", 6u), row(L"Added", 7u), row(L"IsSelected:true", 7u), row(L"Removed", 3u), row(L"IsSelected:false", 3u)},
         "Shift+click");
-    ExpectHeard(walk, hear(2u, [&] { click(4u, MK_CONTROL); }), {row(L"Removed", 4u), row(L"IsSelected:false", 4u)}, "Ctrl+click on a selected row");
+    ExpectHeard(walk, hear(2u, [&] { click(4u, MK_CONTROL); }), {row(L"Added", 4u), row(L"IsSelected:true", 4u)}, "Ctrl+click adds a row outside the range");
 
     // Clearing a selection removes each of its rows.
     const auto clear = [&]
@@ -7493,11 +9459,11 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
     };
     ExpectHeard(walk,
                 hear(8u, clear),
-                {row(L"Removed", 3u),
+                {row(L"Removed", 4u),
                  row(L"Removed", 5u),
                  row(L"Removed", 6u),
                  row(L"Removed", 7u),
-                 row(L"IsSelected:false", 3u),
+                 row(L"IsSelected:false", 4u),
                  row(L"IsSelected:false", 5u),
                  row(L"IsSelected:false", 6u),
                  row(L"IsSelected:false", 7u)},
@@ -7522,17 +9488,18 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
 
     ExpectHeard(walk, hear(0u, [&] { test.window.Host().RefreshAccessibilitySnapshot(); }), {}, "republishing an unchanged selection");
 
-    // A selected row that leaves the grid cannot be named.
+    // Deleting the sole selected row selects its successor at the same index. The replacement's event announces that change.
     ExpectHeard(walk,
-                hear(1u,
+                hear(2u,
                      [&]
     {
         test.model.RemoveRow(3u);
         grid.NotifyDataChanged();
     }),
-                {invalidated},
+                {row(L"Selected", 4u), row(L"IsSelected:true", 4u)},
                 "the selected row leaving the grid");
-    Require(grid.GetSelectionModel().GetCount() == 0u, "the row that left took the selection with it");
+    Require(grid.GetSelectionModel().GetCount() == 1u && grid.GetSelectionModel().IsSelected(NumberedRowsGridModel::IdOf(4u)),
+            "the selected row's successor remains selected after deletion");
 
     // A cell is a child of its row: an event raised on it reaches the client too.
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
@@ -7563,10 +9530,9 @@ void TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWind
     ExpectClientHearsGridSelectionEvents(test);
 }
 
-// When the grid whose selection events are being raised is hidden or replaced, or its host detached, by something that runs
-// while they are raised (see UiaTest::SelectionEventInterruption), the raising ends there: the events left are not raised for an
-// element that is gone. Each case adds two rows to a selection, four events.
-void TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised()
+// When the grid whose queued selection events are being raised is hidden or replaced, or its host detached, the raising ends
+// there: the events left are not raised for an element that is gone. Each case adds two rows to a selection, four events.
+void TestQueuedSelectionEventsStopWhenControlLeavesDuringRaise()
 {
     const auto run = [](const char* what, const std::function<void(SelectionGridWindow&, std::unique_ptr<DxUi::Panel>&)>& interrupt)
     {
@@ -7574,13 +9540,17 @@ void TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised()
         auto replacement = std::make_unique<DxUi::Panel>();
         SingleControlClient walk(test.window, UiaTest::SelectionEventsSubscription()); // A client listens, so the host raises them.
         Require(test.grid->RequestSelectRow(0u, 0u), "the grid selects its first row");
+        test.window.Host().RefreshAccessibilitySnapshot();
+        test.window.PumpMessages(); // Drain the initial selection before the interruption hook is installed.
         size_t events = 0u;
         {
             UiaTest::SelectionEventInterruption interruption([&] { interrupt(test, replacement); });
             test.grid->GetSelectionModel().SetRange(test.model.Ids(1u, 30u), NumberedRowsGridModel::IdOf(1u), NumberedRowsGridModel::IdOf(3u));
-            test.window.Host().RefreshAccessibilitySnapshot(); // The grid may be gone by now.
+            test.window.Host().RefreshAccessibilitySnapshot();
+            test.window.PumpMessages(); // The event batch is raised at the queued publication boundary.
             events = interruption.Events();
         }
+        std::cerr << "    [queued selection interruption] " << what << ": events=" << events << '\n';
         Require(events == 1u, what);
     };
     run("hiding the grid while its selection events are raised ends them",
@@ -7591,23 +9561,32 @@ void TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised()
         [](SelectionGridWindow& test, std::unique_ptr<DxUi::Panel>&) { test.window.Host().Detach(); });
 }
 
-// A listening client makes the host raise real selection events. The existing interruption hook plays the message that
-// replaces the controls during the first raise; the input/request that published them must then stop using its control.
+// A listening client makes the host raise real selection events. Flush the current state before installing the hook, then let
+// the input/request finish before pumping its queued publication. The interruption replaces controls during the first raise.
 // Allocate the replacement first so its address cannot be the removed control's, and check only the host afterward.
 void ExpectRootReplacementDuringSelectionPublish(AttachedHostWindow& window, const char* scenario, const std::function<void()>& action)
 {
     std::cerr << "    [UIA publish lifetime] " << scenario << '\n';
     SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages(); // Establish a clean event baseline before observing the action's queued publication.
     auto replacement                   = std::make_unique<DxUi::Panel>();
     DxUi::Panel* const replacementRoot = replacement.get();
     uint64_t replacementInvalidations  = 0u;
+    bool actionCompletedBeforeRaise    = false;
+    bool actionCompleted               = false;
     UiaTest::SelectionEventInterruption interruption([&]
     {
         window.Host().SetRoot(std::move(replacement));
-        replacementInvalidations = window.Host().DebugGetInvalidateCount();
+        replacementInvalidations   = window.Host().DebugGetInvalidateCount();
+        actionCompletedBeforeRaise = actionCompleted;
     });
     action();
+    actionCompleted = true;
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages(); // Selection events run after the mutating call has returned.
     Require(interruption.Events() == 1u, "the first selection event replaced the root and ended the raising");
+    Require(actionCompletedBeforeRaise, "the mutating action completes before its queued selection events are raised");
     Require(window.Host().GetRoot() == replacementRoot, "the replacement root survives the original selection handler");
     Require(window.Host().GetFocusControl() == nullptr, "the selection handler never focuses a destroyed control");
     Require(window.Host().GetCapturedControl() == nullptr, "the selection handler never captures a destroyed control");
@@ -7653,7 +9632,7 @@ struct SelectionPublishTreeWindow final
     DxUi::Tree* tree = nullptr;
 };
 
-void TestTreeSelectionPublishReplacementStopsRequests()
+void TestTreeSelectionPublishReplacementFollowsRequests()
 {
     enum class Request
     {
@@ -7667,8 +9646,8 @@ void TestTreeSelectionPublishReplacementStopsRequests()
         {
             for (const Request request : {Request::Select, Request::Add, Request::Remove})
             {
-                // Without multi-select there is no selection to remove an item from.
-                if (! multiSelect && request == Request::Remove)
+                // A different item cannot be added while single selection is occupied; that rejection is tested separately.
+                if (! multiSelect && request == Request::Add)
                     continue;
                 SelectionPublishTreeWindow test(fillsItsWindow, multiSelect);
                 const char* const scenario =
@@ -7684,14 +9663,14 @@ void TestTreeSelectionPublishReplacementStopsRequests()
                         case Request::Add: survived = test.tree->RequestAddVisibleItemToSelection(2u); break;
                         case Request::Remove: survived = test.tree->RequestRemoveVisibleItemFromSelection(1u); break;
                     }
-                    Require(! survived, "a tree selection request reports that its accessibility publish destroyed the tree");
+                    Require(survived, "a valid tree selection request completes before queued accessibility events are raised");
                 });
             }
         }
     }
 }
 
-void TestTreeSelectionPublishReplacementStopsPointerHandlers()
+void TestTreeSelectionPublishReplacementFollowsPointerHandlers()
 {
     enum class Action
     {
@@ -7728,10 +9707,14 @@ void TestTreeSelectionPublishReplacementStopsPointerHandlers()
                         case Action::DoubleClickGroup: handled = test.tree->OnMouseDoubleClick(test.window.Host(), point, false, 0u); break;
                         case Action::ContextMenu: handled = test.tree->OnContextMenu(test.window.Host(), false, point); break;
                     }
-                    Require(handled, "the pointer input remains handled when selection publishing destroys its tree");
+                    Require(handled, "the pointer handler completes before queued selection events replace its tree");
                 });
-                Require(test.delegate.toggleCount == 0u && test.delegate.invokedCount == 0u && test.delegate.contextMenuCount == 0u,
-                        "a destroyed tree neither expands nor invokes nor opens a context menu after publishing selection");
+                const size_t expectedToggleCount  = action == Action::Expander || action == Action::DoubleClickGroup ? 1u : 0u;
+                const size_t expectedInvokeCount  = action == Action::DoubleClickLeaf ? 1u : 0u;
+                const size_t expectedContextCount = action == Action::ContextMenu ? 1u : 0u;
+                Require(test.delegate.toggleCount == expectedToggleCount && test.delegate.invokedCount == expectedInvokeCount &&
+                            test.delegate.contextMenuCount == expectedContextCount,
+                        "the pointer handler's completed delegate action precedes queued selection-event replacement");
             }
         }
     }
@@ -7739,7 +9722,7 @@ void TestTreeSelectionPublishReplacementStopsPointerHandlers()
 
 // A press on a row of a multi-selection keeps the selection for a drag (it changes no selection, so it raises no selection
 // event); the release of a click that never became a drag then selects that row alone, and publishing that may destroy the tree.
-void TestTreeSelectionPublishReplacementStopsReorderClick()
+void TestTreeSelectionPublishReplacementFollowsReorderClick()
 {
     for (const bool fillsItsWindow : {false, true})
     {
@@ -7756,7 +9739,7 @@ void TestTreeSelectionPublishReplacementStopsReorderClick()
     }
 }
 
-void TestTreeSelectionPublishReplacementStopsKeyboardHandlers()
+void TestTreeSelectionPublishReplacementFollowsKeyboardHandlers()
 {
     for (const bool fillsItsWindow : {false, true})
     {
@@ -7770,25 +9753,25 @@ void TestTreeSelectionPublishReplacementStopsKeyboardHandlers()
                                                             [&]
                 {
                     const bool handled = typeAhead ? test.tree->OnChar(test.window.Host(), L'A', 0u) : test.tree->OnKeyDown(test.window.Host(), VK_DOWN, 0u);
-                    Require(handled, "the keyboard input remains handled when selection publishing destroys its tree");
+                    Require(handled, "the keyboard handler completes before queued selection events replace its tree");
                 });
             }
         }
     }
 }
 
-void TestTreeSelectionPublishReplacementStopsSelectAll()
+void TestTreeSelectionPublishReplacementFollowsSelectAll()
 {
     for (const bool fillsItsWindow : {false, true})
     {
         SelectionPublishTreeWindow test(fillsItsWindow, true);
         ExpectRootReplacementDuringSelectionPublish(test.window, "Tree SelectAll", [&] {
-            Require(test.tree->OnSelectAll(test.window.Host()), "SelectAll remains handled when its publish destroys the tree");
+            Require(test.tree->OnSelectAll(test.window.Host()), "SelectAll completes before queued selection events replace the tree");
         });
     }
 }
 
-void TestTreeSelectionPublishReplacementStopsModeChange()
+void TestTreeSelectionPublishReplacementFollowsModeChange()
 {
     for (const bool fillsItsWindow : {false, true})
     {
@@ -7798,19 +9781,26 @@ void TestTreeSelectionPublishReplacementStopsModeChange()
     }
 }
 
-void TestTreeDataChangedPublishReplacementSkipsSelectionDelegate()
+void TestTreeDataChangedSelectionDelegateCompletesBeforeReplacement()
 {
     for (const bool fillsItsWindow : {false, true})
     {
         SelectionPublishTreeWindow test(fillsItsWindow, true);
         test.tree->SetSelectedItemIds(std::array<uint64_t, 2>{1u, 2u});
-        test.model.SetVisibleItems({DxUi::TreeItemData{.id = 2u, .text = L"Volets"}, DxUi::TreeItemData{.id = 3u, .text = L"Afficheurs"}});
-        ExpectRootReplacementDuringSelectionPublish(test.window, "Tree NotifyDataChanged", [&] { test.tree->NotifyDataChanged(); });
-        Require(test.delegate.selectionSetChangedCount == 0u, "model reconciliation never calls the selection delegate after its publish destroyed the tree");
+        ExpectRootReplacementDuringSelectionPublish(test.window,
+                                                    "Tree NotifyDataChanged",
+                                                    [&]
+        {
+            test.model.SetVisibleItems({DxUi::TreeItemData{.id = 2u, .text = L"Volets"}, DxUi::TreeItemData{.id = 3u, .text = L"Afficheurs"}});
+            test.tree->NotifyDataChanged();
+        });
+        Require(test.delegate.selectionChangedCount == 1u && test.delegate.selectionSetChangedCount == 1u && test.delegate.lastSelectedItemId == 2u &&
+                    test.delegate.lastSelectionSet == std::vector<uint64_t>{2u},
+                "model reconciliation completes its selection delegate before queued publication replaces the tree");
     }
 }
 
-void TestGridSelectionPublishReplacementStopsInput()
+void TestGridSelectionPublishReplacementFollowsInput()
 {
     enum class Action
     {
@@ -7840,25 +9830,27 @@ void TestGridSelectionPublishReplacementStopsInput()
                     case Action::DoubleClick: handled = test.grid->OnMouseDoubleClick(test.window.Host(), point, false, 0u); break;
                     case Action::Key: handled = test.grid->OnKeyDown(test.window.Host(), VK_DOWN, 0u); break;
                 }
-                Require(handled, "the input remains handled when selection publishing destroys its grid");
+                Require(handled, "the input completes before queued selection events replace its grid");
             });
-            Require(delegate.rowActivatedCount == 0u, "a grid destroyed during selection publishing never activates its row");
+            const size_t expectedActivationCount = action == Action::DoubleClick ? 1u : 0u;
+            Require(delegate.rowActivatedCount == expectedActivationCount,
+                    "row activation completes before queued selection-event replacement, and selection-only input does not activate");
         }
     }
 }
 
-void TestGridSelectionPublishReplacementStopsSelectAll()
+void TestGridSelectionPublishReplacementFollowsSelectAll()
 {
     for (const bool fillsItsWindow : {false, true})
     {
         SelectionGridWindow test(fillsItsWindow);
         ExpectRootReplacementDuringSelectionPublish(test.window, "Grid SelectAll", [&] {
-            Require(test.grid->OnSelectAll(test.window.Host()), "SelectAll remains handled when its publish destroys the grid");
+            Require(test.grid->OnSelectAll(test.window.Host()), "SelectAll completes before queued selection events replace the grid");
         });
     }
 }
 
-void TestGridGroupSelectionPublishReplacementStopsKeyboardHandler()
+void TestGridGroupSelectionPublishReplacementFollowsKeyboardHandler()
 {
     for (const bool fillsItsWindow : {false, true})
     {
@@ -7889,9 +9881,10 @@ void TestGridGroupSelectionPublishReplacementStopsKeyboardHandler()
         grid->GetSelectionModel().SetSingle(model.GetStableRowId(0u));
         window.Host().SetRoot(std::move(root));
         ExpectRootReplacementDuringSelectionPublish(window, "Grid keyboard group collapse", [&] {
-            Require(grid->OnKeyDown(window.Host(), VK_LEFT, 0u), "group collapse remains handled when publishing destroys the grid");
+            Require(grid->OnKeyDown(window.Host(), VK_LEFT, 0u), "group collapse completes before queued selection events replace the grid");
         });
-        Require(model.IsGroupCollapsed(10u) && delegate.groupToggleCount == 1u, "the model acknowledged the collapse before event-time replacement");
+        Require(model.IsGroupCollapsed(10u) && delegate.groupToggleCount == 1u,
+                "the group delegate completes and acknowledges collapse before queued event-time replacement");
     }
 }
 
@@ -8008,10 +10001,15 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint);
+    DXUI_RUN_TEST(TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries);
+    DXUI_RUN_TEST(TestAccessibilityActionsReportControlsDestroyedByCallbacks);
+    DXUI_RUN_TEST(TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries);
     DXUI_RUN_TEST(TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction);
     DXUI_RUN_TEST(TestNativeAccessibilityProvidersRejectReplacementAtSamePath);
     DXUI_RUN_TEST(TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt);
     DXUI_RUN_TEST(TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement);
+    DXUI_RUN_TEST(TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires);
     DXUI_RUN_TEST(TestNativeAccessibilityPostedSelectRejectsReplacement);
     DXUI_RUN_TEST(TestNativeAccessibilityPostedInvokeRejectsReplacement);
     DXUI_RUN_TEST(TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus);
@@ -8025,17 +10023,17 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow);
-    DXUI_RUN_TEST(TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsRequests);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsPointerHandlers);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsReorderClick);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsKeyboardHandlers);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsSelectAll);
-    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsModeChange);
-    DXUI_RUN_TEST(TestTreeDataChangedPublishReplacementSkipsSelectionDelegate);
-    DXUI_RUN_TEST(TestGridSelectionPublishReplacementStopsInput);
-    DXUI_RUN_TEST(TestGridSelectionPublishReplacementStopsSelectAll);
-    DXUI_RUN_TEST(TestGridGroupSelectionPublishReplacementStopsKeyboardHandler);
+    DXUI_RUN_TEST(TestQueuedSelectionEventsStopWhenControlLeavesDuringRaise);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsRequests);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsPointerHandlers);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsReorderClick);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsKeyboardHandlers);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsSelectAll);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementFollowsModeChange);
+    DXUI_RUN_TEST(TestTreeDataChangedSelectionDelegateCompletesBeforeReplacement);
+    DXUI_RUN_TEST(TestGridSelectionPublishReplacementFollowsInput);
+    DXUI_RUN_TEST(TestGridSelectionPublishReplacementFollowsSelectAll);
+    DXUI_RUN_TEST(TestGridGroupSelectionPublishReplacementFollowsKeyboardHandler);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents);
     DXUI_RUN_TEST(TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges);
@@ -8057,8 +10055,17 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderRefreshesButtonSemanticProperties);
+    DXUI_RUN_TEST(TestAccessibilityDisabledPanelDisablesDescendantControlsAndActions);
+    DXUI_RUN_TEST(TestAccessibilityDisabledPanelBlocksTreeAndGridItemActions);
+    DXUI_RUN_TEST(TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild);
+    DXUI_RUN_TEST(TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild);
+    DXUI_RUN_TEST(TestAccessibilityTreeModelGetterCanReplaceItsModelDuringSnapshotBuild);
+    DXUI_RUN_TEST(TestAccessibilityGridModelGetterCanReplaceItsModelDuringSnapshotBuild);
+    DXUI_RUN_TEST(TestAccessibilityGridPointHitModelGetterCanReplaceItsModelDuringSnapshotBuild);
+    DXUI_RUN_TEST(TestAccessibilityFocusedTreeModelLookupCanReplaceItsRootDuringSnapshotBuild);
     DXUI_RUN_TEST(TestAccessibilityProviderRefreshesLabelAssociations);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesDirectSemanticRootControls);
+    DXUI_RUN_TEST(TestAccessibilityPanelRootIdentitySurvivesSiblingChangesForClient);
     DXUI_RUN_TEST(TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach);
     DXUI_RUN_TEST(TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse);
     DXUI_RUN_TEST(TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree);
@@ -8076,6 +10083,8 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualLineGeometry);
     DXUI_RUN_TEST(TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines);
     DXUI_RUN_TEST(TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread);
+    DXUI_RUN_TEST(TestAccessibilityTextRangeLineDispatchPreservesConcurrentEndpointChanges);
+    DXUI_RUN_TEST(TestAccessibilityNativeTextRangeTracksFreshDocumentAndEnclosingElement);
     DXUI_RUN_TEST(TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread);
     DXUI_RUN_TEST(TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry);
     DXUI_RUN_TEST(TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry);
@@ -8087,13 +10096,12 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityDestroyWithPendingDispatchReturnsCancelled);
     DXUI_RUN_TEST(TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread);
     DXUI_RUN_TEST(TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageAlive);
-    DXUI_RUN_TEST(TestAccessibilityProviderExposesNativeImeTextEditRanges);
-    DXUI_RUN_TEST(TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters);
     DXUI_RUN_TEST(TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget);
     DXUI_RUN_TEST(TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree);
     DXUI_RUN_TEST(TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeAndGridMetadata);
     DXUI_RUN_TEST(TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder);
+    DXUI_RUN_TEST(TestAccessibilityTreeItemsReportClippedViewportVisibility);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns);
     DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState);
     DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectRaisesSelectionEvents);
@@ -8103,10 +10111,21 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues);
     DXUI_RUN_TEST(TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridRowSelectionPatterns);
+    DXUI_RUN_TEST(TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivate);
+    DXUI_RUN_TEST(TestAccessibilityGridCellFocusChoosesTheInspectedColumn);
+    DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
+    DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
+    DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);
+    DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
+    DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);
+    DXUI_RUN_TEST(TestAccessibilityPostedPublicationDoesNotReachAReattachedHost);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
+    DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridCellToggleAndRangePatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesSliderRangeValuePattern);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesSplitterRangeValuePattern);
+    DXUI_RUN_TEST(TestAccessibilityProviderCreationUsesBoundedTokenTransport);
+    DXUI_RUN_TEST(TestAccessibilityRangeValueChangesReachSubscribedClient);
     DXUI_RUN_TEST(TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke);
 }

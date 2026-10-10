@@ -3,6 +3,8 @@
 namespace
 {
 
+[[nodiscard]] double WcagContrastRatioForTest(const D2D1_COLOR_F& foreground, const D2D1_COLOR_F& background) noexcept;
+
 void TestColorFromArgbPreservesAlpha()
 {
     using namespace DxUi;
@@ -10,6 +12,97 @@ void TestColorFromArgbPreservesAlpha()
     RequireColorNear(ColorFromArgb(0x80402010u),
                      D2D1::ColorF(0x40 / 255.0f, 0x20 / 255.0f, 0x10 / 255.0f, 0x80 / 255.0f),
                      "shared ARGB conversion preserves alpha and channel order");
+}
+
+void TestChooseContrastingTextColorUsesMeasuredContrast()
+{
+    using namespace DxUi;
+
+    const auto expect = [](D2D1_COLOR_F background, bool expectLight, const char* context)
+    {
+        const D2D1_COLOR_F foreground = ChooseContrastingTextColor(background);
+        const D2D1_COLOR_F expected   = expectLight ? D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f) : D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f);
+        RequireColorNear(foreground, expected, context);
+        Require(WcagContrastRatioForTest(foreground, background) >= 4.5, context);
+    };
+
+    expect(D2D1::ColorF(0.50f, 0.50f, 0.50f, 1.0f), false, "mid-gray chooses the darker text by WCAG contrast");
+    expect(D2D1::ColorF(0.10f, 0.10f, 0.10f, 1.0f), true, "dark backgrounds choose light text");
+    expect(D2D1::ColorF(0.90f, 0.90f, 0.90f, 1.0f), false, "light backgrounds choose dark text");
+
+    // Contrast is measured against the actual opaque result of a translucent fill over its known ground.
+    const D2D1_COLOR_F translucentOnWhite = CompositeOverBackground(D2D1::ColorF(0.50f, 0.50f, 0.50f, 0.50f), D2D1::ColorF(1, 1, 1, 1));
+    const D2D1_COLOR_F translucentOnBlack = CompositeOverBackground(D2D1::ColorF(0.50f, 0.50f, 0.50f, 0.50f), D2D1::ColorF(0, 0, 0, 1));
+    expect(translucentOnWhite, false, "alpha-composited light gray chooses dark text");
+    expect(translucentOnBlack, true, "alpha-composited dark gray chooses light text");
+
+    ThemeColors viewerTheme{.sizeBytes = sizeof(ThemeColors)};
+    viewerTheme.backgroundArgb          = 0xFF202020u;
+    viewerTheme.textArgb                = 0xFFFFFFFFu;
+    viewerTheme.selectionBackgroundArgb = 0xFF8EE3F0u;
+    viewerTheme.selectionTextArgb       = 0xFF263B50u;
+    viewerTheme.accentArgb              = 0xFF0078D4u;
+    viewerTheme.darkMode                = TRUE;
+    viewerTheme.darkBase                = TRUE;
+    viewerTheme.highContrast            = TRUE;
+    const ThemePalette highContrast     = MakeThemePalette(viewerTheme);
+    D2D1_COLOR_F alertFill{}, alertText{};
+    ResolveAdornmentColors(highContrast, AdornmentTone::Info, alertFill, alertText);
+    RequireColorNear(alertFill, highContrast.windowBackground, "high contrast keeps its system window ground for unsupplied tones");
+    RequireColorNear(alertText, highContrast.text, "high contrast keeps its system text instead of replacing it with a neutral");
+}
+
+void TestInactiveSelectionTextUsesThePaintedGroundAndKeepsHighContrastPairs()
+{
+    using namespace DxUi;
+
+    for (const bool dark : {false, true})
+    {
+        ThemePalette theme             = MakeDefaultThemePalette(dark);
+        const D2D1_COLOR_F paintedFill = CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground);
+        for (const D2D1_COLOR_F preferred : {theme.text, theme.selectionText})
+        {
+            const D2D1_COLOR_F text = ResolveInactiveSelectionTextColor(theme, preferred, theme.surfaceBackground);
+            Require(WcagContrastRatioForTest(text, paintedFill) >= 4.5,
+                    dark ? "dark inactive selection text meets contrast on its composited fill"
+                         : "light inactive selection text meets contrast on its composited fill");
+            if (WcagContrastRatioForTest(preferred, paintedFill) >= 4.5)
+            {
+                RequireColorNear(text, preferred, "an already readable inactive text token is preserved");
+            }
+        }
+    }
+
+    ThemePalette alphaTheme          = MakeDefaultThemePalette(false);
+    alphaTheme.selectionInactiveFill = D2D1::ColorF(0.50f, 0.50f, 0.50f, 0.50f);
+    for (const D2D1_COLOR_F ground : {D2D1::ColorF(1, 1, 1, 1), D2D1::ColorF(0, 0, 0, 1)})
+    {
+        const D2D1_COLOR_F paintedFill = CompositeOverBackground(alphaTheme.selectionInactiveFill, ground);
+        const D2D1_COLOR_F preferred   = ground.r > 0.5f ? D2D1::ColorF(1, 1, 1, 1) : D2D1::ColorF(0, 0, 0, 1);
+        const D2D1_COLOR_F text        = ResolveInactiveSelectionTextColor(alphaTheme, preferred, ground);
+        Require(WcagContrastRatioForTest(text, paintedFill) >= 4.5, "alpha selection text contrast uses the painted result over its light or dark ground");
+    }
+
+    const auto checkHighContrastPair = [](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
+    {
+        ThemeColors colors{.sizeBytes = sizeof(ThemeColors)};
+        colors.backgroundArgb          = backgroundArgb;
+        colors.textArgb                = textArgb;
+        colors.selectionBackgroundArgb = selectionArgb;
+        colors.selectionTextArgb       = selectionTextArgb;
+        colors.accentArgb              = 0xFF0078D4u;
+        colors.darkMode                = darkBase ? TRUE : FALSE;
+        colors.darkBase                = darkBase ? TRUE : FALSE;
+        colors.highContrast            = TRUE;
+        const ThemePalette theme       = MakeThemePalette(colors);
+        const D2D1_COLOR_F paintedFill = CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground);
+        RequireColorNear(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground),
+                         theme.selectionText,
+                         "high contrast preserves the supplied HighlightText token on Highlight");
+        Require(WcagContrastRatioForTest(theme.selectionText, paintedFill) >= 4.5, "the high-contrast HighlightText and Highlight pair remains readable");
+    };
+    checkHighContrastPair(0xFF202020u, 0xFFFFFFFFu, 0xFF8EE3F0u, 0xFF263B50u, true);  // Aquatic-like.
+    checkHighContrastPair(0xFFFFFAEFu, 0xFF3D3D3Du, 0xFF903909u, 0xFFFFF5E3u, false); // Desert-like.
 }
 
 void TestStableVisualHash32Utf16V1GoldenValuesAndNamedEncodingPolicy()
@@ -2216,12 +2309,12 @@ void TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors()
         Require(WcagContrastRatioForTest(text, fill) >= 4.5, "high-contrast toned grid row text contrasts with its fill without supplied alerts");
     }
 
-    // Supplied alert colors are still copied as given.
+    // Application alert colors cannot override the user's high-contrast pair.
     viewerTheme.alertInfoBackgroundArgb = 0xFF18324Au;
     viewerTheme.alertInfoTextArgb       = 0xFFD6E8FFu;
     const ThemePalette supplied         = MakeThemePalette(viewerTheme);
-    RequireColorNear(supplied.infoFill, ColorFromArgb(0xFF18324Au), "a supplied alert fill is copied as given");
-    RequireColorNear(supplied.infoText, ColorFromArgb(0xFFD6E8FFu), "a supplied alert text color is copied as given");
+    RequireColorNear(supplied.infoFill, supplied.windowBackground, "high contrast replaces a supplied alert fill with the window background");
+    RequireColorNear(supplied.infoText, supplied.text, "high contrast replaces supplied alert text with the system foreground");
 }
 
 // Outside high contrast, a theme that supplies no alert colors keeps the default tones, so info, warning and error stay
@@ -2281,19 +2374,14 @@ void TestThemeColorsPaletteKeepsDistinctReadableAlertTones()
         }
 
         // A translucent fill paints with the window showing through it: its derived text is readable on what paints.
-        const auto paintedOver = [](const D2D1_COLOR_F& color, const D2D1_COLOR_F& ground)
-        {
-            return D2D1::ColorF(
-                ground.r + (color.r - ground.r) * color.a, ground.g + (color.g - ground.g) * color.a, ground.b + (color.b - ground.b) * color.a, 1.0f);
-        };
         for (const uint32_t translucent : {0x20FFA500u, 0x33FFB900u, 0x40000000u, 0x80FFFFFFu})
         {
             ThemeColors glass                = viewerTheme;
             glass.alertWarningBackgroundArgb = translucent;
             glass.alertWarningTextArgb       = 0u;
             const ThemePalette tinted        = MakeThemePalette(glass);
-            const D2D1_COLOR_F paintedFill   = paintedOver(tinted.warningFill, tinted.windowBackground);
-            Require(WcagContrastRatioForTest(paintedOver(tinted.warningText, paintedFill), paintedFill) >= 4.5,
+            const D2D1_COLOR_F paintedFill   = CompositeOverBackground(tinted.warningFill, tinted.windowBackground);
+            Require(WcagContrastRatioForTest(CompositeOverBackground(tinted.warningText, paintedFill), paintedFill) >= 4.5,
                     "the text derived for a translucent fill is readable on the fill as it paints");
         }
     }
@@ -2684,6 +2772,8 @@ void TestToolbarVisualStyleUsesCardBackground()
 void RunThemeTests()
 {
     DXUI_RUN_TEST(TestColorFromArgbPreservesAlpha);
+    DXUI_RUN_TEST(TestChooseContrastingTextColorUsesMeasuredContrast);
+    DXUI_RUN_TEST(TestInactiveSelectionTextUsesThePaintedGroundAndKeepsHighContrastPairs);
     DXUI_RUN_TEST(TestStableVisualHash32Utf16V1GoldenValuesAndNamedEncodingPolicy);
     DXUI_RUN_TEST(TestD2dBlendClampsInterpolationAmount);
     DXUI_RUN_TEST(TestModifierCompositionCoversEveryCombination);

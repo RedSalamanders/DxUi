@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "DxUi/FrameRuntime.h"
 
+#include <array>
 #include <fstream>
 #include <limits>
 #include <string>
@@ -483,6 +484,139 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "and shows the halo around the thumb it moved");
     Require(slider->OnMouseUp(host, D2D1::Point2F(20.0f, 24.0f), false, 0), "the seek drag ends");
     host.DebugSetPointerDevice(PointerDevice::Mouse);
+}
+
+void TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays()
+{
+    using namespace DxUi;
+
+    class PaintProbe final : public Control
+    {
+    public:
+        explicit PaintProbe(D2D1_COLOR_F color) noexcept : _color(color)
+        {
+        }
+
+        void Paint(ControlHost& host) const override
+        {
+            if (ID2D1DeviceContext* const dc = host.GetDeviceContext(); dc)
+            {
+                if (ID2D1SolidColorBrush* const brush = host.GetSolidBrush(_color); brush)
+                {
+                    dc->FillRectangle(GetBounds(), brush);
+                }
+            }
+        }
+
+        bool OnMouseDown(ControlHost&, D2D1_POINT_2F, bool, UINT) override
+        {
+            ++pressCount;
+            return true;
+        }
+
+        size_t pressCount = 0u;
+
+    private:
+        D2D1_COLOR_F _color;
+    };
+
+    const auto capturePixel = [](const WindowHostBitmapCapture& capture, WindowHost& host, float xDip, float yDip)
+    {
+        const LONG x = static_cast<LONG>(std::lround(host.DipsToPixels(xDip)));
+        const LONG y = static_cast<LONG>(std::lround(host.DipsToPixels(yDip)));
+        Require(x >= 0 && y >= 0 && static_cast<UINT>(x) < capture.widthPx && static_cast<UINT>(y) < capture.heightPx,
+                "the slider feedback pixel is inside the captured surface");
+        const size_t offset = (static_cast<size_t>(y) * capture.widthPx + static_cast<size_t>(x)) * 4u;
+        return std::array<uint8_t, 4u>{
+            capture.bgraPixels[offset + 0u], capture.bgraPixels[offset + 1u], capture.bgraPixels[offset + 2u], capture.bgraPixels[offset + 3u]};
+    };
+
+    AttachedHostWindow window;
+    auto root                     = std::make_unique<Panel>();
+    auto* adjacent                = root->AddChild<PaintProbe>(D2D1::ColorF(0.0f, 0.65f, 0.2f, 1.0f));
+    auto* smallParent             = root->AddChild<Panel>();
+    auto* slider                  = smallParent->AddChild<Slider>();
+    auto* popup                   = root->AddChild<PopupLayer>();
+    const D2D1_COLOR_F popupColor = D2D1::ColorF(0.1f, 0.25f, 0.9f, 1.0f);
+    auto* popupPaint              = popup->AddChild<PaintProbe>(popupColor);
+    adjacent->SetBounds(D2D1::RectF(72.0f, 34.0f, 152.0f, 50.0f));
+    smallParent->SetBounds(D2D1::RectF(72.0f, 50.0f, 152.0f, 82.0f));
+    slider->SetBounds(smallParent->GetBounds());
+    slider->SetValue(50.0);
+    popup->SetBounds(D2D1::RectF(104.0f, 58.0f, 120.0f, 74.0f));
+    popupPaint->SetBounds(D2D1::RectF(104.0f, 58.0f, 120.0f, 74.0f));
+    window.Host().SetRoot(std::move(root));
+    const auto prepareCapture = [](AttachedHostWindow& attachedWindow)
+    {
+        ShowWindow(attachedWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        attachedWindow.PumpMessages();
+        RedrawWindow(attachedWindow.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        attachedWindow.PumpMessages();
+    };
+    prepareCapture(window);
+
+    const D2D1_POINT_2F adjacentPoint = D2D1::Point2F(112.0f, 48.0f);
+    Require(window.Host().DebugHitTestControl(adjacentPoint) == adjacent,
+            "a point covered only by the clipped touch halo still hit-tests the adjacent control");
+    Require(adjacent->OnMouseDown(window.Host(), adjacentPoint, false, 0u) && adjacent->pressCount == 1u,
+            "the adjacent control can receive its own pointer press at the halo edge");
+
+    WindowHostBitmapCapture before;
+    Require(window.Host().DebugCaptureBitmap(before), "the idle slider and adjacent control capture succeeds");
+    window.Host().DebugSetPointerDevice(PointerDevice::Touch);
+    const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
+    const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    const uint64_t startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(window.Host(), center, false, 0u), "a touch press starts the slider drag");
+    static_cast<void>(slider->Tick(window.Host(), startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "the deterministic touch halo reaches its full 48 DIP size");
+
+    prepareCapture(window);
+    WindowHostBitmapCapture during;
+    Require(window.Host().DebugCaptureBitmap(during), "the active touch feedback capture succeeds");
+    Require(capturePixel(before, window.Host(), adjacentPoint.x, adjacentPoint.y) == capturePixel(during, window.Host(), adjacentPoint.x, adjacentPoint.y),
+            "touch feedback does not paint over the neighboring control above the slider's small parent");
+    Require(capturePixel(before, window.Host(), 132.0f, 66.0f) != capturePixel(during, window.Host(), 132.0f, 66.0f),
+            "the clipped 48 DIP halo still paints over the slider's own track");
+    const auto overlayPixel = capturePixel(during, window.Host(), 112.0f, 66.0f);
+    const auto channelNear  = [](uint8_t actual, float expected)
+    { return std::abs(static_cast<int>(actual) - static_cast<int>(std::lround(expected * 255.0f))) <= 2; };
+    Require(channelNear(overlayPixel[0], popupColor.b) && channelNear(overlayPixel[1], popupColor.g) && channelNear(overlayPixel[2], popupColor.r),
+            "a popup overlay paints above the active slider halo");
+
+    static_cast<void>(slider->OnMouseUp(window.Host(), center, false, 0u));
+    window.Host().DebugSetPointerDevice(PointerDevice::Mouse);
+
+    AttachedHostWindow scrolledWindow;
+    auto scrolledRoot    = std::make_unique<Panel>();
+    auto* viewport       = scrolledRoot->AddChild<ScrollPanel>();
+    auto* scrolledSlider = viewport->AddChild<Slider>();
+    viewport->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 80.0f));
+    viewport->SetContentHeight(180.0f);
+    scrolledSlider->SetBounds(D2D1::RectF(20.0f, 80.0f, 200.0f, 112.0f));
+    scrolledSlider->SetValue(50.0);
+    viewport->SetScrollOffset(30.0f);
+    scrolledWindow.Host().SetRoot(std::move(scrolledRoot));
+    prepareCapture(scrolledWindow);
+    WindowHostBitmapCapture scrolledBefore;
+    Require(scrolledWindow.Host().DebugCaptureBitmap(scrolledBefore), "the scrolled viewport capture succeeds");
+    scrolledWindow.Host().DebugSetPointerDevice(PointerDevice::Touch);
+    const D2D1_RECT_F scrolledThumb    = scrolledSlider->DebugGetThumbRect();
+    const D2D1_POINT_2F scrolledCenter = D2D1::Point2F((scrolledThumb.left + scrolledThumb.right) * 0.5f, (scrolledThumb.top + scrolledThumb.bottom) * 0.5f);
+    const uint64_t scrolledStartTickMs = ::GetTickCount64();
+    Require(scrolledSlider->OnMouseDown(scrolledWindow.Host(), scrolledCenter, false, 0u), "the scrolled slider accepts a touch press");
+    static_cast<void>(scrolledSlider->Tick(scrolledWindow.Host(), scrolledStartTickMs + 200u));
+    prepareCapture(scrolledWindow);
+    WindowHostBitmapCapture scrolledDuring;
+    Require(scrolledWindow.Host().DebugCaptureBitmap(scrolledDuring), "the scrolled touch feedback capture succeeds");
+    Require(capturePixel(scrolledBefore, scrolledWindow.Host(), 110.0f, 85.0f) == capturePixel(scrolledDuring, scrolledWindow.Host(), 110.0f, 85.0f),
+            "the scrolled viewport clip contains halo paint outside its lower edge");
+    Require(capturePixel(scrolledBefore, scrolledWindow.Host(), 124.0f, 78.0f) != capturePixel(scrolledDuring, scrolledWindow.Host(), 124.0f, 78.0f),
+            "the same transformed clip keeps visible halo paint aligned inside the scrolled viewport");
+    Require(scrolledWindow.Host().DebugHitTestControl(D2D1::Point2F(110.0f, 85.0f)) != scrolledSlider,
+            "a touch halo beyond the scrolled viewport does not expand the slider's hit target");
+    static_cast<void>(scrolledSlider->OnMouseUp(scrolledWindow.Host(), scrolledCenter, false, 0u));
+    scrolledWindow.Host().DebugSetPointerDevice(PointerDevice::Mouse);
 }
 
 void TestSliderReducedMotionSnapsInteractionAndValueAnimation()
@@ -1394,6 +1528,7 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestButtonReducedMotionSnapsInteractionAnimation);
     DXUI_RUN_TEST(TestSliderHoverAndPressAnimationRequestsTicksUntilSettled);
     DXUI_RUN_TEST(TestSliderTouchDragShowsTouchHaloUntilItEnds);
+    DXUI_RUN_TEST(TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays);
     DXUI_RUN_TEST(TestSliderReducedMotionSnapsInteractionAndValueAnimation);
     DXUI_RUN_TEST(TestSliderKeyboardStepsAnimateDisplayedThumb);
     DXUI_RUN_TEST(TestTextFieldTickTracksFocusedCaretAnimation);

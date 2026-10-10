@@ -1,0 +1,912 @@
+[
+  {
+    "file": "m-d-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Foundation-x64-Debug.json",
+    "sha256": "C109C399941FDB0BE5E9A877ADE0B3D93D3E9FCB36218A726A550F6862968EA9"
+  },
+  {
+    "file": "l-d-Foundation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Foundation-x64-Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+  },
+  {
+    "file": "m-d-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Embedded-x64-Debug.json",
+    "sha256": "9456A17E36557AA2011DB18DB84243983F66C9BBE0EF53AD9B140C8CB09A2865"
+  },
+  {
+    "file": "l-d-Embedded.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Embedded-x64-Debug.log",
+    "sha256": "FC8CD9CB26C45EF3C0C6C3791BB32E3EB6A261F48016EC234370D8A92B09713F"
+  },
+  {
+    "file": "m-d-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Grid-x64-Debug.json",
+    "sha256": "3C3D77487C8FF5E53825F6082DBCA6925DD17C16F23686623BDA62C2E89E35BA"
+  },
+  {
+    "file": "l-d-Grid.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Grid-x64-Debug.log",
+    "sha256": "7654D26C091CAE34B1121C36AC1405100D5787E4ADC604100350B947F2C140A8"
+  },
+  {
+    "file": "m-d-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Theme-x64-Debug.json",
+    "sha256": "19B596C10C5BA2F5DE5F7DD2753005AEBDD2F8DD3B07CF35F419BBBD636FD091"
+  },
+  {
+    "file": "l-d-Theme.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Theme-x64-Debug.log",
+    "sha256": "488B896BAF7B984876C97109707FB1E20A3E942B060374C1EA07EF93D53FCD44"
+  },
+  {
+    "file": "m-d-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Control-x64-Debug.json",
+    "sha256": "04806E4BDBE382AA38710B901BF80AF11C916A72FE7BAE14E1206DF6FBD9D8D0"
+  },
+  {
+    "file": "l-d-Control.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Control-x64-Debug.log",
+    "sha256": "4B9B38D1FFE32F78F554178E47416B30D90C4DF2AE3C324071CD125FD27781D4"
+  },
+  {
+    "file": "m-d-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MenuExitLifetime-x64-Debug.json",
+    "sha256": "7A272AFA4CA1BD05AAFFABEEA53A2F5A68615E0CC75B0350D7921337F76C5BF8"
+  },
+  {
+    "file": "l-d-MenuExitLifetime.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MenuExitLifetime-x64-Debug.log",
+    "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+  },
+  {
+    "file": "m-d-NewControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\NewControls-x64-Debug.json",
+    "sha256": "62CB5960ED7D32B6E6901C52D722778661D57795D3771A226402163890C56C8B"
+  },
+  {
+    "file": "l-d-NewControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-NewControls-x64-Debug.log",
+    "sha256": "1632AD34D32525D70E2E85907643A570B51D359BFE79082DF07ED4EAC23B1CA6"
+  },
+  {
+    "file": "m-d-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\EditorControls-x64-Debug.json",
+    "sha256": "AFDF0C8BF5C5C1D1DC07BDEDA6DAEAC6DA3934B240168EEFC88601CD3C2F01B5"
+  },
+  {
+    "file": "l-d-EditorControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-EditorControls-x64-Debug.log",
+    "sha256": "EC963412E6A10B8B54FBDD1944D851F3C1FA6559D5C0D5A6CE8DE33EF85EE22A"
+  },
+  {
+    "file": "m-d-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\TextField-x64-Debug.json",
+    "sha256": "78A545D5CD5AFA6F6C9B35E315957396F8D3ADC84261C99BBDE4811943CC24DE"
+  },
+  {
+    "file": "l-d-TextField.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-TextField-x64-Debug.log",
+    "sha256": "7EE1EC2F58A801A34FE438FA99169414616E730636BAEA2F733929B056034223"
+  },
+  {
+    "file": "m-d-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MultilineText-x64-Debug.json",
+    "sha256": "5B5A49B367CC1EDD599519B7CDAA2BDE824EEAA8F180B3EA1D6B464E8F384996"
+  },
+  {
+    "file": "l-d-MultilineText.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MultilineText-x64-Debug.log",
+    "sha256": "192FDF7A0AA6CDC31A1329F257F41CE01E9836ED1125AC173533ACEDB84AAA20"
+  },
+  {
+    "file": "m-d-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ReadOnly-x64-Debug.json",
+    "sha256": "52043C5F3FCDA3FCE5B272BEDE8F575DFBA8F7790E3FD977102594C4B327F9E6"
+  },
+  {
+    "file": "l-d-ReadOnly.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ReadOnly-x64-Debug.log",
+    "sha256": "E65F5250FBBA0D3DE6A87098208233DF5B161F8A703AC24442AC1DFC0E0E7EEE"
+  },
+  {
+    "file": "m-d-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ComboBox-x64-Debug.json",
+    "sha256": "A91A6D61C38E414CB022962E505833AD0EC4C4F81DA2BACCEFC57D260BED83F8"
+  },
+  {
+    "file": "l-d-ComboBox.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ComboBox-x64-Debug.log",
+    "sha256": "66FFC7F077A9412FE2A39227E7BAD8BE947DAE944D4FF9DB4BC78C60D3FAB566"
+  },
+  {
+    "file": "m-d-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tree-x64-Debug.json",
+    "sha256": "F8E88CB4C234293A3507F8777D62FC2A801FB1E5D3798ED62E0721177533B93D"
+  },
+  {
+    "file": "l-d-Tree.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tree-x64-Debug.log",
+    "sha256": "BF515A5B70BAE6D9094D675106F85E9111E493FE2467B105652FDFB8AD5C4FE9"
+  },
+  {
+    "file": "m-d-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tooltip-x64-Debug.json",
+    "sha256": "629C915B1F5D0A82F717EEBBF4262CE2F2B2A0A0F5BCF57B65ADA3D39D831534"
+  },
+  {
+    "file": "l-d-Tooltip.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tooltip-x64-Debug.log",
+    "sha256": "C5AE601FCDAA90FF08EC8AB920F4528A6914A0B8C98544F10A05112C0883002F"
+  },
+  {
+    "file": "m-d-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Rendering-x64-Debug.json",
+    "sha256": "ABFEDF360FEBA17E8AA842285DC2B2E54D14FFFEB35F73B1508D6D84D6FDFF23"
+  },
+  {
+    "file": "l-d-Rendering.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Rendering-x64-Debug.log",
+    "sha256": "6917F89652B43374172D5196FA868BB6848B86852E05075B955A250C856A4A8B"
+  },
+  {
+    "file": "m-d-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Animation-x64-Debug.json",
+    "sha256": "D57777CB24CEC347C19CD6066CFD93241018287F19C8E014D79EBA952266CEE4"
+  },
+  {
+    "file": "l-d-Animation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Animation-x64-Debug.log",
+    "sha256": "171FF961A0E4C0D1EDF198E3109BA97C935305EDAF7053E0B88360B415462ECB"
+  },
+  {
+    "file": "m-d-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Accessibility-x64-Debug.json",
+    "sha256": "F2F07BADCD8C6DE97BC8E374C1BDEE8A6A17752816793DE3EB5E63638DEBEEB2"
+  },
+  {
+    "file": "l-d-Accessibility.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Accessibility-x64-Debug.log",
+    "sha256": "198125BC238D31FA3CE26A3A992216544A3E703B348E94E086D069EDD344DC6C"
+  },
+  {
+    "file": "m-d-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\WindowHost-x64-Debug.json",
+    "sha256": "D6A65FC815C88805146552A78D3FAB5AF795CAC488FF547253027222086C9EEB"
+  },
+  {
+    "file": "l-d-WindowHost.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-WindowHost-x64-Debug.log",
+    "sha256": "EBD1DDDECEE9EC5CB8703176115D04C3BC67F0CC357723307728C39E7ED8049B"
+  },
+  {
+    "file": "m-d-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\InteractiveLease-x64-Debug.json",
+    "sha256": "42C26FC4E087B7A8812E44FF3231DDBB86AEA46F2653BDD7BB03636C59D2CAA5"
+  },
+  {
+    "file": "l-d-InteractiveLease.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-InteractiveLease-x64-Debug.log",
+    "sha256": "971D302FCCC888ADCFDE6048275E0AF10B3F07D2DDFEC0C31F5485045CFABE07"
+  },
+  {
+    "file": "m-d-scope-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Accessibility.json",
+    "sha256": "A05382E6336D2C0F04479A63A089E3872E8BB10C046DD27FB2A455D54291FA30"
+  },
+  {
+    "file": "m-d-scope-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Animation.json",
+    "sha256": "8C4F0404FD422D223D44836B17309AD6CC158CBB1014C68CDE398220FC859020"
+  },
+  {
+    "file": "m-d-scope-build.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\build.json",
+    "sha256": "07701D1F32757FBDE9CE4119F24B0FC4567C9D1B38F936374BBC9EDAA5D0CDE4"
+  },
+  {
+    "file": "m-d-scope-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\ComboBox.json",
+    "sha256": "196C7A60A01B2C55FB2371B34B948051101F1CB64294E5B64858E13734A8DE24"
+  },
+  {
+    "file": "m-d-scope-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Control.json",
+    "sha256": "7263E302D6418D7ACDE930C2D58AB4C3E1549E1CBD2578C663CDD1D495FCB9C0"
+  },
+  {
+    "file": "m-d-scope-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\EditorControls.json",
+    "sha256": "3F354851570AA3457994BB3EF8B7D5304AB77793B24EE97AF2F96507839C52AF"
+  },
+  {
+    "file": "m-d-scope-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Embedded.json",
+    "sha256": "FE98494C70DEAF71551A320D6E5D4C9F4893236605FDBFB2C1C9E446F0A2BE42"
+  },
+  {
+    "file": "m-d-scope-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Foundation.json",
+    "sha256": "EE61A2B75539436802A2E47427D17FBF2C256DF592B916EDA980D6EA3B881F8B"
+  },
+  {
+    "file": "m-d-scope-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Grid.json",
+    "sha256": "8F784A46A5BED887EC085301A45B9FD76EF2E986B6C978838B122DFF8DCD490F"
+  },
+  {
+    "file": "m-d-scope-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\InteractiveLease.json",
+    "sha256": "E9E948E1E142EAC8E80C03DB959D08AFB4F086F8A38A3DC4F176CE60507612AE"
+  },
+  {
+    "file": "m-d-scope-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\MenuExitLifetime.json",
+    "sha256": "521839F0A6AA3ABF60E378352E0FB1B34D7E27C736F9E594B969D663A0CBB087"
+  },
+  {
+    "file": "m-d-scope-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\MultilineText.json",
+    "sha256": "59CABA4E38C45041B8950E833E31FDAC69D4F733CC0772953797D7493688830D"
+  },
+  {
+    "file": "m-d-scope-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\ReadOnly.json",
+    "sha256": "7FBA218B26BA1A2B8ACCAC601F361AE309DE451BF85381A8AA87ED1C468CD552"
+  },
+  {
+    "file": "m-d-scope-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Rendering.json",
+    "sha256": "F0CCE83C1DD3103D789575E4DEE0F066E5CB94CA49871A2C248F436AB87946F9"
+  },
+  {
+    "file": "m-d-scope-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\TextField.json",
+    "sha256": "A7E63B153463045F79D32BF5D6BB0766BC8B1272F0EC0BBB1B60EA107A1DEDF9"
+  },
+  {
+    "file": "m-d-scope-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Theme.json",
+    "sha256": "80490CB95706181A4E21B66FE44B8F65A7545BD8CE28E3338967F2AD92041728"
+  },
+  {
+    "file": "m-d-scope-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Tooltip.json",
+    "sha256": "7D0564051D7EA9906452DF4D1B8BDA06B7ECAB2A817F339917E9E108DF6B17C3"
+  },
+  {
+    "file": "m-d-scope-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\Tree.json",
+    "sha256": "2DC0D6BFE69718D0D361C31E0FE1866CE9B2C2DB2148D2C7749A543B89B538E4"
+  },
+  {
+    "file": "m-d-scope-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Debug\\WindowHost.json",
+    "sha256": "1B51F86AEBAD705A41AF7170C449C42BF185ADDBE2DE7FD79DE132CD8D594DDF"
+  },
+  {
+    "file": "b-x64-d.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-final-x64-Debug.log",
+    "sha256": "44D3804170F6F709E3ED5BFD94F20AFE559E21D93E2BB824AA6497E65A2577AA"
+  },
+  {
+    "file": "b-access-d.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-access-Debug.log",
+    "sha256": "D916B13545D24B127340EFED8A323BE071E9FAD62A7E1CC8BF9652236255BB9C"
+  },
+  {
+    "file": "b-arm64-d.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-build-arm64-Debug.log",
+    "sha256": "E9A704EC2FD52B1A6B7B616E851A5D96F238851E3E407C1AD7B7963A6C77D51F"
+  },
+  {
+    "file": "m-r-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Foundation-x64-Release.json",
+    "sha256": "1D86E56B17B466E58DF114EB124E1676E703D4200C6D1F094176BA70E6A5737A"
+  },
+  {
+    "file": "l-r-Foundation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Foundation-x64-Release.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+  },
+  {
+    "file": "m-r-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Embedded-x64-Release.json",
+    "sha256": "F2A4F04E0625D2C37B0B3DAFEDD14ECC964EDD71AA8C13C8020142DC4C60F1D7"
+  },
+  {
+    "file": "l-r-Embedded.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Embedded-x64-Release.log",
+    "sha256": "AC843768DCFBB8FC7B90C6DF524305783B727A3089C10D344FDB933BE5D32A9C"
+  },
+  {
+    "file": "m-r-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Grid-x64-Release.json",
+    "sha256": "F92224F4F92E59A6BBA2D6E111EBEDC881D8477965D37F5C2C00888CF36B6981"
+  },
+  {
+    "file": "l-r-Grid.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Grid-x64-Release.log",
+    "sha256": "30DEA3392750A8833AB3415297E4F4218356E329B84B71CFFCC5F372B978BD91"
+  },
+  {
+    "file": "m-r-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Theme-x64-Release.json",
+    "sha256": "A5494C3264E5C6F3C597AFB175B7FE48BBE4FCB941096E7C1099DA4C2E087F5F"
+  },
+  {
+    "file": "l-r-Theme.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Theme-x64-Release.log",
+    "sha256": "F7DCB27504E592CF55F025AF3D6D2EFBC50E0AF94515A8C53A69535542AF7A73"
+  },
+  {
+    "file": "m-r-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Control-x64-Release.json",
+    "sha256": "D9C07DB4618750E4C7F71C1C670E2D84B0AF1037E1229A1C2E8D6F41A04DC7A3"
+  },
+  {
+    "file": "l-r-Control.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Control-x64-Release.log",
+    "sha256": "11B847549E5892D507B113AAE8288C86F4BA73886A07EBFC9DFBB8917751EECC"
+  },
+  {
+    "file": "m-r-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MenuExitLifetime-x64-Release.json",
+    "sha256": "C46A61B13033030B2762F0DA83AB4F3D28F0EE469F12EC0D1BD5EA4C821EF38B"
+  },
+  {
+    "file": "l-r-MenuExitLifetime.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MenuExitLifetime-x64-Release.log",
+    "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+  },
+  {
+    "file": "m-r-NewControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\NewControls-x64-Release.json",
+    "sha256": "8D9D25A2E8416E33575A7BC096E7BD7647ABACC1CE086A4BD88AF97DB97A25C8"
+  },
+  {
+    "file": "l-r-NewControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-NewControls-x64-Release.log",
+    "sha256": "6A673C2CDCF2E8C2B3702BB8D2DED6382833EC1A1AEE3F08A4BFBC8BCDDE8E2B"
+  },
+  {
+    "file": "m-r-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\EditorControls-x64-Release.json",
+    "sha256": "69CD1331F5DF47940C2860CC6D4A0BF38124F7EBBB1DA3EC009C3A14EAC4CADA"
+  },
+  {
+    "file": "l-r-EditorControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-EditorControls-x64-Release.log",
+    "sha256": "4ED6ECD32D1B54EF2EA376889980DA8013E76868E400B358C801DBF723A3059E"
+  },
+  {
+    "file": "m-r-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\TextField-x64-Release.json",
+    "sha256": "38E3BC552A296B81659906C85B5C43E5DDD735E0C0696D7055D52156DF8AE962"
+  },
+  {
+    "file": "l-r-TextField.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-TextField-x64-Release.log",
+    "sha256": "CB8889490D55B99E67481153195DEE38E26EC06C98C9872CDA04BBD2243768DA"
+  },
+  {
+    "file": "m-r-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MultilineText-x64-Release.json",
+    "sha256": "4806120ECD7C4F08EE328AD29F3F1707313955EFF7410971F2A4299D74AD09BF"
+  },
+  {
+    "file": "l-r-MultilineText.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MultilineText-x64-Release.log",
+    "sha256": "895C2821F28F4F5B2528305E9C862BE7E5BEF65A09169A6AE1247300D645171F"
+  },
+  {
+    "file": "m-r-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ReadOnly-x64-Release.json",
+    "sha256": "CBDB9B4DF63F4FC023DF8445B9F37ABED77FA03ADC3DF7155E7C49C44689572E"
+  },
+  {
+    "file": "l-r-ReadOnly.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ReadOnly-x64-Release.log",
+    "sha256": "A82131C366F412E0BFAF9BFB6F245549B3AA8E435EECA0976EAAC0F67504EFFF"
+  },
+  {
+    "file": "m-r-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ComboBox-x64-Release.json",
+    "sha256": "128B476BF9DDF48801B665A63CB3AF6ED9873898FE99A1DDDB78DC8C4C408BAA"
+  },
+  {
+    "file": "l-r-ComboBox.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ComboBox-x64-Release.log",
+    "sha256": "A3364721F6AC904B8BC940B87E3D33718C320D78DC7C365107A5558A8F31908C"
+  },
+  {
+    "file": "m-r-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tree-x64-Release.json",
+    "sha256": "36658A6CA17EFB05D7062AC4780F14594106686985BE587129E0BD476A633165"
+  },
+  {
+    "file": "l-r-Tree.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tree-x64-Release.log",
+    "sha256": "F81EBAA5BC27BFF4A2C00780C85585D2E0FF07D4DBC103715D6D974AE2FE149F"
+  },
+  {
+    "file": "m-r-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tooltip-x64-Release.json",
+    "sha256": "34BAFDF2AE11EAA3C8CC4A40C45B5DC9F33621FC14B7B73C06C17FD06512397A"
+  },
+  {
+    "file": "l-r-Tooltip.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tooltip-x64-Release.log",
+    "sha256": "CBCD50F92EB9AB93B3B247F62E9C24EB9E8EBE33B6B928CE4BE488E3E2FCB222"
+  },
+  {
+    "file": "m-r-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Rendering-x64-Release.json",
+    "sha256": "753C181F4E9E6D02F4B017D9A7203571C33DC69CAD7A6151941EE725D6792D97"
+  },
+  {
+    "file": "l-r-Rendering.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Rendering-x64-Release.log",
+    "sha256": "F1E374112C321E150457200494C8C0A61F7DE3994005CDFD7EE3D4BC1BA2E136"
+  },
+  {
+    "file": "m-r-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Animation-x64-Release.json",
+    "sha256": "6A3D0F0EB0DFB136718D2F9A8E544FA61096ABFBA7AA5A628265BCED7D7582EB"
+  },
+  {
+    "file": "l-r-Animation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Animation-x64-Release.log",
+    "sha256": "D43D26B3B3F1DF204841CE99F93988F17F6836C570EE758FCFCC9A443A5CCD91"
+  },
+  {
+    "file": "m-r-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Accessibility-x64-Release.json",
+    "sha256": "922C93E50A91EFB0CC89FC878D39BCD77DD5EE3F8B25697CC51321F36FFE4A5C"
+  },
+  {
+    "file": "l-r-Accessibility.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Accessibility-x64-Release.log",
+    "sha256": "8D947E6D351290154442C967154D24B4399EDE14FCF65172B7561C88782B1475"
+  },
+  {
+    "file": "m-r-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\WindowHost-x64-Release.json",
+    "sha256": "167117BDF6413F1C916E4DF402F6B08AB4592D122BE76232CC0113E09784C655"
+  },
+  {
+    "file": "l-r-WindowHost.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-WindowHost-x64-Release.log",
+    "sha256": "58B40EEAB90D718BB373F8C2210E8A273C5E808BCBA74E049ADBF04FB9BF6DCA"
+  },
+  {
+    "file": "m-r-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\InteractiveLease-x64-Release.json",
+    "sha256": "F375AC5DD82A61E56F55D3B014274F8695C4CB120265A41366658A62DBB20592"
+  },
+  {
+    "file": "l-r-InteractiveLease.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-InteractiveLease-x64-Release.log",
+    "sha256": "6DCD22C0C7C60C06EC5166826DE64E1C33FC50E7B561B9C2D037763EF75290CB"
+  },
+  {
+    "file": "m-r-scope-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Accessibility.json",
+    "sha256": "56F9292E815F6BB155C7FEAA236A42ACDC1DCEECE6F0B6FE725DC367EACA4817"
+  },
+  {
+    "file": "m-r-scope-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Animation.json",
+    "sha256": "E748BDABEF2B01099BA1DB4430E37B392AE53684435B27A322E2F483E7A76076"
+  },
+  {
+    "file": "m-r-scope-build.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\build.json",
+    "sha256": "17DFBF1D4EE6655F8B1F1806CFE174A8DCE043E510467ACA51E490658A7A78D9"
+  },
+  {
+    "file": "m-r-scope-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\ComboBox.json",
+    "sha256": "1B77897F7B63F7F5EE9F7D55B2AD175E09C29C611FD163AB490912B80EE9EE6B"
+  },
+  {
+    "file": "m-r-scope-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Control.json",
+    "sha256": "60CAAE416D0D6038F282B39E7FF1CA246633FBC737D475813A589766B1258BAE"
+  },
+  {
+    "file": "m-r-scope-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\EditorControls.json",
+    "sha256": "FE6CEECCF013B55B4BA552338FB33C88F9D5F10854D17C41ED4AEEB816962828"
+  },
+  {
+    "file": "m-r-scope-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Embedded.json",
+    "sha256": "B694F94D269C10E2B5A1513C7D2B40B38E295754FC9028B885D6C0D7475E903A"
+  },
+  {
+    "file": "m-r-scope-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Foundation.json",
+    "sha256": "1B27C7690944F8E5F5A2EF442E8B789D446661C14836C42DDF9A9D7F8B538BDC"
+  },
+  {
+    "file": "m-r-scope-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Grid.json",
+    "sha256": "F81659B657D25572FBAC93DCE72385816836E5201FE5E4E505F1397E31409973"
+  },
+  {
+    "file": "m-r-scope-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\InteractiveLease.json",
+    "sha256": "BCF6D58FE5777528D33D465A4E45001201BAFA043546A0FFFCC948922D5E067B"
+  },
+  {
+    "file": "m-r-scope-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\MenuExitLifetime.json",
+    "sha256": "0811C4451078BD809490B46562DBD224CB14EC3FB52559817726EFB181BDA447"
+  },
+  {
+    "file": "m-r-scope-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\MultilineText.json",
+    "sha256": "B85625F80660DF75F477C0834CA00BBA415656A709FA83BE427C5573B053FCEC"
+  },
+  {
+    "file": "m-r-scope-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\ReadOnly.json",
+    "sha256": "264EDE50B5EB7D23B355BC9AC7D4B775F66448537C89321B8796A651CF0DD2E3"
+  },
+  {
+    "file": "m-r-scope-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Rendering.json",
+    "sha256": "6176C795047BBBBFA6CA5DB51964FD2423FD6B02E1B193982A3D9A5501787D98"
+  },
+  {
+    "file": "m-r-scope-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\TextField.json",
+    "sha256": "EED60E7B979C641DD665ED83783811C1FC38C5676AF7FDDC40C18256D0AB92DB"
+  },
+  {
+    "file": "m-r-scope-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Theme.json",
+    "sha256": "137F9EAD58ADBFD44C17D44BF85002FBDCA17FA794F8E46848AE5CB58ADCCE49"
+  },
+  {
+    "file": "m-r-scope-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Tooltip.json",
+    "sha256": "1D9AC87FEB1876BB3371A692FDA7F08F3DC504DF47166A0A4FD080139F30ECFC"
+  },
+  {
+    "file": "m-r-scope-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\Tree.json",
+    "sha256": "BC6D2C7AEDF500362F7F40A727C23B8BB5D114BD51405BC1A9BB7AE6D9B75E8B"
+  },
+  {
+    "file": "m-r-scope-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-Release\\WindowHost.json",
+    "sha256": "E90CF3BE8927E67B9013833078ADA29E5BD8D51A9FA9C8B88064C8F3E6E1364D"
+  },
+  {
+    "file": "b-x64-r.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-final-x64-Release.log",
+    "sha256": "A61BEAF9A990E761AAD4D553497958BDD54F4F524651038DCE583A052888748B"
+  },
+  {
+    "file": "b-access-r.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-access-Release.log",
+    "sha256": "AE3C23BF4272D996CEEFA7511E31EE6C0ECB87FF6FD471C4045E66099C75066A"
+  },
+  {
+    "file": "b-arm64-r.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-build-arm64-Release.log",
+    "sha256": "226CCAD73F59F2C04F202986F8FB8BFDE5A20EEC92479C9A610DEB169E936222"
+  },
+  {
+    "file": "m-a-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Foundation-x64-ASan Debug.json",
+    "sha256": "ACD4F39838EFE6D3057DFFE45679395E360A345A42097083E7A744C02BD3343D"
+  },
+  {
+    "file": "l-a-Foundation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Foundation-x64-ASan Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+  },
+  {
+    "file": "m-a-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Embedded-x64-ASan Debug.json",
+    "sha256": "73DD4EBB1C5E9776966FA204CC94D9BB5C84B39E08EABB6C3FED09BED3688F17"
+  },
+  {
+    "file": "l-a-Embedded.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Embedded-x64-ASan Debug.log",
+    "sha256": "072A70FDD38285F57E9C315C53119912332A15238A49A243F1C4095E72FBEFFE"
+  },
+  {
+    "file": "m-a-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Grid-x64-ASan Debug.json",
+    "sha256": "F2E2ABC5C64BB7596FA436A1585C62378144CB175D8A4C27B9EDDB27693577B3"
+  },
+  {
+    "file": "l-a-Grid.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Grid-x64-ASan Debug.log",
+    "sha256": "8EA6108069AEFE8EE83C137D4E52D03F908004B1C2E8D76A8F1C18FF435ACB9D"
+  },
+  {
+    "file": "m-a-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Theme-x64-ASan Debug.json",
+    "sha256": "04B9CCC7A9FD47CF0E044134A11DD6946119E55944635921E03602E0A3335175"
+  },
+  {
+    "file": "l-a-Theme.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Theme-x64-ASan Debug.log",
+    "sha256": "106176B869D44DEB04342B63AD432264E4EC303565337F833A7B4065C539E4BC"
+  },
+  {
+    "file": "m-a-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Control-x64-ASan Debug.json",
+    "sha256": "5B5453D5E39B27C9A4A88792396163F5A2B446DF2C80F94CA44856D2F52DA88E"
+  },
+  {
+    "file": "l-a-Control.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Control-x64-ASan Debug.log",
+    "sha256": "ECB62215E311E8310A34ADF7AB30B60206B39C686A89ECDF7DF57FD6B3D13654"
+  },
+  {
+    "file": "m-a-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+    "sha256": "FAFD2FA77FCD70461FFDEBDB7AC7A648E68C274046F3B093376C7ADA146A185F"
+  },
+  {
+    "file": "l-a-MenuExitLifetime.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MenuExitLifetime-x64-ASan Debug.log",
+    "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+  },
+  {
+    "file": "m-a-NewControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\NewControls-x64-ASan Debug.json",
+    "sha256": "30A9F0E9C03CA51A8101047279E59DDE51FAA61BF344135C7A0CD8E15A4AA4AB"
+  },
+  {
+    "file": "l-a-NewControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-NewControls-x64-ASan Debug.log",
+    "sha256": "6782720F844393CC2354EE874FF07ADDE8CE8F90828DF48948251E2505822728"
+  },
+  {
+    "file": "m-a-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\EditorControls-x64-ASan Debug.json",
+    "sha256": "687D187C00677B9DF08AEF4D7FD53B1254F21AEB6B6A98DE121915BD28F24EAC"
+  },
+  {
+    "file": "l-a-EditorControls.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-EditorControls-x64-ASan Debug.log",
+    "sha256": "52E74B3BAD9D87846B46BACFE8A114EDEEACF8C1C9C4B0E67B77136D4EFBE74D"
+  },
+  {
+    "file": "m-a-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\TextField-x64-ASan Debug.json",
+    "sha256": "553F906C39DD0BB3320B99F15FBD535F67C9390F0F1FA707CAECD62DEE19548B"
+  },
+  {
+    "file": "l-a-TextField.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-TextField-x64-ASan Debug.log",
+    "sha256": "6E7AF693C78F399D3E77844A15152C888872188C31B1C0FF33C75B31690DEF36"
+  },
+  {
+    "file": "m-a-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\MultilineText-x64-ASan Debug.json",
+    "sha256": "76700D8D276285BE0892EAE317A608E9896E77F4134E64A7E85BE265604EAE14"
+  },
+  {
+    "file": "l-a-MultilineText.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-MultilineText-x64-ASan Debug.log",
+    "sha256": "F57175C29FE2AED8B179347639EE5BAFED647909B771F85627B4D8821C25EA59"
+  },
+  {
+    "file": "m-a-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ReadOnly-x64-ASan Debug.json",
+    "sha256": "D552B9DDA9882AA81A7D1A183B7E635250FD086D816F91B08EB6610BA7EC444C"
+  },
+  {
+    "file": "l-a-ReadOnly.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ReadOnly-x64-ASan Debug.log",
+    "sha256": "E037B0B8C37C6292D8832784D361E1F8719837343BDDC0ECFD75E0695156D18A"
+  },
+  {
+    "file": "m-a-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ComboBox-x64-ASan Debug.json",
+    "sha256": "9DB43B641F0A04CA68CE90944CB29DBBCECB756FF1F8EC71FB9915712A7BB1A2"
+  },
+  {
+    "file": "l-a-ComboBox.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-ComboBox-x64-ASan Debug.log",
+    "sha256": "D3AD4224E1788758185A302C64FE54AB8B1D16C97895620449251A474A22D954"
+  },
+  {
+    "file": "m-a-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tree-x64-ASan Debug.json",
+    "sha256": "340BBDD743CF439D055895979BC649C0A4529310AFF32769448218013D9EB805"
+  },
+  {
+    "file": "l-a-Tree.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tree-x64-ASan Debug.log",
+    "sha256": "7B432C1C928C379CD5E42571DCB72ADBAE06BF9FB4C4F1884A7BF1491AA53F9B"
+  },
+  {
+    "file": "m-a-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Tooltip-x64-ASan Debug.json",
+    "sha256": "6DEF77A4096DC65CD89B4CCA41095D042CA1FB5029C93E03CF304C5D114B4FEA"
+  },
+  {
+    "file": "l-a-Tooltip.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Tooltip-x64-ASan Debug.log",
+    "sha256": "4A2057363D43C0E95F56A78C9FB391EE022198FB00EB6A211F1A57D831E2AB2D"
+  },
+  {
+    "file": "m-a-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Rendering-x64-ASan Debug.json",
+    "sha256": "E6378955DB2959C4669AC3FBE5DB9FE559C2E277D828367297ED8BA39D0F003E"
+  },
+  {
+    "file": "l-a-Rendering.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Rendering-x64-ASan Debug.log",
+    "sha256": "DBDD888196DF4F9D7DF5D31D3A74FE8FD5C6EAB8DD79BD79FDE042CFA1304C99"
+  },
+  {
+    "file": "m-a-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Animation-x64-ASan Debug.json",
+    "sha256": "474FD5ABE691BE2C0C33392F351E1AE5BC7B8BC8D992913C3F07179B89BEFEB9"
+  },
+  {
+    "file": "l-a-Animation.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Animation-x64-ASan Debug.log",
+    "sha256": "FFA9D92C93807A08828E500B65540AA875B00C8438C7D4B31B9927F68F36E4AA"
+  },
+  {
+    "file": "m-a-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\Accessibility-x64-ASan Debug.json",
+    "sha256": "89797B7CBCB4362D4623F3B554F75259E7648BF235B779497D92080FAD44F500"
+  },
+  {
+    "file": "l-a-Accessibility.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-Accessibility-x64-ASan Debug.log",
+    "sha256": "B4CFBA96B0EDC434338711CF7C13118A2891781580C60592573BCB9F2282AE55"
+  },
+  {
+    "file": "m-a-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\WindowHost-x64-ASan Debug.json",
+    "sha256": "257A61198D75F087F29888E67E50E6D32D4E70426757B683F00A614ADD6E2F2A"
+  },
+  {
+    "file": "l-a-WindowHost.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-WindowHost-x64-ASan Debug.log",
+    "sha256": "BCB391954948C8C6D74E4CFBB1FC1477DFEBF26C3920E2E96B26CCF387F68298"
+  },
+  {
+    "file": "m-a-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\InteractiveLease-x64-ASan Debug.json",
+    "sha256": "C4F7EB434F7D1683DB09D6AB0FE6FE5121ED3C871016E45C2405E5B7BED88EBA"
+  },
+  {
+    "file": "l-a-InteractiveLease.log",
+    "original": "Z:\\src\\DxUi\\.build\\logs\\test-InteractiveLease-x64-ASan Debug.log",
+    "sha256": "8F1F0CF70D97EAE9BBB4934EAB51690346CED9CEC11B144D3E141CB0A1E82E78"
+  },
+  {
+    "file": "m-a-scope-Accessibility.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Accessibility.json",
+    "sha256": "E55AC65E2BD7AA14152D7337CB826853EB750FA392DEF04CA4CE444D9617DF29"
+  },
+  {
+    "file": "m-a-scope-Animation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Animation.json",
+    "sha256": "5F32B7EFC72DB74FABB18A3762BD2EFF652C37CD689B7695BF58A987CDCD65BF"
+  },
+  {
+    "file": "m-a-scope-build.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\build.json",
+    "sha256": "A38B0953F5B38DD2D84D809370D315A051E379EA84829071FF9A1C3E75DDF8BF"
+  },
+  {
+    "file": "m-a-scope-ComboBox.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ComboBox.json",
+    "sha256": "EB52DB019D53149E2A8745854707A6EA95EAA4FC560B396A890CCEE36E59CA7F"
+  },
+  {
+    "file": "m-a-scope-Control.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Control.json",
+    "sha256": "B1285826A6C11EA09DBF7CB927FD362494931CE88890E61B9B4F54AD13B4677A"
+  },
+  {
+    "file": "m-a-scope-EditorControls.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\EditorControls.json",
+    "sha256": "83033E049DBD1834F363F48A3331165E6B7879584EE777492E45A94C800A8F70"
+  },
+  {
+    "file": "m-a-scope-Embedded.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Embedded.json",
+    "sha256": "455FC604387C02DCF517AF11D7BAD73D890AD5D7114AAF18962FD446F1775E43"
+  },
+  {
+    "file": "m-a-scope-Foundation.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Foundation.json",
+    "sha256": "2E0B884BBDA6814A7CD6149A4C2EA3287F126206742E1A3A493972BEEE26BFE1"
+  },
+  {
+    "file": "m-a-scope-Grid.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Grid.json",
+    "sha256": "0239E793D174F6B740C6F1CBCE1E269A62FE8F5AB87D5598A4BD8E8E79F3E4F4"
+  },
+  {
+    "file": "m-a-scope-InteractiveLease.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\InteractiveLease.json",
+    "sha256": "1EF8CF265B71EBDAB518C52A51DDA10BE8CC587DF825CF158F55EB997520EAD7"
+  },
+  {
+    "file": "m-a-scope-MenuExitLifetime.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MenuExitLifetime.json",
+    "sha256": "7A7EAC6E4C4E7F78421B6ED589C7784B95BEDC5F4B5169593D61955E92EA7160"
+  },
+  {
+    "file": "m-a-scope-MultilineText.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MultilineText.json",
+    "sha256": "B57A9AB4CDB45CD084AD468947DF45BA83DE4209DBF8DF794DE690DEE11EE7F1"
+  },
+  {
+    "file": "m-a-scope-ReadOnly.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ReadOnly.json",
+    "sha256": "781ED1F05988251D25BD5FFD503E18C55AF644AA855FB08073CA58BE78A68FEC"
+  },
+  {
+    "file": "m-a-scope-Rendering.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Rendering.json",
+    "sha256": "63D130A65239884E611FC9E74F87EA82615A951EA561C46576222935CB72EEEC"
+  },
+  {
+    "file": "m-a-scope-TextField.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\TextField.json",
+    "sha256": "4037616C98E664714D230B2DC559ECD06FC0BC13EDE7A80AA06EC0579F2FE8EA"
+  },
+  {
+    "file": "m-a-scope-Theme.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Theme.json",
+    "sha256": "384136F358EB7308AC22754343F85C31F0CC207BEF34BC92D348EDEF698B0C02"
+  },
+  {
+    "file": "m-a-scope-Tooltip.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tooltip.json",
+    "sha256": "AA17570D9C4AE43568BE8113146553394256557FAF24B18EDE6CB189D7EBFB68"
+  },
+  {
+    "file": "m-a-scope-Tree.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tree.json",
+    "sha256": "C09D4C74DB1802D73BF70FBCA649F5A26CAC89AAD26A2CDF1497B672CDF1DB94"
+  },
+  {
+    "file": "m-a-scope-WindowHost.txt",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\WindowHost.json",
+    "sha256": "C732AEDC7A5CBED661905B0494D26C1BEBCD1BBB45B5E99B3263818137DA8551"
+  },
+  {
+    "file": "b-x64-a.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-final-x64-ASanDebug.log",
+    "sha256": "60A0875938F710B5AB6DE90A7A7729247777865234595E619EB0A35CA16069FD"
+  },
+  {
+    "file": "b-access-a.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-access-ASanDebug.log",
+    "sha256": "A5155D052F07AD524DECB63F52D3B72CC10EF57A0D1C3A8163CCB196A59C68B0"
+  },
+  {
+    "file": "b-arm64-a.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\gallery-fix-build-arm64-ASanDebug.log",
+    "sha256": "014AE406DD3D3E010F677ECCA7B8C926BFFA78BA00EAF1988E08643CD336BE61"
+  },
+  {
+    "file": "b-validation.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\closeout-validation.log",
+    "sha256": "D57B6E4CF50D111ABCBDF6C99A4BC20FB39792C0AF166AADB791D695876112CF"
+  },
+  {
+    "file": "b-format.log",
+    "original": "Z:\\src\\DxUi\\.build\\reports\\ProductionReview-2026-10-08\\final-format-check.log",
+    "sha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812"
+  }
+]

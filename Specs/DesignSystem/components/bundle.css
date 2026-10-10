@@ -24,7 +24,7 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 /* Toggle: track 34×20, knob 12 rest */
 .dx-toggle { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 160px; padding: 6px; border-radius: var(--radius-lg); }
 .dx-toggle .track { box-sizing: border-box; width: 34px; height: 20px; border-radius: var(--radius-pill); border: 1px solid var(--borderStrong); background: var(--inputFill); position: relative; }
-.dx-toggle .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--subduedText); }
+.dx-toggle .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--toggleKnobFill); }
 .dx-toggle.is-on .track { background: var(--selectionFill); border-color: var(--selectionFill); }
 .dx-toggle.is-on .track::after { left: 17px; background: var(--toggleKnobCheckedFill); }
 .dx-toggle.is-disabled { color: var(--disabledText); }
@@ -76,7 +76,9 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-slider .disc::after { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
 .dx-slider.is-hover .disc::after { width: 20px; height: 20px; }
 .dx-slider.is-pressed .disc::after { width: 16px; height: 16px; background: var(--accentPressed); }
-.dx-slider.is-touch { margin: 12px 0; }
+.dx-slider.is-touch { height: 48px; }
+.dx-slider.is-touch .rail, .dx-slider.is-touch .fill { top: 21px; }
+.dx-slider.is-touch .disc { top: 12px; }
 .dx-slider.is-touch .disc { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 24%, transparent); }
 
 /* ProgressBar: 2 DIP track, 4 indeterminate */
@@ -112,7 +114,8 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-grid td { height: 28px; padding: 0 8px; border-bottom: 1px solid var(--gridLine); }
 .dx-grid tr.is-hover td { background: var(--hoverFill); }
 .dx-grid tr.is-selected td { background: var(--selectionFill); color: var(--selectionText); }
-.dx-grid tr.is-inactive td { background: var(--selectionInactiveFill); }
+.dx-grid tr.is-inactive td { background: var(--selectionInactiveFill); color: #000; }
+[data-theme="dark"] .dx-grid tr.is-inactive td, [data-theme="high-contrast"] .dx-grid tr.is-inactive td { color: var(--selectionText); }
 .dx-grid tr.is-multiline td { height: 44px; }
 .dx-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; line-height: 16px; }
 .dx-badge { display: inline-block; min-width: 28px; box-sizing: border-box; padding: 0 6px; height: 16px; line-height: 16px; border-radius: 8px; text-align: center; font-size: 11px; }
@@ -127,7 +130,11 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-tree .row.is-selected { background: var(--selectionFill); color: var(--selectionText); }
 .dx-tree .row.is-selected .exp { color: var(--selectionText); }
 .dx-tree .row.is-inactive { background: var(--selectionInactiveFill); }
+[data-theme="high-contrast"] .dx-tree .row.is-inactive { color: var(--selectionText); }
 .dx-tree .row.is-focus { outline: 1px solid var(--focusStroke); outline-offset: -2px; }
+.dx-tree .row.is-selected.is-focus { outline-color: #000; }
+[data-theme="dark"] .dx-tree .row.is-selected.is-focus { outline-color: #fff; }
+[data-theme="high-contrast"] .dx-tree .row.is-selected.is-focus { outline-color: var(--selectionText); }
 .dx-tree .row.is-hover { background: var(--hoverFill); }
 
 /* Panels */

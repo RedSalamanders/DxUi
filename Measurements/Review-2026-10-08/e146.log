@@ -1,0 +1,43 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes
+=================================================================
+==68796==ERROR: AddressSanitizer: access-violation on unknown address 0x000000000000 (pc 0x7ff8e3ee0092 bp 0x0009e8f298c0 sp 0x0009e8f29840 T0)
+==68796==The signal is caused by a READ memory access.
+==68796==Hint: address points to the zero page.
+    #0 0x7ff8e3ee0091 in D2D1InvertMatrix+0x5aa1 (C:\WINDOWS\SYSTEM32\d2d1.dll+0x180120091)
+    #1 0x7ff8e3edff8e in D2D1InvertMatrix+0x599e (C:\WINDOWS\SYSTEM32\d2d1.dll+0x18011ff8e)
+    #2 0x7ff6b9aff1bc in ID2D1RenderTarget::FillRectangle C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\d2d1.h:3092
+    #3 0x7ff6ba97cf1a in DxUi::PaintScrollbar Z:\src\DxUi\src\Controls\DxUi.Scrollbar.cpp:262
+    #4 0x7ff6ba5f083c in DxUi::ScrollPanel::Paint Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:9210
+    #5 0x7ff6ba57f2b6 in DxUi::Panel::Paint Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:1357
+    #6 0x7ff6ba7695be in DxUi::ControlHost::Render Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:3868
+    #7 0x7ff6ba767f76 in DxUi::ControlHost::Render Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:3589
+    #8 0x7ff6ba75a5dd in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:2554
+    #9 0x7ff6b9a12ec4 in AttachedHostWindow::WndProc Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:937
+    #10 0x7ff8eaca52c5 in CallWindowProcW+0x6a5 (C:\WINDOWS\System32\USER32.dll+0x1800152c5)
+    #11 0x7ff8eaca4b4b in GetFocus+0x1e3b (C:\WINDOWS\System32\USER32.dll+0x180014b4b)
+    #12 0x7ff8eaccf672 in GetWindowDpiAwarenessContext+0x4d2 (C:\WINDOWS\System32\USER32.dll+0x18003f672)
+    #13 0x7ff8ec2e4de3 in KiUserCallbackDispatcher+0x23 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x180164de3)
+    #14 0x7ff8e99014e3 in NtUserRedrawWindow+0x13 (C:\WINDOWS\System32\win32u.dll+0x1800014e3)
+    #15 0x7ff6ba2bc57b in `anonymous namespace'::CaptureAttachedHostWindowBitmapForWindowHostSuite Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:55
+    #16 0x7ff6ba2fb346 in `anonymous namespace'::TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:2894
+    #17 0x7ff6b9a0b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #18 0x7ff6ba318640 in RunWindowHostTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.WindowHost.cpp:4251
+    #19 0x7ff6b9b8a765 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #20 0x7ff6b9b85a36 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:554
+    #21 0x7ff6ba9fc248 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #22 0x7ff6ba9fc161 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #23 0x7ff6ba9fc01d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #24 0x7ff6ba9fc2bd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #25 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #26 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+==68796==Register values:
+rax = 0  rbx = 115cea6aa098  rcx = 115cea6aa098  rdx = 9e8f29c20  
+rdi = 0  rsi = 115cea6aa080  rbp = 9e8f298c0  rsp = 9e8f29840  
+r8  = 0  r9  = 9e8f29c20  r10 = 12e27865393  r11 = 12e27865390  
+r12 = 9e8f29c20  r13 = 0  r14 = 0  r15 = 9e8f29c20  
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: access-violation (C:\WINDOWS\SYSTEM32\d2d1.dll+0x180120091) in D2D1InvertMatrix+0x5aa1
+==68796==ABORTING

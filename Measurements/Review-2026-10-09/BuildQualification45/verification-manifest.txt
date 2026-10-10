@@ -1,0 +1,81 @@
+{
+  "purpose": "independent-post-build-artifact-verification",
+  "verifiedUtc": "2026-10-09T21:24:22.7658664Z",
+  "sourceCommit": "bea676a1f8418141f61cab9326b9b910e89a14b4",
+  "sourceDirty": true,
+  "compiledSourceIdentity": "a33c88cf2a1cdb801630c541be0278f9f89120aae929121c47d85a04b2db876d",
+  "builds": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "buildInputIdentity": "255c0549a008321100b22e44993a2cf47defaf7dd33e6727a67928c7fd44a770",
+      "artifactIdentity": "c0e70cd636b2cba410ca25659fb720f51535cbf13e64501e905634170848f485",
+      "parentLog": "production-review-2026-10-09-parent-build-Debug45.log",
+      "parentLogSha256": "A7503C697831595AAAC5C693BDAA52FB3B2E543892D99F85147D29EB0FAA187C",
+      "msbuildLog": "build-x64-Debug-b3350b87213445bcb0f5cdb157b72bfd.log",
+      "msbuildLogSha256": "02F82F61F59F357DE020E16066A7FF41D37D3F92BAFD79DBEF8CD0BECD324E5C",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "buildInputIdentity": "255c0549a008321100b22e44993a2cf47defaf7dd33e6727a67928c7fd44a770",
+      "artifactIdentity": "bc05f0df640e3ce4f99e6dba187ee8e4386eb055473472f036e09488317e37d9",
+      "parentLog": "production-review-2026-10-09-parent-build-Release45.log",
+      "parentLogSha256": "799AD8632C6A457F5D2148364ADBA536913B010BF97ED9A8F89FE2B1BA56B633",
+      "msbuildLog": "build-x64-Release-3782be597302489692bf2ad9216d8596.log",
+      "msbuildLogSha256": "5E41039E7ED6B614A743367329F711821FFFD7D09104AC54D68A75077485181F",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "buildInputIdentity": "255c0549a008321100b22e44993a2cf47defaf7dd33e6727a67928c7fd44a770",
+      "artifactIdentity": "96f4e4e3fd1647115676940bc97c0eaae634ff0271771de75c7ff6223cb51852",
+      "parentLog": "production-review-2026-10-09-parent-build-ASanDebug45.log",
+      "parentLogSha256": "6955F175C87FF4B19C2DBC1FEF1752DA3B3BE5D6458A62C27C0AA90DAF9DE8A8",
+      "msbuildLog": "build-x64-ASan Debug-af218b78954f45038a31236350d9853b.log",
+      "msbuildLogSha256": "4A1C55CF1C16541022DB07203733FAAD62F1FAA7B14AAF119869B9FAC29F91EC",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "buildInputIdentity": "9a7e7139d36d8597df9d464eb145365d593d38700890eae56e11c8948e65e6bf",
+      "artifactIdentity": "44ac0199918fe643aaa3c74fbff5d907629d2a43d10348031166d9e0fc17f28f",
+      "parentLog": "production-review-2026-10-09-parent-build-ARM64-Debug45.log",
+      "parentLogSha256": "5B6651077C7FE805379F7E8AF2EC20463B195D24B5495C825F50A4BC0C204686",
+      "msbuildLog": "build-ARM64-Debug-8445c6e599ed43bc83eb04b27da021f0.log",
+      "msbuildLogSha256": "64EB30A1E9360E3EDF3DA51393EDC26FF46A70BDEB63B83656C37F99434E3351",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "buildInputIdentity": "9a7e7139d36d8597df9d464eb145365d593d38700890eae56e11c8948e65e6bf",
+      "artifactIdentity": "6e4a91665694afb49c9c987c68d676c52a8c16d3bd057e62924710f585ca7d74",
+      "parentLog": "production-review-2026-10-09-parent-build-ARM64-Release45.log",
+      "parentLogSha256": "B9F325BCF1E8699D6BA3D7D6EB168477D70E6428FC8B6FC42941FB5A3C53A8EC",
+      "msbuildLog": "build-ARM64-Release-4018d5a048eb4dd1aaae6b04375edb66.log",
+      "msbuildLogSha256": "34AD9AAF0726A210F9BB8B07CC4C6511230B49435AD62494077DFB0CEE58E979",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "buildInputIdentity": "9a7e7139d36d8597df9d464eb145365d593d38700890eae56e11c8948e65e6bf",
+      "artifactIdentity": "9a14f8d26af136a8caacf1ebd3bec9bc0ef593c2cdab686d8e3a209a62a3b8b1",
+      "parentLog": "production-review-2026-10-09-parent-build-ARM64-ASanDebug45.log",
+      "parentLogSha256": "B59F5142AC9E04CC77F43F93E9EAD71F4CD33D5200543652AC58BDF58A892D7B",
+      "msbuildLog": "build-ARM64-ASan Debug-3600792af8a14e6ebc4ceb3079dabde3.log",
+      "msbuildLogSha256": "7AFC8535BB4FBF9616662461B394D1C6480A1FC10D1B15405130E6CE4F4AA09B",
+      "nativeRuntimeQualification": "NOT RUN by this build"
+    }
+  ],
+  "limitations": [
+    "This post-build inventory is not a scoped reusable build receipt; direct build.ps1 does not publish one.",
+    "All six canonical build invocations completed successfully before this inventory; only documentation changed between them and verification.",
+    "NativeQualification42 receipts qualify the earlier source only.",
+    "Builds do not establish runtime, paired performance or consumer qualification."
+  ]
+}

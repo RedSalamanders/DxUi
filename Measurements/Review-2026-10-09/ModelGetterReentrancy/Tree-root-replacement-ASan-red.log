@@ -1,0 +1,110 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild
+=================================================================
+==27588==ERROR: AddressSanitizer: heap-use-after-free on address 0x126d939a0c60 at pc 0x7ff6a6963ab4 bp 0x005ce83a7760 sp 0x005ce83a7768
+READ of size 1 at 0x126d939a0c60 thread T0
+    #0 0x7ff6a6963ab3 in DxUi::Tree::IsItemSelected Z:\src\DxUi\src\Controls\DxUi.Tree.cpp:682
+    #1 0x7ff6a67aadc3 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1886
+    #2 0x7ff6a67ad0c2 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:2040
+    #3 0x7ff6a67bca7a in DxUi::`anonymous namespace'::PublishWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:959
+    #4 0x7ff6a67b4336 in DxUi::`anonymous namespace'::FlushNativeAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:10608
+    #5 0x7ff6a67be603 in DxUi::`anonymous namespace'::CaptureAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1058
+    #6 0x7ff6a6827eb8 in DxUi::`anonymous namespace'::AccessibilityProvider::CaptureSnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:5997
+    #7 0x7ff6a6809adc in DxUi::`anonymous namespace'::AccessibilityProvider::ElementProviderFromPoint Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:7023
+    #8 0x7ff6a5d04442 in GetProviderAtDipPoint Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:799
+    #9 0x7ff6a59fbc9a in `anonymous namespace'::ReadPointProviderName Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:141
+    #10 0x7ff6a59fc724 in `anonymous namespace'::RequireReplacementButtonAtPoint Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:159
+    #11 0x7ff6a5a1a295 in `anonymous namespace'::TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1304
+    #12 0x7ff6a5d11737 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #13 0x7ff6a5b3565a in RunAccessibilityTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:10033
+    #14 0x7ff6a5ec6fa5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #15 0x7ff6a5ec2428 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:589
+    #16 0x7ff6a6e71978 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #17 0x7ff6a6e71891 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #18 0x7ff6a6e7174d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #19 0x7ff6a6e719ed in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #20 0x7ff8067ecd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #21 0x7ff807c8caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x126d939a0c60 is located 480 bytes inside of 1016-byte region [0x126d939a0a80,0x126d939a0e78)
+freed by thread T0 here:
+    #0 0x7ff6a6e6f693 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff6a5cf1c90 in DxUi::Tree::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301c90)
+    #2 0x7ff6a5cefc03 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff6a5cc3540 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff6a5cf1236 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301236)
+    #5 0x7ff6a5c60721 in std::destroy_at<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #6 0x7ff6a5c60333 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::destroy<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #7 0x7ff6a5bcba32 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #8 0x7ff6a5d4eb59 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #9 0x7ff6a5cc7546 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::~vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #10 0x7ff6a5cc88bb in DxUi::Panel::~Panel+0x1b (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402d88bb)
+    #11 0x7ff6a5cf1876 in DxUi::Panel::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140301876)
+    #12 0x7ff6a5cefc03 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #13 0x7ff6a5cc3540 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #14 0x7ff6a6bb1870 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1476
+    #15 0x7ff6a5a1a58e in ``anonymous namespace'::TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1302
+    #16 0x7ff6a5c6fbce in std::invoke<``anonymous namespace'::TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1> &> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\type_traits:1801
+    #17 0x7ff6a5b47b76 in std::_Func_impl_no_alloc<``anonymous namespace'::TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild'::`2'::<lambda_1>,void>::_Do_call C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1005
+    #18 0x7ff6a5cef462 in std::_Func_class<void>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1057
+    #19 0x7ff6a59f9f5d in `anonymous namespace'::ReentrantAccessibilityTreeModel::GetVisibleItem Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:40
+    #20 0x7ff6a67aab10 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1875
+    #21 0x7ff6a67ad0c2 in DxUi::`anonymous namespace'::AppendAccessibilitySnapshotNavigation Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:2040
+    #22 0x7ff6a67bca7a in DxUi::`anonymous namespace'::PublishWindowHostAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:959
+    #23 0x7ff6a67b4336 in DxUi::`anonymous namespace'::FlushNativeAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:10608
+    #24 0x7ff6a67be603 in DxUi::`anonymous namespace'::CaptureAccessibilitySnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:1058
+    #25 0x7ff6a6827eb8 in DxUi::`anonymous namespace'::AccessibilityProvider::CaptureSnapshot Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:5997
+    #26 0x7ff6a6809adc in DxUi::`anonymous namespace'::AccessibilityProvider::ElementProviderFromPoint Z:\src\DxUi\src\Controls\DxUi.Accessibility.cpp:7023
+    #27 0x7ff6a5d04442 in GetProviderAtDipPoint Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:799
+    #28 0x7ff6a59fbc9a in `anonymous namespace'::ReadPointProviderName Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:141
+
+previously allocated by thread T0 here:
+    #0 0x7ff6a6e6f575 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff6a5c7b337 in std::make_unique<DxUi::Tree,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff6a5baeed4 in DxUi::Panel::AddChild<DxUi::Tree> Z:\src\DxUi\include\DxUi\DxUi.h:1674
+    #3 0x7ff6a5a19f45 in `anonymous namespace'::TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:1292
+    #4 0x7ff6a5d11737 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6a5b3565a in RunAccessibilityTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Accessibility.cpp:10033
+    #6 0x7ff6a5ec6fa5 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6a5ec2428 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:589
+    #8 0x7ff6a6e71978 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6a6e71891 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6a6e7174d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6a6e719ed in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8067ecd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff807c8caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi\src\Controls\DxUi.Tree.cpp:682 in DxUi::Tree::IsItemSelected
+Shadow bytes around the buggy address:
+  0x126d939a0980: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa
+  0x126d939a0a00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x126d939a0a80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x126d939a0b00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x126d939a0b80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+=>0x126d939a0c00: fd fd fd fd fd fd fd fd fd fd fd fd[fd]fd fd fd
+  0x126d939a0c80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x126d939a0d00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x126d939a0d80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x126d939a0e00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa
+  0x126d939a0e80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==27588==ABORTING

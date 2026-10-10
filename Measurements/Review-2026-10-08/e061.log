@@ -1,0 +1,9 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestNativeMenuBarRefreshMutableCallbackRetainsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMenuBarRefreshMutableCallbackRetainsState (0.092 s)
+[DONE] WindowHost (0.093 s)
+All DxUi tests passed.

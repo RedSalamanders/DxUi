@@ -1,0 +1,494 @@
+﻿2026-10-09T21:27:59.8102849Z Current runner version: '2.337.0'
+2026-10-09T21:27:59.8123408Z ##[group]Runner Image Provisioner
+2026-10-09T21:27:59.8124285Z Hosted Compute Agent
+2026-10-09T21:27:59.8124835Z Version: 20261002.596
+2026-10-09T21:27:59.8125405Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-09T21:27:59.8126123Z Build Date: 2026-10-02T22:28:27Z
+2026-10-09T21:27:59.8126780Z Worker ID: {ccf4ebd9-40e6-4f5e-90fa-0fc9a7a99460}
+2026-10-09T21:27:59.8127460Z Region: centralus
+2026-10-09T21:27:59.8127989Z Cloud: Azure
+2026-10-09T21:27:59.8128499Z ##[endgroup]
+2026-10-09T21:27:59.8129712Z ##[group]Operating System
+2026-10-09T21:27:59.8130306Z Ubuntu
+2026-10-09T21:27:59.8130816Z 24.04.5
+2026-10-09T21:27:59.8131312Z LTS
+2026-10-09T21:27:59.8132047Z ##[endgroup]
+2026-10-09T21:27:59.8132621Z ##[group]Runner Image
+2026-10-09T21:27:59.8133212Z Image: ubuntu-24.04
+2026-10-09T21:27:59.8133727Z Version: 20261004.327.1
+2026-10-09T21:27:59.8134920Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261004.327/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-09T21:27:59.8136344Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261004.327
+2026-10-09T21:27:59.8137246Z ##[endgroup]
+2026-10-09T21:27:59.8138287Z ##[group]GITHUB_TOKEN Permissions
+2026-10-09T21:27:59.8140427Z Contents: read
+2026-10-09T21:27:59.8140957Z Metadata: read
+2026-10-09T21:27:59.8141584Z ##[endgroup]
+2026-10-09T21:27:59.8143614Z Secret source: Actions
+2026-10-09T21:27:59.8144465Z Cache mode: write
+2026-10-09T21:27:59.8145098Z Prepare workflow directory
+2026-10-09T21:27:59.9299981Z Prepare all required actions
+2026-10-09T21:27:59.9364537Z Getting action download info
+2026-10-09T21:28:00.1527223Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-09T21:28:00.4883208Z Complete job name: validation
+2026-10-09T21:28:00.5543429Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-10-09T21:28:00.5544473Z with:
+2026-10-09T21:28:00.5545009Z   repository: RedSalamanders/DxUi
+2026-10-09T21:28:00.5549071Z   token: ***
+2026-10-09T21:28:00.5549560Z   ssh-strict: true
+2026-10-09T21:28:00.5550037Z   ssh-user: git
+2026-10-09T21:28:00.5550577Z   persist-credentials: true
+2026-10-09T21:28:00.5551129Z   clean: true
+2026-10-09T21:28:00.5551643Z   sparse-checkout-cone-mode: true
+2026-10-09T21:28:00.5552412Z   fetch-depth: 1
+2026-10-09T21:28:00.5552920Z   fetch-tags: false
+2026-10-09T21:28:00.5553442Z   show-progress: true
+2026-10-09T21:28:00.5553983Z   lfs: false
+2026-10-09T21:28:00.5554461Z   submodules: false
+2026-10-09T21:28:00.5555005Z   set-safe-directory: true
+2026-10-09T21:28:00.5555571Z   allow-unsafe-pr-checkout: false
+2026-10-09T21:28:00.5556319Z ##[endgroup]
+2026-10-09T21:28:00.6474175Z Syncing repository: RedSalamanders/DxUi
+2026-10-09T21:28:00.6476832Z ##[group]Getting Git version info
+2026-10-09T21:28:00.6477910Z Working directory is '/home/runner/work/DxUi/DxUi'
+2026-10-09T21:28:00.6479433Z [command]/usr/bin/git version
+2026-10-09T21:28:00.6519089Z git version 2.55.0
+2026-10-09T21:28:00.6535455Z ##[endgroup]
+2026-10-09T21:28:00.6546189Z Temporarily overriding HOME='/home/runner/work/_temp/a3b994d8-4172-4e53-9a4f-7979b20050c0' before making global git config changes
+2026-10-09T21:28:00.6548139Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:28:00.6550385Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/DxUi/DxUi
+2026-10-09T21:28:00.6603366Z Deleting the contents of '/home/runner/work/DxUi/DxUi'
+2026-10-09T21:28:00.6607167Z ##[group]Initializing the repository
+2026-10-09T21:28:00.6609958Z [command]/usr/bin/git init /home/runner/work/DxUi/DxUi
+2026-10-09T21:28:00.6723809Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-09T21:28:00.6725439Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-09T21:28:00.6728643Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-09T21:28:00.6729801Z hint: call:
+2026-10-09T21:28:00.6730535Z hint:
+2026-10-09T21:28:00.6731347Z hint: 	git config --global init.defaultBranch <name>
+2026-10-09T21:28:00.6732447Z hint:
+2026-10-09T21:28:00.6734211Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-09T21:28:00.6735613Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-09T21:28:00.6736649Z hint:
+2026-10-09T21:28:00.6737294Z hint: 	git branch -m <name>
+2026-10-09T21:28:00.6738050Z hint:
+2026-10-09T21:28:00.6738817Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-09T21:28:00.6739955Z Initialized empty Git repository in /home/runner/work/DxUi/DxUi/.git/
+2026-10-09T21:28:00.6742560Z [command]/usr/bin/git remote add origin https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:00.6778948Z ##[endgroup]
+2026-10-09T21:28:00.6779964Z ##[group]Disabling automatic garbage collection
+2026-10-09T21:28:00.6783181Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-09T21:28:00.6809876Z ##[endgroup]
+2026-10-09T21:28:00.6817451Z ##[group]Setting up auth
+2026-10-09T21:28:00.6818261Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:28:00.6846007Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-09T21:28:00.7195639Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:28:00.7226222Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-09T21:28:00.7412431Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:28:00.7438014Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-09T21:28:00.7604216Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-09T21:28:00.7634571Z ##[endgroup]
+2026-10-09T21:28:00.7635702Z ##[group]Fetching the repository
+2026-10-09T21:28:00.7642032Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d768aeebecd996d509109cdddadddc07b37ef9b9:refs/remotes/pull/70/merge
+2026-10-09T21:28:02.3583113Z From https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:02.3584772Z  * [new ref]         d768aeebecd996d509109cdddadddc07b37ef9b9 -> pull/70/merge
+2026-10-09T21:28:02.3587893Z ##[endgroup]
+2026-10-09T21:28:02.3589452Z ##[group]Determining the checkout info
+2026-10-09T21:28:02.3591649Z ##[endgroup]
+2026-10-09T21:28:02.3594667Z [command]/usr/bin/git sparse-checkout disable
+2026-10-09T21:28:02.3642449Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-09T21:28:02.3671400Z ##[group]Checking out the ref
+2026-10-09T21:28:02.3672481Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/70/merge
+2026-10-09T21:28:02.5926578Z Note: switching to 'refs/remotes/pull/70/merge'.
+2026-10-09T21:28:02.5927712Z 
+2026-10-09T21:28:02.5928485Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-09T21:28:02.5930511Z changes and commit them, and you can discard any commits you make in this
+2026-10-09T21:28:02.5932813Z state without impacting any branches by switching back to a branch.
+2026-10-09T21:28:02.5934253Z 
+2026-10-09T21:28:02.5935311Z If you want to create a new branch to retain commits you create, you may
+2026-10-09T21:28:02.5937479Z do so (now or later) by using -c with the switch command. Example:
+2026-10-09T21:28:02.5938705Z 
+2026-10-09T21:28:02.5939418Z   git switch -c <new-branch-name>
+2026-10-09T21:28:02.5940335Z 
+2026-10-09T21:28:02.5941064Z Or undo this operation with:
+2026-10-09T21:28:02.5942109Z 
+2026-10-09T21:28:02.5942998Z   git switch -
+2026-10-09T21:28:02.5943744Z 
+2026-10-09T21:28:02.5944920Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-09T21:28:02.5946683Z 
+2026-10-09T21:28:02.5948646Z HEAD is now at d768aee Merge ffc64c8947301dfaf2b1e295968a1cc6253bd413 into bea676a1f8418141f61cab9326b9b910e89a14b4
+2026-10-09T21:28:02.5954418Z ##[endgroup]
+2026-10-09T21:28:02.5981318Z [command]/usr/bin/git log -1 --format=%H
+2026-10-09T21:28:02.6003851Z d768aeebecd996d509109cdddadddc07b37ef9b9
+2026-10-09T21:28:02.6259341Z ##[group]Run ./validate.ps1
+2026-10-09T21:28:02.6260665Z [36;1m./validate.ps1[0m
+2026-10-09T21:28:02.6281349Z shell: /usr/bin/pwsh -command ". '{0}'"
+2026-10-09T21:28:02.6282974Z ##[endgroup]
+2026-10-09T21:28:03.7694521Z == validate-skills.ps1
+2026-10-09T21:28:04.6733038Z Validated build-dxui
+2026-10-09T21:28:04.6733690Z Validated consumer-integration
+2026-10-09T21:28:04.6734257Z Validated control-development
+2026-10-09T21:28:04.6734661Z Validated embedded-rendering
+2026-10-09T21:28:04.6735145Z Validated input-accessibility
+2026-10-09T21:28:04.6735559Z Validated modern-cpp-wil
+2026-10-09T21:28:04.6736020Z Validated performance-resources
+2026-10-09T21:28:04.6736417Z Validated spec-workflow
+2026-10-09T21:28:04.6736775Z Validated win32-host
+2026-10-09T21:28:04.7167224Z == validate-specs.ps1
+2026-10-09T21:28:06.7996968Z Validated 292 Markdown files, 22 authority files and 9 active plans
+2026-10-09T21:28:06.8328401Z == validate-dependencies.ps1
+2026-10-09T21:28:08.2923374Z Validated 58 historical origins, 56 owned paths, 0 pending dependency records, supported-source independence, 4309 paths within 150 characters and 13 consumer interface entries at API revision 4
+2026-10-09T21:28:08.3284552Z == validate-test-port.ps1
+2026-10-09T21:28:11.1386467Z Accounted for 941 inherited cases: 853 retained, 88 excluded with reasons
+2026-10-09T21:28:11.1685950Z == validate-build-matrix.ps1
+2026-10-09T21:28:11.9823965Z 7 native project/solution files; 0 six-configuration mapping errors. Build definitions do not establish instrumentation or native runtime qualification.
+2026-10-09T21:28:12.0107507Z == Tools/tests/Invoke-ToolingTests.ps1
+2026-10-09T21:28:12.6690430Z == Test-Validation.ps1
+2026-10-09T21:28:14.8614284Z (expected in this test: a step printing to the success stream)
+2026-10-09T21:28:15.3619995Z ok   owned source can evolve without rewriting its historical hash
+2026-10-09T21:28:15.3620687Z ok   new owned source needs no fake historical origin
+2026-10-09T21:28:15.3621197Z ok   missing owned source is rejected
+2026-10-09T21:28:15.3627257Z ok   a parent path cannot escape the owned tree
+2026-10-09T21:28:15.3627995Z ok   developer settings cannot be owned source
+2026-10-09T21:28:15.3628481Z ok   a duplicate original source tree is rejected
+2026-10-09T21:28:15.3629116Z ok   application debt cannot be reintroduced
+2026-10-09T21:28:15.3629667Z ok   supported source cannot waive an application dependency
+2026-10-09T21:28:15.3630410Z ok   independent controls can enter the single supported build
+2026-10-09T21:28:15.3631013Z ok   owned source can use other owned headers
+2026-10-09T21:28:15.3631405Z ok   the old application namespace is rejected
+2026-10-09T21:28:15.3632058Z ok   a second static library is rejected
+2026-10-09T21:28:15.3632480Z ok   a nested checkout under owned source is not scanned
+2026-10-09T21:28:15.3633019Z ok   a path longer than a consumer's pinned restore can check out is rejected
+2026-10-09T21:28:15.3633691Z ok   in a checkout the path budget covers what a commit would hold, not ignored output
+2026-10-09T21:28:15.3668481Z ok   a consumer script that is removed or loses a parameter a consumer passes is rejected
+2026-10-09T21:28:15.3677561Z ok   new mandatory consumer parameters and undeclared PowerShell versions are rejected
+2026-10-09T21:28:15.3702799Z ok   a consumer function that stops being exported or loses a parameter is rejected
+2026-10-09T21:28:15.3704146Z ok   a missing consumer MSBuild file or header root, or an API revision that is not a positive integer, is rejected
+2026-10-09T21:28:15.3715687Z ok   every validation step runs and every failure is reported
+2026-10-09T21:28:15.3716903Z ok   every tooling test script is strict itself, so a direct run fails as its run under test.ps1 does
+2026-10-09T21:28:15.3718152Z ok   the validation entry point covers every validator and is what CI and test.ps1 run
+2026-10-09T21:28:15.3719011Z ok   invalid skill metadata is rejected
+2026-10-09T21:28:15.3719774Z ok   valid skill metadata passes
+2026-10-09T21:28:15.3720847Z ok   CRLF skill files and quoted values read like YAML
+2026-10-09T21:28:15.3721932Z ok   front matter outside the strict subset is rejected
+2026-10-09T21:28:15.3722914Z ok   values YAML types as non-strings are not names or descriptions
+2026-10-09T21:28:15.3723789Z ok   missing front matter and empty instructions are rejected
+2026-10-09T21:28:15.3724663Z Validation: 28 of 28 passed
+2026-10-09T21:28:15.3725403Z == Test-Docs.ps1
+2026-10-09T21:28:16.7422241Z ok   complete docs pass
+2026-10-09T21:28:16.7422885Z ok   missing control usage fails
+2026-10-09T21:28:16.7427311Z ok   changed gallery bytes fail
+2026-10-09T21:28:16.7427759Z ok   lambdas in fenced code are not links
+2026-10-09T21:28:16.7429620Z ok   raw measurements cannot return to docs
+2026-10-09T21:28:16.7430199Z ok   measurements require library ownership and an explanation
+2026-10-09T21:28:16.7430737Z ok   a complete design system passes
+2026-10-09T21:28:16.7431274Z ok   a new control requires a design-system preview
+2026-10-09T21:28:16.7431958Z ok   a preview requires its card marker
+2026-10-09T21:28:16.7432762Z ok   a removed control leaves no stale component
+2026-10-09T21:28:16.7433681Z ok   a complete specification tree passes
+2026-10-09T21:28:16.7434128Z ok   nested git checkouts are not part of the tree
+2026-10-09T21:28:16.7434813Z ok   measurement receipts of a nested checkout are not this tree's
+2026-10-09T21:28:16.7435421Z ok   a changelog fragment is one dated bullet
+2026-10-09T21:28:16.7436076Z ok   folding puts the fragments newest first under Unreleased and removes them
+2026-10-09T21:28:16.7436816Z ok   a fold without fragments, or with a malformed one, changes nothing
+2026-10-09T21:28:16.7437385Z ok   merging keeps the changelog's own line endings
+2026-10-09T21:28:16.7438070Z ok   a regenerated sheet is committed and pushed with the gallery only
+2026-10-09T21:28:16.7438750Z ok   a new generation receipt or an identical rewrite alone is not a change
+2026-10-09T21:28:16.7439467Z ok   a changed index or README is committed even when no sheet changed
+2026-10-09T21:28:16.7440019Z ok   the push is never forced
+2026-10-09T21:28:16.7440450Z ok   nothing is pushed when asked not to
+2026-10-09T21:28:16.7441202Z ok   the gallery workflow publishes only on manual dispatch, with the safeguards of the formatting workflow
+2026-10-09T21:28:16.7442091Z Docs: 23 of 23 passed
+2026-10-09T21:28:16.7442428Z == Test-TestPort.ps1
+2026-10-09T21:28:16.8927815Z ok   a retained case is accounted for
+2026-10-09T21:28:16.8932812Z ok   silently deleting a case fails
+2026-10-09T21:28:16.8934020Z ok   discarding a disposition fails
+2026-10-09T21:28:16.8935036Z ok   an explicit rename retains the origin
+2026-10-09T21:28:16.8935879Z ok   a contextual source rename preserves historical accounting
+2026-10-09T21:28:16.8936782Z ok   an exclusion needs a reason
+2026-10-09T21:28:16.8937571Z ok   a current runtime replacement passes
+2026-10-09T21:28:16.8938260Z ok   a missing current policy fails
+2026-10-09T21:28:16.8939130Z ok   a deleted replacement fails
+2026-10-09T21:28:16.8939972Z ok   a duplicate policy fails
+2026-10-09T21:28:16.8940638Z TestPort: 10 of 10 passed
+2026-10-09T21:28:16.8941339Z == Test-BuildMatrix.ps1
+2026-10-09T21:28:16.9471440Z 1 native project/solution files; 0 six-configuration mapping errors. Build definitions do not establish instrumentation or native runtime qualification.
+2026-10-09T21:28:16.9739335Z ok   every project requires real configuration entries
+2026-10-09T21:28:16.9740221Z ok   the consumer validator resolves a relative Root from another working directory
+2026-10-09T21:28:16.9741391Z ok   a silent Debug fallback and a missing build are rejected
+2026-10-09T21:28:16.9782634Z BuildMatrix: 3 of 3 passed
+2026-10-09T21:28:16.9783195Z == Test-PerformanceComparison.ps1
+2026-10-09T21:28:31.0846264Z ok   the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks
+2026-10-09T21:28:31.0872893Z ok   the migrated block judge uses identity, independent paired effects and separate exact budgets
+2026-10-09T21:28:31.0882939Z ok   identical and new source are comparable
+2026-10-09T21:28:31.0883339Z ok   an FPS regression requires advice
+2026-10-09T21:28:31.0883758Z ok   a memory regression requires advice
+2026-10-09T21:28:31.0884125Z ok   surface growth has no tolerance
+2026-10-09T21:28:31.0884867Z ok   an improvement passes
+2026-10-09T21:28:31.0885553Z ok   a mismatched fixture is rejected
+2026-10-09T21:28:31.0888230Z ok   missing rounds are rejected
+2026-10-09T21:28:31.0889206Z ok   a missing or non-finite metric is rejected
+2026-10-09T21:28:31.0889758Z ok   an allocating composition is rejected
+2026-10-09T21:28:31.0890213Z ok   hidden work is rejected
+2026-10-09T21:28:31.0890776Z ok   the command writes the status and returns its exit code
+2026-10-09T21:28:31.0891347Z ok   every stored paired comparison is reproduced exactly
+2026-10-09T21:28:31.0892107Z ok   every stored unpaired receipt still validates
+2026-10-09T21:28:31.0892799Z ok   the exact rank test gives the closed-form p-value of complete separation
+2026-10-09T21:28:31.0893533Z ok   the exact rank test reproduces the documented reference example
+2026-10-09T21:28:31.0894494Z ok   the exact rank test counts ties as an enumeration of every rank assignment does
+2026-10-09T21:28:31.0895079Z ok   six runs against six reach p < 0.05 for exactly the nominal share of rank patterns
+2026-10-09T21:28:31.0895622Z ok   the p-value a set can reach depends on its runs per side
+2026-10-09T21:28:31.0896050Z ok   identical distributions are within noise
+2026-10-09T21:28:31.0896459Z ok   a 20% FPS drop with 3% jitter is regressed with p < 0.05
+2026-10-09T21:28:31.0896910Z ok   a significant shift inside the band is within noise
+2026-10-09T21:28:31.0897386Z ok   a shift beyond the band that the runs cannot separate from noise is within noise
+2026-10-09T21:28:31.0897980Z ok   an increase in an exact budget in any single candidate run is regressed
+2026-10-09T21:28:31.0898740Z ok   a clear improvement is reported and needs no advice
+2026-10-09T21:28:31.0899439Z ok   every metric keeps its own band and direction
+2026-10-09T21:28:31.0900018Z ok   a run is judged by the median of its rounds
+2026-10-09T21:28:31.0906634Z ok   a same-binary spread is reported and never a veto
+2026-10-09T21:28:31.0907473Z ok   two runs per side establish no timing shift but still catch a budget rise
+2026-10-09T21:28:31.0908466Z ok   a set of one binary per side on one fixture is required
+2026-10-09T21:28:31.0909238Z ok   the set verdict prints its status, the smallest attainable p and each finding
+2026-10-09T21:28:31.0909862Z PerformanceComparison: 32 of 32 passed
+2026-10-09T21:28:31.0910472Z == Test-PairedRun.ps1
+2026-10-09T21:28:31.7772103Z ok   the baseline and candidate are chosen by revision, named tree or checkout
+2026-10-09T21:28:31.7772833Z ok   an ambiguous or missing selection is rejected
+2026-10-09T21:28:31.7773602Z ok   revisions and this checkout are refused on one commit and only on the commit
+2026-10-09T21:28:31.7774685Z ok   a named tree is refused on identical library sources, not on one commit
+2026-10-09T21:28:31.7775412Z ok   a fingerprint that is not known yet defers the refusal, and the same tree is refused at once
+2026-10-09T21:28:31.7775989Z ok   a named tree must be the top of a git working tree with the DxUi scripts
+2026-10-09T21:28:31.7776672Z ok   the harness overlay leaves identical files alone, stamps what it writes and restores the tree
+2026-10-09T21:28:31.7777440Z ok   original include names receive the current renamed fixture and restore their historical inputs
+2026-10-09T21:28:31.7777981Z ok   a restore keeps a directory that gained other files
+2026-10-09T21:28:31.7778666Z ok   a tree that is the harness source is never rewritten
+2026-10-09T21:28:31.7779077Z ok   a failed overlay leaves the tree as it was found
+2026-10-09T21:28:31.7779487Z ok   one repetition is the single pass a set has always been
+2026-10-09T21:28:31.7780024Z ok   repetitions repeat the interleaved pass and keep every pass its own comparisons
+2026-10-09T21:28:31.7780838Z ok   the qualification schedule is reproducible, randomized, balanced and uses independent blocks
+2026-10-09T21:28:31.7781517Z ok   A/A assigns both randomized labels to one root and one build, while ordinary pairs keep two roots
+2026-10-09T21:28:31.7782346Z ok   only an overlay that changed a compiled input forbids reusing a build
+2026-10-09T21:28:31.7783005Z ok   the harness is the driver, the comparator and every benchmark input, all present
+2026-10-09T21:28:31.7783624Z ok   the source fingerprint is the one receipts have always recorded, over the library inputs only
+2026-10-09T21:28:31.7784141Z ok   the measurement scripts parse
+2026-10-09T21:28:31.7784579Z ok   the legacy judge is loaded from the measured base Git object in an isolated module
+2026-10-09T21:28:31.7785087Z PairedRun: 20 of 20 passed
+2026-10-09T21:28:31.7785399Z == Test-PerformancePolicy.ps1
+2026-10-09T21:28:32.0269835Z ok   only an independently qualified policy present in the measured base is trusted
+2026-10-09T21:28:32.0271146Z ok   a missing or unqualified base policy cannot be bootstrapped by the candidate
+2026-10-09T21:28:32.0272364Z ok   receipt identity reports every missing provenance element
+2026-10-09T21:28:32.0273780Z ok   platform-only identity cannot qualify a benchmark receipt and Full still requires the harness
+2026-10-09T21:28:32.0275605Z FAIL Full identity requires the harness while PlatformOnly skips only harness hashing
+2026-10-09T21:28:32.0276739Z      Assertion failed: platform-only skips only harness hashing and reaches platform verification (line 37)
+2026-10-09T21:28:32.0277860Z FAIL expanded MSBuild project identity normalizes only roots and line endings and validates XML
+2026-10-09T21:28:32.0279718Z      checkout paths and line endings do not change the expanded project hash: expected <F2EEF3DA16050951EDDE90C30D64F18E5FA26F2B1D811927BF5A8E11695B55C4>, got <48BC3A524BA8BDA96389EDBDEF4BC65D5AB553EDD2A948ABF3CC5C54061D0636> (line 41)
+2026-10-09T21:28:32.0281613Z FAIL resolved compiler identity is stable across equivalent source roots and changes with effective options
+2026-10-09T21:28:32.0283900Z      absolute worktree paths and filesystem timestamps do not affect effective compiler identity: expected <4F5ECBEA7296B97251EC7AF66911842EE13E443ABBCF909D5DE79D876811AED8>, got <F6B9DCC3BF18DE2318175774ABA5DC4B0CCAB53B3733E8D69F2D2A1A89283899> (line 41)
+2026-10-09T21:28:32.0285885Z ok   the migrated acceptance policy describes the implemented family and exact peak rules without self-qualification
+2026-10-09T21:28:32.0286825Z PerformancePolicy: 5 of 8 passed
+2026-10-09T21:28:32.0287370Z PerformancePolicy: 3 test(s) failed
+2026-10-09T21:28:32.0287871Z == Test-BenchmarkGate.ps1
+2026-10-09T21:28:34.1403221Z ok   every library, build, benchmark and measurement path is measured, with the reason that says why
+2026-10-09T21:28:34.1409603Z ok   documentation, specifications, measurements, other tests and other tools are not measured
+2026-10-09T21:28:34.1411101Z ok   one measured path among documentation is enough, and the paths are normalized and counted once
+2026-10-09T21:28:34.1412163Z ok   the rules cover what a receipt hashes: the library inputs and the harness
+2026-10-09T21:28:34.1413259Z ok   every tracked library input, benchmark source and measurement script of this repository is measured
+2026-10-09T21:28:34.1414435Z ok   everything the benchmark executable includes is measured, so a new header cannot escape the rules
+2026-10-09T21:28:34.1415475Z ok   every module the build and measurement scripts import is measured
+2026-10-09T21:28:34.1417115Z ok   the baseline is the merge commit's first parent, so only this pull request is compared
+2026-10-09T21:28:34.1418402Z ok   a checkout that is not a merge commit falls back to the merge base with the base branch
+2026-10-09T21:28:34.1419097Z ok   a file moved out of a measured directory is still a measured change
+2026-10-09T21:28:34.1419662Z ok   a path with a space is named as it is
+2026-10-09T21:28:34.1420315Z ok   a regressed metric whose same-binary controls stayed inside its band is a confirmed degradation
+2026-10-09T21:28:34.1421215Z ok   a regressed metric whose controls drifted beyond its band is inconclusive, listed and never dismissed
+2026-10-09T21:28:34.1422322Z ok   the controls of the flagged metric decide, not those of the twenty-six together
+2026-10-09T21:28:34.1423414Z ok   no regressed metric is a pass, with the metrics the controls could not hold counted, not hidden
+2026-10-09T21:28:34.1424423Z ok   an exact budget is confirmed only when its same-binary controls are exactly equal
+2026-10-09T21:28:34.1425288Z ok   a confirmed degradation is not softened by another metric whose controls drifted
+2026-10-09T21:28:34.1426115Z ok   a control that did not measure the flagged metric does not hold it
+2026-10-09T21:28:34.1426847Z ok   a budget is exact by its band of zero even when a summary does not say so
+2026-10-09T21:28:34.1427507Z ok   controls that cannot be read confirm nothing
+2026-10-09T21:28:34.1428291Z ok   identical library inputs alone never classify timing flags as chance; exact budgets still gate
+2026-10-09T21:28:34.1429204Z ok   a set too small to reach p below 0.05 cannot pass a timing it could not judge
+2026-10-09T21:28:34.1429939Z ok   invalid evidence is invalid, and the worst scenario decides the run
+2026-10-09T21:28:34.1430781Z ok   the migrated gate independently rejects historic, candidate-asserted and unqualified policies
+2026-10-09T21:28:34.1431418Z FAIL both judges are bound to the exact same retained receipt bytes
+2026-10-09T21:28:34.1432369Z      Assertion failed: all receipt hashes and explicitly approved judge identity match both decisions (line 37)
+2026-10-09T21:28:34.1433052Z ok   a summary the gate cannot read is invalid, never an exception
+2026-10-09T21:28:34.1433543Z ok   the conclusion reads the summaries performance-paired.ps1 retained
+2026-10-09T21:28:34.1434228Z ok   the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held
+2026-10-09T21:28:34.1434992Z ok   the second retained hosted A/A set: five flags remain inconclusive without policy-qualified calibration
+2026-10-09T21:28:34.1435613Z ok   the legacy job summary stays readable and labels its old judge read-only
+2026-10-09T21:28:34.1436285Z ok   migrated gate projection preserves Holm evidence and separate exact median and peak findings
+2026-10-09T21:28:34.1436879Z ok   the summary is the same in every culture and keeps a pipe from breaking a table
+2026-10-09T21:28:34.1437505Z ok   a run with no flagged metric says none, and an inconclusive one says what it does not establish
+2026-10-09T21:28:34.1438070Z ok   annotations match what each scenario means for the check
+2026-10-09T21:28:34.1438600Z ok   an annotation lists a few flagged metrics and points to the job summary for the rest
+2026-10-09T21:28:34.1439153Z ok   workflow commands escape what the runner reads as syntax
+2026-10-09T21:28:34.1439685Z ok   step outputs and summaries go to the files the runner names, and only one line at a time
+2026-10-09T21:28:34.1440361Z ok   the verdict step fails a pull request on a degradation or an inconclusive run and passes a pass
+2026-10-09T21:28:34.1440936Z ok   the strict reading cannot bypass the migrated policy requirement
+2026-10-09T21:28:34.1441510Z ok   the scope step measures a library change and skips a documentation one, with the commits to compare
+2026-10-09T21:28:34.1442459Z ok   the workflow runs the benchmark for measured pull requests to main and still on manual dispatch
+2026-10-09T21:28:34.1443147Z ok   the benchmark job runs the contract's scenarios and independent blocks, and a dispatch keeps its inputs
+2026-10-09T21:28:34.1443976Z ok   the workflow cancels what a push supersedes, bounds its runtime and pins what it runs
+2026-10-09T21:28:34.1444473Z ok   the gate scripts parse and are strict
+2026-10-09T21:28:34.1444904Z BenchmarkGate: 43 of 44 passed
+2026-10-09T21:28:34.1445251Z BenchmarkGate: 1 test(s) failed
+2026-10-09T21:28:34.1445577Z == Test-CiGate.ps1
+2026-10-09T21:28:34.2098126Z ok   aggregate accepts complete PR qualification and positively classified skips
+2026-10-09T21:28:34.2100926Z ok   aggregate rejects missing, failed and cancelled required jobs
+2026-10-09T21:28:34.2102482Z ok   native skipped without positive classification and unclassifiable outputs fail closed
+2026-10-09T21:28:34.2103644Z ok   paired benchmark is required on stacked and main PRs and explicit manual runs
+2026-10-09T21:28:34.2104498Z CI gate: 4 of 4 passed
+2026-10-09T21:28:34.2105111Z == Test-CapabilitySkipPolicy.ps1
+2026-10-09T21:28:34.2364729Z ok   moved Menu-only skip cases are no longer allowed in the NewControls lane
+2026-10-09T21:28:34.2367045Z ok   new, changed, duplicated and self-hosted skips fail closed
+2026-10-09T21:28:34.2368136Z ok   skip logs are associated with exact test and suite names
+2026-10-09T21:28:34.2369157Z ok   empty and multiple skip logs preserve collection boundaries
+2026-10-09T21:28:34.2370158Z ok   parsing preserves the caller suite-reporting functions
+2026-10-09T21:28:34.2370942Z Capability skip policy: 5 of 5 passed
+2026-10-09T21:28:34.2372133Z == Test-NativeScope.ps1
+2026-10-09T21:28:34.7368715Z ok   documentation alone leaves the native jobs out, whichever kind it is
+2026-10-09T21:28:34.7369955Z ok   every other path needs the native jobs, a path the rules do not know included
+2026-10-09T21:28:34.7371306Z ok   one such path among documentation is enough, and paths are normalized and counted once
+2026-10-09T21:28:34.7372886Z ok   a change whose paths could not be read is not known to be documentation
+2026-10-09T21:28:34.7375171Z ok   every tracked source, test, sample, build input and tool needs the native jobs, and every tracked document does not
+2026-10-09T21:28:34.7376420Z ok   a push or a manual run always builds natively, without reading the repository
+2026-10-09T21:28:34.7377325Z ok   a pull request builds natively unless it changes documentation alone
+2026-10-09T21:28:34.7378200Z ok   a push validates main alone, and every pull request and manual run is validated
+2026-10-09T21:28:34.7379164Z ok   the native jobs follow the scope job, and run when it cannot decide
+2026-10-09T21:28:34.7379912Z ok   the scope scripts parse and are strict
+2026-10-09T21:28:34.7380579Z NativeScope: 10 of 10 passed
+2026-10-09T21:28:34.7381205Z == Test-SuiteFailure.ps1
+2026-10-09T21:28:34.7884961Z ok   a run the watchdog ended is reported with its exit code and the hung test
+2026-10-09T21:28:34.7886030Z ok   the TIMEOUT line is found even when it is not among the last lines
+2026-10-09T21:28:34.7886652Z ok   a failed check is not called a timeout
+2026-10-09T21:28:34.7887221Z ok   a watchdog exit code without a TIMEOUT line says so
+2026-10-09T21:28:34.7887816Z ok   a missing log does not hide the exit code
+2026-10-09T21:28:34.7888419Z ok   each capability skip is named after the test it belongs to
+2026-10-09T21:28:34.7889146Z ok   a skip outside a test is named after its suite, or said to come before any test
+2026-10-09T21:28:34.7889962Z ok   each skip is printed on a line of its own, and a suite without skips prints nothing
+2026-10-09T21:28:34.7890936Z ok   test.ps1 reports a failing suite through it, gives its receipt the timeout and passes -TestTimeout on
+2026-10-09T21:28:34.7891856Z Suite failure report: 9 of 9 passed
+2026-10-09T21:28:34.7892326Z == Test-VcpkgTriplet.ps1
+2026-10-09T21:28:36.3641211Z      skipped the 5.1 parse: powershell.exe is not here
+2026-10-09T21:28:36.3642135Z ok   the default toolset is the version the installation names, whatever ends the file
+2026-10-09T21:28:36.3642922Z ok   a missing version file fails with the file and what to repair
+2026-10-09T21:28:36.3643654Z ok   a malformed version file fails with what it holds, never a guessed toolset
+2026-10-09T21:28:36.3644860Z ok   the overlay is the stock text unchanged, then the two pins, in the stock line endings
+2026-10-09T21:28:36.3645729Z ok   a stock triplet without a final newline, or without text, still gives a valid overlay
+2026-10-09T21:28:36.3646621Z ok   the installation path is quoted so CMake reads back exactly what vswhere reported
+2026-10-09T21:28:36.3647258Z ok   CMake, which vcpkg evaluates the triplet with, reads the stock settings and both pins back
+2026-10-09T21:28:36.3648420Z ok   the overlay is written under the stock name, and only when its contents change
+2026-10-09T21:28:36.3649017Z ok   a stock triplet the checkout lacks fails with its path and writes nothing
+2026-10-09T21:28:36.3649583Z ok   vcpkg-install.ps1 keeps its interface, fails early and passes the overlay to vcpkg
+2026-10-09T21:28:36.3650136Z ok   build.ps1 and vcpkg-install.ps1 share one Visual Studio discovery
+2026-10-09T21:28:36.3650788Z ok   the installer and its modules stay ASCII and parse in Windows PowerShell 5.1, which RedSalamander runs the pinned installer with
+2026-10-09T21:28:36.3651372Z VcpkgTriplet: 12 of 12 passed
+2026-10-09T21:28:36.3651982Z == Test-InteractiveMode.ps1
+2026-10-09T21:28:37.6080928Z [LEASE] suite output
+2026-10-09T21:28:37.6081522Z Restoration: foreground=restored focus=restored cursor=restored
+2026-10-09T21:28:37.6117956Z [LEASE] suite output
+2026-10-09T21:28:37.6118358Z Restoration: foreground=restored focus=restored cursor=restored
+2026-10-09T21:28:37.6136665Z ok   the interactive suites are the suites DxUi.ControlTests.exe runs with real focus
+2026-10-09T21:28:37.6137611Z ok   a run without -Suites takes Menu and NativeTextInput, and the fixtures only when they are named
+2026-10-09T21:28:37.6138486Z ok   a suite that does not need the desktop is refused by name, and the interactive ones are listed
+2026-10-09T21:28:37.6139270Z ok   a run refuses where there is no desktop to take, and says why
+2026-10-09T21:28:37.6140017Z ok   only verified GitHub-hosted Windows jobs bypass the interactive desktop lease
+2026-10-09T21:28:37.6140796Z ok   the estimate is the suites and the lease overhead, per configuration
+2026-10-09T21:28:37.6141483Z ok   a command line is quoted as CreateProcess reads it
+2026-10-09T21:28:37.6142103Z ok   the plan is one tab-separated line per child
+2026-10-09T21:28:37.6142593Z ok   the result is read back as the lease writes it
+2026-10-09T21:28:37.6143221Z ok   a result that is missing, empty or not the lease's is no result
+2026-10-09T21:28:37.6143845Z ok   what is wrong with a finished lease is said in a message
+2026-10-09T21:28:37.6144390Z ok   the exit codes of the lease are the ones the PowerShell side reads
+2026-10-09T21:28:37.6144803Z ok   the lease is reached only through -Interactive
+2026-10-09T21:28:37.6145190Z ok   an interactive run is settled before anything is built or run
+2026-10-09T21:28:37.6145754Z ok   a suite that needs real focus is never given --no-activate, and every other control suite always is
+2026-10-09T21:28:37.6146420Z ok   test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built
+2026-10-09T21:28:37.6147098Z ok   test.ps1 -Interactive refuses in a CI job before it builds or runs anything
+2026-10-09T21:28:37.6147631Z ok   lease console output cannot replace the result object or hide a failed child
+2026-10-09T21:28:37.6148063Z Interactive mode: 18 of 18 passed
+2026-10-09T21:28:37.6148428Z == Test-ConsumerUpdate.ps1
+2026-10-09T21:28:37.6268026Z PASS DxUi update advisory: same
+2026-10-09T21:28:37.6301809Z PASS DxUi update advisory: green
+2026-10-09T21:28:37.6306619Z PASS DxUi update advisory: pending
+2026-10-09T21:28:37.6310786Z PASS DxUi update advisory: failed
+2026-10-09T21:28:37.6316225Z PASS DxUi update advisory: absent
+2026-10-09T21:28:37.6320124Z PASS DxUi update advisory: divergent
+2026-10-09T21:28:37.6330587Z PASS DxUi update advisory: ahead
+2026-10-09T21:28:37.6335626Z PASS DxUi update advisory: offline
+2026-10-09T21:28:37.6341611Z PASS DxUi update advisory: wrong-run
+2026-10-09T21:28:37.6362446Z PASS DxUi update advisory: malformed
+2026-10-09T21:28:37.6363040Z == Test-ScopedTesting.ps1
+2026-10-09T21:28:37.8147981Z PASS all active native tests satisfy naming and inventory
+2026-10-09T21:28:39.2441472Z PASS every scope rule matches a current repository input
+2026-10-09T21:28:39.6514067Z PASS foreground source changes produce explicit interactive not-run obligations
+2026-10-09T21:28:39.6550599Z PASS one PrePush entry point accounts for six profiles and the revision-4 fixture is wired into consumers
+2026-10-09T21:28:39.6653730Z PASS active names require exact Tests spelling and reject historical inventory membership
+2026-10-09T21:28:39.6748118Z PASS committed, staged, working, deleted, both rename sides and spaced untracked paths count
+2026-10-09T21:28:39.6820277Z PASS unmapped executable input widens to every scope
+2026-10-09T21:28:39.6845287Z PASS executable schema changes are never mistaken for prose
+2026-10-09T21:28:39.6882483Z PASS prose selects only independent validators, and empty changes select nothing
+2026-10-09T21:28:39.6926927Z PASS unmatched non-Markdown docs, measurement and change files select validators
+2026-10-09T21:28:39.6947294Z PASS invalid explicit scope and nonrelative paths fail before execution
+2026-10-09T21:28:39.6997832Z PASS selection explains every changed path and accumulates integration consumers
+2026-10-09T21:28:39.7027517Z PASS native runner tooling fixtures select the native suites they execute
+2026-10-09T21:28:39.7053391Z PASS ComboBox implementation selects NewControls for TagPicker coverage
+2026-10-09T21:28:39.7112933Z PASS shared tooling fixture helpers select every native integration consumer
+2026-10-09T21:28:39.7257948Z PASS only intact identical success can be reused
+2026-10-09T21:28:39.7876173Z PASS tooling identities include documentation, skills and source-origin mappings
+2026-10-09T21:28:39.8323344Z PASS UTF-8 Git paths remain in full and compiled source identities
+2026-10-09T21:28:40.2473522Z PASS tooling identity is stable and hashes installed Git and GitHub CLI binaries
+2026-10-09T21:28:40.3008671Z PASS deleted source identity is stable before staging, after staging, and after commit
+2026-10-09T21:28:40.3080634Z PASS uncommon executable input extensions invalidate build attestation
+2026-10-09T21:28:40.3109478Z PASS runtime DLL mutation invalidates even with unchanged executable
+2026-10-09T21:28:40.3434648Z PASS configuration, scope and sanitizer environment differ
+2026-10-09T21:28:40.3493703Z PASS runtime instrumentation changes identity and cannot be misclassified as ordinary work
+2026-10-09T21:28:40.3642625Z PASS skip-build attestation rejects changed source and executable bytes
+2026-10-09T21:28:40.3922972Z PASS library-only mutation invalidates build and run attestation while executable bytes stay fixed
+2026-10-09T21:28:40.5898001Z PASS installed dependency bytes bind build and run identities while output artifacts stay fixed
+2026-10-09T21:28:40.6233114Z PASS dependency identity fails closed when required vcpkg metadata is absent
+2026-10-09T21:28:40.6335286Z PASS dependency identities isolate the selected platform
+2026-10-09T21:28:41.0260844Z PASS PR delegation binds clean committed bytes and rejects concurrent changes
+2026-10-09T21:28:41.0263610Z PASS a profile outside actual PR coverage cannot be delegated
+2026-10-09T21:28:41.0307143Z PASS PR coverage accounts for conditional native jobs without an API dependency
+2026-10-09T21:28:41.0422453Z PASS reviewed CI preserves full native coverage and separates independent tooling
+2026-10-09T21:28:47.9672661Z PASS public runner executes once, reuses success and never retains failed or mutated runs
+2026-10-09T21:28:47.9673813Z Scoped testing: 34 cases passed.
+2026-10-09T21:28:48.0434752Z [31;1mException: [0m/home/runner/work/DxUi/DxUi/Tools/tests/Invoke-ToolingTests.ps1:10[0m
+2026-10-09T21:28:48.0435438Z [31;1m[0m[36;1mLine |[0m
+2026-10-09T21:28:48.0436174Z [31;1m[0m[36;1m[36;1m  10 | [0m … failed.Count) { [36;1mthrow "Tooling tests failed: $($failed -join ', ')"[0m }[0m
+2026-10-09T21:28:48.0437180Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-10-09T21:28:48.0438060Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mTooling tests failed: Test-PerformancePolicy.ps1, Test-BenchmarkGate.ps1[0m
+2026-10-09T21:28:48.0875268Z FAILED: Tools/tests/Invoke-ToolingTests.ps1 exited with code 1
+2026-10-09T21:28:48.0900706Z 
+2026-10-09T21:28:48.0901323Z Validation summary:
+2026-10-09T21:28:48.0926409Z   ok     validate-skills.ps1
+2026-10-09T21:28:48.0926879Z   ok     validate-specs.ps1
+2026-10-09T21:28:48.0927507Z   ok     validate-dependencies.ps1
+2026-10-09T21:28:48.0928330Z   ok     validate-test-port.ps1
+2026-10-09T21:28:48.0929063Z   ok     validate-build-matrix.ps1
+2026-10-09T21:28:48.0929689Z   FAILED Tools/tests/Invoke-ToolingTests.ps1
+2026-10-09T21:28:48.2006201Z [31;1mException: [0m/home/runner/work/DxUi/DxUi/validate.ps1:18[0m
+2026-10-09T21:28:48.2006704Z [31;1m[0m[36;1mLine |[0m
+2026-10-09T21:28:48.2007438Z [31;1m[0m[36;1m[36;1m  18 | [0m … ed.Count) { [36;1mthrow "Validation failed: $(($failed | ForEach-Object { $[0m …[0m
+2026-10-09T21:28:48.2008261Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-10-09T21:28:48.2008973Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mValidation failed: Tools/tests/Invoke-ToolingTests.ps1[0m
+2026-10-09T21:28:48.2266538Z ##[error]Process completed with exit code 1.
+2026-10-09T21:28:48.2410049Z Post job cleanup.
+2026-10-09T21:28:48.3193015Z [command]/usr/bin/git version
+2026-10-09T21:28:48.3233106Z git version 2.55.0
+2026-10-09T21:28:48.3269376Z Temporarily overriding HOME='/home/runner/work/_temp/975ce4cd-a572-4138-b0cc-044a05968df5' before making global git config changes
+2026-10-09T21:28:48.3270294Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:28:48.3275493Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/DxUi/DxUi
+2026-10-09T21:28:48.3308925Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:28:48.3340930Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-09T21:28:48.3549766Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:28:48.3568075Z http.https://github.com/.extraheader
+2026-10-09T21:28:48.3577627Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-09T21:28:48.3634837Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-09T21:28:48.3828713Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:28:48.3864820Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-09T21:28:48.4204923Z Cleaning up orphan processes
+2026-10-09T21:28:48.4447904Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

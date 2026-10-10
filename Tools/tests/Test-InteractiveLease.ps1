@@ -17,13 +17,14 @@ if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "The interactive 
 
 # Runs the lease from the repository root for at most $BoundSeconds and returns how it ended. A run still going at the bound is this
 # script's own child: it is killed with its children and reported as not exited.
-function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds) {
+function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds, [hashtable] $Environment = @{}) {
     $info = [Diagnostics.ProcessStartInfo]::new($exe)
     foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
     $info.WorkingDirectory = $repo
     $info.UseShellExecute = $false
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
+    foreach ($name in $Environment.Keys) { $info.Environment[$name] = [string]$Environment[$name] }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $process = [Diagnostics.Process]::Start($info)
     try {
@@ -42,7 +43,7 @@ function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds) {
     } finally { $process.Dispose() }
 }
 
-$onCi = [bool](Get-DxUiInteractiveRefusal -Environment @{ CI = $env:CI; GITHUB_ACTIONS = $env:GITHUB_ACTIONS } -UserInteractive $true -OnWindows $true)
+$verifiedHostedRunner = Test-DxUiVerifiedGitHubHostedRunner
 
 Invoke-TestCase 'the self-test passes: children, the session''s lease, the confirmation and the warning' {
     $run = Invoke-Bounded @('--self-test') 180
@@ -53,20 +54,25 @@ Invoke-TestCase 'the self-test passes: children, the session''s lease, the confi
     foreach ($proof in @(
         'its exit code is reported as the child''s own', 'its standard output and error go to its log',
         'a child that outlives the lease''s bound is ended with the watchdog''s exit code, 124', 'a stopped run ends its child and says it was stopped',
-        'a program that cannot be started is a launch failure with its reason', 'a second run in the session finds it held')) {
+        'a program that cannot be started is a launch failure with its reason', 'a second run in the session finds it held',
+        'local activation never enables synthetic warning input', 'a held mouse button refuses before exposing the patch',
+        'failed activation or up insertion still attempts bounded release readback before restoring the patch')) {
         Assert-Contains $run.Output "ok   $proof" "the self-test proves: $proof"
     }
     $skipped = @($run.Output | Where-Object { $_ -like 'SKIPPED:*' })
     if ($skipped.Count) {
-        # A session that cannot make a private desktop (a hosted runner's) cannot show the dialog to anyone; a person's can, so a skip
-        # there is the dialog failing to open, which the lease must not ship with.
-        Assert-True $onCi "a private desktop could be made here, so the dialog and the warning were to be exercised: $($skipped -join ' | ')"
-        Write-Host "     skipped: $($skipped -join ' | ')"
+        Assert-True (-not $verifiedHostedRunner) "verified GitHub-hosted jobs must prove confirmation and warning behavior: $($skipped -join ' | ')"
+        throw "The lease self-test skipped confirmation/warning proofs: $($skipped -join ' | ')"
     } else {
         foreach ($proof in @(
             'the confirmation starts the run when Start is chosen', 'and does not when Cancel is chosen', 'nobody answering is a cancellation',
             'a run stopped while the person is asked ends the confirmation', 'a confirmation without a time limit waits for the person',
-            'the warning is shown', 'above every window, and the pointer and keys pass through it', 'and is gone when hidden')) {
+            'the warning is shown', 'above every window, and the pointer and keys pass through it', 'and is gone when hidden',
+            'clipping excludes the rest of the warning from its actual input region',
+            'outside, wrong-button and transposed hit-test messages cannot activate the patch',
+            'the owned warning acknowledges its dispatched down and up',
+            'ending hosted recovery restores the exact click-through style and hit-testing',
+            'the restored warning has its full ordinary window shape')) {
             Assert-Contains $run.Output "ok   $proof" "the self-test proves: $proof"
         }
     }
@@ -118,6 +124,25 @@ Invoke-FixtureCase 'a malformed command line is a usage error before anything is
         Assert-True (@($run.Output | Where-Object { $_ -like 'usage:*' }).Count -eq 1) "$name prints the usage"
     }
     Assert-True (-not (Test-Path -LiteralPath $result)) 'and none of them wrote a result'
+}
+Invoke-FixtureCase '--run-hosted refuses every unverified runner marker before desktop access or result writes' {
+    param($root)
+    $plan = Join-Path $root 'hosted-plan.txt'
+    $result = Join-Path $root 'hosted-result.txt'
+    Set-FixtureFile $root 'hosted-plan.txt' "Menu`tC:\logs\Menu.log`t`"C:\tests.exe`" --suite=Menu`n"
+    $mutations = @(
+        @{ CI='false'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='false'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='self-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Linux' }
+    )
+    foreach ($environment in $mutations) {
+        $run = Invoke-Bounded @('--run-hosted', "--plan=$plan", "--result=$result") 30 $environment
+        Assert-True ($run.Exited -and $run.Exit -eq 2) "unverified marker set is refused as usage before desktop access: $($run.Output -join ' | ')"
+        Assert-True (-not (Test-Path -LiteralPath $result)) 'the refused hosted invocation writes no lease result'
+        Assert-True (@($run.Output | Where-Object { $_ -like 'usage:*' }).Count -eq 1) 'the native mode says why it refused'
+        Assert-True (@($run.Output | Where-Object { $_ -like '*interactive desktop*' }).Count -eq 0) 'it does not inspect or take the desktop'
+    }
 }
 Invoke-TestCase 'the confirmation defaults to Cancel, and cancels itself when nobody answers' {
     # The self-test proves each answer; what no run can observe is which button is the default, so that is read from the source.

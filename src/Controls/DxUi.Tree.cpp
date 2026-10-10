@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <span>
 #include <unordered_set>
 #include <vector>
@@ -12,6 +13,8 @@ namespace DxUi
 {
 namespace
 {
+using TreeModelQueryGuard = BorrowedControlModelGuard<Tree, ITreeModel>;
+
 constexpr float kTreeBadgeMinWidthDip           = 28.0f;
 constexpr float kTreeBadgeMinHeightDip          = 16.0f;
 constexpr float kTreeBadgeMaxHeightDip          = 18.0f;
@@ -75,7 +78,7 @@ struct TreeResolvedRowVisuals final
     else if (selected)
     {
         visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-        visuals.text = focused ? theme.selectionText : theme.text;
+        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground);
     }
     else if (hovered)
     {
@@ -87,8 +90,9 @@ struct TreeResolvedRowVisuals final
     const TreeBadgeVisualStyle badgeStyle = ResolveTreeBadgeVisualStyle(theme, badgeTone);
     visuals.badgeFill                     = badgeStyle.fill;
     visuals.badgeText                     = badgeStyle.text;
-    visuals.focus                         = theme.focusStroke;
-    visuals.showFocus                     = current && (keyboardFocused || (theme.highContrast && focused));
+    visuals.focus     = current && selected && ! theme.highContrast ? ChooseContrastingTextColor(CompositeOverBackground(visuals.fill, theme.surfaceBackground))
+                                                                    : (current && selected ? theme.selectionText : theme.focusStroke);
+    visuals.showFocus = current && (keyboardFocused || (theme.highContrast && focused));
     return visuals;
 }
 
@@ -167,7 +171,8 @@ void DrawTreeRow(ControlHost& host,
                  bool focused,
                  bool keyboardFocused,
                  float expanderProgress,
-                 float alpha) noexcept
+                 float alpha,
+                 FlowDirection flowDirection) noexcept
 {
     const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered);
     const D2D1_COLOR_F fill                 = WithAlpha(rowVisuals.fill, alpha);
@@ -183,13 +188,20 @@ void DrawTreeRow(ControlHost& host,
         const D2D1_ROUNDED_RECT focusRect = D2D1::RoundedRect(InflateRect(layout.rowRect, -1.5f, -1.5f), 4.0f, 4.0f);
         if (auto* dc = host.GetDeviceContext())
         {
-            dc->DrawRoundedRectangle(&focusRect, host.GetSolidBrush(WithAlpha(rowVisuals.focus, alpha)), 1.0f);
+            if (auto* brush = host.GetSolidBrush(WithAlpha(rowVisuals.focus, alpha)))
+            {
+                dc->DrawRoundedRectangle(&focusRect, brush, 1.0f);
+            }
         }
     }
 
     if (layout.hasExpander)
     {
-        DrawDisclosureChevron(host, layout.expanderRect, expanderProgress, WithAlpha(rowVisuals.expander, alpha));
+        DrawDisclosureChevron(host,
+                              layout.expanderRect,
+                              expanderProgress,
+                              WithAlpha(rowVisuals.expander, alpha),
+                              flowDirection == FlowDirection::RightToLeft ? ChevronDirection::Left : ChevronDirection::Right);
     }
 
     if (layout.hasIcon)
@@ -202,7 +214,8 @@ void DrawTreeRow(ControlHost& host,
                          iconColor,
                          DWRITE_TEXT_ALIGNMENT_CENTER,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                         false);
+                         false,
+                         flowDirection);
     }
 
     if (layout.hasBadge)
@@ -215,10 +228,12 @@ void DrawTreeRow(ControlHost& host,
                          WithAlpha(rowVisuals.badgeText, alpha),
                          DWRITE_TEXT_ALIGNMENT_CENTER,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                         false);
+                         false,
+                         flowDirection);
     }
 
-    DrawCenteredText(host, item.text, layout.textRect, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+    DrawCenteredText(
+        host, item.text, layout.textRect, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
 }
 
 } // namespace
@@ -228,7 +243,10 @@ std::optional<size_t> ITreeModel::FindVisibleItemById(uint64_t itemId) const noe
     TreeItemData itemData;
     for (size_t visibleIndex = 0u; visibleIndex < GetVisibleItemCount(); ++visibleIndex)
     {
-        GetVisibleItem(visibleIndex, itemData);
+        if (! TryControlCallback([&] { GetVisibleItem(visibleIndex, itemData); }))
+        {
+            return std::nullopt;
+        }
         if (itemData.id == itemId)
         {
             return visibleIndex;
@@ -239,6 +257,10 @@ std::optional<size_t> ITreeModel::FindVisibleItemById(uint64_t itemId) const noe
 }
 
 void ITreeDelegate::OnTreeSelectionChanged(uint64_t /*itemId*/)
+{
+}
+
+void ITreeDelegate::OnTreeFocusedItemChanged(Tree& /*sender*/, std::optional<uint64_t> /*itemId*/)
 {
 }
 
@@ -295,20 +317,32 @@ void Tree::ClearReorderDrag() noexcept
 
 bool Tree::ResolveReorderSource() noexcept
 {
-    const std::optional<size_t> source = _model ? _model->FindVisibleItemById(_reorderSourceId) : std::nullopt;
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model      = _model;
+    const std::optional<size_t> source = model ? model->FindVisibleItemById(_reorderSourceId) : std::nullopt;
+    if (! guard.IsCurrent())
+        return false;
     if (! source.has_value())
     {
         return false;
     }
     // Visible rows are in pre-order, so the row's visible descendants are the run after it that is nested deeper.
     TreeItemData item;
-    _model->GetVisibleItem(source.value(), item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(source.value(), item); }))
+        return false;
+    if (! guard.IsCurrent())
+        return false;
     const uint32_t sourceDepth = item.depth;
-    const size_t count         = _model->GetVisibleItemCount();
-    size_t end                 = source.value() + 1u;
+    const size_t count         = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return false;
+    size_t end = source.value() + 1u;
     for (; end < count; ++end)
     {
-        _model->GetVisibleItem(end, item);
+        if (! TryControlCallback([&] { model->GetVisibleItem(end, item); }))
+            return false;
+        if (! guard.IsCurrent())
+            return false;
         if (item.depth <= sourceDepth)
         {
             break;
@@ -321,7 +355,9 @@ bool Tree::ResolveReorderSource() noexcept
 
 std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& targetIndex) const noexcept
 {
-    if (! _model || ! _reorderArmed)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model || ! _reorderArmed)
     {
         return std::nullopt;
     }
@@ -335,12 +371,49 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
         return std::nullopt; // Into its own subtree: the row would become its own ancestor.
     }
     TreeItemData target;
-    _model->GetVisibleItem(index.value(), target);
-    if (target.id == _reorderSourceId)
+    if (! TryControlCallback([&] { model->GetVisibleItem(index.value(), target); }))
+        return std::nullopt;
+    if (! guard.IsCurrent())
+        return std::nullopt;
+    if (target.id == _reorderSourceId || (_multiSelect && _selection.IsSelected(target.id)))
     {
         return std::nullopt;
     }
+    if (_multiSelect)
+    {
+        // A drag carries the entire selection. No selected ancestor may be moved beneath one of its descendants.
+        std::optional<uint64_t> ancestor = target.parentId;
+        const size_t itemCount           = model->GetVisibleItemCount();
+        if (! guard.IsCurrent())
+            return std::nullopt;
+        for (size_t depth = 0u; ancestor && depth < itemCount; ++depth)
+        {
+            if (_selection.IsSelected(*ancestor))
+            {
+                return std::nullopt;
+            }
+            const std::optional<size_t> ancestorIndex = model->FindVisibleItemById(*ancestor);
+            if (! guard.IsCurrent())
+                return std::nullopt;
+            if (! ancestorIndex || *ancestorIndex >= itemCount)
+            {
+                break;
+            }
+            TreeItemData ancestorItem;
+            if (! TryControlCallback([&] { model->GetVisibleItem(*ancestorIndex, ancestorItem); }))
+                return std::nullopt;
+            if (! guard.IsCurrent())
+                return std::nullopt;
+            ancestor = ancestorItem.parentId;
+        }
+        if (ancestor)
+        {
+            return std::nullopt; // A cyclic or incomplete ancestry cannot establish a safe drop.
+        }
+    }
     const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(index.value());
+    if (! guard.IsCurrent())
+        return std::nullopt;
     if (! rect.has_value() || rect->bottom <= rect->top)
     {
         return std::nullopt;
@@ -368,8 +441,11 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
 
 void Tree::UpdateReorderDrop(ControlHost& host, D2D1_POINT_2F point) noexcept
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     size_t targetIndex                 = 0u;
     const std::optional<TreeDrop> drop = ResolveReorderDrop(point, targetIndex);
+    if (! guard.IsCurrent())
+        return;
     const bool unchanged =
         drop.has_value() == _reorderDrop.has_value() &&
         (! drop.has_value() || (drop->targetId == _reorderDrop->targetId && drop->place == _reorderDrop->place && targetIndex == _reorderDropIndex));
@@ -411,6 +487,11 @@ std::wstring_view Tree::GetEmptyStateText() const noexcept
 
 void Tree::SetModel(ITreeModel* model) noexcept
 {
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ++_modelBindingRevision;
+    ++_modelRevision;
+    const uint64_t revision           = _modelRevision;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     // A row drag cannot outlive the model it started in: ids in another model name other rows.
     if (_reorderArmed)
     {
@@ -418,6 +499,8 @@ void Tree::SetModel(ITreeModel* model) noexcept
         if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
         {
             host->ReleaseMouseCapture();
+            if (lifetime.expired() || _modelRevision != revision)
+                return;
         }
     }
     // Non-owning pointer assignment. Caller responsible for model lifetime.
@@ -428,32 +511,52 @@ void Tree::SetModel(ITreeModel* model) noexcept
     _dragThumbOffsetDip       = 0.0f;
     InvalidateTreeTextMeasurementCaches();
     ClearTreeExpansionAnimation();
-    NotifyDataChanged();
+    static_cast<void>(TryControlCallback([&] { NotifyDataChanged(); }));
 }
 
 void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
 {
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ++_modelBindingRevision;
+    ++_modelRevision;
     _delegate = delegate;
 }
 
 void Tree::SetRowHeightDip(float rowHeightDip) noexcept
 {
-    _rowHeightBaseDip = (std::max)(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    const float normalized = (std::max)(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    if (_rowHeightBaseDip == normalized)
+        return;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _rowHeightBaseDip             = normalized;
     OnDensityChanged();
 }
 
 void Tree::SetIndentDip(float indentDip) noexcept
 {
-    _indentDip = (std::max)(10.0f, indentDip);
+    const float normalized = (std::max)(10.0f, indentDip);
+    if (_indentDip == normalized)
+        return;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _indentDip                    = normalized;
 }
 
 void Tree::NotifyDataChanged()
 {
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ++_modelRevision;
+    const TreeModelQueryGuard modelGuard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
     if (_reorderArmed)
     {
         // Rows moved: the drop target is resolved again on the next pointer move, and the drag ends if its row is gone.
         _reorderDrop.reset();
-        if (! ResolveReorderSource())
+        const bool resolved = ResolveReorderSource();
+        if (! modelGuard.IsCurrent())
+        {
+            return;
+        }
+        if (! resolved)
         {
             ClearReorderDrag();
             if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
@@ -463,45 +566,107 @@ void Tree::NotifyDataChanged()
         }
     }
     InvalidateTreeTextMeasurementCaches();
-    // Multi-select: selected items that left the visible rows (removed, or hidden by a collapsed ancestor) leave the
-    // selection and the rest keep the model's order. The delegate hears of a change last, when nothing else is left to do.
-    std::vector<uint64_t> previousSelection;
-    if (_multiSelect && _selection.GetCount() > 0u)
+    // Items that left visible rows leave the selection; the focused identity is reconciled separately.
+    std::vector<uint64_t> previousSelection     = GetSelectedItemIds();
+    const std::optional<uint64_t> previousFocus = _focusedItemId;
+    if (_multiSelect)
     {
-        const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
-        previousSelection.assign(selection.begin(), selection.end());
         ReconcileSelectionWithModel();
+        if (! modelGuard.IsCurrent())
+        {
+            return;
+        }
+        if (_selectedItemId && ! _selection.IsSelected(*_selectedItemId))
+        {
+            const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+            _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+        }
     }
-    if (_selectedItemId && (! _model || ! _model->FindVisibleItemById(_selectedItemId.value())))
+    if (_selectedItemId && (! model || ! model->FindVisibleItemById(_selectedItemId.value())))
     {
+        if (! modelGuard.IsCurrent())
+        {
+            return;
+        }
         _selectedItemId.reset();
     }
+    if (! modelGuard.IsCurrent())
+    {
+        return;
+    }
+    if (_focusedItemId && (! model || ! model->FindVisibleItemById(*_focusedItemId)))
+    {
+        if (! modelGuard.IsCurrent())
+        {
+            return;
+        }
+        _focusedItemId.reset();
+    }
+    if (! modelGuard.IsCurrent())
+        return;
     ClampScrollOffset();
-    if (GetVerticalScrollableExtent() <= 0.0f)
+    if (! modelGuard.IsCurrent())
+        return;
+    const float scrollableExtent = GetVerticalScrollableExtent();
+    if (! modelGuard.IsCurrent())
+        return;
+    if (scrollableExtent <= 0.0f)
     {
         _wheelDeltaRemainder      = 0.0f;
         _verticalScrollbarHotPart = ScrollbarHotPart::None;
         _dragVerticalThumb        = false;
         _dragThumbOffsetDip       = 0.0f;
     }
-    if (const std::optional<size_t> selectedIndex = FindSelectedVisibleIndex())
+    if (const std::optional<size_t> selectedIndex = FindFocusedVisibleIndex())
     {
+        if (! modelGuard.IsCurrent())
+            return;
         EnsureVisibleIndex(selectedIndex.value());
     }
 
-    if (_treeExpansionAnimation && (! _model || _treeExpansionAnimation->afterItems.size() != _model->GetVisibleItemCount()))
+    if (! modelGuard.IsCurrent())
+        return;
+    if (_treeExpansionAnimation && (! model || _treeExpansionAnimation->afterItems.size() != model->GetVisibleItemCount()))
     {
+        if (! modelGuard.IsCurrent())
+            return;
         ClearTreeExpansionAnimation();
     }
+    if (! modelGuard.IsCurrent())
+        return;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
     if (selfLifetime.expired())
     {
         return;
     }
-    if (! previousSelection.empty())
+    if (! modelGuard.IsCurrent())
+        return;
+    if (! SameSelectedItems(previousSelection, GetSelectedItemIds()))
     {
-        static_cast<void>(NotifySelectionSetChanged(previousSelection));
+        const std::vector<uint64_t> currentSelection = GetSelectedItemIds();
+        if (! currentSelection.empty() && _delegate)
+        {
+            const std::weak_ptr<int> callbackLifetime = GetLifetimeToken();
+            _delegate->OnTreeSelectionChanged(_selectedItemId.value());
+            if (callbackLifetime.expired() || ! modelGuard.IsCurrent())
+            {
+                return;
+            }
+        }
+        if (! NotifySelectionSetChanged(previousSelection) || ! modelGuard.IsCurrent())
+        {
+            return;
+        }
+    }
+    if (_delegate && previousFocus != _focusedItemId)
+    {
+        const std::weak_ptr<int> callbackLifetime = GetLifetimeToken();
+        _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
+        if (callbackLifetime.expired() || ! modelGuard.IsCurrent())
+        {
+            return;
+        }
     }
 }
 
@@ -525,12 +690,17 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
     }
     else
     {
-        // A single selection is its focused item: keep it when it is selected, else the last selected item, else none.
-        if (! _selectedItemId || ! _selection.IsSelected(_selectedItemId.value()))
+        // Keep focus as the one selection when possible, else keep the last remaining selected item.
+        if (! _focusedItemId || ! _selection.IsSelected(*_focusedItemId))
         {
             const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
             _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
         }
+        else
+        {
+            _selectedItemId = _focusedItemId;
+        }
+        _focusedItemId = _selectedItemId;
         _selection.Clear();
     }
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
@@ -543,7 +713,16 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    std::optional<size_t> selectedIndex;
+    if (_model && itemId)
+    {
+        selectedIndex = _model->FindVisibleItemById(*itemId);
+        if (! guard.IsCurrent())
+            return;
+    }
     _selectedItemId = std::move(itemId);
+    _focusedItemId  = _selectedItemId;
     if (_multiSelect)
     {
         if (_selectedItemId)
@@ -555,10 +734,12 @@ void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
             _selection.Clear();
         }
     }
-    if (const std::optional<size_t> selectedIndex = FindSelectedVisibleIndex())
+    if (selectedIndex)
     {
         EnsureVisibleIndex(selectedIndex.value());
     }
+    if (! guard.IsCurrent())
+        return;
     RefreshAccessibilitySnapshot();
 }
 
@@ -569,23 +750,41 @@ std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
 
 void Tree::SetFocusedItemId(std::optional<uint64_t> itemId) noexcept
 {
-    if (! _multiSelect)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    std::optional<size_t> focusedIndex;
+    if (itemId && (! model || ! model->FindVisibleItemById(*itemId)))
     {
-        SetSelectedItemId(std::move(itemId));
-        return;
+        if (! guard.IsCurrent())
+            return;
+        itemId.reset();
     }
-
-    _selectedItemId = std::move(itemId);
-    if (const std::optional<size_t> focusedIndex = FindSelectedVisibleIndex())
+    if (! guard.IsCurrent())
+        return;
+    if (itemId && model)
+        focusedIndex = model->FindVisibleItemById(*itemId);
+    if (! guard.IsCurrent())
+        return;
+    const bool changed = _focusedItemId != itemId;
+    _focusedItemId     = std::move(itemId);
+    if (focusedIndex)
     {
         EnsureVisibleIndex(focusedIndex.value());
     }
+    if (! guard.IsCurrent())
+        return;
     RefreshAccessibilitySnapshot();
+    if (! guard.IsCurrent())
+        return;
+    if (changed)
+    {
+        RequestInvalidate();
+    }
 }
 
 std::optional<uint64_t> Tree::GetFocusedItemId() const noexcept
 {
-    return _selectedItemId;
+    return _focusedItemId;
 }
 
 std::vector<uint64_t> Tree::GetSelectedItemIds() const
@@ -604,10 +803,14 @@ bool Tree::IsItemSelected(uint64_t itemId) const noexcept
 }
 
 void Tree::SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept
+try
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> visibleIds = CollectVisibleItemIds();
+    if (! guard.IsCurrent())
+        return;
     const std::unordered_set<uint64_t> visible(visibleIds.begin(), visibleIds.end());
-    // The last listed id that is a visible row is the focused item (and the anchor); the rest keep the model's order.
+    // The last listed id that is a visible row becomes the focus and the range anchor.
     std::optional<uint64_t> last;
     for (auto it = itemIds.rbegin(); it != itemIds.rend() && ! last; ++it)
     {
@@ -617,28 +820,42 @@ void Tree::SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept
         }
     }
 
-    _selectedItemId = last;
+    GridSelectionModel nextSelection;
     if (_multiSelect)
     {
-        _selection.Clear();
         if (last)
         {
-            _selection.SetSingle(last.value());
+            nextSelection.SetSingle(last.value());
+            if (! nextSelection.IsSelected(*last))
+                return;
             for (const uint64_t itemId : itemIds)
             {
-                if (itemId != last.value() && visible.contains(itemId) && ! _selection.IsSelected(itemId))
+                if (itemId != last.value() && visible.contains(itemId) && ! nextSelection.IsSelected(itemId))
                 {
-                    _selection.Toggle(itemId);
+                    nextSelection.Toggle(itemId);
+                    if (! nextSelection.IsSelected(itemId))
+                        return;
                 }
             }
-            _selection.PreserveOrdered(visibleIds);
+            nextSelection.PreserveOrdered(visibleIds);
+            nextSelection.SetAnchor(last);
         }
+        _selection = std::move(nextSelection);
     }
-    if (const std::optional<size_t> selectedIndex = FindSelectedVisibleIndex())
+    _selectedItemId             = last;
+    _focusedItemId              = last;
+    const auto selectedPosition = last ? std::find(visibleIds.begin(), visibleIds.end(), *last) : visibleIds.end();
+    if (selectedPosition != visibleIds.end())
     {
-        EnsureVisibleIndex(selectedIndex.value());
+        EnsureVisibleIndex(static_cast<size_t>(std::distance(visibleIds.begin(), selectedPosition)));
     }
+    if (! guard.IsCurrent())
+        return;
     RefreshAccessibilitySnapshot();
+}
+catch (const std::exception&)
+{
+    // A failed model collection or staged selection leaves the previously committed selection intact.
 }
 
 void Tree::RefreshAccessibilitySnapshot() const noexcept
@@ -658,25 +875,81 @@ void Tree::OnDensityChanged() noexcept
 }
 
 bool Tree::RequestSelectVisibleItem(size_t visibleIndex) noexcept
+try
 {
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! IsEnabled() || ! model)
     {
         return false;
     }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
 
     return SelectVisibleIndex(visibleIndex, true);
 }
-
-bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
+catch (const std::exception&)
 {
-    if (! _model || ! _delegate || visibleIndex >= _model->GetVisibleItemCount())
+    return false;
+}
+
+bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
+{
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! IsEnabled() || ! model)
     {
         return false;
     }
-
-    std::vector<TreeItemData> beforeItems = CaptureVisibleItems();
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
+    const std::optional<uint64_t> previousFocus = _focusedItemId;
+    _focusedItemId                              = item.id;
+    EnsureVisibleIndex(visibleIndex);
+    if (! guard.IsCurrent())
+        return false;
+    if (_delegate && previousFocus != _focusedItemId)
+    {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
+        if (lifetime.expired() || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RefreshAccessibilitySnapshot();
+    if (! lifetime.expired() && guard.IsCurrent())
+    {
+        RequestInvalidate();
+    }
+    return ! lifetime.expired() && guard.IsCurrent();
+}
+
+bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
+try
+{
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! IsEnabled() || ! model || ! _delegate)
+    {
+        return false;
+    }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
+
+    std::vector<TreeItemData> beforeItems;
+    if (! TryControlCallback([&] { beforeItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
+        return false;
+    TreeItemData item;
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
     if (! item.hasChildren)
     {
         return false;
@@ -690,26 +963,55 @@ bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
     StartExpanderAnimation(item.id, item.expanded, expanded);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     ITreeDelegate* const delegate         = _delegate;
-    delegate->OnTreeToggleExpanded(item.id, expanded);
-    if (selfLifetime.expired())
+    if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.IsBindingCurrent())
     {
         return false;
     }
-    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), CaptureVisibleItems(), GetTickCount64());
+    if (! guard.IsCurrent())
+    {
+        // A delegate may publish its completed edit with NotifyDataChanged. Discard the old animation transaction,
+        // then verify the stable item's current state without accepting a model/delegate replacement.
+        const TreeModelQueryGuard currentGuard(*this, selfLifetime, model);
+        const auto currentIndex = model->FindVisibleItemById(item.id);
+        if (! currentGuard.IsCurrent() || ! currentIndex)
+            return false;
+        TreeItemData currentItem;
+        return TryControlCallback([&] { model->GetVisibleItem(*currentIndex, currentItem); }) && currentGuard.IsCurrent() && currentItem.id == item.id &&
+               currentItem.hasChildren && currentItem.expanded == expanded;
+    }
+    std::vector<TreeItemData> afterItems;
+    if (! TryControlCallback([&] { afterItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
+        return false;
+    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), std::move(afterItems), GetTickCount64());
     RefreshAccessibilitySnapshot();
-    return true;
+    return ! selfLifetime.expired() && guard.IsCurrent();
+}
+
+catch (const std::exception&)
+{
+    return false;
 }
 
 TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const ControlHost& host, size_t visibleIndex) const
 {
     TreeItemLayoutMetrics metrics{};
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+    {
+        return metrics;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= itemCount)
     {
         return metrics;
     }
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    {
+        return metrics;
+    }
     return ComputeItemLayoutMetrics(host, visibleIndex, item);
 }
 
@@ -726,21 +1028,27 @@ size_t Tree::DebugGetFirstVisibleIndex() const noexcept
 
 std::optional<size_t> Tree::DebugGetSelectedVisibleIndex() const noexcept
 {
-    return FindSelectedVisibleIndex();
+    return FindFocusedVisibleIndex();
 }
 
 bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex, bool keyboardFocusVisible, TreeDebugRowVisualState& out) const noexcept
 {
     out = {};
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
     {
         return false;
     }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
     const bool selected = IsItemSelected(item.id);
-    const bool current  = _selectedItemId && _selectedItemId.value() == item.id;
+    const bool current  = _focusedItemId && _focusedItemId.value() == item.id;
     const bool hovered  = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
     const TreeResolvedRowVisuals visuals =
         ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
@@ -782,12 +1090,31 @@ TreeScrollbarVisualState Tree::DebugGetScrollbarVisualState(const ThemePalette& 
 
 void Tree::Paint(ControlHost& host) const
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model             = _model;
     const ThemePalette& theme                 = host.GetTheme();
     const TreeSurfaceVisualStyle surfaceStyle = ResolveTreeSurfaceVisualStyle(theme);
     DrawRoundedRect(host, GetBounds(), surfaceStyle.fill, surfaceStyle.border, 4.0f);
 
     const D2D1_RECT_F contentRect = GetContentRect();
-    if (! _model || _model->GetVisibleItemCount() == 0u)
+    if (! guard.IsCurrent())
+        return;
+    if (! model)
+    {
+        DrawCenteredText(host,
+                         GetEmptyStateText(),
+                         contentRect,
+                         FontRole::Small,
+                         surfaceStyle.emptyText,
+                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         false);
+        return;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return;
+    if (itemCount == 0u)
     {
         DrawCenteredText(host,
                          GetEmptyStateText(),
@@ -804,8 +1131,8 @@ void Tree::Paint(ControlHost& host) const
     const bool animateTreeExpansion                 = HasActiveTreeExpansionAnimation(nowTickMs) && _treeExpansionAnimation.has_value();
     const std::optional<size_t> hoveredVisibleIndex = _hoveredVisibleIndex;
     TreeItemData item;
-    const VisibleSpan span = ComputeVisibleSpan(
-        static_cast<uint64_t>(_model->GetVisibleItemCount()), _rowHeightDip, _verticalScrollDip, (std::max)(1.0f, contentRect.bottom - contentRect.top));
+    const VisibleSpan span =
+        ComputeVisibleSpan(static_cast<uint64_t>(itemCount), _rowHeightDip, _verticalScrollDip, (std::max)(1.0f, contentRect.bottom - contentRect.top));
     // Rows sit at whole-row positions offset by the scroll, so after a thumb drag the first and last visible rows straddle
     // the viewport's edges: the rows, and those an expansion moves, are clipped to it so none paints over the frame or
     // outside the tree. A wholly visible row, focus ring included, lies inside the viewport and is unchanged.
@@ -816,7 +1143,18 @@ void Tree::Paint(ControlHost& host) const
     }
     for (uint64_t visibleIndex = span.beginIndex; visibleIndex < span.endIndex; ++visibleIndex)
     {
-        _model->GetVisibleItem(static_cast<size_t>(visibleIndex), item);
+        if (! TryControlCallback([&] { model->GetVisibleItem(static_cast<size_t>(visibleIndex), item); }))
+        {
+            if (dc)
+                dc->PopAxisAlignedClip();
+            return;
+        }
+        if (! guard.IsCurrent())
+        {
+            if (dc)
+                dc->PopAxisAlignedClip();
+            return;
+        }
         float rowTopDip = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
         float rowAlpha  = 1.0f;
 
@@ -841,17 +1179,23 @@ void Tree::Paint(ControlHost& host) const
         }
 
         const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, rowTopDip, item);
+        if (! guard.IsCurrent())
+        {
+            if (dc)
+                dc->PopAxisAlignedClip();
+            return;
+        }
         if (layout.rowRect.bottom <= contentRect.top || layout.rowRect.top >= contentRect.bottom)
         {
             continue;
         }
 
         const bool selected          = IsItemSelected(item.id);
-        const bool current           = _selectedItemId && _selectedItemId.value() == item.id;
+        const bool current           = _focusedItemId && _focusedItemId.value() == item.id;
         const bool hovered           = hoveredVisibleIndex && hoveredVisibleIndex.value() == static_cast<size_t>(visibleIndex);
         const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
         const float expanderProgress = theme.reducedMotion ? (item.expanded ? 1.0f : 0.0f) : GetExpanderProgress(item.id, item.expanded, nowTickMs);
-        DrawTreeRow(host, theme, layout, item, selected, current, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha);
+        DrawTreeRow(host, theme, layout, item, selected, current, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha, GetFlowDirection());
     }
 
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
@@ -882,10 +1226,21 @@ void Tree::Paint(ControlHost& host) const
                 }
 
                 const bool selected          = IsItemSelected(removedItem.id);
-                const bool current           = _selectedItemId && _selectedItemId.value() == removedItem.id;
+                const bool current           = _focusedItemId && _focusedItemId.value() == removedItem.id;
                 const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
                 const float expanderProgress = theme.reducedMotion ? 0.0f : GetExpanderProgress(removedItem.id, false, nowTickMs);
-                DrawTreeRow(host, theme, layout, removedItem, selected, current, false, HasFocus(), keyboardFocused, expanderProgress, 1.0f - progress);
+                DrawTreeRow(host,
+                            theme,
+                            layout,
+                            removedItem,
+                            selected,
+                            current,
+                            false,
+                            HasFocus(),
+                            keyboardFocused,
+                            expanderProgress,
+                            1.0f - progress,
+                            GetFlowDirection());
             }
         }
     }
@@ -898,6 +1253,8 @@ void Tree::Paint(ControlHost& host) const
     {
         // The drop is resolved with its row index and cleared whenever the model changes, so no id scan per paint.
         const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(_reorderDropIndex);
+        if (! guard.IsCurrent())
+            return;
         if (rect.has_value())
         {
             // The marker of a row that straddles an edge stops there too. The clip reaches 1 DIP past the viewport, inside
@@ -920,7 +1277,10 @@ void Tree::Paint(ControlHost& host) const
         }
     }
 
-    if (GetVerticalScrollableExtent() > 0.0f)
+    const float scrollableExtent = GetVerticalScrollableExtent();
+    if (! guard.IsCurrent())
+        return;
+    if (scrollableExtent > 0.0f)
     {
         const D2D1_RECT_F track                 = GetVerticalScrollbarRect();
         const bool trackHovered                 = _verticalScrollbarHotPart == ScrollbarHotPart::Track;
@@ -989,18 +1349,27 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
 
 bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (_dragVerticalThumb)
     {
         const D2D1_RECT_F track = GetVerticalScrollbarRect();
+        if (! guard.IsCurrent())
+            return false;
         const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
+        if (! guard.IsCurrent())
+            return false;
         const float thumbHeight = (std::max)(0.0f, thumb.bottom - thumb.top);
         const float available   = (std::max)(0.0f, (track.bottom - track.top) - thumbHeight);
         const float extent      = GetVerticalScrollableExtent();
+        if (! guard.IsCurrent())
+            return false;
         if (available > 0.0f && extent > 0.0f)
         {
             const float thumbTop = (std::clamp)(point.y - _dragThumbOffsetDip, track.top, track.bottom - thumbHeight);
             _verticalScrollDip   = ((thumbTop - track.top) / available) * extent;
             ClampScrollOffset();
+            if (! guard.IsCurrent())
+                return false;
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
         host.ClearTooltip();
@@ -1024,7 +1393,10 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         return true;
     }
 
-    const HitInfo hit                                = HitTestPoint(MakePointDip(point));
+    const ITreeModel* const model = _model;
+    const HitInfo hit             = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+        return false;
     const std::optional<size_t> previousHoveredIndex = _hoveredVisibleIndex;
     const ScrollbarHotPart previousHotPart           = _verticalScrollbarHotPart;
     UpdateScrollbarHotState(hit);
@@ -1037,10 +1409,15 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     if (_hoveredVisibleIndex.has_value())
     {
         TreeItemData item;
-        _model->GetVisibleItem(_hoveredVisibleIndex.value(), item);
+        if (! model)
+            return false;
+        if (! TryControlCallback([&] { model->GetVisibleItem(_hoveredVisibleIndex.value(), item); }) || ! guard.IsCurrent())
+            return false;
         const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, _hoveredVisibleIndex.value(), item);
-        std::wstring tooltipText           = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
-        tooltipChanged                     = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
+        if (! guard.IsCurrent())
+            return false;
+        std::wstring tooltipText = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
+        tooltipChanged           = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
     }
     else
     {
@@ -1077,13 +1454,25 @@ bool Tree::OnMouseLeave(ControlHost& host)
 
 bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+        return true;
     if (hit.zone == HitZone::None)
     {
         return false;
     }
 
     if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
+    if (! guard.IsCurrent())
+        return true;
+    hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+        return true;
+    if (hit.zone == HitZone::None)
     {
         return true;
     }
@@ -1105,16 +1494,25 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     {
         if (hit.onScrollbarThumb)
         {
+            const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
+            if (! guard.IsCurrent())
+                return true;
             _dragVerticalThumb  = true;
-            _dragThumbOffsetDip = point.y - GetVerticalThumbHitRect().top;
+            _dragThumbOffsetDip = point.y - thumb.top;
             SyncScrollbarAnimation(host);
         }
         else
         {
-            const D2D1_RECT_F thumb       = GetVerticalThumbHitRect();
+            const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
+            if (! guard.IsCurrent())
+                return true;
             const D2D1_RECT_F contentRect = GetContentRect();
-            const float viewportDip       = (std::max)(1.0f, contentRect.bottom - contentRect.top);
-            const float extent            = GetVerticalScrollableExtent();
+            if (! guard.IsCurrent())
+                return true;
+            const float viewportDip = (std::max)(1.0f, contentRect.bottom - contentRect.top);
+            const float extent      = GetVerticalScrollableExtent();
+            if (! guard.IsCurrent())
+                return true;
             const float pageStep = ComputeScrollbarPageStepDip(GetVerticalScrollbarRect(), ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent);
             _verticalScrollDip += point.y < thumb.top ? -pageStep : pageStep;
             ClampScrollOffset();
@@ -1125,7 +1523,11 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     }
 
     TreeItemData hitItem;
-    _model->GetVisibleItem(hit.visibleIndex, hitItem);
+    const ITreeModel* const model = _model;
+    if (! model)
+        return true;
+    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, hitItem); }) || ! guard.IsCurrent())
+        return true;
 
     // With multi-select Shift and Ctrl are selection gestures (they never start a row drag), the expander moves the focus
     // and expands without touching the selection, and a plain press on a row of a multi-selection keeps it until the
@@ -1155,13 +1557,22 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             keepsSelectionForDrag = true;
         }
     }
+    else if (hit.zone != HitZone::Expander && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
+    {
+        mode             = SelectMode::Toggle;
+        selectionGesture = true;
+    }
     if (! SelectVisibleIndex(hit.visibleIndex, mode, true))
     {
         return true;
     }
+    if (! guard.IsCurrent())
+        return true;
     if (hit.zone == HitZone::Expander)
     {
-        const std::optional<size_t> currentIndex = _model ? _model->FindVisibleItemById(hitItem.id) : std::nullopt;
+        const std::optional<size_t> currentIndex = model->FindVisibleItemById(hitItem.id);
+        if (! guard.IsCurrent())
+            return true;
         if (! currentIndex.has_value() || ! ToggleExpanded(currentIndex.value()))
         {
             return true;
@@ -1174,8 +1585,11 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     else if (_reorderEnabled && hit.zone == HitZone::Item && ! selectionGesture)
     {
         // Resolved by id: the selection callback above may already have changed the model.
-        _reorderSourceId = hitItem.id;
-        if (ResolveReorderSource())
+        _reorderSourceId    = hitItem.id;
+        const bool resolved = ResolveReorderSource();
+        if (! guard.IsCurrent())
+            return true;
+        if (resolved)
         {
             _reorderArmed              = true;
             _reorderDragging           = false;
@@ -1200,7 +1614,10 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+        return true;
     if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
     {
         return false;
@@ -1210,8 +1627,21 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return true;
     }
+    if (! guard.IsCurrent())
+        return true;
+    hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+        return true;
+    if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
+    {
+        return true;
+    }
     TreeItemData item;
-    _model->GetVisibleItem(hit.visibleIndex, item);
+    const ITreeModel* const model = _model;
+    if (! model)
+        return true;
+    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, item); }) || ! guard.IsCurrent())
+        return true;
     // The first press of a double-click already made its selection gesture: with multi-select the second, with Ctrl or
     // Shift, only activates, so a Ctrl double-click cannot toggle the item off again.
     const bool selectionModifier = ModifiersContainCtrl(modifiers) || ModifiersContainShift(modifiers);
@@ -1219,15 +1649,20 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return true;
     }
+    if (! guard.IsCurrent())
+        return true;
 
-    const std::optional<size_t> currentIndex = _model ? _model->FindVisibleItemById(item.id) : std::nullopt;
+    const std::optional<size_t> currentIndex = model->FindVisibleItemById(item.id);
+    if (! guard.IsCurrent())
+        return true;
     if (! currentIndex.has_value())
     {
         return true;
     }
 
     TreeItemData currentItem;
-    _model->GetVisibleItem(currentIndex.value(), currentItem);
+    if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value(), currentItem); }) || ! guard.IsCurrent())
+        return true;
     if (currentItem.hasChildren)
     {
         if (! ToggleExpanded(currentIndex.value()))
@@ -1251,6 +1686,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
         return false;
@@ -1263,6 +1699,8 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         {
             // The release point decides the drop, not the last move (touch, synthetic or embedded input may differ).
             UpdateReorderDrop(host, point);
+            if (! guard.IsCurrent())
+                return false;
         }
         const bool commit   = dragged && _reorderDrop.has_value() && _delegate != nullptr;
         const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
@@ -1271,6 +1709,8 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         const uint64_t collapseId = _reorderSourceId;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
+        if (! guard.IsCurrent())
+            return false;
         if (collapse)
         {
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
@@ -1292,6 +1732,8 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     _dragVerticalThumb     = false;
     _dragThumbOffsetDip    = 0.0f;
     UpdateScrollbarHotState(HitTestPoint(MakePointDip(point)));
+    if (! guard.IsCurrent())
+        return wasDragging;
     SyncScrollbarAnimation(host);
     if (wasDragging)
     {
@@ -1319,10 +1761,14 @@ void Tree::OnCaptureLost(ControlHost& host)
 
 bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
 {
-    if (! PointInRect(GetHitBounds(), point) || GetVerticalScrollableExtent() <= 0.0f)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    if (! PointInRect(GetHitBounds(), point))
     {
         return false;
     }
+    const float extent = GetVerticalScrollableExtent();
+    if (! guard.IsCurrent() || extent <= 0.0f)
+        return false;
 
     _wheelDeltaRemainder += wheelDelta;
     const int wheelStepCount = static_cast<int>(_wheelDeltaRemainder / static_cast<float>(WHEEL_DELTA));
@@ -1334,6 +1780,8 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     _wheelDeltaRemainder -= static_cast<float>(wheelStepCount * WHEEL_DELTA);
     _verticalScrollDip -= static_cast<float>(wheelStepCount) * (_rowHeightDip * 3.0f);
     ClampScrollOffset();
+    if (! guard.IsCurrent())
+        return true;
     if (_reorderDragging)
     {
         // Scrolling moves rows under a still pointer: the drop follows the row now beneath it.
@@ -1353,14 +1801,40 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return true;
     }
 
-    if (! _model || _model->GetVisibleItemCount() == 0u)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
     {
         return false;
     }
+    const size_t modelItemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || modelItemCount == 0u)
+        return false;
 
     if (_multiSelect && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers) && virtualKey == 'A')
     {
         return OnSelectAll(host);
+    }
+
+    // Host navigation and modifier keys must leave an empty selection alone.
+    switch (virtualKey)
+    {
+        case VK_UP:
+        case VK_DOWN:
+        case VK_HOME:
+        case VK_END:
+        case VK_PRIOR:
+        case VK_NEXT:
+        case VK_LEFT:
+        case VK_RIGHT:
+        case VK_RETURN:
+        case VK_SPACE: break;
+        default: return false;
+    }
+
+    if (IsRightToLeft() && (virtualKey == VK_LEFT || virtualKey == VK_RIGHT))
+    {
+        virtualKey = virtualKey == VK_LEFT ? VK_RIGHT : VK_LEFT;
     }
 
     // With multi-select a movement key with Shift extends the selection from the anchor, and with Ctrl moves the focus
@@ -1371,22 +1845,26 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         moveMode = ModifiersContainShift(modifiers) ? SelectMode::Range : (ModifiersContainCtrl(modifiers) ? SelectMode::FocusOnly : SelectMode::Replace);
     }
 
-    const auto landOn = [this, &host](size_t visibleIndex, SelectMode mode) -> bool
+    const auto landOn = [this, &host, &guard](size_t visibleIndex, SelectMode mode) -> bool
     {
         if (! SelectVisibleIndex(visibleIndex, mode, true))
         {
             return true;
         }
-        if (const HWND hwnd = host.GetHwnd(); hwnd && IsWindow(hwnd) != FALSE && GetFocus() != hwnd)
+        if (! FocusControlAndSurvive(host, *this))
         {
-            static_cast<void>(SetFocus(hwnd));
+            return true;
         }
+        if (! guard.IsCurrent())
+            return true;
         Invalidate(host);
         return true;
     };
     const auto selectAndInvalidate = [&landOn, moveMode](size_t visibleIndex) -> bool { return landOn(visibleIndex, moveMode); };
 
-    std::optional<size_t> currentIndex = FindSelectedVisibleIndex();
+    std::optional<size_t> currentIndex = FindFocusedVisibleIndex();
+    if (! guard.IsCurrent())
+        return true;
     if (! currentIndex)
     {
         // The first key starts from the first row. With multi-select it only takes the focus there, so that the key's
@@ -1399,10 +1877,15 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
 
     TreeItemData item;
-    _model->GetVisibleItem(currentIndex.value(), item);
-    const size_t itemCount = _model->GetVisibleItemCount();
+    if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value(), item); }) || ! guard.IsCurrent())
+        return true;
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return true;
     const size_t pageRows =
         (std::max<size_t>)(1u, static_cast<size_t>(std::floor((std::max)(1.0f, GetContentRect().bottom - GetContentRect().top) / _rowHeightDip)));
+    if (! guard.IsCurrent())
+        return true;
 
     switch (virtualKey)
     {
@@ -1428,10 +1911,14 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (item.parentId)
             {
-                if (const std::optional<size_t> parentIndex = _model->FindVisibleItemById(item.parentId.value()))
+                if (const std::optional<size_t> parentIndex = model->FindVisibleItemById(item.parentId.value()))
                 {
+                    if (! guard.IsCurrent())
+                        return true;
                     return selectAndInvalidate(parentIndex.value());
                 }
+                if (! guard.IsCurrent())
+                    return true;
             }
             return true;
         case VK_RIGHT:
@@ -1451,7 +1938,8 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             if (item.hasChildren && item.expanded && currentIndex.value() + 1u < itemCount)
             {
                 TreeItemData nextItem;
-                _model->GetVisibleItem(currentIndex.value() + 1u, nextItem);
+                if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value() + 1u, nextItem); }) || ! guard.IsCurrent())
+                    return true;
                 if (nextItem.parentId && nextItem.parentId.value() == item.id)
                 {
                     return selectAndInvalidate(currentIndex.value() + 1u);
@@ -1460,7 +1948,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
         case VK_RETURN:
         case VK_SPACE:
-            if (_multiSelect && virtualKey == VK_SPACE && ModifiersContainCtrl(modifiers))
+            if (virtualKey == VK_SPACE && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
             {
                 return landOn(currentIndex.value(), SelectMode::Toggle);
             }
@@ -1475,11 +1963,16 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
-    if (! _model || _model->GetVisibleItemCount() == 0u || ch < 0x20)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model || ch < 0x20)
     {
         return false;
     }
-    if (_multiSelect && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u)
+        return false;
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         return false; // Ctrl+Space (toggle) sends a space character too: a Ctrl chord is a command, not typeahead.
     }
@@ -1521,35 +2014,48 @@ bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
 bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
-    if (! _model || ! _delegate || _model->GetVisibleItemCount() == 0u)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model || ! _delegate)
     {
         return false;
     }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u)
+        return false;
 
     size_t visibleIndex     = 0u;
     D2D1_POINT_2F anchorDip = pointDip;
     if (keyboardInvocation)
     {
-        visibleIndex                  = FindSelectedVisibleIndex().value_or(0u);
+        visibleIndex = FindFocusedVisibleIndex().value_or(0u);
+        if (! guard.IsCurrent())
+            return true;
         const float previousScrollDip = _verticalScrollDip;
         EnsureVisibleIndex(visibleIndex);
+        if (! guard.IsCurrent())
+            return true;
         if (_verticalScrollDip != previousScrollDip)
         {
             Invalidate(host);
         }
 
         const D2D1_RECT_F contentRect = GetContentRect();
-        const float rowTop            = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
-        const float rowBottom         = rowTop + _rowHeightDip;
-        const float minX              = contentRect.left + 4.0f;
-        const float maxX              = (std::max)(minX, contentRect.right - 4.0f);
-        const float minY              = contentRect.top + 4.0f;
-        const float maxY              = (std::max)(minY, contentRect.bottom - 4.0f);
-        anchorDip = D2D1::Point2F((std::clamp)(GetBounds().left + 16.0f, minX, maxX), (std::clamp)((rowTop + rowBottom) * 0.5f, minY, maxY));
+        if (! guard.IsCurrent())
+            return true;
+        const float rowTop    = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
+        const float rowBottom = rowTop + _rowHeightDip;
+        const float minX      = contentRect.left + 4.0f;
+        const float maxX      = (std::max)(minX, contentRect.right - 4.0f);
+        const float minY      = contentRect.top + 4.0f;
+        const float maxY      = (std::max)(minY, contentRect.bottom - 4.0f);
+        anchorDip             = D2D1::Point2F((std::clamp)(GetBounds().left + 16.0f, minX, maxX), (std::clamp)((rowTop + rowBottom) * 0.5f, minY, maxY));
     }
     else
     {
         const HitInfo hit = HitTestPoint(MakePointDip(pointDip));
+        if (! guard.IsCurrent())
+            return false;
         if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
         {
             return false;
@@ -1559,7 +2065,8 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     }
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return true;
     const POINT screenPoint = host.DipPointToScreenPoint(anchorDip);
 
     if (! keyboardInvocation)
@@ -1578,10 +2085,12 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         }
     }
 
-    if (! _model || ! _delegate || ! _model->FindVisibleItemById(item.id).has_value())
+    if (! guard.IsCurrent() || ! _delegate || ! model->FindVisibleItemById(item.id).has_value())
     {
         return true;
     }
+    if (! guard.IsCurrent())
+        return true;
 
     _delegate->OnTreeContextMenu(item.id, screenPoint);
     return true;
@@ -1656,9 +2165,10 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
 
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, size_t visibleIndex, const TreeItemData& item) const noexcept
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
-    if (contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
+    if (! guard.IsCurrent() || contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
     {
         return metrics;
     }
@@ -1698,6 +2208,23 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
     }
 
     metrics.textRect = D2D1::RectF(contentLeft, metrics.rowRect.top, (std::max)(contentLeft, contentRight), metrics.rowRect.bottom);
+    if (IsRightToLeft())
+    {
+        const auto mirrorRect = [contentRect](D2D1_RECT_F& rect) noexcept
+        {
+            if (rect.right > rect.left)
+            {
+                const float left = contentRect.left + contentRect.right - rect.right;
+                rect.right       = contentRect.left + contentRect.right - rect.left;
+                rect.left        = left;
+            }
+        };
+        mirrorRect(metrics.rowRect);
+        mirrorRect(metrics.expanderRect);
+        mirrorRect(metrics.iconRect);
+        mirrorRect(metrics.badgeRect);
+        mirrorRect(metrics.textRect);
+    }
     return metrics;
 }
 
@@ -1744,29 +2271,62 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     }
 
     metrics.textRect = D2D1::RectF(contentLeft, metrics.rowRect.top, (std::max)(contentLeft, contentRight), metrics.rowRect.bottom);
+    if (IsRightToLeft())
+    {
+        const auto mirrorRect = [contentRect](D2D1_RECT_F& rect) noexcept
+        {
+            if (rect.right > rect.left)
+            {
+                const float left = contentRect.left + contentRect.right - rect.right;
+                rect.right       = contentRect.left + contentRect.right - rect.left;
+                rect.left        = left;
+            }
+        };
+        mirrorRect(metrics.rowRect);
+        mirrorRect(metrics.expanderRect);
+        mirrorRect(metrics.iconRect);
+        mirrorRect(metrics.badgeRect);
+        mirrorRect(metrics.textRect);
+    }
     return metrics;
 }
 
 Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
 {
-    const D2D1_POINT_2F point = pointDip.AsD2D();
-    if (! _model || _model->GetVisibleItemCount() == 0u || ! PointInRect(GetHitBounds(), point))
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    const D2D1_POINT_2F point     = pointDip.AsD2D();
+    if (! model)
+    {
+        return {};
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u || ! PointInRect(GetHitBounds(), point))
     {
         return {};
     }
 
     const D2D1_RECT_F scrollbarRect = GetVerticalScrollbarRect();
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
     if (scrollbarRect.right > scrollbarRect.left && PointInRect(scrollbarRect, point))
     {
         HitInfo hit;
-        hit.zone             = HitZone::VerticalScrollbar;
-        hit.rectDip          = scrollbarRect;
-        hit.onScrollbarThumb = PointInRect(GetVerticalThumbHitRect(), point);
+        hit.zone                    = HitZone::VerticalScrollbar;
+        hit.rectDip                 = scrollbarRect;
+        const D2D1_RECT_F thumbRect = GetVerticalThumbHitRect();
+        if (! guard.IsCurrent())
+        {
+            return {};
+        }
+        hit.onScrollbarThumb = PointInRect(thumbRect, point);
         return hit;
     }
 
     const D2D1_RECT_F contentRect = GetContentRect();
-    if (! PointInRect(contentRect, point))
+    if (! guard.IsCurrent() || ! PointInRect(contentRect, point))
     {
         return {};
     }
@@ -1778,13 +2338,14 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     }
 
     const size_t visibleIndex = static_cast<size_t>(offsetDip / _rowHeightDip);
-    if (visibleIndex >= _model->GetVisibleItemCount())
+    if (visibleIndex >= itemCount)
     {
         return {};
     }
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return {};
 
     const float rowTop = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
     HitInfo hit;
@@ -1793,7 +2354,9 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     hit.rectDip      = D2D1::RectF(contentRect.left, rowTop, contentRect.right, rowTop + _rowHeightDip);
 
     const float indentLeft         = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    const D2D1_RECT_F expanderRect = D2D1::RectF(indentLeft, hit.rectDip.top + 6.0f, indentLeft + 12.0f, hit.rectDip.bottom - 6.0f);
+    const float indentRight        = contentRect.right - 8.0f - (static_cast<float>(item.depth) * _indentDip);
+    const D2D1_RECT_F expanderRect = IsRightToLeft() ? D2D1::RectF(indentRight - 12.0f, hit.rectDip.top + 6.0f, indentRight, hit.rectDip.bottom - 6.0f)
+                                                     : D2D1::RectF(indentLeft, hit.rectDip.top + 6.0f, indentLeft + 12.0f, hit.rectDip.bottom - 6.0f);
     if (item.hasChildren && PointInRect(expanderRect, point))
     {
         hit.zone = HitZone::Expander;
@@ -1803,24 +2366,38 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
 
 size_t Tree::GetFirstVisibleItemIndex() const noexcept
 {
-    if (! _model || _model->GetVisibleItemCount() == 0u || _rowHeightDip <= 0.0f)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+    {
+        return 0u;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u || _rowHeightDip <= 0.0f)
     {
         return 0u;
     }
 
     const size_t firstVisibleIndex = static_cast<size_t>((std::max)(0.0f, _verticalScrollDip) / _rowHeightDip);
-    return (std::min)(firstVisibleIndex, _model->GetVisibleItemCount() - 1u);
+    return (std::min)(firstVisibleIndex, itemCount - 1u);
 }
 
 std::optional<D2D1_RECT_F> Tree::GetVisibleItemHitRect(size_t visibleIndex) const noexcept
 {
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount() || _rowHeightDip <= 0.0f)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= itemCount || _rowHeightDip <= 0.0f)
     {
         return std::nullopt;
     }
 
     const D2D1_RECT_F contentRect = GetContentRect();
-    if (contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
+    if (! guard.IsCurrent() || contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
     {
         return std::nullopt;
     }
@@ -1833,18 +2410,33 @@ std::optional<D2D1_RECT_F> Tree::GetVisibleItemHitRect(size_t visibleIndex) cons
 
 std::optional<size_t> Tree::FindVisibleItemAtPoint(D2D1_POINT_2F pointDip) const noexcept
 {
-    if (! _model || _model->GetVisibleItemCount() == 0u || _rowHeightDip <= 0.0f || ! PointInRect(GetHitBounds(), pointDip))
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u || _rowHeightDip <= 0.0f || ! PointInRect(GetHitBounds(), pointDip))
     {
         return std::nullopt;
     }
 
     const D2D1_RECT_F scrollbarRect = GetVerticalScrollbarRect();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     if (scrollbarRect.right > scrollbarRect.left && PointInRect(scrollbarRect, pointDip))
     {
         return std::nullopt;
     }
 
     const D2D1_RECT_F contentRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     if (! PointInRect(contentRect, pointDip))
     {
         return std::nullopt;
@@ -1857,71 +2449,121 @@ std::optional<size_t> Tree::FindVisibleItemAtPoint(D2D1_POINT_2F pointDip) const
     }
 
     const size_t visibleIndex = static_cast<size_t>(offsetDip / _rowHeightDip);
-    return visibleIndex < _model->GetVisibleItemCount() ? std::optional<size_t>{visibleIndex} : std::nullopt;
+    return visibleIndex < itemCount ? std::optional<size_t>{visibleIndex} : std::nullopt;
 }
 
 float Tree::GetVerticalScrollableExtent() const noexcept
 {
-    if (! _model)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+    {
+        return 0.0f;
+    }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
     {
         return 0.0f;
     }
 
     const D2D1_RECT_F bounds   = GetBounds();
     const float viewportHeight = (std::max)(0.0f, (bounds.bottom - bounds.top) - (2.0f * kTreeContentInsetDip));
-    return (std::max)(0.0f, (static_cast<float>(_model->GetVisibleItemCount()) * _rowHeightDip) - viewportHeight);
+    return (std::max)(0.0f, (static_cast<float>(itemCount) * _rowHeightDip) - viewportHeight);
 }
 
 D2D1_RECT_F Tree::GetContentRect() const noexcept
 {
-    D2D1_RECT_F contentRect = GetBounds();
-    contentRect.left += kTreeContentInsetDip;
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    D2D1_RECT_F contentRect  = GetBounds();
+    const float scrollExtent = GetVerticalScrollableExtent();
+    if (! guard.IsCurrent())
+    {
+        return D2D1_RECT_F{};
+    }
+    if (IsRightToLeft() && scrollExtent > 0.0f)
+    {
+        contentRect.left += kScrollbarThicknessDip + kTreeContentInsetDip;
+    }
+    else
+    {
+        contentRect.left += kTreeContentInsetDip;
+    }
     contentRect.top += kTreeContentInsetDip;
     contentRect.bottom -= kTreeContentInsetDip;
-    contentRect.right -= GetVerticalScrollableExtent() > 0.0f ? (kScrollbarThicknessDip + kTreeContentInsetDip) : kTreeContentInsetDip;
+    contentRect.right -= ! IsRightToLeft() && scrollExtent > 0.0f ? (kScrollbarThicknessDip + kTreeContentInsetDip) : kTreeContentInsetDip;
     return contentRect;
 }
 
 D2D1_RECT_F Tree::GetVerticalScrollbarRect() const noexcept
 {
-    if (GetVerticalScrollableExtent() <= 0.0f)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const float scrollExtent = GetVerticalScrollableExtent();
+    if (! guard.IsCurrent() || scrollExtent <= 0.0f)
     {
         return D2D1::RectF();
     }
 
     const D2D1_RECT_F bounds = GetBounds();
-    return D2D1::RectF(bounds.right - kScrollbarThicknessDip - 2.0f, bounds.top + 2.0f, bounds.right - 2.0f, bounds.bottom - 2.0f);
+    return IsRightToLeft() ? D2D1::RectF(bounds.left + 2.0f, bounds.top + 2.0f, bounds.left + kScrollbarThicknessDip + 2.0f, bounds.bottom - 2.0f)
+                           : D2D1::RectF(bounds.right - kScrollbarThicknessDip - 2.0f, bounds.top + 2.0f, bounds.right - 2.0f, bounds.bottom - 2.0f);
 }
 
 D2D1_RECT_F Tree::GetVerticalThumbRect() const noexcept
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F track = GetVerticalScrollbarRect();
-    if (track.right <= track.left || track.bottom <= track.top || ! _model || _model->GetVisibleItemCount() == 0u)
+    if (! guard.IsCurrent() || track.right <= track.left || track.bottom <= track.top || ! _model)
     {
         return D2D1::RectF();
     }
-
-    const float viewportHeight = (std::max)(1.0f, GetContentRect().bottom - GetContentRect().top);
-    const float totalHeight    = (std::max)(viewportHeight, static_cast<float>(_model->GetVisibleItemCount()) * _rowHeightDip);
-    return ComputeScrollbarThumbRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, GetVerticalScrollableExtent());
+    const size_t itemCount = _model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u)
+    {
+        return D2D1::RectF();
+    }
+    const D2D1_RECT_F contentRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return D2D1::RectF();
+    }
+    const float viewportHeight = (std::max)(1.0f, contentRect.bottom - contentRect.top);
+    const float totalHeight    = (std::max)(viewportHeight, static_cast<float>(itemCount) * _rowHeightDip);
+    const float extent         = GetVerticalScrollableExtent();
+    return guard.IsCurrent() ? ComputeScrollbarThumbRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, extent)
+                             : D2D1::RectF();
 }
 
 D2D1_RECT_F Tree::GetVerticalThumbHitRect() const noexcept
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F track = GetVerticalScrollbarRect();
-    if (track.right <= track.left || track.bottom <= track.top || ! _model || _model->GetVisibleItemCount() == 0u)
+    if (! guard.IsCurrent() || track.right <= track.left || track.bottom <= track.top || ! _model)
     {
         return D2D1::RectF();
     }
-
-    const float viewportHeight = (std::max)(1.0f, GetContentRect().bottom - GetContentRect().top);
-    const float totalHeight    = (std::max)(viewportHeight, static_cast<float>(_model->GetVisibleItemCount()) * _rowHeightDip);
-    return ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, GetVerticalScrollableExtent());
+    const size_t itemCount = _model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u)
+    {
+        return D2D1::RectF();
+    }
+    const D2D1_RECT_F contentRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return D2D1::RectF();
+    }
+    const float viewportHeight = (std::max)(1.0f, contentRect.bottom - contentRect.top);
+    const float totalHeight    = (std::max)(viewportHeight, static_cast<float>(itemCount) * _rowHeightDip);
+    const float extent         = GetVerticalScrollableExtent();
+    return guard.IsCurrent() ? ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, extent)
+                             : D2D1::RectF();
 }
 
 void Tree::ClampScrollOffset() noexcept
 {
-    _verticalScrollDip = ClampScroll(_verticalScrollDip, GetVerticalScrollableExtent());
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const float extent = GetVerticalScrollableExtent();
+    if (guard.IsCurrent())
+        _verticalScrollDip = ClampScroll(_verticalScrollDip, extent);
 }
 
 void Tree::UpdateScrollbarHotState(const HitInfo& hit) noexcept
@@ -1942,14 +2584,21 @@ void Tree::SyncScrollbarAnimation(ControlHost& host) noexcept
                              _dragVerticalThumb);
 }
 
-std::optional<size_t> Tree::FindSelectedVisibleIndex() const noexcept
+std::optional<size_t> Tree::FindFocusedVisibleIndex() const noexcept
 {
-    return (_model && _selectedItemId) ? _model->FindVisibleItemById(_selectedItemId.value()) : std::nullopt;
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model      = _model;
+    const std::optional<size_t> result = (model && _focusedItemId) ? model->FindVisibleItemById(_focusedItemId.value()) : std::nullopt;
+    return guard.IsCurrent() ? result : std::nullopt;
 }
 
 void Tree::EnsureVisibleIndex(size_t visibleIndex) noexcept
 {
-    const float viewportHeight = (std::max)(1.0f, GetContentRect().bottom - GetContentRect().top);
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const D2D1_RECT_F contentRect = GetContentRect();
+    if (! guard.IsCurrent())
+        return;
+    const float viewportHeight = (std::max)(1.0f, contentRect.bottom - contentRect.top);
     const float rowTop         = static_cast<float>(visibleIndex) * _rowHeightDip;
     const float rowBottom      = rowTop + _rowHeightDip;
     if (rowTop < _verticalScrollDip)
@@ -1970,26 +2619,50 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
 
 bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate)
 {
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
     {
         return false;
     }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= itemCount)
+        return false;
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
 
-    // Without multi-select every gesture replaces the one selected item, which is the focused item.
-    std::vector<uint64_t> previousSelection;
+    std::vector<uint64_t> visibleIds;
+    if (_multiSelect && (mode == SelectMode::Toggle || mode == SelectMode::Range))
+    {
+        visibleIds = CollectVisibleItemIds();
+        if (! guard.IsCurrent())
+            return false;
+    }
+
+    const std::optional<uint64_t> previousFocus = _focusedItemId;
+    std::vector<uint64_t> previousSelection     = GetSelectedItemIds();
     if (_multiSelect)
     {
-        const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
-        previousSelection.assign(selection.begin(), selection.end());
         switch (mode)
         {
-            case SelectMode::Replace: _selection.SetSingle(item.id); break;
+            case SelectMode::Replace:
+                _selection.SetSingle(item.id);
+                _selectedItemId = item.id;
+                break;
             case SelectMode::Toggle:
                 _selection.Toggle(item.id);
-                _selection.PreserveOrdered(CollectVisibleItemIds()); // A toggled-on item joins at the end: restore the model's order.
+                _selection.PreserveOrdered(visibleIds); // A toggled-on item joins at the end: restore the model's order.
+                if (_selection.IsSelected(item.id))
+                {
+                    _selectedItemId = item.id;
+                }
+                else if (_selectedItemId == item.id)
+                {
+                    const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+                    _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+                }
                 break;
             case SelectMode::Range:
             {
@@ -1997,57 +2670,94 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
                 std::optional<uint64_t> anchor = _selection.GetAnchor();
                 if (! anchor)
                 {
-                    anchor = _selectedItemId;
+                    anchor = _focusedItemId;
                 }
                 if (anchor)
                 {
-                    _selection.SetRange(CollectVisibleItemIds(), anchor.value(), item.id);
+                    _selection.SetRange(visibleIds, anchor.value(), item.id);
+                    _selectedItemId = item.id;
                 }
                 else
                 {
                     _selection.SetSingle(item.id);
+                    _selectedItemId = item.id;
                 }
                 break;
             }
             case SelectMode::FocusOnly: break;
         }
     }
-    _selectedItemId = item.id;
+    else
+    {
+        switch (mode)
+        {
+            case SelectMode::Replace:
+            case SelectMode::Range: _selectedItemId = item.id; break;
+            case SelectMode::Toggle: _selectedItemId = _selectedItemId == item.id ? std::nullopt : std::optional<uint64_t>(item.id); break;
+            case SelectMode::FocusOnly: break;
+        }
+    }
+    _focusedItemId = item.id;
     EnsureVisibleIndex(visibleIndex);
+    if (! guard.IsCurrent())
+        return false;
     if (notifyDelegate && _delegate)
     {
-        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-        ITreeDelegate* const delegate         = _delegate;
-        delegate->OnTreeSelectionChanged(item.id);
-        if (selfLifetime.expired())
+        const std::vector<uint64_t> currentSelection = GetSelectedItemIds();
+        const bool membershipChanged                 = ! SameSelectedItems(previousSelection, currentSelection);
+        if (membershipChanged && ! currentSelection.empty())
+        {
+            const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+            ITreeDelegate* const delegate         = _delegate;
+            delegate->OnTreeSelectionChanged(_selectedItemId.value());
+            if (selfLifetime.expired() || ! guard.IsCurrent())
+            {
+                return false;
+            }
+        }
+        if (membershipChanged && (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent()))
         {
             return false;
         }
-        if (_multiSelect && ! NotifySelectionSetChanged(previousSelection))
+        if (previousFocus != _focusedItemId)
         {
-            return false;
+            const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+            ITreeDelegate* const delegate         = _delegate;
+            delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
+            if (selfLifetime.expired() || ! guard.IsCurrent())
+            {
+                return false;
+            }
         }
     }
     // UI Automation event delivery can dispatch a message that destroys this tree too.
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return ! selfLifetime.expired();
+    return ! selfLifetime.expired() && guard.IsCurrent();
 }
 
 std::vector<uint64_t> Tree::CollectVisibleItemIds() const
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
     std::vector<uint64_t> itemIds;
-    if (! _model)
+    if (! model)
     {
         return itemIds;
     }
 
-    const size_t itemCount = _model->GetVisibleItemCount();
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return {};
     itemIds.reserve(itemCount);
     TreeItemData item;
     for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
     {
-        _model->GetVisibleItem(visibleIndex, item);
+        // Preserve the distinction between a failed collection and an empty model. The operation boundary
+        // catches a standard exception before it can apply this collection to selection state.
+        model->GetVisibleItem(visibleIndex, item);
+        if (! guard.IsCurrent())
+            return {};
         itemIds.push_back(item.id);
     }
     return itemIds;
@@ -2057,127 +2767,266 @@ void Tree::ReconcileSelectionWithModel()
 {
     if (_multiSelect)
     {
-        _selection.PreserveOrdered(CollectVisibleItemIds());
+        const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const std::vector<uint64_t> visibleIds = CollectVisibleItemIds();
+        if (guard.IsCurrent())
+            _selection.PreserveOrdered(visibleIds);
     }
 }
 
 bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 {
-    const std::span<const uint64_t> current = _selection.GetOrderedSelection();
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const std::vector<uint64_t> current = GetSelectedItemIds();
     if (! _delegate || SameSelectedItems(previous, current))
     {
         return true;
     }
 
     // The delegate gets its own copy: it may change the selection, or destroy the tree, from inside the call.
-    const std::vector<uint64_t> selectedItemIds(current.begin(), current.end());
+    const std::vector<uint64_t> selectedItemIds(current);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     ITreeDelegate* const delegate         = _delegate;
-    delegate->OnTreeSelectionSetChanged(selectedItemIds);
-    return ! selfLifetime.expired();
+    return TryControlCallback([&] { delegate->OnTreeSelectionSetChanged(selectedItemIds); }) && ! selfLifetime.expired() && guard.IsCurrent();
 }
 
 bool Tree::CollapseSelectionToItem(uint64_t itemId)
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _multiSelect)
     {
         return true;
     }
 
-    // The item already holds the focus from the press: only the selection changes, so only its set callback is due.
+    // Focus already moved on press. Collapsing membership still reports the selected value before the complete set.
     const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
     const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
     _selection.SetSingle(itemId);
-    _selectedItemId = itemId;
-    if (! NotifySelectionSetChanged(previousSelection))
+    _selectedItemId               = itemId;
+    const auto lifetime           = GetLifetimeToken();
+    ITreeDelegate* const delegate = _delegate;
+    if (delegate && ! SameSelectedItems(previousSelection, GetSelectedItemIds()))
+    {
+        delegate->OnTreeSelectionChanged(itemId);
+        if (lifetime.expired() || ! guard.IsCurrent())
+            return false;
+    }
+    if (! guard.IsCurrent())
+        return false;
+    if (_delegate == delegate && ! NotifySelectionSetChanged(previousSelection))
     {
         return false;
     }
     RefreshAccessibilitySnapshot();
-    return true;
+    return ! lifetime.expired() && guard.IsCurrent();
 }
 
 bool Tree::RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept
+try
 {
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! IsEnabled() || ! model)
     {
         return false;
     }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
+    TreeItemData item;
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
     if (! _multiSelect)
     {
+        if (_selectedItemId)
+        {
+            return *_selectedItemId == item.id;
+        }
         return SelectVisibleIndex(visibleIndex, true);
     }
 
-    // Adding a selected item changes nothing: this is not a toggle.
-    TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
-    return SelectVisibleIndex(visibleIndex, _selection.IsSelected(item.id) ? SelectMode::FocusOnly : SelectMode::Toggle, true);
-}
-
-bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
-{
-    if (! _multiSelect || ! _model || visibleIndex >= _model->GetVisibleItemCount())
+    if (_selection.IsSelected(item.id))
+    {
+        return true;
+    }
+    const std::vector<uint64_t> previousSelection(_selection.GetOrderedSelection().begin(), _selection.GetOrderedSelection().end());
+    const std::optional<uint64_t> previousFocus = _focusedItemId;
+    const auto previousAnchor                   = _selection.GetAnchor();
+    if (! SelectVisibleIndex(visibleIndex, SelectMode::Toggle, false))
     {
         return false;
     }
+    _selection.SetAnchor(previousAnchor);
+    if (_delegate && ! SameSelectedItems(previousSelection, _selection.GetOrderedSelection()))
+    {
+        if (! previousSelection.empty() || _selection.GetCount() > 0u)
+        {
+            const std::span<const uint64_t> current = _selection.GetOrderedSelection();
+            if (! current.empty())
+            {
+                const std::weak_ptr<int> lifetime = GetLifetimeToken();
+                if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() || ! guard.IsCurrent())
+                {
+                    return false;
+                }
+            }
+        }
+        if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    if (_delegate && previousFocus != _focusedItemId)
+    {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        if (! TryControlCallback([&] { _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId); }) || lifetime.expired() || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RefreshAccessibilitySnapshot();
+    return ! lifetime.expired() && guard.IsCurrent();
+}
+
+catch (const std::exception&)
+{
+    return false;
+}
+
+bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
+try
+{
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! IsEnabled() || ! model)
+    {
+        return false;
+    }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return false;
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
-    if (! _selection.IsSelected(item.id))
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return false;
+    if (! IsItemSelected(item.id))
     {
         return true;
     }
 
-    const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
-    const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
-    _selection.Toggle(item.id); // Removes it; the focused item stays where it is.
-    if (! NotifySelectionSetChanged(previousSelection))
+    const std::vector<uint64_t> previousSelection = GetSelectedItemIds();
+    if (_multiSelect)
     {
-        return false;
+        const auto previousAnchor = _selection.GetAnchor();
+        _selection.Toggle(item.id);
+        _selection.SetAnchor(previousAnchor);
+        if (_selectedItemId == item.id)
+        {
+            const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+            _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+        }
+    }
+    else
+    {
+        _selectedItemId.reset();
+    }
+    const std::vector<uint64_t> currentSelection = GetSelectedItemIds();
+    if (_delegate && ! SameSelectedItems(previousSelection, currentSelection))
+    {
+        if (! currentSelection.empty())
+        {
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
+            if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() || ! guard.IsCurrent())
+            {
+                return false;
+            }
+        }
+        if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
+        {
+            return false;
+        }
     }
     // UI Automation event delivery can dispatch a message that destroys this tree too.
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return ! selfLifetime.expired();
+    return ! selfLifetime.expired() && guard.IsCurrent();
+}
+
+catch (const std::exception&)
+{
+    return false;
 }
 
 bool Tree::OnSelectAll(ControlHost& host)
 {
-    if (! _multiSelect || ! _model || _model->GetVisibleItemCount() == 0u)
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! _multiSelect || ! model)
     {
         return false;
     }
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || itemCount == 0u)
+        return false;
 
     const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
     const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
-    const std::vector<uint64_t> allItemIds = CollectVisibleItemIds();
+    const std::optional<uint64_t> previousFocus = _focusedItemId;
+    const std::vector<uint64_t> allItemIds      = CollectVisibleItemIds();
+    if (! guard.IsCurrent() || allItemIds.size() != itemCount)
+        return false;
     _selection.SetRange(allItemIds, allItemIds.front(), allItemIds.back());
+    // Keep the existing primary while it remains selected. If the old selection was empty, prefer the
+    // focused row that Select All is about to include, and otherwise use the last row in visible order.
+    if (! _selectedItemId || ! _selection.IsSelected(*_selectedItemId))
+    {
+        _selectedItemId = _focusedItemId && _selection.IsSelected(*_focusedItemId) ? _focusedItemId : std::optional<uint64_t>(allItemIds.back());
+    }
     // The focused item stays; without one the first item takes it, and the delegate hears of that like any other move.
-    const bool focusMoves = ! FindSelectedVisibleIndex().has_value();
+    const bool focusMoves = ! FindFocusedVisibleIndex().has_value();
+    if (! guard.IsCurrent())
+        return false;
     if (focusMoves)
     {
-        _selectedItemId = allItemIds.front();
+        _focusedItemId = allItemIds.front();
     }
     if (_delegate)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         ITreeDelegate* const delegate         = _delegate;
-        if (focusMoves)
+        if (! SameSelectedItems(previousSelection, _selection.GetOrderedSelection()))
         {
-            delegate->OnTreeSelectionChanged(allItemIds.front());
-            if (selfLifetime.expired())
+            delegate->OnTreeSelectionChanged(_selectedItemId.value());
+            if (selfLifetime.expired() || ! guard.IsCurrent())
+            {
+                return true;
+            }
+            if (_delegate != delegate)
+            {
+                return true;
+            }
+            if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
             {
                 return true;
             }
         }
-        if (! NotifySelectionSetChanged(previousSelection))
+        if (previousFocus != _focusedItemId)
         {
-            return true;
+            if (_delegate != delegate)
+            {
+                return true;
+            }
+            delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
+            if (selfLifetime.expired() || ! guard.IsCurrent())
+            {
+                return true;
+            }
         }
     }
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    if (! selfLifetime.expired())
+    if (! selfLifetime.expired() && guard.IsCurrent())
     {
         Invalidate(host);
     }
@@ -2186,16 +3035,22 @@ bool Tree::OnSelectAll(ControlHost& host)
 
 bool Tree::ToggleExpanded(size_t visibleIndex)
 {
-    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
     {
         return true;
     }
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex >= count)
+        return true;
 
     TreeItemData item;
-    _model->GetVisibleItem(visibleIndex, item);
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        return true;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     static_cast<void>(RequestExpandedState(visibleIndex, ! item.expanded));
-    return ! selfLifetime.expired();
+    return ! selfLifetime.expired() && guard.IsCurrent();
 }
 
 float Tree::ComputeExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
@@ -2255,18 +3110,24 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
 
 std::vector<TreeItemData> Tree::CaptureVisibleItems() const
 {
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
     std::vector<TreeItemData> items;
-    if (! _model)
+    if (! model)
     {
         return items;
     }
 
-    items.reserve(_model->GetVisibleItemCount());
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return {};
+    items.reserve(itemCount);
     TreeItemData item;
-    for (size_t visibleIndex = 0u; visibleIndex < _model->GetVisibleItemCount(); ++visibleIndex)
+    for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
     {
         item = {};
-        _model->GetVisibleItem(visibleIndex, item);
+        if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+            return {};
         items.push_back(std::move(item));
     }
 
@@ -2334,24 +3195,31 @@ float Tree::GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept
 
 std::optional<size_t> Tree::FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept
 {
-    if (! _model || prefix.empty())
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model || prefix.empty())
     {
         return std::nullopt;
     }
 
-    const size_t itemCount = _model->GetVisibleItemCount();
+    const size_t itemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return std::nullopt;
     if (itemCount == 0u)
     {
         return std::nullopt;
     }
 
-    const std::optional<size_t> currentIndex = FindSelectedVisibleIndex();
-    const size_t startIndex                  = currentIndex ? ((currentIndex.value() + 1u) % itemCount) : 0u;
+    const std::optional<size_t> currentIndex = FindFocusedVisibleIndex();
+    if (! guard.IsCurrent())
+        return std::nullopt;
+    const size_t startIndex = currentIndex ? ((currentIndex.value() + 1u) % itemCount) : 0u;
     TreeItemData item;
     for (size_t offset = 0u; offset < itemCount; ++offset)
     {
         const size_t visibleIndex = (startIndex + offset) % itemCount;
-        _model->GetVisibleItem(visibleIndex, item);
+        if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+            return std::nullopt;
         if (StartsWithInsensitive(item.text, prefix))
         {
             return visibleIndex;

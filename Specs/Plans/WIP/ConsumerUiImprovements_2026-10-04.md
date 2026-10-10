@@ -451,7 +451,7 @@ grammar using ad hoc regular expressions. This stage adds no dependency until th
 - [ ] D1: inventory real help text and localization, choose the declared subset and parser dependency strategy.
 - [ ] D2: implement immutable document preparation, typography, wrapping and bounded failure behavior.
 - [ ] D3: add selection, copy, keyboard links, UIA and nested scroll behavior.
-- [ ] D4: add a synthetic help sample, usage guidance, gallery and design-system publication.
+- [ ] D4: add a synthetic help sample, usage guidance, gallery and committed design-system files.
 - [ ] D5: compare a RedXe camera-guide pilot with the current label presentation; retain the simpler form if rich
   text does not improve readability or navigation.
 
@@ -532,7 +532,7 @@ colors. They can all use role metadata without changing those contracts.
 
 - [ ] E5: audit palette fields, token documentation and consumer adapters; settle metadata ownership.
 - [ ] E6: add typed descriptors and override diagnostics with default-palette parity tests.
-- [ ] E7: add role previews and updated authoring/adapter documentation; republish the design system.
+- [ ] E7: add role previews and updated authoring/adapter documentation; commit the design-system changes.
 - [ ] E8: integrate metadata into RedSalamander's existing theme workbench in a separate product change.
 
 Acceptance: metadata coverage of public roles, exact unchanged default palettes, partial override diagnostics,
@@ -644,7 +644,7 @@ Library validation cannot complete those product gates. Keep adoption measuremen
 - [ ] Accept S0 decisions and update the owning domain contracts before changing behavior.
 - [ ] Complete accepted library stages and required platform, interaction and paired performance evidence.
 - [ ] For every new concrete control, add catalog/factory support, a populated gallery tile, interaction tests,
-  `docs/controls.md` usage and a design-system guideline/preview; republish with `gallery.ps1 -PublishDocs`.
+  `docs/controls.md` usage and a design-system guideline/preview; regenerate the gallery with `gallery.ps1 -PublishDocs` and commit both.
 - [ ] Update affected usage/hosting/performance documentation and link reviewed DxUi-only receipts under
   `Measurements`. Generated temporary reports stay under tooling-owned `.build`.
 - [ ] Update `capabilities.json` only for actually implemented/qualified support, with pending limits explicit.
@@ -652,6 +652,6 @@ Library validation cannot complete those product gates. Keep adoption measuremen
 - [ ] Reconcile final normative contracts, move this completed library plan to Done and update the index.
 
 Documentation/gallery review for this proposal: current published controls and images remain accurate because no
-implementation or rendered appearance changes here. Gallery regeneration and design-system publication become
+implementation or rendered appearance changes here. Gallery regeneration and committed design-system updates become
 required in the visual implementation stages above. This plan does not close existing menu, Grid, Tree, slider,
 consumer or platform plans.

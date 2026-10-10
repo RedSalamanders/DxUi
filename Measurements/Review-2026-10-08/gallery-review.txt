@@ -1,0 +1,22 @@
+{
+  "reviewedUtc": "2026-10-09T00:48:30.5226450Z",
+  "reviewer": "lead",
+  "images": [
+    "theme-controls-light.png",
+    "theme-controls-dark.png",
+    "theme-controls-high-contrast.png",
+    "theme-controls-rainbow-light.png",
+    "theme-controls-rainbow-dark.png",
+    "embedded-controls.png"
+  ],
+  "observations": [
+    "All 30 catalog controls and populated variants appear in the five theme sheets.",
+    "Inactive Tree/Grid selection text remains readable; high-contrast selection uses the system text color.",
+    "Light-theme selected toggles use a contrasting dark knob; dark and high-contrast themes retain their light knob.",
+    "No unintended missing controls or layout overlap was observed in the harness sheets.",
+    "Intentional clipping, ellipsis and scroll-viewport examples remain visible."
+  ],
+  "limitations": [
+    "Static deterministic harness capture; no physical pointer, foreground, real IME, assistive-technology or touch acceptance claim."
+  ]
+}

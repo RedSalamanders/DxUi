@@ -21,6 +21,88 @@ std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept
 
 namespace
 {
+template <typename TCallback> [[nodiscard]] Control* FindPanelChildHit(Panel& panel, const std::weak_ptr<int>& ownerLifetime, TCallback&& callback)
+{
+    size_t index             = panel.GetLogicalChildCount();
+    const size_t visitBudget = index;
+    for (size_t visits = 0u; visits < visitBudget && index > 0u; ++visits)
+    {
+        if (ownerLifetime.expired())
+            return nullptr;
+        auto children = panel.GetChildren();
+        index         = (std::min)(index, children.size());
+        if (index == 0u)
+            return nullptr;
+        Control* const child = children[--index].get();
+        if (! child)
+            continue;
+        const auto childLifetime = GetControlLifetimeToken(*child);
+        Control* const hit       = callback(*child);
+        if (ownerLifetime.expired())
+            return nullptr;
+        children = panel.GetChildren();
+        if (! childLifetime.expired() && index < children.size() && children[index].get() == child && hit && IsControlEffectivelyInteractive(child, hit))
+            return hit;
+    }
+    return nullptr;
+}
+
+template <typename TPanel, typename TCallback>
+void ForEachPanelChildCallback(TPanel& panel,
+                               const std::weak_ptr<int>& ownerLifetime,
+                               TCallback&& callback) noexcept(noexcept(std::declval<TCallback&>()(std::declval<Control&>())))
+{
+    const size_t visitBudget = panel.GetLogicalChildCount();
+    size_t index             = 0u;
+    size_t visits            = 0u;
+    while (visits < visitBudget)
+    {
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+
+        auto children = panel.GetChildren();
+        if (index >= children.size())
+        {
+            return;
+        }
+
+        Control* child = children[index].get();
+        if (! child)
+        {
+            ++index;
+            ++visits;
+            continue;
+        }
+
+        const std::weak_ptr<int> childLifetime = GetControlLifetimeToken(*child);
+        callback(*child);
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+
+        ++visits;
+        children = panel.GetChildren();
+        if (! childLifetime.expired() && index < children.size() && children[index].get() == child)
+        {
+            ++index;
+        }
+        else if (! childLifetime.expired())
+        {
+            const auto moved = std::find_if(children.begin(), children.end(), [child](const auto& candidate) { return candidate.get() == child; });
+            if (moved != children.end())
+            {
+                index = static_cast<size_t>(moved - children.begin()) + 1u;
+            }
+        }
+    }
+}
+} // namespace
+
+namespace
+{
 constexpr GUID kD2DShadowEffectId = {0xC67EA361, 0x1863, 0x4e69, {0x89, 0xDB, 0x69, 0x5D, 0x3E, 0x9A, 0x5B, 0x6B}};
 
 [[nodiscard]] std::wstring TraceLimitedText(std::wstring_view value)
@@ -351,10 +433,11 @@ constexpr float kSliderTouchHaloRingWidthDip = 2.0f;
     return (std::clamp)((std::min)(widthDip, heightDip) * 0.18f, 4.0f, 10.0f);
 }
 
-[[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateTooltipTextLayout(const ControlHost& host, std::wstring_view text, float widthDip, float heightDip) noexcept
+[[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateTooltipTextLayout(
+    const ControlHost& host, std::wstring_view text, float widthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
 {
     auto* factory = host.GetWriteFactory();
-    auto* format  = host.GetTextFormat(FontRole::Small, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true);
+    auto* format  = host.GetTextFormat(FontRole::Small, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true, readingDirection);
     if (! factory || ! format)
     {
         return {};
@@ -1187,17 +1270,89 @@ constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
     return metrics;
 }
 
+void Panel::DetachChildPreservingInheritance(Control& child) noexcept
+{
+    child._detachedFlowDirection = child.GetFlowDirection();
+    child._detachedDensity       = child.GetDensity();
+    child._parent                = nullptr;
+    child.PropagateHost(nullptr);
+}
+
+std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
+{
+    if (index >= _children.size() || ! _children[index])
+        return {};
+
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    Control* const requested               = _children[index].get();
+    const std::weak_ptr<int> childLifetime = requested->GetLifetimeToken();
+    ControlHost* const host                = GetHost();
+    if (host)
+    {
+        const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
+            host->CancelCapturedControlInteraction();
+        if (ownerLifetime.expired() || childLifetime.expired() || GetHost() != host)
+            return {};
+        // Cancellation can choose newer focus (including reaffirming it) or start another gesture.
+        if (Control* focused = host->GetFocusControl();
+            host->_focusRequestRevision != focusBeforeCancellation && focused && IsControlInTree(requested, focused))
+            return {};
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
+            return {};
+        if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(requested, focused))
+            host->SetFocusControl(nullptr);
+        if (ownerLifetime.expired() || childLifetime.expired() || GetHost() != host)
+            return {};
+        // Preserve focus/capture restored by the callback instead of detaching its live target.
+        if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(requested, focused))
+            return {};
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
+            return {};
+    }
+
+    // Focus/capture callbacks can shift or remove the requested slot. Resolve its identity after those callbacks.
+    for (auto& slot : _children)
+    {
+        if (slot.get() != requested)
+            continue;
+        auto child = std::move(slot);
+        DetachChildPreservingInheritance(*child);
+        if (childLifetime.expired())
+        {
+            static_cast<void>(child.release());
+            return {};
+        }
+        if (! ownerLifetime.expired())
+        {
+            if (host)
+                host->RefreshAccessibilitySnapshot();
+            if (! ownerLifetime.expired())
+                RequestInvalidate();
+        }
+        return child;
+    }
+    return {};
+}
+
 void Panel::ClearChildren() noexcept
 {
-    for (auto& child : _children)
+    // Dispatch against the entry snapshot. Reentrant additions stay in the live panel while the original owners are
+    // detached from it, so recursive ClearChildren calls cannot invalidate this pass.
+    auto children = std::exchange(_children, std::vector<std::unique_ptr<Control>>{});
+    for (auto& child : children)
     {
-        // GetChildren hands out the owning pointers: a child moved out of one leaves a null slot, as everywhere here.
         if (child)
         {
+            child->_parent                         = nullptr;
+            const std::weak_ptr<int> childLifetime = GetControlLifetimeToken(*child);
             child->PropagateHost(nullptr);
+            if (childLifetime.expired())
+            {
+                static_cast<void>(child.release());
+            }
         }
     }
-    _children.clear();
 }
 
 std::span<std::unique_ptr<Control>> Panel::GetChildren() noexcept
@@ -1227,97 +1382,107 @@ const Control* Panel::GetLogicalChild(size_t index) const noexcept
 
 void Panel::PropagateHost(ControlHost* host) noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::PropagateHost(host);
-    for (auto& child : _children)
+    if (ownerLifetime.expired())
     {
-        if (child)
-        {
-            child->PropagateHost(host);
-        }
+        return;
     }
+    ForEachPanelChildCallback(*this, ownerLifetime, [host](Control& child) { child.PropagateHost(host); });
 }
 
 void Panel::OnFlowDirectionChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::OnFlowDirectionChanged();
-    for (auto& child : _children)
+    if (ownerLifetime.expired())
     {
-        if (child)
-        {
-            child->OnFlowDirectionChanged();
-        }
+        return;
     }
+    ForEachPanelChildCallback(*this, ownerLifetime, [](Control& child) { child.OnFlowDirectionChanged(); });
 }
 
 void Panel::OnDensityChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::OnDensityChanged();
-    for (auto& child : _children)
+    if (ownerLifetime.expired())
     {
-        if (child && ! child->HasExplicitDensity())
-        {
-            child->OnDensityChanged();
-        }
+        return;
     }
+    ForEachPanelChildCallback(*this,
+                              ownerLifetime,
+                              [](Control& child)
+    {
+        if (! child.HasExplicitDensity())
+        {
+            child.OnDensityChanged();
+        }
+    });
 }
 
 void Panel::OnHidden() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::OnHidden();
-    for (auto& child : _children)
+    if (ownerLifetime.expired())
     {
-        if (child)
-        {
-            child->OnHidden();
-        }
+        return;
     }
+    ForEachPanelChildCallback(*this, ownerLifetime, [](Control& child) { child.OnHidden(); });
 }
 
 void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::OnHostDpiChanged(host);
-    for (auto& child : _children)
+    if (ownerLifetime.expired())
     {
-        if (child)
-        {
-            child->OnHostDpiChanged(host);
-        }
+        return;
     }
+    ForEachPanelChildCallback(*this, ownerLifetime, [&host](Control& child) { child.OnHostDpiChanged(host); });
 }
 
 void Panel::Paint(ControlHost& host) const
 {
-    for (const auto& child : _children)
+    ForEachPanelChildCallback(*this,
+                              GetLifetimeToken(),
+                              [&host](const Control& child)
     {
-        if (child && child->IsVisible())
+        if (child.IsVisible())
         {
-            child->Paint(host);
+            child.Paint(host);
         }
-    }
+    });
 }
 
 void Panel::PaintOverlay(ControlHost& host) const
 {
-    for (const auto& child : _children)
+    ForEachPanelChildCallback(*this,
+                              GetLifetimeToken(),
+                              [&host](const Control& child)
     {
-        if (child && child->IsVisible())
+        if (child.IsVisible())
         {
-            child->PaintOverlay(host);
+            child.PaintOverlay(host);
         }
-    }
+    });
 }
 
 bool Panel::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    bool keepTicking = false;
-    for (const auto& child : _children)
+    bool keepTicking         = false;
+    const auto ownerLifetime = GetLifetimeToken();
+    ForEachPanelChildCallback(*this,
+                              ownerLifetime,
+                              [&host, nowTickMs, &keepTicking](Control& child)
     {
-        if (child && child->IsVisible())
+        if (child.IsVisible())
         {
-            keepTicking = child->Tick(host, nowTickMs) || keepTicking;
+            keepTicking = child.Tick(host, nowTickMs) || keepTicking;
         }
-    }
-    return keepTicking;
+    });
+    return ! ownerLifetime.expired() && keepTicking;
 }
 
 Control* Panel::HitTest(D2D1_POINT_2F point)
@@ -1327,18 +1492,10 @@ Control* Panel::HitTest(D2D1_POINT_2F point)
         return nullptr;
     }
 
-    for (auto it = _children.rbegin(); it != _children.rend(); ++it)
-    {
-        if (*it)
-        {
-            if (Control* hit = (*it)->HitTest(point))
-            {
-                return hit;
-            }
-        }
-    }
-
-    return this;
+    const auto ownerLifetime = GetLifetimeToken();
+    if (Control* const hit = FindPanelChildHit(*this, ownerLifetime, [point](Control& child) { return child.HitTest(point); }))
+        return hit;
+    return ownerLifetime.expired() ? nullptr : this;
 }
 
 const Control* Panel::HitTest(D2D1_POINT_2F point) const
@@ -1353,18 +1510,7 @@ Control* Panel::HitTestOverlay(D2D1_POINT_2F point)
         return nullptr;
     }
 
-    for (auto it = _children.rbegin(); it != _children.rend(); ++it)
-    {
-        if (*it)
-        {
-            if (Control* hit = (*it)->HitTestOverlay(point))
-            {
-                return hit;
-            }
-        }
-    }
-
-    return nullptr;
+    return FindPanelChildHit(*this, GetLifetimeToken(), [point](Control& child) { return child.HitTestOverlay(point); });
 }
 
 const Control* Panel::HitTestOverlay(D2D1_POINT_2F point) const
@@ -1374,10 +1520,59 @@ const Control* Panel::HitTestOverlay(D2D1_POINT_2F point) const
 
 void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnimationKey)
 {
+    const auto invalidateGeometry                    = ControlModelQueryAccess::InvalidateGeometry(*this);
+    const std::weak_ptr<int> ownerLifetime           = GetLifetimeToken();
+    Control* const expectedCurrent                   = _currentPage.get();
+    Control* expectedOutgoing                        = _outgoingPage.get();
+    const std::weak_ptr<int> expectedCurrentLifetime = expectedCurrent ? GetControlLifetimeToken(*expectedCurrent) : std::weak_ptr<int>{};
+    std::weak_ptr<int> expectedOutgoingLifetime      = expectedOutgoing ? GetControlLifetimeToken(*expectedOutgoing) : std::weak_ptr<int>{};
+    const auto rolesUnchanged = [this, expectedCurrent, &expectedOutgoing, &expectedCurrentLifetime, &expectedOutgoingLifetime]() noexcept
+    {
+        return _currentPage.get() == expectedCurrent && _outgoingPage.get() == expectedOutgoing &&
+               (expectedCurrent == nullptr || ! expectedCurrentLifetime.expired()) && (expectedOutgoing == nullptr || ! expectedOutgoingLifetime.expired());
+    };
+
+    const std::weak_ptr<int> incomingLifetime = page ? GetControlLifetimeToken(*page) : std::weak_ptr<int>{};
     if (page)
     {
-        page->SetBounds(GetBounds());
-        page->Reparent(nullptr, GetHost());
+        if (IsRenderStageActive())
+        {
+            // The next explicit preparation applies the new page bounds; paint never performs layout.
+            _childBoundsPending = true;
+            if (auto* const host = GetHost())
+                host->_pendingPageLayout = true;
+        }
+        else
+        {
+            page->SetBounds(GetBounds());
+        }
+        if (incomingLifetime.expired())
+        {
+            static_cast<void>(page.release());
+            return;
+        }
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+        if (! rolesUnchanged())
+        {
+            return;
+        }
+        page->ReparentWithPreviousInheritance(this, GetHost(), page->GetFlowDirection(), page->GetDensity());
+        if (incomingLifetime.expired())
+        {
+            static_cast<void>(page.release());
+            return;
+        }
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+        if (! rolesUnchanged())
+        {
+            return;
+        }
     }
 
     ControlHost* const host = GetHost();
@@ -1386,23 +1581,66 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     {
         if (_outgoingPage)
         {
-            _outgoingPage->PropagateHost(nullptr);
+            Control* const outgoing = _outgoingPage.get();
+            outgoing->PropagateHost(nullptr);
+            if (ownerLifetime.expired())
+            {
+                return;
+            }
+            if (_outgoingPage.get() != outgoing || ! rolesUnchanged())
+            {
+                return;
+            }
             _outgoingPage.reset();
+            expectedOutgoing = nullptr;
+            expectedOutgoingLifetime.reset();
         }
         if (_currentPage)
         {
-            _currentPage->PropagateHost(nullptr);
+            Control* const current = _currentPage.get();
+            current->PropagateHost(nullptr);
+            if (ownerLifetime.expired())
+            {
+                return;
+            }
+            if (_currentPage.get() != current || ! rolesUnchanged())
+            {
+                return;
+            }
+        }
+        if (ownerLifetime.expired() || ! rolesUnchanged())
+        {
+            return;
         }
         _currentPage = std::move(page);
-        FinishTransition();
+        if (! FinishTransition())
+        {
+            return;
+        }
         RequestInvalidate();
         return;
     }
 
     if (_outgoingPage)
     {
-        _outgoingPage->PropagateHost(nullptr);
+        Control* const outgoing = _outgoingPage.get();
+        outgoing->PropagateHost(nullptr);
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+        if (_outgoingPage.get() != outgoing || ! rolesUnchanged())
+        {
+            return;
+        }
         _outgoingPage.reset();
+        expectedOutgoing = nullptr;
+        expectedOutgoingLifetime.reset();
+    }
+
+    if (ownerLifetime.expired() || ! rolesUnchanged())
+    {
+        return;
     }
 
     _outgoingPage                     = std::move(_currentPage);
@@ -1461,12 +1699,12 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
 
     D2D1_MATRIX_3X2_F previousTransform{};
     dc->GetTransform(&previousTransform);
+    auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
     wil::com_ptr<ID2D1Layer> layer;
     if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
     {
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
         page->Paint(host);
-        dc->SetTransform(previousTransform);
         return;
     }
 
@@ -1475,9 +1713,8 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
         clipRect, nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::Matrix3x2F::Identity(), ClampUnit(opacity), nullptr, D2D1_LAYER_OPTIONS1_NONE);
     dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
     dc->PushLayer(layerParameters, layer.get());
+    auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
     page->Paint(host);
-    dc->PopLayer();
-    dc->SetTransform(previousTransform);
 }
 
 PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64_t nowTickMs) const noexcept
@@ -1521,7 +1758,12 @@ PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64
 
 void PageHost::Paint(ControlHost& host) const
 {
-    if (! _currentPage)
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
+    if (! current)
     {
         return;
     }
@@ -1529,7 +1771,7 @@ void PageHost::Paint(ControlHost& host) const
     const auto state = ResolveDebugState(host.GetTheme(), 0u);
     if (! state.active)
     {
-        _currentPage->Paint(host);
+        current->Paint(host);
         return;
     }
 
@@ -1537,16 +1779,29 @@ void PageHost::Paint(ControlHost& host) const
     transitionPaintPerf.SetValue0(static_cast<uint64_t>(state.linearProgress * 1000.0f));
     transitionPaintPerf.SetValue1(_transition.hasConnectedAnimation ? 1u : 0u);
 
-    if (_outgoingPage)
+    if (outgoing)
     {
-        PaintPage(host, _outgoingPage.get(), state.outgoingOpacity, state.outgoingOffsetXDip);
+        PaintPage(host, outgoing, state.outgoingOpacity, state.outgoingOffsetXDip);
+        if (ownerLifetime.expired() || currentLifetime.expired() || _currentPage.get() != current || outgoingLifetime.expired() ||
+            _outgoingPage.get() != outgoing || ! _transition.active)
+        {
+            return;
+        }
     }
-    PaintPage(host, _currentPage.get(), state.incomingOpacity, state.incomingOffsetXDip);
+    if (! ownerLifetime.expired() && ! currentLifetime.expired() && _currentPage.get() == current)
+    {
+        PaintPage(host, current, state.incomingOpacity, state.incomingOffsetXDip);
+    }
 }
 
 void PageHost::PaintOverlay(ControlHost& host) const
 {
-    if (! _currentPage)
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
+    if (! current)
     {
         return;
     }
@@ -1555,9 +1810,20 @@ void PageHost::PaintOverlay(ControlHost& host) const
     auto* dc         = host.GetDeviceContext();
     if (! state.active)
     {
-        _currentPage->PaintOverlay(host);
+        current->PaintOverlay(host);
         return;
     }
+
+    bool pagesStillCurrent   = true;
+    const auto validatePages = [&]() noexcept
+    {
+        pagesStillCurrent = ! ownerLifetime.expired() && ! currentLifetime.expired() && _currentPage.get() == current;
+        if (outgoing)
+        {
+            pagesStillCurrent = pagesStillCurrent && ! outgoingLifetime.expired() && _outgoingPage.get() == outgoing && _transition.active;
+        }
+        return pagesStillCurrent;
+    };
 
     const auto paintOverlayLayer = [&](const Control* page, float opacity, float offsetXDip)
     {
@@ -1566,14 +1832,17 @@ void PageHost::PaintOverlay(ControlHost& host) const
             return;
         }
 
+        if (! validatePages())
+            return;
         D2D1_MATRIX_3X2_F previousTransform{};
         dc->GetTransform(&previousTransform);
+        auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
         wil::com_ptr<ID2D1Layer> layer;
         if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
         {
             dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
             page->PaintOverlay(host);
-            dc->SetTransform(previousTransform);
+            static_cast<void>(validatePages());
             return;
         }
 
@@ -1581,16 +1850,20 @@ void PageHost::PaintOverlay(ControlHost& host) const
             D2D1::LayerParameters1(GetBounds(), nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::Matrix3x2F::Identity(), ClampUnit(opacity));
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
         dc->PushLayer(layerParameters, layer.get());
+        auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
         page->PaintOverlay(host);
-        dc->PopLayer();
-        dc->SetTransform(previousTransform);
+        static_cast<void>(validatePages());
     };
 
-    if (_outgoingPage)
+    if (outgoing)
     {
-        paintOverlayLayer(_outgoingPage.get(), state.outgoingOpacity, state.outgoingOffsetXDip);
+        paintOverlayLayer(outgoing, state.outgoingOpacity, state.outgoingOffsetXDip);
+        if (! validatePages())
+            return;
     }
-    paintOverlayLayer(_currentPage.get(), state.incomingOpacity, state.incomingOffsetXDip);
+    paintOverlayLayer(current, state.incomingOpacity, state.incomingOffsetXDip);
+    if (! validatePages())
+        return;
 
     if (! dc || ! _transition.hasConnectedAnimation)
     {
@@ -1614,21 +1887,42 @@ void PageHost::PaintOverlay(ControlHost& host) const
 
 bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    bool keepTicking = false;
-    if (_currentPage && _currentPage->IsVisible())
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
+    bool keepTicking                          = false;
+    if (current && ! currentLifetime.expired() && current->IsVisible())
     {
-        keepTicking = _currentPage->Tick(host, nowTickMs) || keepTicking;
+        keepTicking = current->Tick(host, nowTickMs) || keepTicking;
+        if (ownerLifetime.expired())
+        {
+            return false;
+        }
     }
-    if (_outgoingPage && _outgoingPage->IsVisible())
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
+        outgoing->IsVisible())
     {
-        keepTicking = _outgoingPage->Tick(host, nowTickMs) || keepTicking;
+        keepTicking = outgoing->Tick(host, nowTickMs) || keepTicking;
+        if (ownerLifetime.expired())
+        {
+            return false;
+        }
     }
 
+    if (ownerLifetime.expired())
+    {
+        return false;
+    }
     if (host.GetTheme().reducedMotion)
     {
         if (_transition.active)
         {
-            FinishTransition();
+            if (! FinishTransition())
+            {
+                return false;
+            }
             Invalidate(host);
             return true;
         }
@@ -1657,7 +1951,10 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     _transition.linearProgress = ClampUnit(static_cast<float>(nowTickMs - _transition.startTickMs) / static_cast<float>(kPageTransitionDurationMs));
     if (_transition.linearProgress >= 1.0f)
     {
-        FinishTransition();
+        if (! FinishTransition())
+        {
+            return false;
+        }
     }
     // Every transition tick moves the pages, including the tick that settles them into their final state.
     Invalidate(host);
@@ -1706,6 +2003,7 @@ void PageHost::DebugUnfreezeTransitionProgress() noexcept
 
 Control* PageHost::HitTest(D2D1_POINT_2F point)
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     if (! Control::HitTest(point))
     {
         return nullptr;
@@ -1716,9 +2014,18 @@ Control* PageHost::HitTest(D2D1_POINT_2F point)
         return nullptr;
     }
 
-    if (_currentPage)
+    Control* const page = _currentPage.get();
+    if (page)
     {
-        if (Control* const hit = _currentPage->HitTest(point))
+        const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
+        Control* const hit                    = page->HitTest(point);
+        if (ownerLifetime.expired())
+            return nullptr;
+        if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
+        {
+            return _transition.active ? nullptr : this;
+        }
+        if (hit && ControlBelongsToBranch(page, hit) && IsControlEffectivelyInteractive(page, hit))
         {
             return hit;
         }
@@ -1729,6 +2036,7 @@ Control* PageHost::HitTest(D2D1_POINT_2F point)
 
 const Control* PageHost::HitTest(D2D1_POINT_2F point) const
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     if (! Control::HitTest(point))
     {
         return nullptr;
@@ -1739,9 +2047,18 @@ const Control* PageHost::HitTest(D2D1_POINT_2F point) const
         return nullptr;
     }
 
-    if (_currentPage)
+    const Control* const page = _currentPage.get();
+    if (page)
     {
-        if (const Control* const hit = _currentPage->HitTest(point))
+        const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
+        const Control* const hit              = page->HitTest(point);
+        if (ownerLifetime.expired())
+            return nullptr;
+        if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
+        {
+            return _transition.active ? nullptr : this;
+        }
+        if (hit && ControlBelongsToBranch(page, hit) && IsControlEffectivelyInteractive(page, hit))
         {
             return hit;
         }
@@ -1757,7 +2074,16 @@ Control* PageHost::HitTestOverlay(D2D1_POINT_2F point)
         return nullptr;
     }
 
-    return _currentPage->HitTestOverlay(point);
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    Control* const page                    = _currentPage.get();
+    const std::weak_ptr<int> pageLifetime  = GetControlLifetimeToken(*page);
+    Control* const hit                     = page->HitTestOverlay(point);
+    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! ControlBelongsToBranch(page, hit) ||
+        ! IsControlEffectivelyInteractive(page, hit))
+    {
+        return nullptr;
+    }
+    return hit;
 }
 
 const Control* PageHost::HitTestOverlay(D2D1_POINT_2F point) const
@@ -1767,19 +2093,45 @@ const Control* PageHost::HitTestOverlay(D2D1_POINT_2F point) const
         return nullptr;
     }
 
-    return _currentPage->HitTestOverlay(point);
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    const Control* const page              = _currentPage.get();
+    const std::weak_ptr<int> pageLifetime  = GetControlLifetimeToken(*page);
+    const Control* const hit               = page->HitTestOverlay(point);
+    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! ControlBelongsToBranch(page, hit) ||
+        ! IsControlEffectivelyInteractive(page, hit))
+    {
+        return nullptr;
+    }
+    return hit;
 }
 
 void PageHost::PropagateHost(ControlHost* host) noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control::PropagateHost(host);
-    if (_currentPage)
+    if (ownerLifetime.expired())
     {
-        _currentPage->PropagateHost(host);
+        return;
     }
-    if (_outgoingPage)
+
+    if (host && _childBoundsPending)
+        host->_pendingPageLayout = true;
+
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
+    if (current && ! currentLifetime.expired())
     {
-        _outgoingPage->PropagateHost(host);
+        current->PropagateHost(host);
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+    }
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing))
+    {
+        outgoing->PropagateHost(host);
     }
 }
 
@@ -1790,86 +2142,210 @@ void PageHost::OnBoundsChanged() noexcept
 
 void PageHost::OnFlowDirectionChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     Control::OnFlowDirectionChanged();
-    if (_currentPage)
+    if (ownerLifetime.expired())
     {
-        _currentPage->OnFlowDirectionChanged();
+        return;
     }
-    if (_outgoingPage)
+    if (current && ! currentLifetime.expired() && (_currentPage.get() == current || _outgoingPage.get() == current))
     {
-        _outgoingPage->OnFlowDirectionChanged();
+        current->OnFlowDirectionChanged();
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+    }
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing))
+    {
+        outgoing->OnFlowDirectionChanged();
     }
 }
 
 void PageHost::OnDensityChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     Control::OnDensityChanged();
-    if (_currentPage && ! _currentPage->HasExplicitDensity())
+    if (ownerLifetime.expired())
     {
-        _currentPage->OnDensityChanged();
+        return;
     }
-    if (_outgoingPage && ! _outgoingPage->HasExplicitDensity())
+    if (current && ! currentLifetime.expired() && (_currentPage.get() == current || _outgoingPage.get() == current) && ! current->HasExplicitDensity())
     {
-        _outgoingPage->OnDensityChanged();
+        current->OnDensityChanged();
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+    }
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
+        ! outgoing->HasExplicitDensity())
+    {
+        outgoing->OnDensityChanged();
     }
 }
 
 void PageHost::OnHidden() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     Control::OnHidden();
-    if (_currentPage)
+    if (ownerLifetime.expired())
     {
-        _currentPage->OnHidden();
+        return;
     }
-    if (_outgoingPage)
+    if (current && ! currentLifetime.expired() && (_currentPage.get() == current || _outgoingPage.get() == current))
     {
-        _outgoingPage->OnHidden();
+        current->OnHidden();
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+    }
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing))
+    {
+        outgoing->OnHidden();
     }
 }
 
 void PageHost::OnHostDpiChanged(ControlHost& host) noexcept
 {
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     Control::OnHostDpiChanged(host);
-    if (_currentPage)
+    if (ownerLifetime.expired())
     {
-        _currentPage->OnHostDpiChanged(host);
+        return;
     }
-    if (_outgoingPage)
+    if (current && ! currentLifetime.expired() && (_currentPage.get() == current || _outgoingPage.get() == current))
     {
-        _outgoingPage->OnHostDpiChanged(host);
+        current->OnHostDpiChanged(host);
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
+    }
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing))
+    {
+        outgoing->OnHostDpiChanged(host);
     }
 }
 
 void PageHost::SyncChildBounds() noexcept
 {
-    if (_currentPage)
+    const std::weak_ptr<int> ownerLifetime    = GetLifetimeToken();
+    const D2D1_RECT_F bounds                  = GetBounds();
+    Control* const current                    = _currentPage.get();
+    Control* const outgoing                   = _outgoingPage.get();
+    const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
+    const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
+    if (current && ! currentLifetime.expired())
     {
-        _currentPage->SetBounds(GetBounds());
+        current->SetBounds(bounds);
+        if (ownerLifetime.expired())
+        {
+            return;
+        }
     }
-    if (_outgoingPage)
+    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing))
     {
-        _outgoingPage->SetBounds(GetBounds());
+        outgoing->SetBounds(bounds);
     }
 }
 
-void PageHost::FinishTransition() noexcept
+bool ControlHost::PreparePendingPageLayout() noexcept
 {
-    _transition.active                = false;
-    _transition.hasConnectedAnimation = false;
-    _transition.linearProgress        = 1.0f;
-    _transition.startTickMs           = 0u;
-    _transition.lastTickMs            = 0u;
-    _transition.sourceRectDip         = D2D1::RectF();
-    _transition.targetRectDip         = D2D1::RectF();
+    if (! _pendingPageLayout)
+        return true;
+    _pendingPageLayout      = false;
+    Control* const root     = _root.get();
+    const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto rootCurrent  = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
+    const auto prepare      = [&](auto&& self, Control& control) noexcept -> void
+    {
+        const auto lifetime = GetControlLifetimeToken(control);
+        if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_childBoundsPending)
+        {
+            page->_childBoundsPending = false;
+            page->SyncChildBounds();
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+        }
+        const size_t visitBudget = control.GetLogicalChildCount();
+        if (lifetime.expired() || ! rootCurrent())
+            return;
+        // Reacquire each child after virtual callbacks. New additions wait for the next real preparation.
+        size_t index = 0u;
+        for (size_t visits = 0u; visits < visitBudget; ++visits)
+        {
+            const size_t count = control.GetLogicalChildCount();
+            if (lifetime.expired() || ! rootCurrent() || index >= count)
+                return;
+            Control* const child = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            const auto childLifetime = child ? GetControlLifetimeToken(*child) : std::weak_ptr<int>{};
+            if (child)
+                self(self, *child);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            Control* const current = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            if (! child || (! childLifetime.expired() && current == child))
+                ++index;
+        }
+        const size_t remaining = control.GetLogicalChildCount();
+        if (lifetime.expired() || ! rootCurrent())
+            return;
+        if (index < remaining)
+            _pendingPageLayout = true;
+        // Transition pages still paint even though only the current page belongs to logical navigation.
+        if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+        {
+            self(self, *page->_outgoingPage);
+        }
+    };
+    if (root)
+        prepare(prepare, *root);
+    // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
+    return (! root || rootCurrent()) && ! _pendingPageLayout;
+}
+
+bool PageHost::FinishTransition() noexcept
+{
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    _transition.active                     = false;
+    _transition.hasConnectedAnimation      = false;
+    _transition.linearProgress             = 1.0f;
+    _transition.startTickMs                = 0u;
+    _transition.lastTickMs                 = 0u;
+    _transition.sourceRectDip              = D2D1::RectF();
+    _transition.targetRectDip              = D2D1::RectF();
 #if DXUI_ENABLE_DIAGNOSTICS
     _transition.debugFrozen         = false;
     _transition.debugFrozenProgress = 1.0f;
 #endif
-    if (_outgoingPage)
+    auto outgoing = std::move(_outgoingPage);
+    if (outgoing)
     {
-        _outgoingPage->PropagateHost(nullptr);
-        _outgoingPage.reset();
+        outgoing->PropagateHost(nullptr);
     }
+    return ! ownerLifetime.expired();
 }
 
 void CardPanel::SetCornerRadius(float cornerRadiusDip) noexcept
@@ -2117,12 +2593,12 @@ void Button::ClearDisclosureState() noexcept
 
 void Button::SetOnClick(std::function<void()> onClick)
 {
-    _onClick = std::move(onClick);
+    ReplaceControlCallback(_onClick, std::move(onClick));
 }
 
 void Button::SetOnDropDownClick(std::function<void()> onDropDownClick)
 {
-    _onDropDownClick = std::move(onDropDownClick);
+    ReplaceControlCallback(_onDropDownClick, std::move(onDropDownClick));
 }
 
 bool Button::Invoke(ControlHost& host, bool focusSelf)
@@ -2154,10 +2630,10 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
     }
 
     Invalidate(host);
-    const std::function<void()> onClick = _onClick;
+    const auto onClick = _onClick;
     if (onClick)
     {
-        onClick();
+        (*onClick)();
     }
     return true;
 }
@@ -2371,12 +2847,12 @@ bool Button::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    const bool wasPressed               = _pressed;
-    const bool hitButton                = PointInRect(GetHitBounds(), point);
-    const bool invokeDropDown           = _pressedDropDown && hitButton;
-    const std::function<void()> onClick = _onClick;
-    _pressed                            = false;
-    _pressedDropDown                    = false;
+    const bool wasPressed     = _pressed;
+    const bool hitButton      = PointInRect(GetHitBounds(), point);
+    const bool invokeDropDown = _pressedDropDown && hitButton;
+    const auto onClick        = _onClick;
+    _pressed                  = false;
+    _pressedDropDown          = false;
     TraceButtonDiagnostics(L"dxui.button.mouse-up-dispatch",
                            L"hwnd={:#x} text=\"{}\" variant={} wasPressed={} hitButton={} invokeDropDown={} hasClick={} hasDropDown={}",
                            reinterpret_cast<uintptr_t>(host.GetHwnd()),
@@ -2398,7 +2874,7 @@ bool Button::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     }
     if (wasPressed && hitButton && onClick)
     {
-        onClick();
+        (*onClick)();
     }
     return wasPressed;
 }
@@ -2583,9 +3059,9 @@ bool Button::InvokeDropDown(ControlHost& host)
     _pressed      = true;
     _dropDownOpen = true;
     Invalidate(host);
-    const std::function<void()> onDropDownClick = _onDropDownClick;
-    const std::weak_ptr<int> lifetime           = GetLifetimeToken();
-    onDropDownClick();
+    const auto onDropDownClick        = _onDropDownClick;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    (*onDropDownClick)();
     if (lifetime.expired())
     {
         return true;
@@ -2783,7 +3259,7 @@ std::wstring_view Toggle::GetDisplayedText() const noexcept
 
 void Toggle::SetOnToggled(std::function<void(bool)> onToggled)
 {
-    _onToggled = std::move(onToggled);
+    ReplaceControlCallback(_onToggled, std::move(onToggled));
 }
 
 ToggleLayoutMetrics Toggle::GetLayoutMetrics() const noexcept
@@ -2904,10 +3380,10 @@ void Toggle::ApplyCheckedState(ControlHost& host, bool checked, bool notify)
     Invalidate(host);
     if (notify)
     {
-        const std::function<void(bool)> onToggled = _onToggled;
+        const auto onToggled = _onToggled;
         if (onToggled)
         {
-            onToggled(_checked);
+            (*onToggled)(_checked);
         }
     }
 }
@@ -3048,7 +3524,7 @@ bool RadioButton::IsChecked() const noexcept
 
 void RadioButton::SetOnSelected(std::function<void()> onSelected)
 {
-    _onSelected = std::move(onSelected);
+    ReplaceControlCallback(_onSelected, std::move(onSelected));
 }
 
 void RadioButton::SetGroup(RadioButtons* group) noexcept
@@ -3160,8 +3636,8 @@ void RadioButton::SelectSelf(ControlHost& host)
 {
     if (! _checked)
     {
-        const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
-        const std::function<void()> onSelected = _onSelected;
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        const auto onSelected                 = _onSelected;
         if (_group)
         {
             _group->SelectItem(this);
@@ -3177,7 +3653,7 @@ void RadioButton::SelectSelf(ControlHost& host)
         }
         if (onSelected)
         {
-            onSelected();
+            (*onSelected)();
         }
     }
 }
@@ -3225,7 +3701,7 @@ int RadioButtons::GetSelectedIndex() const noexcept
 
 void RadioButtons::SetOnSelectionChanged(std::function<void(int)> onSelectionChanged)
 {
-    _onSelectionChanged = std::move(onSelectionChanged);
+    ReplaceControlCallback(_onSelectionChanged, std::move(onSelectionChanged));
 }
 
 void RadioButtons::SetHeader(std::wstring text)
@@ -3254,10 +3730,10 @@ void RadioButtons::SelectItem(RadioButton* item)
             break;
         }
     }
-    const std::function<void(int)> onSelectionChanged = _onSelectionChanged;
+    const auto onSelectionChanged = _onSelectionChanged;
     if (onSelectionChanged)
     {
-        onSelectionChanged(_selectedIndex);
+        (*onSelectionChanged)(_selectedIndex);
     }
 }
 
@@ -3320,6 +3796,8 @@ void ProgressBar::SetValue(double value) noexcept
         return;
     _value = value;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 double ProgressBar::GetValue() const noexcept
@@ -3422,6 +3900,16 @@ void ProgressBar::Paint(ControlHost& host) const
     const ThemePalette& theme          = host.GetTheme();
     const ProgressBarVisualStyle style = ResolveProgressBarVisualStyle(theme);
     const D2D1_RECT_F bounds           = GetBounds();
+    const auto oriented                = [&](D2D1_RECT_F rect) noexcept
+    {
+        if (IsRightToLeft())
+        {
+            const float left = bounds.left + bounds.right - rect.right;
+            rect.right       = bounds.left + bounds.right - rect.left;
+            rect.left        = left;
+        }
+        return rect;
+    };
 
     // Reduced motion paints a resting segment and requests no ticks.
     if (_indeterminate && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
@@ -3439,7 +3927,7 @@ void ProgressBar::Paint(ControlHost& host) const
 
     if (_indeterminate)
     {
-        const D2D1_RECT_F seg = ComputeIndeterminateSegmentRect(track, ResolveIndeterminatePhase(theme, _animationPhase));
+        const D2D1_RECT_F seg = oriented(ComputeIndeterminateSegmentRect(track, ResolveIndeterminatePhase(theme, _animationPhase)));
         if (seg.right > seg.left)
         {
             DrawRoundedRect(host, seg, style.progressFill, style.progressFill, radius);
@@ -3454,15 +3942,16 @@ void ProgressBar::Paint(ControlHost& host) const
         const float primaryWidth       = static_cast<float>(primaryFraction) * (midpoint - bounds.left);
         if (primaryWidth > 0.5f)
         {
-            const D2D1_RECT_F primaryFill = D2D1::RectF(bounds.left, trackTop, bounds.left + primaryWidth, trackTop + trackHeight);
+            const D2D1_RECT_F primaryFill = oriented(D2D1::RectF(bounds.left, trackTop, bounds.left + primaryWidth, trackTop + trackHeight));
             DrawRoundedRect(host, primaryFill, style.progressFill, style.progressFill, radius);
         }
 
         const float secondaryWidth = static_cast<float>(secondaryFraction) * (bounds.right - midpoint);
         if (secondaryWidth > 0.5f)
         {
-            const D2D1_RECT_F secondaryFill = D2D1::RectF(midpoint, trackTop, midpoint + secondaryWidth, trackTop + trackHeight);
-            DrawRoundedRect(host, secondaryFill, _secondarySegmentColor, _secondarySegmentColor, radius);
+            const D2D1_RECT_F secondaryFill = oriented(D2D1::RectF(midpoint, trackTop, midpoint + secondaryWidth, trackTop + trackHeight));
+            const auto secondaryColor       = theme.highContrast ? style.trackFill : _secondarySegmentColor;
+            DrawRoundedRect(host, secondaryFill, secondaryColor, secondaryColor, radius);
 
             auto* const context    = host.GetDeviceContext();
             auto* const hatchBrush = host.GetSolidBrush(style.progressFill);
@@ -3490,7 +3979,7 @@ void ProgressBar::Paint(ControlHost& host) const
         const float fillWidth = static_cast<float>(fraction) * (bounds.right - bounds.left);
         if (fillWidth > 0.5f)
         {
-            const D2D1_RECT_F fill = D2D1::RectF(bounds.left, trackTop, bounds.left + fillWidth, trackTop + trackHeight);
+            const D2D1_RECT_F fill = oriented(D2D1::RectF(bounds.left, trackTop, bounds.left + fillWidth, trackTop + trackHeight));
             DrawRoundedRect(host, fill, style.progressFill, style.progressFill, radius);
         }
     }
@@ -3528,7 +4017,15 @@ bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
 D2D1_RECT_F ProgressBar::DebugGetIndeterminateSegmentRect(const ThemePalette& theme) const noexcept
 {
     const ProgressTrack progressTrack = ComputeProgressTrack(GetBounds(), true, _trackHeightDip);
-    return ComputeIndeterminateSegmentRect(progressTrack.rect, ResolveIndeterminatePhase(theme, _animationPhase));
+    auto rect                         = ComputeIndeterminateSegmentRect(progressTrack.rect, ResolveIndeterminatePhase(theme, _animationPhase));
+    if (IsRightToLeft())
+    {
+        const auto bounds = GetBounds();
+        const float left  = bounds.left + bounds.right - rect.right;
+        rect.right        = bounds.left + bounds.right - rect.left;
+        rect.left         = left;
+    }
+    return rect;
 }
 #endif
 
@@ -3586,7 +4083,7 @@ uint32_t PageIndicator::GetSelectedIndex() const noexcept
 
 void PageIndicator::SetOnSelected(std::function<void(uint32_t)> onSelected)
 {
-    _onSelected = std::move(onSelected);
+    ReplaceControlCallback(_onSelected, std::move(onSelected));
 }
 
 uint32_t PageIndicator::HitPageIndex(D2D1_POINT_2F point) const noexcept
@@ -3730,12 +4227,18 @@ void PageIndicator::SelectIndex(ControlHost& host, uint32_t index)
     {
         return;
     }
-    _selectedIndex = index;
+    _selectedIndex                    = index;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RefreshAccessibleName();
+    if (lifetime.expired())
+    {
+        return;
+    }
     Invalidate(host);
     if (_onSelected)
     {
-        _onSelected(index);
+        const auto onSelected = _onSelected;
+        (*onSelected)(index);
     }
 }
 
@@ -4453,9 +4956,14 @@ void Slider::SetMinimum(double minimum) noexcept
     {
         _maximum = _minimum;
     }
+    for (double& tick : _tickMarks)
+    {
+        tick = ClampValue(tick);
+    }
+    std::ranges::sort(_tickMarks);
     _value = ClampValue(_value);
     SnapDisplayedValue();
-    RequestInvalidate();
+    PublishRangeState();
 }
 
 double Slider::GetMinimum() const noexcept
@@ -4468,9 +4976,14 @@ void Slider::SetMaximum(double maximum) noexcept
     if (! std::isfinite(maximum) || ! std::isfinite((std::max)(maximum, _minimum) - _minimum))
         return;
     _maximum = (std::max)(maximum, _minimum);
-    _value   = ClampValue(_value);
+    for (double& tick : _tickMarks)
+    {
+        tick = ClampValue(tick);
+    }
+    std::ranges::sort(_tickMarks);
+    _value = ClampValue(_value);
     SnapDisplayedValue();
-    RequestInvalidate();
+    PublishRangeState();
 }
 
 double Slider::GetMaximum() const noexcept
@@ -4500,7 +5013,9 @@ void Slider::SetStep(double step) noexcept
 {
     if (! std::isfinite(step))
         return;
-    _step = (std::max)(step, 0.0001);
+    _step      = (std::max)(step, 0.0001);
+    _largeStep = (std::max)(_largeStep, _step);
+    PublishRangeState();
 }
 
 double Slider::GetStep() const noexcept
@@ -4513,11 +5028,21 @@ void Slider::SetLargeStep(double step) noexcept
     if (! std::isfinite(step))
         return;
     _largeStep = (std::max)(step, _step);
+    PublishRangeState();
 }
 
 double Slider::GetLargeStep() const noexcept
 {
     return _largeStep;
+}
+
+void Slider::PublishRangeState() noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RequestInvalidate();
+    if (! lifetime.expired())
+        if (ControlHost* const host = GetHost())
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 void Slider::SetTickMarks(std::vector<double> tickMarks)
@@ -4538,10 +5063,11 @@ std::span<const double> Slider::GetTickMarks() const noexcept
 
 void Slider::SetOnChange(std::function<void(SliderChange)> onChange)
 {
-    _onChange = std::move(onChange);
+    ReplaceControlCallback(_onChange, std::move(onChange));
 }
 void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
         const auto life    = GetLifetimeToken();
@@ -4549,19 +5075,22 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
         const auto changed = _onChange;
         const double value = _value;
         if (notifyLegacy && legacy)
-            legacy(value);
+            (*legacy)(value);
         if (! life.expired() && changed)
-            changed({phase, value});
+            (*changed)({phase, value});
     }
     catch (const std::exception&)
     {
         Debug::Warning(L"Slider change callback failed");
     }
+    if (! lifetime.expired())
+        if (ControlHost* const host = GetHost())
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 void Slider::SetOnValueChanged(std::function<void(double)> onValueChanged)
 {
-    _onValueChanged = std::move(onValueChanged);
+    ReplaceControlCallback(_onValueChanged, std::move(onValueChanged));
 }
 
 double Slider::ClampValue(double value) const noexcept
@@ -4752,8 +5281,12 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         BeginValueAnimation(*host, previousDisplayed, _value);
     }
 
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (notifyChanged)
         NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
+    if (! notifyChanged && ! lifetime.expired())
+        if (ControlHost* const currentHost = GetHost())
+            RefreshWindowHostAccessibilitySnapshot(currentHost->GetHwnd(), currentHost);
 }
 
 D2D1_POINT_2F Slider::GetThumbCenter() const noexcept
@@ -4964,12 +5497,16 @@ void Slider::Paint(ControlHost& host) const
 
     if (_touchTransition.progress > 0.0f)
     {
+        // Constrain only the extra touch feedback; ordinary thumb, tick and focus-ring painting retains its contract.
+        // Ancestor viewport and host clips stay stacked, including ScrollPanel's content-space transform.
+        dc->PushAxisAlignedClip(GetBounds(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        auto restoreClip            = wil::scope_exit([dc] { dc->PopAxisAlignedClip(); });
         const D2D1_RECT_F touchHalo = GetTouchHaloRect();
         const float touchRadius     = (touchHalo.right - touchHalo.left) * 0.5f;
         if (theme.highContrast)
         {
             const float ringRadius = touchRadius - (kSliderTouchHaloRingWidthDip * 0.5f);
-            DrawEllipseWithColor(host, D2D1::Ellipse(center, ringRadius, ringRadius), theme.accent, kSliderTouchHaloRingWidthDip);
+            DrawEllipseWithColor(host, D2D1::Ellipse(center, ringRadius, ringRadius), theme.selectionFill, kSliderTouchHaloRingWidthDip);
         }
         else
         {
@@ -5439,7 +5976,10 @@ bool TagPicker::SelectOption(std::wstring_view value)
         RebuildDisplayTags();
         RefreshComboItems();
         LayoutParts();
-        NotifySelectionChanged();
+        if (! NotifySelectionChanged())
+        {
+            return true;
+        }
         RequestInvalidate();
     }
     return true;
@@ -5501,7 +6041,10 @@ bool TagPicker::RemoveDisplayTag(size_t displayTagIndex)
     RebuildDisplayTags();
     RefreshComboItems();
     LayoutParts();
-    NotifySelectionChanged();
+    if (! NotifySelectionChanged())
+    {
+        return true;
+    }
     RequestInvalidate();
     return true;
 }
@@ -5523,7 +6066,7 @@ float TagPicker::GetPreferredHeightDip(float widthDip) const noexcept
 
 void TagPicker::SetOnSelectionChanged(std::function<void(std::span<const std::wstring>)> onSelectionChanged)
 {
-    _onSelectionChanged = std::move(onSelectionChanged);
+    ReplaceControlCallback(_onSelectionChanged, std::move(onSelectionChanged));
 }
 
 void TagPicker::Paint(ControlHost& host) const
@@ -5573,16 +6116,24 @@ bool TagPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     {
         if (PointInRect(_tagRemoveRects[index], point))
         {
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
             static_cast<void>(RemoveDisplayTag(index));
-            Invalidate(host);
+            if (! lifetime.expired())
+            {
+                Invalidate(host);
+            }
             return true;
         }
     }
 
     if (_combo && PointInRect(GetBounds(), point) && ! PointInRect(_combo->GetBounds(), point))
     {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         host.SetFocusControl(_combo);
-        Invalidate(host);
+        if (! lifetime.expired())
+        {
+            Invalidate(host);
+        }
         return true;
     }
 
@@ -5772,12 +6323,16 @@ float TagPicker::MeasureDisplayTagWidthDip(const DisplayTag& tag, float rowHeigh
     return std::clamp(measuredTextW + kTagPickerRemoveWidthDip + 18.0f, kTagPickerMinTagWidthDip, maxTagWidth);
 }
 
-void TagPicker::NotifySelectionChanged()
+bool TagPicker::NotifySelectionChanged()
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_onSelectionChanged)
     {
-        _onSelectionChanged(_selectedValues);
+        const auto onSelectionChanged = _onSelectionChanged;
+        const auto selectedValues     = _selectedValues;
+        (*onSelectionChanged)(selectedValues);
     }
+    return ! lifetime.expired();
 }
 
 bool TagPicker::ContainsOption(std::wstring_view value) const noexcept
@@ -5958,12 +6513,12 @@ std::span<const MenuBarItem> MenuBar::GetItems() const noexcept
 
 void MenuBar::SetOnOpenItem(OpenItemCallback onOpenItem)
 {
-    _onOpenItem = std::move(onOpenItem);
+    ReplaceControlCallback(_onOpenItem, std::move(onOpenItem));
 }
 
 void MenuBar::SetOnHoverChanged(HoverChangedCallback onHoverChanged)
 {
-    _onHoverChanged = std::move(onHoverChanged);
+    ReplaceControlCallback(_onHoverChanged, std::move(onHoverChanged));
 }
 
 void MenuBar::SetSelectedIndex(std::optional<size_t> index) noexcept
@@ -6054,7 +6609,7 @@ bool MenuBar::ActivateItem(ControlHost& host, size_t index, bool keyboardInvocat
         std::wstring_view{_items[index].text});
     const auto openItem = _onOpenItem;
     RequestInvalidate();
-    openItem(index, screenPoint, keyboardInvocation);
+    (*openItem)(index, screenPoint, keyboardInvocation);
     return true;
 }
 
@@ -6141,7 +6696,14 @@ bool MenuBar::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifie
         _hoveredIndex = hit;
         if (_onHoverChanged)
         {
-            _onHoverChanged(GetHoveredIndex());
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
+            auto onHoverChanged               = _onHoverChanged;
+            (*onHoverChanged)(GetHoveredIndex());
+            onHoverChanged.reset();
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
         InvalidateIfInteractive(host);
     }
@@ -6155,7 +6717,14 @@ bool MenuBar::OnMouseLeave(ControlHost& host)
         _hoveredIndex.reset();
         if (_onHoverChanged)
         {
-            _onHoverChanged(std::nullopt);
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
+            auto onHoverChanged               = _onHoverChanged;
+            (*onHoverChanged)(std::nullopt);
+            onHoverChanged.reset();
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
         InvalidateIfInteractive(host);
     }
@@ -6589,26 +7158,120 @@ TabControl::TabControl()
 
 void TabControl::RemoveTab(size_t index) noexcept
 {
-    auto& children = AccessChildren();
+    const auto& children = AccessChildren();
     if (index >= _tabs.size() || index >= children.size())
     {
         return;
     }
 
-    if (ControlHost* host = GetHost())
+    Control* const page = children[index].get();
+    if (! page)
     {
-        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(children[index].get(), focused))
-        {
-            // The focus callbacks may destroy this control, or change its tabs.
-            if (! FocusControlAndSurvive(*host, *this) || index >= _tabs.size() || index >= children.size())
-            {
-                return;
-            }
-        }
+        return;
+    }
+    const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
+    size_t removedIndex                   = 0u;
+    static_cast<void>(RemoveTabByIdentity(page, pageLifetime, removedIndex));
+}
+
+std::optional<size_t> TabControl::FindTabIndex(const Control* page, const std::weak_ptr<int>& pageLifetime) const noexcept
+{
+    if (! page || pageLifetime.expired())
+    {
+        return std::nullopt;
     }
 
+    const auto& children = AccessChildren();
+    for (size_t index = 0u; index < children.size() && index < _tabs.size(); ++index)
+    {
+        if (children[index].get() == page && ! pageLifetime.expired())
+        {
+            return index;
+        }
+    }
+    return std::nullopt;
+}
+
+std::unique_ptr<Control> TabControl::TakeTab(size_t index) noexcept
+{
+    auto& children = AccessChildren();
+    if (index >= _tabs.size() || index >= children.size() || ! children[index])
+        return {};
+    Control* const page               = children[index].get();
+    const std::weak_ptr<int> lifetime = GetControlLifetimeToken(*page);
+    std::unique_ptr<Control> taken;
+    size_t removedIndex = 0u;
+    static_cast<void>(RemoveTabByIdentity(page, lifetime, removedIndex, &taken));
+    return taken;
+}
+
+std::unique_ptr<Control> TabControl::TakeChild(size_t index) noexcept
+{
+    return TakeTab(index);
+}
+
+void TabControl::ClearChildren() noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _tabs.clear();
+    _selectedIndex.reset();
+    InvalidateTabHeaderLayoutCache();
+    Panel::ClearChildren();
+    if (! lifetime.expired())
+        static_cast<void>(SyncLayout());
+}
+
+bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pageLifetime, size_t& removedIndex, std::unique_ptr<Control>* takenPage) noexcept
+{
+    const std::weak_ptr<int> controlLifetime = GetLifetimeToken();
+    std::optional<size_t> currentIndex       = FindTabIndex(page, pageLifetime);
+    if (! currentIndex)
+    {
+        return false;
+    }
+
+    if (ControlHost* host = GetHost())
+    {
+        if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
+        {
+            const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
+            host->CancelCapturedControlInteraction();
+            if (controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
+                return false;
+            if (Control* focused = host->GetFocusControl();
+                host->_focusRequestRevision != focusBeforeCancellation && focused && ControlBelongsToBranch(page, focused))
+                return false;
+            if (Control* restoredCapture = host->GetCapturedControl(); restoredCapture && ControlBelongsToBranch(page, restoredCapture))
+                return false;
+            currentIndex = FindTabIndex(page, pageLifetime);
+            if (! currentIndex)
+                return false;
+        }
+        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
+        {
+            // A focus callback may destroy the TabControl, remove the requested page, or shift it among its siblings.
+            if (! FocusControlAndSurvive(*host, *this) || controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
+            {
+                return false;
+            }
+            currentIndex = FindTabIndex(page, pageLifetime);
+            if (! currentIndex)
+            {
+                return false;
+            }
+        }
+        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
+            return false;
+        if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
+            return false;
+    }
+
+    auto& children                       = AccessChildren();
+    const size_t index                   = currentIndex.value();
+    std::unique_ptr<Control> removedPage = std::move(children[index]);
     children.erase(children.begin() + static_cast<ptrdiff_t>(index));
     _tabs.erase(_tabs.begin() + static_cast<ptrdiff_t>(index));
+    removedIndex = index;
     InvalidateTabHeaderLayoutCache();
 
     if (_tabs.empty())
@@ -6640,7 +7303,17 @@ void TabControl::RemoveTab(size_t index) noexcept
         }
     }
 
-    SyncLayout();
+    if (takenPage)
+    {
+        DetachChildPreservingInheritance(*removedPage);
+        if (pageLifetime.expired())
+        {
+            static_cast<void>(removedPage.release());
+            return false;
+        }
+        *takenPage = std::move(removedPage);
+    }
+    return ! controlLifetime.expired() && SyncLayout();
 }
 
 void TabControl::SetTabTitle(size_t index, std::wstring title)
@@ -6654,7 +7327,7 @@ void TabControl::SetTabTitle(size_t index, std::wstring title)
     _tabs[index].measuredTitleWidthDip.reset();
     _tabs[index].measuredTitleTextFormat = nullptr;
     InvalidateTabHeaderLayoutCache();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 std::wstring_view TabControl::GetTabTitle(size_t index) const noexcept
@@ -6691,7 +7364,7 @@ void TabControl::SetTabClosable(size_t index, bool closable) noexcept
 
     _tabs[index].closable = closable;
     InvalidateTabHeaderLayoutCache();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 bool TabControl::IsTabClosable(size_t index) const noexcept
@@ -6746,7 +7419,7 @@ void TabControl::SetTabVisible(size_t index, bool visible) noexcept
     }
 
     InvalidateTabHeaderLayoutCache();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 bool TabControl::IsTabVisible(size_t index) const noexcept
@@ -6804,7 +7477,7 @@ void TabControl::SetSelectedIndex(std::optional<size_t> index) noexcept
     }
 
     _selectedIndex = index;
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 std::optional<size_t> TabControl::GetSelectedIndex() const noexcept
@@ -6826,22 +7499,22 @@ const Control* TabControl::GetSelectedPage() const noexcept
 
 void TabControl::SetOnSelectionChanged(std::function<void(size_t)> onSelectionChanged)
 {
-    _onSelectionChanged = std::move(onSelectionChanged);
+    ReplaceControlCallback(_onSelectionChanged, std::move(onSelectionChanged));
 }
 
 void TabControl::SetOnTabCloseRequested(std::function<bool(size_t)> onTabCloseRequested)
 {
-    _onTabCloseRequested = std::move(onTabCloseRequested);
+    ReplaceControlCallback(_onTabCloseRequested, std::move(onTabCloseRequested));
 }
 
 void TabControl::SetOnTabClosed(std::function<void(size_t)> onTabClosed)
 {
-    _onTabClosed = std::move(onTabClosed);
+    ReplaceControlCallback(_onTabClosed, std::move(onTabClosed));
 }
 
 void TabControl::SetOnTabReordered(std::function<void(size_t, size_t)> onTabReordered)
 {
-    _onTabReordered = std::move(onTabReordered);
+    ReplaceControlCallback(_onTabReordered, std::move(onTabReordered));
 }
 
 D2D1_RECT_F TabControl::GetHeaderRect() const noexcept
@@ -7192,31 +7865,82 @@ void TabControl::EnsureSelectedTabVisible() noexcept
     }
 }
 
-void TabControl::UpdateVisiblePageBounds() noexcept
+bool TabControl::UpdateVisiblePageBounds() noexcept
 {
     Debug::Perf::Scope updatePerf(L"dxui.tabcontrol.update_visible_pages_us");
-    auto& children                = AccessChildren();
-    const D2D1_RECT_F contentRect = GetContentRect();
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    const size_t visitBudget               = (std::min)(AccessChildren().size(), _tabs.size());
     updatePerf.SetValue0(_selectedIndex.has_value() ? static_cast<uint64_t>(_selectedIndex.value()) : 0u);
-    updatePerf.SetValue1(static_cast<uint64_t>(children.size()));
-    for (size_t index = 0u; index < children.size(); ++index)
+    updatePerf.SetValue1(static_cast<uint64_t>(visitBudget));
+
+    // Page callbacks may synchronously remove or reorder siblings, or destroy this TabControl. Re-fetch the
+    // owning vector after each callback, resolve the page by identity, and cap visits to the initial page count;
+    // a nested SyncLayout handles pages inserted by a callback.
+    size_t index  = 0u;
+    size_t visits = 0u;
+    while (visits < visitBudget)
     {
-        if (! children[index])
+        if (ownerLifetime.expired())
         {
+            return false;
+        }
+
+        auto& children = AccessChildren();
+        if (index >= children.size() || index >= _tabs.size())
+        {
+            break;
+        }
+
+        Control* const page = children[index].get();
+        if (! page)
+        {
+            ++index;
+            ++visits;
             continue;
         }
-
-        const bool visible = index < _tabs.size() && _tabs[index].visible && _selectedIndex.has_value() && _selectedIndex.value() == index;
+        const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
+        bool visible                          = _tabs[index].visible && _selectedIndex.has_value() && _selectedIndex.value() == index;
         if (visible)
         {
-            children[index]->SetBounds(contentRect);
+            page->SetBounds(GetContentRect());
+            if (ownerLifetime.expired())
+            {
+                return false;
+            }
+
+            const std::optional<size_t> currentIndex = FindTabIndex(page, pageLifetime);
+            if (! currentIndex)
+            {
+                ++visits;
+                continue;
+            }
+            index = currentIndex.value();
         }
-        children[index]->SetVisible(visible);
+
+        std::optional<size_t> currentIndex = FindTabIndex(page, pageLifetime);
+        if (! currentIndex)
+        {
+            ++visits;
+            continue;
+        }
+        index   = currentIndex.value();
+        visible = _tabs[index].visible && _selectedIndex.has_value() && _selectedIndex.value() == index;
+        page->SetVisible(visible);
+        if (ownerLifetime.expired())
+        {
+            return false;
+        }
+
+        currentIndex = FindTabIndex(page, pageLifetime);
+        ++visits;
+        index = currentIndex ? currentIndex.value() + 1u : index;
     }
+    return ! ownerLifetime.expired();
 }
 
-void TabControl::SyncLayout() noexcept
+bool TabControl::SyncLayout() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Debug::Perf::Scope syncPerf(L"dxui.tabcontrol.sync_layout_us");
     const float viewportWidth = (std::max)(0.0f, GetHeaderViewportRight() - GetHeaderViewportLeft());
     const float maxOffset     = (std::max)(0.0f, GetTotalTabWidthDip() - viewportWidth);
@@ -7228,9 +7952,17 @@ void TabControl::SyncLayout() noexcept
     }
     syncPerf.SetValue0(_selectedIndex.has_value() ? static_cast<uint64_t>(_selectedIndex.value()) : 0u);
     syncPerf.SetValue1(static_cast<uint64_t>(_tabs.size()));
-    UpdateVisiblePageBounds();
+    if (! UpdateVisiblePageBounds() || ownerLifetime.expired())
+    {
+        return false;
+    }
     EnsureSelectedTabVisible();
+    if (ownerLifetime.expired())
+    {
+        return false;
+    }
     RequestInvalidate();
+    return ! ownerLifetime.expired();
 }
 
 bool TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept
@@ -7249,34 +7981,60 @@ bool TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noex
         return ! focusSelf || FocusControlAndSurvive(host, *this);
     }
 
-    _selectedIndex = index;
-    if (focusSelf && ! FocusControlAndSurvive(host, *this))
+    const auto& initialChildren = AccessChildren();
+    if (index >= initialChildren.size() || ! initialChildren[index])
+    {
+        return true;
+    }
+    Control* const requestedPage             = initialChildren[index].get();
+    const std::weak_ptr<int> pageLifetime    = GetControlLifetimeToken(*requestedPage);
+    const std::weak_ptr<int> controlLifetime = GetLifetimeToken();
+    _selectedIndex                           = index;
+    if (focusSelf && (! FocusControlAndSurvive(host, *this) || controlLifetime.expired()))
     {
         return false;
     }
-    SyncLayout();
-    const std::function<void(size_t)> onSelectionChanged = _onSelectionChanged;
-    if (onSelectionChanged)
+    std::optional<size_t> currentIndex = FindTabIndex(requestedPage, pageLifetime);
+    if (! currentIndex)
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        onSelectionChanged(index);
-        return ! lifetime.expired();
+        return true;
     }
-    return true;
+    _selectedIndex = currentIndex;
+    if (! SyncLayout() || controlLifetime.expired())
+    {
+        return false;
+    }
+    if (controlLifetime.expired())
+    {
+        return false;
+    }
+    currentIndex = FindTabIndex(requestedPage, pageLifetime);
+    if (! currentIndex || _selectedIndex != currentIndex)
+    {
+        return true;
+    }
+    if (const auto onSelectionChanged = _onSelectionChanged; onSelectionChanged)
+    {
+        (*onSelectionChanged)(currentIndex.value());
+    }
+    return ! controlLifetime.expired();
 }
 
 void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
 {
-    if (index >= _tabs.size())
+    const auto& initialChildren = AccessChildren();
+    if (index >= _tabs.size() || index >= initialChildren.size() || ! initialChildren[index])
     {
         return;
     }
 
-    const std::weak_ptr<int> closeLifetime                = GetLifetimeToken();
-    const std::function<bool(size_t)> onTabCloseRequested = _onTabCloseRequested;
+    Control* const requestedPage           = initialChildren[index].get();
+    const std::weak_ptr<int> pageLifetime  = GetControlLifetimeToken(*requestedPage);
+    const std::weak_ptr<int> closeLifetime = GetLifetimeToken();
+    const auto onTabCloseRequested         = _onTabCloseRequested;
     if (onTabCloseRequested)
     {
-        const bool closeCanceled = onTabCloseRequested(index);
+        const bool closeCanceled = (*onTabCloseRequested)(index);
         if (closeLifetime.expired())
         {
             return;
@@ -7288,16 +8046,20 @@ void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
         }
     }
 
-    if (index >= _tabs.size())
+    if (closeLifetime.expired())
     {
         return;
     }
 
-    RemoveTab(index);
-    const std::function<void(size_t)> onTabClosed = _onTabClosed;
+    size_t closedIndex = 0u;
+    if (! RemoveTabByIdentity(requestedPage, pageLifetime, closedIndex) || closeLifetime.expired())
+    {
+        return;
+    }
+    const auto onTabClosed = _onTabClosed;
     if (onTabClosed)
     {
-        onTabClosed(index);
+        (*onTabClosed)(closedIndex);
         if (closeLifetime.expired())
         {
             return;
@@ -7358,14 +8120,36 @@ void TabControl::UpdateDragReorder(ControlHost& host, D2D1_POINT_2F point) noexc
         const float midpoint      = (tabRect.left + tabRect.right) * 0.5f;
         if ((IsRightToLeft() && point.x > midpoint) || (! IsRightToLeft() && point.x < midpoint))
         {
+            const auto& children = AccessChildren();
+            if (dragIndex >= children.size() || ! children[dragIndex])
+            {
+                return;
+            }
+            Control* const movedPage                   = children[dragIndex].get();
+            const std::weak_ptr<int> movedPageLifetime = GetControlLifetimeToken(*movedPage);
+            const std::weak_ptr<int> ownerLifetime     = GetLifetimeToken();
             ReorderTab(dragIndex, index);
             _draggingTabIndex = index;
-            SyncLayout();
+            if (! SyncLayout() || ownerLifetime.expired())
+            {
+                return;
+            }
+            const std::optional<size_t> currentIndex = FindTabIndex(movedPage, movedPageLifetime);
+            if (! currentIndex)
+            {
+                _draggingTabIndex.reset();
+                return;
+            }
+            _draggingTabIndex = currentIndex;
             Invalidate(host);
-            const std::function<void(size_t, size_t)> onTabReordered = _onTabReordered;
+            if (ownerLifetime.expired())
+            {
+                return;
+            }
+            const auto onTabReordered = _onTabReordered;
             if (onTabReordered)
             {
-                onTabReordered(dragIndex, index);
+                (*onTabReordered)(dragIndex, currentIndex.value());
             }
             return;
         }
@@ -7799,8 +8583,13 @@ const Control* TabControl::HitTest(D2D1_POINT_2F point) const
 
 void TabControl::PropagateHost(ControlHost* host) noexcept
 {
-    const bool hostChanged = GetHost() != host;
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    const bool hostChanged                 = GetHost() != host;
     Panel::PropagateHost(host);
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     if (hostChanged)
     {
         InvalidateTabTitleMeasurements();
@@ -7810,28 +8599,43 @@ void TabControl::PropagateHost(ControlHost* host) noexcept
 void TabControl::OnBoundsChanged() noexcept
 {
     InvalidateTabHeaderLayoutCache();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 void TabControl::OnFlowDirectionChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Panel::OnFlowDirectionChanged();
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     InvalidateTabHeaderLayoutCache();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 void TabControl::OnDensityChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Panel::OnDensityChanged();
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     InvalidateTabTitleMeasurements();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 void TabControl::OnHostDpiChanged(ControlHost& host) noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Panel::OnHostDpiChanged(host);
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     InvalidateTabTitleMeasurements();
-    SyncLayout();
+    static_cast<void>(SyncLayout());
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -8113,7 +8917,7 @@ ColorSwatch::ColorSwatch(std::optional<uint32_t> swatchArgb) : _swatchArgb(swatc
 
 void ColorSwatch::SetOnClick(std::function<void()> onClick)
 {
-    _onClick = std::move(onClick);
+    ReplaceControlCallback(_onClick, std::move(onClick));
 }
 
 void ColorSwatch::SetSwatchValue(std::optional<uint32_t> swatchArgb) noexcept
@@ -8171,10 +8975,10 @@ bool ColorSwatch::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     Invalidate(host);
     if (wasPressed && PointInRect(GetHitBounds(), point))
     {
-        const std::function<void()> onClick = _onClick;
+        const auto onClick = _onClick;
         if (onClick)
         {
-            onClick();
+            (*onClick)();
         }
     }
     return wasPressed;
@@ -8189,10 +8993,14 @@ bool ColorSwatch::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers
 
     if (virtualKey == VK_SPACE || virtualKey == VK_RETURN)
     {
-        const std::function<void()> onClick = _onClick;
-        if (onClick)
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        if (const auto onClick = _onClick; onClick)
         {
-            onClick();
+            (*onClick)();
+        }
+        if (lifetime.expired())
+        {
+            return true;
         }
         Invalidate(host);
         return true;
@@ -8235,7 +9043,11 @@ const Control* PopupLayer::HitTestOverlay(D2D1_POINT_2F point) const
 
 void StackPanel::SetOrientation(StackOrientation orientation) noexcept
 {
-    _orientation = orientation;
+    if (_orientation != orientation)
+    {
+        _orientation = orientation;
+        ++_layoutRevision;
+    }
     RequestInvalidate();
 }
 
@@ -8246,7 +9058,11 @@ StackOrientation StackPanel::GetOrientation() const noexcept
 
 void StackPanel::SetGap(float gapDip) noexcept
 {
-    _gapDip = gapDip;
+    if (_gapDip != gapDip)
+    {
+        _gapDip = gapDip;
+        ++_layoutRevision;
+    }
     RequestInvalidate();
 }
 
@@ -8257,10 +9073,14 @@ float StackPanel::GetGap() const noexcept
 
 void StackPanel::SetPadding(float left, float top, float right, float bottom) noexcept
 {
-    _padLeft   = left;
-    _padTop    = top;
-    _padRight  = right;
-    _padBottom = bottom;
+    if (_padLeft != left || _padTop != top || _padRight != right || _padBottom != bottom)
+    {
+        _padLeft   = left;
+        _padTop    = top;
+        _padRight  = right;
+        _padBottom = bottom;
+        ++_layoutRevision;
+    }
     RequestInvalidate();
 }
 
@@ -8270,11 +9090,16 @@ void StackPanel::SetChildExtent(const Control* child, float extentDip)
     {
         if (entry.first == child)
         {
-            entry.second = extentDip;
+            if (entry.second != extentDip)
+            {
+                entry.second = extentDip;
+                ++_layoutRevision;
+            }
             return;
         }
     }
     _childExtents.emplace_back(child, extentDip);
+    ++_layoutRevision;
 }
 
 float StackPanel::GetContentExtent() const noexcept
@@ -8317,27 +9142,64 @@ float StackPanel::GetContentExtent() const noexcept
 
 void StackPanel::ApplyLayout()
 {
-    const D2D1_RECT_F bounds = GetBounds();
-    const auto children      = GetChildren();
-    const bool vertical      = (_orientation == StackOrientation::Vertical);
-    const bool rightToLeft   = ! vertical && IsRightToLeft();
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    const uint64_t layoutRevision          = ++_layoutRevision;
+    const D2D1_RECT_F bounds               = GetBounds();
+    const bool vertical                    = _orientation == StackOrientation::Vertical;
+    const bool rightToLeft                 = ! vertical && IsRightToLeft();
+    const float gapDip                     = _gapDip;
+    const float padLeft                    = _padLeft;
+    const float padTop                     = _padTop;
+    const float padRight                   = _padRight;
+    const float padBottom                  = _padBottom;
+    const size_t initialChildCount         = GetLogicalChildCount();
 
-    const float crossStart = vertical ? (bounds.left + _padLeft) : (bounds.top + _padTop);
-    const float crossEnd   = vertical ? (bounds.right - _padRight) : (bounds.bottom - _padBottom);
-    float mainCursor       = vertical ? (bounds.top + _padTop) : (rightToLeft ? (bounds.right - _padRight) : (bounds.left + _padLeft));
-
-    bool first = true;
-    for (const auto& child : children)
+    const float crossStart = vertical ? bounds.left + padLeft : bounds.top + padTop;
+    const float crossEnd   = vertical ? bounds.right - padRight : bounds.bottom - padBottom;
+    float mainCursor       = vertical ? bounds.top + padTop : (rightToLeft ? bounds.right - padRight : bounds.left + padLeft);
+    bool first             = true;
+    size_t nextChildIndex  = 0u;
+    bool staleLayout       = false;
+    ForEachPanelChildCallback(*this,
+                              ownerLifetime,
+                              [&](Control& child) noexcept
     {
-        if (! child || ! child->IsVisible())
+        if (staleLayout || ownerLifetime.expired())
         {
-            continue;
+            return;
+        }
+        if (_layoutRevision != layoutRevision)
+        {
+            staleLayout = true;
+            return;
+        }
+        const auto children = GetChildren();
+        if (children.size() != initialChildCount)
+        {
+            staleLayout = true;
+            return;
+        }
+        size_t childIndex = nextChildIndex;
+        while (childIndex < children.size() && children[childIndex].get() != &child)
+        {
+            ++childIndex;
+        }
+        if (childIndex >= children.size())
+        {
+            staleLayout = true;
+            return;
+        }
+        const bool visible = child.IsVisible();
+        nextChildIndex     = childIndex + 1u;
+        if (! visible)
+        {
+            return;
         }
 
         float childExtent = 0.0f;
         for (const auto& entry : _childExtents)
         {
-            if (entry.first == child.get())
+            if (entry.first == &child)
             {
                 childExtent = entry.second;
                 break;
@@ -8346,10 +9208,11 @@ void StackPanel::ApplyLayout()
 
         if (! first)
         {
-            mainCursor += rightToLeft ? -_gapDip : _gapDip;
+            mainCursor += rightToLeft ? -gapDip : gapDip;
         }
 
-        D2D1_RECT_F childBounds;
+        const std::weak_ptr<int> childLifetime = GetControlLifetimeToken(child);
+        D2D1_RECT_F childBounds{};
         if (vertical)
         {
             childBounds = D2D1::RectF(crossStart, mainCursor, crossEnd, mainCursor + childExtent);
@@ -8359,10 +9222,22 @@ void StackPanel::ApplyLayout()
             childBounds = rightToLeft ? D2D1::RectF(mainCursor - childExtent, crossStart, mainCursor, crossEnd)
                                       : D2D1::RectF(mainCursor, crossStart, mainCursor + childExtent, crossEnd);
         }
-        child->SetBounds(childBounds);
+        child.SetBounds(childBounds);
+        if (ownerLifetime.expired() || childLifetime.expired() || _layoutRevision != layoutRevision)
+        {
+            staleLayout = true;
+            return;
+        }
+        const auto currentChildren = GetChildren();
+        if (currentChildren.size() != initialChildCount || childIndex >= currentChildren.size() || currentChildren[childIndex].get() != &child ||
+            child.IsVisible() != visible)
+        {
+            staleLayout = true;
+            return;
+        }
         mainCursor += rightToLeft ? -childExtent : childExtent;
         first = false;
-    }
+    });
 }
 
 HRESULT ArrangeMeasuredActions(std::span<const D2D1_SIZE_F> sizes,
@@ -8465,18 +9340,35 @@ void ScrollPanel::SetContentHeight(float heightDip) noexcept
     _contentHeightDip          = (std::max)(0.0f, heightDip);
     ClampScrollOffset();
     RequestInvalidate();
-    NotifyScrollChanged(previousOffset);
+    static_cast<void>(NotifyScrollChanged(previousOffset));
+}
+
+void StackPanel::OnBoundsChanged() noexcept
+{
+    ++_layoutRevision;
 }
 
 void StackPanel::OnFlowDirectionChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    ++_layoutRevision;
     Panel::OnFlowDirectionChanged();
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     ApplyLayout();
 }
 
 void StackPanel::OnDensityChanged() noexcept
 {
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    ++_layoutRevision;
     Panel::OnDensityChanged();
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
     ApplyLayout();
 }
 
@@ -8498,7 +9390,7 @@ void ScrollPanel::SetScrollOffset(float offsetDip) noexcept
     if (_scrollOffsetDip != previousOffset)
     {
         RequestInvalidate();
-        NotifyScrollChanged(previousOffset);
+        static_cast<void>(NotifyScrollChanged(previousOffset));
     }
 }
 
@@ -8526,7 +9418,7 @@ void ScrollPanel::SetInternalScrollbarEnabled(bool enabled) noexcept
 
 void ScrollPanel::SetOnScrollChanged(std::function<void(float)> callback) noexcept
 {
-    _onScrollChanged = std::move(callback);
+    ReplaceControlCallback(_onScrollChanged, std::move(callback));
 }
 
 bool ScrollPanel::NeedsScrollbar() const noexcept
@@ -8618,12 +9510,15 @@ void ScrollPanel::ClampScrollOffset() noexcept
     _scrollOffsetDip   = (extent <= 0.0f) ? 0.0f : (std::clamp)(_scrollOffsetDip, 0.0f, extent);
 }
 
-void ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
+bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {
-        _onScrollChanged(_scrollOffsetDip);
+        const auto onScrollChanged = _onScrollChanged;
+        (*onScrollChanged)(_scrollOffsetDip);
     }
+    return ! lifetime.expired();
 }
 
 D2D1_POINT_2F ScrollPanel::ToContentSpace(D2D1_POINT_2F viewportPoint) const noexcept
@@ -8633,34 +9528,13 @@ D2D1_POINT_2F ScrollPanel::ToContentSpace(D2D1_POINT_2F viewportPoint) const noe
 
 Control* ScrollPanel::FindChildAtContent(D2D1_POINT_2F contentPoint)
 {
-    const auto& children = GetChildren();
-    for (auto it = children.rbegin(); it != children.rend(); ++it)
-    {
-        if (*it && (*it)->IsVisible())
-        {
-            if (Control* hit = (*it)->HitTest(contentPoint))
-            {
-                return hit;
-            }
-        }
-    }
-    return nullptr;
+    return FindPanelChildHit(*this, GetLifetimeToken(), [contentPoint](Control& child) { return child.IsVisible() ? child.HitTest(contentPoint) : nullptr; });
 }
 
 Control* ScrollPanel::FindOverlayChildAtContent(D2D1_POINT_2F contentPoint)
 {
-    const auto& children = GetChildren();
-    for (auto it = children.rbegin(); it != children.rend(); ++it)
-    {
-        if (*it && (*it)->IsVisible())
-        {
-            if (Control* hit = (*it)->HitTestOverlay(contentPoint))
-            {
-                return hit;
-            }
-        }
-    }
-    return nullptr;
+    return FindPanelChildHit(
+        *this, GetLifetimeToken(), [contentPoint](Control& child) { return child.IsVisible() ? child.HitTestOverlay(contentPoint) : nullptr; });
 }
 
 const Control* ScrollPanel::FindOverlayChildAtContent(D2D1_POINT_2F contentPoint) const
@@ -8678,6 +9552,10 @@ void ScrollPanel::UpdateInnerHover(ControlHost& host, D2D1_POINT_2F viewportPoin
     {
         const D2D1_POINT_2F contentPoint = ToContentSpace(viewportPoint);
         newHovered                       = FindChildAtContent(contentPoint);
+        if (selfLifetime.expired())
+        {
+            return;
+        }
         if (newHovered)
         {
             newHoveredLifetime = newHovered->GetLifetimeToken();
@@ -8725,6 +9603,7 @@ void ScrollPanel::Paint(ControlHost& host) const
         return;
     }
 
+    const auto ownerLifetime   = GetLifetimeToken();
     const D2D1_RECT_F viewport = GetViewportRect();
 
     // Clip to viewport
@@ -8736,6 +9615,11 @@ void ScrollPanel::Paint(ControlHost& host) const
     auto scrollTransform = oldTransform;
     scrollTransform._32 -= _scrollOffsetDip;
     dc->SetTransform(scrollTransform);
+    auto restoreDrawingState = wil::scope_exit([dc, oldTransform]
+    {
+        dc->SetTransform(oldTransform);
+        dc->PopAxisAlignedClip();
+    });
 
     // Paint children in content space
     Panel::Paint(host);
@@ -8743,6 +9627,9 @@ void ScrollPanel::Paint(ControlHost& host) const
     // Restore
     dc->SetTransform(oldTransform);
     dc->PopAxisAlignedClip();
+    restoreDrawingState.release();
+    if (ownerLifetime.expired())
+        return;
 
     // Paint scrollbar
     if (UsesInternalScrollbar())
@@ -8772,10 +9659,9 @@ void ScrollPanel::PaintOverlay(ControlHost& host) const
     auto scrollTransform = oldTransform;
     scrollTransform._32 -= _scrollOffsetDip;
     dc->SetTransform(scrollTransform);
+    const auto restoreDrawingState = wil::scope_exit([dc, oldTransform] { dc->SetTransform(oldTransform); });
 
     Panel::PaintOverlay(host);
-
-    dc->SetTransform(oldTransform);
 }
 
 Control* ScrollPanel::HitTest(D2D1_POINT_2F point)
@@ -8806,7 +9692,9 @@ Control* ScrollPanel::HitTestOverlay(D2D1_POINT_2F point)
         return nullptr;
     }
 
-    return FindOverlayChildAtContent(ToContentSpace(point)) ? this : nullptr;
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+    const Control* const hit              = FindOverlayChildAtContent(ToContentSpace(point));
+    return ! selfLifetime.expired() && hit ? this : nullptr;
 }
 
 const Control* ScrollPanel::HitTestOverlay(D2D1_POINT_2F point) const
@@ -8816,22 +9704,7 @@ const Control* ScrollPanel::HitTestOverlay(D2D1_POINT_2F point) const
 
 bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point)
 {
-    if (! IsVisible() || ! IsEnabled())
-    {
-        return false;
-    }
-
-    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-    for (size_t childIndex = GetLogicalChildCount(); childIndex > 0u; --childIndex)
-    {
-        Control* const child = GetLogicalChild(childIndex - 1u);
-        if (child && child->DismissOverlayOnPointerDown(host, contentPoint))
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return Control::DismissOverlayOnPointerDown(host, ToContentSpace(point));
 }
 
 bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -8841,8 +9714,14 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-    if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
+    const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+    {
+        return false;
+    }
+    if (overlayChild)
     {
         const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
         const std::weak_ptr<int> childLifetime = overlayChild->GetLifetimeToken();
@@ -8886,7 +9765,10 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
                 _scrollOffsetDip += (point.y < thumb.top) ? -pageStep : pageStep;
                 ClampScrollOffset();
                 _scrollbarHotPart = HotPart::Track;
-                NotifyScrollChanged(previousOffset);
+                if (! NotifyScrollChanged(previousOffset))
+                {
+                    return true;
+                }
             }
             RequestInvalidate();
             return true;
@@ -8897,7 +9779,12 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
     const D2D1_RECT_F viewport = GetViewportRect();
     if (PointInRect(viewport, point))
     {
-        if (Control* child = FindChildAtContent(contentPoint))
+        Control* child = FindChildAtContent(contentPoint);
+        if (queryLifetime.expired())
+        {
+            return false;
+        }
+        if (child)
         {
             const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
             const std::weak_ptr<int> childLifetime = child->GetLifetimeToken();
@@ -8931,12 +9818,23 @@ bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, boo
     const D2D1_RECT_F viewport = GetViewportRect();
     if (PointInRect(viewport, point))
     {
-        const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-        if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
+        const D2D1_POINT_2F contentPoint      = ToContentSpace(point);
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        Control* overlayChild                 = FindOverlayChildAtContent(contentPoint);
+        if (selfLifetime.expired())
+        {
+            return false;
+        }
+        if (overlayChild)
         {
             return overlayChild->OnMouseDoubleClick(host, contentPoint, rightButton, modifiers);
         }
-        if (Control* child = FindChildAtContent(contentPoint))
+        Control* child = FindChildAtContent(contentPoint);
+        if (selfLifetime.expired())
+        {
+            return false;
+        }
+        if (child)
         {
             return child->OnMouseDoubleClick(host, contentPoint, rightButton, modifiers);
         }
@@ -8973,14 +9871,23 @@ bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modif
             const float thumbTop       = (std::clamp)(point.y - _dragThumbOffsetDip, track.top, track.bottom - thumbHeight);
             _scrollOffsetDip           = ((thumbTop - track.top) / available) * GetScrollableExtent();
             ClampScrollOffset();
-            NotifyScrollChanged(previousOffset);
+            if (! NotifyScrollChanged(previousOffset))
+            {
+                return true;
+            }
         }
         RequestInvalidate();
         return true;
     }
 
-    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-    if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
+    const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+    {
+        return true;
+    }
+    if (overlayChild)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         std::weak_ptr<int> overlayLifetime    = overlayChild->GetLifetimeToken();
@@ -9102,8 +10009,14 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         return true;
     }
 
-    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-    if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
+    const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+    {
+        return false;
+    }
+    if (overlayChild)
     {
         return overlayChild->OnMouseUp(host, contentPoint, rightButton, modifiers);
     }
@@ -9112,7 +10025,12 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     const D2D1_RECT_F viewport = GetViewportRect();
     if (PointInRect(viewport, point))
     {
-        if (Control* child = FindChildAtContent(contentPoint))
+        Control* child = FindChildAtContent(contentPoint);
+        if (queryLifetime.expired())
+        {
+            return false;
+        }
+        if (child)
         {
             return child->OnMouseUp(host, contentPoint, rightButton, modifiers);
         }
@@ -9123,8 +10041,14 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers)
 {
-    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
-    if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
+    const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+    {
+        return false;
+    }
+    if (overlayChild)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         const bool childHandled               = overlayChild->OnMouseWheel(host, contentPoint, wheelDelta, modifiers);
@@ -9141,7 +10065,12 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
     const D2D1_RECT_F viewport = GetViewportRect();
     if (PointInRect(viewport, point))
     {
-        if (Control* child = FindChildAtContent(contentPoint))
+        Control* child = FindChildAtContent(contentPoint);
+        if (queryLifetime.expired())
+        {
+            return false;
+        }
+        if (child)
         {
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
             const bool childHandled               = child->OnMouseWheel(host, contentPoint, wheelDelta, modifiers);
@@ -9171,7 +10100,7 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
     _scrollOffsetDip -= steps * _scrollStepDip;
     ClampScrollOffset();
     RequestInvalidate();
-    NotifyScrollChanged(previousOffset);
+    static_cast<void>(NotifyScrollChanged(previousOffset));
     return true;
 }
 
@@ -9227,6 +10156,10 @@ void ScrollPanel::OnCaptureLost(ControlHost& host)
 
 bool TooltipLayer::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
 {
+    if (_inspecting)
+    {
+        return false;
+    }
     const bool nextVisible = ! text.empty();
     if (_text == text && TooltipPointsMatch(_originDip, originDip) && IsVisible() == nextVisible && ! _hideScheduled)
     {
@@ -9245,8 +10178,125 @@ bool TooltipLayer::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
     return true;
 }
 
+bool TooltipLayer::Inspect(std::wstring text, const D2D1_POINT_2F& originDip)
+{
+    // Replacing an inspection starts at the first line, even for the same value.
+    _inspecting = false;
+    static_cast<void>(SetTooltip(std::move(text), originDip));
+    _scrollOffsetDip    = 0.0f;
+    _inspectionDragging = false;
+    _inspecting         = HasTooltip();
+    return _inspecting;
+}
+
+bool TooltipLayer::IsInspecting() const noexcept
+{
+    return _inspecting;
+}
+
+bool TooltipLayer::IsDismissGestureActive() const noexcept
+{
+    return _dismissGestureActive;
+}
+
+void TooltipLayer::ScrollInspection(ControlHost& host, float offsetDip) noexcept
+{
+    static_cast<void>(EnsureLayoutCache(host));
+    const float viewportHeight = (std::max)(0.0f, _layoutCache.bounds.bottom - _layoutCache.bounds.top - 2.0f * kTooltipPaddingYDip);
+    const float maximum        = (std::max)(0.0f, _layoutCache.textHeightDip - viewportHeight);
+    _scrollOffsetDip           = std::clamp(offsetDip, 0.0f, maximum);
+    host.Invalidate();
+}
+
+bool TooltipLayer::HandleInspectionKey(ControlHost& host, UINT virtualKey) noexcept
+{
+    if (! _inspecting)
+        return false;
+    static_cast<void>(EnsureLayoutCache(host));
+    const float page = (std::max)(kTooltipFallbackLineHeightDip, _layoutCache.bounds.bottom - _layoutCache.bounds.top - 2.0f * kTooltipPaddingYDip);
+    switch (virtualKey)
+    {
+        case VK_ESCAPE:
+        case VK_F1:
+            static_cast<void>(Clear());
+            host.Invalidate();
+            return true;
+        case VK_UP: ScrollInspection(host, _scrollOffsetDip - kTooltipFallbackLineHeightDip); return true;
+        case VK_DOWN: ScrollInspection(host, _scrollOffsetDip + kTooltipFallbackLineHeightDip); return true;
+        case VK_PRIOR: ScrollInspection(host, _scrollOffsetDip - page); return true;
+        case VK_NEXT: ScrollInspection(host, _scrollOffsetDip + page); return true;
+        case VK_HOME: ScrollInspection(host, 0.0f); return true;
+        case VK_END: ScrollInspection(host, (std::numeric_limits<float>::max)()); return true;
+        default: return false;
+    }
+}
+
+bool TooltipLayer::HandleInspectionPointer(ControlHost& host, UINT message, D2D1_POINT_2F point, float wheelDelta) noexcept
+{
+    if (_dismissGestureActive)
+    {
+        if (message == WM_MOUSEMOVE || message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_LBUTTONDBLCLK || message == WM_RBUTTONDBLCLK ||
+            message == WM_MOUSEWHEEL)
+        {
+            return true;
+        }
+        if (message == _dismissGestureUpMessage)
+        {
+            _dismissGestureActive    = false;
+            _dismissGestureUpMessage = 0u;
+            return true;
+        }
+        if (message == WM_LBUTTONUP || message == WM_RBUTTONUP)
+            return true;
+        if (message == WM_CAPTURECHANGED || message == WM_CANCELMODE)
+        {
+            _dismissGestureActive    = false;
+            _dismissGestureUpMessage = 0u;
+            return true;
+        }
+        if (message == WM_MOUSELEAVE)
+        {
+            // The dismissal press owns capture until its matching release or cancellation. A leave
+            // cannot complete the gesture because the eventual up must remain consumed here.
+            return true;
+        }
+        return true;
+    }
+    if (! _inspecting)
+        return false;
+    const auto bounds = ComputeBoundsDip(host);
+    if (message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_LBUTTONDBLCLK || message == WM_RBUTTONDBLCLK)
+    {
+        if (! PointInRect(bounds, point))
+        {
+            static_cast<void>(Clear());
+            _dismissGestureActive    = true;
+            _dismissGestureUpMessage = message == WM_RBUTTONDOWN || message == WM_RBUTTONDBLCLK ? WM_RBUTTONUP : WM_LBUTTONUP;
+            host.Invalidate();
+        }
+        else
+        {
+            _inspectionDragging = message == WM_LBUTTONDOWN || message == WM_LBUTTONDBLCLK;
+            _inspectionDragY    = point.y;
+        }
+    }
+    else if (message == WM_MOUSEMOVE && _inspectionDragging)
+    {
+        ScrollInspection(host, _scrollOffsetDip + _inspectionDragY - point.y);
+        _inspectionDragY = point.y;
+    }
+    else if (message == WM_LBUTTONUP || message == WM_RBUTTONUP || message == WM_CAPTURECHANGED || message == WM_CANCELMODE || message == WM_MOUSELEAVE)
+        _inspectionDragging = false;
+    else if (message == WM_MOUSEWHEEL)
+        ScrollInspection(host, _scrollOffsetDip - wheelDelta / static_cast<float>(WHEEL_DELTA) * 3.0f * kTooltipFallbackLineHeightDip);
+    // Keep hover/click dispatch away from the underlying cell while inspecting it.
+    return true;
+}
+
 bool TooltipLayer::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip, uint64_t nowTickMs, uint64_t delayMs)
 {
+    if (_inspecting)
+        return false;
     if (text.empty())
     {
         return Clear();
@@ -9294,6 +10344,8 @@ bool TooltipLayer::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& ori
 
 bool TooltipLayer::BeginHideDelay(uint64_t nowTickMs, uint64_t delayMs) noexcept
 {
+    if (_inspecting)
+        return false;
     if (_showScheduled)
     {
         _pendingText.clear();
@@ -9332,6 +10384,11 @@ bool TooltipLayer::CancelHideDelay() noexcept
 
 bool TooltipLayer::Clear() noexcept
 {
+    _inspecting              = false;
+    _inspectionDragging      = false;
+    _dismissGestureActive    = false;
+    _dismissGestureUpMessage = 0u;
+    _scrollOffsetDip         = 0.0f;
     if (_text.empty() && _pendingText.empty() && ! IsVisible() && ! _showScheduled && ! _hideScheduled)
     {
         return false;
@@ -9424,7 +10481,8 @@ void TooltipLayer::InvalidateLayoutCache() noexcept
 
 bool TooltipLayer::EnsureLayoutCache(const ControlHost& host) const noexcept
 {
-    const D2D1_RECT_F clientBounds = host.GetClientBoundsDip();
+    const D2D1_RECT_F clientBounds    = host.GetClientBoundsDip();
+    const FlowDirection flowDirection = host.GetRoot() ? host.GetRoot()->GetFlowDirection() : FlowDirection::LeftToRight;
     if (_text.empty() || clientBounds.right <= clientBounds.left || clientBounds.bottom <= clientBounds.top)
     {
         _layoutCache              = {};
@@ -9434,17 +10492,22 @@ bool TooltipLayer::EnsureLayoutCache(const ControlHost& host) const noexcept
         return false;
     }
 
-    if (_layoutCache.valid && TooltipRectsMatch(_layoutCache.clientBounds, clientBounds))
+    if (_layoutCache.valid && TooltipRectsMatch(_layoutCache.clientBounds, clientBounds) && _layoutCache.flowDirection == flowDirection)
     {
         return static_cast<bool>(_layoutCache.layout);
     }
 
-    const float maxOuterWidthDip = (std::max)(kTooltipMinWidthDip, (clientBounds.right - clientBounds.left) - (kTooltipViewportMarginDip * 2.0f));
-    const float maxInnerWidthDip = (std::max)(1.0f, (std::min)(kTooltipMaxWidthDip, maxOuterWidthDip) - (kTooltipPaddingXDip * 2.0f));
+    // Keep both dimensions inside even a viewport smaller than the normal minimum size/margins.
+    const float marginX           = (std::min)(kTooltipViewportMarginDip, (clientBounds.right - clientBounds.left) * 0.25f);
+    const float marginY           = (std::min)(kTooltipViewportMarginDip, (clientBounds.bottom - clientBounds.top) * 0.25f);
+    const float maxOuterWidthDip  = clientBounds.right - clientBounds.left - 2.0f * marginX;
+    const float maxOuterHeightDip = clientBounds.bottom - clientBounds.top - 2.0f * marginY;
+    const float maxInnerWidthDip  = (std::max)(1.0f, (std::min)(kTooltipMaxWidthDip, maxOuterWidthDip) - (kTooltipPaddingXDip * 2.0f));
 
-    _layoutCache              = {};
-    _layoutCache.clientBounds = clientBounds;
-    _layoutCache.layout       = CreateTooltipTextLayout(host, _text, maxInnerWidthDip, kTooltipPreferredTextHeightDip);
+    _layoutCache               = {};
+    _layoutCache.clientBounds  = clientBounds;
+    _layoutCache.flowDirection = flowDirection;
+    _layoutCache.layout        = CreateTooltipTextLayout(host, _text, maxInnerWidthDip, kTooltipPreferredTextHeightDip, ResolveReadingDirection(flowDirection));
 
     D2D1_SIZE_F textSizeDip = D2D1::SizeF(0.0f, 0.0f);
     if (_layoutCache.layout)
@@ -9464,23 +10527,29 @@ bool TooltipLayer::EnsureLayoutCache(const ControlHost& host) const noexcept
 
     const float widthDip =
         (std::min)((std::min)(kTooltipMaxWidthDip, maxOuterWidthDip), (std::max)(kTooltipMinWidthDip, textSizeDip.width + (kTooltipPaddingXDip * 2.0f)));
-    const float heightDip = (std::max)(kTooltipMinHeightDip, textSizeDip.height + (kTooltipPaddingYDip * 2.0f));
+    const float heightDip      = (std::min)(maxOuterHeightDip, (std::max)(kTooltipMinHeightDip, textSizeDip.height + (kTooltipPaddingYDip * 2.0f)));
+    _layoutCache.textHeightDip = textSizeDip.height;
+    _scrollOffsetDip = std::clamp(_scrollOffsetDip, 0.0f, (std::max)(0.0f, textSizeDip.height - (std::max)(0.0f, heightDip - 2.0f * kTooltipPaddingYDip)));
 
-    float left = _originDip.x + kTooltipOffsetXDip;
+    float left = flowDirection == FlowDirection::RightToLeft ? _originDip.x - kTooltipOffsetXDip - widthDip : _originDip.x + kTooltipOffsetXDip;
     float top  = _originDip.y + kTooltipOffsetYDip;
-    if ((left + widthDip) > (clientBounds.right - kTooltipViewportMarginDip))
+    if (flowDirection == FlowDirection::LeftToRight && (left + widthDip) > (clientBounds.right - marginX))
     {
         left = _originDip.x - kTooltipOffsetXDip - widthDip;
+    }
+    else if (flowDirection == FlowDirection::RightToLeft && left < (clientBounds.left + marginX))
+    {
+        left = _originDip.x + kTooltipOffsetXDip;
     }
     if ((top + heightDip) > (clientBounds.bottom - kTooltipViewportMarginDip))
     {
         top = _originDip.y - kTooltipOffsetYDip - heightDip;
     }
 
-    const float minLeft = clientBounds.left + kTooltipViewportMarginDip;
-    const float maxLeft = (std::max)(minLeft, clientBounds.right - kTooltipViewportMarginDip - widthDip);
-    const float minTop  = clientBounds.top + kTooltipViewportMarginDip;
-    const float maxTop  = (std::max)(minTop, clientBounds.bottom - kTooltipViewportMarginDip - heightDip);
+    const float minLeft = clientBounds.left + marginX;
+    const float maxLeft = (std::max)(minLeft, clientBounds.right - marginX - widthDip);
+    const float minTop  = clientBounds.top + marginY;
+    const float maxTop  = (std::max)(minTop, clientBounds.bottom - marginY - heightDip);
     left                = std::clamp(left, minLeft, maxLeft);
     top                 = std::clamp(top, minTop, maxTop);
 
@@ -9500,6 +10569,32 @@ D2D1_RECT_F TooltipLayer::DebugGetBoundsDip(const ControlHost& host) const noexc
 {
     return ComputeBoundsDip(host);
 }
+
+bool TooltipLayer::DebugIsInspectionFinalGlyphVisible(const ControlHost& host) const noexcept
+{
+    if (! _inspecting || _text.empty() || ! EnsureLayoutCache(host) || ! _layoutCache.layout || _text.size() > (std::numeric_limits<UINT32>::max)())
+    {
+        return false;
+    }
+
+    FLOAT trailingX = 0.0f;
+    FLOAT trailingY = 0.0f;
+    DWRITE_HIT_TEST_METRICS lastCluster{};
+    if (FAILED(_layoutCache.layout->HitTestTextPosition(static_cast<UINT32>(_text.size() - 1u), TRUE, &trailingX, &trailingY, &lastCluster)))
+    {
+        return false;
+    }
+    static_cast<void>(trailingX);
+    static_cast<void>(trailingY);
+
+    const D2D1_RECT_F bounds       = _layoutCache.bounds;
+    const float paddingY           = (std::min)(kTooltipPaddingYDip, (bounds.bottom - bounds.top) * 0.25f);
+    const float textViewportTop    = bounds.top + paddingY;
+    const float textViewportBottom = bounds.bottom - paddingY;
+    const float finalGlyphTop      = textViewportTop - _scrollOffsetDip + lastCluster.top;
+    const float finalGlyphBottom   = finalGlyphTop + lastCluster.height;
+    return finalGlyphTop >= textViewportTop && finalGlyphBottom <= textViewportBottom;
+}
 #endif
 
 void TooltipLayer::Paint(ControlHost& host) const
@@ -9513,15 +10608,20 @@ void TooltipLayer::Paint(ControlHost& host) const
     const TooltipVisualStyle style = ResolveTooltipVisualStyle(host.GetTheme());
     DrawRoundedRect(host, bounds, style.fill, style.border, kTooltipCornerRadiusDip);
 
-    const D2D1_RECT_F textRect = D2D1::RectF(
-        bounds.left + kTooltipPaddingXDip, bounds.top + kTooltipPaddingYDip, bounds.right - kTooltipPaddingXDip, bounds.bottom - kTooltipPaddingYDip);
-    auto* dc    = host.GetDeviceContext();
-    auto* brush = host.GetSolidBrush(style.text);
+    const float paddingX       = (std::min)(kTooltipPaddingXDip, (bounds.right - bounds.left) * 0.25f);
+    const float paddingY       = (std::min)(kTooltipPaddingYDip, (bounds.bottom - bounds.top) * 0.25f);
+    const D2D1_RECT_F textRect = D2D1::RectF(bounds.left + paddingX, bounds.top + paddingY, bounds.right - paddingX, bounds.bottom - paddingY);
+    auto* dc                   = host.GetDeviceContext();
+    auto* brush                = host.GetSolidBrush(style.text);
     if (dc && brush)
     {
         if (EnsureLayoutCache(host) && _layoutCache.layout)
         {
-            dc->DrawTextLayout(D2D1::Point2F(textRect.left, textRect.top), _layoutCache.layout.get(), brush, kTextDrawOptions);
+            dc->PushAxisAlignedClip(textRect, D2D1_ANTIALIAS_MODE_ALIASED);
+            // Clip to the viewport rather than the layout's measurement height: inspection must reach every line.
+            dc->DrawTextLayout(
+                D2D1::Point2F(textRect.left, textRect.top - _scrollOffsetDip), _layoutCache.layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            dc->PopAxisAlignedClip();
             return;
         }
     }

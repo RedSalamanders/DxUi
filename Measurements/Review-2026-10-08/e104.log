@@ -1,0 +1,93 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestPanelOverlayDismissalCanRetireItsOwner
+=================================================================
+==37124==ERROR: AddressSanitizer: heap-use-after-free on address 0x115ec24a0040 at pc 0x7ff6ba567198 bp 0x002a362fb080 sp 0x002a362fb088
+READ of size 8 at 0x115ec24a0040 thread T0
+    #0 0x7ff6ba567197 in DxUi::Control::DismissOverlayOnPointerDown Z:\src\DxUi\src\Controls\DxUi.cpp:893
+    #1 0x7ff6ba75b785 in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:2687
+    #2 0x7ff6b9b649ce in `anonymous namespace'::RequireOverlayDismissalSurvivesOwnerRetirement<DxUi::Panel> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:43
+    #3 0x7ff6b9b031c4 in `anonymous namespace'::TestPanelOverlayDismissalCanRetireItsOwner Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:49
+    #4 0x7ff6b9a0b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6b9b35405 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1657
+    #6 0x7ff6b9b8a765 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6b9b85884 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #8 0x7ff6ba9fc248 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6ba9fc161 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6ba9fc01d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6ba9fc2bd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x115ec24a0040 is located 0 bytes inside of 440-byte region [0x115ec24a0040,0x115ec24a01f8)
+freed by thread T0 here:
+    #0 0x7ff6ba9f9f63 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff6b99ebd70 in DxUi::Panel::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402abd70)
+    #2 0x7ff6b99ea0e3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff6b99bdd90 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff6ba750ae0 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1395
+    #5 0x7ff6b9b35aad in ``anonymous namespace'::RequireOverlayDismissalSurvivesOwnerRetirement<DxUi::Panel>'::`2'::RetiringOverlay::DismissOverlayOnPointerDown Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:28
+    #6 0x7ff6ba5672fb in DxUi::Control::DismissOverlayOnPointerDown Z:\src\DxUi\src\Controls\DxUi.cpp:894
+    #7 0x7ff6ba75b785 in DxUi::ControlHost::HandleMessage Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:2687
+    #8 0x7ff6b9b649ce in `anonymous namespace'::RequireOverlayDismissalSurvivesOwnerRetirement<DxUi::Panel> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:43
+    #9 0x7ff6b9b031c4 in `anonymous namespace'::TestPanelOverlayDismissalCanRetireItsOwner Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:49
+    #10 0x7ff6b9a0b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #11 0x7ff6b9b35405 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1657
+    #12 0x7ff6b9b8a765 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #13 0x7ff6b9b85884 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #14 0x7ff6ba9fc248 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #15 0x7ff6ba9fc161 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #16 0x7ff6ba9fc01d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #17 0x7ff6ba9fc2bd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #18 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #19 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+previously allocated by thread T0 here:
+    #0 0x7ff6ba9f9e45 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff6b9972f37 in std::make_unique<DxUi::Panel,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff6b9b64791 in `anonymous namespace'::RequireOverlayDismissalSurvivesOwnerRetirement<DxUi::Panel> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:37
+    #3 0x7ff6b9b031c4 in `anonymous namespace'::TestPanelOverlayDismissalCanRetireItsOwner Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:49
+    #4 0x7ff6b9a0b507 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff6b9b35405 in RunControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.Controls.cpp:1657
+    #6 0x7ff6b9b8a765 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff6b9b85884 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:519
+    #8 0x7ff6ba9fc248 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff6ba9fc161 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff6ba9fc01d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff6ba9fc2bd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi\src\Controls\DxUi.cpp:893 in DxUi::Control::DismissOverlayOnPointerDown
+Shadow bytes around the buggy address:
+  0x115ec249fd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x115ec249fe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x115ec249fe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x115ec249ff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x115ec249ff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x115ec24a0000: fa fa fa fa fa fa fa fa[fd]fd fd fd fd fd fd fd
+  0x115ec24a0080: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x115ec24a0100: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x115ec24a0180: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa
+  0x115ec24a0200: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  0x115ec24a0280: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==37124==ABORTING

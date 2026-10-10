@@ -39,7 +39,7 @@ layout; controls contain no AV device operations or application settings. Native
 Win32 text/accessibility and presentation support inside the same archive.
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
-[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 3 with target `["DxUi"]`,
+[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 4 with target `["DxUi"]`,
 and use an isolated restore/build output root. See [the consumption contract](Specs/Build/Build_ToolchainAndConsumption.md).
 No DxUi DLL or copied/enumerated library sources are required.
 
@@ -57,6 +57,9 @@ not change either application's runtime. RedSalamander's I19 consumer branch has
 Debug/Release adoption with the duplicate implementation removed; ARM64/ASan qualification and publication/merge
 remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigration.md).
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
+It distinguishes implemented behavior from open physical-touch, native-platform, interactive-suite and API-revision-4
+consumer qualification; the consumer-owned pin, adapter, publication and product-test actions are tracked in the
+[API revision 4 handoff register](Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.

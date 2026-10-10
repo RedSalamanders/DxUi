@@ -15,8 +15,9 @@ fresh twin in the same window or view (one device, so the pixels compare exactly
 scenario and its twin differ in the one thing the test is about. The
 [x64 Debug, Release and ASan Debug runs](../../../Measurements/GridTextOverflow/2026-09-30/verification/README.md) of the
 Grid, Rendering, Accessibility, Embedded and MultilineText suites are archived with their logs and receipts, zero capability
-skips. Native ARM64 execution of the new tests is not claimed: they build in all three ARM64 configurations and the next
-native CI run executes them.
+skips. At this checkpoint native ARM64 execution had not run yet; workflow 36951713344 later passed the Grid,
+MultilineText, Rendering, Accessibility and Embedded suites in native ARM64 Debug, Release and ASan Debug without
+capability skips (recorded below).
 
 - Grid: `TestGridCopyOfTrimmedMultilineCellsIsExact` (Ctrl+C and `OnCopy` of cells the paint trims, holding CR LF,
   U+2028/U+2029, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents, Arabic and trailing separators, are exact
@@ -231,11 +232,13 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
   mutation/resize/font changes, cache bounds and independent WARP/device-loss/lifecycle suites.
   The 30 September tests add what the earlier ones did not cover: copy, UIA values and clipped bounds, Unicode clusters at
   the shaped prefix, right-to-left flow, dpi, theme and font changes, prefix sharing, the ceiling, embedded French cells,
-  device loss and moved hosts (the verification section above). x64 Debug, Release and ASan Debug runs are archived; native
-  ARM64 execution of the new tests awaits the next CI run.
+  device loss and moved hosts (the verification section above). x64 Debug, Release and ASan Debug runs are archived. At
+  that checkpoint native ARM64 execution had not run yet; workflow 36951713344 later passed these suites in all three
+  native ARM64 profiles without capability skips.
 - [x] Run x64 Debug/Release/ASan tests and all three ARM64 cross-builds.
 - [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
-  nine unrelated Menu desktop-capability skips per profile remain explicitly unqualified.
+  desktop-capability skips in other suites remain explicitly unqualified. The later PR #37 run recorded 22 Menu
+  and 10 NewControls skips in Release and ASan; the target grid verification suites had no skips.
 - [x] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
   The V11 cost was accepted on 2026-09-23 and recorded in Core_PerformanceAndResources.md; the
   associative-cache variant stays rejected.

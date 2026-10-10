@@ -1,0 +1,652 @@
+﻿2026-10-09T21:28:11.7442517Z Current runner version: '2.337.0'
+2026-10-09T21:28:11.7474553Z ##[group]Runner Image Provisioner
+2026-10-09T21:28:11.7475415Z Hosted Compute Agent
+2026-10-09T21:28:11.7475882Z Version: 20261002.596
+2026-10-09T21:28:11.7476388Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-09T21:28:11.7476977Z Build Date: 2026-10-02T22:28:27Z
+2026-10-09T21:28:11.7477532Z Worker ID: {a28662bb-1cdf-4bcd-878f-f38cb32ccdc0}
+2026-10-09T21:28:11.7478120Z Region: centralus
+2026-10-09T21:28:11.7478550Z Cloud: Azure
+2026-10-09T21:28:11.7478957Z ##[endgroup]
+2026-10-09T21:28:11.7480940Z ##[group]Operating System
+2026-10-09T21:28:11.7481473Z Microsoft Windows 11
+2026-10-09T21:28:11.7481913Z 10.0.26200
+2026-10-09T21:28:11.7482312Z Enterprise
+2026-10-09T21:28:11.7482710Z ##[endgroup]
+2026-10-09T21:28:11.7483128Z ##[group]Runner Image
+2026-10-09T21:28:11.7483592Z Image: windows-11-vs2026-arm64
+2026-10-09T21:28:11.7484076Z Version: 20261004.176.1
+2026-10-09T21:28:11.7485608Z Included Software: https://github.com/actions/runner-images/blob/win11-vs2026-arm64/20261004.176/images/windows/Windows11-VS2026-Arm64-Readme.md
+2026-10-09T21:28:11.7487074Z Image Release: https://github.com/actions/runner-images/releases/tag/win11-vs2026-arm64%2F20261004.176
+2026-10-09T21:28:11.7487914Z ##[endgroup]
+2026-10-09T21:28:11.7489189Z ##[group]GITHUB_TOKEN Permissions
+2026-10-09T21:28:11.7491685Z Contents: read
+2026-10-09T21:28:11.7492161Z Metadata: read
+2026-10-09T21:28:11.7492586Z ##[endgroup]
+2026-10-09T21:28:11.7495210Z Secret source: Actions
+2026-10-09T21:28:11.7495957Z Cache mode: write
+2026-10-09T21:28:11.7496662Z Prepare workflow directory
+2026-10-09T21:28:11.7941248Z Prepare all required actions
+2026-10-09T21:28:11.7996591Z Getting action download info
+2026-10-09T21:28:12.0286202Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-09T21:28:12.4521429Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-09T21:28:13.5008867Z Complete job name: native (ARM64, windows-11-vs2026-arm, Release)
+2026-10-09T21:28:14.1873218Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-10-09T21:28:14.1874812Z with:
+2026-10-09T21:28:14.1875292Z   repository: RedSalamanders/DxUi
+2026-10-09T21:28:14.1879514Z   token: ***
+2026-10-09T21:28:14.1879937Z   ssh-strict: true
+2026-10-09T21:28:14.1880351Z   ssh-user: git
+2026-10-09T21:28:14.1880768Z   persist-credentials: true
+2026-10-09T21:28:14.1881231Z   clean: true
+2026-10-09T21:28:14.1881655Z   sparse-checkout-cone-mode: true
+2026-10-09T21:28:14.1882156Z   fetch-depth: 1
+2026-10-09T21:28:14.1882563Z   fetch-tags: false
+2026-10-09T21:28:14.1882993Z   show-progress: true
+2026-10-09T21:28:14.1883414Z   lfs: false
+2026-10-09T21:28:14.1883807Z   submodules: false
+2026-10-09T21:28:14.1884268Z   set-safe-directory: true
+2026-10-09T21:28:14.1884756Z   allow-unsafe-pr-checkout: false
+2026-10-09T21:28:14.1885853Z ##[endgroup]
+2026-10-09T21:28:14.4451940Z Syncing repository: RedSalamanders/DxUi
+2026-10-09T21:28:14.4454857Z ##[group]Getting Git version info
+2026-10-09T21:28:14.4455799Z Working directory is 'C:\a\DxUi\DxUi'
+2026-10-09T21:28:14.5513026Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-09T21:28:15.0374856Z git version 2.56.0.windows.1
+2026-10-09T21:28:15.0432175Z ##[endgroup]
+2026-10-09T21:28:15.0479817Z Temporarily overriding HOME='C:\a\_temp\6993592a-dd65-431b-8973-e34493fd842a' before making global git config changes
+2026-10-09T21:28:15.0482039Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:28:15.0489860Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory C:\a\DxUi\DxUi
+2026-10-09T21:28:15.1285716Z Deleting the contents of 'C:\a\DxUi\DxUi'
+2026-10-09T21:28:15.1296273Z ##[group]Initializing the repository
+2026-10-09T21:28:15.1305865Z [command]"C:\Program Files\Git\bin\git.exe" init C:\a\DxUi\DxUi
+2026-10-09T21:28:15.2496960Z Initialized empty Git repository in C:/a/DxUi/DxUi/.git/
+2026-10-09T21:28:15.2561461Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:15.3344255Z ##[endgroup]
+2026-10-09T21:28:15.3345611Z ##[group]Disabling automatic garbage collection
+2026-10-09T21:28:15.3352943Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-09T21:28:15.3920187Z ##[endgroup]
+2026-10-09T21:28:15.3921540Z ##[group]Setting up auth
+2026-10-09T21:28:15.3932022Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:28:15.4476298Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-09T21:28:17.9228764Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:28:17.9803390Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-09T21:28:19.2560598Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:28:19.3093278Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-09T21:28:20.5708364Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-09T21:28:20.6274852Z ##[endgroup]
+2026-10-09T21:28:20.6275266Z ##[group]Fetching the repository
+2026-10-09T21:28:20.6288302Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d768aeebecd996d509109cdddadddc07b37ef9b9:refs/remotes/pull/70/merge
+2026-10-09T21:28:22.5887377Z From https://github.com/RedSalamanders/DxUi
+2026-10-09T21:28:22.5888144Z  * [new ref]         d768aeebecd996d509109cdddadddc07b37ef9b9 -> pull/70/merge
+2026-10-09T21:28:22.5952656Z ##[endgroup]
+2026-10-09T21:28:22.5953420Z ##[group]Determining the checkout info
+2026-10-09T21:28:22.5956391Z ##[endgroup]
+2026-10-09T21:28:22.5967734Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-09T21:28:22.6742448Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-09T21:28:22.7295521Z ##[group]Checking out the ref
+2026-10-09T21:28:22.7305862Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/remotes/pull/70/merge
+2026-10-09T21:28:23.8381442Z Updating files:  22% (953/4309)
+2026-10-09T21:28:23.8828395Z Updating files:  23% (992/4309)
+2026-10-09T21:28:23.9235876Z Updating files:  24% (1035/4309)
+2026-10-09T21:28:23.9596979Z Updating files:  25% (1078/4309)
+2026-10-09T21:28:23.9993279Z Updating files:  26% (1121/4309)
+2026-10-09T21:28:24.0274108Z Updating files:  27% (1164/4309)
+2026-10-09T21:28:24.0616687Z Updating files:  28% (1207/4309)
+2026-10-09T21:28:24.0931955Z Updating files:  29% (1250/4309)
+2026-10-09T21:28:24.1411886Z Updating files:  30% (1293/4309)
+2026-10-09T21:28:24.1865176Z Updating files:  31% (1336/4309)
+2026-10-09T21:28:24.2250262Z Updating files:  32% (1379/4309)
+2026-10-09T21:28:24.2712084Z Updating files:  33% (1422/4309)
+2026-10-09T21:28:24.3142740Z Updating files:  34% (1466/4309)
+2026-10-09T21:28:24.3623702Z Updating files:  35% (1509/4309)
+2026-10-09T21:28:24.4041233Z Updating files:  36% (1552/4309)
+2026-10-09T21:28:24.9487494Z Updating files:  37% (1595/4309)
+2026-10-09T21:28:25.2088424Z Updating files:  37% (1634/4309)
+2026-10-09T21:28:25.2451852Z Updating files:  38% (1638/4309)
+2026-10-09T21:28:25.2959868Z Updating files:  39% (1681/4309)
+2026-10-09T21:28:25.3353248Z Updating files:  40% (1724/4309)
+2026-10-09T21:28:25.3724955Z Updating files:  41% (1767/4309)
+2026-10-09T21:28:25.4138574Z Updating files:  42% (1810/4309)
+2026-10-09T21:28:25.4646135Z Updating files:  43% (1853/4309)
+2026-10-09T21:28:25.5030132Z Updating files:  44% (1896/4309)
+2026-10-09T21:28:25.5437482Z Updating files:  45% (1940/4309)
+2026-10-09T21:28:25.5857302Z Updating files:  46% (1983/4309)
+2026-10-09T21:28:25.6312141Z Updating files:  47% (2026/4309)
+2026-10-09T21:28:25.6828825Z Updating files:  48% (2069/4309)
+2026-10-09T21:28:25.7307446Z Updating files:  49% (2112/4309)
+2026-10-09T21:28:25.7765019Z Updating files:  50% (2155/4309)
+2026-10-09T21:28:25.8413856Z Updating files:  51% (2198/4309)
+2026-10-09T21:28:26.4014605Z Updating files:  51% (2225/4309)
+2026-10-09T21:28:26.4448977Z Updating files:  52% (2241/4309)
+2026-10-09T21:28:26.4914923Z Updating files:  53% (2284/4309)
+2026-10-09T21:28:26.5347681Z Updating files:  54% (2327/4309)
+2026-10-09T21:28:26.5866221Z Updating files:  55% (2370/4309)
+2026-10-09T21:28:26.6270618Z Updating files:  56% (2414/4309)
+2026-10-09T21:28:26.6862625Z Updating files:  57% (2457/4309)
+2026-10-09T21:28:26.7929755Z Updating files:  58% (2500/4309)
+2026-10-09T21:28:26.8503413Z Updating files:  59% (2543/4309)
+2026-10-09T21:28:26.9345663Z Updating files:  59% (2555/4309)
+2026-10-09T21:28:27.0767350Z Updating files:  60% (2586/4309)
+2026-10-09T21:28:27.5880464Z Updating files:  61% (2629/4309)
+2026-10-09T21:28:27.6706101Z Updating files:  62% (2672/4309)
+2026-10-09T21:28:27.7065598Z Updating files:  63% (2715/4309)
+2026-10-09T21:28:27.7410343Z Updating files:  64% (2758/4309)
+2026-10-09T21:28:27.7939437Z Updating files:  65% (2801/4309)
+2026-10-09T21:28:27.8267608Z Updating files:  66% (2844/4309)
+2026-10-09T21:28:27.8636758Z Updating files:  67% (2888/4309)
+2026-10-09T21:28:27.8642901Z Updating files:  68% (2931/4309)
+2026-10-09T21:28:27.9034963Z Updating files:  68% (2932/4309)
+2026-10-09T21:28:27.9388171Z Updating files:  69% (2974/4309)
+2026-10-09T21:28:27.9736212Z Updating files:  70% (3017/4309)
+2026-10-09T21:28:28.0108174Z Updating files:  71% (3060/4309)
+2026-10-09T21:28:28.0657444Z Updating files:  72% (3103/4309)
+2026-10-09T21:28:28.1119250Z Updating files:  73% (3146/4309)
+2026-10-09T21:28:28.1468736Z Updating files:  74% (3189/4309)
+2026-10-09T21:28:28.1891443Z Updating files:  75% (3232/4309)
+2026-10-09T21:28:28.2270468Z Updating files:  76% (3275/4309)
+2026-10-09T21:28:28.2703927Z Updating files:  77% (3318/4309)
+2026-10-09T21:28:28.3241833Z Updating files:  78% (3362/4309)
+2026-10-09T21:28:28.3676872Z Updating files:  79% (3405/4309)
+2026-10-09T21:28:28.4202010Z Updating files:  80% (3448/4309)
+2026-10-09T21:28:28.4862195Z Updating files:  81% (3491/4309)
+2026-10-09T21:28:28.5282283Z Updating files:  82% (3534/4309)
+2026-10-09T21:28:29.0389813Z Updating files:  83% (3577/4309)
+2026-10-09T21:28:29.4136763Z Updating files:  83% (3581/4309)
+2026-10-09T21:28:29.4968281Z Updating files:  84% (3620/4309)
+2026-10-09T21:28:29.5841182Z Updating files:  85% (3663/4309)
+2026-10-09T21:28:29.6787348Z Updating files:  86% (3706/4309)
+2026-10-09T21:28:29.7589394Z Updating files:  87% (3749/4309)
+2026-10-09T21:28:29.8775566Z Updating files:  88% (3792/4309)
+2026-10-09T21:28:29.8934804Z Updating files:  89% (3836/4309)
+2026-10-09T21:28:30.0087954Z Updating files:  89% (3846/4309)
+2026-10-09T21:28:30.0825630Z Updating files:  90% (3879/4309)
+2026-10-09T21:28:30.1931280Z Updating files:  91% (3922/4309)
+2026-10-09T21:28:30.3283786Z Updating files:  92% (3965/4309)
+2026-10-09T21:28:30.3570520Z Updating files:  93% (4008/4309)
+2026-10-09T21:28:30.4090591Z Updating files:  94% (4051/4309)
+2026-10-09T21:28:30.4602622Z Updating files:  95% (4094/4309)
+2026-10-09T21:28:30.5009806Z Updating files:  96% (4137/4309)
+2026-10-09T21:28:30.5349666Z Updating files:  97% (4180/4309)
+2026-10-09T21:28:30.5868184Z Updating files:  98% (4223/4309)
+2026-10-09T21:28:30.6302157Z Updating files:  99% (4266/4309)
+2026-10-09T21:28:30.6303306Z Updating files: 100% (4309/4309)
+2026-10-09T21:28:30.6303548Z Updating files: 100% (4309/4309), done.
+2026-10-09T21:28:30.6454302Z Note: switching to 'refs/remotes/pull/70/merge'.
+2026-10-09T21:28:30.6454557Z 
+2026-10-09T21:28:30.6454733Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-09T21:28:30.6455174Z changes and commit them, and you can discard any commits you make in this
+2026-10-09T21:28:30.6455596Z state without impacting any branches by switching back to a branch.
+2026-10-09T21:28:30.6456208Z 
+2026-10-09T21:28:30.6456431Z If you want to create a new branch to retain commits you create, you may
+2026-10-09T21:28:30.6456855Z do so (now or later) by using -c with the switch command. Example:
+2026-10-09T21:28:30.6457094Z 
+2026-10-09T21:28:30.6457214Z   git switch -c <new-branch-name>
+2026-10-09T21:28:30.6457369Z 
+2026-10-09T21:28:30.6457448Z Or undo this operation with:
+2026-10-09T21:28:30.6457626Z 
+2026-10-09T21:28:30.6457692Z   git switch -
+2026-10-09T21:28:30.6457795Z 
+2026-10-09T21:28:30.6458398Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-09T21:28:30.6459038Z 
+2026-10-09T21:28:30.6459423Z HEAD is now at d768aee Merge ffc64c8947301dfaf2b1e295968a1cc6253bd413 into bea676a1f8418141f61cab9326b9b910e89a14b4
+2026-10-09T21:28:30.6619813Z ##[endgroup]
+2026-10-09T21:28:30.7248989Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-09T21:28:30.7744396Z d768aeebecd996d509109cdddadddc07b37ef9b9
+2026-10-09T21:28:30.8312729Z ##[group]Run ./vcpkg-install.ps1 -Platform ARM64
+2026-10-09T21:28:30.8313486Z [36;1m./vcpkg-install.ps1 -Platform ARM64[0m
+2026-10-09T21:28:30.8378653Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-09T21:28:30.8378998Z ##[endgroup]
+2026-10-09T21:28:32.1115298Z Visual Studio: C:\Program Files\Microsoft Visual Studio\18\Enterprise
+2026-10-09T21:28:32.1138622Z MSVC toolset:  14.51.36231, the default MSBuild compiles with; vcpkg is pinned to 14.51
+2026-10-09T21:28:32.1243749Z Cloning pinned vcpkg tooling into C:\a\DxUi\DxUi\.build\vcpkg-tool
+2026-10-09T21:28:32.1788169Z Cloning into 'C:\a\DxUi\DxUi\.build\vcpkg-tool'...
+2026-10-09T21:28:42.6868352Z Updating files:   0% (1/14336)
+2026-10-09T21:28:42.7971695Z Updating files:   1% (144/14336)
+2026-10-09T21:28:42.9040831Z Updating files:   2% (287/14336)
+2026-10-09T21:28:43.8969779Z Updating files:   3% (431/14336)
+2026-10-09T21:28:44.1706138Z Updating files:   3% (470/14336)
+2026-10-09T21:28:44.2745602Z Updating files:   4% (574/14336)
+2026-10-09T21:28:44.2928535Z Updating files:   5% (717/14336)
+2026-10-09T21:28:44.3755632Z Updating files:   5% (736/14336)
+2026-10-09T21:28:44.4745525Z Updating files:   6% (861/14336)
+2026-10-09T21:28:44.5712389Z Updating files:   7% (1004/14336)
+2026-10-09T21:28:44.6901465Z Updating files:   8% (1147/14336)
+2026-10-09T21:28:44.7983630Z Updating files:   9% (1291/14336)
+2026-10-09T21:28:44.9727700Z Updating files:  10% (1434/14336)
+2026-10-09T21:28:45.4861283Z Updating files:  11% (1577/14336)
+2026-10-09T21:28:45.6444424Z Updating files:  11% (1582/14336)
+2026-10-09T21:28:45.7626334Z Updating files:  12% (1721/14336)
+2026-10-09T21:28:45.8586409Z Updating files:  13% (1864/14336)
+2026-10-09T21:28:45.9683387Z Updating files:  14% (2008/14336)
+2026-10-09T21:28:46.0797243Z Updating files:  15% (2151/14336)
+2026-10-09T21:28:46.1822676Z Updating files:  16% (2294/14336)
+2026-10-09T21:28:46.3288710Z Updating files:  17% (2438/14336)
+2026-10-09T21:28:46.6751923Z Updating files:  17% (2555/14336)
+2026-10-09T21:28:46.7792148Z Updating files:  18% (2581/14336)
+2026-10-09T21:28:46.8891714Z Updating files:  19% (2724/14336)
+2026-10-09T21:28:47.0009690Z Updating files:  20% (2868/14336)
+2026-10-09T21:28:47.1031666Z Updating files:  21% (3011/14336)
+2026-10-09T21:28:47.2148162Z Updating files:  22% (3154/14336)
+2026-10-09T21:28:47.3206053Z Updating files:  23% (3298/14336)
+2026-10-09T21:28:47.3242961Z Updating files:  24% (3441/14336)
+2026-10-09T21:28:47.4346818Z Updating files:  24% (3444/14336)
+2026-10-09T21:28:47.5417466Z Updating files:  25% (3584/14336)
+2026-10-09T21:28:48.2260156Z Updating files:  26% (3728/14336)
+2026-10-09T21:28:48.3360962Z Updating files:  27% (3871/14336)
+2026-10-09T21:28:48.3600939Z Updating files:  27% (3983/14336)
+2026-10-09T21:28:48.4750454Z Updating files:  28% (4015/14336)
+2026-10-09T21:28:48.5946963Z Updating files:  29% (4158/14336)
+2026-10-09T21:28:48.7015271Z Updating files:  30% (4301/14336)
+2026-10-09T21:28:48.8189881Z Updating files:  31% (4445/14336)
+2026-10-09T21:28:49.3367799Z Updating files:  32% (4588/14336)
+2026-10-09T21:28:49.3836710Z Updating files:  32% (4673/14336)
+2026-10-09T21:28:49.4985441Z Updating files:  33% (4731/14336)
+2026-10-09T21:28:49.6260183Z Updating files:  34% (4875/14336)
+2026-10-09T21:28:49.7360551Z Updating files:  35% (5018/14336)
+2026-10-09T21:28:49.8644367Z Updating files:  36% (5161/14336)
+2026-10-09T21:28:49.9788981Z Updating files:  37% (5305/14336)
+2026-10-09T21:28:50.0911970Z Updating files:  38% (5448/14336)
+2026-10-09T21:28:50.1897905Z Updating files:  39% (5592/14336)
+2026-10-09T21:28:51.0062576Z Updating files:  40% (5735/14336)
+2026-10-09T21:28:51.5283259Z Updating files:  40% (5814/14336)
+2026-10-09T21:28:51.6770796Z Updating files:  40% (5821/14336)
+2026-10-09T21:28:51.8827461Z Updating files:  41% (5878/14336)
+2026-10-09T21:28:51.9794722Z Updating files:  42% (6022/14336)
+2026-10-09T21:28:52.0763381Z Updating files:  43% (6165/14336)
+2026-10-09T21:28:52.1759589Z Updating files:  44% (6308/14336)
+2026-10-09T21:28:52.2915778Z Updating files:  45% (6452/14336)
+2026-10-09T21:28:52.3675112Z Updating files:  46% (6595/14336)
+2026-10-09T21:28:52.4051220Z Updating files:  46% (6690/14336)
+2026-10-09T21:28:52.5270304Z Updating files:  47% (6738/14336)
+2026-10-09T21:28:52.6365496Z Updating files:  48% (6882/14336)
+2026-10-09T21:28:52.7316612Z Updating files:  49% (7025/14336)
+2026-10-09T21:28:52.8385291Z Updating files:  50% (7168/14336)
+2026-10-09T21:28:52.9369362Z Updating files:  51% (7312/14336)
+2026-10-09T21:28:53.0421955Z Updating files:  52% (7455/14336)
+2026-10-09T21:28:53.6824065Z Updating files:  53% (7599/14336)
+2026-10-09T21:28:53.7585341Z Updating files:  53% (7681/14336)
+2026-10-09T21:28:53.8844880Z Updating files:  54% (7742/14336)
+2026-10-09T21:28:53.9901424Z Updating files:  55% (7885/14336)
+2026-10-09T21:28:54.0971384Z Updating files:  56% (8029/14336)
+2026-10-09T21:28:54.2203759Z Updating files:  57% (8172/14336)
+2026-10-09T21:28:54.3277041Z Updating files:  58% (8315/14336)
+2026-10-09T21:28:54.3934645Z Updating files:  59% (8459/14336)
+2026-10-09T21:28:54.4432167Z Updating files:  59% (8542/14336)
+2026-10-09T21:28:54.9968956Z Updating files:  60% (8602/14336)
+2026-10-09T21:28:55.1103217Z Updating files:  61% (8745/14336)
+2026-10-09T21:28:55.2186538Z Updating files:  62% (8889/14336)
+2026-10-09T21:28:55.3331498Z Updating files:  63% (9032/14336)
+2026-10-09T21:28:55.4088082Z Updating files:  64% (9176/14336)
+2026-10-09T21:28:55.4399184Z Updating files:  64% (9272/14336)
+2026-10-09T21:28:55.5408027Z Updating files:  65% (9319/14336)
+2026-10-09T21:28:55.6556885Z Updating files:  66% (9462/14336)
+2026-10-09T21:28:55.7597625Z Updating files:  67% (9606/14336)
+2026-10-09T21:28:56.3633000Z Updating files:  68% (9749/14336)
+2026-10-09T21:28:56.4246098Z Updating files:  69% (9892/14336)
+2026-10-09T21:28:56.4658574Z Updating files:  69% (9979/14336)
+2026-10-09T21:28:56.5743219Z Updating files:  70% (10036/14336)
+2026-10-09T21:28:56.6887954Z Updating files:  71% (10179/14336)
+2026-10-09T21:28:56.7769837Z Updating files:  72% (10322/14336)
+2026-10-09T21:28:56.8763173Z Updating files:  73% (10466/14336)
+2026-10-09T21:28:56.9701277Z Updating files:  74% (10609/14336)
+2026-10-09T21:28:57.0530895Z Updating files:  75% (10752/14336)
+2026-10-09T21:28:57.5789074Z Updating files:  76% (10896/14336)
+2026-10-09T21:28:58.0526613Z Updating files:  76% (10980/14336)
+2026-10-09T21:28:58.1432150Z Updating files:  77% (11039/14336)
+2026-10-09T21:28:58.2346638Z Updating files:  78% (11183/14336)
+2026-10-09T21:28:58.3162710Z Updating files:  79% (11326/14336)
+2026-10-09T21:28:58.3953263Z Updating files:  80% (11469/14336)
+2026-10-09T21:28:58.4496587Z Updating files:  81% (11613/14336)
+2026-10-09T21:28:58.4757896Z Updating files:  81% (11712/14336)
+2026-10-09T21:28:58.9645712Z Updating files:  82% (11756/14336)
+2026-10-09T21:28:59.0541159Z Updating files:  83% (11899/14336)
+2026-10-09T21:28:59.1429223Z Updating files:  84% (12043/14336)
+2026-10-09T21:28:59.2229966Z Updating files:  85% (12186/14336)
+2026-10-09T21:28:59.3165135Z Updating files:  86% (12329/14336)
+2026-10-09T21:28:59.4061945Z Updating files:  87% (12473/14336)
+2026-10-09T21:28:59.4655425Z Updating files:  88% (12616/14336)
+2026-10-09T21:28:59.4763285Z Updating files:  88% (12743/14336)
+2026-10-09T21:28:59.5362211Z Updating files:  89% (12760/14336)
+2026-10-09T21:28:59.6168585Z Updating files:  90% (12903/14336)
+2026-10-09T21:28:59.6982566Z Updating files:  91% (13046/14336)
+2026-10-09T21:28:59.7882959Z Updating files:  92% (13190/14336)
+2026-10-09T21:28:59.8690163Z Updating files:  93% (13333/14336)
+2026-10-09T21:29:00.6731885Z Updating files:  94% (13476/14336)
+2026-10-09T21:29:00.7193757Z Updating files:  94% (13563/14336)
+2026-10-09T21:29:00.8208435Z Updating files:  95% (13620/14336)
+2026-10-09T21:29:00.8937176Z Updating files:  96% (13763/14336)
+2026-10-09T21:29:00.9773360Z Updating files:  97% (13906/14336)
+2026-10-09T21:29:01.0723641Z Updating files:  98% (14050/14336)
+2026-10-09T21:29:01.1566206Z Updating files:  99% (14193/14336)
+2026-10-09T21:29:01.1566486Z Updating files: 100% (14336/14336)
+2026-10-09T21:29:01.1566978Z Updating files: 100% (14336/14336), done.
+2026-10-09T21:29:01.8956660Z Selecting pinned vcpkg commit 9e593bb18ea69cc5095e012465dcd675a822ed0d
+2026-10-09T21:29:02.6567445Z From https://github.com/microsoft/vcpkg
+2026-10-09T21:29:02.6568071Z  * branch                9e593bb18ea69cc5095e012465dcd675a822ed0d -> FETCH_HEAD
+2026-10-09T21:29:07.3205086Z HEAD is now at 9e593bb18 Release vcpkg-tool 2026-07-27. (#53109)
+2026-10-09T21:29:07.3341529Z Bootstrapping vcpkg...
+2026-10-09T21:29:16.0820598Z Downloading https://github.com/microsoft/vcpkg-tool/releases/download/2026-07-27/vcpkg-arm64.exe -> C:\a\DxUi\DxUi\.build\vcpkg-tool\vcpkg.exe... done.
+2026-10-09T21:29:16.2827617Z Validating signature... done.
+2026-10-09T21:29:16.3456301Z 
+2026-10-09T21:29:16.3868078Z vcpkg package management program version 2026-07-27-98d7cb0cf1f4686a3e43aa5672b6230c1d56bce8
+2026-10-09T21:29:16.3868808Z 
+2026-10-09T21:29:16.3869001Z See LICENSE.txt for license information.
+2026-10-09T21:29:16.5468393Z Overlay triplet C:\a\DxUi\DxUi\.build\vcpkg-triplets\ARM64\arm64-windows.cmake written
+2026-10-09T21:29:16.5472391Z Installing DxUi dependencies (arm64-windows)
+2026-10-09T21:29:18.2144041Z Detecting compiler hash for triplet arm64-windows...
+2026-10-09T21:29:29.4575075Z Compiler found: C:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/bin/Hostarm64/arm64/cl.exe
+2026-10-09T21:29:29.4732191Z The following packages will be built and installed:
+2026-10-09T21:29:29.4732568Z   * vcpkg-cmake:arm64-windows@2024-04-23
+2026-10-09T21:29:29.4732868Z   * vcpkg-cmake-config:arm64-windows@2026-07-21
+2026-10-09T21:29:29.4733135Z     wil:arm64-windows@1.0.260126.7
+2026-10-09T21:29:29.4733451Z Additional packages (*) will be modified to complete this operation.
+2026-10-09T21:29:32.3119556Z Restored 0 package(s) from C:\Users\runneradmin\AppData\Local\vcpkg\archives in 92.4 us. Use --debug to see more details.
+2026-10-09T21:29:32.3120178Z Installing 1/3 vcpkg-cmake-config:arm64-windows@2026-07-21...
+2026-10-09T21:29:32.3120750Z vcpkg-cmake-config:arm64-windows@2026-07-21 package ABI: 844567b267d5c0d795a98d58a547bb70a54a3f55905e2edf5bee48ed99bb44d6
+2026-10-09T21:29:32.3121302Z Building vcpkg-cmake-config:arm64-windows@2026-07-21...
+2026-10-09T21:29:32.3121791Z C:\a\DxUi\DxUi\.build\vcpkg-triplets\ARM64\arm64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:29:32.3631792Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake-config_arm64-windows/share/vcpkg-cmake-config/vcpkg_cmake_config_fixup.cmake
+2026-10-09T21:29:32.3641511Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake-config_arm64-windows/share/vcpkg-cmake-config/vcpkg-port-config.cmake
+2026-10-09T21:29:32.3649802Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake-config_arm64-windows/share/vcpkg-cmake-config/copyright
+2026-10-09T21:29:32.3746584Z -- Skipping post-build validation due to VCPKG_POLICY_EMPTY_PACKAGE
+2026-10-09T21:29:32.4245247Z Starting submission of vcpkg-cmake-config:arm64-windows@2026-07-21 to 1 binary cache(s) in the background
+2026-10-09T21:29:32.4245830Z Elapsed time to handle vcpkg-cmake-config:arm64-windows: 113 ms
+2026-10-09T21:29:32.4246202Z Installing 2/3 vcpkg-cmake:arm64-windows@2024-04-23...
+2026-10-09T21:29:32.4246733Z vcpkg-cmake:arm64-windows@2024-04-23 package ABI: 5e67bb62fd6c667f323f08cb7e8dd9abbcbdf7bb06be9ca4312a9e441a968a80
+2026-10-09T21:29:32.4247286Z Building vcpkg-cmake:arm64-windows@2024-04-23...
+2026-10-09T21:29:32.4247737Z C:\a\DxUi\DxUi\.build\vcpkg-triplets\ARM64\arm64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:29:32.4725779Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake_arm64-windows/share/vcpkg-cmake/vcpkg_cmake_configure.cmake
+2026-10-09T21:29:32.4736157Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake_arm64-windows/share/vcpkg-cmake/vcpkg_cmake_build.cmake
+2026-10-09T21:29:32.4745591Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake_arm64-windows/share/vcpkg-cmake/vcpkg_cmake_install.cmake
+2026-10-09T21:29:32.4783615Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake_arm64-windows/share/vcpkg-cmake/vcpkg-port-config.cmake
+2026-10-09T21:29:32.4794082Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/vcpkg-cmake_arm64-windows/share/vcpkg-cmake/copyright
+2026-10-09T21:29:32.4871529Z -- Performing post-build validation
+2026-10-09T21:29:32.5509431Z Starting submission of vcpkg-cmake:arm64-windows@2024-04-23 to 1 binary cache(s) in the background
+2026-10-09T21:29:32.5509968Z Elapsed time to handle vcpkg-cmake:arm64-windows: 126 ms
+2026-10-09T21:29:32.5510288Z Installing 3/3 wil:arm64-windows@1.0.260126.7...
+2026-10-09T21:29:32.5510799Z wil:arm64-windows@1.0.260126.7 package ABI: 4b7284a4e73cfee854e425674b4827a7534c5ce3d1421812183abfe7ba96f711
+2026-10-09T21:29:32.5511274Z Building wil:arm64-windows@1.0.260126.7...
+2026-10-09T21:29:32.5511708Z C:\a\DxUi\DxUi\.build\vcpkg-triplets\ARM64\arm64-windows.cmake: info: loaded overlay triplet from here
+2026-10-09T21:29:32.6213703Z Downloading https://github.com/Microsoft/wil/archive/v1.0.260126.7.tar.gz -> Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:29:33.1028188Z Successfully downloaded Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:29:33.1245527Z -- Extracting source C:/a/DxUi/DxUi/.build/vcpkg_downloads/Microsoft-wil-v1.0.260126.7.tar.gz
+2026-10-09T21:29:33.4089125Z -- Applying patch cpp14.patch
+2026-10-09T21:29:33.4680172Z -- Using source at C:/a/DxUi/DxUi/.build/vcpkg_buildtrees/ARM64/wil/src/0.260126.7-f396d2605e.clean
+2026-10-09T21:29:33.5207211Z -- Configuring arm64-windows
+2026-10-09T21:29:37.2856488Z -- Building arm64-windows-rel
+2026-10-09T21:29:37.4812937Z -- Up-to-date: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/wil_arm64-windows/share/wil/natvis
+2026-10-09T21:29:37.4818962Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/wil_arm64-windows/share/wil/natvis/wil.natstepfilter
+2026-10-09T21:29:37.4849086Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/wil_arm64-windows/share/wil/natvis/wil.natvis
+2026-10-09T21:29:37.4849841Z -- Installing: C:/a/DxUi/DxUi/.build/vcpkg_packages/ARM64/wil_arm64-windows/share/wil/copyright
+2026-10-09T21:29:37.5011102Z -- Performing post-build validation
+2026-10-09T21:29:37.5883957Z Starting submission of wil:arm64-windows@1.0.260126.7 to 1 binary cache(s) in the background
+2026-10-09T21:29:37.5884442Z Elapsed time to handle wil:arm64-windows: 5 s
+2026-10-09T21:29:37.5924815Z Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+2026-10-09T21:29:37.5925559Z Packages installed in this vcpkg installation declare the following licenses:
+2026-10-09T21:29:37.5925942Z MIT
+2026-10-09T21:29:37.5926429Z wil provides CMake targets:
+2026-10-09T21:29:37.5926645Z 
+2026-10-09T21:29:37.5926782Z   # this is heuristically generated, and may not be correct
+2026-10-09T21:29:37.5927087Z   find_package(wil CONFIG REQUIRED)
+2026-10-09T21:29:37.5933638Z   target_link_libraries(main PRIVATE WIL::WIL)
+2026-10-09T21:29:37.5933866Z 
+2026-10-09T21:29:37.5934148Z Completed submission of vcpkg-cmake-config:arm64-windows@2026-07-21 to 1 binary cache(s) in 642 ms
+2026-10-09T21:29:37.5934728Z Completed submission of vcpkg-cmake:arm64-windows@2024-04-23 to 1 binary cache(s) in 292 ms
+2026-10-09T21:29:37.5935194Z Waiting for 1 remaining binary cache submissions...
+2026-10-09T21:29:37.9382326Z Completed submission of wil:arm64-windows@1.0.260126.7 to 1 binary cache(s) in 350 ms (1/1)
+2026-10-09T21:29:37.9382862Z All requested installations completed successfully in: 5.3 s
+2026-10-09T21:29:37.9426267Z vcpkg dependencies are ready.
+2026-10-09T21:29:37.9972510Z ##[group]Run ./test.ps1 -Full -SkipTooling -Configuration "Release" -Platform ARM64
+2026-10-09T21:29:37.9973484Z [36;1m./test.ps1 -Full -SkipTooling -Configuration "Release" -Platform ARM64[0m
+2026-10-09T21:29:38.0029558Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-09T21:29:38.0029899Z ##[endgroup]
+2026-10-09T21:29:38.6055631Z ╭────────────────────────────────────────────────────────────────────────╮
+2026-10-09T21:29:38.6176086Z │                                                                        │
+2026-10-09T21:29:38.6181417Z │                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+2026-10-09T21:29:38.6186670Z │                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+2026-10-09T21:29:38.6191157Z │                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+2026-10-09T21:29:38.6196976Z │                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+2026-10-09T21:29:38.6201547Z │                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+2026-10-09T21:29:38.6206480Z │                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+2026-10-09T21:29:38.6211420Z │                                                                        │
+2026-10-09T21:29:38.6216478Z │      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+2026-10-09T21:29:38.6252409Z │                  ⚡  RELEASE  /  ARM64  /  BUILD  ⚡                   │
+2026-10-09T21:29:38.6258639Z │                                                                        │
+2026-10-09T21:29:38.6263929Z ╰────────────────────────────────────────────────────────────────────────╯
+2026-10-09T21:29:38.6268263Z 
+2026-10-09T21:29:38.6279957Z Locating Visual Studio and MSBuild...
+2026-10-09T21:29:38.9411737Z Build configuration:
+2026-10-09T21:29:38.9415674Z   Configuration: Release
+2026-10-09T21:29:38.9420336Z   Platform:      ARM64
+2026-10-09T21:29:38.9424337Z   Target:        Build
+2026-10-09T21:29:38.9428991Z   Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Enterprise
+2026-10-09T21:29:38.9433122Z   Output:        C:\a\DxUi\DxUi\.build\
+2026-10-09T21:29:38.9437248Z 
+2026-10-09T21:29:38.9442449Z Compiling DxUi...
+2026-10-09T21:29:46.0133439Z 
+2026-10-09T21:29:53.9183911Z   compilation header save succeeded; see C:\a\DxUi\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositeVS.h
+2026-10-09T21:29:53.9194838Z   compilation object save succeeded; see C:\a\DxUi\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositeVS.cso
+2026-10-09T21:29:54.2643323Z   compilation header save succeeded; see C:\a\DxUi\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositePS.h
+2026-10-09T21:29:54.2651584Z   compilation object save succeeded; see C:\a\DxUi\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositePS.cso
+2026-10-09T21:29:55.2459645Z   ControlCatalog.cpp
+2026-10-09T21:30:15.2309991Z   NativeMenuInterop.cpp
+2026-10-09T21:30:28.6152783Z   Embedded.cpp
+2026-10-09T21:30:41.5184640Z   FrameRuntime.cpp
+2026-10-09T21:30:43.2071665Z   DxUi.Accessibility.cpp
+2026-10-09T21:31:03.3552190Z   DxUi.ComboBox.cpp
+2026-10-09T21:31:17.9798616Z   DxUi.Controls.cpp
+2026-10-09T21:31:36.8010705Z   DxUi.EditorControls.cpp
+2026-10-09T21:31:51.0617579Z   DxUi.cpp
+2026-10-09T21:32:05.2166695Z   DxUi.Grid.cpp
+2026-10-09T21:32:24.6665674Z   DxUi.Menu.cpp
+2026-10-09T21:32:44.9266716Z   DxUi.NativeTextInput.cpp
+2026-10-09T21:32:58.7004653Z   DxUi.PointerInput.cpp
+2026-10-09T21:33:00.4206993Z   DxUi.Scrollbar.cpp
+2026-10-09T21:33:12.8492497Z   DxUi.SingleLineTextEditing.cpp
+2026-10-09T21:33:25.8473616Z   DxUi.TextInput.cpp
+2026-10-09T21:33:39.6972473Z   DxUi.TextStoreACP.cpp
+2026-10-09T21:33:53.2219776Z   TextInputServices.cpp
+2026-10-09T21:34:06.3806171Z   TextClipboard.cpp
+2026-10-09T21:34:18.5244878Z   DxUi.Theme.cpp
+2026-10-09T21:34:31.2114151Z   Generating Code...
+2026-10-09T21:36:12.5644477Z   Compiling...
+2026-10-09T21:36:12.5649750Z   DxUi.Tree.cpp
+2026-10-09T21:36:26.9473630Z   DxUi.Typeahead.cpp
+2026-10-09T21:36:39.2622258Z   DxUi.WindowHost.cpp
+2026-10-09T21:36:59.2619093Z   Generating Code...
+2026-10-09T21:37:17.0827137Z   DxUi.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.lib
+2026-10-09T21:37:18.4652396Z   Foundation.Tests.Foundation.cpp
+2026-10-09T21:37:18.5233793Z   Embedded.Tests.Embedded.cpp
+2026-10-09T21:37:18.7095109Z   DxUi.Tests.Accessibility.cpp
+2026-10-09T21:37:19.4629472Z   InteractiveLease.Tests.Runner.cpp
+2026-10-09T21:37:20.4104845Z   Foundation.Tests.PublicHelpers.cpp
+2026-10-09T21:37:21.1507380Z   Main.cpp
+2026-10-09T21:37:32.9800972Z   Generating Code...
+2026-10-09T21:37:40.5298575Z   DxUi.FoundationTests.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.FoundationTests.exe
+2026-10-09T21:37:43.5991708Z   DxUi.EmbeddedControls.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.EmbeddedControls.exe
+2026-10-09T21:37:46.4808205Z   DxUi.InteractiveLease.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.InteractiveLease.exe
+2026-10-09T21:37:53.2288610Z   DxUi.Tests.Animation.cpp
+2026-10-09T21:37:57.6634491Z   DxUi.EmbeddedTests.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.EmbeddedTests.exe
+2026-10-09T21:38:05.1604581Z   DxUi.Tests.ComboBox.cpp
+2026-10-09T21:38:17.1204178Z   DxUi.Tests.Controls.cpp
+2026-10-09T21:38:30.8249283Z   DxUi.Tests.Runner.cpp
+2026-10-09T21:38:42.4086993Z   DxUi.Tests.EditorControls.cpp
+2026-10-09T21:38:55.1722854Z   DxUi.Tests.Gallery.cpp
+2026-10-09T21:39:08.0946188Z   DxUi.Tests.Grid.cpp
+2026-10-09T21:39:22.9031408Z   DxUi.Tests.InteractiveLease.cpp
+2026-10-09T21:39:35.7264884Z   DxUi.Tests.Menu.cpp
+2026-10-09T21:39:55.1933800Z   DxUi.Tests.MultilineText.cpp
+2026-10-09T21:40:06.9039660Z   DxUi.Tests.NativeTextInput.cpp
+2026-10-09T21:40:21.3976936Z   DxUi.Tests.NewControls.cpp
+2026-10-09T21:40:34.6854846Z   DxUi.Tests.ReadOnly.cpp
+2026-10-09T21:40:45.8018573Z   DxUi.Tests.Rendering.cpp
+2026-10-09T21:40:59.4572097Z   DxUi.Tests.TextField.cpp
+2026-10-09T21:41:11.5590633Z   DxUi.Tests.Theme.cpp
+2026-10-09T21:41:22.8124058Z   DxUi.Tests.Tooltip.cpp
+2026-10-09T21:41:33.8987520Z   DxUi.Tests.Tree.cpp
+2026-10-09T21:41:45.6193143Z   DxUi.Tests.WindowHost.cpp
+2026-10-09T21:42:01.4000094Z   Generating Code...
+2026-10-09T21:44:19.3239866Z   DxUi.ControlTests.vcxproj -> C:\a\DxUi\DxUi\.build\ARM64\Release\DxUi.ControlTests.exe
+2026-10-09T21:44:19.8299308Z 
+2026-10-09T21:44:19.8305036Z ========================================
+2026-10-09T21:44:19.8343918Z DxUi build passed in 14:40
+2026-10-09T21:44:19.8347245Z Output: C:\a\DxUi\DxUi\.build\
+2026-10-09T21:44:19.8357354Z Log: C:\a\DxUi\DxUi\.build\logs\build-ARM64-Release-4c300a42c83b454cbf7892db6c76f6d5.log
+2026-10-09T21:44:19.8360133Z ========================================
+2026-10-09T21:44:21.4254314Z ok   the filter runs only the named tests, in suite order
+2026-10-09T21:44:21.4258325Z ok   an unknown name fails the run instead of passing with nothing run
+2026-10-09T21:44:21.4261843Z ok   one unknown name fails a run that also names a known test
+2026-10-09T21:44:21.4266817Z ok   names are exact and case-sensitive
+2026-10-09T21:44:21.4270108Z ok   an empty or malformed list is rejected
+2026-10-09T21:44:21.4273917Z ok   a fixture suite without named tests rejects the filter before it runs
+2026-10-09T21:44:21.4277359Z ok   no runner calls a test directly, so the filter can select every test
+2026-10-09T21:44:21.4280681Z ok   without the filter a suite runs every test its runner registers
+2026-10-09T21:44:21.4304931Z Test filter: 8 of 8 passed
+2026-10-09T21:44:40.5495679Z ok   a test that never returns ends the run at its deadline, named
+2026-10-09T21:44:40.5499129Z ok   a fixture suite without named tests is bounded as a whole
+2026-10-09T21:44:40.5502725Z ok   a fixture that reports progress outlives its deadline as a whole
+2026-10-09T21:44:40.5506274Z ok   without a deadline the same test never returns
+2026-10-09T21:44:40.5509723Z ok   an armed watchdog waits instead of polling
+2026-10-09T21:44:40.5515822Z ok   the deadline defaults to 300 seconds and --test-timeout sets it
+2026-10-09T21:44:40.5516509Z ok   a test that finishes in time is not ended and reports its duration
+2026-10-09T21:44:40.5519959Z ok   a malformed --test-timeout is rejected before any test runs
+2026-10-09T21:44:40.5522911Z ok   the self-test is a switch of its own
+2026-10-09T21:44:40.5525909Z ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+2026-10-09T21:44:40.5528723Z ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+2026-10-09T21:44:40.5532256Z ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+2026-10-09T21:44:40.5535819Z Test watchdog: 12 of 12 passed
+2026-10-09T21:44:46.5637254Z ok   the self-test passes: children, the session's lease, the confirmation and the warning
+2026-10-09T21:44:46.5639876Z ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+2026-10-09T21:44:46.5643527Z ok   a malformed command line is a usage error before anything is shown
+2026-10-09T21:44:46.5646916Z ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+2026-10-09T21:44:46.5650293Z ok   the lease ends only the processes it started
+2026-10-09T21:44:46.5654250Z Interactive lease: 5 of 5 passed
+2026-10-09T21:44:49.5793816Z Complex UI clean round 1: 189.078 completed offscreen FPS; p95 5.4959 ms; private 25739264 bytes
+2026-10-09T21:44:49.5794499Z Complex UI clean round 2: 181.513 completed offscreen FPS; p95 7.1588 ms; private 25739264 bytes
+2026-10-09T21:44:49.5795183Z Complex UI clean round 3: 193.367 completed offscreen FPS; p95 5.515 ms; private 25739264 bytes
+2026-10-09T21:44:49.5795760Z Complex UI clean round 4: 213.683 completed offscreen FPS; p95 5.4848 ms; private 23662592 bytes
+2026-10-09T21:44:49.5796362Z Complex UI clean round 5: 228.355 completed offscreen FPS; p95 4.7573 ms; private 23670784 bytes
+2026-10-09T21:44:49.5796979Z Complex UI dirty round 1: 126.498 completed offscreen FPS; p95 8.298 ms; private 25448448 bytes
+2026-10-09T21:44:49.5797526Z Complex UI dirty round 2: 103.759 completed offscreen FPS; p95 9.3284 ms; private 25989120 bytes
+2026-10-09T21:44:49.5798061Z Complex UI dirty round 3: 123.956 completed offscreen FPS; p95 8.8116 ms; private 25239552 bytes
+2026-10-09T21:44:49.5798599Z Complex UI dirty round 4: 122.036 completed offscreen FPS; p95 8.8492 ms; private 25759744 bytes
+2026-10-09T21:44:49.5799139Z Complex UI dirty round 5: 113.751 completed offscreen FPS; p95 11.5712 ms; private 25866240 bytes
+2026-10-09T21:49:18.7197507Z Performance comparison: unpaired
+2026-10-09T21:49:18.7235757Z Performance receipt: C:\a\DxUi\DxUi\.build\reports\Performance-ARM64-Release-b9c47c1b98b043dba5013b2e35cccdf6.json
+2026-10-09T21:49:18.7364663Z Running Foundation (ARM64 Release)
+2026-10-09T21:49:18.8291378Z PASS Foundation (0 capability skips recorded)
+2026-10-09T21:49:18.8313318Z Running Embedded (ARM64 Release)
+2026-10-09T21:49:48.5824682Z PASS Embedded (0 capability skips recorded)
+2026-10-09T21:49:48.5874221Z Running Grid (ARM64 Release)
+2026-10-09T21:49:49.1294360Z PASS Grid (0 capability skips recorded)
+2026-10-09T21:49:49.1322661Z Running Theme (ARM64 Release)
+2026-10-09T21:49:49.2374558Z PASS Theme (0 capability skips recorded)
+2026-10-09T21:49:49.2408726Z Running Control (ARM64 Release)
+2026-10-09T21:49:49.4047052Z PASS Control (0 capability skips recorded)
+2026-10-09T21:49:49.4098940Z Running MenuExitLifetime (ARM64 Release)
+2026-10-09T21:49:49.5370168Z PASS MenuExitLifetime (0 capability skips recorded)
+2026-10-09T21:49:49.5388097Z Running NewControls (ARM64 Release)
+2026-10-09T21:49:49.6738981Z PASS NewControls (0 capability skips recorded)
+2026-10-09T21:49:49.6767883Z Running EditorControls (ARM64 Release)
+2026-10-09T21:49:52.9307433Z PASS EditorControls (0 capability skips recorded)
+2026-10-09T21:49:52.9347195Z Running TextField (ARM64 Release)
+2026-10-09T21:49:54.8120195Z PASS TextField (0 capability skips recorded)
+2026-10-09T21:49:54.8160553Z Running MultilineText (ARM64 Release)
+2026-10-09T21:49:55.1139469Z PASS MultilineText (0 capability skips recorded)
+2026-10-09T21:49:55.1179220Z Running ReadOnly (ARM64 Release)
+2026-10-09T21:49:55.3567949Z PASS ReadOnly (0 capability skips recorded)
+2026-10-09T21:49:55.3598461Z Running ComboBox (ARM64 Release)
+2026-10-09T21:49:55.9023157Z PASS ComboBox (0 capability skips recorded)
+2026-10-09T21:49:55.9044458Z Running Tree (ARM64 Release)
+2026-10-09T21:49:56.1562416Z PASS Tree (0 capability skips recorded)
+2026-10-09T21:49:56.1606376Z Running Tooltip (ARM64 Release)
+2026-10-09T21:49:56.6641591Z PASS Tooltip (0 capability skips recorded)
+2026-10-09T21:49:56.6660883Z Running Rendering (ARM64 Release)
+2026-10-09T21:50:22.6598137Z PASS Rendering (0 capability skips recorded)
+2026-10-09T21:50:22.6632197Z Running Animation (ARM64 Release)
+2026-10-09T21:50:23.7279657Z PASS Animation (0 capability skips recorded)
+2026-10-09T21:50:23.7301802Z Running Accessibility (ARM64 Release)
+2026-10-09T21:52:14.1981252Z PASS Accessibility (0 capability skips recorded)
+2026-10-09T21:52:14.2038022Z Running WindowHost (ARM64 Release)
+2026-10-09T21:52:17.2588579Z PASS WindowHost (0 capability skips recorded)
+2026-10-09T21:52:17.2620578Z Running InteractiveLease (ARM64 Release)
+2026-10-09T21:52:17.3367597Z PASS InteractiveLease (0 capability skips recorded)
+2026-10-09T21:52:17.3386178Z Running Menu (ARM64 Release)
+2026-10-09T21:52:18.2511402Z FAIL Menu exited with code 1
+2026-10-09T21:52:18.2515807Z [WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+2026-10-09T21:52:18.2517721Z [START] Menu
+2026-10-09T21:52:18.2518546Z   [START] TestContextMenuPopupScrollsOversizedContent
+2026-10-09T21:52:18.2519068Z FAILED: oversized context menu exposes scrollbar state after its initial frame renders
+2026-10-09T21:52:18.2534133Z Running NativeTextInput (ARM64 Release)
+2026-10-09T21:52:18.5835639Z FAIL NativeTextInput exited with code 1
+2026-10-09T21:52:18.5837795Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:52:18.5838421Z   [DONE] TestApplicationTextServiceRetirementReadReentrancyPreservesSameClientSuccessor (0.003 s)
+2026-10-09T21:52:18.5839100Z   [START] TestApplicationTextServiceDetachRejectsReentrantReattach
+2026-10-09T21:52:18.5839534Z     [TRACE] attached host dtor: begin
+2026-10-09T21:52:18.5839870Z     [TRACE] attached host dtor: host detached
+2026-10-09T21:52:18.5840185Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:52:18.5840613Z   [DONE] TestApplicationTextServiceDetachRejectsReentrantReattach (0.004 s)
+2026-10-09T21:52:18.5841681Z   [START] TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner
+2026-10-09T21:52:18.5842149Z     [TRACE] attached host dtor: begin
+2026-10-09T21:52:18.5842399Z     [TRACE] attached host dtor: host detached
+2026-10-09T21:52:18.5842656Z     [TRACE] attached host dtor: hwnd reset
+2026-10-09T21:52:18.5843049Z FAILED: the application TSF focus fixture activates when no foreground thief is observed
+2026-10-09T21:52:18.6715060Z [31;1mException: [0mC:\a\DxUi\DxUi\test.ps1:218[0m
+2026-10-09T21:52:18.6715708Z [31;1m[0m[36;1mLine |[0m
+2026-10-09T21:52:18.6717357Z [31;1m[0m[36;1m[36;1m 218 | [0m … es.Count) { [36;1mthrow "DxUi failed suites: $($failures -join '; '). See .[0m …[0m
+2026-10-09T21:52:18.6718257Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-10-09T21:52:18.6719214Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mDxUi failed suites: Menu exited with code 1; NativeTextInput exited with code 1. See .build/logs and[0m
+2026-10-09T21:52:18.6720041Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m[31;1m[36;1m     | [31;1m.build/reports.[0m
+2026-10-09T21:52:18.7197009Z ##[error]Process completed with exit code 1.
+2026-10-09T21:52:18.7563022Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-09T21:52:18.7563605Z with:
+2026-10-09T21:52:18.7563786Z   name: native-ARM64-Release
+2026-10-09T21:52:18.7564383Z   path: .build/logs/*.log
+.build/reports/*.json
+.build/test-artifacts/**
+.build/gallery/**
+
+2026-10-09T21:52:18.7564775Z   retention-days: 14
+2026-10-09T21:52:18.7564965Z   if-no-files-found: warn
+2026-10-09T21:52:18.7565164Z   compression-level: 6
+2026-10-09T21:52:18.7565366Z   overwrite: false
+2026-10-09T21:52:18.7565548Z   include-hidden-files: false
+2026-10-09T21:52:18.7565761Z ##[endgroup]
+2026-10-09T21:52:19.0395671Z (node:10432) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-09T21:52:19.0396385Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-09T21:52:19.0857066Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-09T21:52:19.0860758Z The least common ancestor is C:\a\DxUi\DxUi\.build. This will be the root directory of the artifact
+2026-10-09T21:52:19.0861376Z With the provided path, there will be 80 files uploaded
+2026-10-09T21:52:19.0867473Z Artifact name is valid!
+2026-10-09T21:52:19.0870812Z Root directory input is valid!
+2026-10-09T21:52:19.3603452Z Beginning upload of artifact content to blob storage
+2026-10-09T21:52:19.4822437Z (node:10432) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-09T21:52:19.7491302Z Uploaded bytes 188298
+2026-10-09T21:52:19.7951318Z Finished uploading artifact content to blob storage!
+2026-10-09T21:52:19.7954466Z SHA256 digest of uploaded artifact zip is 50342d25ec6dfbe2a3e7a3dc0f6b43f400f5e0569909a42a0241bdc28eece9ad
+2026-10-09T21:52:19.7956792Z Finalizing artifact upload
+2026-10-09T21:52:20.0131428Z Artifact native-ARM64-Release.zip successfully finalized. Artifact ID 11647151845
+2026-10-09T21:52:20.0132134Z Artifact native-ARM64-Release has been successfully uploaded! Final size is 188298 bytes. Artifact ID is 11647151845
+2026-10-09T21:52:20.0150053Z Artifact download URL: https://github.com/RedSalamanders/DxUi/actions/runs/37993602279/artifacts/11647151845
+2026-10-09T21:52:20.0660977Z Post job cleanup.
+2026-10-09T21:52:20.3664202Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-09T21:52:20.4181232Z git version 2.56.0.windows.1
+2026-10-09T21:52:20.4273405Z Temporarily overriding HOME='C:\a\_temp\7a788c92-8471-422e-882e-98fccdde699a' before making global git config changes
+2026-10-09T21:52:20.4274479Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-09T21:52:20.4283653Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory C:\a\DxUi\DxUi
+2026-10-09T21:52:20.4852005Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-09T21:52:20.5411750Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-09T21:52:21.8099789Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-09T21:52:21.8589114Z http.https://github.com/.extraheader
+2026-10-09T21:52:21.8649115Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-09T21:52:21.9212291Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-09T21:52:23.2239149Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-09T21:52:23.2792839Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-09T21:52:24.6356001Z Cleaning up orphan processes
+2026-10-09T21:52:24.6503656Z Terminate orphan process: pid (3472) (MSBuild)
+2026-10-09T21:52:24.6636570Z Terminate orphan process: pid (10308) (MSBuild)
+2026-10-09T21:52:24.6714452Z Terminate orphan process: pid (6164) (MSBuild)
+2026-10-09T21:52:24.6944681Z Terminate orphan process: pid (11232) (vctip)
+2026-10-09T21:52:24.7245943Z Terminate orphan process: pid (2784) (mspdbsrv)
+2026-10-09T21:52:24.7318278Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

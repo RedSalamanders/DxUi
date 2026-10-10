@@ -83,6 +83,26 @@ function Get-DxUiInteractiveRefusal {
     return $null
 }
 
+function Test-DxUiVerifiedGitHubHostedRunner {
+    [CmdletBinding()] param([hashtable] $Environment = $null)
+    $read = { param([string] $Name) if ($null -ne $Environment) { if ($Environment.ContainsKey($Name)) { [string]$Environment[$Name] } } else { [Environment]::GetEnvironmentVariable($Name) } }
+    # RUNNER_* variables are GitHub-provided, reserved values; GITHUB_ACTIONS alone can also be set by self-hosted runners.
+    return (& $read 'GITHUB_ACTIONS') -ceq 'true' -and (& $read 'CI') -ceq 'true' -and
+        (& $read 'RUNNER_ENVIRONMENT') -ceq 'github-hosted' -and (& $read 'RUNNER_OS') -ceq 'Windows'
+}
+
+function Test-DxUiHostedForegroundLeaseRequired {
+    [CmdletBinding()] param([string[]] $Suites = @(), [Parameter(Mandatory)][bool] $VerifiedHostedRunner)
+    return $VerifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count -gt 0
+}
+
+function Resolve-DxUiForegroundLeaseSuites {
+    [CmdletBinding()] param([string[]] $Suites = @(), [Parameter(Mandatory)][bool] $Interactive, [Parameter(Mandatory)][bool] $VerifiedHostedRunner)
+    if ($Interactive) { return @($Suites) }
+    if (-not $VerifiedHostedRunner) { return @() }
+    return @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ })
+}
+
 function Get-DxUiInteractiveEstimateSeconds {
     # About how long a lease takes for these suites in this configuration, from the confirmation to the restoration.
     [CmdletBinding()] param([Parameter(Mandatory)][string[]] $Suites, [Parameter(Mandatory)][string] $Configuration)
@@ -201,16 +221,17 @@ function Test-DxUiDesktopAvailable {
     throw "DxUi.InteractiveLease.exe --check failed with exit code ${exit}: $($output -join ' ')"
 }
 
-function Invoke-DxUiInteractiveLease {
+function Invoke-DxUiLeaseCore {
     # Runs the suites of an interactive run under one lease and returns what happened: the lease's exit code and its parsed result.
     # The lease refuses without a desktop, asks the person, shows its warning, runs each suite as a child of its own (its output
-    # going to the log named in the run) and restores the person's desktop. Only ever called for -Interactive.
+    # going to the log named in the run) and restores the captured desktop.
     [CmdletBinding()] param(
         [Parameter(Mandatory)][string] $Executable,
         [Parameter(Mandatory)][object[]] $Runs,
         [Parameter(Mandatory)][string] $Label,
         [Parameter(Mandatory)][int] $EstimateSeconds,
         [Parameter(Mandatory)][string] $WorkDirectory,
+        [switch] $Hosted,
         [int] $ConfirmSeconds = 120,
         [int] $ChildTimeoutSeconds = 900
     )
@@ -220,12 +241,46 @@ function Invoke-DxUiInteractiveLease {
     if (Test-Path -LiteralPath $result -PathType Leaf) { Remove-Item -LiteralPath $result }
     [IO.File]::WriteAllText($plan, (New-DxUiLeasePlanText -Runs $Runs), [Text.UTF8Encoding]::new($false))
     # Native stdout is progress for the person, not part of this function's returned object.
-    & $Executable --run "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
+    $mode = if ($Hosted) { '--run-hosted' } else { '--run' }
+    & $Executable $mode "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
     $exit = $LASTEXITCODE
     $parsed = if (Test-Path -LiteralPath $result -PathType Leaf) { Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText($result)) }
     return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan }
 }
 
+function Write-DxUiLeaseFailureLog {
+    [CmdletBinding()] param([Parameter(Mandatory)][string] $Path, [Parameter(Mandatory)][string] $Suite)
+    Set-Content -LiteralPath $Path -Value "[LEASE] $Suite did not run under the foreground lease" -Encoding utf8
+}
+
+function Invoke-DxUiInteractiveLease {
+    [CmdletBinding()] param(
+        [Parameter(Mandatory)][string] $Executable,
+        [Parameter(Mandatory)][object[]] $Runs,
+        [Parameter(Mandatory)][string] $Label,
+        [Parameter(Mandatory)][int] $EstimateSeconds,
+        [Parameter(Mandatory)][string] $WorkDirectory,
+        [int] $ConfirmSeconds = 120,
+        [int] $ChildTimeoutSeconds = 900
+    )
+    return Invoke-DxUiLeaseCore @PSBoundParameters
+}
+
+function Invoke-DxUiHostedForegroundLease {
+    [CmdletBinding()] param(
+        [Parameter(Mandatory)][string] $Executable,
+        [Parameter(Mandatory)][object[]] $Runs,
+        [Parameter(Mandatory)][string] $Label,
+        [Parameter(Mandatory)][int] $EstimateSeconds,
+        [Parameter(Mandatory)][string] $WorkDirectory,
+        [int] $ChildTimeoutSeconds = 900
+    )
+    if (-not (Test-DxUiVerifiedGitHubHostedRunner)) {
+        throw 'The hosted foreground lease is available only on a verified GitHub-hosted Windows runner.'
+    }
+    return Invoke-DxUiLeaseCore @PSBoundParameters -Hosted
+}
+
 Export-ModuleMember -Function Get-DxUiInteractiveSuiteNames, Test-DxUiInteractiveSuite, Get-DxUiLeaseExitCodes, Resolve-DxUiInteractiveSuites,
-    Get-DxUiInteractiveRefusal, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
-    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease
+    Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Test-DxUiHostedForegroundLeaseRequired, Resolve-DxUiForegroundLeaseSuites, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
+    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease

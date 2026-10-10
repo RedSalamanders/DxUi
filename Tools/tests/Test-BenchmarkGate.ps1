@@ -35,13 +35,14 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
     $cases = [ordered]@{
         'src/Controls/DxUi.Grid.cpp' = 'library input'; 'include/DxUi/DxUi.h' = 'library input'; 'Build/DxUi.Consumer.props' = 'library input'
         'Directory.Build.props' = 'library input'; 'Directory.Build.targets' = 'library input'; 'vcpkg.json' = 'library input'; 'vcpkg-tool.json' = 'library input'
-        'performance.ps1' = 'benchmark harness'; 'Tools/Compare-Performance.ps1' = 'benchmark harness'; 'Tools/PerformanceComparison.psm1' = 'benchmark harness'
+        'performance.ps1' = 'benchmark harness'; 'performance-paired.ps1' = 'benchmark harness'; 'Tools/Compare-Performance.ps1' = 'benchmark harness'; 'Tools/PerformanceComparison.psm1' = 'benchmark harness'
         'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' = 'benchmark harness'; 'Samples/ComplexUi/ComplexUiScene.h' = 'benchmark harness'
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
         'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'
-        'performance-paired.ps1' = 'paired measurement or gate'; 'Tools/PairedRun.psm1' = 'paired measurement or gate'; 'Tools/BenchmarkGate.psm1' = 'paired measurement or gate'
+        'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
+        'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
         'Tools/Get-BenchmarkScope.ps1' = 'paired measurement or gate'; 'Tools/Publish-BenchmarkVerdict.ps1' = 'paired measurement or gate'
         '.github/workflows/ci.yml' = 'hosted workflow'
     }
@@ -314,7 +315,7 @@ Invoke-FixtureCase 'a regressed metric whose controls drifted beyond its band is
     Assert-True $metric.ControlDrifted 'its control drifted'
     Assert-True ($metric.ControlDriftPercent -gt 14.9 -and $metric.ControlDriftPercent -lt 15.1) "by the drift the controls saw ($($metric.ControlDriftPercent))"
     Assert-Equal 1 $conclusion.Scenarios[0].Controls.Unstable 'the unstable control is counted'
-    Assert-True ($conclusion.Scenarios[0].Notes -join ' ').Contains('cannot be told from machine noise') 'the note says why'
+    Assert-True ($conclusion.Scenarios[0].Notes -join ' ').Contains('remains unresolved') 'the note says why'
 }
 
 Invoke-FixtureCase 'the controls of the flagged metric decide, not those of the twenty-six together' {
@@ -405,15 +406,15 @@ Invoke-FixtureCase 'controls that cannot be read confirm nothing' {
     Assert-Equal 'inconclusive' (Get-Conclusion (New-Summary @($broken)) $root).Conclusion 'a control file that is not JSON is unreadable'
 }
 
-Invoke-FixtureCase 'on identical library inputs a timing or memory flag is chance and a deterministic budget still gates' {
+Invoke-FixtureCase 'identical library inputs alone never classify timing flags as chance; exact budgets still gate' {
     param($root)
     $noisy = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((& $regressedComposeCpu), (New-SetMetric 'dirty' 'privateBytes' 'regressed' -Noise 2.0 -Before 26000000 -After 27000000))
     $same = Get-Conclusion (New-Summary @($noisy) -BaselineFingerprint 'CAFE' -CandidateFingerprint 'CAFE') $root
-    Assert-Equal 'pass' $same.Conclusion 'the same library code measured twice cannot have regressed in time'
+    Assert-Equal 'inconclusive' $same.Conclusion 'same code does not establish a noise model'
     Assert-True $same.LibraryUnchanged 'recorded'
-    Assert-Equal 2 @($same.Scenarios[0].Metrics | Where-Object { $_.Outcome -eq 'noise' }).Count 'both flags stay listed as noise'
+    Assert-Equal 2 @($same.Scenarios[0].Metrics | Where-Object { $_.Outcome -eq 'unconfirmed' }).Count 'both flags stay unresolved'
     Assert-Equal 2 $same.Scenarios[0].Regressed 'and still count as regressed in the set'
-    Assert-True ($same.Scenarios[0].Notes -join ' ').Contains('identical') 'the note says why'
+    Assert-True ($same.Scenarios[0].Notes -join ' ').Contains('unresolved') 'the note says why'
     $changed = Get-Conclusion (New-Summary @($noisy) -BaselineFingerprint 'CAFE' -CandidateFingerprint 'F00D') $root
     Assert-Equal 'degraded' $changed.Conclusion 'the same flags with changed library inputs gate'
     $budget = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((New-SetMetric 'dirty' 'cppAllocations' 'regressed' -Exact -Before 2160 -After 2200 -P 0.0022))
@@ -447,6 +448,113 @@ Invoke-FixtureCase 'invalid evidence is invalid, and the worst scenario decides 
     Assert-Equal 'pass' (Get-Conclusion (New-Summary @($good)) $root).Conclusion 'a pass is a pass'
     Assert-Equal 'invalid' (Get-Conclusion (New-Summary @($degraded, $invalid)) $root).Conclusion 'invalid outranks all'
     Assert-Equal 'invalid' (Get-Conclusion (New-Summary @()) $root).Conclusion 'a summary without scenarios proves nothing'
+}
+
+Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-asserted and unqualified policies' {
+    param($root)
+    $legacy = New-Summary @((New-Scenario -Directory $root -Controls @() -Metrics @((New-SetMetric 'clean' 'fps'))))
+    $old = Get-BenchmarkConclusion -Summary $legacy -ReportsDirectory $root -RequireQualifiedPolicy
+    Assert-Equal 'inconclusive' $old.Conclusion 'historic judge cannot pass migration'
+    Assert-Equal 'policy-review-required' $old.PolicyStatus 'legacy is explicitly read-only'
+    $candidateClaim = Copy-JsonValue $legacy
+    $candidateClaim.studyVersion = 3
+    $candidateClaim.studyPurpose = 'regression-qualification'
+    $candidateClaim.acceptancePolicy = [ordered]@{ trusted=$true; status='trusted'; policySha256='candidate-asserted' }
+    $candidateClaim.scenarios = @()
+    $untrusted = Get-BenchmarkConclusion -Summary $candidateClaim -ReportsDirectory $root -RequireQualifiedPolicy
+    Assert-Equal 'inconclusive' $untrusted.Conclusion 'candidate cannot self-assert policy trust'
+    Assert-Equal 'policy-review-required' $untrusted.PolicyStatus 'current base has no qualified policy'
+    Assert-True ($untrusted.Notes -join ' ').Contains('measured base') 'trust failure says the base is authoritative'
+}
+
+Invoke-FixtureCase 'both judges are bound to the exact same retained receipt bytes' {
+    param($root)
+    $steps = @(); $hashes = @()
+    $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
+    Assert-Equal 6 @($schedule.Blocks | Where-Object Order -eq 'ABBA').Count 'a coincidentally balanced independent assignment remains valid'
+    foreach ($step in $schedule.Steps) {
+        $run = [string]$step.Name
+        $steps += $step
+        $path = Join-Path $root "Default-$run.json"
+        Set-FixtureFile $root "Default-$run.json" "receipt $run`n"
+        $hashes += [ordered]@{run=$run;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
+    }
+    $baseCommit = (& git -C $repository rev-parse HEAD).Trim()
+    $baseLines = @(& git -C $repository show "${baseCommit}:Tools/PerformanceComparison.psm1")
+    $baseJudgeText = ($baseLines -join "`n") + "`n"
+    $baseJudgeModule = New-Module -Name "DxUiFixtureBaseJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($baseJudgeText))
+    $baseJudgeVersion = if ($baseJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) {
+        & $baseJudgeModule { Get-PairedPerformanceJudgeVersion }
+    } else { 'legacy-unversioned' }
+    $candidateJudgeText = [IO.File]::ReadAllText((Join-Path $repository 'Tools/PerformanceComparison.psm1')) -replace "`r`n","`n"
+    $candidateJudgeModule = New-Module -Name "DxUiFixtureCandidateJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($candidateJudgeText))
+    $candidateJudgeVersion = & $candidateJudgeModule { Get-PairedPerformanceJudgeVersion }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $baseJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($baseJudgeText)))
+        $candidateJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateJudgeText)))
+    } finally { $sha.Dispose() }
+    $judgeMetrics = @(foreach($phase in @('clean','dirty')){foreach($metric in Get-PerformanceMetricNames){[ordered]@{phase=$phase;metric=$metric;verdict='within-noise'}}})
+    $scenario = [ordered]@{ scenario='Default'; set=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
+        judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;reportBytesStable=$true;verdictAgreement=$true;
+            sameReceiptsSha256=$hashes;legacyJudge=[ordered]@{status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
+            migratedJudge=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)}} }
+    $retainedBlockSchedule = Copy-JsonValue $schedule.Blocks
+    $summary = [ordered]@{studyVersion=3;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;allocation=$schedule.Allocation;order=$schedule.Order;
+        baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion=$baseJudgeVersion;candidateJudgeVersion=$candidateJudgeVersion};
+        blockSchedule=(Copy-JsonValue $retainedBlockSchedule);steps=$steps;scenarios=@($scenario)}
+    $approvedJudgeVersion = $candidateJudgeVersion
+    $initialEvidence = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True $initialEvidence.valid "all receipt hashes and explicitly approved judge identity match both decisions: $($initialEvidence.reason)"
+    foreach ($marker in @('', 'balanced-ABBA-BAAB')) {
+        $wrongProtocol = Copy-JsonValue $summary
+        $wrongProtocol.allocation = $marker
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongProtocol -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'missing or historical protocol cannot masquerade as independent assignment'
+    }
+    $historical = Copy-JsonValue $summary
+    $historical.studyVersion = 2
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $historical -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'historical summary schema cannot qualify even with copied protocol text'
+    foreach ($wrongSeed in @(3701, 3.5, 'not-a-seed')) {
+        $seedMismatch = Copy-JsonValue $summary
+        $seedMismatch.seed = $wrongSeed
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $seedMismatch -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'independent schedule must replay the exact integer seed'
+    }
+    $wrongPosition = Copy-JsonValue $summary
+    $wrongPosition.steps[0].Position = 48
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongPosition -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'literal run positions remain bound to their schedule'
+    $wrongDecisionProtocol = Copy-JsonValue $summary
+    $wrongDecisionProtocol.scenarios[0].judgeComparison.migratedJudge.assignmentProtocol = 'balanced-ABBA-BAAB'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongDecisionProtocol -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'judge decision must identify the same assignment protocol as its inputs'
+    $unapproved = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 ('0' * 64) -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True (-not $unapproved.valid) 'matching verdict labels cannot approve an unapproved judge source'
+    Assert-True $unapproved.reason.Contains('not explicitly approved') 'the failure states that policy approval is absent'
+    $wrongVersion = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion 'dxui-other-judge-v1'
+    Assert-True (-not $wrongVersion.valid) 'the same source hash with a different approved version is rejected'
+    $wrongBaseVersion = Copy-JsonValue $summary
+    $wrongBaseVersion.judgeProvenance.baseJudgeVersion = 'dxui-wrong-base-v1'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongBaseVersion -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'an incorrect immutable base version is rejected'
+    $calibrationSummary = Copy-JsonValue $summary
+    $calibrationSummary.studyPurpose = 'aa-calibration'
+    $calibrationGate = Get-BenchmarkConclusion -Summary $calibrationSummary -ReportsDirectory $root -RequireQualifiedPolicy
+    Assert-Equal 'inconclusive' $calibrationGate.Conclusion 'A/A calibration has no pull-request qualification verdict'
+    Assert-True ($calibrationGate.Notes -join ' ').Contains('A/A calibration evidence is separate') 'calibration is explicitly identified as non-gating'
+    $summary.blockSchedule[0].Order = if ($summary.blockSchedule[0].Order -eq 'ABBA') { 'BAAB' } else { 'ABBA' }
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'schedule mutation invalidates the dual-judge evidence'
+    $summary.blockSchedule = Copy-JsonValue $retainedBlockSchedule
+    $summary.judgeProvenance.baseJudgeSha256 = ('0' * 64)
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'base judge source hash mutation invalidates the evidence'
+    $summary.judgeProvenance.baseJudgeSha256 = $baseJudgeHash
+    $scenario.judgeComparison.verdictAgreement = $false
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'changed judge verdicts remain policy-review-required'
+    $scenario.judgeComparison.verdictAgreement = $true
+    $scenario.judgeComparison.migratedJudge.metrics[0].verdict = 'regressed'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'a metric-level verdict change is independently detected'
+    $scenario.judgeComparison.migratedJudge.metrics[0].verdict = 'within-noise'
+    $lastRun = [string]$steps[-1].Name
+    Set-FixtureFile $root "Default-$lastRun.json" 'mutated receipt'
+    $changed = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True (-not $changed.valid) 'post-judge receipt mutation fails'
+    Assert-True $changed.reason.Contains('changed after judgment') 'mutation is named'
 }
 
 Invoke-FixtureCase 'a summary the gate cannot read is invalid, never an exception' {
@@ -532,16 +640,16 @@ Invoke-FixtureCase 'the retained hosted A/A set passes: identical library, nothi
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'a gate that needed stable controls overall would never pass a hosted run'
 }
 
-Invoke-FixtureCase 'the second retained hosted A/A set: five flags on identical code are noise by the identical-inputs rule and inconclusive without it' {
+Invoke-FixtureCase 'the second retained hosted A/A set: five flags remain inconclusive without policy-qualified calibration' {
     param($root)
     $reports = Expand-RetainedPacket (Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01/aa-2') (Join-Path $root 'reports')
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
     $conclusion = Get-Conclusion $summary $reports
-    Assert-Equal 'pass' $conclusion.Conclusion 'identical library inputs'
+    Assert-Equal 'inconclusive' $conclusion.Conclusion 'identical inputs are not calibration evidence'
     Assert-Equal '4 1 0' (($conclusion.Scenarios | ForEach-Object { $_.Regressed }) -join ' ') 'the five flagged metrics'
     $flagged = @($conclusion.Scenarios | ForEach-Object { $_.Metrics } | Where-Object { $_.Verdict -eq 'regressed' })
     Assert-Equal 5 $flagged.Count 'five flagged metrics'
-    Assert-Equal 0 @($flagged | Where-Object { $_.Outcome -ne 'noise' }).Count 'all listed as noise'
+    Assert-Equal 0 @($flagged | Where-Object { $_.Outcome -ne 'unconfirmed' }).Count 'all remain unresolved'
     Assert-Equal 0 @($flagged | Where-Object { -not $_.ControlDrifted }).Count 'every one with a drifted control'
     $summary['candidate']['sourceFingerprint'] = 'CHANGED'
     $changed = Get-Conclusion $summary $reports
@@ -558,7 +666,7 @@ function New-ReportScenarios([string] $Directory) {
     return @($held, $other)
 }
 
-Invoke-FixtureCase 'the job summary says what the run is, what it asks and every flagged and judged metric' {
+Invoke-FixtureCase 'the legacy job summary stays readable and labels its old judge read-only' {
     param($root)
     $summary = New-Summary (New-ReportScenarios $root)
     $conclusion = Get-Conclusion $summary $root
@@ -566,10 +674,10 @@ Invoke-FixtureCase 'the job summary says what the run is, what it asks and every
     $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Event 'pull request merge ref (refs/pull/46/merge)' -Pair '(first parent of the merge commit)' -Gate
     Assert-True $markdown.StartsWith("## Paired benchmark: Confirmed degradation`n") 'the headline is the conclusion'
     foreach ($text in @('Default', 'MultilineGrid', '### Scenarios', '### Flagged metrics', 'regressed, confirmed', 'regressed, controls drifted', 'improved', 'refs/pull/46/merge',
-            '`111111111111`', '`222222222222`', 'runnervm-test', '3 repetitions', '6 runs per side', 'Mann-Whitney', 'summary.json', 'Re-run the job')) {
+            '`111111111111`', '`222222222222`', 'runnervm-test', 'legacy 3 repetitions', '6 runs per side', 'read-only Mann-Whitney', 'summary.json', 'Re-run the job')) {
         Assert-True $markdown.Contains($text) "the summary names: $text"
     }
-    Assert-True $markdown.Contains('| dirty | composeCpuP95Ms | 0.016 | 0.018 | +12.50% | 0.0240 | 5% |') 'the flagged metric with its medians, change, p and band'
+    Assert-True $markdown.Contains('| dirty | composeCpuP95Ms | 0.016 | 0.018 | +12.50% | 0.0240 | n/a | 5% |') 'legacy output keeps its raw p and band without inventing an adjusted p'
     $flaggedStart = $markdown.IndexOf('### Flagged metrics')
     $flaggedTable = $markdown.Substring($flaggedStart, $markdown.IndexOf('<details>') - $flaggedStart)
     Assert-True $flaggedTable.Contains('| Default | dirty | composeCpuP95Ms | 0.016 | 0.018 |') 'a regressed metric is in the flagged table first, not only in the full one'
@@ -577,13 +685,60 @@ Invoke-FixtureCase 'the job summary says what the run is, what it asks and every
     Assert-True (-not $flaggedTable.Contains('cppAllocations')) 'a metric that moved nowhere is not'
     Assert-True $markdown.Contains('<details><summary>Default: all 3 metrics</summary>') 'each scenario folds its full table'
     Assert-Equal 2 ([regex]::Matches($markdown, '</details>')).Count 'one fold per scenario'
-    Assert-True $markdown.Contains('| dirty | cppAllocations | 2,160 | 2,160 | 0.00% | 0.0152 | exact |') 'an exact budget says exact'
+    Assert-True $markdown.Contains('| dirty | cppAllocations | 2,160 | 2,160 | 0.00% | 0.0152 | n/a | exact |') 'a legacy exact budget remains readable and has no migrated-only fields'
     Assert-True (-not $markdown.Contains("`r")) 'one newline style'
     Assert-True (-not $markdown.Contains('started by hand')) 'a pull request is not a manual run'
     $manual = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary
     Assert-True $manual.Contains('started by hand') 'a manual run says it stays green for a finding'
     Assert-True (-not $manual.Contains('hosted VM')) 'a summary of a run on this machine does not call it a hosted VM'
     Assert-True (ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Hosted).Contains('a shared hosted VM, not a controlled quiet desktop') 'a hosted one says what that is worth'
+}
+
+Invoke-FixtureCase 'migrated gate projection preserves Holm evidence and separate exact median and peak findings' {
+    param($root)
+    $timing = New-SetMetric 'clean' 'fps' 'regressed' -Before 1000.0 -After 900.0 -P 0.001
+    $timing.Remove('noisePercent')
+    $timing.band = 0.05
+    $timing.adjustedPValue = 0.026
+    $timing.baselineMaximum = 1020.0
+    $timing.candidateMaximum = 920.0
+    $timing.medianBudgetVerdict = 'not-applicable'
+    $timing.peakBudgetVerdict = 'not-applicable'
+
+    $exact = New-SetMetric 'dirty' 'surfaceBytes' 'regressed' -Exact -Before 100.0 -After 100.0 -P 1.0
+    $exact.Remove('noisePercent')
+    $exact.band = 0.0
+    $exact.adjustedPValue = 1.0
+    $exact.baselineMaximum = 100.0
+    $exact.candidateMaximum = 101.0
+    $exact.medianBudgetVerdict = 'within-budget'
+    $exact.peakBudgetVerdict = 'regressed'
+
+    $controls = @((Get-HeldControl), (Get-HeldControl), (Get-HeldControl), (Get-HeldControl))
+    $scenario = New-Scenario -Directory $root -Controls $controls -Metrics @($timing, $exact)
+    $scenario.set.schemaVersion = 3
+    $scenario.set.method = 'independent-paired-block-sign-flip-holm'
+    $summary = New-Summary @($scenario)
+    $summary.studyVersion = 3
+    $summary.blocks = 12
+    $summary.seed = 1729
+
+    $conclusion = Get-Conclusion $summary $root
+    $timingRow = @($conclusion.Scenarios[0].Metrics | Where-Object Metric -eq 'fps')[0]
+    Assert-Equal 5.0 $timingRow.NoisePercent 'fractional migrated band is projected as the declared 5 percent'
+    Assert-Equal 0.001 $timingRow.PValue 'raw p-value remains separately available'
+    Assert-Equal 0.026 $timingRow.AdjustedPValue 'Holm-adjusted p-value reaches the gate projection'
+    $surfaceRow = @($conclusion.Scenarios[0].Metrics | Where-Object Metric -eq 'surfaceBytes')[0]
+    Assert-Equal 100.0 $surfaceRow.BaselineMaximum 'baseline raw-round maximum reaches the projection'
+    Assert-Equal 101.0 $surfaceRow.CandidateMaximum 'candidate raw-round maximum reaches the projection'
+    Assert-Equal 'within-budget' $surfaceRow.MedianBudgetVerdict 'median budget result is retained independently'
+    Assert-Equal 'regressed' $surfaceRow.PeakBudgetVerdict 'peak budget result is retained independently'
+
+    $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Gate
+    Assert-True $markdown.Contains('Raw p | Holm-adjusted p | Band') 'both p-values and the band are labeled distinctly'
+    Assert-True $markdown.Contains('| 0.0010 | 0.0260 | 5% |') 'the migrated row displays raw and adjusted p with the converted band'
+    Assert-True $markdown.Contains('Baseline raw max | Candidate raw max | Median budget | Peak budget') 'both tables declare the exact-budget evidence columns'
+    Assert-True $markdown.Contains('| 100 | 101 | within-budget | regressed |') 'the exact one-round peak remains visible beside the median finding'
 }
 
 Invoke-FixtureCase 'the summary is the same in every culture and keeps a pipe from breaking a table' {
@@ -620,7 +775,7 @@ Invoke-FixtureCase 'a run with no flagged metric says none, and an inconclusive 
     $few = New-Summary @((New-Scenario -Directory $root -Controls @((Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps')) -MinimumP 0.33 -Runs 2))
     $inconclusive = ConvertTo-BenchmarkMarkdown -Conclusion (Get-Conclusion $few $root) -Summary $few -Gate
     Assert-True $inconclusive.StartsWith("## Paired benchmark: Inconclusive`n") 'an inconclusive run is named so'
-    Assert-True $inconclusive.Contains('It does not pass') 'and says it is not a pass'
+    Assert-True $inconclusive.Contains('cannot qualify a pass') 'and says it is not a pass'
 }
 
 Invoke-FixtureCase 'annotations match what each scenario means for the check' {
@@ -633,7 +788,7 @@ Invoke-FixtureCase 'annotations match what each scenario means for the check' {
     Assert-True $gate[1].StartsWith('::error title=Paired benchmark MultilineGrid%3A inconclusive::') 'an inconclusive run is an error too, not a quiet pass'
     Assert-True $gate[1].Contains('Re-run the job') 'and says what to do'
     Assert-Equal 1 ([regex]::Matches($gate[1], 'Re-run the job')).Count 'once'
-    Assert-True $gate[1].Contains('1 regressed metric has same-binary controls that drifted') 'one flagged metric is counted in the singular'
+    Assert-True $gate[1].Contains('1 regressed metric remains unresolved') 'one flagged metric is counted in the singular'
     $manual = @(Get-BenchmarkAnnotations -Conclusion $conclusion)
     Assert-True ($manual[0].StartsWith('::warning ') -and $manual[1].StartsWith('::warning ')) 'a manual run reports the same findings as warnings'
     $plain = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps'))
@@ -641,7 +796,7 @@ Invoke-FixtureCase 'annotations match what each scenario means for the check' {
     Assert-Equal 0 @(Get-BenchmarkAnnotations -Conclusion $pass -Gate).Count 'a plain pass is quiet'
     $noise = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((& $regressedComposeCpu))
     $same = @(Get-BenchmarkAnnotations -Conclusion (Get-Conclusion (New-Summary @($noise) -BaselineFingerprint 'CAFE' -CandidateFingerprint 'CAFE') $root) -Gate)
-    Assert-True ($same.Count -eq 1 -and $same[0].StartsWith('::notice ')) 'a flag on identical library inputs is a notice, not a hidden result'
+    Assert-True ($same.Count -eq 1 -and $same[0].StartsWith('::error ')) 'a flag on identical library inputs remains unresolved and fails a pull-request gate'
     $invalid = Get-Conclusion (New-Summary @((New-Scenario -Directory $root -Controls @() -Metrics @() -Status 'invalid-evidence' -Error 'boom'))) $root
     Assert-True @(Get-BenchmarkAnnotations -Conclusion $invalid)[0].StartsWith('::error ') 'invalid evidence is an error even by hand'
 }
@@ -717,16 +872,17 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     $reports = Join-Path $root 'reports'
     Set-FixtureJson $reports 'summary.json' (New-Summary (New-ReportScenarios $reports))
     $result = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } $root
-    Assert-Equal 1 $result.Code 'a confirmed degradation fails the step'
-    Assert-True $result.StepOutput.Contains('conclusion=degraded') 'and sets the output'
-    Assert-True $result.StepSummary.StartsWith('## Paired benchmark: Confirmed degradation') 'writes the job summary'
+    Assert-Equal 1 $result.Code 'an unqualified legacy policy fails closed'
+    Assert-True $result.StepOutput.Contains('conclusion=inconclusive') 'and sets the output'
+    Assert-True $result.StepSummary.StartsWith('## Paired benchmark: Inconclusive') 'writes the job summary'
+    Assert-True $result.StepSummary.Contains('Historic reports are retained for reading') 'explains migration status'
     Assert-True $result.StepSummary.Contains('a shared hosted VM, not a controlled quiet desktop') 'which says what a runner is worth'
     Assert-True ($result.Output -cmatch 'Job summary: \d+ bytes in the step summary file') 'and the log says how much the summary file holds'
     Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
     Assert-True $result.Output.Contains('::error title=') 'prints an annotation'
     Assert-True (Test-Path -LiteralPath (Join-Path $reports 'verdict.md')) 'keeps the report with the receipts'
     $verdict = Get-FixtureJson $reports 'verdict.json'
-    Assert-Equal 'degraded' $verdict['Conclusion'] 'and its conclusion as data'
+    Assert-Equal 'inconclusive' $verdict['Conclusion'] 'and its conclusion as data'
     $manual = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports } (Join-Path $root 'manual')
     Assert-Equal 0 $manual.Code 'a manual run stays green for the same finding'
     Assert-True $manual.Output.Contains('::warning title=') 'and reports it as a warning'
@@ -734,8 +890,8 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     $quiet = Join-Path $root 'quiet'
     Set-FixtureJson $quiet 'summary.json' (New-Summary @((New-Scenario -Directory $quiet -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps')))))
     $pass = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $quiet; Gate = $true } (Join-Path $root 'quiet-out')
-    Assert-Equal 0 $pass.Code 'a pass passes'
-    Assert-True $pass.StepOutput.Contains('conclusion=pass') 'with its output'
+    Assert-Equal 1 $pass.Code 'even a quiet historic report needs qualified base policy'
+    Assert-True $pass.StepOutput.Contains('conclusion=inconclusive') 'with its output'
 
     $few = Join-Path $root 'few'
     Set-FixtureJson $few 'summary.json' (New-Summary @((New-Scenario -Directory $few -Controls @((Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps')) -MinimumP 0.33 -Runs 2)))
@@ -763,16 +919,16 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     Assert-True $unreadable.StepSummary.Contains('could not be read') 'and explained'
 }
 
-Invoke-FixtureCase 'the strict reading reaches the verdict step: drifted controls and nothing flagged pass, strictly they do not' {
+Invoke-FixtureCase 'the strict reading cannot bypass the migrated policy requirement' {
     param($root)
     $noisy = New-Control @((New-ControlChange 'dirty' 'composeCpuP95Ms' 0.0160 0.0200), (New-ControlChange 'clean' 'fps' 1100.0 1120.0))
     $reports = Join-Path $root 'strict'
     Set-FixtureJson $reports 'summary.json' (New-Summary @((New-Scenario -Directory $reports -Controls @($noisy, (Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps')))))
-    Assert-Equal 0 (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'plain-out')).Code 'a pass with a drifted control elsewhere'
+    Assert-Equal 1 (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'plain-out')).Code 'legacy evidence cannot pass while policy review is pending'
     $strict = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true; StrictControls = $true } (Join-Path $root 'strict-out')
     Assert-Equal 1 $strict.Code 'the strict reading fails it'
     Assert-True $strict.StepOutput.Contains('conclusion=inconclusive') 'as inconclusive'
-    Assert-True $strict.StepSummary.Contains('Strict controls are on') 'and the summary says the reading is strict'
+    Assert-True $strict.StepSummary.Contains('Policy review required') 'the policy status remains explicit'
 }
 
 Invoke-FixtureCase 'the scope step measures a library change and skips a documentation one, with the commits to compare' {
@@ -828,7 +984,7 @@ Invoke-TestCase 'the workflow runs the benchmark for measured pull requests to m
     Assert-True $job.Contains("name: `${{ github.event_name == 'pull_request' && 'paired-benchmark (pull request)' || 'paired-benchmark' }}") 'a pull request''s check has a name of its own, so a required check names one check run'
     # A skipped job is reported under its unevaluated name expression, which a required check would never see: the job always
     # starts for a pull request to main, whatever the pull request changes, and ends early when nothing measured changed.
-    Assert-True $job.Contains("if: `${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '') }}") 'it starts for every pull request to main, whatever it changes, and for a dispatch with a baseline'
+    Assert-True $job.Contains("if: `${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.benchmark_baseline != '' || inputs.benchmark_calibration_aa)) }}") 'it starts for every pull request, whatever it changes, and for a dispatch with a baseline or explicit A/A request'
     Assert-True (-not $workflow.Contains('continue-on-error')) 'no job or step turns a failing verdict green'
     Assert-True $job.Contains('runs-on: windows-2025-vs2026') 'on the hosted x64 runner'
     # Its steps, in order: the scope decides, and every step after it runs only for a dispatch or a measured scope.
@@ -856,23 +1012,30 @@ Invoke-TestCase 'the workflow runs the benchmark for measured pull requests to m
     Assert-True $step['measure'].Contains('BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}') 'a dispatch names its baseline, a pull request gets the base of its merge ref'
     Assert-True $step['verdict'].Contains('BENCHMARK_PAIR: ${{ steps.scope.outputs.method }}') 'and the verdict says how it was chosen'
     Assert-True $step['measure'].Contains('BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}') 'the candidate is the dispatch input, else this checkout: the merge ref'
-    Assert-True $step['measure'].Contains('./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE') 'one paired run with this harness'
+    Assert-True $step['measure'].Contains('BENCHMARK_CALIBRATION_AA: ${{ github.event_name == ''workflow_dispatch'' && inputs.benchmark_calibration_aa || false }}') 'only an explicit manual dispatch can enable A/A'
+    Assert-True $step['measure'].Contains("if (`$env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or") 'A/A validates that it is a manual dispatch'
+    Assert-True $step['measure'].Contains('[string]::IsNullOrWhiteSpace($env:BENCHMARK_BASELINE)') 'A/A requires an explicit baseline'
+    Assert-True $step['measure'].Contains('[string]::IsNullOrWhiteSpace($env:BENCHMARK_CANDIDATE)') 'A/A requires an explicit candidate'
+    Assert-True $step['measure'].Contains('$env:BENCHMARK_BASELINE -cne $env:BENCHMARK_CANDIDATE') 'A/A requires identical revision inputs'
+    Assert-True $step['measure'].Contains('$pairedArgs.CalibrationAA = $true') 'the calibration switch is added only after those checks'
+    Assert-True $step['measure'].Contains('./performance-paired.ps1 @pairedArgs') 'one paired run with this harness'
     Assert-True $step['verdict'].Contains('./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:GITHUB_EVENT_NAME -eq ''pull_request'')') 'only a pull request is gated'
 }
 
-Invoke-TestCase 'the benchmark job runs the contract''s scenarios and repetitions, and a dispatch keeps its inputs' {
+Invoke-TestCase 'the benchmark job runs the contract''s scenarios and independent blocks, and a dispatch keeps its inputs' {
     $job = Get-WorkflowJob 'paired-benchmark'
     $scenarios = (Get-BenchmarkGateScenarios) -join ','
     Assert-Equal 'Default,MultilineGrid,MultilineGridDistinct' $scenarios 'the gating scenarios of the contract and docs/performance.md'
     Assert-True $job.Contains("BENCHMARK_SCENARIOS: `${{ inputs.benchmark_scenarios || '$scenarios' }}") 'a pull request measures the gating scenarios'
     Assert-True ($workflow -cmatch "(?s)benchmark_scenarios:.*?default: $([regex]::Escape($scenarios))\r?\n") 'and so does a dispatch by default'
-    $repetitions = [regex]::Match($job, '-Repetitions (\d+)')
-    Assert-True $repetitions.Success 'the repetitions are explicit'
-    Assert-Equal (Get-BenchmarkGateRepetitions) ([int]$repetitions.Groups[1].Value) 'the repetitions of the gate'
-    Assert-True ((Get-BenchmarkGateRepetitions) -ge 3) 'three give six runs a side, whose smallest attainable p is 0.0022'
-    Assert-True ((Get-MinimumAttainableP (2 * (Get-BenchmarkGateRepetitions)) (2 * (Get-BenchmarkGateRepetitions))) -lt 0.05) 'a verdict can be reached'
-    foreach ($name in @('benchmark_baseline', 'benchmark_candidate', 'benchmark_scenarios')) { Assert-True ($workflow -cmatch "(?m)^      ${name}:\r?\n") "the dispatch input $name is kept" }
+    $blocks = [regex]::Match($job, '(?m)^\s+Blocks\s*=\s*(\d+)\s*$')
+    Assert-True $blocks.Success 'the independent block count is explicit'
+    Assert-Equal (Get-BenchmarkGateBlocks) ([int]$blocks.Groups[1].Value) 'independent paired blocks of the gate'
+    Assert-True ((Get-BenchmarkGateBlocks) -ge 12) 'twelve independent blocks are required'
+    Assert-True ((2.0 / [Math]::Pow(2.0, (Get-BenchmarkGateBlocks))) -lt (0.05 / 26.0)) 'the exact signed permutation can reach the first Holm threshold'
+    foreach ($name in @('benchmark_baseline', 'benchmark_candidate', 'benchmark_scenarios', 'benchmark_calibration_aa')) { Assert-True ($workflow -cmatch "(?m)^      ${name}:\r?\n") "the dispatch input $name is kept" }
     Assert-True ($workflow -cmatch "(?s)benchmark_baseline:.*?default: ''") 'an empty baseline still skips the benchmark'
+    Assert-True ($workflow -cmatch "(?s)benchmark_calibration_aa:.*?type: boolean\r?\n        default: false") 'A/A is an opt-in boolean dispatch input'
     Assert-True $job.Contains('name: paired-benchmark-x64-Release') 'the artifact keeps its name'
     Assert-True ($job -cmatch '(?s)upload-artifact@\S+ # v4\s+if: \$\{\{ always\(\) && ') 'and is uploaded even when the run fails'
     Assert-True $job.Contains('.build/paired/*/reports/**') 'with every receipt, comparison, summary and verdict'
@@ -880,13 +1043,13 @@ Invoke-TestCase 'the benchmark job runs the contract''s scenarios and repetition
 
 Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime and pins what it runs' {
     Assert-True ($workflow -cmatch '(?m)^concurrency:\r?\n(?:  #.*\r?\n)*  group: dxui-\$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == ''workflow_dispatch'' && github\.run_id \|\| github\.ref \}\}\r?\n  cancel-in-progress: true') 'a push cancels the older run of its ref, and so of its pull request (refs/pull/n/merge); a dispatch is its own group'
-    # A pull request's limits (a run takes 10 to 15 minutes) and a manual run's (the 90 minutes it always had, for diagnostic scenarios).
+    # The twelve-block qualification study takes more observations; its hard limits leave time to publish the verdict and receipts.
     $limit = "\`$\{\{ github\.event_name == 'pull_request' && (\d+) \|\| (\d+) \}\}"
     $job = Get-WorkflowJob 'paired-benchmark'
     $jobLimit = [regex]::Match($job, "(?m)^    timeout-minutes: $limit\s*`$")
     Assert-True $jobLimit.Success 'the benchmark job has a timeout for each trigger'
-    Assert-True ([int]$jobLimit.Groups[1].Value -le 45) "a pull request's run is bounded to 45 minutes: $($jobLimit.Groups[1].Value)"
-    Assert-Equal 90 ([int]$jobLimit.Groups[2].Value) 'a manual run keeps its 90 minutes'
+    Assert-True ([int]$jobLimit.Groups[1].Value -le 180) "a pull request's run is bounded to 180 minutes: $($jobLimit.Groups[1].Value)"
+    Assert-Equal 240 ([int]$jobLimit.Groups[2].Value) 'manual diagnostic scenarios have a bounded longer run'
     $steps = @([regex]::Matches($job, "(?m)^        timeout-minutes: $limit\s*`$"))
     $fixed = @([regex]::Matches($job, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
     Assert-True ($steps.Count -ge 2) 'the restore and the measurement have step limits shorter than the job, so the verdict and artifacts still run'
