@@ -212,6 +212,11 @@ Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
 the control a collapsed semantic root stands for reports through the window's element.
 
+Library event tests use a client thread subscribed to the actual window subtree. Bounded quiet waits fail explicitly
+on timeout, while diagnostic provider-attempt/client-arrival timelines remain separate from event semantics.
+Observed silence cannot rule out later delivery. Unchanged Grid republishing must emit no selection changes and
+the client assertion remains empty; an unexplained late event remains an investigation rather than a waived assertion.
+
 A window whose only semantic control is a Tree, a Grid, a Button, a Checkbox or Toggle, a TextField, a ComboBox, a Slider or a
 ColorSwatch, or whose root has the Status role, has a collapsed semantic root: the window's element stands for that control, with
 its control type, name, value and patterns, and the control has no element of its own. What the control exposes of its own is

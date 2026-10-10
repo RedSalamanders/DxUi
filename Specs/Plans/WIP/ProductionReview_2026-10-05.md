@@ -77,6 +77,29 @@ spread precedes PNG capture, and Default A07/A19 are extreme same-binary FPS out
 lead, not a cause. Recommend a bounded initialization/backend/scheduler pilot before another complete calibration;
 the seed policy, ordinary trusted-base comparison and required-rule acceptance remain open.
 
+### Accepted profiling and test follow-up (10 October)
+
+The user accepted a bounded performance profiling pilot first, correction of the foreground-run summary and
+investigation of the intermittent ASan UIA selection-event failure. Continue on `codex/performance-forms` from
+`01f1aed1`; preserve all original measurement/failure receipts and keep the judges, thresholds and required-CI hold.
+
+- [ ] Retain six serial fresh-process Release/x64 reports on the frozen executable, alternating Default and
+  MultilineGrid, before implementation. Stop at the fixed inventory; this pilot is descriptive, not calibration.
+- [ ] Add only the bounded diagnostic telemetry needed to distinguish initialization/backend warm-up, process/thread
+  CPU scheduling and heap residency; reuse existing helpers and record sampling overhead and unavailable observations.
+- [ ] Run the instrumented pilot serially, retain every outlier and independently review what it establishes.
+- [ ] Correct the human desktop summary from restoration statuses and cover unchanged/restored, failed/skipped,
+  missing/unrecorded and canceled/timed-out results without changing fail-closed lease accounting.
+- [ ] Investigate client-observed UIA events and provider emission paths; reproduce any confirmed synchronization
+  defect with an executable regression rather than weakening event assertions or assuming delayed delivery.
+- [ ] Complete affected native/tooling checks and required build/profile accounting, update usage/domain contracts
+  and changelog fragments, and review delegated code and evidence before accepting them.
+
+This follow-up changes diagnostics/test reporting, not control visuals; review the documentation/gallery contract
+and retain the published design-system/gallery assets unless investigation changes visible product behavior.
+Native ARM64, physical-input and consumer gates stay separately owned. Stable controls and independently qualified
+policy/candidate evidence remain prerequisites for enabling the required CI rule.
+
 ### Accepted implementation (9 October)
 
 The user accepted Q1-Q31. Continue on the existing feature branch, preserve the immutable 8 October packet as the

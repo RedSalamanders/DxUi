@@ -369,6 +369,17 @@ ticks warrants quantization analysis, not an automatic noise waiver or a silentl
 Benchmark receipts also record process-memory phases at entry, device creation, scene
 creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
 locate changes; they do not replace matched frame/retention comparisons. The opt-in
+`dxui-complex-ui-profiling-v1` fixture adds fixed warm-up checkpoints and bounded phase-boundary CPU/thread/cache
+observations on the same synthetic scene. Its heap-off/on profiles record sampling duration and query errors;
+heap inventory bounds do not bound traversal time. Worker identities include thread creation time and verified
+opened-handle process ownership, not only reusable thread IDs. Cumulative CPU and cycle counters describe consumption,
+while priority/affinity describe constraints;
+they MUST NOT be reported as actual placement or scheduler-delay attribution. Diagnostic warm-up and probe intervals
+are distinct from the canonical workload. Retain every scheduled process, outlier, unavailable field and partial
+failure; enforce an owned-child timeout and a declared overall pilot budget. Exact before/after provenance and native
+byte retention apply to these reports too. This diagnostic supplies no policy or regression acceptance verdict.
+
+The opt-in
 `MenuResources` control suite records 96 open/render/capture/close cycles for twelve
 plain or described entries at matched 456-by-300-DIP viewport constraints, including
 private/working-set bytes and process/GDI/USER handles. Report screenshot-buffer cost

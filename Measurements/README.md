@@ -10,6 +10,13 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Bounded profiling pilot, 2026-10-10](Performance/2026-10-10-profiling/README.md): six original frozen baseline
+  reports, separate startup/CPU/cache/heap observations and retained tracing refusal. Diagnostic evidence leaves
+  the original flags and required-CI qualification hold open.
+- [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
+  timeout regressions and bounded provider/client timelines for the intermittent ASan Grid event failure;
+  unchanged event assertions and original failure evidence remain authoritative.
+
 - [Guarded v2 A/A calibration, 2026-10-10](Performance/2026-10-10-aa-v2/README.md): 144 exact-byte guarded reports,
   both fully replayed judges and 72 controls. Every control remains unstable; all 54 timing/memory cells drift
   while all 24 exact-budget cells hold. The seed policy and required CI gate remain unqualified, with the

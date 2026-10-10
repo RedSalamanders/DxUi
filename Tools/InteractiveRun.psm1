@@ -174,7 +174,7 @@ function Get-DxUiLeaseExitMeaning {
     # What a lease exit code says, for a message.
     [CmdletBinding()] param([Parameter(Mandatory)][int] $ExitCode)
     switch ($ExitCode) {
-        0 { 'every suite passed and the desktop is as it was' }
+        0 { 'the lease returned success' }
         1 { 'a suite failed' }
         2 { 'the lease was given a malformed command line' }
         20 { 'there is no interactive desktop to take' }
@@ -208,6 +208,46 @@ function Get-DxUiLeaseProblems {
         $problems.Add("the desktop could not be given back: $($failed -join ', ') failed$window")
     }
     return $problems.ToArray()
+}
+
+function Get-DxUiLeaseSummary {
+    # Presentation only: successful restoration flags cannot establish the state of failed, skipped or unrecorded parts.
+    [CmdletBinding()] param([AllowNull()] $Result)
+    $read = {
+        param([string] $Name, [string] $Fallback)
+        $property = if ($null -ne $Result) { $Result.PSObject.Properties[$Name] }
+        if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { return $Fallback }
+        return [string]$property.Value
+    }
+    $state = & $read 'State' 'missing'
+    $foreground = & $read 'Foreground' 'none'
+    $focus = & $read 'Focus' 'none'
+    $cursor = & $read 'Cursor' 'none'
+    $parts = @($foreground, $focus, $cursor)
+    $restoration = if ($parts -ccontains 'failed') {
+        'Desktop restoration failed.'
+    } elseif (@($parts | Where-Object { $_ -cnotin @('unchanged', 'restored') }).Count) {
+        'Desktop restoration was not fully verified.'
+    } elseif ($parts -ccontains 'restored') {
+        'The desktop states were restored or unchanged.'
+    } else {
+        'All three desktop states were unchanged.'
+    }
+    $pointerNotice = $null
+    if ($cursor -ceq 'restored') {
+        $saved = & $read 'CursorSaved' 'none'
+        $atExit = & $read 'CursorAtExit' 'none'
+        $pointerNotice = if ($saved -match '^-?\d+,-?\d+$' -and $atExit -match '^-?\d+,-?\d+$') {
+            "The lease restored the pointer from $atExit to $saved."
+        } else {
+            'The lease restored the pointer; one or both positions were not recorded.'
+        }
+        $pointerNotice += ' The desktop is captured before confirmation; this report does not identify which action moved the pointer.'
+    }
+    return [pscustomobject]@{
+        Message = "Foreground lease ($state): foreground $foreground, focus $focus, pointer $cursor; $restoration"
+        PointerNotice = $pointerNotice
+    }
 }
 
 function Test-DxUiDesktopAvailable {
@@ -283,4 +323,4 @@ function Invoke-DxUiHostedForegroundLease {
 
 Export-ModuleMember -Function Get-DxUiInteractiveSuiteNames, Test-DxUiInteractiveSuite, Get-DxUiLeaseExitCodes, Resolve-DxUiInteractiveSuites,
     Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Test-DxUiHostedForegroundLeaseRequired, Resolve-DxUiForegroundLeaseSuites, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
-    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease
+    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Get-DxUiLeaseSummary, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease

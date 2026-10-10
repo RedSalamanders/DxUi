@@ -121,6 +121,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Scope.Tests.ComplexUiProfiling.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
 #endif
@@ -1121,6 +1122,16 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
+    if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
+    {
+        const std::wstring_view scenario(__wargv[3]);
+        const std::wstring_view heaps(__wargv[4]);
+        Check(scenario == L"Default" || scenario == L"MultilineGrid", "profiling scenario");
+        Check(heaps == L"Off" || heaps == L"On", "profiling heap sampling mode");
+        ComplexUiProfiling::Run(__wargv[2], scenario == L"MultilineGrid", heaps == L"On");
+        return 0;
+    }
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
     if (__argc >= 3 && __argc <= 5 && std::wstring_view(__wargv[1]) == L"--benchmark-form-layout")
     {

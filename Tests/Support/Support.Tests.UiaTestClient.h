@@ -24,14 +24,17 @@
 #include <atomic>
 #include <compare>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace UiaTest
@@ -87,6 +90,78 @@ struct HeardEvent
     [[nodiscard]] bool operator==(const HeardEvent&) const  = default;
 };
 
+// Numeric diagnostics are separate from HeardEvent: arrival timing never changes equality or deduplication.
+// Entry precedes cached payload reads; completion records the payload insertion immediately before the handler returns.
+inline constexpr size_t kEventTimelineCapacity = 1024u;
+struct EventArrival
+{
+    uint64_t sequence   = 0u;
+    size_t eventIndex   = 0u;
+    ULONGLONG entered   = 0u;
+    ULONGLONG completed = 0u;
+};
+
+struct EventSnapshot
+{
+    std::vector<HeardEvent> events;
+    std::vector<EventArrival> arrivals;
+    ULONGLONG cutoffTick     = 0u;
+    uint64_t callbackEntries = 0u;
+    size_t timelineOverflow  = 0u;
+    size_t failedCallbacks   = 0u;
+};
+
+struct StreamQuiescence
+{
+    bool quiet            = false;
+    size_t startCount     = 0u;
+    size_t endCount       = 0u;
+    ULONGLONG started     = 0u;
+    ULONGLONG lastArrival = 0u;
+    ULONGLONG completed   = 0u;
+};
+
+// Clock, count and pump are injectable so timeout and arrival boundaries can be checked without a window or sleeps.
+// Observed silence is bounded evidence; it cannot promise that another notification will not arrive later.
+template <typename Clock, typename Count, typename Pump>
+[[nodiscard]] inline StreamQuiescence WaitForQuiescence(ULONGLONG quietMs, ULONGLONG deadlineMs, const Clock& clock, const Count& count, const Pump& pump)
+{
+    StreamQuiescence result;
+    result.startCount  = count();
+    result.endCount    = result.startCount;
+    result.started     = clock();
+    result.lastArrival = result.started;
+    for (;;)
+    {
+        const size_t arrived = count();
+        result.completed     = clock();
+        if (arrived != result.endCount)
+        {
+            result.endCount    = arrived;
+            result.lastArrival = result.completed;
+        }
+        // Equality is inclusive, but a slow pump cannot manufacture successful quiet after the deadline has passed.
+        if (result.completed - result.started > deadlineMs)
+            return result;
+        if (result.completed - result.lastArrival >= quietMs)
+        {
+            result.quiet = true;
+            return result;
+        }
+        if (result.completed - result.started >= deadlineMs)
+            return result;
+        pump();
+    }
+}
+
+[[nodiscard]] inline std::vector<HeardEvent> DistinctEventsSince(std::vector<HeardEvent> events, size_t mark)
+{
+    events.erase(events.begin(), events.begin() + static_cast<ptrdiff_t>((std::min)(mark, events.size())));
+    std::ranges::sort(events);
+    events.erase(std::ranges::unique(events).begin(), events.end());
+    return events;
+}
+
 [[nodiscard]] inline std::wstring ControlTypeName(long controlType)
 {
     switch (controlType)
@@ -125,6 +200,21 @@ class Recorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::Runti
                                                            Microsoft::WRL::FtmBase>
 {
 public:
+    // Called before the client thread starts. Ordinary clients allocate no timeline and read no callback clock.
+    void EnableTimeline()
+    {
+        _timeline.reset(new (std::nothrow) Timeline{});
+        if (! _timeline)
+            Fail("allocate the bounded UI Automation arrival timeline");
+        std::cerr << "    [UIA arrivals] capacity=" << kEventTimelineCapacity << " storageBytes=" << sizeof(Timeline)
+                  << " callbackData=numeric-only clock=GetTickCount64\n";
+    }
+
+    [[nodiscard]] bool HasTimeline() const noexcept
+    {
+        return _timeline != nullptr;
+    }
+
     HRESULT STDMETHODCALLTYPE HandleAutomationEvent(IUIAutomationElement* sender, EVENTID eventId) noexcept override
     {
         Add(EventKind::Automation, static_cast<long>(eventId), sender, nullptr);
@@ -155,6 +245,29 @@ public:
         return _events;
     }
 
+    [[nodiscard]] size_t EventCount() const
+    {
+        const std::scoped_lock lock(_mutex);
+        return _events.size();
+    }
+
+    [[nodiscard]] EventSnapshot Capture() const
+    {
+        const std::scoped_lock lock(_mutex);
+        EventSnapshot snapshot;
+        if (_timeline)
+        {
+            snapshot.callbackEntries  = _timeline->sequence.load(std::memory_order_relaxed);
+            snapshot.timelineOverflow = _timeline->overflow;
+            snapshot.failedCallbacks  = _timeline->failed.load(std::memory_order_relaxed);
+        }
+        snapshot.cutoffTick = GetTickCount64();
+        snapshot.events     = _events;
+        if (_timeline)
+            snapshot.arrivals.assign(_timeline->arrivals.begin(), _timeline->arrivals.begin() + static_cast<ptrdiff_t>(_timeline->stored));
+        return snapshot;
+    }
+
     [[nodiscard]] size_t Count(const std::function<bool(const HeardEvent&)>& matches) const
     {
         const std::scoped_lock lock(_mutex);
@@ -162,6 +275,15 @@ public:
     }
 
 private:
+    struct Timeline
+    {
+        std::array<EventArrival, kEventTimelineCapacity> arrivals{};
+        std::atomic<uint64_t> sequence{0u};
+        std::atomic<size_t> failed{0u};
+        size_t stored   = 0u;
+        size_t overflow = 0u;
+    };
+
     [[nodiscard]] static std::wstring Render(const VARIANT& variant)
     {
         switch (variant.vt)
@@ -176,6 +298,8 @@ private:
 
     void Add(EventKind kind, long id, IUIAutomationElement* sender, const VARIANT* newValue) noexcept
     {
+        const uint64_t sequence = _timeline ? _timeline->sequence.fetch_add(1u, std::memory_order_relaxed) + 1u : 0u;
+        const ULONGLONG entered = _timeline ? GetTickCount64() : 0u;
         try
         {
             HeardEvent heard;
@@ -196,16 +320,27 @@ private:
                     heard.automationId.assign(automationId.get(), SysStringLen(automationId.get()));
             }
             const std::scoped_lock lock(_mutex);
+            const size_t index = _events.size();
             _events.push_back(std::move(heard));
+            if (_timeline)
+            {
+                if (_timeline->stored < _timeline->arrivals.size())
+                    _timeline->arrivals[_timeline->stored++] = EventArrival{sequence, index, entered, GetTickCount64()};
+                else
+                    ++_timeline->overflow;
+            }
         }
         catch (const std::bad_alloc&)
         {
+            if (_timeline)
+                _timeline->failed.fetch_add(1u, std::memory_order_relaxed);
             // A dropped event fails the test's own wait for it; a client's callback never throws.
         }
     }
 
     mutable std::mutex _mutex;
     std::vector<HeardEvent> _events;
+    std::unique_ptr<Timeline> _timeline;
 };
 
 // What the client subscribes to, at the window's element and its whole subtree.
@@ -273,11 +408,16 @@ public:
     static constexpr ULONGLONG kSlowArrivalMs          = 1000; // An arrival this slow is logged: it shows a slow runner.
 
     // `pump` dispatches the pending messages of the thread that owns the providers.
-    Client(HWND target, Subscription subscription, std::function<void()> pump) : _target(target), _subscription(std::move(subscription)), _pump(std::move(pump))
+    Client(HWND target, Subscription subscription, std::function<void()> pump, bool timeline = false)
+        : _target(target),
+          _subscription(std::move(subscription)),
+          _pump(std::move(pump))
     {
         _recorder.attach(Microsoft::WRL::Make<Recorder>().Detach());
         if (! _recorder || ! _stop || ! _request)
             Fail("allocate the UI Automation client");
+        if (timeline)
+            _recorder->EnableTimeline();
         _thread = std::jthread([this] { Run(); });
         if (! WaitUntil(kSetupAllowanceMs, [this] { return _ready.load(); }))
             Fail("the UI Automation client starts");
@@ -314,45 +454,109 @@ public:
         static_cast<void>(WaitUntil(durationMs, [] { return false; }));
     }
 
-    // Waits until no event has arrived for `quietMs` (for at most `deadlineMs`). An in-process client hears an event again a
-    // moment after the first time (about 60 ms apart when several were raised at once), so a step that ends here leaves no repeat
-    // to be heard by the next one.
-    void WaitOutTheStream(ULONGLONG quietMs = 500u, ULONGLONG deadlineMs = 10000u) const
+    // Requires an observed quiet interval, or fails after the deadline. A later arrival can still cross a test's step mark.
+    StreamQuiescence WaitOutTheStream(ULONGLONG quietMs = 500u, ULONGLONG deadlineMs = 10000u) const
     {
-        size_t arrived        = _recorder->Events().size();
-        ULONGLONG lastArrival = GetTickCount64();
-        static_cast<void>(WaitUntil(deadlineMs,
-                                    [&]
+        const auto result = WaitForQuiescence(quietMs,
+                                              deadlineMs,
+                                              [] { return GetTickCount64(); },
+                                              [this] { return _recorder->EventCount(); },
+                                              [this]
         {
-            if (const size_t now = _recorder->Events().size(); now != arrived)
-            {
-                arrived     = now;
-                lastArrival = GetTickCount64();
-            }
-            return GetTickCount64() - lastArrival >= quietMs;
-        }));
+            _pump();
+            Sleep(1);
+        });
+        if (! result.quiet)
+        {
+            PrintQuiescence("timeout", result);
+            PrintEvents();
+            Fail("UI Automation events did not become quiet before the deadline");
+        }
+        return result;
     }
 
     // Where the events heard so far end, for DistinctSince.
     [[nodiscard]] size_t Mark() const
     {
-        return _recorder->Events().size();
+        return _recorder->EventCount();
     }
 
     // The events heard after `mark`, each once and in a fixed order: UI Automation delivers to a client on threads of its own, so
     // two events raised one after the other may arrive in either order, and it may deliver one twice.
     [[nodiscard]] std::vector<HeardEvent> DistinctSince(size_t mark) const
     {
-        std::vector<HeardEvent> events = _recorder->Events();
-        events.erase(events.begin(), events.begin() + static_cast<ptrdiff_t>((std::min)(mark, events.size())));
-        std::ranges::sort(events);
-        events.erase(std::ranges::unique(events).begin(), events.end());
-        return events;
+        return DistinctEventsSince(_recorder->Events(), mark);
     }
 
     [[nodiscard]] std::vector<HeardEvent> Events() const
     {
         return _recorder->Events();
+    }
+
+    [[nodiscard]] bool TimelineEnabled() const noexcept
+    {
+        return _recorder->HasTimeline();
+    }
+
+    [[nodiscard]] EventSnapshot CaptureEvents() const
+    {
+        return _recorder->Capture();
+    }
+
+    // The owner may supply a bounded provider-attempt dump. It must not pump messages or outlive its scope.
+    void SetFailureDiagnostic(std::function<void()> diagnostic)
+    {
+        _failureDiagnostic = std::move(diagnostic);
+    }
+
+    [[nodiscard]] size_t DiagnosticStep() const noexcept
+    {
+        return _diagnosticStep;
+    }
+
+    void BeginSelectionStep(size_t mark, size_t expected, const StreamQuiescence& before)
+    {
+        ++_diagnosticStep;
+        _diagnosticMark = mark;
+        std::cerr << "    [UIA timeline] begin step=" << _diagnosticStep << " mark=" << mark << " expected=" << expected << '\n';
+        PrintQuiescence("before", before);
+    }
+
+    void PrintSelectionStep(const EventSnapshot& snapshot,
+                            size_t mark,
+                            size_t expected,
+                            bool expectedArrived,
+                            ULONGLONG actionStarted,
+                            ULONGLONG actionCompleted,
+                            const StreamQuiescence& after)
+    {
+        std::cerr << "    [UIA timeline] step=" << _diagnosticStep << " mark=" << mark << " cutoff=" << snapshot.events.size()
+                  << " cutoffTick=" << snapshot.cutoffTick << " expected=" << expected << " expectedArrived=" << expectedArrived << " action=" << actionStarted
+                  << ".." << actionCompleted << '\n';
+        PrintQuiescence("after", after);
+        PrintArrivals(snapshot, _diagnosticPrintedCount);
+        _diagnosticPrintedCount = snapshot.events.size();
+        if (snapshot.timelineOverflow != 0u || snapshot.failedCallbacks != 0u)
+        {
+            if (_failureDiagnostic)
+                _failureDiagnostic();
+            Fail("the bounded UI Automation timeline lost diagnostics or an event");
+        }
+    }
+
+    void PrintArrivalTail()
+    {
+        const auto snapshot = _recorder->Capture();
+        std::cerr << "    [UIA timeline] tail step=" << _diagnosticStep << " mark=" << _diagnosticMark << " cutoff=" << snapshot.events.size()
+                  << " cutoffTick=" << snapshot.cutoffTick << '\n';
+        PrintArrivals(snapshot, _diagnosticPrintedCount);
+        _diagnosticPrintedCount = snapshot.events.size();
+        if (snapshot.timelineOverflow != 0u || snapshot.failedCallbacks != 0u)
+        {
+            if (_failureDiagnostic)
+                _failureDiagnostic();
+            Fail("the bounded UI Automation timeline lost diagnostics or an event");
+        }
     }
 
     [[nodiscard]] size_t Count(const std::function<bool(const HeardEvent&)>& matches) const
@@ -371,11 +575,15 @@ public:
         return heard;
     }
 
-    // For a failure report: every event heard, in order.
+    // Capture and print before a failure's tree query pumps any more messages.
     void PrintEvents() const
     {
-        std::cerr << "    [UIA] events heard:";
-        for (const HeardEvent& heard : _recorder->Events())
+        const auto snapshot = _recorder->Capture();
+        if (TimelineEnabled())
+            std::cerr << "    [UIA timeline] failure step=" << _diagnosticStep << " mark=" << _diagnosticMark << " cutoff=" << snapshot.events.size()
+                      << " cutoffTick=" << snapshot.cutoffTick << '\n';
+        std::cerr << "    [UIA] frozen event cutoff=" << snapshot.events.size() << " tick=" << snapshot.cutoffTick << ":";
+        for (const HeardEvent& heard : snapshot.events)
         {
             std::cerr << " [";
             for (const wchar_t unit : DescribeEvent(heard))
@@ -383,6 +591,10 @@ public:
             std::cerr << "]";
         }
         std::cerr << '\n';
+        if (TimelineEnabled())
+            PrintArrivals(snapshot, 0u);
+        if (_failureDiagnostic)
+            _failureDiagnostic();
     }
 
     // The window's element, as UI Automation reaches it from the window handle.
@@ -604,6 +816,28 @@ public:
     }
 
 private:
+    static void PrintQuiescence(const char* phase, const StreamQuiescence& result)
+    {
+        std::cerr << "    [UIA stream] phase=" << phase << " quiet=" << result.quiet << " ticks=" << result.started << ".." << result.completed
+                  << " lastArrival=" << result.lastArrival << " counts=" << result.startCount << ".." << result.endCount << '\n';
+    }
+
+    static void PrintArrivals(const EventSnapshot& snapshot, size_t first)
+    {
+        std::cerr << "    [UIA arrivals] entries=" << snapshot.callbackEntries << " completed=" << snapshot.events.size()
+                  << " capacity=" << kEventTimelineCapacity << " overflow=" << snapshot.timelineOverflow << " failed=" << snapshot.failedCallbacks << '\n';
+        for (const auto& arrival : snapshot.arrivals)
+        {
+            if (arrival.eventIndex < first || arrival.eventIndex >= snapshot.events.size())
+                continue;
+            std::cerr << "    [UIA arrival] seq=" << arrival.sequence << " index=" << arrival.eventIndex << " entered=" << arrival.entered
+                      << " completed=" << arrival.completed << " [";
+            for (const wchar_t unit : DescribeEvent(snapshot.events[arrival.eventIndex]))
+                std::cerr << (unit < 0x80 ? static_cast<char>(unit) : '?');
+            std::cerr << "]\n";
+        }
+    }
+
     // A request to the client thread: `request` fills `result` and returns what UI Automation answered, which is the answer a
     // test that expects a failure reads. The owner thread waits for the answer pumping, as the answer may need its providers;
     // an answer that does not come ends the run.
@@ -760,6 +994,10 @@ private:
     HWND _target = nullptr;
     Subscription _subscription;
     std::function<void()> _pump;
+    std::function<void()> _failureDiagnostic;
+    size_t _diagnosticStep         = 0u;
+    size_t _diagnosticMark         = 0u;
+    size_t _diagnosticPrintedCount = 0u;
     wil::com_ptr_nothrow<Recorder> _recorder;
     wil::unique_event _stop{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
     wil::unique_event _request{CreateEventW(nullptr, FALSE, FALSE, nullptr)};
@@ -812,17 +1050,18 @@ private:
     return what + L" " + ControlTypeName(heard.controlType) + L" '" + heard.name + L"'";
 }
 
-// The selection events a client hears for `action`: the different ones that arrived once at least `expected` had (or the wait
-// for them ran out) and the stream of events then stopped, so that a repeat of one does not reach the next step. Described by
-// DescribeSelectionEvent and sorted, for a comparison with what a test expects.
+// The distinct selection events after this action's mark, followed by an observed quiet interval. That interval is not a
+// guarantee against later repeats. Described by DescribeSelectionEvent and sorted for comparison with the expected set.
 [[nodiscard]] inline std::vector<std::wstring> HearSelectionEvents(Client& client, size_t expected, const std::function<void()>& action)
 {
-    client.WaitOutTheStream();
-    const size_t mark    = client.Mark();
-    const auto described = [&]
+    const auto before = client.WaitOutTheStream();
+    const size_t mark = client.Mark();
+    if (client.TimelineEnabled())
+        client.BeginSelectionStep(mark, expected, before);
+    const auto describe = [mark](std::vector<HeardEvent> events)
     {
         std::vector<std::wstring> texts;
-        for (const HeardEvent& heard : client.DistinctSince(mark))
+        for (const HeardEvent& heard : DistinctEventsSince(std::move(events), mark))
         {
             if (std::wstring text = DescribeSelectionEvent(heard); ! text.empty())
                 texts.push_back(std::move(text));
@@ -831,11 +1070,20 @@ private:
         texts.erase(std::ranges::unique(texts).begin(), texts.end());
         return texts;
     };
+    const auto described          = [&] { return describe(client.Events()); };
+    const ULONGLONG actionStarted = client.TimelineEnabled() ? GetTickCount64() : 0u;
     action();
+    const ULONGLONG actionCompleted = client.TimelineEnabled() ? GetTickCount64() : 0u;
+    bool expectedArrived            = true;
     if (expected != 0u)
-        static_cast<void>(client.WaitUntil(Client::kNotificationDeadlineMs, [&] { return described().size() >= expected; }));
-    client.WaitOutTheStream();
-    return described();
+        expectedArrived = client.WaitUntil(Client::kNotificationDeadlineMs, [&] { return described().size() >= expected; });
+    const auto after = client.WaitOutTheStream();
+    if (! client.TimelineEnabled())
+        return described();
+    const auto snapshot = client.CaptureEvents();
+    auto result         = describe(snapshot.events);
+    client.PrintSelectionStep(snapshot, mark, expected, expectedArrived, actionStarted, actionCompleted, after);
+    return result;
 }
 
 // The events `expected` lists, sorted as HearSelectionEvents sorts what it heard.

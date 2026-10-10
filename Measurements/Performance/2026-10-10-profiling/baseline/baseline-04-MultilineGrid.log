@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2667.47 completed offscreen FPS; p95 0.4879 ms; private 33402880 bytes
+Complex UI clean round 2: 2665.9 completed offscreen FPS; p95 0.4362 ms; private 32800768 bytes
+Complex UI clean round 3: 989.494 completed offscreen FPS; p95 3.6613 ms; private 32780288 bytes
+Complex UI clean round 4: 2382.55 completed offscreen FPS; p95 0.4343 ms; private 32755712 bytes
+Complex UI clean round 5: 1941.95 completed offscreen FPS; p95 1.4488 ms; private 32694272 bytes
+Complex UI dirty round 1: 136.112 completed offscreen FPS; p95 7.9461 ms; private 34615296 bytes
+Complex UI dirty round 2: 135.336 completed offscreen FPS; p95 9.0157 ms; private 35016704 bytes
+Complex UI dirty round 3: 142.009 completed offscreen FPS; p95 7.5967 ms; private 35102720 bytes
+Complex UI dirty round 4: 130.804 completed offscreen FPS; p95 9.5985 ms; private 35016704 bytes
+Complex UI dirty round 5: 140.56 completed offscreen FPS; p95 7.3427 ms; private 34783232 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\tmp\dpf-pilot\20261010T205213Z-01f1aed1\baseline-04-MultilineGrid.json

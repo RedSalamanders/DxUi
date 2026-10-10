@@ -1,0 +1,408 @@
+{
+  "purpose": "descriptive-bounded-pilot",
+  "qualification": "not-established",
+  "baseline": [
+    {
+      "file": "baseline-01-Default.json",
+      "scenario": "Default",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-v2",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2106.238679,
+            1356.865911,
+            2441.272147,
+            2415.473523,
+            2729.015576
+          ],
+          "medianFps": 2415.473523,
+          "minimumFps": 1356.865911,
+          "maximumFps": 2729.015576
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            632.9013781,
+            658.110138,
+            655.2725688,
+            653.6983803,
+            638.8908854
+          ],
+          "medianFps": 653.6983803,
+          "minimumFps": 632.9013781,
+          "maximumFps": 658.110138
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2121728,
+          "workingSetBytes": 11153408
+        },
+        {
+          "name": "device",
+          "privateBytes": 6676480,
+          "workingSetBytes": 15785984
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8421376,
+          "workingSetBytes": 19636224
+        },
+        {
+          "name": "warm",
+          "privateBytes": 22708224,
+          "workingSetBytes": 37244928
+        },
+        {
+          "name": "capture",
+          "privateBytes": 26968064,
+          "workingSetBytes": 43053056
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 29659136,
+          "workingSetBytes": 45903872
+        }
+      ]
+    },
+    {
+      "file": "baseline-02-MultilineGrid.json",
+      "scenario": "MultilineGrid",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-multiline-grid-v1",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2620.150266,
+            2647.516299,
+            2545.662827,
+            2623.673405,
+            2547.316402
+          ],
+          "medianFps": 2620.150266,
+          "minimumFps": 2545.662827,
+          "maximumFps": 2647.516299
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            128.0217535,
+            137.5257603,
+            131.6501424,
+            136.1982174,
+            129.7505319
+          ],
+          "medianFps": 131.6501424,
+          "minimumFps": 128.0217535,
+          "maximumFps": 137.5257603
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2146304,
+          "workingSetBytes": 11177984
+        },
+        {
+          "name": "device",
+          "privateBytes": 6717440,
+          "workingSetBytes": 15822848
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8609792,
+          "workingSetBytes": 19972096
+        },
+        {
+          "name": "warm",
+          "privateBytes": 31203328,
+          "workingSetBytes": 42680320
+        },
+        {
+          "name": "capture",
+          "privateBytes": 35500032,
+          "workingSetBytes": 48529408
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 34885632,
+          "workingSetBytes": 50688000
+        }
+      ]
+    },
+    {
+      "file": "baseline-03-Default.json",
+      "scenario": "Default",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-v2",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2534.87031,
+            2576.522725,
+            2640.978747,
+            2738.750582,
+            2604.590591
+          ],
+          "medianFps": 2604.590591,
+          "minimumFps": 2534.87031,
+          "maximumFps": 2738.750582
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            635.7632735,
+            648.6577649,
+            643.7450512,
+            645.7080592,
+            654.3014596
+          ],
+          "medianFps": 645.7080592,
+          "minimumFps": 635.7632735,
+          "maximumFps": 654.3014596
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2121728,
+          "workingSetBytes": 11153408
+        },
+        {
+          "name": "device",
+          "privateBytes": 6684672,
+          "workingSetBytes": 15790080
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8339456,
+          "workingSetBytes": 19681280
+        },
+        {
+          "name": "warm",
+          "privateBytes": 22822912,
+          "workingSetBytes": 37437440
+        },
+        {
+          "name": "capture",
+          "privateBytes": 27070464,
+          "workingSetBytes": 43229184
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 29585408,
+          "workingSetBytes": 45633536
+        }
+      ]
+    },
+    {
+      "file": "baseline-04-MultilineGrid.json",
+      "scenario": "MultilineGrid",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-multiline-grid-v1",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2667.466907,
+            2665.902441,
+            989.494047,
+            2382.554933,
+            1941.945538
+          ],
+          "medianFps": 2382.554933,
+          "minimumFps": 989.494047,
+          "maximumFps": 2667.466907
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            136.1115979,
+            135.336036,
+            142.0092462,
+            130.8038485,
+            140.5596453
+          ],
+          "medianFps": 136.1115979,
+          "minimumFps": 130.8038485,
+          "maximumFps": 142.0092462
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2121728,
+          "workingSetBytes": 11149312
+        },
+        {
+          "name": "device",
+          "privateBytes": 6696960,
+          "workingSetBytes": 15798272
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8605696,
+          "workingSetBytes": 19922944
+        },
+        {
+          "name": "warm",
+          "privateBytes": 30400512,
+          "workingSetBytes": 43204608
+        },
+        {
+          "name": "capture",
+          "privateBytes": 34652160,
+          "workingSetBytes": 49057792
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 34791424,
+          "workingSetBytes": 50741248
+        }
+      ]
+    },
+    {
+      "file": "baseline-05-Default.json",
+      "scenario": "Default",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-v2",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2603.997136,
+            2718.074516,
+            2229.977589,
+            2413.797265,
+            2706.121924
+          ],
+          "medianFps": 2603.997136,
+          "minimumFps": 2229.977589,
+          "maximumFps": 2718.074516
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            522.2736662,
+            623.4413965,
+            658.0311051,
+            649.0714222,
+            659.3620343
+          ],
+          "medianFps": 649.0714222,
+          "minimumFps": 522.2736662,
+          "maximumFps": 659.3620343
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2121728,
+          "workingSetBytes": 11157504
+        },
+        {
+          "name": "device",
+          "privateBytes": 6680576,
+          "workingSetBytes": 15794176
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8228864,
+          "workingSetBytes": 19591168
+        },
+        {
+          "name": "warm",
+          "privateBytes": 23420928,
+          "workingSetBytes": 38047744
+        },
+        {
+          "name": "capture",
+          "privateBytes": 27672576,
+          "workingSetBytes": 43864064
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 29679616,
+          "workingSetBytes": 45723648
+        }
+      ]
+    },
+    {
+      "file": "baseline-06-MultilineGrid.json",
+      "scenario": "MultilineGrid",
+      "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+      "sourceDirty": true,
+      "fixture": "dxui-complex-ui-multiline-grid-v1",
+      "phases": [
+        {
+          "phase": "clean",
+          "fps": [
+            2228.784755,
+            2154.557158,
+            2062.993507,
+            2283.39175,
+            2479.589876
+          ],
+          "medianFps": 2228.784755,
+          "minimumFps": 2062.993507,
+          "maximumFps": 2479.589876
+        },
+        {
+          "phase": "dirty",
+          "fps": [
+            114.4535031,
+            120.1796686,
+            115.4638747,
+            121.9038331,
+            119.5611627
+          ],
+          "medianFps": 119.5611627,
+          "minimumFps": 114.4535031,
+          "maximumFps": 121.9038331
+        }
+      ],
+      "memoryPhases": [
+        {
+          "name": "entry",
+          "privateBytes": 2121728,
+          "workingSetBytes": 11153408
+        },
+        {
+          "name": "device",
+          "privateBytes": 6680576,
+          "workingSetBytes": 15785984
+        },
+        {
+          "name": "scene",
+          "privateBytes": 8699904,
+          "workingSetBytes": 20008960
+        },
+        {
+          "name": "warm",
+          "privateBytes": 31121408,
+          "workingSetBytes": 42192896
+        },
+        {
+          "name": "capture",
+          "privateBytes": 35237888,
+          "workingSetBytes": 47947776
+        },
+        {
+          "name": "hidden",
+          "privateBytes": 34533376,
+          "workingSetBytes": 50380800
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+- Fail UIA test-client quiescence timeouts and retain bounded client/provider event timelines for Grid selection diagnostics while preserving semantic event assertions.

@@ -245,7 +245,10 @@ try {
     }
     $failures += $leaseProblems
 } finally { Pop-Location }
-if ($foregroundLeaseRequired) { Write-Host "Foreground lease ($($leaseResult.State)): foreground $($leaseResult.Foreground), focus $($leaseResult.Focus), pointer $($leaseResult.Cursor)$(if ($leaseResult.RunMovedSomething) { '; the lease gave back what the run had moved' } else { '; the run left the desktop as the person had it' })." }
-if ($foregroundLeaseRequired -and $leaseResult.Cursor -eq 'restored') { Write-Warning "The suites left the pointer at $($leaseResult.CursorAtExit), and the lease moved it back to $($leaseResult.CursorSaved). A fixture that moves the pointer puts it back itself, so a pointer left behind is a fixture to look at." }
+if ($foregroundLeaseRequired) {
+    $leaseSummary = Get-DxUiLeaseSummary -Result $leaseResult
+    Write-Host $leaseSummary.Message
+    if ($leaseSummary.PointerNotice) { Write-Host $leaseSummary.PointerNotice }
+}
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }
 Write-Host "All $($Suites.Count) requested suites passed."

@@ -21,6 +21,14 @@ The `Control` scope includes intrinsic measurement/Flex/form correctness, the lo
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification
 tests. `performance-forms.ps1` supplies a separate candidate-only synthetic resource diagnostic; its populated
 pixel/cache preflights and lifecycle observations do not replace these correctness scopes or consumer tests.
+
+`performance-profile.ps1 -Configuration Release -Platform x64 -Scenario Default` runs a separate, fixed startup/CPU/cache
+diagnostic; repeat with `-Scenario MultilineGrid` and optional `-Heap` in a declared bounded serial pilot. Reports retain
+phase query failures, bounded worker-thread inventories, raw frame samples and sampling cost. The guarded runner limits
+only its owned child to 120 seconds and requires exact v2 build/source/tool/dependency/artifact identity. Its 20/100/200
+warm-up checkpoints and heap-off/on observations do not change canonical performance acceptance or qualify the CI policy.
+UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
+case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 ```powershell
 ./Test-Changes.ps1 -Scopes <name> -SkipBuild
 ./Test-Changes.ps1 -Mode Full -Force
@@ -35,6 +43,8 @@ Verified GitHub-hosted Windows jobs run requested foreground suites through the 
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;
 ordinary local and self-hosted runs still require the person's confirmation through `-Interactive`.
+The printed summary uses all three restoration statuses. A false `runMovedSomething` flag or exit code 0 without a
+result cannot establish an unchanged desktop; saved/exit pointer coordinates alone do not identify what moved it.
 If a verified hosted runner refuses ordinary warning activation, the lease can briefly clip its warning to a marked
 input patch and click that owned point. It rechecks authorization/targeting, balances and observes the mouse release,
 rejects capture on the foreground or lease thread, uses an opaque nonlayered patch, and restores and verifies the full

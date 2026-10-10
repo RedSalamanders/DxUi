@@ -16,12 +16,33 @@ and focus; and nonactivating native preparation. Accessibility additionally veri
 form property providers and real client-thread property notifications, including weak label lifetime and teardown.
 An existing manually positioned container must preserve its explicit geometry when these opt-in APIs are added.
 
+Real UIA event checks MUST fail when their bounded quiet wait expires; silently continuing loses the boundary
+between actions. A 500 ms quiet interval records observed silence, not a guarantee that no delayed notification
+can arrive later. Diagnostic callback times/sequence numbers MUST remain outside semantic event equality and
+deduplication. The Grid unchanged-selection regression records both provider emission attempts and client arrivals,
+retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
+messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
+
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
 allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2
 build attestations, the diagnostic source/dispatcher/runner hashes and the before/after execution state, and refuses
 stale, malformed or mismatched evidence. This within-candidate diagnostic cannot establish source non-regression,
 approve the acceptance policy, waive native platform gates or substitute for consumer harness evidence.
+
+`performance-profile.ps1` runs the separate `dxui-complex-ui-profiling-v1` fixture. It retains fixed 20/100/200-frame
+warm-up checkpoints and clean/dirty probe windows, phase-boundary process/main/worker CPU observations, Grid cache
+statistics and optional heap totals. All telemetry and JSON output occur outside timed frames; thread inventories
+are bounded and record unavailable queries and overflow. Heap traversal time is measured but is not bounded by the
+inventory capacity. Heap-off/on reports expose sampling effects; they are different diagnostic profiles, not matched
+canonical acceptance runs. The runner requires fresh v2 build attestation, hashes its own fixture/helper/dispatcher
+closure, checks identities before and after execution, preserves exact native bytes and limits its owned child to
+120 seconds. Structurally missing, malformed, stale or changed reports cannot acquire a valid stamped receipt.
+Explicit API-unavailable observations or bounded inventory overflow retain partial telemetry status; provenance
+validity does not turn unavailable values into observed zeros or supply performance acceptance. CPU consumption and
+allowed affinity do not establish actual processor placement, context-switch delays or attribution to WARP. Retain
+failed tracing preflights; unavailable kernel tracing is not evidence of a quiet machine. These diagnostics change
+neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets or required-CI qualification hold.
 
 Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
 while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
@@ -533,11 +554,13 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
-  left it as the person had it), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
+  was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
   that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
-  person had (`cursor.saved`) and the one the run left (`cursor.atExit`), and whether the run had moved anything
-  (`runMovedSomething`): restoring is an action, not a check, so a pointer the fixtures did not put back is shown and never counted
-  as theirs.
+  lease captured before confirmation (`cursor.saved`) and the one observed before pointer restoration (`cursor.atExit`).
+  `runMovedSomething` reports whether at least one part was successfully restored; false does not establish that the
+  desktop was unchanged, because failed/skipped/unrecorded parts can also produce it. Human summaries MUST derive their
+  restoration claim from all three statuses, retain failed or unverified outcomes, and avoid inferring which action
+  moved the pointer from these positions alone. Exit code 0 without a result supplies no verified restoration evidence.
 - **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the

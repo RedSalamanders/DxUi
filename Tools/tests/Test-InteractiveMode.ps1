@@ -98,6 +98,24 @@ function Get-OutputFiles([string] $Root) {
     })
 }
 
+function Get-RunnerLeasePresentation($Result, $Warnings = $null) {
+    # Only the runner's final presentation block, with a synthetic result: no suite, desktop probe or lease runs here.
+    $statements = @($testAst.EndBlock.Statements | Where-Object {
+        $_ -is [Management.Automation.Language.IfStatementAst] -and
+        $_.Clauses[0].Item1.Extent.Text -match '^\$foregroundLeaseRequired(?:\s+-and\b|$)' -and
+        $_.Clauses[0].Item2.Extent.Text -match 'Foreground lease|The suites left the pointer|Get-DxUiLeaseSummary'
+    })
+    Assert-True ($statements.Count -gt 0) 'test.ps1 has a guarded foreground lease presentation'
+    $show = [scriptblock]::Create(($statements.Extent.Text -join "`n"))
+    $records = @(& {
+        param($leaseResult, $show)
+        $foregroundLeaseRequired = $true
+        & $show 3>&1 6>&1
+    } $Result $show)
+    if ($null -ne $Warnings) { $Warnings.Value = @($records | Where-Object { $_ -is [Management.Automation.WarningRecord] }) }
+    return ($records | Out-String)
+}
+
 Invoke-TestCase 'the interactive suites are the suites DxUi.ControlTests.exe runs with real focus' {
     $runner = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Controls/DxUi.Tests.Runner.cpp'))
     $lambda = [regex]::Match($runner, '(?s)suiteCanActivate\s*=\s*\[\]\(const char\* name\) noexcept\s*\{(.*?)\};')
@@ -234,6 +252,101 @@ Invoke-TestCase 'what is wrong with a finished lease is said in a message' {
     $problems = @(Get-DxUiLeaseProblems -Result $failed -ExitCode 1)
     Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('focus, cursor failed') -and $problems[0].Contains('WindowsTerminal.exe')) "a part that was not given back is named, with the window: $problems"
 }
+Invoke-TestCase 'the runner cannot describe failed restoration as an unchanged desktop' {
+    $result = Read-DxUiLeaseResult -Text "state: timedout`nexit: 25`nconfirmation: timedout`nrestoration.foreground: failed`nrestoration.focus: skipped`nrestoration.cursor: failed`ncursor.saved: 400,300`ncursor.atExit: unknown`nrestoration.runMovedSomething: 0`n"
+    $text = Get-RunnerLeasePresentation $result
+    Assert-True ($text.Contains('foreground failed, focus skipped, pointer failed')) 'the recorded failed and skipped parts remain visible'
+    Assert-True (-not $text.Contains('the run left the desktop as the person had it')) 'a false moved flag cannot imply successful restoration'
+    Assert-True ($text.Contains('Desktop restoration failed')) 'the summary explicitly reports restoration failure'
+}
+Invoke-TestCase 'unchanged and restored summaries depend on the recorded statuses, not the moved flag' {
+    foreach ($moved in 0, 1) {
+        $unchanged = Read-DxUiLeaseResult -Text "state: completed`nrestoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: unchanged`nrestoration.runMovedSomething: $moved`n"
+        $summary = Get-DxUiLeaseSummary -Result $unchanged
+        Assert-Equal 'Foreground lease (completed): foreground unchanged, focus unchanged, pointer unchanged; All three desktop states were unchanged.' $summary.Message "unchanged parts with moved flag $moved"
+        Assert-Equal $null $summary.PointerNotice 'an unchanged pointer has no restoration notice'
+        $restored = Read-DxUiLeaseResult -Text ($completed -replace 'restoration.runMovedSomething: 1', "restoration.runMovedSomething: $moved")
+        Assert-Equal 'Foreground lease (completed): foreground restored, focus unchanged, pointer restored; The desktop states were restored or unchanged.' (Get-DxUiLeaseSummary -Result $restored).Message "restored parts with moved flag $moved"
+    }
+}
+Invoke-TestCase 'every unsuccessful or unknown restoration status stays visible and cannot imply an unchanged desktop' {
+    $baseline = "state: completed`nrestoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: unchanged`nrestoration.runMovedSomething: 1`n"
+    foreach ($part in @(@{ Key='foreground'; Label='foreground' }, @{ Key='focus'; Label='focus' }, @{ Key='cursor'; Label='pointer' })) {
+        foreach ($status in 'gone', 'failed', 'skipped', 'none', 'unknown', 'Restored') {
+            $text = $baseline -replace [regex]::Escape("restoration.$($part.Key): unchanged"), "restoration.$($part.Key): $status"
+            $summary = Get-DxUiLeaseSummary -Result (Read-DxUiLeaseResult -Text $text)
+            Assert-True ($summary.Message.Contains("$($part.Label) $status")) "the literal $($part.Key) status $status is retained"
+            $conclusion = if ($status -ceq 'failed') { 'Desktop restoration failed.' } else { 'Desktop restoration was not fully verified.' }
+            Assert-True ($summary.Message.EndsWith($conclusion)) "$($part.Key)=$status does not establish complete restoration"
+            Assert-Equal $null $summary.PointerNotice 'only an exact recorded pointer restoration produces a notice'
+        }
+    }
+}
+Invoke-TestCase 'a missing result or missing restoration fields produces an unverified summary' {
+    foreach ($result in @($null, [pscustomobject]@{}, [pscustomobject]@{ State=''; Foreground=''; Focus=$null; Cursor='' })) {
+        $summary = Get-DxUiLeaseSummary -Result $result
+        Assert-Equal 'Foreground lease (missing): foreground none, focus none, pointer none; Desktop restoration was not fully verified.' $summary.Message 'missing facts never establish an unchanged desktop'
+        Assert-Equal $null $summary.PointerNotice 'no pointer restoration is invented'
+    }
+    $missingFields = Read-DxUiLeaseResult -Text "state: completed`n"
+    Assert-True ((Get-DxUiLeaseSummary -Result $missingFields).Message.EndsWith('Desktop restoration was not fully verified.')) 'a completed state does not fill in absent restoration facts'
+    foreach ($part in @(@{ Key='foreground'; Label='foreground' }, @{ Key='focus'; Label='focus' }, @{ Key='cursor'; Label='pointer' })) {
+        $text = (($completed -split '\r?\n') | Where-Object { $_ -notlike "restoration.$($part.Key):*" }) -join "`n"
+        $summary = Get-DxUiLeaseSummary -Result (Read-DxUiLeaseResult -Text $text)
+        Assert-True ($summary.Message.Contains("$($part.Label) none") -and $summary.Message.EndsWith('Desktop restoration was not fully verified.')) "the missing $($part.Key) is not inferred from the other parts"
+    }
+    Assert-True ((Get-RunnerLeasePresentation $null).Contains('Desktop restoration was not fully verified.')) 'the canonical runner presentation accepts a missing result'
+}
+Invoke-TestCase 'mixed restoration reports retain successful parts without hiding a failure or mutating the result' {
+    $result = Read-DxUiLeaseResult -Text "state: completed`nexit: 25`nrestoration.foreground: restored`nrestoration.focus: failed`nrestoration.cursor: restored`ncursor.saved: 400,300`ncursor.atExit: 900,700`nrestoration.runMovedSomething: 1`n"
+    $before = $result | ConvertTo-Json -Depth 4 -Compress
+    $summary = Get-DxUiLeaseSummary -Result $result
+    Assert-Equal 'Foreground lease (completed): foreground restored, focus failed, pointer restored; Desktop restoration failed.' $summary.Message 'a successful pointer restoration does not hide failed focus restoration'
+    Assert-True ($summary.PointerNotice.StartsWith('The lease restored the pointer from 900,700 to 400,300.')) 'the independently restored pointer remains explicit'
+    Assert-Equal $before ($result | ConvertTo-Json -Depth 4 -Compress) 'presentation changes no result facts'
+    $problems = @(Get-DxUiLeaseProblems -Result $result -ExitCode 25)
+    Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('focus failed')) 'the existing restoration failure accounting stays failing'
+    $result.Focus = 'unknown'
+    Assert-True ((Get-DxUiLeaseSummary -Result $result).Message.EndsWith('Desktop restoration was not fully verified.')) 'a restored pointer also cannot verify an unknown focus state'
+}
+Invoke-TestCase 'Cancel and confirmation timeout retain their incomplete state even when desktop restoration succeeded' {
+    foreach ($state in 'declined', 'timedout') {
+        foreach ($cursor in 'unchanged', 'restored') {
+            $result = Read-DxUiLeaseResult -Text "state: $state`nexit: 21`nreason: $state before a child started`nconfirmation: $state`nrestoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: $cursor`ncursor.saved: 400,300`ncursor.atExit: 900,700`nrestoration.runMovedSomething: 0`n"
+            $text = Get-RunnerLeasePresentation $result
+            Assert-True ($text.Contains("Foreground lease ($state):") -and $text.Contains("pointer $cursor")) 'presentation preserves the incomplete state and restoration facts separately'
+            Assert-True (-not $text.Contains('suites passed')) 'restoration does not assert that suites ran or passed'
+            Assert-Equal 0 @($result.Children).Count 'the confirmation failure has no child'
+            $problems = @(Get-DxUiLeaseProblems -Result $result -ExitCode 21)
+            Assert-True ($problems.Count -eq 1 -and $problems[0].Contains("($state)")) 'the existing Cancel or timeout accounting still fails'
+        }
+    }
+}
+Invoke-TestCase 'the pointer notice reports positions without attributing movement to a suite or inventing missing coordinates' {
+    $result = Read-DxUiLeaseResult -Text ($completed -replace 'cursor.saved: 400,300', 'cursor.saved: -400,-300' -replace 'cursor.atExit: 900,700', 'cursor.atExit: -900,700')
+    $notice = (Get-DxUiLeaseSummary -Result $result).PointerNotice
+    Assert-True ($notice.StartsWith('The lease restored the pointer from -900,700 to -400,-300.')) 'negative physical desktop coordinates remain intact'
+    Assert-True ($notice.Contains('before confirmation') -and $notice.Contains('does not identify which action moved the pointer')) 'the notice states the capture boundary and attribution limit'
+    $warnings = @()
+    $shown = Get-FlatText (Get-RunnerLeasePresentation $result ([ref]$warnings))
+    Assert-True ($shown.Contains($notice)) 'the canonical runner prints the shared neutral notice'
+    Assert-Equal 0 $warnings.Count 'pointer position observations are information, not a fixture warning'
+    Assert-True (-not $shown.Contains('The suites left the pointer') -and -not $shown.Contains('fixture to look at')) 'the runner no longer blames a fixture from aggregate lease evidence'
+    foreach ($position in 'CursorSaved', 'CursorAtExit') {
+        foreach ($value in @($null, 'none', 'unknown')) {
+            $incomplete = Read-DxUiLeaseResult -Text $completed
+            if ($null -eq $value) { $incomplete.PSObject.Properties.Remove($position) } else { $incomplete.$position = $value }
+            $notice = (Get-DxUiLeaseSummary -Result $incomplete).PointerNotice
+            Assert-True ($notice.StartsWith('The lease restored the pointer; one or both positions were not recorded.')) "an absent or unreadable $position does not invent coordinates"
+        }
+    }
+}
+Invoke-TestCase 'a missing result stays a failure even when the lease exit code is zero' {
+    Assert-Equal 'the lease returned success' (Get-DxUiLeaseExitMeaning -ExitCode 0) 'exit zero describes the exit, not unrecorded suite or restoration evidence'
+    $problems = @(Get-DxUiLeaseProblems -Result $null -ExitCode 0)
+    Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('wrote no result') -and $problems[0].Contains('exit code 0')) 'missing evidence still produces a failure'
+    Assert-True (-not $problems[0].Contains('every suite passed') -and -not $problems[0].Contains('desktop is as it was')) 'the failure message does not simultaneously assert success'
+}
 Invoke-TestCase 'the exit codes of the lease are the ones the PowerShell side reads' {
     $header = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Support/Support.Tests.InteractiveLease.h'))
     $namespace = [regex]::Match($header, '(?s)namespace LeaseExit\s*\{(.*?)\} // namespace LeaseExit')
@@ -253,6 +366,9 @@ Invoke-TestCase 'desktop takeover requires local -Interactive or the verified ho
     $calls = Get-CommandCalls @('Invoke-DxUiInteractiveLease', 'Test-DxUiDesktopAvailable', 'Resolve-DxUiInteractiveSuites')
     Assert-True ($calls.Count -ge 3) 'test.ps1 uses each of them'
     foreach ($call in $calls) { Assert-True (Test-GuardedByInteractive $call -AllowHostedProbe) "$($call.GetCommandName()) has the required desktop authorization guard at line $($call.Extent.StartLineNumber)" }
+    $summaryCalls = Get-CommandCalls @('Get-DxUiLeaseSummary')
+    Assert-Equal 1 $summaryCalls.Count 'local and hosted runs use one shared final presentation'
+    Assert-True (Test-GuardedByInteractive $summaryCalls[0]) 'ordinary runs do not print foreground lease summaries'
     $hostedCall = Get-CommandCalls @('Invoke-DxUiHostedForegroundLease') | Select-Object -First 1
     Assert-True ($null -ne $hostedCall) 'test.ps1 has a hosted lease call'
     $hostedGuard = $false
@@ -384,7 +500,7 @@ Invoke-FixtureCase 'the hosted wrapper rechecks authorization and the shared lea
 param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
 [IO.File]::WriteAllText($env:DXUI_HOSTED_LEASE_MARKER, ($Arguments -join "`n"))
 $resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
-"state: completed`nexit: 0`nconfirmation: started`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
+"state: completed`nexit: 0`nconfirmation: started`nrestoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: restored`ncursor.saved: 400,300`ncursor.atExit: 900,700`nrestoration.runMovedSomething: 0`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
 $global:LASTEXITCODE = 0
 '@ | Set-Content -LiteralPath $fake
     $names = @('CI', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_OS')
@@ -398,12 +514,17 @@ $global:LASTEXITCODE = 0
         Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
         Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
 
+        $local = Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+        Assert-True ([IO.File]::ReadAllText($marker).StartsWith("--run`n")) 'the local wrapper retains its distinct native mode'
+        $localPresentation = Get-RunnerLeasePresentation $local.Result
         foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { [Environment]::SetEnvironmentVariable($pair.Key, $pair.Value) }
         Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
         $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
         Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
         Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
         Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
+        Assert-Equal $localPresentation (Get-RunnerLeasePresentation $answer.Result) 'local and hosted restoration facts have the same neutral presentation'
+        Assert-True ($localPresentation.Contains('The desktop states were restored or unchanged.')) 'the recorded restored pointer overrides the false moved flag in both modes'
     } finally {
         foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
         [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $oldMarker)

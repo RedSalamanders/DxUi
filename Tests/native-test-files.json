@@ -48,6 +48,7 @@
   "Tests/Embedded/Embedded.Tests.EmbeddedUiaBridge.h",
   "Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h",
   "Tests/Embedded/Embedded.Tests.LocalizedLayout.h",
+  "Tests/Embedded/Scope.Tests.ComplexUiProfiling.h",
   "Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h",
   "Tests/Foundation/Foundation.Tests.Foundation.cpp",
   "Tests/Foundation/Foundation.Tests.PublicHelpers.cpp",

@@ -56,6 +56,17 @@ cell drifts at least once. The agreed quiet window provides no continuous ambien
 spread and large same-binary outliers justify a bounded attribution pilot before another full calibration;
 the original Grid flags, thresholds, unqualified-policy status and required-CI hold remain unchanged.
 
+The [bounded profiling pilot](../Measurements/Performance/2026-10-10-profiling/README.md) retains six frozen baseline
+reports and separate startup/CPU/cache/heap diagnostics. Use
+`performance-profile.ps1 -Configuration Release -Platform x64 -Scenario Default` (or `MultilineGrid`), adding `-Heap`
+for the sampling profile and `-SkipBuild` only after an attested build.
+The fixed diagnostic warm-up checkpoints are 20, 100 and 200 dirty completed frames; extra telemetry runs outside frame
+timing, with its own sampling duration and unavailable-query records. The owned child is limited to 120 seconds. Retain
+every process in a declared finite schedule and compare heap-off/on profiles for observer effects. These reports describe
+CPU consumption and allowed affinity, not actual scheduling delays or per-component native allocation ownership. The
+kernel-tracing preflight on this machine was refused; no quiet-host or scheduler attribution follows from its absence.
+The canonical fixture, acceptance metrics, bands and required-CI hold remain unchanged.
+
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)
@@ -411,6 +422,8 @@ suite that records a skip fails the run, since the run exists to execute what ot
 `.interactive`. Expect about a minute and a half of checks, then about a minute and a half with the desktop taken in x64 Debug
 (a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
 [validation contract](../Specs/Testing/Testing_Validation.md) has the details.
+The human summary follows the recorded foreground/focus/pointer statuses. Missing or failed restoration never means
+unchanged just because `runMovedSomething` is false. Saved/exit pointer positions do not identify which action moved it.
 
 `performance-forms.ps1 -Configuration Release -Platform x64 -Blocks 12 -Seed 20261010` measures a synthetic
 eight-field manual/form pair within one candidate. Before timing it requires matching leaf state, UIA metadata,
