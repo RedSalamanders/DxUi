@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Scope.Tests.GridUiaPattern.h"
 
 #include <array>
 #include <atomic>
@@ -10119,6 +10120,16 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
     DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);
     DXUI_RUN_TEST(TestAccessibilityPostedPublicationDoesNotReachAReattachedHost);
+    DXUI_RUN_TEST(TestGridUiaPatternSupportsBoundedOffscreenGetItem);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadReplacesItsControl);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadShrinksItsModel);
+    DXUI_RUN_TEST(TestGridUiaPatternRetriesSupersededSameAddressCapture);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadNotifiesSameModel);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsPointHitsAfterModelReplacement);
+    DXUI_RUN_TEST(TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment);
+    DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation);
+    DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringRowNavigation);
+    DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);

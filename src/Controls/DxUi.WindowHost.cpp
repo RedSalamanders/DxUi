@@ -2544,6 +2544,29 @@ uint64_t ControlHost::DebugGetPresentFailureCount() const noexcept
     return _debugPresentFailureCount;
 }
 
+uint64_t ControlHost::DebugGetFullPresentAttemptCount() const noexcept
+{
+    return _debugFullPresentAttemptCount;
+}
+
+uint64_t ControlHost::DebugGetPartialPresentAttemptCount() const noexcept
+{
+    return _debugPartialPresentAttemptCount;
+}
+
+HRESULT ControlHost::DebugGetLastPresentResult() const noexcept
+{
+    return _debugLastPresentResult;
+}
+
+void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
+{
+    if (_hwnd)
+    {
+        Render(&dirtyRectPx);
+    }
+}
+
 bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 {
     return _animationSubscriptionId != 0u;
@@ -2564,7 +2587,7 @@ void ControlHost::DebugSimulateDeviceLoss() noexcept
     DiscardSizeDependentResources(L"debug-simulate-device-loss");
     DiscardDeviceResources();
     ResetSharedWindowHostGraphicsResources();
-    _forceFullPresentAfterDeviceRecreate = true;
+    _forceFullPresentAfterBufferReset = true;
     Invalidate();
 }
 
@@ -3726,6 +3749,9 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 
         _swapChainWidthPx  = desc.Width;
         _swapChainHeightPx = desc.Height;
+        // FLIP_SEQUENTIAL buffers have no valid retained contents on creation. The first present
+        // must therefore draw and present the complete target, even when WM_PAINT is partial.
+        _forceFullPresentAfterBufferReset = true;
     }
 
     const UINT desiredWidthPx  = std::max<UINT>(1u, _widthPx);
@@ -3784,6 +3810,8 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 
         _swapChainWidthPx  = desiredWidthPx;
         _swapChainHeightPx = desiredHeightPx;
+        // ResizeBuffers discards the previous back-buffer contents; repopulate them before dirty presents.
+        _forceFullPresentAfterBufferReset = true;
 #if DXUI_ENABLE_DIAGNOSTICS
         ++_debugResizeCount;
 #endif
@@ -3930,8 +3958,8 @@ try
         updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
-    const bool forceFullPresentAfterDeviceRecreate = _forceFullPresentAfterDeviceRecreate;
-    const bool isPartialDirty                      = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterDeviceRecreate;
+    const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
+    const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
     paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
 
     D2D1_RECT_F clipDip{};
@@ -4020,6 +4048,9 @@ try
         {
             if (isPartialDirty)
             {
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugPartialPresentAttemptCount;
+#endif
                 RECT dirtyRect = *dirtyRectPx;
                 DXGI_PRESENT_PARAMETERS params{};
                 params.DirtyRectsCount = 1;
@@ -4028,9 +4059,18 @@ try
             }
             else
             {
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugFullPresentAttemptCount;
+#endif
                 hrPresent = _swapChain->Present(1u, 0u);
             }
         }
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (SUCCEEDED(hrDraw))
+        {
+            _debugLastPresentResult = hrPresent;
+        }
+#endif
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
@@ -4042,13 +4082,13 @@ try
         DiscardSizeDependentResources(L"render-device-lost");
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
-        _forceFullPresentAfterDeviceRecreate = true;
+        _forceFullPresentAfterBufferReset = true;
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterDeviceRecreate && SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
     {
-        _forceFullPresentAfterDeviceRecreate = false;
+        _forceFullPresentAfterBufferReset = false;
     }
     const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
     paintPerf.SetHr(renderHr);
@@ -4172,8 +4212,8 @@ try
     // FLIP_SEQUENTIAL preserves back buffer content between frames, so
     // clipping to the dirty rect and using Present1 with dirty-rect params
     // is safe: non-dirty regions retain previously-presented content.
-    const bool forceFullPresentAfterDeviceRecreate = _forceFullPresentAfterDeviceRecreate;
-    const bool isPartialDirty                      = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterDeviceRecreate;
+    const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
+    const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
     paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
 
     D2D1_RECT_F clipDip{};
@@ -4271,6 +4311,9 @@ try
         {
             if (isPartialDirty)
             {
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugPartialPresentAttemptCount;
+#endif
                 // Tell the compositor only the dirty region changed, so it can
                 // skip recompositing the rest of the window.
                 RECT dirtyRect = *dirtyRectPx;
@@ -4281,9 +4324,18 @@ try
             }
             else
             {
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugFullPresentAttemptCount;
+#endif
                 hrPresent = _swapChain->Present(1u, 0u);
             }
         }
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (SUCCEEDED(hrDraw))
+        {
+            _debugLastPresentResult = hrPresent;
+        }
+#endif
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
@@ -4295,13 +4347,13 @@ try
         DiscardSizeDependentResources(L"render-device-lost");
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
-        _forceFullPresentAfterDeviceRecreate = true;
+        _forceFullPresentAfterBufferReset = true;
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterDeviceRecreate && SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
     {
-        _forceFullPresentAfterDeviceRecreate = false;
+        _forceFullPresentAfterBufferReset = false;
     }
     const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent);
     paintPerf.SetHr(renderHr);

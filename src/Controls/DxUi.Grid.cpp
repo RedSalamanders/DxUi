@@ -1151,6 +1151,8 @@ void Grid::SetModel(IGridModel* model) noexcept
 {
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
+    if (_modelBindingRevision == 0u)
+        ++_modelBindingRevision;
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     ++_modelRevision;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();

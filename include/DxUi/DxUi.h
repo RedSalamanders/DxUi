@@ -3672,7 +3672,8 @@ class Grid final : public Control
 public:
     Grid();
 
-    // Non-owning model pointer. Caller manages model lifetime from SetModel() until Grid destruction.
+    // Non-owning model pointer. Caller manages model lifetime from SetModel() until Grid destruction. Every assignment,
+    // including the same pointer value again, advances GetModelAssignmentGeneration().
     // Model state accessed only on UI thread — no synchronization needed.
     void SetModel(IGridModel* model) noexcept;
     void SetDelegate(IGridDelegate* delegate) noexcept;
@@ -3714,6 +3715,12 @@ public:
     [[nodiscard]] IGridModel* GetModel() const noexcept
     {
         return _model;
+    }
+    // Changes on every SetModel call, including assigning the same address again. Accessibility providers use it
+    // with the non-owning model pointer so a recycled model address cannot keep an old row provider alive.
+    [[nodiscard]] uint64_t GetModelAssignmentGeneration() const noexcept
+    {
+        return _modelBindingRevision;
     }
 
     [[nodiscard]] GridSelectionModel& GetSelectionModel() noexcept;
@@ -4654,6 +4661,11 @@ public:
     [[nodiscard]] uint64_t DebugGetResizeFailureCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetSwapChainPrepareD2DFlushFailureCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPresentFailureCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetFullPresentAttemptCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPartialPresentAttemptCount() const noexcept;
+    [[nodiscard]] HRESULT DebugGetLastPresentResult() const noexcept;
+    // Directly drives the native renderer with a partial invalidation for lifecycle regression tests.
+    void DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
@@ -4869,13 +4881,13 @@ private:
     wil::com_ptr<IDCompositionTarget> _dcompTarget;
     wil::com_ptr<IDCompositionVisual2> _dcompVisual;
     wil::com_ptr<ID2D1Bitmap1> _targetBitmap;
-    D3D_FEATURE_LEVEL _featureLevel           = D3D_FEATURE_LEVEL_11_0;
-    UINT _widthPx                             = 0;
-    UINT _heightPx                            = 0;
-    UINT _swapChainWidthPx                    = 0;
-    UINT _swapChainHeightPx                   = 0;
-    uint64_t _sharedGraphicsGeneration        = 0u;
-    bool _forceFullPresentAfterDeviceRecreate = false;
+    D3D_FEATURE_LEVEL _featureLevel        = D3D_FEATURE_LEVEL_11_0;
+    UINT _widthPx                          = 0;
+    UINT _heightPx                         = 0;
+    UINT _swapChainWidthPx                 = 0;
+    UINT _swapChainHeightPx                = 0;
+    uint64_t _sharedGraphicsGeneration     = 0u;
+    bool _forceFullPresentAfterBufferReset = false;
 
     mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache;
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
@@ -4943,6 +4955,9 @@ private:
     mutable uint64_t _debugResizeFailureCount                   = 0u;
     mutable uint64_t _debugSwapChainPrepareD2DFlushFailureCount = 0u;
     mutable uint64_t _debugPresentFailureCount                  = 0u;
+    mutable uint64_t _debugFullPresentAttemptCount              = 0u;
+    mutable uint64_t _debugPartialPresentAttemptCount           = 0u;
+    mutable HRESULT _debugLastPresentResult                     = E_PENDING;
     // Non-owning observers into the current retained control tree. Ownership stays with
     // `_root` / `Panel::_children`, so these pointers must be cleared or ignored before
     // the observed tree is replaced or destroyed.

@@ -518,6 +518,30 @@ SelectionContainer getters even when it is offscreen or beyond the bounded row-m
 These queries use immutable selection IDs and must not materialize every selected row. Removing the
 model/row invalidates retained providers; stale selection containers cannot survive that removal.
 
+A Grid exposes `IGridProvider` with snapshot-backed `RowCount` and `ColumnCount`, and `GetItem` accepts
+every valid model row and column, including rows outside the viewport. A request for an uncached row reads
+that row's cells in addition to the ordinary visible and selected snapshot on the owning UI thread, then
+publishes them in an immutable snapshot. It does not
+scroll, select, or focus the row. The host retains at most the 16 most recently materialized offscreen rows;
+when a row is evicted, retained cell providers return `UIA_E_ELEMENTNOTAVAILABLE` rather than resolving
+through a changed row id. A grid's model-assignment generation is part of that identity, so reassigning a model
+at the same address invalidates row and cell providers from the previous assignment. Row and cell factories bind
+their returned peers to the snapshot that supplied the lookup, including cached `GetItem`, parent/child navigation,
+point hits, focus and selection queries; concurrent reassignment cannot make those peers adopt
+the replacement model. Visible and selected rows continue to use
+the existing snapshot paths and limits. Out-of-range row or column indices return `E_INVALIDARG`.
+Requested-row capture uses the same borrowed-model, geometry and publication revision guards as ordinary snapshots.
+A callback that changes the same model can abandon that request with `UIA_E_ELEMENTNOTAVAILABLE`; a fresh request
+may materialize the current row. No returned row mixes cell values from superseded and current captures. Native
+materialization flushes immediately on its owner, while ordinary mutations retain lazy publication and event coalescing.
+
+For a native HWND host, a foreign-thread `GetItem` that needs an uncached row dispatches a bounded request
+to the window thread, which must pump messages. In an embedded host, snapshot-backed requests for rows
+already present may be read from any thread; materializing a new offscreen row is owner-thread-only and
+returns `RPC_E_WRONG_THREAD` from another thread. The embedded owner-thread request publishes to the live target only
+while its attached root, Grid control lifetime, and viewport placement still match the request snapshot. Neither path
+creates a full-model snapshot.
+
 A Tree with `SetMultiSelectEnabled(true)` reports `CanSelectMultiple`, lists every selected visible item from
 Selection.GetSelection in visible order and answers SelectionItem `IsSelected` from that set, while only its focused
 item (which may be outside the selection) reports `HasKeyboardFocus` and is what the window's `GetFocus` names.
@@ -553,8 +577,9 @@ to the delegate, not to clients). The rules are WPF's for its selectors:
 - More than 20 changed items raise one `Selection_Invalidated` on the control instead, so selecting everything in a long list
   raises one event. So does a change that would name an item without an element: a tree's item that left its rows (removed,
   or hidden by a collapsed ancestor), or a grid's row that left the selection out of view or left the model. A grid's rows
-  are virtualized: a snapshot holds those on screen and up to 256 selected ones off screen, and a row that is neither has no
-  element a client can read. Of a selection that became one new item, that item's `ElementSelected` says the others left it,
+  are virtualized: a snapshot holds those on screen and up to 256 selected ones off screen. `Grid.GetItem` can request
+  another offscreen row on demand, subject to the separate 16-row recent-materialization cache above. Of a selection that became
+  one new item, that item's `ElementSelected` says the others left it,
   so an item without an element (a tree's item that left its rows, a grid's row out of view or gone) needs no event there.
 - Items that only moved and a republish that changed no selection raise nothing. Turning a tree's multi-select off removes
   the items it drops; turning it on keeps the selected item, which changes nothing.

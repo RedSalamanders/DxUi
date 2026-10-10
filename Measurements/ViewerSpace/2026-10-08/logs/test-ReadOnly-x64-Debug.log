@@ -1,0 +1,112 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] ReadOnly
+  [START] TestReadOnlyMultilineTextFieldSuppressesMutationAndKeepsNavigation
+  [DONE] TestReadOnlyMultilineTextFieldSuppressesMutationAndKeepsNavigation (0.224 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostSuppressesMutatingMessages
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostSuppressesMutatingMessages (0.036 s)
+  [START] TestReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText (0.066 s)
+  [START] TestReadOnlyMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboardAndTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestReadOnlyMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboardAndTextUnchanged (0.072 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostCopyShortcutsPreserveSelectionAndText (0.087 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchanged (0.092 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostCopyWithoutSelectionLeavesClipboardUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostCopyWithoutSelectionLeavesClipboardUnchanged (0.070 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostCutAndClearWithoutSelectionLeaveClipboardAndTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostCutAndClearWithoutSelectionLeaveClipboardAndTextUnchanged (0.072 s)
+  [START] TestReadOnlyMultilineTextFieldCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged
+  [DONE] TestReadOnlyMultilineTextFieldCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged (0.000 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged (0.141 s)
+  [START] TestReadOnlyMultilineTextFieldCtrlArrowMovesByWordBoundary
+  [DONE] TestReadOnlyMultilineTextFieldCtrlArrowMovesByWordBoundary (0.055 s)
+  [START] TestAttachedReadOnlyMultilineNativeHostCtrlArrowKeepsCaretAligned
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyMultilineNativeHostCtrlArrowKeepsCaretAligned (0.022 s)
+  [START] TestReadOnlyWrappedMultilineTextFieldSuppressesMutationAndKeepsNavigation
+  [DONE] TestReadOnlyWrappedMultilineTextFieldSuppressesMutationAndKeepsNavigation (0.061 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostSuppressesMutatingMessages
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostSuppressesMutatingMessages (0.018 s)
+  [START] TestReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText (0.072 s)
+  [START] TestReadOnlyWrappedMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboardAndTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestReadOnlyWrappedMultilineTextFieldCopyCutShortcutsWithoutSelectionLeaveClipboardAndTextUnchanged (0.081 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostCopyShortcutsPreserveSelectionAndText (0.074 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostUndoRedoLeaveTextAndSelectionUnchanged (0.071 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostCopyWithoutSelectionLeavesClipboardUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostCopyWithoutSelectionLeavesClipboardUnchanged (0.069 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostCutAndClearWithoutSelectionLeaveClipboardAndTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostCutAndClearWithoutSelectionLeaveClipboardAndTextUnchanged (0.067 s)
+  [START] TestReadOnlyWrappedMultilineTextFieldCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged
+  [DONE] TestReadOnlyWrappedMultilineTextFieldCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged (0.000 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostCtrlBackspaceDeleteWithoutSelectionLeaveTextUnchanged (0.136 s)
+  [START] TestReadOnlyWrappedMultilineTextFieldCtrlArrowMovesByWordBoundary
+  [DONE] TestReadOnlyWrappedMultilineTextFieldCtrlArrowMovesByWordBoundary (0.054 s)
+  [START] TestAttachedReadOnlyWrappedMultilineNativeHostCtrlArrowKeepsCaretAligned
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedReadOnlyWrappedMultilineNativeHostCtrlArrowKeepsCaretAligned (0.020 s)
+[DONE] ReadOnly (1.662 s)
+All DxUi tests passed.

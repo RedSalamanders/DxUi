@@ -1,0 +1,42 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Tooltip
+  [START] TestTooltipLayerTrackingUpdateReusesVisibleTooltip
+  [DONE] TestTooltipLayerTrackingUpdateReusesVisibleTooltip (0.790 s)
+  [START] TestTooltipLayerPrefersBelowRightWhenSpaceAllows
+  [DONE] TestTooltipLayerPrefersBelowRightWhenSpaceAllows (0.001 s)
+  [START] TestTooltipLayerFlipsAboveNearBottomEdge
+  [DONE] TestTooltipLayerFlipsAboveNearBottomEdge (0.000 s)
+  [START] TestTooltipLayerFlipsLeftNearRightEdge
+  [DONE] TestTooltipLayerFlipsLeftNearRightEdge (0.000 s)
+  [START] TestTooltipLayerWrapsLongTextAndStaysClamped
+  [DONE] TestTooltipLayerWrapsLongTextAndStaysClamped (0.001 s)
+  [START] TestTooltipLayerHideDelayExpiresAfterTimerTicks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipLayerHideDelayExpiresAfterTimerTicks (0.170 s)
+  [START] TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick
+  [DONE] TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick (0.000 s)
+  [START] TestTooltipLayerTrackingMoveCancelsPendingHideDelay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipLayerTrackingMoveCancelsPendingHideDelay (0.262 s)
+  [START] TestGridTooltipTracksPointerWithinSameCell
+  [DONE] TestGridTooltipTracksPointerWithinSameCell (0.096 s)
+  [START] TestInteractiveTooltipSurvivesEmptySupplementalTargetPass
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestInteractiveTooltipSurvivesEmptySupplementalTargetPass (0.029 s)
+  [START] TestTreeTooltipTracksPointerWithinSameRow
+  [DONE] TestTreeTooltipTracksPointerWithinSameRow (0.088 s)
+  [START] TestTreeTooltipFallsBackToClippedItemText
+  [DONE] TestTreeTooltipFallsBackToClippedItemText (0.001 s)
+  [START] TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough (0.042 s)
+[DONE] Tooltip (1.482 s)
+All DxUi tests passed.

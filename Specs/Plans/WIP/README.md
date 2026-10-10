@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Remaining branch integration](BranchIntegration_2026-10-10.md). Review #69 against current lifetime and lazy-publication contracts; retain the unfinished prepared-tree branch and separate performance qualification.
+
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. Obvious lifetime, keyboard, accessibility and tooling corrections pass local x64 Debug/Release/ASan validation; ARM64 builds, paired measurements, harness gallery and validators are retained. Product/architecture decisions and platform/desktop/consumer qualification remain open.
 
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.

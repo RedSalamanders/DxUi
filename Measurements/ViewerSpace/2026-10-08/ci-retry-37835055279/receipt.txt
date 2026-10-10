@@ -1,0 +1,8 @@
+Hosted paired benchmark retry provenance
+Pull request: #69
+Workflow run: 37835055279 (attempt 2)
+Job: 113526687217
+Artifact: 11577283455 (paired-benchmark-x64-Release)
+Artifact ZIP SHA-256: 02f06929863e333b4506226364031ab829b354b7e3b329c80f488d1e756bc672
+Raw reports source: D:\RedSalamander.Perf\runs\dxui-ci-retry-37835055279-attempt2\paired\20261008T203133Z-bea676a1f841\reports
+Report completed UTC: 2026-10-08T20:42:23.6533266Z

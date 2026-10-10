@@ -204,6 +204,13 @@
       "reason": "owning suite source"
     },
     {
+      "pattern": "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "active GridPattern provider coverage"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.WindowHost.cpp",
       "scopes": [
         "WindowHost"
