@@ -2,8 +2,9 @@
 
 - [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
   noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
-  observations; original failures/retests and interactive confirmations retained. Debug/Release focus suites
-  pass; ASan focus, native ARM64, consumer and paired-policy qualification remain open.
+  observations; original failures/retests and interactive confirmations retained. All four focus suites pass
+  in Debug/Release/ASan with successful desktop restoration; native ARM64, physical-input, consumer and
+  paired-policy qualification remain open.
 
 This directory retains reviewed evidence from DxUi's own samples and benchmarks. Scenarios may be inspired by real
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.

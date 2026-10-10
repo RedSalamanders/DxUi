@@ -195,8 +195,14 @@ $interactiveRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')
             reason='Three local Start confirmations timed out before any child suite ran. The third failed foreground/pointer restoration; its subsequent desktop check reported error 5.'})
         continue
     }
+    $completedLeaseLines = [IO.File]::ReadAllLines((Join-Path $packet ('lease-'+$configuration+'.txt')))
+    Require ($completedLeaseLines -ccontains 'state: completed' -and $completedLeaseLines -ccontains 'exit: 0' -and
+        $completedLeaseLines -ccontains 'confirmation: started') 'Completed raw interactive lease differs.'
+    Require (@($completedLeaseLines | Where-Object { $_ -cmatch '^child:' }).Count -eq 4) 'Completed lease child inventory differs.'
     foreach ($scope in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {
         $receipt = Read-Packet ($scope+'-'+$configuration+'-interactive.receipt.txt')
+        Require ($receipt.suite -ceq $scope -and $receipt.configuration -ceq $controlReceipt.configuration -and
+            $receipt.interactive -eq $true -and $receipt.lease.hosted -eq $false) 'Interactive suite identity or local mode differs.'
         Require ($receipt.exitCode -eq 0 -and $receipt.skips.Count -eq 0) 'Interactive suite failed or skipped.'
         Require ($receipt.platform -ceq 'x64' -and $receipt.nativeArchitecture -ceq 'X64') 'Interactive suite profile differs.'
         Require ($receipt.sha256 -ceq $controlReceipt.sha256) 'Interactive suite used a different ControlTests executable.'
@@ -204,6 +210,14 @@ $interactiveRows = @(foreach ($configuration in @('Debug','Release','ASanDebug')
             $receipt.lease.state -ceq 'completed' -and $receipt.lease.exitCode -eq 0) 'Interactive lease did not complete after local confirmation.'
         foreach ($part in @('foreground','focus','cursor')) {
             Require ($receipt.lease[$part] -cin @('unchanged','restored')) "Interactive desktop restoration failed: $part"
+            Require ($completedLeaseLines -ccontains ('restoration.'+$part+': '+$receipt.lease[$part])) 'Raw completed lease restoration differs.'
+        }
+        $seconds = ([double]$receipt.lease.seconds).ToString('F1', [Globalization.CultureInfo]::InvariantCulture)
+        Require ($receipt.lease.seconds -gt 0 -and $completedLeaseLines -ccontains
+            ('child: '+$scope+' launched=1 exit=0 seconds='+$seconds+' timedout=0 interrupted=0')) 'Completed child execution differs.'
+        foreach ($fact in @(('foreground.saved: '+$receipt.lease.savedForeground),('cursor.saved: '+$receipt.lease.cursorSaved),
+            ('cursor.atExit: '+$receipt.lease.cursorAtExit),('restoration.runMovedSomething: '+[int]$receipt.lease.runMovedSomething))) {
+            Require ($completedLeaseLines -ccontains $fact) 'Raw completed lease and receipt facts differ.'
         }
         $testLog = [IO.File]::ReadAllText((Join-Path $packet ($scope+'-'+$configuration+'-interactive.log')))
         Require ($testLog.Contains('[DONE] '+$scope+' (') -and $testLog.Contains('All DxUi tests passed.')) 'Interactive log lacks successful completion.'

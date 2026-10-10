@@ -1,0 +1,67 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 1705.06 completed offscreen FPS; p95 2.4217 ms; private 189739008 bytes
+Complex UI clean round 2: 2302.82 completed offscreen FPS; p95 0.5907 ms; private 194224128 bytes
+Complex UI clean round 3: 2342.15 completed offscreen FPS; p95 0.5369 ms; private 196763648 bytes
+Complex UI clean round 4: 2490.43 completed offscreen FPS; p95 0.6007 ms; private 199602176 bytes
+Complex UI clean round 5: 2518.15 completed offscreen FPS; p95 0.5079 ms; private 202440704 bytes
+Complex UI dirty round 1: 130.851 completed offscreen FPS; p95 9.6656 ms; private 299614208 bytes
+Complex UI dirty round 2: 125.206 completed offscreen FPS; p95 11.2419 ms; private 395321344 bytes
+Complex UI dirty round 3: 129.886 completed offscreen FPS; p95 8.3732 ms; private 490786816 bytes
+Complex UI dirty round 4: 122.466 completed offscreen FPS; p95 11.5073 ms; private 526077952 bytes
+Complex UI dirty round 5: 130.471 completed offscreen FPS; p95 9.9394 ms; private 537513984 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-ASan Debug-fb1c5106f8ec463d8de440b882d8e513.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Foreground run: Menu, NativeTextInput, MenuResources, MenuResourceScaling (x64 ASan Debug) takes the desktop for about 6 minute(s) after local confirmation.
+[LEASE] foreground window to restore: class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 69912)
+[LEASE] Menu, NativeTextInput, MenuResources, MenuResourceScaling (x64 ASan Debug): about 6 minutes; the confirmation cancels itself in 120 s
+[LEASE] confirmation: started
+[LEASE] Menu: started
+[LEASE] Menu: exit code 0 in 82.0 s
+[LEASE] NativeTextInput: started
+[LEASE] NativeTextInput: exit code 0 in 66.0 s
+[LEASE] MenuResources: started
+[LEASE] MenuResources: exit code 0 in 8.3 s
+[LEASE] MenuResourceScaling: started
+[LEASE] MenuResourceScaling: exit code 0 in 18.4 s
+[LEASE] Restoration: foreground=unchanged focus=unchanged cursor=restored
+[LEASE] completed
+Ran Menu (x64 ASan Debug) under the interactive foreground lease
+PASS Menu (0 capability skips recorded)
+Ran NativeTextInput (x64 ASan Debug) under the interactive foreground lease
+PASS NativeTextInput (0 capability skips recorded)
+Ran MenuResources (x64 ASan Debug) under the interactive foreground lease
+PASS MenuResources (0 capability skips recorded)
+Ran MenuResourceScaling (x64 ASan Debug) under the interactive foreground lease
+PASS MenuResourceScaling (0 capability skips recorded)
+Foreground lease (completed): foreground unchanged, focus unchanged, pointer restored; the lease gave back what the run had moved.
+WARNING: The suites left the pointer at 2073,1134, and the lease moved it back to 2198,1742. A fixture that moves the pointer puts it back itself, so a pointer left behind is a fixture to look at.
+All 4 requested suites passed.

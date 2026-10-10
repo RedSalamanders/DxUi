@@ -64,11 +64,12 @@ frames. Process memory ends below the starting sample, while heap busy-byte dire
 does not attribute or dismiss the earlier roughly 1.05 MB working-set flag. The 600-to-700 ns clean-prepare flag is
 one 100 ns QPC tick, with real overhead still plausible. Thresholds, exact budgets and frozen judges are unchanged.
 An initial ASan UIA client event failure passes isolation and a whole same-binary rerun, with its cause unproven.
-Two initial Debug lease confirmations time out before Start; the later confirmed Debug and Release runs each
-pass all four focus suites with zero skips and successful restoration. Three ASan Debug confirmations time out
-before any child runs. The third reports failed foreground/pointer restoration and its subsequent native desktop
-check reports an inaccessible input desktop (error 5). Its local desktop gate remains open; all attempts and the
-refusal are retained separately without a restoration claim for the third attempt.
+Two initial Debug lease confirmations time out before Start; the later confirmed Debug, Release and ASan runs
+each pass all four focus suites with zero skips and successful restoration, completing the local x64 focus gate.
+Three earlier ASan Debug confirmations time out before any child runs. The third reports failed foreground/pointer
+restoration and its subsequent native desktop check reports an inaccessible input desktop (error 5). The fourth
+ASan attempt starts locally after desktop access is restored. All attempts and the refusal remain separately
+retained without a restoration claim for the third attempt.
 [The repaired v2 A/A packet](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes the authorized
 quiet-window repeat in about 64 minutes. All 72 controls remain unstable despite both judges' zero aggregate flags;
 611/1,872 control observations exceed the frozen bands. All 24 exact-budget cells hold. Initialization/warm-up

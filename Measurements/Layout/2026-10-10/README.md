@@ -7,9 +7,10 @@ an accepted paired regression result or a consumer pin update.
 
 All nineteen noninteractive suites pass without capability skips in x64 Debug, Release and ASan Debug: 57
 suite/log pairs. All 38 newly registered intrinsic/Flex/form/form-accessibility tests complete in each profile.
-The four focus suites additionally pass in Debug and Release with zero skips: eight completed suite/log pairs.
-ASan Debug's three Start confirmations time out before any focus child runs. The third reports failed
-foreground/pointer restoration, followed by an unavailable-input-desktop check; that desktop gate remains open.
+The four focus suites additionally pass in Debug, Release and ASan Debug with zero skips: twelve completed
+suite/log pairs. All three completed leases restore the desktop successfully. ASan Debug's three earlier Start
+confirmations time out before any focus child runs; the third reports failed foreground/pointer restoration,
+followed by an unavailable-input-desktop check. Those failed attempts remain independently retained.
 All six x64/ARM64 Debug, Release and ASan Debug configurations build successfully. ARM64 code was not executed
 on this x64 computer. Complete Windows validators/tooling and clang-format 22.1.3 checking passed at the frozen
 native source; later documentation/evidence changes require their own tooling check.
@@ -59,9 +60,11 @@ This attempt reports foreground and pointer restoration failed, focus restoratio
 cursor position. Its subsequent native `DxUi.InteractiveLease.exe --check` exits 20 and reports that the input
 desktop cannot be opened (Windows error 5: a locked session or secure desktop has input). This observes desktop
 unavailability after the timeout; it does not prove when the desktop changed or claim successful restoration.
-The four ASan focus suites remain unrun pending an accessible desktop and local Start. The analyzer retains
-and checks all three incomplete attempts, including the third attempt's restoration failure, independently of
-any later successful run.
+After Windows is unlocked and the native desktop check passes, a fourth ASan attempt accepts local Start and
+passes all four focus suites with zero skips. Its summed child runtime is 174.7 seconds; foreground and keyboard
+focus remain unchanged and the pointer is restored. This completes the local x64 foreground-suite gate.
+The analyzer checks every completed raw lease against its four suite receipts and retains all three earlier
+incomplete ASan attempts, including the third attempt's restoration failure, independently of the successful run.
 The preserved third-attempt wrapper log also contains a contradictory suffix saying that the run left the
 desktop as the person had it. The frozen `test.ps1` chooses that suffix from `RunMovedSomething=false`, which
 also occurs when restoration fails; it does not establish an unchanged desktop. Its failure accounting rejects
@@ -71,11 +74,11 @@ All failures/timeouts and successful results are retained separately. The person
 recorded in the task; the restoring lease still requires its local Start choice.
 
 The successful leases warn that their final pointer differs from the pre-lease position. All four cursor-moving
-Menu cases in both completed profiles log `restored=1 exact=1`. Source review confirms that the outer lease
+Menu cases in all three completed profiles log `restored=1 exact=1`. Source review confirms that the outer lease
 captures its restoration target before requesting Start; the confirmation itself can move the pointer before
 a fixture records its entry position. No post-confirmation or per-child pointer observations identify the
 source of the outer displacement, so the warning does not establish a fixture leak. The cursor helpers and
-lease are unchanged from the baseline. Both outer restorations passed; a future attribution diagnostic should
+lease are unchanged from the baseline. All three outer restorations passed; a future attribution diagnostic should
 retain positions after confirmation and around each child while preserving the pre-confirmation restore target.
 The retained `interactive-performance-*.json` reports are unpaired preflight measurements, not accepted
 non-regression evidence. The repeated isolated ASan detection probes are also retained.

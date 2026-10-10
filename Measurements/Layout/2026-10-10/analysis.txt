@@ -2057,16 +2057,109 @@
         "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\Release\\DxUi.InteractiveLease.exe",
         "sha256": "796EC4F8793DF2FEE5A83BE0B6FC2A8627F6CCFCDD1C7731F5C0E2182220E330"
       }
-    }
-  ],
-  "interactivePendingProfiles": [
+    },
     {
+      "scope": "Menu",
       "configuration": "ASanDebug",
-      "scopes": 4,
-      "status": "NOT_RUN",
-      "reason": "Three local Start confirmations timed out before any child suite ran. The third failed foreground/pointer restoration; its subsequent desktop check reported error 5."
+      "sha256": "68EBDB54DDB3E91CF418F3A35A243D2033F03AF6A7E1F37024CFD64407E9749A",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 82.0,
+      "lease": {
+        "mode": "local-confirmed",
+        "hosted": false,
+        "state": "completed",
+        "exitCode": 0,
+        "confirmation": "started",
+        "foreground": "unchanged",
+        "focus": "unchanged",
+        "cursor": "restored",
+        "cursorSaved": "2198,1742",
+        "cursorAtExit": "2073,1134",
+        "runMovedSomething": true,
+        "savedForeground": "class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 69912)",
+        "seconds": 82.0,
+        "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+        "sha256": "7AEDA1943DF9C4CBC2A0241CCAD183E9D6F6E868664B61A685948CF6C623E74A"
+      }
+    },
+    {
+      "scope": "NativeTextInput",
+      "configuration": "ASanDebug",
+      "sha256": "68EBDB54DDB3E91CF418F3A35A243D2033F03AF6A7E1F37024CFD64407E9749A",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 66.0,
+      "lease": {
+        "mode": "local-confirmed",
+        "hosted": false,
+        "state": "completed",
+        "exitCode": 0,
+        "confirmation": "started",
+        "foreground": "unchanged",
+        "focus": "unchanged",
+        "cursor": "restored",
+        "cursorSaved": "2198,1742",
+        "cursorAtExit": "2073,1134",
+        "runMovedSomething": true,
+        "savedForeground": "class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 69912)",
+        "seconds": 66.0,
+        "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+        "sha256": "7AEDA1943DF9C4CBC2A0241CCAD183E9D6F6E868664B61A685948CF6C623E74A"
+      }
+    },
+    {
+      "scope": "MenuResources",
+      "configuration": "ASanDebug",
+      "sha256": "68EBDB54DDB3E91CF418F3A35A243D2033F03AF6A7E1F37024CFD64407E9749A",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 8.3,
+      "lease": {
+        "mode": "local-confirmed",
+        "hosted": false,
+        "state": "completed",
+        "exitCode": 0,
+        "confirmation": "started",
+        "foreground": "unchanged",
+        "focus": "unchanged",
+        "cursor": "restored",
+        "cursorSaved": "2198,1742",
+        "cursorAtExit": "2073,1134",
+        "runMovedSomething": true,
+        "savedForeground": "class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 69912)",
+        "seconds": 8.3,
+        "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+        "sha256": "7AEDA1943DF9C4CBC2A0241CCAD183E9D6F6E868664B61A685948CF6C623E74A"
+      }
+    },
+    {
+      "scope": "MenuResourceScaling",
+      "configuration": "ASanDebug",
+      "sha256": "68EBDB54DDB3E91CF418F3A35A243D2033F03AF6A7E1F37024CFD64407E9749A",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 18.4,
+      "lease": {
+        "mode": "local-confirmed",
+        "hosted": false,
+        "state": "completed",
+        "exitCode": 0,
+        "confirmation": "started",
+        "foreground": "unchanged",
+        "focus": "unchanged",
+        "cursor": "restored",
+        "cursorSaved": "2198,1742",
+        "cursorAtExit": "2073,1134",
+        "runMovedSomething": true,
+        "savedForeground": "class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 69912)",
+        "seconds": 18.4,
+        "executable": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+        "sha256": "7AEDA1943DF9C4CBC2A0241CCAD183E9D6F6E868664B61A685948CF6C623E74A"
+      }
     }
   ],
+  "interactivePendingProfiles": [],
   "interactiveIncompleteAttempts": [
     {
       "attempt": "timeout",
@@ -2142,7 +2235,7 @@
     }
   ],
   "postThirdConfirmationDesktopCheck": "[LEASE] no interactive desktop: the input desktop cannot be opened (error 5): the session is locked, or a secure desktop has the input",
-  "interactiveChildSeconds": 419.6,
+  "interactiveChildSeconds": 594.3,
   "newTestsPerConfiguration": 38,
   "limits": "No paired regression/policy/consumer/native-ARM64/hardware qualification. C++ counters exclude COM/driver heaps; plain-live deltas exclude aligned blocks. Process snapshots and retained pools are not leak attribution."
 }
