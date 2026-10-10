@@ -30,6 +30,15 @@ Grid/Tree, text-input and tooling work. Prior receipts qualify their exact archi
 The accepted implementation is integrated. The checkboxes below remain open until their associated qualification
 obligations finish; the performance policy remains a proposed migration awaiting concrete calibration and review.
 
+Current qualification limits (10 October): all three x64 profiles of hosted candidate `2b06792` pass their 21 suites
+with zero skips and four API 4 consumer cases. All ARM64 profiles build and pass 19 noninteractive suites; Menu and
+NativeTextInput refuse warning ownership before input, so native foreground/consumer completion is still open.
+The isolated same-binary A/A study has zero migrated flags, but all 72 short controls are unstable and 50 of 54 timing/
+memory cells have excursions. It does not qualify policy seeding. Keep the required CI rule deferred until the trusted
+base policy and a concrete candidate pass are established. The capture, opaque-patch and raw-timing follow-up needs
+fresh final-source six-profile/paired CI. Physical IME, assistive technology, touch and consumer adoption remain
+explicit separate obligations; these records establish no product-wide production approval.
+
 - [ ] Q1/Q2: ownership-safe child/tab extraction, compatible API guidance and measured dispatch retirement.
 - [ ] Q3/Q4/Q5/Q15: coalesced lazy native publication, canonical attachment identity, shared unlocked action execution
   and independent target synchronization; preserve first-query freshness and every reentrancy boundary.
@@ -1775,3 +1784,44 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   [Follow-up 57](../../../Measurements/Review-2026-10-09/HostedWarningAndPairedFollowup57/README.md) retains raw evidence
   and separate auditors. Official acceptance remains inconclusive/policy-review-required; final hosted/native
   qualification and isolated A/A calibration remain pending. The proposed policy remains unqualified.
+- Committed candidate `2b06792` passed clean native-filesystem Linux validation 57 and was pushed to draft PR #70.
+  Fresh PR CI run 38007965422 and isolated hosted same-explicit-commit A/A run 38007964975 started. Windows tooling,
+  Linux validation and formatting jobs passed. Runtime and study steps remain pending, not already qualified.
+- A final surrounding-input audit found that another window's mouse capture overrides cursor hit-testing.
+  The warning fallback now rejects active/unreadable foreground-thread or lease-thread capture before moving the
+  pointer and again before button-down. Fake initial/racing-capture refusals and fresh whole x64 Debug scopes pass;
+  this follow-up still needs final-source native qualification. No capture is released from an unrelated window.
+- A read-only benchmark audit identifies a diagnostic limitation for Q22: unchanged clean preparation is a no-op
+  fast path measured over only a few clock ticks; 40-frame p95 samples are reduced without retaining per-frame values.
+  Keep all current bands and exact budgets. If isolated A/A still leaves inference inconclusive, recommend retaining
+  clock frequency/raw samples before changing measurement scope; a separate batched no-op diagnostic would change
+  metric meaning and require contract/policy review. Host contention remains a hypothesis except the observed foreign build.
+- Q22 follow-up implements QPC frequency/counter ticks and forty ordered raw frame/preparation/composition samples
+  in each complex-UI round. Bounded stack copies and serialization occur outside measured/allocation-counted frames.
+  Validation rejects partial, nonfinite, inconsistent or mismatched-clock diagnostics while archived receipts remain
+  readable. Thirteen judged metrics, 26-slot correction, current bands and exact budgets are unchanged. The proposed
+  comparator hash must be refreshed as a review target only; policy qualification and a final paired comparison remain open.
+  Documentation/gallery review finds no product visual change; the owning contract and tooling guide are updated.
+- [Guards and timing follow-up 60](../../../Measurements/Review-2026-10-09/GuardsAndTimingFollowup60/README.md)
+  seals the fresh combined x64 Debug Embedded/WindowHost/InteractiveLease qualification, all validators/tooling and
+  formatting, 63 private-desktop checks and the independent raw-sample/artifact audit. The lead verified the MSVC
+  clock period and corrected permissive positive-period validation; the native harness now asserts that period.
+- Hosted candidate `2b06792` passed all x64 native/consumer jobs, but all ARM64 jobs refused patch ownership before
+  pointer movement or input. Foreground/focus/cursor stayed unchanged. Existing artifacts omit the winning hit-window,
+  so neither layered hit-testing nor shell occlusion is established as the cause. A safe diagnostic follow-up makes
+  the clipped patch ordinary opaque/nonlayered, saves/restores/reads back the original layered attributes, and records
+  fixed-buffer target/geometry/style/region/DPI details on refusal. Mandatory actual ownership checks are retained;
+  this experiment is not already a hosted fix or native ARM64 pass. No product focus behavior or skip gate is changed.
+- Follow-up 61 passes fresh whole x64 Debug WindowHost/InteractiveLease scopes, complete Windows validators/tooling
+  and formatting, and 64 private-desktop checks including layered-alpha restoration. The lead independently recomputed
+  current build/run identities and actual executable hashes. These local proofs do not qualify the hosted ARM64 experiment.
+- Hosted same-explicit-commit A/A run 38007964975, seed 490514517, uses one build/source/executable for both labels.
+  The lead independently checks 144 raw receipt hashes, 1440 rounds, thirteen immutable-source harness hashes and all
+  78 migrated decisions. There are zero migrated flags and all legacy/migrated labels agree. Nevertheless all 72 short
+  controls are unstable, with 50 timing/memory cells having excursions; only 24 exact-budget cells and four clean-memory
+  cells stay within their bands. Isolated job execution does not establish a quiet calibrated host. Preserve this diagnostic,
+  retain all thresholds, and rerun affected calibration on a controlled quiet host using the new clock/raw-sample diagnostics.
+- [Opaque warning and hosted calibration follow-up 61](../../../Measurements/Review-2026-10-09/OpaqueWarningAndHostedCalibrationFollowup61/README.md)
+  seals the original six-profile native CI records, isolated A/A study and independent audits, plus the local opaque
+  warning qualification. All archived entries were reopened against their original length/SHA-256. Hosted patch
+  qualification and controlled calibration remain open; no policy is self-qualified or threshold weakened.

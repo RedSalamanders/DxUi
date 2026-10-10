@@ -33,5 +33,7 @@ exact hosted markers before taking that runner's desktop. Hosted receipts use `.
 ordinary local and self-hosted runs still require the person's confirmation through `-Interactive`.
 If a verified hosted runner refuses ordinary warning activation, the lease can briefly clip its warning to a marked
 input patch and click that owned point. It rechecks authorization/targeting, balances and observes the mouse release,
-and restores the full warning style/shape before launching any child. Failure remains a failed run. This fallback
+rejects capture on the foreground or lease thread, uses an opaque nonlayered patch, and restores and verifies the full
+warning style, layered attributes and shape before launching any child. Refused targets retain read-only geometry
+and hit-window diagnostics. Failure remains a failed run. This fallback
 does not run on a person's ordinary local desktop; its private-desktop tests take no personal input or focus.

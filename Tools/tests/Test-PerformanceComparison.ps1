@@ -31,6 +31,67 @@ function New-Receipt {
 
 $before = New-Receipt
 
+function New-ReceiptWithTimingDiagnostics {
+    $receipt = New-Receipt
+    $receipt.clock = [ordered]@{ name='std::chrono::steady_clock'; implementation='QueryPerformanceCounter'; ticksPerSecond=10000000; tickNanoseconds=100; nominalPeriodNanoseconds=1 }
+    foreach ($scenario in $receipt.scenarios) {
+        foreach ($round in $scenario.rounds) {
+            # Reverse frame order so the validator must compute percentiles without assuming sorted raw samples.
+            $round.timingSamplesMs = [ordered]@{ frame=@(40..1); prepare=@(40..1 | ForEach-Object { $_ * 0.0001 }); composeCpu=@(39..0 | ForEach-Object { $_ * 0.01 }) }
+            $round.fps = 40000.0 / 820.0
+            $round.frameP50Ms = 20; $round.frameP95Ms = 38
+            $round.prepareP95Ms = 0.0038; $round.composeCpuP95Ms = 0.37
+        }
+    }
+    return $receipt
+}
+
+Invoke-TestCase 'timing diagnostics preserve legacy decisions and validate complete clock and ordered samples' {
+    Assert-PerformanceReceipt $before
+    $receipt = New-ReceiptWithTimingDiagnostics
+    Assert-PerformanceReceipt $receipt
+    $result = Compare-PerformanceReceipt $receipt (Copy-JsonValue $receipt)
+    Assert-Equal 26 $result.changes.Count 'diagnostic fields do not enlarge the judged family'
+    Assert-Equal 'within-noise-budget' $result.status 'identical diagnostic receipts retain the original decision'
+    Assert-Equal 40 $receipt.scenarios[0].rounds[0].timingSamplesMs.frame[0] 'validation preserves frame order'
+    foreach ($field in @('clock', 'samples', 'frequency', 'period', 'positivePeriod', 'tick', 'count', 'group', 'string', 'negative', 'nonfinite', 'zeroFrame', 'fps', 'frameP50Ms', 'frameP95Ms', 'prepareP95Ms', 'composeCpuP95Ms')) {
+        $bad = Copy-JsonValue $receipt
+        $round = $bad.scenarios[0].rounds[0]
+        switch ($field) {
+            'clock' { [void]$bad.Remove('clock') }
+            'samples' { [void]$round.Remove('timingSamplesMs') }
+            'frequency' { $bad.clock.ticksPerSecond=0 }
+            'period' { $bad.clock.nominalPeriodNanoseconds='1' }
+            'positivePeriod' { $bad.clock.nominalPeriodNanoseconds=2 }
+            'tick' { $bad.clock.tickNanoseconds=1 }
+            'count' { $round.timingSamplesMs.frame=@(1..39) }
+            'group' { [void]$round.timingSamplesMs.Remove('prepare') }
+            'string' { $round.timingSamplesMs.prepare[0]='0.004' }
+            'negative' { $round.timingSamplesMs.prepare[0]=-0.0001 }
+            'nonfinite' { $round.timingSamplesMs.composeCpu[0]=[double]::NaN }
+            'zeroFrame' { $round.timingSamplesMs.frame[0]=0 }
+            default { $round[$field] = [double]$round[$field] * 1.01 }
+        }
+        Assert-Throws { Assert-PerformanceReceipt $bad } "incomplete or inconsistent diagnostics rejected: $field"
+    }
+    $partial = Copy-JsonValue $before; $partial.clock=$receipt.clock
+    Assert-Throws { Assert-PerformanceReceipt $partial } 'clock metadata cannot omit all raw samples'
+    $changedClock = Copy-JsonValue $receipt
+    $changedClock.clock.ticksPerSecond=20000000; $changedClock.clock.tickNanoseconds=50
+    Assert-Throws { Compare-PerformanceReceipt $receipt $changedClock } 'matched measurements require the same clock tick'
+    Assert-Throws { Compare-PerformanceReceipt $before $receipt } 'new clock diagnostics cannot be mixed with an uninstrumented receipt'
+    $rounded = Copy-JsonValue $receipt
+    $rounded.scenarios[0].rounds[0].fps=48.78048780
+    Assert-PerformanceReceipt $rounded
+    $zeroPrepare = Copy-JsonValue $receipt
+    $zeroPrepare.scenarios[0].rounds[0].timingSamplesMs.prepare = @((1..40) | ForEach-Object { 0 })
+    $zeroPrepare.scenarios[0].rounds[0].prepareP95Ms=0
+    Assert-PerformanceReceipt $zeroPrepare
+    $overflow = Copy-JsonValue $receipt
+    $overflow.scenarios[0].rounds[0].timingSamplesMs.frame = @((1..40) | ForEach-Object { 1e-320 })
+    Assert-Throws { Assert-PerformanceReceipt $overflow } 'non-finite derived timing rejected'
+}
+
 Invoke-TestCase 'the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks' {
     $p = Get-ExactSignFlipPValue -Effects ([double[]]@(1,1,1,1,1,1,1,1,1,1,1,1))
     Assert-Equal ([double](2.0 / 4096.0)) $p 'attainable two-sided p at twelve blocks'

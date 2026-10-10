@@ -16,6 +16,7 @@ enum class HostedWarningInputFailure
     None,
     HostedAuthorizationLost,
     MouseButtonHeld,
+    MouseCaptureActive,
     PatchUnavailable,
     WarningDoesNotOwnPoint,
     PointerMoveFailed,
@@ -42,6 +43,8 @@ template <typename Operations> [[nodiscard]] HostedWarningInputFailure ActivateH
         return HostedWarningInputFailure::HostedAuthorizationLost;
     if (! operations.MouseButtonsReleased())
         return HostedWarningInputFailure::MouseButtonHeld;
+    if (! operations.NoMouseCapture())
+        return HostedWarningInputFailure::MouseCaptureActive;
     if (! operations.BeginPatch())
         return HostedWarningInputFailure::PatchUnavailable;
 
@@ -56,6 +59,8 @@ template <typename Operations> [[nodiscard]] HostedWarningInputFailure ActivateH
         failure = HostedWarningInputFailure::HostedAuthorizationLost;
     else if (! operations.MouseButtonsReleased())
         failure = HostedWarningInputFailure::MouseButtonHeld;
+    else if (! operations.NoMouseCapture())
+        failure = HostedWarningInputFailure::MouseCaptureActive;
     else if (! operations.SendLeftButtonDown())
         failure = HostedWarningInputFailure::ButtonDownFailed;
     else
@@ -90,6 +95,7 @@ template <typename Operations> [[nodiscard]] HostedWarningInputFailure ActivateH
         case HostedWarningInputFailure::None: return "none";
         case HostedWarningInputFailure::HostedAuthorizationLost: return "the exact hosted runner authorization is missing";
         case HostedWarningInputFailure::MouseButtonHeld: return "a mouse button was already held";
+        case HostedWarningInputFailure::MouseCaptureActive: return "mouse capture is active or its foreground state cannot be verified";
         case HostedWarningInputFailure::PatchUnavailable: return "the warning input patch could not be exposed";
         case HostedWarningInputFailure::WarningDoesNotOwnPoint: return "the warning does not own the safe input point";
         case HostedWarningInputFailure::PointerMoveFailed: return "the pointer could not be placed on the warning";
@@ -141,7 +147,11 @@ public:
                                       this));
         if (! _window)
             return false;
-        SetLayeredWindowAttributes(_window.get(), 0, 235, LWA_ALPHA);
+        if (SetLayeredWindowAttributes(_window.get(), 0, 235, LWA_ALPHA) == FALSE)
+        {
+            Hide();
+            return false;
+        }
         Place();
         SetTimer(_window.get(), kTimerId, 1000u, nullptr); // The elapsed time moves once a second; nothing runs between.
         ShowWindow(_window.get(), SW_SHOWNOACTIVATE);
@@ -171,6 +181,9 @@ public:
         if (current == 0 && GetLastError() != ERROR_SUCCESS)
             return false;
         _originalExtendedStyle = current;
+        if ((current & WS_EX_LAYERED) != 0 &&
+            GetLayeredWindowAttributes(_window.get(), &_originalLayeredColorKey, &_originalLayeredAlpha, &_originalLayeredFlags) == FALSE)
+            return false;
         RECT patch{};
         RECT windowRect{};
         POINT clientOrigin{};
@@ -185,7 +198,8 @@ public:
         _patchActive         = true;
         _patchButtonDown     = false;
         _patchButtonReleased = false;
-        const LONG_PTR next  = current & ~static_cast<LONG_PTR>(WS_EX_TRANSPARENT);
+        // A clipped opaque patch uses ordinary hit-testing; no layered alpha surface participates in activation.
+        const LONG_PTR next = current & ~static_cast<LONG_PTR>(WS_EX_TRANSPARENT | WS_EX_LAYERED);
         SetLastError(ERROR_SUCCESS);
         const LONG_PTR previous = SetWindowLongPtrW(_window.get(), GWL_EXSTYLE, next);
         if (previous == 0 && GetLastError() != ERROR_SUCCESS)
@@ -216,8 +230,16 @@ public:
             return false;
         }
         SetLastError(ERROR_SUCCESS);
-        const LONG_PTR previous   = SetWindowLongPtrW(_window.get(), GWL_EXSTYLE, _originalExtendedStyle);
-        const bool styleRestored  = previous != 0 || GetLastError() == ERROR_SUCCESS;
+        const LONG_PTR previous  = SetWindowLongPtrW(_window.get(), GWL_EXSTYLE, _originalExtendedStyle);
+        const bool styleRestored = previous != 0 || GetLastError() == ERROR_SUCCESS;
+        COLORREF colorKey{};
+        BYTE alpha{};
+        DWORD flags{};
+        const bool layeredRestored =
+            (static_cast<ULONG_PTR>(_originalExtendedStyle) & WS_EX_LAYERED) == 0 ||
+            (SetLayeredWindowAttributes(_window.get(), _originalLayeredColorKey, _originalLayeredAlpha, _originalLayeredFlags) != FALSE &&
+             GetLayeredWindowAttributes(_window.get(), &colorKey, &alpha, &flags) != FALSE && colorKey == _originalLayeredColorKey &&
+             alpha == _originalLayeredAlpha && flags == _originalLayeredFlags);
         _patchActive              = false; // The WndProc is fail-closed even if Windows refuses the style restoration.
         const bool regionRestored = SetWindowRgn(_window.get(), nullptr, TRUE) != 0; // The ordinary warning has no explicit region.
         const bool frameRestored =
@@ -225,8 +247,8 @@ public:
         InvalidateRect(_window.get(), nullptr, FALSE);
         UpdateWindow(_window.get());
         wil::unique_hrgn actualRegion(CreateRectRgn(0, 0, 0, 0));
-        return styleRestored && regionRestored && frameRestored && GetWindowLongPtrW(_window.get(), GWL_EXSTYLE) == _originalExtendedStyle && actualRegion &&
-               GetWindowRgn(_window.get(), actualRegion.get()) == ERROR;
+        return styleRestored && layeredRestored && regionRestored && frameRestored && GetWindowLongPtrW(_window.get(), GWL_EXSTYLE) == _originalExtendedStyle &&
+               actualRegion && GetWindowRgn(_window.get(), actualRegion.get()) == ERROR;
     }
 
     [[nodiscard]] bool HostedActivationPoint(POINT& screenPoint) const noexcept
@@ -239,12 +261,6 @@ public:
             return false;
         screenPoint = POINT{(patch.left + patch.right) / 2, (patch.top + patch.bottom) / 2};
         return ClientToScreen(window, &screenPoint) != FALSE;
-    }
-
-    [[nodiscard]] bool HostedActivationOwnsPoint() const noexcept
-    {
-        POINT point{};
-        return HostedActivationPoint(point) && WindowFromPoint(point) == _window.get();
     }
 
     [[nodiscard]] bool HostedActivationClickReleased() const noexcept
@@ -437,12 +453,15 @@ private:
     wil::unique_hfont _bodyFont;
     wil::unique_hfont _titleFont;
     std::wstring _label;
-    LONG_PTR _originalExtendedStyle = 0;
-    bool _patchButtonDown           = false;
-    bool _patchButtonReleased       = false;
-    unsigned _estimateSeconds       = 0u;
-    UINT _dpi                       = 96u;
-    bool _patchActive               = false;
+    LONG_PTR _originalExtendedStyle   = 0;
+    COLORREF _originalLayeredColorKey = 0;
+    BYTE _originalLayeredAlpha        = 0;
+    DWORD _originalLayeredFlags       = 0;
+    bool _patchButtonDown             = false;
+    bool _patchButtonReleased         = false;
+    unsigned _estimateSeconds         = 0u;
+    UINT _dpi                         = 96u;
+    bool _patchActive                 = false;
     std::chrono::steady_clock::time_point _started{};
 };
 } // namespace DxUi::InteractiveLease

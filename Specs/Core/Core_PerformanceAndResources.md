@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
 the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
@@ -334,6 +334,16 @@ clean rounds must record zero, and dirty rounds may not exceed 64 allocations pe
 where the Debug STL allocates one container proxy per std::vector/std::wstring. The receipt records
 `dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
 advice. The benchmark does not establish displayed FPS.
+
+New complex-UI receipts retain all forty frame, preparation and CPU composition times per round in frame order,
+plus the `std::chrono::steady_clock` implementation, QPC frequency and counter-tick duration. Report the clock's
+nominal C++ period separately; it is not the hardware counter's resolution. Bounded stack copies and JSON output
+occur outside measured/allocation-counted frames. These diagnostic fields do not add judged metrics or change the
+existing percentiles, thirteen metrics, 26-slot family, investigation bands or exact budgets. Receipt validation
+checks complete finite samples and reproduces the reported FPS/percentiles with tolerance only for JSON rounding.
+Paired receipts must use the same clock metadata. Historical receipts without either diagnostic group remain
+readable under their original harness; partial new groups are invalid. A no-op preparation taking a few counter
+ticks warrants quantization analysis, not an automatic noise waiver or a silently batched replacement metric.
 
 Benchmark receipts also record process-memory phases at entry, device creation, scene
 creation, warm-up, screenshot encoding and the hidden state. These untimed samples help

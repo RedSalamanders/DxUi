@@ -522,11 +522,15 @@ stale suite log with the current launch failure. Desktop availability alone supp
 
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
-held mouse buttons, and verify that the warning owns the point before and after moving the pointer. The warning
-MUST be temporarily clipped to the patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
+and verify that the warning owns the point before and after moving the pointer. Capture checks MUST inspect the
+foreground thread as well as the lease thread: `GetCapture` alone cannot rule out another thread's capture. The warning
+MUST be temporarily clipped to an opaque, nonlayered patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
 The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
 down/up messages and released button state, verify actual warning foreground, and restore/read back the original
-extended style and full window region before starting a child. Failed insertion, release, activation or restoration
+extended style, layered alpha/color-key attributes and full window region before starting a child. A refused target
+retains read-only point/hit-window/geometry/style/region/DPI diagnostics; it sends no input to that foreign window.
+Failed insertion, release, activation or restoration
 MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
 checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
 

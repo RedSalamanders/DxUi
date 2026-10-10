@@ -82,6 +82,57 @@ function Get-MedianValue([object[]] $Values) {
     return ([double]$sorted[$middle - 1] + [double]$sorted[$middle]) / 2.0
 }
 
+function Assert-TimingDiagnosticValue([object] $Actual, [double] $Expected, [string] $Label) {
+    # Ten significant digits in the native JSON may round both the samples and the derived value.
+    if (-not [double]::IsFinite($Expected) -or -not (Test-JsonNumber $Actual) -or -not [double]::IsFinite([double]$Actual) -or
+        [Math]::Abs([double]$Actual - $Expected) -gt 1e-8 * [Math]::Max(1e-9, [Math]::Abs($Expected))) {
+        throw "Inconsistent timing diagnostics: $Label"
+    }
+}
+
+function Assert-PerformanceTimingDiagnostics([System.Collections.IDictionary] $Receipt) {
+    # Archived receipts predate these fields. New receipts must retain a complete, internally consistent diagnostic group.
+    $clock = Get-ReceiptValue $Receipt 'clock'
+    $rounds = @($Receipt['scenarios'] | ForEach-Object { $_['rounds'] })
+    $hasSamples = @($rounds | Where-Object { $_.Contains('timingSamplesMs') }).Count -gt 0
+    if (-not $Receipt.Contains('clock') -and -not $hasSamples) { return }
+    if ($clock -isnot [System.Collections.IDictionary] -or
+        -not (Test-SameJsonValue (Get-ReceiptValue $clock 'name') 'std::chrono::steady_clock') -or
+        -not (Test-SameJsonValue (Get-ReceiptValue $clock 'implementation') 'QueryPerformanceCounter')) {
+        throw 'Invalid timing diagnostic clock'
+    }
+    $frequency = Get-ReceiptValue $clock 'ticksPerSecond'
+    $period = Get-ReceiptValue $clock 'nominalPeriodNanoseconds'
+    foreach ($value in @($frequency, $period)) {
+        if (-not (Test-JsonNumber $value) -or -not [double]::IsFinite([double]$value) -or [double]$value -le 0) {
+            throw 'Invalid timing diagnostic clock frequency/period'
+        }
+    }
+    if ([double]$frequency -ne [Math]::Floor([double]$frequency)) { throw 'Clock frequency must be an integer' }
+    if (-not (Test-SameJsonValue $period 1)) { throw 'The MSVC steady clock nominal period must be one nanosecond' }
+    Assert-TimingDiagnosticValue (Get-ReceiptValue $clock 'tickNanoseconds') (1e9 / [double]$frequency) 'clock tick'
+    foreach ($round in $rounds) {
+        $samples = Get-ReceiptValue $round 'timingSamplesMs'
+        if ($samples -isnot [System.Collections.IDictionary]) { throw 'Missing timing diagnostic samples' }
+        $sorted = @{}
+        foreach ($key in @('frame', 'prepare', 'composeCpu')) {
+            $values = Get-ReceiptValue $samples $key
+            if ($values -isnot [array] -or $values.Count -ne $Receipt['framesPerRound']) { throw "Incomplete timing diagnostic samples: $key" }
+            foreach ($value in $values) {
+                if (-not (Test-JsonNumber $value) -or -not [double]::IsFinite([double]$value) -or [double]$value -lt 0 -or
+                    ($key -ceq 'frame' -and [double]$value -le 0)) { throw "Invalid timing diagnostic sample: $key" }
+            }
+            $sorted[$key] = @($values | Sort-Object { [double]$_ })
+        }
+        $totalMs = [double]($samples['frame'] | Measure-Object -Sum).Sum
+        Assert-TimingDiagnosticValue $round['fps'] (40000.0 / $totalMs) 'fps'
+        Assert-TimingDiagnosticValue $round['frameP50Ms'] $sorted['frame'][19] 'frame p50'
+        Assert-TimingDiagnosticValue $round['frameP95Ms'] $sorted['frame'][37] 'frame p95'
+        Assert-TimingDiagnosticValue $round['prepareP95Ms'] $sorted['prepare'][37] 'preparation p95'
+        Assert-TimingDiagnosticValue $round['composeCpuP95Ms'] $sorted['composeCpu'][37] 'composition p95'
+    }
+}
+
 function Assert-PerformanceReceipt([Parameter(Mandatory)][System.Collections.IDictionary] $Receipt) {
     foreach ($key in $script:Identity + $script:Evidence) {
         $value = Get-ReceiptValue $Receipt $key
@@ -117,12 +168,19 @@ function Assert-PerformanceReceipt([Parameter(Mandatory)][System.Collections.IDi
         -not (Test-SameJsonValue (Get-ReceiptValue $Receipt 'hiddenComposites') 0)) {
         throw 'Hidden work must be zero'
     }
+    Assert-PerformanceTimingDiagnostics $Receipt
 }
 
 function Assert-MatchedFixture([System.Collections.IDictionary] $Before, [System.Collections.IDictionary] $After) {
     # Two receipts compare only when one machine, configuration and benchmark produced them.
     foreach ($key in $script:Identity + @('benchmarkSha256')) {
         if (-not (Test-SameJsonValue $Before[$key] $After[$key])) { throw "Unmatched fixture: $key" }
+    }
+    if ($Before.Contains('clock') -or $After.Contains('clock')) {
+        if (-not $Before.Contains('clock') -or -not $After.Contains('clock')) { throw 'Unmatched fixture: clock diagnostics' }
+        foreach ($key in @('name', 'implementation', 'ticksPerSecond', 'tickNanoseconds', 'nominalPeriodNanoseconds')) {
+            if (-not (Test-SameJsonValue $Before['clock'][$key] $After['clock'][$key])) { throw "Unmatched fixture: clock/$key" }
+        }
     }
 }
 

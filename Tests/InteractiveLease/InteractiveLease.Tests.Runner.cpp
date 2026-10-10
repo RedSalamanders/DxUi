@@ -103,9 +103,66 @@ public:
         return _banner.BeginHostedActivationPatch();
     }
 
+    [[nodiscard]] bool NoMouseCapture() const noexcept
+    {
+        // GetCapture only sees this thread. A foreign foreground window's capture overrides WindowFromPoint targeting.
+        const HWND foreground = GetForegroundWindow();
+        const DWORD thread    = foreground != nullptr ? GetWindowThreadProcessId(foreground, nullptr) : 0u;
+        GUITHREADINFO info{sizeof(GUITHREADINFO)};
+        return thread != 0u && GetGUIThreadInfo(thread, &info) != FALSE && info.hwndCapture == nullptr && GetCapture() == nullptr &&
+               GetForegroundWindow() == foreground;
+    }
+
     [[nodiscard]] bool WarningOwnsPoint() const noexcept
     {
-        return _banner.HostedActivationOwnsPoint();
+        POINT point{};
+        const bool ready   = _banner.HostedActivationPoint(point);
+        const HWND hit     = ready ? WindowFromPoint(point) : nullptr;
+        const HWND warning = _banner.Window();
+        if (ready && hit == warning)
+            return true;
+        // Read-only failure evidence: no screenshot, pointer movement, or input. Fixed buffers avoid exception boundaries.
+        wchar_t hitClass[256]{}, foregroundClass[256]{};
+        DWORD hitProcess = 0u;
+        static_cast<void>(GetWindowThreadProcessId(hit, &hitProcess));
+        static_cast<void>(GetClassNameW(hit, hitClass, static_cast<int>(std::size(hitClass))));
+        static_cast<void>(GetClassNameW(GetForegroundWindow(), foregroundClass, static_cast<int>(std::size(foregroundClass))));
+        RECT windowRect{}, clientRect{}, regionRect{};
+        static_cast<void>(GetWindowRect(warning, &windowRect));
+        static_cast<void>(GetClientRect(warning, &clientRect));
+        wil::unique_hrgn region(CreateRectRgn(0, 0, 0, 0));
+        const int regionType = region ? GetWindowRgn(warning, region.get()) : ERROR;
+        if (regionType != ERROR)
+            static_cast<void>(GetRgnBox(region.get(), &regionRect));
+        std::printf("[LEASE] warning target refused: ready=%d point=%ld,%ld hit=%p class=%ls process=%lu warning=%p visible=%d enabled=%d "
+                    "style=0x%llx dpi=%u window=%ld,%ld,%ld,%ld client=%ld,%ld,%ld,%ld region=%d/%ld,%ld,%ld,%ld foregroundClass=%ls\n",
+                    ready ? 1 : 0,
+                    point.x,
+                    point.y,
+                    static_cast<void*>(hit),
+                    hitClass,
+                    hitProcess,
+                    static_cast<void*>(warning),
+                    IsWindowVisible(warning),
+                    IsWindowEnabled(warning),
+                    static_cast<unsigned long long>(GetWindowLongPtrW(warning, GWL_EXSTYLE)),
+                    GetDpiForWindow(warning),
+                    windowRect.left,
+                    windowRect.top,
+                    windowRect.right,
+                    windowRect.bottom,
+                    clientRect.left,
+                    clientRect.top,
+                    clientRect.right,
+                    clientRect.bottom,
+                    regionType,
+                    regionRect.left,
+                    regionRect.top,
+                    regionRect.right,
+                    regionRect.bottom,
+                    foregroundClass);
+        std::fflush(stdout);
+        return false;
     }
 
     [[nodiscard]] bool PlacePointerAndVerify() noexcept
@@ -545,6 +602,8 @@ private:
             AuthorizationLost,
             HeldMouse,
             MouseHeldBeforeDown,
+            CaptureActive,
+            CaptureBeforeDown,
             BeginPatch,
             FirstHitTest,
             Pointer,
@@ -565,6 +624,7 @@ private:
         int pumps          = 0;
         int authorizations = 0;
         int buttonChecks   = 0;
+        int captureChecks  = 0;
         bool began         = false;
         bool ended         = false;
 
@@ -582,6 +642,11 @@ private:
         {
             began = failure != Failure::BeginPatch;
             return began;
+        }
+        [[nodiscard]] bool NoMouseCapture() noexcept
+        {
+            ++captureChecks;
+            return failure != Failure::CaptureActive && (failure != Failure::CaptureBeforeDown || captureChecks != 2);
         }
         [[nodiscard]] bool WarningOwnsPoint() noexcept
         {
@@ -652,6 +717,8 @@ private:
         checkFailure(FakeHostedInputOperations::Failure::Unauthorized, IL::HostedWarningInputFailure::HostedAuthorizationLost, 0, false);
         checkFailure(FakeHostedInputOperations::Failure::AuthorizationLost, IL::HostedWarningInputFailure::HostedAuthorizationLost, 0, true);
         checkFailure(FakeHostedInputOperations::Failure::MouseHeldBeforeDown, IL::HostedWarningInputFailure::MouseButtonHeld, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::CaptureActive, IL::HostedWarningInputFailure::MouseCaptureActive, 0, false);
+        checkFailure(FakeHostedInputOperations::Failure::CaptureBeforeDown, IL::HostedWarningInputFailure::MouseCaptureActive, 0, true);
         checkFailure(FakeHostedInputOperations::Failure::FirstHitTest, IL::HostedWarningInputFailure::WarningDoesNotOwnPoint, 0, true);
         checkFailure(FakeHostedInputOperations::Failure::Pointer, IL::HostedWarningInputFailure::PointerMoveFailed, 0, true);
         checkFailure(FakeHostedInputOperations::Failure::SecondHitTest, IL::HostedWarningInputFailure::WarningDoesNotOwnPoint, 0, true);
@@ -772,8 +839,8 @@ private:
             const bool patchStarted = banner.BeginHostedActivationPatch();
             Check(patchStarted, "the hosted-only activation patch can be exposed on the private desktop");
             const LONG_PTR patchStyle = GetWindowLongPtrW(window, GWL_EXSTYLE);
-            const bool pointReady =
-                patchStarted && (patchStyle & WS_EX_TRANSPARENT) == 0 && banner.HostedActivationPoint(patchPoint) && WindowFromPoint(patchPoint) == window;
+            const bool pointReady     = patchStarted && (patchStyle & (WS_EX_TRANSPARENT | WS_EX_LAYERED)) == 0 && banner.HostedActivationPoint(patchPoint) &&
+                                        WindowFromPoint(patchPoint) == window;
             Check(pointReady, "the temporary patch is a visible input target owned by the warning");
             const HWND foregroundBeforePatchTests = GetForegroundWindow();
             POINT outsidePoint{};
@@ -812,6 +879,12 @@ private:
                   "the restored warning has no input acknowledgment or activation patch");
             wil::unique_hrgn restoredRegion(CreateRectRgn(0, 0, 0, 0));
             Check(restoredRegion && GetWindowRgn(window, restoredRegion.get()) == ERROR, "the restored warning has its full ordinary window shape");
+            COLORREF restoredColorKey{};
+            BYTE restoredAlpha{};
+            DWORD restoredLayeredFlags{};
+            Check(GetLayeredWindowAttributes(window, &restoredColorKey, &restoredAlpha, &restoredLayeredFlags) != FALSE && restoredColorKey == 0 &&
+                      restoredAlpha == 235 && restoredLayeredFlags == LWA_ALPHA,
+                  "ending hosted recovery restores and reads back the original layered alpha attributes");
             const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
             while (std::chrono::steady_clock::now() < until)
             {

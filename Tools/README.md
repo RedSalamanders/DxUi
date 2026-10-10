@@ -57,6 +57,12 @@ behavior and exact-budget findings. Unstable or flagged controls leave the affec
 require a quiet-host rerun. This manual evidence review has no automatic numeric A/A threshold; A/A cannot qualify
 a pull request.
 
+New complex-UI receipts preserve forty ordered frame/preparation/composition samples per round and report QPC
+frequency/counter ticks separately from the C++ clock's nominal period. The comparator checks their completeness
+and their agreement with the unchanged FPS/percentiles; archived receipts without the diagnostic fields remain
+readable. These fields help investigate quantization in very short no-op preparation and add no acceptance metric,
+threshold or policy qualification. A changed comparator source still requires renewed source-identity review.
+
 Policy seeding is a separate review and governance step. A qualified base policy binds a judge version and its
 normalized source SHA-256, assignment protocol and normalized `PairedRun.psm1` source SHA-256. The candidate judge and
 assignment generator must match those approved identities, even when both judges return the same labels. A scheduler
@@ -94,6 +100,7 @@ time; the whole contract is in the [validation contract](../Specs/Testing/Testin
 
 The separately verified GitHub-hosted mode uses the same restoring lease. A refused ordinary warning activation can
 try a bounded click on its own temporarily clipped input patch, after exact authorization, held-button and target checks.
+Before moving the pointer and again before button-down, it rejects active or unreadable capture on the foreground/lease thread.
 The lease observes the matching release, actual foreground and restored style/window region before starting a child;
 every failure remains a failed run. Native self-tests exercise targeting and cleanup on a private desktop without
 moving the person's pointer or taking focus. Hosted input acceptance requires fresh hosted execution.
