@@ -7,7 +7,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 
 | Control | Configure and use |
 | --- | --- |
-| Panel | Own children with `AddChild<T>`; set explicit child bounds. Use as the root for fixed layouts. `GetChildren()` exposes the owning pointers: move a child out to give it to `SetRoot` or `PageHost::SetPage` (its slot stays empty and is skipped) and it is told the flow direction and density its new place gives it. |
+| Panel | Own children with `AddChild<T>`; set explicit child bounds. Transfer ownership with `TakeChild(index)`, which clears host/parent links and leaves an empty slot while preserving inherited settings. Check for an empty return before giving the child to `SetRoot` or `PageHost::SetPage`; interaction callbacks may cancel extraction. |
 | PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. If a paint callback replaces the page, that frame is discarded and the next preparation applies its bounds before painting. |
 | CardPanel | A Panel with themed card chrome; position child bounds in host DIPs, including the card's origin. |
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
@@ -22,7 +22,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. Painted chrome is a 6 DIP track, a 24 DIP gray disc, and an accent inner thumb (14 DIP rest, 20 hover, 16 pressed); while a touch contact drags it, a 48 DIP translucent accent halo shows around the finger (an opaque ring in high contrast), clipped to Slider bounds and active ancestor/viewport/host clips. Give the control 48 DIP of cross-axis room to reveal the full halo and keep neighboring content outside its bounds; popup/menu overlays paint above it. Embedded hosts pass the contact's `PointerEvent::device` for it. Pointer hit testing stays within the declared control bounds; its unpainted 48 DIP band is clipped when the Slider is shorter. A press within 24 DIP of the thumb center drags, otherwise the track seeks. Capture keeps dragging outside the bounds; cancellation restores the starting value. Hover, press and keyboard steps animate; `SetValue` snaps even when acknowledging the same target. Non-finite ranges, values and steps are ignored. |
 | Toolbar | Panel for command controls; populate buttons with labels, bounds and actions. |
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
-| TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. |
+| TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
 | TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. A multiline field draws its caret only inside its text viewport: on a partly visible line it is cut at the viewport's edge, and scrolled out of view it is not drawn. |
 | ComboBox | Supply `Item` records with `SetItems`; use `SetOnSelectionChanged`, text/submission callbacks and popup requests for editable selection. For touch, call `SetMinimumPopupItemHeight(48.0f)`; the gallery Modern open variant uses it. |
@@ -271,6 +271,9 @@ PageHost pages inherit density and flow direction through their PageHost, includ
 Panel, PageHost and tab layout revalidate children after mutation callbacks. `AddChild`/`AddTab` return null if a
 callback retires their owner or the new child. `ClearChildren` clears the children owned at entry; reentrant additions
 remain in the live panel.
+`TakeChild`/`TakeTab` stop when focus/capture cleanup moves their live owner to another host or restores interaction
+inside the requested branch. An empty return preserves that callback's ownership, focus, capture and tab metadata.
+Legacy mutable owning spans remain available for compatibility; use the extraction APIs for ownership transfers.
 Explicit page overrides still take precedence. A child promoted to the host root snapshots its previous inherited
 values before reset callbacks can retire its old parent. Overlay dismissal stops traversing a retired container.
 

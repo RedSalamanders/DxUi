@@ -1289,13 +1289,25 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     ControlHost* const host                = GetHost();
     if (host)
     {
+        const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
         if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
             host->CancelCapturedControlInteraction();
-        if (ownerLifetime.expired() || childLifetime.expired())
+        if (ownerLifetime.expired() || childLifetime.expired() || GetHost() != host)
+            return {};
+        // Cancellation can choose newer focus (including reaffirming it) or start another gesture.
+        if (Control* focused = host->GetFocusControl();
+            host->_focusRequestRevision != focusBeforeCancellation && focused && IsControlInTree(requested, focused))
+            return {};
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
             return {};
         if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(requested, focused))
             host->SetFocusControl(nullptr);
-        if (ownerLifetime.expired() || childLifetime.expired())
+        if (ownerLifetime.expired() || childLifetime.expired() || GetHost() != host)
+            return {};
+        // Preserve focus/capture restored by the callback instead of detaching its live target.
+        if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(requested, focused))
+            return {};
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
             return {};
     }
 
@@ -7222,8 +7234,14 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
     {
         if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
         {
+            const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
             host->CancelCapturedControlInteraction();
-            if (controlLifetime.expired() || pageLifetime.expired())
+            if (controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
+                return false;
+            if (Control* focused = host->GetFocusControl();
+                host->_focusRequestRevision != focusBeforeCancellation && focused && ControlBelongsToBranch(page, focused))
+                return false;
+            if (Control* restoredCapture = host->GetCapturedControl(); restoredCapture && ControlBelongsToBranch(page, restoredCapture))
                 return false;
             currentIndex = FindTabIndex(page, pageLifetime);
             if (! currentIndex)
@@ -7232,7 +7250,7 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
         if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
         {
             // A focus callback may destroy the TabControl, remove the requested page, or shift it among its siblings.
-            if (! FocusControlAndSurvive(*host, *this) || controlLifetime.expired() || pageLifetime.expired())
+            if (! FocusControlAndSurvive(*host, *this) || controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
             {
                 return false;
             }
@@ -7242,6 +7260,10 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
                 return false;
             }
         }
+        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
+            return false;
+        if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
+            return false;
     }
 
     auto& children                       = AccessChildren();

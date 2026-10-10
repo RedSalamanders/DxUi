@@ -1888,3 +1888,50 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   Separate affected Tooling67/format checks and clean committed `76373d4` Linux68 validation/tooling pass; new hosted
   consumer execution remains pending. The cancelled broader affected run supplies no validation pass. All archives
   are independently reopened against original SHA/length; no native, physical, policy-seeding or adoption gate is closed.
+- A final Q1 surrounding-code audit independently confirms another extraction gap: a focus callback can move a live
+  Panel/TabControl to a second host and focus its requested child/page, while the old extraction still detaches that
+  branch. A newer same-host focus restoration has the same failure. The lead's first regression fixture failed to
+  compile because it used a protected getter; the corrected fixture then fails the intended assertions on the
+  unchanged implementation. The retained Control baseline passes before implementation. Both extraction paths now
+  stop if cleanup changes their owner host or restores requested-branch focus/capture; tab metadata stays intact.
+  Four focus/capture host-transfer cases and two cases each for same-host focus/capture restoration are added.
+  A read-only reviewer identifies focus chosen during capture cancellation as another ordering boundary. The lead
+  guards the existing private focus-request revision, preserving changed or reaffirmed branch focus, with four
+  additional cases. The first green build also rejects a fixture's private cleanup call; use synthetic WM_CANCELMODE
+  through the public message handler instead. Neither fixture compile failure is passing runtime evidence.
+  Owning architecture/public guidance and the changelog are updated. This is a behavior-only change with no gallery
+  visual change; affected native/profile checks and a paired retained-baseline comparison remain required.
+- The extraction follow-up passes eleven whole local scopes: Control in x64 Debug, and Control/EditorControls/
+  Embedded/WindowHost/Accessibility in x64 Release and ASan Debug, with zero skips and a detected sanitizer probe.
+  The lead independently recomputes compiled-input, build, scope, environment and actual executable identities;
+  all four new test functions complete in all three profiles, covering twelve transfer/restoration scenarios.
+  All five repository validators, the complete tooling suite and formatting pass. These are focused iteration
+  results; renewed six-profile hosted qualification is still required for the changed native source.
+- The original extraction pre-change Default/Debug baseline is retained. The initial candidate's clean FPS drops
+  35.39%; two unchanged-executable repeats drop 13.70% and 15.95%, with other timing/memory flags also retained.
+  The lead reproduces 300 timing fields from 7200 ordered samples across baseline, candidate, repeats and the
+  Release/ASan test benchmarks. The unchanged Default fixture does not invoke either modified extraction path,
+  so a direct call cost is not demonstrated; binary layout or host variation is not excluded. A brief process
+  observation cannot establish a quiet calibrated host. Recommend an interleaved same-harness comparison with
+  its same-binary controls, followed by controlled-host profiling if the flags remain. No acceptance, baseline
+  replacement or threshold relaxation is inferred from the repeats; the paired follow-up remains pending.
+- [Extraction follow-up 70](../../../Measurements/Review-2026-10-09/ExtractionFollowup70/README.md) retains the
+  original baseline/red/green source and runtime evidence, exact-source local audits and complete twelve-block
+  Default/Debug comparison. The lead independently verifies 48 receipts, 480 rounds, thirteen harness hashes,
+  actual tested candidate binary, 26 migrated decisions and 2400 fields from 57600 ordered samples. The original
+  baseline library fingerprint is unchanged despite the explicit harness overlay. The migrated judge has no flags,
+  but the independently reproduced legacy dirty working-set/peak medians rise 2.3109%/2.3147% (about 1.05 MB).
+  Paired effects are 1.6159%/1.6086%, raw probabilities 0.07666/0.07861 and Holm probabilities 1. All 24 controls
+  and 18 timing/memory cells are unstable; exact budgets remain stable. Keep these flags and the initial timing
+  flags open, retain bands/workloads, and hold acceptance for controlled-host calibration and residency profiling.
+  Neither the local diagnostic's zero exit nor this unqualified candidate policy establishes non-regression.
+- [Independent consumer qualification follow-up 71](../../../Measurements/Review-2026-10-09/IndependentConsumerQualificationFollowup71/README.md)
+  seals completed frozen head `65476a8`/merge `005618c`, run 38014088297. All x64 profiles pass 21 suites and both
+  Release resource fixtures; ARM64 builds/passes 19 noninteractive suites but refuses its two foreground leases.
+  All eight exact-pin/API 4 relocated consumer cases now execute and pass independently, including both ASan
+  annotation variants on each architecture. The lead verifies 126 suite/log pairs, eight consumers, 350 native
+  timing fields and actual merge/head tree equality. Its paired study independently verifies 144 receipts,
+  1440 rounds, thirteen harness hashes, 78 decisions and 7200 fields; both judges have zero flags on this run.
+  Controls remain unstable in 69/72 cases with 41/54 timing/memory excursions, and the official policy/aggregate
+  gate still fails. Earlier Grid flags remain unresolved. All archive entries are reopened against original
+  SHA/length; no native evidence from this preceding source qualifies the later extraction repair.

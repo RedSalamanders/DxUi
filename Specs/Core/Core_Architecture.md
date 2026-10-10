@@ -47,7 +47,9 @@ Revision 4 adds ownership-safe extraction. `Panel::TakeChild` cancels branch cap
 leaves an empty logical slot, clears host/parent links, and preserves effective inherited flow/density without making
 them explicit overrides. Adoption into a new owner resumes inheritance from that owner. `TabControl::TakeTab`
 and its virtual `TakeChild` also remove matching tab metadata and reconcile selection; virtual `ClearChildren`
-clears tab metadata together with pages. Legacy mutable owning spans remain a compatibility surface; arbitrary
+clears tab metadata together with pages. Extraction/removal stops without changing ownership or tab metadata when
+a capture/focus callback moves its live owner to another host or restores focus/capture inside the requested branch.
+The newer callback state is preserved; extraction returns empty in that case. Legacy mutable owning spans remain a compatibility surface; arbitrary
 slot rearrangement and tab extraction through those slots are unsupported. Application callbacks may retire or
 replace a control tree, so callers revalidate both owner and borrowed-model lifetimes after every external callback
 and callable-capture cleanup. Physical retirement at a dispatch boundary remains an evaluation, not a promise that

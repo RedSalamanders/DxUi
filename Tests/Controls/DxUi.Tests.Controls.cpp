@@ -142,6 +142,165 @@ void TestTabTakeChildKeepsMetadataAndSelectionCoherent()
             "polymorphic clear removes tab metadata as well as its pages");
 }
 
+void TestChildAndTabExtractionPreservesReentrantHostTransfer()
+{
+    using namespace DxUi;
+    for (const bool tabPage : {false, true})
+    {
+        for (const bool transferDuringCapture : {false, true})
+        {
+            WindowHost source;
+            WindowHost destination;
+            auto root    = std::make_unique<Panel>();
+            auto* outer  = root.get();
+            Panel* owner = tabPage ? static_cast<Panel*>(outer->AddChild<TabControl>()) : outer->AddChild<Panel>();
+            auto* tabs   = dynamic_cast<TabControl*>(owner);
+            Panel* page  = tabs ? tabs->AddTab<Panel>(L"Moved page") : owner->AddChild<Panel>();
+            auto* slider = page->AddChild<Slider>();
+            source.SetRoot(std::move(root));
+            page->SetBounds(D2D1::RectF(0, 32, 300, 160));
+            slider->SetBounds(D2D1::RectF(0, 40, 240, 80));
+            source.SetFocusControl(slider, false);
+            bool moved           = false;
+            const auto moveOwner = [&]
+            {
+                if (moved)
+                    return;
+                moved = true;
+                destination.SetRoot(outer->TakeChild(0u));
+                destination.SetFocusControl(slider, false);
+            };
+            if (transferDuringCapture)
+            {
+                slider->SetOnChange([&](SliderChange change)
+                {
+                    if (change.phase == SliderChangePhase::Cancel)
+                        moveOwner();
+                });
+                Require(slider->OnMouseDown(source, D2D1::Point2F(180, 60), false, 0u), "transfer fixture begins a captured draft");
+            }
+            else
+            {
+                source.SetOnFocusChanged([&](Control* focused)
+                {
+                    if (focused != slider)
+                        moveOwner();
+                });
+            }
+            auto extracted = owner->TakeChild(0u);
+            const bool preserved =
+                moved && ! extracted && destination.GetRoot() == owner && owner->GetLogicalChild(0u) == page && destination.GetFocusControl() == slider;
+            source.SetOnFocusChanged({});
+            slider->SetOnChange({});
+            destination.SetFocusControl(nullptr, false);
+            Require(preserved, "extraction stops when a callback transfers its live owner and focuses the requested branch in another host");
+            Require(! tabs || (tabs->GetTabCount() == 1u && tabs->GetSelectedIndex() == std::optional<size_t>{0u}),
+                    "aborted tab extraction preserves page metadata and selection");
+        }
+    }
+}
+
+void TestChildAndTabExtractionPreservesReentrantFocusRestoration()
+{
+    using namespace DxUi;
+    for (const bool tabPage : {false, true})
+    {
+        WindowHost host;
+        std::unique_ptr<Panel> root = tabPage ? std::unique_ptr<Panel>(std::make_unique<TabControl>()) : std::make_unique<Panel>();
+        auto* owner                 = root.get();
+        auto* tabs                  = dynamic_cast<TabControl*>(owner);
+        Panel* page                 = tabs ? tabs->AddTab<Panel>(L"Retained page") : owner->AddChild<Panel>();
+        auto* child                 = page->AddChild<Button>(L"Retained focus");
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(child, false);
+        bool restored = false;
+        host.SetOnFocusChanged([&](Control* focused)
+        {
+            if (! restored && focused != child)
+            {
+                restored = true;
+                host.SetFocusControl(child, false);
+            }
+        });
+        auto extracted       = owner->TakeChild(0u);
+        const bool preserved = restored && ! extracted && owner->GetLogicalChild(0u) == page && host.GetFocusControl() == child;
+        host.SetOnFocusChanged({});
+        host.SetFocusControl(nullptr, false);
+        Require(preserved, "extraction preserves a newer callback's decision to focus the requested branch in the same host");
+    }
+}
+
+void TestChildAndTabExtractionPreservesReentrantCaptureRestoration()
+{
+    using namespace DxUi;
+    for (const bool tabPage : {false, true})
+    {
+        WindowHost host;
+        std::unique_ptr<Panel> root = tabPage ? std::unique_ptr<Panel>(std::make_unique<TabControl>()) : std::make_unique<Panel>();
+        auto* owner                 = root.get();
+        auto* tabs                  = dynamic_cast<TabControl*>(owner);
+        Panel* page                 = tabs ? tabs->AddTab<Panel>(L"Retained gesture") : owner->AddChild<Panel>();
+        auto* slider                = page->AddChild<Slider>();
+        host.SetRoot(std::move(root));
+        page->SetBounds(D2D1::RectF(0, 32, 300, 160));
+        slider->SetBounds(D2D1::RectF(0, 40, 240, 80));
+        bool restored = false;
+        slider->SetOnChange([&](SliderChange change)
+        {
+            if (! restored && change.phase == SliderChangePhase::Cancel)
+            {
+                restored = true;
+                static_cast<void>(slider->OnMouseDown(host, D2D1::Point2F(200, 60), false, 0u));
+            }
+        });
+        Require(slider->OnMouseDown(host, D2D1::Point2F(180, 60), false, 0u), "restoration fixture begins a captured draft");
+        auto extracted       = owner->TakeChild(0u);
+        const bool preserved = restored && ! extracted && owner->GetLogicalChild(0u) == page && host.GetCapturedControl() == slider;
+        slider->SetOnChange({});
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_CANCELMODE, 0u, 0, handled));
+        Require(preserved, "extraction preserves a newer gesture started by its cancellation callback");
+    }
+}
+
+void TestChildAndTabExtractionPreservesFocusChosenDuringCaptureCancellation()
+{
+    using namespace DxUi;
+    for (const bool tabPage : {false, true})
+    {
+        for (const bool reaffirmFocus : {false, true})
+        {
+            WindowHost host;
+            std::unique_ptr<Panel> root = tabPage ? std::unique_ptr<Panel>(std::make_unique<TabControl>()) : std::make_unique<Panel>();
+            auto* owner                 = root.get();
+            auto* tabs                  = dynamic_cast<TabControl*>(owner);
+            Panel* page                 = tabs ? tabs->AddTab<Panel>(L"Retained focus") : owner->AddChild<Panel>();
+            auto* slider                = page->AddChild<Slider>();
+            auto* alternate             = page->AddChild<Button>(L"Callback focus");
+            Control* chosen             = reaffirmFocus ? static_cast<Control*>(slider) : alternate;
+            host.SetRoot(std::move(root));
+            page->SetBounds(D2D1::RectF(0, 32, 300, 160));
+            slider->SetBounds(D2D1::RectF(0, 40, 240, 80));
+            host.SetFocusControl(slider, false);
+            bool choseFocus = false;
+            slider->SetOnChange([&](SliderChange change)
+            {
+                if (change.phase == SliderChangePhase::Cancel)
+                {
+                    choseFocus = true;
+                    host.SetFocusControl(chosen, false);
+                }
+            });
+            Require(slider->OnMouseDown(host, D2D1::Point2F(180, 60), false, 0u), "focus-choice fixture begins a captured draft");
+            auto extracted       = owner->TakeChild(0u);
+            const bool preserved = choseFocus && ! extracted && owner->GetLogicalChild(0u) == page && host.GetFocusControl() == chosen;
+            slider->SetOnChange({});
+            host.SetFocusControl(nullptr, false);
+            Require(preserved, "extraction preserves a newer focus request inside its branch during capture cancellation");
+        }
+    }
+}
+
 void TestChildAndTabExtractionCancelLiveSliderDrafts()
 {
     using namespace DxUi;
@@ -2758,6 +2917,10 @@ void RunControlTests()
     DXUI_RUN_TEST(TestPanelTakeChildPreservesInheritanceAndReparentsSafely);
     DXUI_RUN_TEST(TestPanelTakeChildRevalidatesAfterFocusRetirement);
     DXUI_RUN_TEST(TestTabTakeChildKeepsMetadataAndSelectionCoherent);
+    DXUI_RUN_TEST(TestChildAndTabExtractionPreservesReentrantHostTransfer);
+    DXUI_RUN_TEST(TestChildAndTabExtractionPreservesReentrantFocusRestoration);
+    DXUI_RUN_TEST(TestChildAndTabExtractionPreservesReentrantCaptureRestoration);
+    DXUI_RUN_TEST(TestChildAndTabExtractionPreservesFocusChosenDuringCaptureCancellation);
     DXUI_RUN_TEST(TestChildAndTabExtractionCancelLiveSliderDrafts);
     DXUI_RUN_TEST(TestPanelExtractionRevalidatesAfterCaptureCancellationRetiresOwner);
     DXUI_RUN_TEST(TestPanelOverlayDismissalCanRetireItsOwner);

@@ -1708,6 +1708,7 @@ public:
 
     virtual void ClearChildren() noexcept;
     // Transfer ownership through this API. It leaves a null slot, detaches the child and retains inherited settings.
+    // Returns empty if an interaction callback moves the owner to another host or restores branch focus/capture.
     [[nodiscard]] virtual std::unique_ptr<Control> TakeChild(size_t index) noexcept;
     [[nodiscard]] size_t DebugChildCount() const noexcept
     {
