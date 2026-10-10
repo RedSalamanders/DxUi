@@ -6883,9 +6883,18 @@ HRESULT AccessibilityProvider::GetItem(int row, int column, IRawElementProviderS
                 return UIA_E_ELEMENTNOTAVAILABLE;
             }
         }
+        HoldAccessibilityPeerCreationForTest(_hwnd);
         wil::com_ptr_nothrow<IRawElementProviderFragment> cellProvider;
-        cellProvider.attach(CreateGridCellProvider(
-            gridPath, rowId, static_cast<size_t>(column), AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity}));
+        // Keep the assignment that supplied this row lookup. Recapturing in the ordinary cell factory could bind
+        // the old row id to a newer model assignment published by the owner while a cached foreign query runs.
+        cellProvider.attach(MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
+            AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity},
+            _hwnd,
+            gridPath,
+            rowId,
+            static_cast<size_t>(column),
+            gridModelIdentity,
+            gridModelAssignmentGeneration));
         return cellProvider ? cellProvider->QueryInterface(IID_PPV_ARGS(outProvider)) : E_OUTOFMEMORY;
     }
     catch (const std::bad_alloc&)

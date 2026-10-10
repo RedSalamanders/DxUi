@@ -525,7 +525,9 @@ publishes them in an immutable snapshot. It does not
 scroll, select, or focus the row. The host retains at most the 16 most recently materialized offscreen rows;
 when a row is evicted, retained cell providers return `UIA_E_ELEMENTNOTAVAILABLE` rather than resolving
 through a changed row id. A grid's model-assignment generation is part of that identity, so reassigning a model
-at the same address invalidates row and cell providers from the previous assignment. Visible and selected rows continue to use
+at the same address invalidates row and cell providers from the previous assignment. A cached `GetItem` query binds
+its returned cell to the assignment that supplied the row lookup; concurrent reassignment cannot make that cell adopt
+the replacement model. Visible and selected rows continue to use
 the existing snapshot paths and limits. Out-of-range row or column indices return `E_INVALIDARG`.
 Requested-row capture uses the same borrowed-model, geometry and publication revision guards as ordinary snapshots.
 A callback that changes the same model can abandon that request with `UIA_E_ELEMENTNOTAVAILABLE`; a fresh request

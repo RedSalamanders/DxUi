@@ -7,4 +7,5 @@ void TestGridUiaPatternRetriesSupersededSameAddressCapture();
 void TestGridUiaPatternStopsWhenCellReadNotifiesSameModel();
 void TestGridUiaPatternStopsPointHitsAfterModelReplacement();
 void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment();
+void TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation();
 void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary();

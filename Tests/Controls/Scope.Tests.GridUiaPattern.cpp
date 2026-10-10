@@ -574,6 +574,60 @@ void TestGridUiaPatternStopsPointHitsAfterModelReplacement()
             "point-hit capture does not overwrite the replacement model's nested publication");
 }
 
+void TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    GridUiaPatternModel model(2u);
+    Grid* grid = nullptr;
+    AttachGrid(window, model, grid);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IGridProvider> pattern;
+    RequireSucceeded(root.query_to(pattern.put()), "cached-cell race obtains GridPattern");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> cachedCell;
+    RequireSucceeded(pattern->GetItem(0, 0, cachedCell.put()), "cache the row before the peer-creation race");
+    wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release, "create cached-cell race events");
+    DebugSetAccessibilityPeerCreationGateForTest(window.Hwnd(), entered.get(), release.get());
+    std::atomic<HRESULT> workerResult{E_PENDING};
+    wil::com_ptr_nothrow<IRawElementProviderSimple> racedCell;
+    std::jthread worker;
+    bool gateArmed     = true;
+    const auto cleanup = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(SetEvent(release.get()));
+        if (worker.joinable())
+            worker.join();
+        if (gateArmed)
+            DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    });
+    worker             = std::jthread([&]() noexcept { workerResult.store(pattern->GetItem(0, 0, racedCell.put()), std::memory_order_release); });
+    Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, "pause cached GetItem after its row lookup");
+    model.SetContentRevision(1u);
+    grid->SetModel(&model);
+    grid->NotifyDataChanged();
+    window.Host().RefreshAccessibilitySnapshot();
+    int rowCount = 0;
+    RequireSucceeded(pattern->get_RowCount(&rowCount), "publish a new assignment at the same model address before peer creation resumes");
+    Require(SetEvent(release.get()) != FALSE, "resume the cached-cell query");
+    worker.join();
+    DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    gateArmed = false;
+    RequireSucceeded(workerResult.load(std::memory_order_acquire), "the raced query returns its original-assignment peer");
+    Require(racedCell != nullptr, "the raced query produced a cell");
+    VARIANT name{};
+    VariantInit(&name);
+    const HRESULT staleResult = racedCell->GetPropertyValue(UIA_NamePropertyId, &name);
+    VariantClear(&name);
+    Require(staleResult == UIA_E_ELEMENTNOTAVAILABLE, "a cached GetItem cannot adopt a newer model assignment during peer creation");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> currentCell;
+    RequireSucceeded(pattern->GetItem(0, 0, currentCell.put()), "a fresh query resolves the current assignment");
+    Require(ReadGridCellName(*currentCell) == L"revision-1-row-0-name", "the fresh query reads the new assignment's content");
+}
+
 void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment()
 {
     using namespace DxUi;

@@ -10127,6 +10127,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadNotifiesSameModel);
     DXUI_RUN_TEST(TestGridUiaPatternStopsPointHitsAfterModelReplacement);
     DXUI_RUN_TEST(TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment);
+    DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation);
     DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
