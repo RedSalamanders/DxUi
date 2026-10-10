@@ -13,8 +13,9 @@ $schedule = @(for ($block = 0; $block -lt 3; $block++) {
         [ordered]@{ block=$block; scenario=$(if ($slot % 2) { 'MultilineGrid' } else { 'Default' }); heap=($slot -ge 2) }
     }
 })
-Import-Module (Join-Path $RepositoryRoot 'Tools/PerformancePolicy.psm1') -Force
 Import-Module (Join-Path $RepositoryRoot 'Tools/PerformanceProfiling.psm1') -Force
+# Profiling force-loads its policy dependency; expose that current module to this caller afterward.
+Import-Module (Join-Path $RepositoryRoot 'Tools/PerformancePolicy.psm1')
 $anchor = Get-ProfilingMeasurementState -Root $RepositoryRoot -Platform x64 -Configuration Release
 $started = [DateTime]::UtcNow
 $plan = [ordered]@{ purpose='bounded-diagnostic-only'; sourceCommit=$anchor.sourceCommit; executableSha256=$anchor.executableSha256; anchor=$anchor

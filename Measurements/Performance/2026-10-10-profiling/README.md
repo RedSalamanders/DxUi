@@ -29,6 +29,12 @@ canceled, no elevation or machine policy was changed, and no workload trace was 
 
 ## Diagnostic pilot and limits
 
+The [first driver attempt](attempt-80c34c9f-stopped/README.md) stopped after one successful native report because
+the caller lost the policy guard during module imports. Its original one-attempt/eleven-unattempted completion
+and exact report remain intact. `Test-DriverImports.ps1` reproduces that defect in all three affected batch/analysis
+drivers, then checks both equal-identity acceptance and changed-identity rejection after the import correction.
+The corrected driver uses a separately declared fixed inventory; no failed attempt or outlier is silently replaced.
+
 The separate opt-in fixture uses the library-owned synthetic scene, fixed warm-up checkpoints, bounded phase
 snapshots and heap-off/on profiles. Its native report and stamped provenance must remain distinct from canonical
 acceptance reports. Heap totals cannot identify exact component ownership; process/thread counters cannot prove

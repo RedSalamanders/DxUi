@@ -7,8 +7,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Use a fresh UIA output directory; preserve previous evidence.' }
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
-Import-Module (Join-Path $RepositoryRoot 'Tools/PerformancePolicy.psm1') -Force
 Import-Module (Join-Path $RepositoryRoot 'Tools/PerformanceProfiling.psm1') -Force
+Import-Module (Join-Path $RepositoryRoot 'Tools/PerformancePolicy.psm1')
 $before = Get-ProfilingMeasurementState -Root $RepositoryRoot -Platform x64 -Configuration 'ASan Debug'
 $exe = Join-Path $RepositoryRoot '.build/x64/ASan Debug/DxUi.ControlTests.exe'
 $exeHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash

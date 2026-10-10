@@ -56,8 +56,8 @@ $analysis = [ordered]@{ purpose='descriptive-bounded-pilot'; qualification='not-
 $diagnosticDirectory = Join-Path $PacketRoot 'diagnostic'
 if (Test-Path -LiteralPath $diagnosticDirectory -PathType Container) {
     $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
-    Import-Module (Join-Path $repositoryRoot 'Tools/PerformancePolicy.psm1') -Force
     Import-Module (Join-Path $repositoryRoot 'Tools/PerformanceProfiling.psm1') -Force
+    Import-Module (Join-Path $repositoryRoot 'Tools/PerformancePolicy.psm1')
     $diagnosticPlan = Get-Content -LiteralPath (Join-Path $diagnosticDirectory 'pilot-plan.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
     $completion = Get-Content -LiteralPath (Join-Path $diagnosticDirectory 'pilot-completion.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
     if ($diagnosticPlan.reportBudget -ne 12 -or $diagnosticPlan.acceptance -cne 'not-established' -or

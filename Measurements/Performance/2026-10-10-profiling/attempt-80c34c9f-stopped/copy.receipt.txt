@@ -1,0 +1,50 @@
+[
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\pilot-completion.json",
+    "retained": "pilot-completion.receipt.txt",
+    "length": 645,
+    "sha256": "2CB34D44354E49C96448718860ACCFFCFA3C5F9F6A567801878384A4F43781B1"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\pilot-plan.json",
+    "retained": "pilot-plan.receipt.txt",
+    "length": 5500,
+    "sha256": "8BCF59053E6F481A05EB88C4B8AE0898AFCF6A1F294675BA432EC7A8E539E3B9"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.json",
+    "retained": "profile-01-Default-NoHeap.json",
+    "length": 376056,
+    "sha256": "022CC584650C110FC5F673E4FEF3E448EA2B48922DB200811477C17CD5DB1AAE"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.json.child.json",
+    "retained": "profile-01-Default-NoHeap.json.child.receipt.txt",
+    "length": 783,
+    "sha256": "CFA8C556E453033658385941B0EFEE178AC8F97C879F617A8ED8AD25318049EC"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.json.log",
+    "retained": "profile-01-Default-NoHeap.json.log",
+    "length": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.json.png",
+    "retained": "profile-01-Default-NoHeap.json.png",
+    "length": 57320,
+    "sha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.json.raw.json",
+    "retained": "profile-01-Default-NoHeap.json.raw.receipt.txt",
+    "length": 208007,
+    "sha256": "186CC5621304A558F6834101DCFEE82B09F71E2E95259B52171952BE287CD808"
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\release-pilot-80c34c9f-fixed12\\profile-01-Default-NoHeap.runner.log",
+    "retained": "profile-01-Default-NoHeap.runner.log",
+    "length": 301,
+    "sha256": "4D5BAC78B859F43A22727B8776E1ADB62016DBE725CE509351F4A59BAD8774C4"
+  }
+]
