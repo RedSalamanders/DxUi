@@ -108,7 +108,7 @@ publish synchronously so the system's first worker focus query can report the ne
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
 
-On 9 October 2026 the developer approved retaining this coalescing tradeoff after reviewing the
+The developer approved retaining this coalescing tradeoff after reviewing the 9 October 2026
 [paired scheduling study](../../Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md).
 For its 128-operation synthetic batches, keystroke and selection total cost fell 95.92% and 98.43%, while representative
 first-query cost rose from 11.90/8.10 to 431.83/321.93 microseconds. The queue budget remains at most one pending

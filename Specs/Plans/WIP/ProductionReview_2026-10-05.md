@@ -30,20 +30,31 @@ Grid/Tree, text-input and tooling work. Prior receipts qualify their exact archi
 The accepted implementation is integrated. The checkboxes below remain open until their associated qualification
 obligations finish; the performance policy remains a proposed migration awaiting concrete calibration and review.
 
-Current qualification limits (10 October): all three x64 profiles of hosted candidate `7f2e959` (actual merge
-`0ebf482`) pass their 21 suites with zero skips and four API 4 consumer cases. All ARM64 profiles build and pass
-19 noninteractive suites; Menu and NativeTextInput refuse warning ownership before input, including after the
-opaque-patch experiment, so native foreground/consumer completion is still open.
-The completed frozen paired study has zero migrated flags, but retains two legacy clean-prepare P95 regressions
-(600 to 700 ns in both Grid scenarios), 71/72 unstable short controls and 42/54 timing/memory cells with excursions.
-Neither statistical migration nor the one-counter-tick increase resolves those findings; retain them pending
-controlled quiet-host calibration and focused profiling. The independent consumer CI follow-up awaits hosted execution.
-The isolated same-binary A/A study has zero migrated flags, but all 72 short controls are unstable and 50 of 54 timing/
-memory cells have excursions. It does not qualify policy seeding. Keep the required CI rule deferred until the trusted
-base policy and a concrete candidate pass are established. The lead independently checks all 126 native reports and
-reproduces 350 timing fields from 8,400 ordered samples. The tooling-only aggregate-validation repair and final
-evidence update need current PR coverage. Physical IME, assistive technology, touch and consumer adoption remain
-explicit separate obligations; these records establish no product-wide production approval.
+Current qualification limits (10 October): native head `955deee` (actual merge `554f9c9`, run 38017295946)
+includes the final reentrant extraction repair. All three x64 profiles pass 21 suites with zero skips and both
+Release resource fixtures pass. All ARM64 profiles build and pass 19 noninteractive suites; Menu and NativeTextInput
+refuse warning ownership before input. All eight exact-pin/API 4 relocated consumer cases execute independently
+and pass, including both sanitizer annotation variants on each architecture. Product adoption stays separate.
+The lead independently checks 126 suite/log pairs, all twelve new extraction scenarios in each of six profiles,
+eight consumers, sanitizer detection and 350 timing fields from 8400 ordered samples. Windows/Linux validation,
+tooling and formatting pass at this frozen source. Later prose/evidence does not change compiled inputs; it supplies
+no new native execution. See [follow-up 73](../../../Measurements/Review-2026-10-09/FinalNativeQualificationFollowup73/README.md).
+
+The current paired study has zero regression flags in both judges, but 71/72 unstable short controls and 40/54
+timing/memory cells with excursions. A legacy Default preparation improvement (600 to 500 ns) becomes within-noise
+under the paired Holm judge; the lead independently reproduces both decisions. Earlier follow-up 68 Grid preparation
+regressions (600 to 700 ns), follow-up 70 Default working-set/peak increases (about 1.05 MB) and its initial/repeated
+timing flags remain unresolved. The original same-binary A/A study also has all 72 controls unstable. Retain all
+flags, bands and workloads pending controlled quiet-host calibration and residency/targeted profiling; these studies
+provide no accepted non-regression verdict. The official policy and aggregate gate remain failures. Keep the required
+CI rule deferred until a qualified trusted-base policy and an ordinary candidate pass are established.
+
+Remaining environment questions are recorded here, as requested: which controlled Windows host can provide stable
+same-binary performance controls, and which native ARM64 input desktop can run the restoring foreground suites?
+Recommended actions are to provision those environments, keep the existing thresholds, and profile residency before
+proposing an optimization or measured scope reduction. Physical IME, screen reader and touch scenarios need their
+respective installed services/hardware. Product API 4 adoption follows its separate handoff ledger. These records
+establish no product-wide production approval; the approved accessibility scheduling tradeoff waives none of these gates.
 
 - [ ] Q1/Q2: ownership-safe child/tab extraction, compatible API guidance and measured dispatch retirement.
 - [ ] Q3/Q4/Q5/Q15: coalesced lazy native publication, canonical attachment identity, shared unlocked action execution
@@ -1587,7 +1598,7 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   reduction; optimize incrementally only after profiling larger-tree/query-heavy workloads with their own retained
   baselines. Scope coalescing more narrowly, or defer it, if a consumer's measured query-latency budget requires it.
   This Debug synthetic study sets no new acceptance threshold and cannot replace Release policy qualification.
-- The developer explicitly accepted that measured scheduling tradeoff on 9 October: retain coalescing and record
+- The developer explicitly accepted the measured 9 October scheduling study's tradeoff: retain coalescing and record
   the increased first-query cost. The durable rationale, bounded publication/snapshot budget, freshness requirement
   and separate larger-tree/query-heavy consumer qualification now belong in the performance contract.
 - Final Release gallery regeneration passed and the lead visually reviewed all six actual harness captures.
@@ -1935,3 +1946,23 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   Controls remain unstable in 69/72 cases with 41/54 timing/memory excursions, and the official policy/aggregate
   gate still fails. Earlier Grid flags remain unresolved. All archive entries are reopened against original
   SHA/length; no native evidence from this preceding source qualifies the later extraction repair.
+- [Final native qualification follow-up 73](../../../Measurements/Review-2026-10-09/FinalNativeQualificationFollowup73/README.md)
+  seals native candidate `955deee`, actual merge `554f9c9`, renewed run 38017295946 against unchanged base
+  `bea676a1`. The lead verifies both parents, equal merge/head trees and unchanged local compiled-input identity.
+  All x64 profiles pass 21 suites and both Release resource fixtures; ARM64 builds/passes 19 noninteractive suites
+  and refuses its two foreground leases before input. All eight exact-pin/API 4 consumer cases execute independently
+  and pass. All twelve new extraction scenarios complete in every profile. The lead verifies 126 suite/log pairs,
+  eight consumers, sanitizer detection, 350 native timing fields and thirteen immutable harness hashes.
+  Six-profile PrePush had recorded matching pending PR obligations and twenty-four local foreground obligations
+  not run; that accounting remains separate from subsequent CI execution. Windows/Linux validators/tooling and
+  formatting pass at the frozen candidate. Gallery uploads match committed files and retain their original source
+  manifest; they are not new captures at `955deee`.
+  The paired study verifies 144 receipts, 1440 rounds, 78 migrated decisions and 7200 timing fields. Both judges
+  have zero regression flags, with a Default legacy improvement-versus-paired-noise disagreement independently
+  reproduced. Controls remain unstable in 71/72 cases with 40/54 timing/memory excursions. The official policy and
+  aggregate gate remain failures; earlier Grid and Default memory/timing flags stay open. All archive entries are
+  reopened against original SHA/length. Subsequent prose/evidence leaves compiled inputs unchanged and supplies
+  no additional native run or acceptance.
+  A read-only PE diagnostic finds equal mapped image and code sizes for the actual local paired binaries;
+  static image growth does not explain the memory flags. Runtime page/graphics/process residency remains
+  unmeasured, so retain the flags and controlled-host investigation. No approved tradeoff or release gate changes.
