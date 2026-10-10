@@ -77,11 +77,10 @@ log, CI log, native audit and paired audit. The archive's entries are read back 
 Documentation closeout changes no compiled source, test, harness, dependency or build input; the validated functional
 commit above remains the immutable qualification source. The final merge is not represented as a newly executed CI run.
 
-Archive SHA-256: 
+Archive SHA-256:
 
 BCF0EBCB677A144937CC4EF46C6A947C3537EFE26ED9C4CF15F1BE2540387F9D
 
-Manifest SHA-256: 
+Manifest SHA-256:
 
 6D1FB578CED2A0C7F6ABFA20CF0FF427CB1C8510280B9BDC8C1EF252600EB800
-
