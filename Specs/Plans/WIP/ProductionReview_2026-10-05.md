@@ -1825,3 +1825,10 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   seals the original six-profile native CI records, isolated A/A study and independent audits, plus the local opaque
   warning qualification. All archived entries were reopened against their original length/SHA-256. Hosted patch
   qualification and controlled calibration remain open; no policy is self-qualified or threshold weakened.
+- Completed PR study run 38007965422, seed 2039755282, has zero migrated flags and complete legacy/migrated label
+  agreement. The lead independently verifies all 144 raw receipts, 1440 rounds, thirteen harness hashes and 78 decisions,
+  including actual merge/head tree equality. Short controls are unstable in 69/72 cases and 41 timing/memory cells have
+  excursions. The official result remains inconclusive: the measured base contains no qualified versioned policy.
+- Clean committed `283288c` passes full native-filesystem Linux validation/tooling. [Follow-up 62](../../../Measurements/Review-2026-10-09/PairedAndPortabilityFollowup62/README.md)
+  seals that exact-source portability log and the completed PR study/auditors. Final-source hosted execution and trusted
+  policy seeding remain open. The next published candidate must preserve these limits in its draft PR and CI receipts.
