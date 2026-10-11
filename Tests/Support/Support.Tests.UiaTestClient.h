@@ -443,7 +443,7 @@ public:
         while (! predicate() && GetTickCount64() < deadline)
         {
             _pump();
-            Sleep(1);
+            WaitForOwnerMessages();
         }
         return predicate();
     }
@@ -464,7 +464,7 @@ public:
                                               [this]
         {
             _pump();
-            Sleep(1);
+            WaitForOwnerMessages();
         });
         if (! result.quiet)
         {
@@ -816,6 +816,15 @@ public:
     }
 
 private:
+    // UIA can make a chain of COM calls into this STA while constructing an event's cached sender. A Sleep between
+    // dispatches charges a scheduler tick to every call. Wake for queued/sent messages so that the owner services
+    // the next call promptly; the short timeout still observes predicates that change on the client's MTA.
+    static void WaitForOwnerMessages()
+    {
+        if (MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
+            Fail("wait for the UI Automation owner's messages", HRESULT_FROM_WIN32(GetLastError()));
+    }
+
     static void PrintQuiescence(const char* phase, const StreamQuiescence& result)
     {
         std::cerr << "    [UIA stream] phase=" << phase << " quiet=" << result.quiet << " ticks=" << result.started << ".." << result.completed
