@@ -11,6 +11,7 @@
 #include <bit>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <format>
 #include <limits>
@@ -344,6 +345,18 @@ void NotifyPropertyEventRaisedForTest(PROPERTYID propertyId) noexcept
         hook(propertyId, g_accessibilityPropertyEventHookContext.load(std::memory_order_acquire));
 }
 
+void TraceAccessibilityPropertyDeliveryForTest(const char* stage, size_t count, PROPERTYID propertyId = 0, HRESULT result = S_OK) noexcept
+{
+    if (g_accessibilityPropertyEventHook.load(std::memory_order_acquire))
+        std::fprintf(stderr,
+                     "    [form UIA worker] stage=%s count=%zu property=%ld result=%08lx thread=%lu\n",
+                     stage,
+                     count,
+                     static_cast<long>(propertyId),
+                     static_cast<unsigned long>(result),
+                     GetCurrentThreadId());
+}
+
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
 {
     const DWORD timeoutOverride = g_accessibilityUiActionDispatchTimeoutOverrideMs.load(std::memory_order_acquire);
@@ -426,6 +439,10 @@ constexpr void NotifySelectionEventRaisedForTest() noexcept
 }
 
 constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
+{
+}
+
+constexpr void TraceAccessibilityPropertyDeliveryForTest(const char*, size_t, PROPERTYID = 0, HRESULT = S_OK) noexcept
 {
 }
 
@@ -11530,7 +11547,8 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(target);
     static_cast<void>(CallbackMayRunLong(instance));
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    const auto uninitialize   = wil::scope_exit([&]() noexcept
+    TraceAccessibilityPropertyDeliveryForTest("initialize", 0u, 0, initialized);
+    const auto uninitialize = wil::scope_exit([&]() noexcept
     {
         if (SUCCEEDED(initialized))
             CoUninitialize();
@@ -11553,6 +11571,7 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     }
     if (SUCCEEDED(initialized))
     {
+        TraceAccessibilityPropertyDeliveryForTest("batch", properties.size());
         if (target->embedded && ! properties.empty())
             HoldAccessibilityPropertyDeliveryForTest(target->host.load(std::memory_order_acquire));
         if (git && cookie != 0)
@@ -11565,13 +11584,18 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
         // An embedded invalidation carries no historical property values. Its canonical root resolves the
         // current epoch on each provider call; a held client callback must not pin intermediate row graphs.
         if (invalidateStructure && root && (target->embedded || snapshot) && target->host.load(std::memory_order_acquire) && alive && UiaClientsAreListening())
-            static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+        {
+            TraceAccessibilityPropertyDeliveryForTest("structure-before", properties.size());
+            const HRESULT structureResult = UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0);
+            TraceAccessibilityPropertyDeliveryForTest("structure-after", properties.size(), 0, structureResult);
+        }
         for (const auto& property : properties)
         {
             if (! target->host.load(std::memory_order_acquire))
                 break;
             wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
             const HRESULT senderResult = property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()));
+            TraceAccessibilityPropertyDeliveryForTest("sender", properties.size(), property.propertyId, senderResult);
             if (SUCCEEDED(senderResult))
             {
                 wil::unique_variant previous, current;
@@ -11583,10 +11607,12 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
                     continue; // No raw-interface or synchronous fallback after failed marshalling.
                 }
                 // Scalar/BSTR values already belong to this batch; do not copy or allocate them again during delivery.
+                TraceAccessibilityPropertyDeliveryForTest("property-before", properties.size(), property.propertyId);
                 const HRESULT deliveryResult = UiaRaiseAutomationPropertyChangedEvent(provider.get(),
                                                                                       property.propertyId,
                                                                                       property.previousInterface ? previous : property.previous,
                                                                                       property.currentInterface ? current : property.current);
+                TraceAccessibilityPropertyDeliveryForTest("property-after", properties.size(), property.propertyId, deliveryResult);
                 if (FAILED(deliveryResult))
                     Debug::Error(L"DxUi: embedded property notification delivery failed (property {}, {:08X})", property.propertyId, deliveryResult);
             }
@@ -11599,6 +11625,7 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
         Debug::Error(L"DxUi: structure notification COM initialization failed ({:08X})", initialized);
     }
     // Revoke completed registrations outside the slot lock, while this delivery apartment is initialized.
+    TraceAccessibilityPropertyDeliveryForTest("complete", properties.size());
     properties.clear();
     {
         const std::scoped_lock lock(target->structureNotificationMutex);

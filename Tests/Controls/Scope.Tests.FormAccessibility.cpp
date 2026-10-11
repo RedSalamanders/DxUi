@@ -415,11 +415,12 @@ void LabelLifetimeAndReplacement(Hosting hosting)
 
 void PresentationEventsAreIdempotent(Hosting hosting)
 {
+    PropertyPublicationAttempts attempts;
     FormFixture fixture(hosting);
     UiaTest::Client client(fixture.Hwnd(), FormSubscription(), [&]() { fixture.Pump(); }, true);
     Require(FindClientField(client, client.Root()) != 0u, "real UIA client walks to form semantic editor");
     client.WaitOutTheStream();
-    PropertyPublicationAttempts attempts;
+    attempts.count = 0u;
     client.SetFailureDiagnostic([&]() { attempts.Print(); });
     const auto clearDiagnostic   = wil::scope_exit([&]() noexcept { client.SetFailureDiagnostic({}); });
     auto mark                    = client.Mark();
