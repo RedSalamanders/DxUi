@@ -10,9 +10,10 @@ The initial Debug build failed with protected-token access (C2248); its complete
 The corrected source and its independent root/agent source review are separate from that failure. Source review
 and successful compilation alone do not qualify runtime behavior or desktop restoration. The corrected source
 passes [all six builds](builds-final/README.md) and [57 noninteractive suite executions](../setup-runs/README.md),
-with zero skips and actual post-native provenance. The new ASan foreground confirmation expires before any child
-runs, with all three desktop states verified unchanged. Fresh foreground execution of these setup observations
-and verified restoration remain required for their own binaries.
+with zero skips and actual post-native provenance. Two ASan confirmations expire before any child runs, with all
+three desktop states verified unchanged. The third ASan attempt exercises these setup observations and passes
+four full foreground suites, zero skips, with verified restoration. Fresh Release/Debug foreground validation
+remains required for their own binaries; the earlier failures' cause remains unproved.
 
 `snapshot-reviewer.source.receipt.txt` retains the private review helper as historical text. It preserves every raw
 native log/receipt/result and reads complete actual post-focus identity even for a failed attempt. Its hard-coded

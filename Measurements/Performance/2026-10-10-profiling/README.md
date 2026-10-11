@@ -95,8 +95,10 @@ popup discovery, and ASan repeats an earlier Debug NativeTextInput initial setup
 failures. Three direct full post-focus states match the recorded pre-focus state; the earlier Debug failure's recorded
 identity was compared with the later successful Debug retry. The new bounded setup diagnostics change test bytes;
 [their corrected builds and noninteractive runs](validation/focus/setup-runs/README.md) pass all six builds and 57
-suite executions with zero skips and complete actual provenance. Their ASan confirmation times out before any
-foreground child runs, with verified unchanged desktop state. Fresh Debug/Release/ASan foreground validation remains
+suite executions with zero skips and complete actual provenance. Two ASan confirmations time out before any
+foreground child runs, with verified unchanged desktop state. The third ASan attempt completes four full suites,
+zero skips, with verified restoration and complete actual provenance on unchanged bytes at clean `4bcc32fb`.
+The fresh Release confirmation times out before any child runs. Fresh Release/Debug foreground validation remains
 open; the earlier passes qualify their archived binaries only. Causes remain unproved.
 
 Replay the packet with `Analyze.ps1`, which requires the retained `SHA256SUMS` and checks imported helper bytes

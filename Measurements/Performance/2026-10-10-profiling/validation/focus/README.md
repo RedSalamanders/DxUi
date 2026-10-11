@@ -26,8 +26,11 @@ and acknowledged focus, session/TSF state and existing counters. Observations ar
 message history. Each attempt resets its success flag. Assertions, activation order, timeout and retry policy remain
 intact; diagnostics supply no performance, product or restoration acceptance. The corrected binaries pass
 [six builds and 57 noninteractive executions](setup-runs/README.md), zero skips, with complete actual provenance.
-Their fresh ASan Start confirmation times out before any child runs and verifies all three desktop states unchanged.
-Fresh Debug/Release/ASan foreground execution remains open; the setup observations have not yet run.
+The first two fresh ASan confirmations time out before any child runs and verify all three desktop states unchanged.
+The [third ASan attempt](setup-runs/ASanDebug-attempt3-pass/README.md) completes all four full suites with zero skips,
+verified unchanged foreground/focus and restored pointer. Its zero-size setup records one successful attempt and
+passes the original assertions. The fresh Release confirmation also times out before any child runs. Fresh Release
+and Debug foreground validation remain open; successful setup observations do not establish the earlier cause.
 
 Every archive-copy receipt maps immutable external snapshot paths, lengths and SHA-256 values to retained bytes.
 The historical reviewer helper is retained as `snapshot-reviewer.source.receipt.txt`, not as a portable runnable tool.

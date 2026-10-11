@@ -15,8 +15,9 @@ Application adoption measurements belong in their application's repository.
   all six configurations build. Sampling cost and variability leave the original flags and required-CI hold open;
   fresh focus attempts remain individually retained, including a successful Debug retry and Release/ASan failures.
   Corrected setup-diagnostic binaries pass six builds and another 57 noninteractive executions, zero skips. Their
-  ASan Start confirmation expires before any foreground suite runs; fresh foreground validation remains open and
-  original failure causes remain unproved.
+  first two ASan confirmations expire before any foreground suite runs; the third completes four full focus
+  suites with zero skips and verified restoration. Fresh Release/Debug validation remains open; original failure
+  causes remain unproved.
 - [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
   timeout regressions and eleven passing ASan reproduction processes with bounded provider/client timelines;
   unchanged event assertions and original failure evidence remain authoritative, with the original cause unproven.

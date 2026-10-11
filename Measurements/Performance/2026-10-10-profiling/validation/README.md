@@ -23,9 +23,10 @@ It supplies no performance acceptance, consumer qualification or native ARM64 ru
   initial NativeTextInput setup failure followed by grant/restoration failures. Three direct full post-focus states
   match their pre-focus state; the earlier Debug failure's recorded identity was compared with the later Debug pass.
   The corrected setup-diagnostic binaries separately pass all six builds and 57 noninteractive executions with
-  zero skips; `focus/setup-runs/` preserves those runs and the canceled new ASan confirmation. Actual before/after
-  provenance and complete current scope digests pass independent checks. No new foreground child ran and no failed
-  or canceled attempt is a pass.
+  zero skips; `focus/setup-runs/` preserves those runs, two canceled ASan confirmations and the third ASan attempt's
+  four complete focus-suite passes, zero skips, with verified restoration. The fresh Release confirmation cancels
+  before any child executes. Actual before/after provenance and complete current scope digests pass independent
+  checks. Fresh Release/Debug focus validation remains open; no failed or canceled attempt is a pass.
 
 The lead independently checks every native suite receipt against current executable bytes, all four profiling
 schemas/native-stamped fields and companion hashes, and all six exact v2 build attestations. Independent review

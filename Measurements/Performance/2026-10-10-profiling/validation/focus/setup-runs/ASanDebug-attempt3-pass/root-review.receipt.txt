@@ -1,0 +1,56 @@
+{
+  "purpose": "root-verified-full-native-focus-suites",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "attempt": 3,
+  "parentExitCode": 0,
+  "sourceCommit": "4bcc32fbeea60fe2d4d50338966d9d5c3e914d59",
+  "sourceDirty": false,
+  "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+  "state": "completed",
+  "confirmation": "started",
+  "leaseExitCode": 0,
+  "foreground": "unchanged",
+  "focus": "unchanged",
+  "pointer": "restored",
+  "suites": [
+    {
+      "suite": "Menu",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 118.4,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "leaseSha256": "7156AA9FE288DB7DD1F10699BE42E49D611AF292F60218C148BB4A5B9C1E8D37"
+    },
+    {
+      "suite": "NativeTextInput",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 89.2,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "leaseSha256": "7156AA9FE288DB7DD1F10699BE42E49D611AF292F60218C148BB4A5B9C1E8D37"
+    },
+    {
+      "suite": "MenuResources",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 9.1,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "leaseSha256": "7156AA9FE288DB7DD1F10699BE42E49D611AF292F60218C148BB4A5B9C1E8D37"
+    },
+    {
+      "suite": "MenuResourceScaling",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 18.4,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "leaseSha256": "7156AA9FE288DB7DD1F10699BE42E49D611AF292F60218C148BB4A5B9C1E8D37"
+    }
+  ],
+  "copiedOriginals": 13,
+  "exactPostFocusIdentityMatched": true,
+  "postFocusStateSha256": "D847ABB5C8AD406A97AF944F1576B78A6EBD97E6ADD132559B6FC597B27901EC",
+  "reviewerScriptSha256": "CA50D6F2781CF5BB6544EFFBEB2195A3F54E8FB3EBCFCC7180A055058C28E9F8",
+  "performanceAcceptance": "unpaired-observation-only",
+  "reviewedUtc": "2026-10-11T07:53:14.7103597Z"
+}
