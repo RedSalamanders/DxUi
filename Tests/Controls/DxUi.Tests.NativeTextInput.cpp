@@ -2887,16 +2887,83 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         field->SetOnTextChanged([&notifications](std::wstring_view) { ++notifications; });
         window.Host().SetRoot(std::move(root));
 
+        struct SetupAttempt
+        {
+            const char* terminalStage = "not-attempted";
+            bool activated            = false;
+            bool onChar               = false;
+            size_t beforeLength       = 0u;
+            size_t typedLength        = 0u;
+            size_t pumpedLength       = 0u;
+            bool typedOneA            = false;
+            bool pumpedOneA           = false;
+            HWND foreground           = nullptr;
+            HWND focus                = nullptr;
+            DWORD foregroundProcess   = 0u;
+            bool logicalTarget        = false;
+            bool nativeSession        = false;
+            uint32_t foregroundLosses = 0u;
+        };
+        constexpr int maximumRuns = 5;
+        std::array<SetupAttempt, maximumRuns> attempts{};
+        size_t attemptCount     = 0u;
         bool setup              = false;
         const auto focusAndType = [&]
         {
-            if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            SetupAttempt& attempt = attempts[attemptCount++];
+            attempt.beforeLength  = field->GetText().size();
+            attempt.activated     = TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+            const auto observe    = [&]
+            {
+                attempt.foreground = GetForegroundWindow();
+                attempt.focus      = GetFocus();
+                static_cast<void>(GetWindowThreadProcessId(attempt.foreground, &attempt.foregroundProcess));
+                attempt.logicalTarget    = window.Host().GetFocusControl() == field;
+                attempt.nativeSession    = window.Host().DebugHasActiveNativeTextInputSession();
+                attempt.foregroundLosses = window.ForegroundLossCount();
+            };
+            if (! attempt.activated)
+            {
+                observe();
                 return;
+            }
             window.Host().SetFocusControl(field);
-            setup = field->OnChar(window.Host(), L'a', 0u);
+            setup               = field->OnChar(window.Host(), L'a', 0u);
+            attempt.onChar      = setup;
+            attempt.typedLength = field->GetText().size();
+            attempt.typedOneA   = field->GetText() == L"a";
             window.PumpMessages();
+            attempt.pumpedLength = field->GetText().size();
+            attempt.pumpedOneA   = field->GetText() == L"a";
+            observe();
         };
-        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusAndType), "native IME composition undo grouping"))
+        const auto run = RunWhileForegroundHeld(window, focusAndType, maximumRuns);
+        for (size_t index = 0u; index < attemptCount; ++index)
+        {
+            const auto& attempt = attempts[index];
+            std::cerr << std::format(
+                "    [IME-UNDO-SETUP] attempt={} activated={} terminal={} onChar={} textLengths={}/{}/{} oneA={}/{} "
+                "foreground={:x} foregroundProcess={} focus={:x} target={:x} logicalTarget={} nativeSession={} losses={} held={} notifications={}\n",
+                index + 1u,
+                attempt.activated,
+                attempt.terminalStage,
+                attempt.onChar,
+                attempt.beforeLength,
+                attempt.typedLength,
+                attempt.pumpedLength,
+                attempt.typedOneA,
+                attempt.pumpedOneA,
+                reinterpret_cast<uintptr_t>(attempt.foreground),
+                attempt.foregroundProcess,
+                reinterpret_cast<uintptr_t>(attempt.focus),
+                reinterpret_cast<uintptr_t>(window.Hwnd()),
+                attempt.logicalTarget,
+                attempt.nativeSession,
+                attempt.foregroundLosses,
+                run.held,
+                notifications);
+        }
+        if (! ForegroundHeldOrSkip(run, "native IME composition undo grouping"))
             return;
         Require(setup && field->GetText() == L"a", "undo fixture creates one earlier independent typed edit");
         notifications = 0u;
