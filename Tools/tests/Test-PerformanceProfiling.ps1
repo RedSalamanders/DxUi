@@ -398,6 +398,41 @@ Invoke-FixtureCase 'direct runner refuses output overwriting an owned source pat
 
 # Real bounded PowerShell children exercise only process control; they are not native performance runs.
 Import-Module $modulePath -Force
+function Get-ProfilingFixtureProcessIdentity([Diagnostics.Process] $Process) {
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux)) {
+        # /proc keeps the exact boot-relative creation tick. Reconstructing an absolute StartTime in two
+        # Linux processes can differ slightly, so it cannot identify this test-owned helper across handles.
+        $stat = [IO.File]::ReadAllText("/proc/$($Process.Id)/stat")
+        $commandEnd = $stat.LastIndexOf(')')
+        if ($commandEnd -lt 0) { throw 'Malformed fixture process stat.' }
+        $fields = $stat.Substring($commandEnd + 2).Split(' ',[StringSplitOptions]::RemoveEmptyEntries)
+        if ($fields.Count -lt 20 -or $fields[19] -cnotmatch '^[0-9]+$') { throw 'Missing fixture process creation tick.' }
+        $boot = [IO.File]::ReadAllText('/proc/sys/kernel/random/boot_id').Trim()
+        return "linux/$boot/$($Process.Id)/$($fields[19])"
+    }
+    return "starttime/$($Process.Id)/$($Process.StartTime.ToUniversalTime().Ticks)"
+}
+function Test-ProfilingFixtureProcessIdentity([Diagnostics.Process] $Process, [Collections.IDictionary] $Identity) {
+    return $Process.Id -eq $Identity.id -and (Get-ProfilingFixtureProcessIdentity $Process) -ceq $Identity.creationIdentity
+}
+function Set-ProfilingFixtureIdentityHelper([string] $Root) {
+    $source = "function Get-ProfilingFixtureProcessIdentity {`n" + ${function:Get-ProfilingFixtureProcessIdentity}.ToString() + "`n}`n"
+    Set-FixtureFile $Root 'process-identity.ps1' $source
+}
+Invoke-TestCase 'fixture process identity survives reopening and rejects a different PID or creation instance' {
+    $first = Get-Process -Id $PID
+    $second = Get-Process -Id $PID
+    try {
+        $identity = @{ id=$first.Id; creationIdentity=(Get-ProfilingFixtureProcessIdentity $first) }
+        Assert-True (Test-ProfilingFixtureProcessIdentity $second $identity) 'the exact fixture process survives a new handle'
+        $differentPid = Copy-JsonValue $identity
+        $differentPid.id++
+        Assert-True (-not (Test-ProfilingFixtureProcessIdentity $second $differentPid)) 'another PID is never owned'
+        $differentCreation = Copy-JsonValue $identity
+        $differentCreation.creationIdentity += '/different-instance'
+        Assert-True (-not (Test-ProfilingFixtureProcessIdentity $second $differentCreation)) 'PID equality cannot own a replaced process'
+    } finally { $first.Dispose(); $second.Dispose() }
+}
 Invoke-FixtureCase 'owned child timeout terminates that child and preserves its exit/PID' {
     param($root)
     Set-FixtureFile $root 'wait.ps1' 'Start-Sleep -Seconds 10'
@@ -410,14 +445,16 @@ Invoke-FixtureCase 'owned child timeout terminates that child and preserves its 
 }
 Invoke-FixtureCase 'direct child exit with inherited pipe still has bounded drain and explicit error' {
     param($root)
+    Set-ProfilingFixtureIdentityHelper $root
     Set-FixtureFile $root 'holder.ps1' 'Start-Sleep -Seconds 3'
     Set-FixtureFile $root 'parent.ps1' @'
 param($Shell,$Root)
+. (Join-Path $Root 'process-identity.ps1')
 $start=[Diagnostics.ProcessStartInfo]::new($Shell)
 $start.UseShellExecute=$false; $start.CreateNoWindow=$true
 foreach ($arg in @('-NoProfile','-File',(Join-Path $Root 'holder.ps1'))) { $start.ArgumentList.Add($arg) }
 $child=[Diagnostics.Process]::Start($start)
-[IO.File]::WriteAllText((Join-Path $Root 'holder.identity.json'),(ConvertTo-Json @{id=$child.Id; creationTicks=$child.StartTime.ToUniversalTime().Ticks}))
+[IO.File]::WriteAllText((Join-Path $Root 'holder.identity.json'),(ConvertTo-Json @{id=$child.Id; creationIdentity=(Get-ProfilingFixtureProcessIdentity $child)}))
 $stdout='emitted stdout prefix'; $stderr='emitted stderr prefix'
 [Console]::Out.WriteLine($stdout); [Console]::Out.Flush()
 [Console]::Error.WriteLine($stderr); [Console]::Error.Flush()
@@ -437,8 +474,8 @@ $child.Dispose()
             $holder=Get-Process -Id ([int]$identity.id) -ErrorAction SilentlyContinue
             if ($holder) {
                 try {
-                    $null=$holder.Handle # Retain the exact handle whose creation identity is checked.
-                    if ($holder.StartTime.ToUniversalTime().Ticks -eq $identity.creationTicks) { $holder.Kill(); [void]$holder.WaitForExit(5000) }
+                    $null=$holder.Handle # Open the process object before checking its native creation identity.
+                    if (-not $holder.HasExited -and (Test-ProfilingFixtureProcessIdentity $holder $identity)) { $holder.Kill(); [void]$holder.WaitForExit(5000) }
                 } finally { $holder.Dispose() }
             }
         }
@@ -446,18 +483,20 @@ $child.Dispose()
 }
 Invoke-FixtureCase 'timeout kills the original handle while a test-owned descendant survives and drains remain bounded' {
     param($root)
+    Set-ProfilingFixtureIdentityHelper $root
     Set-FixtureFile $root 'holder.ps1' 'Start-Sleep -Seconds 10'
     Set-FixtureFile $root 'parent.ps1' @'
 param($Shell,$Root)
+. (Join-Path $Root 'process-identity.ps1')
 $start=[Diagnostics.ProcessStartInfo]::new($Shell)
 $start.UseShellExecute=$false; $start.CreateNoWindow=$true
 foreach ($arg in @('-NoProfile','-File',(Join-Path $Root 'holder.ps1'))) { $start.ArgumentList.Add($arg) }
 $child=[Diagnostics.Process]::Start($start)
-[IO.File]::WriteAllText((Join-Path $Root 'holder.identity.json'),(ConvertTo-Json @{id=$child.Id; creationTicks=$child.StartTime.ToUniversalTime().Ticks}))
+[IO.File]::WriteAllText((Join-Path $Root 'holder.identity.json'),(ConvertTo-Json @{id=$child.Id; creationIdentity=(Get-ProfilingFixtureProcessIdentity $child)}))
 $child.Dispose()
 Start-Sleep -Seconds 10
 '@
-    $holder=$null
+    $holder=$null; $holderIsOwned=$false
     try {
         $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root) -WorkingDirectory $root -TimeoutSeconds 2 -DrainTimeoutSeconds 0.2
         Assert-True $child.timedOut 'original child timeout observed'
@@ -465,11 +504,12 @@ Start-Sleep -Seconds 10
         $holder=Get-Process -Id ([int]$identity.id) -ErrorAction SilentlyContinue
         Assert-True ($null -ne $holder) 'timeout never follows descendant parent IDs'
         $null=$holder.Handle
-        Assert-Equal ([long]$identity.creationTicks) $holder.StartTime.ToUniversalTime().Ticks 'surviving helper identity'
+        $holderIsOwned=Test-ProfilingFixtureProcessIdentity $holder $identity
+        Assert-True $holderIsOwned 'surviving helper has the exact PID and native creation identity'
         Assert-True (-not [string]::IsNullOrEmpty($child.drainError)) 'descendant-held pipe is an explicit bounded failure'
     } finally {
         if ($holder) {
-            try { if (-not $holder.HasExited) { $holder.Kill(); [void]$holder.WaitForExit(5000) } } finally { $holder.Dispose() }
+            try { if ($holderIsOwned -and -not $holder.HasExited) { $holder.Kill(); [void]$holder.WaitForExit(5000) } } finally { $holder.Dispose() }
         }
     }
 }

@@ -328,3 +328,12 @@ historical runs. The final budget repair assigns 60 minutes only to ARM64 ASan w
 and existing checks. Exact-head/base/merge-tree PR CI requires its own reviewed results. The dated
 [validation decision](../../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) retains unfinished
 performance, native-platform, physical-input and consumer gates without recording a successful `ci-gate`.
+
+The first PR #73 run at head `cdb3be2cf68d6444de9e66559db44fcfd75c0781` failed Linux tooling validation:
+four evaluated-path fixture cases and one cross-process creation-timestamp assertion. The subsequent focused
+fixture repair preserves the production policy/runner, rejection cases and bounded process assertions. Its
+[portability packet](../../../Measurements/Tooling/2026-10-11-linux-portability/README.md) retains the failed run,
+actual synthetic merge, reproducible Linux negatives and independently reviewed Windows/Linux positives.
+That superseded run was cancelled; it supplies no native, consumer or paired acceptance. Fresh exact-head CI
+remains required before the requested remote integration. The fixtures change no control rendering or gallery
+content; the committed design-system previews and their harness provenance remain applicable to their own source.

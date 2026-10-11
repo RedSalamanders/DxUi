@@ -1,0 +1,13 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Set-Location -LiteralPath '/home/a/codex-dpf-s0-s2-portability-20261011'
+Import-Module './Tools/PerformancePolicy.psm1' -Force
+$originalIdentitySource = & (Get-Module PerformancePolicy) { (Get-Command Get-PerformanceToolIdentities).ScriptBlock.ToString() }
+$originalSystemRoot = [Environment]::GetEnvironmentVariable('SystemRoot')
+try { & './Tools/tests/Test-PerformancePolicy.ps1' }
+finally {
+    $identitySource = & (Get-Module PerformancePolicy) { (Get-Command Get-PerformanceToolIdentities).ScriptBlock.ToString() }
+    if ($identitySource -cne $originalIdentitySource) { throw 'The fixture did not restore the production identity function.' }
+    if (-not [object]::Equals([Environment]::GetEnvironmentVariable('SystemRoot'), $originalSystemRoot)) { throw 'The fixture did not restore SystemRoot.' }
+    Write-Host 'Verified production identity function and SystemRoot restored.'
+}

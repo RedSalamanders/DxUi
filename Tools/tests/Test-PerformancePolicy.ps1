@@ -232,8 +232,11 @@ function New-PerformanceProjectFixture([string] $Root, [string] $Role = 'library
             ExecutablePath="$Root/toolchain/bin"; FixtureFlag='/fixture0' }).GetEnumerator()) {
         $properties[$entry.Key] = $entry.Value
     }
+    $projectDirectory = Join-Path $Root $(if ($Role -eq 'library') { 'src' } else { 'Tests/Embedded' })
+    # Keep the project XML's Windows spelling while emulating evaluated items on this host filesystem.
     $clItems = @('Controls\One.cpp','Controls\Two.cpp' | ForEach-Object {
-        [ordered]@{ Identity=$_; FullPath="$Root/$(if ($Role -eq 'library') { 'src' } else { 'Tests/Embedded' })/$_"; AdditionalIncludeDirectories="$Root/include"; AdditionalOptions='/utf-8 /Zc:preprocessor';
+        $identity = $_.Replace('\', [IO.Path]::DirectorySeparatorChar)
+        [ordered]@{ Identity=$identity; FullPath=[IO.Path]::GetFullPath((Join-Path $projectDirectory $identity)); AdditionalIncludeDirectories="$Root/include"; AdditionalOptions='/utf-8 /Zc:preprocessor';
             PreprocessorDefinitions='UNICODE;NOMINMAX'; LanguageStandard='stdcpplatest'; RuntimeLibrary='MultiThreadedDLL'; Optimization='MaxSpeed';
             WarningLevel='Level4'; TreatWarningAsError='true'; SDLCheck='true'; ConformanceMode='true'; ExceptionHandling='Sync';
             ObjectFileName=$properties.IntDir; CustomCompilerFlag='unchanged' }
@@ -241,7 +244,8 @@ function New-PerformanceProjectFixture([string] $Root, [string] $Role = 'library
     $fx = @()
     if ($Role -eq 'library') {
         foreach ($suffix in @('VS','PS')) {
-            $fx += [ordered]@{ Identity="Rendering\Composite$suffix.hlsl"; FullPath="$Root/src/Rendering/Composite$suffix.hlsl"; ShaderType=$(if ($suffix -eq 'VS') { 'Vertex' } else { 'Pixel' });
+            $identity = Join-Path 'Rendering' "Composite$suffix.hlsl"
+            $fx += [ordered]@{ Identity=$identity; FullPath=[IO.Path]::GetFullPath((Join-Path $projectDirectory $identity)); ShaderType=$(if ($suffix -eq 'VS') { 'Vertex' } else { 'Pixel' });
                 ShaderModel='5.0'; EntryPointName="${suffix}Main"; HeaderFileOutput="$($properties.IntDir)DxUiComposite$suffix.h"; ObjectFileOutput="$($properties.IntDir)DxUiComposite$suffix.cso";
                 VariableName="g_Composite$suffix"; AdditionalOptions='/Ges /O3 /Qstrip_debug'; EnableDebuggingInformation='false' }
         }
@@ -269,7 +273,7 @@ Invoke-TestCase 'source topology changes per-side identities without changing a 
     $original = Get-FixtureProjectProfile $before
     $added = Copy-JsonValue $before
     $third = Copy-JsonValue $added.items.ClCompile[0]
-    $third.Identity = 'Controls\Three.cpp'; $third.FullPath = "$root/src/Controls/Three.cpp"
+    $third.Identity = Join-Path 'Controls' 'Three.cpp'; $third.FullPath = [IO.Path]::GetFullPath((Join-Path $root 'src/Controls/Three.cpp'))
     $added.items.ClCompile += $third
     $added.text = $added.text.Replace('<ClCompile Include="Controls\Two.cpp" />', '<ClCompile Include="Controls\Two.cpp" /><ClCompile Include="Controls\Three.cpp" />')
     $reordered = Copy-JsonValue $before
@@ -419,6 +423,14 @@ Invoke-FixtureCase 'real tool identity hashing separates project topology from b
     Set-FixtureFile $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' $benchmark.text
     foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl',
             'Tests/Embedded/Controls/One.cpp','Tests/Embedded/Controls/Two.cpp','include/owned.h')) { Set-FixtureFile $root $path "original explicit native input: $path" }
+    foreach ($fixture in @($library,$benchmark)) {
+        Assert-True ($fixture.text.Contains('Include="Controls\One.cpp"')) 'the raw project retains its Windows include spelling'
+        $projectDirectory = Join-Path $root $(if ($fixture.role -eq 'library') { 'src' } else { 'Tests/Embedded' })
+        foreach ($item in @($fixture.items.ClCompile) + @($fixture.items.FxCompile)) {
+            Assert-Equal ([IO.Path]::GetFullPath((Join-Path $projectDirectory $item.Identity))) $item.FullPath 'evaluated native item identity resolves to the same full path'
+            Assert-True ([IO.File]::Exists($item.FullPath)) 'evaluated native item full paths locate the actual owned fixture bytes'
+        }
+    }
     Set-FixtureFile $root 'Tools/VisualStudio.psm1' @'
 function Get-DxUiVisualStudioInstallation { Join-Path (Split-Path -Parent $PSScriptRoot) 'toolchain/vs' }
 Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
@@ -444,8 +456,33 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
     Set-FixtureFile $root '.build/x64/Release/runtime.dll' 'fixture output DLL'
     $module = Get-Module PerformancePolicy
     $original = & $module { (Get-Command Get-PerformanceProjectEvaluation).ScriptBlock }
+    $originalToolIdentity = & $module { (Get-Command Get-PerformanceToolIdentities).ScriptBlock }
+    $syntheticWindowsEnvironment = -not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
+    $originalSystemRoot = [Environment]::GetEnvironmentVariable('SystemRoot')
+    $getIdentity = {
+        param([string] $Scope = 'Full')
+        & $module {
+            param($Root,$Scope)
+            Get-PerformanceToolIdentities -Root $Root -Platform x64 -Configuration Release -IdentityScope $Scope
+        } $root $Scope
+    }.GetNewClosure()
     try {
-        # Stub only VS's evaluated output. Production profile validation, source/tool file hashes and identity assembly run.
+        # VS evaluation and CIM are synthetic. On non-Windows hosts only the Win32 DPI call and SystemRoot/WARP input
+        # are synthetic too; all production validation, file hashes and identity assembly still run, not OS qualification.
+        if ($syntheticWindowsEnvironment) {
+            $fixtureSystemRoot = Join-Path $root 'fixture-os'
+            $fixtureWarpPath = Join-Path $fixtureSystemRoot 'System32/d3d10warp.dll'
+            Set-FixtureFile $root 'fixture-os/System32/d3d10warp.dll' 'synthetic WARP input bytes'
+            [Environment]::SetEnvironmentVariable('SystemRoot', $fixtureSystemRoot)
+            & $module {
+                param($Original)
+                $dpiRead = '[DxUi.DxUiDpiProbe]::GetDpiForSystem()'
+                $source = $Original.ToString()
+                if ([regex]::Matches($source, [regex]::Escape($dpiRead)).Count -ne 1) { throw 'The fixture must replace exactly one Win32 DPI read.' }
+                $script:PerformanceFixtureSystemDpi = [uint32]96
+                Set-Item -LiteralPath 'Function:script:Get-PerformanceToolIdentities' -Value ([scriptblock]::Create($source.Replace($dpiRead, '$script:PerformanceFixtureSystemDpi')))
+            } $originalToolIdentity
+        }
         & $module {
             param($Library,$Benchmark)
             $script:PerformanceProjectFixtures = @{ library=$Library; benchmark=$Benchmark }
@@ -463,22 +500,31 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
                 return [ordered]@{ properties=$fixture.properties; profile=$profile; inputs=$inputs; solutionIdentity=(Get-ScopedDigest 'synthetic evaluated solution'); projectSha256=(Get-FileHash -LiteralPath $ProjectPath -Algorithm SHA256).Hash }
             }
         } $library $benchmark
-        $originalIdentity = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build
+        $originalIdentity = & $getIdentity Build
         Assert-Equal 'build-only' $originalIdentity.identityStatus 'complete synthetic evaluation and actual tool bytes are attested without a native build claim'
-        $originalFull = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release
-        Assert-Equal 'verifiable' $originalFull.identityStatus 'synthetic byte/metadata structure has full tool identity, not qualification evidence'
+        $originalFull = & $getIdentity
+        Assert-Equal 'verifiable' $originalFull.identityStatus ("synthetic byte/metadata structure has full tool identity, not qualification evidence: $($originalFull['identityError'])")
+        if ($syntheticWindowsEnvironment) {
+            $warpBytes = [IO.File]::ReadAllBytes($fixtureWarpPath)
+            try {
+                Remove-Item -LiteralPath $fixtureWarpPath
+                $missingWarp = & $getIdentity
+                Assert-Equal 'identity-unverifiable' $missingWarp.identityStatus 'a missing synthetic WARP input cannot publish full identity'
+                Assert-Equal 'WARP binary identity is unavailable.' $missingWarp.identityError 'the unchanged production WARP guard rejects the missing input'
+            } finally { [IO.File]::WriteAllBytes($fixtureWarpPath, $warpBytes) }
+        }
         $third = Copy-JsonValue $library.items.ClCompile[0]
-        $third.Identity = 'Controls\Three.cpp'; $third.FullPath = "$root/src/Controls/Three.cpp"
+        $third.Identity = Join-Path 'Controls' 'Three.cpp'; $third.FullPath = [IO.Path]::GetFullPath((Join-Path $root 'src/Controls/Three.cpp'))
         Set-FixtureFile $root 'src/Controls/Three.cpp' 'new native source bytes'
         $library.items.ClCompile += $third
         $library.text = $library.text.Replace('<ClCompile Include="Controls\Two.cpp" />', '<ClCompile Include="Controls\Two.cpp" /><ClCompile Include="Controls\Three.cpp" />')
         Set-FixtureFile $root 'src/DxUi.vcxproj' $library.text
-        $added = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build
+        $added = & $getIdentity Build
         Assert-Equal 'build-only' $added.identityStatus 'adding a uniform source file retains supported compilation'
         Assert-Equal $originalIdentity.toolchainIdentity $added.toolchainIdentity 'source topology does not become a toolchain mismatch'
         Assert-True ($originalIdentity.resolvedBuildIdentity -cne $added.resolvedBuildIdentity) 'full project bytes and resolved inventory are separately bound'
-        $addedFull = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release
-        Assert-Equal 'verifiable' $addedFull.identityStatus 'synthetic full identity retains all required fields after source registration'
+        $addedFull = & $getIdentity
+        Assert-Equal 'verifiable' $addedFull.identityStatus ("synthetic full identity retains all required fields after source registration: $($addedFull['identityError'])")
         Assert-Equal $originalFull.harnessIdentity $addedFull.harnessIdentity 'library project bytes belong per side and cannot change the shared measurement harness'
         Assert-Equal $originalFull.toolchainIdentity $addedFull.toolchainIdentity 'full comparison uses the stable compiler profile'
         foreach ($path in @('src/Controls/One.cpp','Tests/Embedded/Controls/One.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) {
@@ -487,7 +533,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
             $time = [IO.File]::GetLastWriteTimeUtc($full)
             Set-FixtureFile $root $path ($bytes + ' changed without advancing time')
             [IO.File]::SetLastWriteTimeUtc($full, $time)
-            $changed = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build
+            $changed = & $getIdentity Build
             Assert-Equal 'build-only' $changed.identityStatus 'ordinary source byte changes remain supported'
             Assert-True ($added.resolvedBuildIdentity -cne $changed.resolvedBuildIdentity) "resolved native bytes are attested per side: $path"
             Assert-Equal $added.toolchainIdentity $changed.toolchainIdentity 'source bytes cannot falsely change the stable compiler profile'
@@ -496,7 +542,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
         foreach ($role in @('library','benchmark')) {
             $fixture = if ($role -eq 'library') { $library } else { $benchmark }
             foreach ($item in $fixture.items.ClCompile) { $item.AdditionalOptions += ' /changed' }
-            $flags = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build
+            $flags = & $getIdentity Build
             Assert-Equal 'build-only' $flags.identityStatus 'uniform option changes remain structurally supported'
             Assert-True ($added.toolchainIdentity -cne $flags.toolchainIdentity) "$role compiler flags cannot hide in per-side source identity"
             foreach ($item in $fixture.items.ClCompile) { $item.AdditionalOptions = $item.AdditionalOptions.Replace(' /changed','') }
@@ -509,16 +555,34 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
             $full = Join-Path $root $path
             $bytes = [IO.File]::ReadAllText($full)
             Set-FixtureFile $root $path ($bytes + ' changed')
-            $changed = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build
+            $changed = & $getIdentity Build
             Assert-Equal 'build-only' $changed.identityStatus 'a byte change remains measurable as a different toolchain'
             Assert-True ($added.toolchainIdentity -cne $changed.toolchainIdentity) "actual tool bytes must be bound: $path"
             Set-FixtureFile $root $path $bytes
         }
         $library.items.ClCompile[0].Optimization = 'Disabled'
-        Assert-Equal 'identity-unverifiable' (Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Release -IdentityScope Build).identityStatus 'a per-file option override cannot publish incomplete tool evidence'
+        Assert-Equal 'identity-unverifiable' (& $getIdentity Build).identityStatus 'a per-file option override cannot publish incomplete tool evidence'
     } finally {
-        & $module { param($Original) Set-Item -LiteralPath 'Function:script:Get-PerformanceProjectEvaluation' -Value $Original; Remove-Variable -Name PerformanceProjectFixtures -Scope Script; Remove-Item -LiteralPath 'Function:script:Get-CimInstance' } $original
+        try {
+            & $module {
+                param($Original,$OriginalToolIdentity)
+                Set-Item -LiteralPath 'Function:script:Get-PerformanceToolIdentities' -Value $OriginalToolIdentity
+                Set-Item -LiteralPath 'Function:script:Get-PerformanceProjectEvaluation' -Value $Original
+                foreach ($name in @('PerformanceProjectFixtures','PerformanceFixtureSystemDpi')) {
+                    if (Get-Variable -Name $name -Scope Script -ErrorAction SilentlyContinue) { Remove-Variable -Name $name -Scope Script }
+                }
+                if (Test-Path -LiteralPath 'Function:script:Get-CimInstance') { Remove-Item -LiteralPath 'Function:script:Get-CimInstance' }
+            } $original $originalToolIdentity
+        } finally {
+            if ($syntheticWindowsEnvironment) {
+                if ($null -eq $originalSystemRoot) {
+                    if (Test-Path -LiteralPath Env:SystemRoot) { Remove-Item -LiteralPath Env:SystemRoot }
+                } else { [Environment]::SetEnvironmentVariable('SystemRoot', $originalSystemRoot) }
+            }
+        }
     }
+    Assert-Equal $originalSystemRoot ([Environment]::GetEnvironmentVariable('SystemRoot')) 'the fixture restores the original absent empty or valued SystemRoot'
+    Assert-Equal ($originalToolIdentity.ToString()) (& $module { (Get-Command Get-PerformanceToolIdentities).ScriptBlock.ToString() }) 'the fixture restores the exact production identity function'
 }
 
 function Get-FixtureNativeClosure([Collections.IDictionary] $Fixture) {
@@ -574,14 +638,16 @@ Invoke-FixtureCase 'resolved native inputs require owned bytes and reject ignore
     Get-FixtureNativeClosure $good | Out-Null
     Set-FixtureFile $root 'src/Controls/One.cpp' '#include "../../include/owned.h"'
     Get-FixtureNativeClosure $fixture | Out-Null
-    foreach ($text in @('#include "../../../outside.h"','#include "C:/outside.h"','#include UNKNOWN_HEADER', '#include "cached.obj"', '#pragma comment(lib, "C:/outside.lib")',
-            '#if __has_include("C:/outside.h")','#using "C:/outside.dll"','#embed "C:/outside.bin"')) {
+    $outsideHeader = [IO.Path]::GetFullPath((Join-Path $root 'outside.h'))
+    foreach ($text in @('#include "../../../outside.h"',"#include `"$outsideHeader`"",'#include UNKNOWN_HEADER', '#include "cached.obj"', '#pragma comment(lib, "C:/outside.lib")',
+            "#if __has_include(`"$outsideHeader`")",'#using "C:/outside.dll"','#embed "C:/outside.bin"')) {
         Set-FixtureFile $root 'src/Controls/One.cpp' $text
         Assert-Throws { Get-FixtureNativeClosure $fixture } "unsupported source-selected input was accepted: $text"
     }
     Set-FixtureFile $root 'src/Controls/One.cpp' '// owned native bytes'
     foreach ($case in @(
-        @('FullPath',"$root/outside.cpp"), @('AdditionalIncludeDirectories',"$root/ignored"), @('ExternalIncludeDirectories',"$root/ignored"),
+        @('FullPath',"$root/outside.cpp"), @('FullPath',(Join-Path $root 'src/Controls/Two.cpp')), @('Identity',(Join-Path 'Controls' 'Two.cpp')),
+        @('AdditionalIncludeDirectories',"$root/ignored"), @('ExternalIncludeDirectories',"$root/ignored"),
         @('ForcedIncludeFiles',"$root/.build/foreign.h"), @('ForcedUsingFiles',"$root/.build/foreign.dll"),
         @('AdditionalOptions','@C:/foreign.rsp'), @('AdditionalOptions','/IC:/foreign'), @('AdditionalOptions','/FIforeign.h'),
         @('AdditionalOptions','/external:I C:/foreign'), @('AdditionalOptions','/TpC:/foreign.cpp'), @('AdditionalOptions','C:/foreign.obj'), @('ObjectFileName',"$root/.build/foreign-objects/"),

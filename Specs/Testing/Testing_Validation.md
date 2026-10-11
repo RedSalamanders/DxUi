@@ -201,6 +201,18 @@ itself can pass when run alone and fail under them, and a tooling test requires 
 enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
 agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
 cannot fail it.
+Portable tooling fixtures MUST distinguish raw Windows project spelling from evaluated items on the current host:
+each native item identity and full path must resolve to the same existing owned file. Positive closure checks must
+complete before negative boundary checks, including mismatched identity/full-path pairs that each name an existing
+owned file. Windows-shaped profile normalization remains a separate regression.
+
+Profiling process-control fixtures identify an owned helper by both PID and native creation instance. On Linux,
+the creation instance is the boot ID and exact boot-relative `/proc/<pid>/stat` start tick; an absolute .NET
+`StartTime` reconstructed in separate processes is not the cross-handle identity. Other hosts retain the exact
+UTC creation timestamp. Cleanup acts only on the retained process whose identity was checked. The direct-child
+timeout, descendant survival and bounded pipe-drain assertions remain required; no timestamp tolerance or
+descendant-tree termination substitutes for them. The [Linux portability packet](../../Measurements/Tooling/2026-10-11-linux-portability/README.md)
+retains the original PR failures and same-source before/after fixtures; it does not qualify native performance.
 `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin

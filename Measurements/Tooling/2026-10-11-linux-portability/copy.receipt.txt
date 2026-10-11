@@ -1,0 +1,242 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-run.receipt.txt",
+    "relative": "ci/run.receipt.txt",
+    "bytes": 12846,
+    "sha256": "69822B5DDD3708FFD71AAFA4AF1F81A78D53544A0C89FB55A3DA83FF589F0EEC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-attempt.receipt.txt",
+    "relative": "ci/attempt.receipt.txt",
+    "bytes": 12868,
+    "sha256": "8ACC29E222CCFF5CF495E610D640D0CD14B976A990DEE4DBAB90DCE929F9705D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-jobs.receipt.txt",
+    "relative": "ci/jobs.receipt.txt",
+    "bytes": 31498,
+    "sha256": "CBD8B9A33D886B45BCB574C78903FA05D1A230FB62F14EB65D6D46E060733501"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-merge.receipt.txt",
+    "relative": "ci/merge.receipt.txt",
+    "bytes": 2656,
+    "sha256": "9BF06AD9F006763F1543B2CAF56A961EED04DFA94B3393786E62B6311ED60E23"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-head.receipt.txt",
+    "relative": "ci/head.receipt.txt",
+    "bytes": 1134,
+    "sha256": "F28C98D6F0A09C3046235F22902B6C0C856EC43376067E4598D37D46142BF17F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-ci-base.receipt.txt",
+    "relative": "ci/base.receipt.txt",
+    "bytes": 2776,
+    "sha256": "A18E350EF79D6C0213D1C7130B79F28DDA0D400EA362BBEB903C30FFFF11FE8A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\pr73-validation-job-api-raw.log",
+    "relative": "ci/validation-job-api-raw.log",
+    "bytes": 67301,
+    "sha256": "AC294530E8267457778E2C6155261D615AD1CB03E7C6747661B6FED06BA4EE10"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\before-Test-PerformancePolicy.ps1.receipt.txt",
+    "relative": "source/before-Test-PerformancePolicy.ps1.receipt.txt",
+    "bytes": 93775,
+    "sha256": "C3005F0103D17E55B67304E63D70264F8EE6D7D2FAC88F25D3655C9FED6C09EC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\before-Test-PerformanceProfiling.ps1.receipt.txt",
+    "relative": "source/before-Test-PerformanceProfiling.ps1.receipt.txt",
+    "bytes": 38100,
+    "sha256": "87EF907D070CA008E61215AAD3970763EBC97867BA6242597622EABA1E4F0B8F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-before-Test-PerformancePolicy.log",
+    "relative": "local/linux-before-policy.log",
+    "bytes": 4074,
+    "sha256": "6F8602CF3EA47E61F3911896B517ADC9A71EB7CEFDBE7596CF71549C93673404"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-before-Test-PerformanceProfiling.log",
+    "relative": "local/linux-before-profiling.log",
+    "bytes": 6888,
+    "sha256": "93555B12E49BF43EA0CC21BE247156701613F86E3909FB5465F2D7CFAE06D29A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-after-Test-PerformancePolicy.log",
+    "relative": "local/linux-first-path-repair-failed.log",
+    "bytes": 3429,
+    "sha256": "C8CA8F2B0BAF399DF1AF757E595FD63D7A94D87DB9BF04705AAFA03CD8687DB0"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-after-Test-PerformanceProfiling.log",
+    "relative": "local/linux-first-profiling-positive.log",
+    "bytes": 6838,
+    "sha256": "12EE0AA7BC7EE08DEF9581BC1054A02D9FDAA7A5641F0FE792816B4D440EE066"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-portability-driver.log",
+    "relative": "local/linux-first-driver.log",
+    "bytes": 2279,
+    "sha256": "A8CD588B3BAA8799ED3BEE5A0782CC73CDB1809059B2BDAD5E16A09B6188E92C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-portability-results.receipt.txt",
+    "relative": "local/linux-first-results.receipt.txt",
+    "bytes": 852,
+    "sha256": "130FC09117BF69DF78147A7CC2030A48A7D24BE77A9313B0DBE343E624498D00"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-profiling-after.receipt.txt",
+    "relative": "local/linux-first-profiling-after.receipt.txt",
+    "bytes": 322,
+    "sha256": "E46D9916458897F9595ED55597DBECECB24D2ACA5EBBE897B75A627951AAA2F9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\linux-portability-runtime.receipt.txt",
+    "relative": "local/linux-runtime.receipt.txt",
+    "bytes": 1853,
+    "sha256": "03B97D2B6A768CD7359EB455E1DB1FCB2F981AD6A67D49C6C61F34BA4022D054"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\performance-policy-linux-final-20261011.log",
+    "relative": "local/linux-isolation-probe-failed.log",
+    "bytes": 7281,
+    "sha256": "6EECF268319268EAFBF4C738AD436F636A261FEE9C9EB46AC3AB18BA6BFB488B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\performance-policy-linux-restored-20261011.log",
+    "relative": "local/linux-agent-policy-final.log",
+    "bytes": 6656,
+    "sha256": "52BE7C222F1E15F93CBE1415390DDB4D6CFFCBCD560E1DB7CE4EC2BA0857F004"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\performance-policy-windows-restored-20261011.log",
+    "relative": "local/windows-agent-policy-final.log",
+    "bytes": 3264,
+    "sha256": "46C2C132B78280950302424423917285370081A68175C035DF75FEED21C0399D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\performance-policy-linux-restored-driver-20261011.ps1",
+    "relative": "local/linux-agent-policy-driver.receipt.txt",
+    "bytes": 949,
+    "sha256": "1C63A04D3477E81574BF8A59D2893AE82FECA5D091A161988F78853D83AEAA71"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portable-policy-root-windows.log",
+    "relative": "local/windows-first-root-policy.log",
+    "bytes": 3264,
+    "sha256": "46C2C132B78280950302424423917285370081A68175C035DF75FEED21C0399D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portable-profiling-windows.log",
+    "relative": "local/windows-first-root-profiling.log",
+    "bytes": 6963,
+    "sha256": "B2327CBEF883EE9AFE4C5627C120E4A5438A605B787B950C15014AD058B9E0A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-windows-validate.log",
+    "relative": "local/windows-root-validate.log",
+    "bytes": 38428,
+    "sha256": "65A151FB40BB37A0701A6D19D72EE71D9DED6AF29E9B8D300F26786F0C45B8FC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-windows-format.log",
+    "relative": "local/windows-root-format.log",
+    "bytes": 120,
+    "sha256": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-windows-driver.log",
+    "relative": "local/windows-root-driver.log",
+    "bytes": 793,
+    "sha256": "022D866F60DD4066859A6E44F043967682791EF7148C3CEB03E52D01280E3E2C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-windows-validation.receipt.txt",
+    "relative": "local/windows-root-validation.receipt.txt",
+    "bytes": 1854,
+    "sha256": "5237C44F6CB7D3922C46BD7F4F18E89AEB69CCDE037777EEF1685DAA9B7BCE24"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-validate.log",
+    "relative": "local/linux-root-validate.log",
+    "bytes": 37786,
+    "sha256": "C809E5722C5210F1BE6A07EC3D791E5C850A42E2CCA7E9719CE036C1A04CD891"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-driver.log",
+    "relative": "local/linux-root-driver.log",
+    "bytes": 671,
+    "sha256": "02DA913D87D67337B56018002E70E4B8431B981C600DBC03417551F673C59546"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-validation.receipt.txt",
+    "relative": "local/linux-root-validation.receipt.txt",
+    "bytes": 1575,
+    "sha256": "C0AC3676003B244247D169FD32531E4585C58CF898F5DACA50BEC6CF98572197"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-mixed-path-validate.failed.log",
+    "relative": "local/linux-mixed-path-validate.failed.log",
+    "bytes": 38614,
+    "sha256": "804FF75CDA55F3856D5773D75CCE85FEA552D04DBF3D882848BDE50943EC6EBD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-mixed-path-driver.failed.log",
+    "relative": "local/linux-mixed-path-driver.failed.log",
+    "bytes": 969,
+    "sha256": "F25A814C822FF4738D81D0C0EC2A4DE91455F83672D295D51C806E6C5079BD0D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\portability-linux-native-environment.receipt.txt",
+    "relative": "local/linux-native-environment.receipt.txt",
+    "bytes": 203,
+    "sha256": "7FF0AD64BE34AF81725109EC4AF3BCFABB0E81640AA4F43BEF72288E54C9C614"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Run-Linux-Portability.ps1",
+    "relative": "local/first-linux-driver.receipt.txt",
+    "bytes": 3095,
+    "sha256": "A7FF41B7D51BC9BB9D0557A4A997457BCADFA8F9EE60DE2EF875588BD499F0D6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Run-Portability-Validation.ps1",
+    "relative": "local/root-validation-driver.receipt.txt",
+    "bytes": 2332,
+    "sha256": "E252F258847EF77D65F688E5C18C399CE8D8C05E71B45C5E040CF280E5FE6D3D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Prepare-Linux-Validation.ps1",
+    "relative": "local/root-linux-overlay-driver.receipt.txt",
+    "bytes": 1987,
+    "sha256": "76604C16E965EC72D1DFC366DC059E8F63BE39A5C2EBCDAD1CB0A51568B3322E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Record-CiPortability-Failure.ps1",
+    "relative": "ci/record-driver.receipt.txt",
+    "bytes": 2240,
+    "sha256": "DDBCC9E9882AAD8BF4726CB1218BFE2B65D5190B7DE4DBB30E678A8884B01623"
+  },
+  {
+    "original": "\\\\wsl.localhost\\Ubuntu\\home\\a\\performance-policy-diagnostic-20261011.log",
+    "relative": "local/linux-dpi-diagnostic.log",
+    "bytes": 3485,
+    "sha256": "58AD4D398B6577854B29DE4767EA9B8272F7AE5E6BEF8A9B7D3112F38AC3CEAA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\Tools\\tests\\Test-PerformancePolicy.ps1",
+    "relative": "source/after-Test-PerformancePolicy.ps1.receipt.txt",
+    "bytes": 99313,
+    "sha256": "965FE32BB1ED58C66868701C9177E7F5866BD7500201D6CF66DDE5F907E729D7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\Tools\\tests\\Test-PerformanceProfiling.ps1",
+    "relative": "source/after-Test-PerformanceProfiling.ps1.receipt.txt",
+    "bytes": 40897,
+    "sha256": "266E7859CBA57312C1350FA648D2C782A715EC6C92D81431E14C19FFD2CED42F"
+  }
+]

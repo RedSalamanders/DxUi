@@ -1,0 +1,24 @@
+[
+  {
+    "stage": "before",
+    "script": "Test-PerformancePolicy.ps1",
+    "source": "cdb3be2cf68d6444de9e66559db44fcfd75c0781",
+    "exitCode": 1,
+    "log": "/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/linux-before-Test-PerformancePolicy.log"
+  },
+  {
+    "stage": "before",
+    "script": "Test-PerformanceProfiling.ps1",
+    "source": "cdb3be2cf68d6444de9e66559db44fcfd75c0781",
+    "exitCode": 1,
+    "log": "/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/linux-before-Test-PerformanceProfiling.log"
+  },
+  {
+    "stage": "after",
+    "script": "Test-PerformancePolicy.ps1",
+    "sourceBase": "cdb3be2cf68d6444de9e66559db44fcfd75c0781",
+    "scriptSha256": "611762D508EA6B24C11BE52497F08618CF614E94448882F8BA14A13ECFA74B19",
+    "exitCode": 1,
+    "log": "/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/linux-after-Test-PerformancePolicy.log"
+  }
+]

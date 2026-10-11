@@ -1,0 +1,26 @@
+{
+  "sourceBase": "cdb3be2cf68d6444de9e66559db44fcfd75c0781",
+  "host": "linux",
+  "sourceState": "Explicit dirty overlay of listed source/document bytes on exact published base",
+  "inputs": {
+    ".gitattributes": "AE549D96FCF15D629870AF6CE0012222CCFB294184410ED55523EEB623354B84",
+    "Tools/tests/Test-PerformancePolicy.ps1": "965FE32BB1ED58C66868701C9177E7F5866BD7500201D6CF66DDE5F907E729D7",
+    "Tools/tests/Test-PerformanceProfiling.ps1": "266E7859CBA57312C1350FA648D2C782A715EC6C92D81431E14C19FFD2CED42F",
+    "Tools/README.md": "3B0BAAADE18FC1D0836AA1B5A6D6277B2A5639A4AD5C4C090911A0A59C9CEDA9",
+    "Specs/Testing/Testing_Validation.md": "1F499F153E7E7581BA25374329D24AC3302FCFA201CC94D12337E35E01405836",
+    "Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md": "C34CA662BA29A4B2CF0FDDCA6612E49617FDEC1A7FCD88FDE921F1F08349C539",
+    "Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md": "68669DC71425383641B891C61632A31F3E56F67CE64A2F218ADCB536E9958A22",
+    "Changes/2026-10-11-linux-performance-fixtures.md": "615D4DDB78E952FD417CA88CCA2BA84FE29FF7AA04CA9F72A96A09D8E327E021",
+    "Measurements/Tooling/2026-10-11-linux-portability/README.md": "C75DFDC60804F111969150B2D0D7D6389BE76A2E227AB6CA6AE4F8263EA1B8AE"
+  },
+  "steps": [
+    {
+      "script": "validate.ps1",
+      "exitCode": 0,
+      "log": "/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/portability-linux-validate.log",
+      "sha256": "C809E5722C5210F1BE6A07EC3D791E5C850A42E2CCA7E9719CE036C1A04CD891"
+    }
+  ],
+  "runtime": "7.6.6",
+  "completedUtc": "2026-10-11T19:06:07.5924939Z"
+}
