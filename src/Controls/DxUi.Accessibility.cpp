@@ -349,12 +349,13 @@ void TraceAccessibilityPropertyDeliveryForTest(const char* stage, size_t count, 
 {
     if (g_accessibilityPropertyEventHook.load(std::memory_order_acquire))
         std::fprintf(stderr,
-                     "    [form UIA worker] stage=%s count=%zu property=%ld result=%08lx thread=%lu\n",
+                     "    [form UIA worker] stage=%s count=%zu property=%ld result=%08lx thread=%lu tick=%llu\n",
                      stage,
                      count,
                      static_cast<long>(propertyId),
                      static_cast<unsigned long>(result),
-                     GetCurrentThreadId());
+                     GetCurrentThreadId(),
+                     GetTickCount64());
 }
 
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
