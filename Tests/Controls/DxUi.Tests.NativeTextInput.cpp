@@ -2876,7 +2876,7 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
 {
     using namespace DxUi;
 
-    Require(! simulateFirstLoss || TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
+    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(),
             "the forced IME setup loss uses an explicitly nonactivating window fixture");
 
     {
@@ -3015,6 +3015,13 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
         Require(field->GetText() == L"a", "the first undo removes the complete composition and restores composition-entry text");
         Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the earlier typed edit remains independently undoable");
         Require(field->GetText().empty(), "the second undo removes only the earlier typed edit");
+        if (simulateFirstLoss)
+        {
+            const unsigned previousNotifications = notifications;
+            Require(! field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the discarded setup leaves no earlier direct edit to undo");
+            Require(field->GetText().empty() && notifications == previousNotifications,
+                    "an empty undo history preserves text and emits no additional notification");
+        }
     }
 
     return true;
