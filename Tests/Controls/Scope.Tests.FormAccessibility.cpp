@@ -237,8 +237,16 @@ struct FormFixture final
 
 void ExpectEvents(UiaTest::Client& client, size_t mark, const std::vector<std::pair<PROPERTYID, std::wstring>>& expected)
 {
-    Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]() { return FieldEvents(client, mark).size() >= expected.size(); }),
-            "real UIA client hears each form presentation change");
+    const bool arrived = client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]() { return FieldEvents(client, mark).size() >= expected.size(); });
+    if (! arrived)
+    {
+        std::cerr << "    [form UIA] mark=" << mark << " expected=" << expected.size() << " heard=" << FieldEvents(client, mark).size() << " properties=";
+        for (const auto& [property, value] : expected)
+            std::cerr << property << ',';
+        std::cerr << '\n';
+        client.PrintEvents();
+    }
+    Require(arrived, "real UIA client hears each form presentation change");
     client.WaitOutTheStream();
     const auto events = FieldEvents(client, mark);
     if (events.size() != expected.size())
@@ -374,7 +382,7 @@ void LabelLifetimeAndReplacement(Hosting hosting)
 void PresentationEventsAreIdempotent(Hosting hosting)
 {
     FormFixture fixture(hosting);
-    UiaTest::Client client(fixture.Hwnd(), FormSubscription(), [&]() { fixture.Pump(); });
+    UiaTest::Client client(fixture.Hwnd(), FormSubscription(), [&]() { fixture.Pump(); }, true);
     Require(FindClientField(client, client.Root()) != 0u, "real UIA client walks to form semantic editor");
     client.WaitOutTheStream();
     auto mark = client.Mark();
