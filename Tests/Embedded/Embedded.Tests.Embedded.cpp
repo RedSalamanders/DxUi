@@ -1180,6 +1180,10 @@ __declspec(noinline) static int RunFunctionalTests()
         TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
         TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
         TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+        TestPreparedTreeLabeledByEventPermitsOwnerReentry(gpu);
+        TestPreparedTreeLabeledByBurstCoalescesWithoutRetainingSources(gpu);
+#endif
         return 0;
     }
     static size_t diagnosticCalls = 0;
@@ -1206,6 +1210,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
     TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
     TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+    TestPreparedTreeLabeledByEventPermitsOwnerReentry(gpu);
+    TestPreparedTreeLabeledByBurstCoalescesWithoutRetainingSources(gpu);
+#endif
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);

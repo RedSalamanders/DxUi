@@ -774,7 +774,38 @@ struct AccessibilityPendingProperty final
     std::shared_ptr<AccessibilityPropertyRegistration> registration;
     wil::unique_variant previous;
     wil::unique_variant current;
+    std::shared_ptr<AccessibilityPropertyRegistration> previousInterface;
+    std::shared_ptr<AccessibilityPropertyRegistration> currentInterface;
 };
+
+// Relationship values are COM providers too. Capture them on the owning apartment without putting a raw
+// interface pointer in the cross-apartment batch; delivery resolves its own proxy before handing it to UIA.
+HRESULT CaptureAccessibilityPropertyValue(const VARIANT& value, wil::unique_variant& scalar, std::shared_ptr<AccessibilityPropertyRegistration>& interfaceValue)
+{
+    if (value.vt != VT_UNKNOWN || ! value.punkVal)
+        return VariantCopy(&scalar, &value);
+    auto registration = std::make_shared<AccessibilityPropertyRegistration>();
+    HRESULT result    = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(registration->git.put()));
+    if (SUCCEEDED(result))
+        result = registration->git->RegisterInterfaceInGlobal(value.punkVal, __uuidof(IUnknown), &registration->cookie);
+    if (FAILED(result))
+        return result;
+    interfaceValue = std::move(registration);
+    return S_OK;
+}
+
+HRESULT ResolveAccessibilityPropertyValue(const std::shared_ptr<AccessibilityPropertyRegistration>& interfaceValue, wil::unique_variant& value) noexcept
+{
+    if (! interfaceValue)
+        return S_OK;
+    wil::com_ptr_nothrow<IUnknown> provider;
+    const HRESULT result = interfaceValue->git->GetInterfaceFromGlobal(interfaceValue->cookie, IID_PPV_ARGS(provider.put()));
+    if (FAILED(result))
+        return result;
+    value.vt      = VT_UNKNOWN;
+    value.punkVal = provider.detach();
+    return S_OK;
+}
 
 struct RequestedGridRow
 {
@@ -898,7 +929,7 @@ struct WindowHostAccessibilityTarget final
     bool structureNotificationScheduled = false;
     bool structureInvalidationPending   = false;
     // One coalesced property per live control/property key. Entries hold scalar/BSTR values and
-    // marshalled weak-identity senders, never snapshots or prepared row sources.
+    // marshalled weak-identity senders/relationships, never snapshots or prepared row sources.
     std::vector<AccessibilityPendingProperty> pendingProperties;
     wil::com_ptr_nothrow<IRawElementProviderSimple> structureNotificationProvider;
     // Embedded public providers belong to the owner's STA. Resolve a COM-marshalled proxy in the delivery
@@ -11510,7 +11541,21 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
                 break;
             wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
             if (SUCCEEDED(property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()))))
-                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), property.propertyId, property.previous, property.current));
+            {
+                wil::unique_variant previous, current;
+                const HRESULT oldResult = ResolveAccessibilityPropertyValue(property.previousInterface, previous);
+                const HRESULT newResult = ResolveAccessibilityPropertyValue(property.currentInterface, current);
+                if (FAILED(oldResult) || FAILED(newResult))
+                {
+                    Debug::Error(L"DxUi: embedded property notification value resolution failed ({:08X}, {:08X})", oldResult, newResult);
+                    continue; // No raw-interface or synchronous fallback after failed marshalling.
+                }
+                // Scalar/BSTR values already belong to this batch; do not copy or allocate them again during delivery.
+                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(),
+                                                                         property.propertyId,
+                                                                         property.previousInterface ? previous : property.previous,
+                                                                         property.currentInterface ? current : property.current));
+            }
         }
     }
     else
@@ -11607,7 +11652,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
         property.path            = record.path;
         property.controlIdentity = record.controlIdentity;
         property.propertyId      = id;
-        if (FAILED(VariantCopy(&property.previous, &previous)) || FAILED(VariantCopy(&property.current, &current)))
+        if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)) ||
+            FAILED(CaptureAccessibilityPropertyValue(current, property.current, property.currentInterface)))
         {
             Debug::Error(L"DxUi: embedded property notification value capture failed");
             return;
@@ -11618,8 +11664,11 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             {
                 if (pending.controlIdentity == property.controlIdentity && pending.propertyId == id && AreControlPathsEqual(pending.path, property.path))
                 {
-                    pending.current = std::move(property.current);
-                    return; // Preserve the oldest undelivered value; replace only the latest value.
+                    // Preserve the oldest undelivered value and replace only the latest. The retired value
+                    // and GIT registration move into the local property, released after this lock unwinds.
+                    std::swap(pending.current, property.current);
+                    pending.currentInterface.swap(property.currentInterface);
+                    return;
                 }
             }
         }
@@ -11772,6 +11821,8 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                     QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue);
                 else
                     static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                // Test retirement stays on the owner. Embedded delivery occurs later on the work item's MTA;
+                // this hook denotes queue-time publication there, never a foreign-thread control callback.
                 NotifyPropertyEventRaisedForTest(id);
             }
         };
@@ -11804,7 +11855,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 VARIANT value = {};
                 if (label)
                 {
-                    retained = CreateControlElement(&target, target.hwnd, label->path, CaptureControlIdentity(*label));
+                    retained = CreateControlEventElement(target, *label);
                     if (retained)
                     {
                         value.vt      = VT_UNKNOWN;

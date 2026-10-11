@@ -425,7 +425,8 @@ struct PropertyInterruption final
     {
         auto& self = *static_cast<PropertyInterruption*>(context);
         // The description Label legitimately changes its Name before the semantic editor's HelpText. Retire from the
-        // editor notification, then count every later property so none of the discarded snapshot can slip through.
+        // editor's owner-thread publication hook, then count every later property so none of the discarded
+        // snapshot can slip through. Native notification is synchronous; embedded notification is queued here.
         if (self.calls == 0u && property != UIA_HelpTextPropertyId)
             return;
         if (++self.calls == 1u)
@@ -494,8 +495,21 @@ void PublicationStopsAfterDestructiveCallback(Hosting hosting, Retirement retire
     });
     fixture.Publish();
     Require(interruption.calls == 1u && interruption.firstProperty == UIA_HelpTextPropertyId,
-            "synchronous retirement after first property stops later notifications from the discarded snapshot");
-    ExpectEvents(client, mark, {{UIA_HelpTextPropertyId, L"Description that retires the form."}});
+            "owner-thread retirement after first property publication stops later notifications from the discarded snapshot");
+    if (hosting == Hosting::Window)
+        ExpectEvents(client, mark, {{UIA_HelpTextPropertyId, L"Description that retires the form."}});
+    else
+    {
+        // The first HelpText was queued before this owner hook retired its source. A delivery already begun
+        // can reach the client; a later delivery can discard the unavailable sender. Only this one attempted
+        // event is permitted. Delivered-callback reentry is covered by the real embedded MTA client fixture.
+        client.WaitOutTheStream();
+        const auto events = FieldEvents(client, mark);
+        Require(events.size() <= 1u && std::ranges::all_of(events,
+                                                           [](const auto& event) noexcept
+        { return event.id == UIA_HelpTextPropertyId && event.value == L"Description that retires the form."; }),
+                "queue-time retirement delivers at most the already attempted HelpText and no later form property");
+    }
     Require(std::ranges::none_of(client.DistinctSince(mark),
                                  [](const auto& event) noexcept
     {

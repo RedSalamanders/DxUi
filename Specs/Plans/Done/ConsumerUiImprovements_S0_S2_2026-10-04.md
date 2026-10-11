@@ -25,7 +25,7 @@ stable editor ownership and the existing native/embedded host model. Their suppo
 
 This document is a historical implementation/evidence record. Domain contracts remain authoritative.
 
-| Area | Owning contracts to reconcile before implementation |
+| Area | Owning contracts |
 | --- | --- |
 | Ownership, compatibility, consumer pins | [Architecture](../../Core/Core_Architecture.md), [Consumption](../../Build/Build_ToolchainAndConsumption.md) |
 | Measurement, forms, list realization | [Controls and layout](../../UI/UI_ControlsAndLayout.md) |

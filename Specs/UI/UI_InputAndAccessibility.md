@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
@@ -573,7 +573,12 @@ alive must not retain a superseded prepared source after publication.
 
 Embedded control-property events use the same event-driven work item as structure invalidation. The owner captures
 the property values and registers a weak-identity sender in the COM Global Interface Table; the delivery MTA resolves
-a proxy before calling UIA. No raw STA provider crosses apartments. There is one active batch and one pending batch,
+a proxy before calling UIA. Interface-valued properties such as `LabeledBy` also register each non-null old/new
+reference on the owner apartment and resolve it on the delivery apartment; scalar and BSTR values remain owned copies.
+Relationship event values use weak-identity providers, so retaining either value does not retain a prepared row epoch.
+A replaced pending reference is retired outside the notification lock. Failed value marshalling or resolution drops
+that event with a diagnostic; it must not manufacture an empty relationship value. No raw STA provider crosses
+apartments. There is one active batch and one pending batch,
 with at most one pending entry per current control identity/property ID. Repeated changes preserve the oldest
 undelivered value and replace the latest value. Each publication removes pending entries for retired controls, so a
 held client cannot accumulate retired control epochs. Batches own scalar/BSTR values and registrations, not row

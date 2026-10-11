@@ -44,3 +44,4 @@ Measurements/Review-2026-10-09/**/*.txt -text -whitespace
 Measurements/Review-2026-10-09/**/*.zip binary
 Measurements/Performance/2026-10-10-profiling/** -text -whitespace
 Measurements/UiaSelection/2026-10-10/** -text -whitespace
+Measurements/UiComposition/2026-10-11-integration/** -text -whitespace
