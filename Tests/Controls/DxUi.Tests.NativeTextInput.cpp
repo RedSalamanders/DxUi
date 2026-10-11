@@ -1765,25 +1765,139 @@ void TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus()
 {
     using namespace DxUi;
 
+    class ObservedTextField final : public TextField
+    {
+    public:
+        using TextField::GetLifetimeToken;
+        using TextField::TextField;
+    };
     const ScopedActivatingTestWindows activatingWindows;
     AttachedHostWindow window;
     static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
     auto root   = std::make_unique<Panel>();
-    auto* field = root->AddChild<TextField>(L"alpha");
+    auto* field = root->AddChild<ObservedTextField>(L"alpha");
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
     window.Host().SetRoot(std::move(root));
 
+    // Passive, fixed-size observations distinguish setup failure from the zero-size transition below.
+    // No text, window titles, provider calls, extra pumping or activation requests are collected.
+    struct FocusObservation
+    {
+        HWND foreground         = nullptr;
+        HWND focus              = nullptr;
+        HWND active             = nullptr;
+        DWORD foregroundProcess = 0u;
+        DWORD foregroundThread  = 0u;
+        RECT client{};
+        bool clientReadable       = false;
+        bool visible              = false;
+        bool fieldAlive           = false;
+        bool logicalTarget        = false;
+        bool acknowledgedFocus    = false;
+        bool nativeSession        = false;
+        bool tsfDocument          = false;
+        UINT width                = 0u;
+        UINT height               = 0u;
+        uint32_t foregroundLosses = 0u;
+        NativeTextInputEventCounters counters{};
+    };
+    struct FocusAttempt
+    {
+        const char* terminalStage = "not-attempted";
+        bool activated            = false;
+        size_t observedStages     = 0u;
+        std::array<FocusObservation, 4u> observations{};
+    };
+    constexpr int maximumRuns = 5;
+    std::array<FocusAttempt, maximumRuns> attempts{};
+    size_t attemptCount                    = 0u;
+    const std::weak_ptr<int> fieldLifetime = field->GetLifetimeToken();
+    const auto observe                     = [&]
+    {
+        FocusObservation result{};
+        result.foreground        = GetForegroundWindow();
+        result.focus             = GetFocus();
+        result.active            = GetActiveWindow();
+        result.foregroundThread  = GetWindowThreadProcessId(result.foreground, &result.foregroundProcess);
+        result.clientReadable    = GetClientRect(window.Hwnd(), &result.client) != FALSE;
+        result.visible           = IsWindowVisible(window.Hwnd()) != FALSE;
+        result.fieldAlive        = ! fieldLifetime.expired();
+        result.logicalTarget     = window.Host().GetFocusControl() == field;
+        result.acknowledgedFocus = result.fieldAlive && field->HasFocus();
+        result.nativeSession     = window.Host().DebugHasActiveNativeTextInputSession();
+        result.tsfDocument       = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        result.width             = window.Host().DebugGetWidthPx();
+        result.height            = window.Host().DebugGetHeightPx();
+        result.foregroundLosses  = window.ForegroundLossCount();
+        result.counters          = window.Host().DebugGetNativeTextInputEventCounters();
+        return result;
+    };
     bool focused                = false;
     const auto activateAndFocus = [&]
     {
-        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+        focused                                        = false;
+        FocusAttempt& attempt                          = attempts[attemptCount++];
+        attempt                                        = {};
+        attempt.observations[attempt.observedStages++] = observe();
+        attempt.activated                              = TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+        attempt.observations[attempt.observedStages++] = observe();
+        if (! attempt.activated)
             return;
         window.Host().SetFocusControl(field);
+        attempt.observations[attempt.observedStages++] = observe();
         window.PumpMessages();
-        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        focused                                        = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        attempt.observations[attempt.observedStages++] = observe();
     };
-    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input zero-size suspension"))
+    const auto run = RunWhileForegroundHeld(window, activateAndFocus, maximumRuns);
+    constexpr std::array<const char*, 4u> stageNames{"before-activation", "after-activation", "after-logical-focus", "after-pump"};
+    for (size_t attemptIndex = 0u; attemptIndex < attemptCount; ++attemptIndex)
+    {
+        const FocusAttempt& attempt = attempts[attemptIndex];
+        std::cerr << std::format("    [FOCUS-SETUP] attempt={} activated={} terminal={} target={:x} process={} thread={} sequenceHeld={}\n",
+                                 attemptIndex + 1u,
+                                 attempt.activated,
+                                 attempt.terminalStage,
+                                 reinterpret_cast<uintptr_t>(window.Hwnd()),
+                                 GetCurrentProcessId(),
+                                 GetCurrentThreadId(),
+                                 run.held);
+        for (size_t stage = 0u; stage < attempt.observedStages; ++stage)
+        {
+            const auto& state    = attempt.observations[stage];
+            const auto& counters = state.counters;
+            std::cerr << std::format(
+                "    [FOCUS-SETUP] stage={} foreground={:x} foregroundProcess={} foregroundThread={} focus={:x} active={:x} "
+                "clientReadable={} client={}x{} host={}x{} visible={} fieldAlive={} logicalTarget={} acknowledgedFocus={} "
+                "nativeSession={} tsfDocument={} losses={} activation={} deactivation={} tsfAttempts={} tsfSuccess={} tsfFailure={} tsfDeactivation={}\n",
+                stageNames[stage],
+                reinterpret_cast<uintptr_t>(state.foreground),
+                state.foregroundProcess,
+                state.foregroundThread,
+                reinterpret_cast<uintptr_t>(state.focus),
+                reinterpret_cast<uintptr_t>(state.active),
+                state.clientReadable,
+                state.client.right - state.client.left,
+                state.client.bottom - state.client.top,
+                state.width,
+                state.height,
+                state.visible,
+                state.fieldAlive,
+                state.logicalTarget,
+                state.acknowledgedFocus,
+                state.nativeSession,
+                state.tsfDocument,
+                state.foregroundLosses,
+                counters.activationCount,
+                counters.deactivationCount,
+                counters.tsfActivationAttemptCount,
+                counters.tsfActivationSuccessCount,
+                counters.tsfActivationFailureCount,
+                counters.tsfDeactivationCount);
+        }
+    }
+    if (! ForegroundHeldOrSkip(run, "native text input zero-size suspension"))
         return;
     Require(focused, "zero-size suspension fixture owns actual keyboard focus and an active native session");
 

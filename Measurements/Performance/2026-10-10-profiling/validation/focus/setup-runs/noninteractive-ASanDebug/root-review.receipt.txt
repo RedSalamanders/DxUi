@@ -1,0 +1,152 @@
+{
+  "purpose": "root-verified-affected-noninteractive-diagnostic-binaries",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "parentExitCode": 0,
+  "sourceCommit": "5763d57ed716429f95096eb0e1368425052ac19a",
+  "sourceDirty": true,
+  "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+  "exactPostNativeIdentityMatched": true,
+  "suites": [
+    {
+      "suite": "Foundation",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "802B30E1AC0D4F3BCC1C1C20EA01CE6780151739261004CDF9E4551BB5B5781D",
+      "scopedIdentity": "01b782564dd3528e400ed49b29aebbf43708db66fb676a555804ee491589fc8d"
+    },
+    {
+      "suite": "Embedded",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "DBF2B74F5278C7E51A64FA18161D1550363442E76D5589BD1531BAE116F7CF2C",
+      "scopedIdentity": "22429825d9ee67e43c428e9412daeb5d8f716e820c0463836d65753112979726"
+    },
+    {
+      "suite": "Grid",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "ec57ecbb83ce004e85944889f4ce9b93c4530b52215a2a5831d470de1e3759d0"
+    },
+    {
+      "suite": "Theme",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "58c4656b81cafc04c9a72494680410cdfbf6c75d349dc4694628b56c0c2e64e8"
+    },
+    {
+      "suite": "Control",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "8a664c5d269779c79ac32731fa1f03c7540f9931c900f2da18591d97b013bb74"
+    },
+    {
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "8ae74cf26f025c34f6b82f82e58b452569b9bc6ca630d8a7ffa605f79e3f44d3"
+    },
+    {
+      "suite": "NewControls",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "95b1c923a6d5212d86caf496ef140f6c1e438ad4a0c96dde62bb76232d11dc1c"
+    },
+    {
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "baa254e453e6c7d80efc07f51aeb20eb32f75da46f5baa3a7a021f36f3d09c9a"
+    },
+    {
+      "suite": "TextField",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "67a54b4c896ba348efa7aed32fabac11eb539c62e0b2d49bca6f0609f5e5a17f"
+    },
+    {
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "48285b244e3e50338a96b7ce87af800b8b277a137e15bf84994a0a532ff2782a"
+    },
+    {
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "ee46bbb10ea95fd627110fdc018558661cb434827323d11497b059328bcfa9ca"
+    },
+    {
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "68afd9e4ed2769d28269c8d34aebcedd5ff265f5464f5cea0d4dafad1a7a6f4e"
+    },
+    {
+      "suite": "Tree",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "74864a22bad86f0f079527d0159466c36e8ecdcb302cc50c37672a5124e35875"
+    },
+    {
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "c08b6117dac6f03e49a2681989e6c22932cb1cd1363016bb9d221ad1b8ff3404"
+    },
+    {
+      "suite": "Rendering",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "f220d428f5365cc6f1f971c9ddf1e18dd81ea2a400ea3ffc4f2b9e4aad07a7c7"
+    },
+    {
+      "suite": "Animation",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "2655eb7f3e14efba31bb9a19d663c40a8938283423358a42197d3f5c9f437ab3"
+    },
+    {
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "68c8eb73e3ee21cbe235f0d90298e5f471b3590a67bfc3834115c17e6327f7eb"
+    },
+    {
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "b811730d5f9b0387ff84e95c6d80afca7ed48eacc9f0b017dd2ce2b045123814"
+    },
+    {
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "skips": 0,
+      "executableSha256": "67125173DA4703FAC79560FA330F1A2A930616B2B50927D0E241704BD522EB5A",
+      "scopedIdentity": "aeb18d67395313cb102e51e4dd53ead6475fddbea42d40301951d23d86bf13d6"
+    }
+  ],
+  "copiedOriginals": 65,
+  "reviewedExistingRawCopies": false,
+  "scopedBuildAndToolingDigestsValid": true,
+  "deliberateAsanProbeDetected": true,
+  "performanceAcceptance": "unpaired-observation-only",
+  "reviewerScriptSha256": "E0E6FDC7CC9E4B22768132761C5EA927F302647E284D2EBEDB0C1F2ECF4D7966",
+  "reviewedUtc": "2026-10-11T04:41:32.1897764Z"
+}

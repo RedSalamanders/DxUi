@@ -42,6 +42,12 @@ Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires an
 
 PrePush lists the separate focus-taking and menu-resource suites as `INTERACTIVE_NOT_RUN`; run those only with `test.ps1 -Interactive` after the person at the desktop agrees to the time. Capability-skipped scopes remain partial evidence and do not create reusable receipts.
 
+The zero-size NativeTextInput fixture prints bounded `[FOCUS-SETUP]` observations after its guarded setup sequence.
+Activation terminal branch, native/logical focus, session/TSF state, host/client dimensions and existing counters
+distinguish initial setup from the later resize assertion. `sequenceHeld` describes the complete guarded sequence;
+stage reads are sequential observations, not message history. A missing foreground-loss message does not prove
+initial acquisition. Setup failure remains a failure, and retries retain all earlier attempts and their exact bytes.
+
 Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;

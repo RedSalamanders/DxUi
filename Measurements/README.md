@@ -13,7 +13,10 @@ Application adoption measurements belong in their application's repository.
 - [Bounded profiling pilot, 2026-10-10](Performance/2026-10-10-profiling/README.md): six original frozen baseline
   reports, twelve guarded diagnostic reports, four native feature cases and 57 zero-skip x64 suite passes;
   all six configurations build. Sampling cost and variability leave the original flags and required-CI hold open;
-  fresh focus validation still needs local Start confirmation.
+  fresh focus attempts remain individually retained, including a successful Debug retry and Release/ASan failures.
+  Corrected setup-diagnostic binaries pass six builds and another 57 noninteractive executions, zero skips. Their
+  ASan Start confirmation expires before any foreground suite runs; fresh foreground validation remains open and
+  original failure causes remain unproved.
 - [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
   timeout regressions and eleven passing ASan reproduction processes with bounded provider/client timelines;
   unchanged event assertions and original failure evidence remain authoritative, with the original cause unproven.

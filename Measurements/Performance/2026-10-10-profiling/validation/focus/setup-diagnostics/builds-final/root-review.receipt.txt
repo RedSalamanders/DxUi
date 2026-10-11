@@ -1,0 +1,77 @@
+{
+  "purpose": "corrected-source-six-builds-and-captured-v2-attestations",
+  "profiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "finalMatrixLog": "x64-Debug.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "61b9ddb66180307156f33496bb8091dc311d8acee9037f64e894bc193ae41078",
+      "buildInputIdentity": "ba12254a57d24627f35b763daed76d38c5435828e98014fc6339b9d11a1a172b",
+      "buildArtifactIdentity": "f64aea70fdd4fb4a4b7ee83e3a4a0485b1dc7847012da3b5fa908e3def84e6fb",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "nineteen noninteractive suites recorded separately"
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "finalMatrixLog": "x64-Release.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "24dc23b185cba7ac002a050eee1a246568d0ea8794cc06e9e0cd4a3ac97f7783",
+      "buildInputIdentity": "12381253b2da08cab16624330fa4e999d49d66717d0b09c7848da8d8d0dbd263",
+      "buildArtifactIdentity": "907509c58809246269e8f4020bcf33b4b10cf7a53257bc8c49fe2f47f591f550",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "nineteen noninteractive suites recorded separately"
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "finalMatrixLog": "x64-ASanDebug.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "19d67933930794652e6fb09d4449d06345eaf7912208412d83b635f74ca880c2",
+      "buildInputIdentity": "8b2e82c6503eb4cf88bafe7f84df9920db4f688a028b4a3139f5b33e649e4e05",
+      "buildArtifactIdentity": "266ee39170ecc54f116b41cd8e12b0b4817d232b307077836efa06198a2bfa65",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "nineteen noninteractive suites recorded separately"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "finalMatrixLog": "ARM64-Debug.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "4c383e090b5d7153a471311d1f7822c773b50e96e3549c52c85499933e4b7655",
+      "buildInputIdentity": "f4358dffad8dff4dcf051a84dc65ea3f6eb079527b0a64cbc8bfe47aac81b885",
+      "buildArtifactIdentity": "d3aa19fb2a656da4a6827e082761bbcca484597ed46908c1971c089b6460beae",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "cross-build only; native execution not performed"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "finalMatrixLog": "ARM64-Release.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "95ea7243b876d80c8db02902891a3bdb939dbfade166df0cf08da0faf000ba6b",
+      "buildInputIdentity": "a3dc630e568615b601b5fec562c8397b63a0b51b8203b1c52d9113efe95431d9",
+      "buildArtifactIdentity": "ea97cd987f9c7a9ae3ac4c3d17ec4146125b409230ce53f6390b696328966167",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "cross-build only; native execution not performed"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "finalMatrixLog": "ARM64-ASanDebug.log",
+      "buildIdentityVersion": 2,
+      "buildAttestationIdentity": "44a57423761aa97da0ae90abfeb98260c2ff3f3b7a8e09f9825ff4f111b86248",
+      "buildInputIdentity": "735f5d78e72143956dce4f58528925a417ed84e3d3210116a7a6fdbd4ce29a79",
+      "buildArtifactIdentity": "f8d1d99279c8a2790ce3e09727ab95f575bb7fc932089fc943954025a0d95307",
+      "nativeArchitecture": "X64",
+      "runtimeQualification": "cross-build only; native execution not performed"
+    }
+  ],
+  "originalCopyBindings": 22,
+  "initialReviewSha256": "20D533F4937E20D953DF53445ADB522E4C902F974064BCA8F19BA7082899C232",
+  "correction": "Removed six progress strings mistakenly captured beside the six build descriptors; original metadata retained. No build/runtime result changed.",
+  "capturedBuildReceiptDigestsValid": true,
+  "runtimeScope": "x64 noninteractive evidence stored separately; no ARM64 or foreground execution by this checker",
+  "reviewedUtc": "2026-10-11T04:48:19.7977836Z"
+}

@@ -177,20 +177,27 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     return WaitForDxUiThreadFocus(hwnd, timeoutMs);
 }
 
-[[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u) noexcept
+// An optional terminal-stage observation explains a failed fixture setup without changing activation or retry policy.
+[[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u, const char** terminalStage = nullptr) noexcept
 {
+    const auto finish = [terminalStage](bool result, const char* stage) noexcept
+    {
+        if (terminalStage)
+            *terminalStage = stage;
+        return result;
+    };
     if (DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread())
     {
-        return false;
+        return finish(false, "activation-blocked");
     }
     if (! TryFocusDxUiTestWindow(hwnd, timeoutMs))
     {
-        return false;
+        return finish(false, "initial-thread-focus");
     }
 
     if (GetForegroundWindow() == hwnd)
     {
-        return true;
+        return finish(true, "already-foreground");
     }
 
     if (SetForegroundWindow(hwnd) == FALSE && GetForegroundWindow() != hwnd)
@@ -200,12 +207,12 @@ inline bool RunDxUiTest(const char* name, void (*test)())
         DxUi::TestSupport::Win32DesktopBackend desktop;
         if (! desktop.BringToForeground(hwnd) && GetForegroundWindow() != hwnd)
         {
-            return false;
+            return finish(false, "foreground-transfer");
         }
         // Input attachment shares focus state; re-establish this thread's target after the queues are detached.
         if (GetFocus() != hwnd && ! TryFocusDxUiTestWindow(hwnd, timeoutMs))
         {
-            return false;
+            return finish(false, "thread-focus-after-detach");
         }
     }
 
@@ -214,13 +221,15 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     {
         if (GetForegroundWindow() == hwnd)
         {
-            return GetFocus() == hwnd;
+            const bool focused = GetFocus() == hwnd;
+            return finish(focused, focused ? "foreground-and-focus" : "focus-after-foreground");
         }
 
         Sleep(10);
     } while (GetTickCount64() < deadline);
 
-    return GetForegroundWindow() == hwnd && GetFocus() == hwnd;
+    const bool focused = GetForegroundWindow() == hwnd && GetFocus() == hwnd;
+    return finish(focused, focused ? "foreground-and-focus" : "foreground-or-focus-timeout");
 }
 
 inline void RequireColorNear(const D2D1_COLOR_F& actual, const D2D1_COLOR_F& expected, const char* message)

@@ -1,0 +1,26 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\Tests\\Controls\\Controls.Tests.DxUiTestHelpers.h",
+    "copy": "activation-helper.source.receipt.txt",
+    "bytes": 86427,
+    "sha256": "2C1E5D82F6AFE78E4F8BE459710FF913755D4D80B31047582461A11322F23551"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\Tests\\Controls\\DxUi.Tests.NativeTextInput.cpp",
+    "copy": "native-text-input.source.receipt.txt",
+    "bytes": 480331,
+    "sha256": "81A959F33F3B4BDD2BB1BE37D55CD3B6FEA686736C8D663DE79E989DAB0BD156"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-x64-Debug.txt",
+    "copy": "initial-Debug-build-failed.log",
+    "bytes": 5988,
+    "sha256": "0FFE7860980E8581BAE42A74E5B876275EEA102DD273236A51D1DAE65B76D5C1"
+  },
+  {
+    "original": "C:/Users/eric/.codex/tmp/dpf-followup/Snapshot-Focus-Setup.ps1",
+    "copy": "snapshot-reviewer.source.receipt.txt",
+    "bytes": 9917,
+    "sha256": "CA50D6F2781CF5BB6544EFFBEB2195A3F54E8FB3EBCFCC7180A055058C28E9F8"
+  }
+]

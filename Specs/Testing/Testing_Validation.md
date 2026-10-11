@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -340,6 +340,14 @@ application takes the foreground in every run, the fixture records a capability 
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
 can activate: the sequence repeats once, and stops after the maximum with the application named.
+Foreground-loss counting does not establish initial acquisition. The zero-size NativeTextInput fixture MUST reset
+its setup-success observation at the start of each attempt and fail an unmet setup condition when no foreground
+loss was observed; an earlier successful attempt cannot authorize a later failed acquisition. This fixture records
+at most five attempts and four passive setup stages per attempt, including the activation helper's terminal branch,
+native/logical focus, geometry,
+session/TSF state and existing counters. These sequential observations do not establish Windows message history,
+causal attribution or performance acceptance. Diagnostic collection does not add activation, pumping, retries or
+timeout extensions, and the original behavior assertions remain required.
 A fixture with several windows, or with windows a later run must not inherit (one UI Automation has never seen), plays
 each run with windows of its own through `RunUntilForegroundHeld`, of which `RunWhileForegroundHeld` is the one-window
 form. The run reports whether another application took the foreground from any of its windows, and the same rule

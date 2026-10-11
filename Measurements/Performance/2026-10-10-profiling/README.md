@@ -89,8 +89,15 @@ The runner summary regressions pass 29/29 and profiling tooling passes 102/102. 
 receipt replays as failed foreground, skipped focus and failed pointer, with "Desktop restoration failed";
 its bytes remain unchanged. The fresh Debug confirmation timed out before any of the four focus children launched.
 Its four suite exits are 24 and lease exit is 21; all three recorded desktop states are unchanged. This canceled
-attempt is retained under `validation/focus-Debug-attempt1/`. Fresh Debug/Release/ASan focus qualification remains
-open pending local Start confirmation; the earlier layout packet qualifies its own archived binaries only.
+attempt is retained under `validation/focus-Debug-attempt1/`. [Four later confirmed attempts](validation/focus/README.md)
+remain separately retained on `5763d57e`: Debug passes all four suites with verified restoration, Release fails Menu
+popup discovery, and ASan repeats an earlier Debug NativeTextInput initial setup failure followed by grant/restoration
+failures. Three direct full post-focus states match the recorded pre-focus state; the earlier Debug failure's recorded
+identity was compared with the later successful Debug retry. The new bounded setup diagnostics change test bytes;
+[their corrected builds and noninteractive runs](validation/focus/setup-runs/README.md) pass all six builds and 57
+suite executions with zero skips and complete actual provenance. Their ASan confirmation times out before any
+foreground child runs, with verified unchanged desktop state. Fresh Debug/Release/ASan foreground validation remains
+open; the earlier passes qualify their archived binaries only. Causes remain unproved.
 
 Replay the packet with `Analyze.ps1`, which requires the retained `SHA256SUMS` and checks imported helper bytes
 against the recorded profiling closure. If those helpers have changed, use their recorded `cc77bec2` versions.

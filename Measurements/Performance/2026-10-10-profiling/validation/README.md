@@ -1,6 +1,7 @@
 # Profiling and test follow-up validation
 
-This packet qualifies the declared diagnostic/test changes, with fresh foreground validation still open.
+This packet records validation of the profiling/reporting changes and separate bounded focus setup diagnostics,
+with fresh foreground validation still open.
 It supplies no performance acceptance, consumer qualification or native ARM64 runtime result.
 
 - `features/`: the four predeclared native profiling cases, Debug and ASan Default/MultilineGrid, exact native
@@ -17,7 +18,14 @@ It supplies no performance acceptance, consumer qualification or native ARM64 ru
   The complete sealed performance analysis also reproduces identical bytes. No native executable is launched.
 - `focus-Debug-attempt1/`: the fresh native Start confirmation times out before any focus child launches.
   Foreground, keyboard focus and pointer are recorded unchanged, with lease exit 21 and four suite exits 24.
-  Debug/Release/ASan focus qualification remains open pending local Start confirmation.
+- `focus/`: four separately retained confirmed attempts on `5763d57e`. The Debug retry passes four full suites
+  with zero skips and verified restoration; Release has a Menu popup-discovery failure, and Debug/ASan share an
+  initial NativeTextInput setup failure followed by grant/restoration failures. Three direct full post-focus states
+  match their pre-focus state; the earlier Debug failure's recorded identity was compared with the later Debug pass.
+  The corrected setup-diagnostic binaries separately pass all six builds and 57 noninteractive executions with
+  zero skips; `focus/setup-runs/` preserves those runs and the canceled new ASan confirmation. Actual before/after
+  provenance and complete current scope digests pass independent checks. No new foreground child ran and no failed
+  or canceled attempt is a pass.
 
 The lead independently checks every native suite receipt against current executable bytes, all four profiling
 schemas/native-stamped fields and companion hashes, and all six exact v2 build attestations. Independent review

@@ -1,0 +1,14 @@
+state: launchfailed
+exit: 24
+reason: the foreground could not be granted to the child (error 5): this process does not hold it
+confirmation: started
+foreground.saved: class 'IrfanView' of i_view64.exe (process 87888)
+restoration.foreground: gone
+restoration.focus: gone
+restoration.cursor: failed
+cursor.saved: 3235,498
+cursor.atExit: 1776,18
+restoration.runMovedSomething: 0
+child: Menu launched=1 exit=0 seconds=63.1 timedout=0 interrupted=0
+child: NativeTextInput launched=1 exit=1 seconds=31.1 timedout=0 interrupted=0
+child: MenuResources launched=0 exit=0 seconds=0.0 timedout=0 interrupted=0

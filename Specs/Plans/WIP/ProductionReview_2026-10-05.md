@@ -98,15 +98,26 @@ investigation of the intermittent ASan UIA selection-event failure. Continue on 
 - [x] Complete affected noninteractive checks and six-profile build accounting, update usage/domain contracts and
   changelog fragments, and independently review delegated code/evidence. The lead repeats all fifteen UIA replay
   cases; the strengthened reader rejects the twelve corruptions the earlier reader accepted.
-- [ ] Complete fresh Debug/Release/ASan focus suites through confirmed local leases; the first fresh Debug Start
-  confirmation times out before any child launches. Earlier focus evidence qualifies its own binaries only.
+- [ ] Complete fresh Debug/Release/ASan focus suites through confirmed local leases. Preserve the canceled initial
+  Debug attempt and four later confirmed attempts on `5763d57e`: Debug retry passes with verified restoration;
+  Release fails Menu popup discovery and ASan repeats the initial NativeTextInput setup failure, followed by grant/
+  restoration failures. Bounded attempt-local setup diagnostics preserve activation/assertion policy; their corrected
+  binaries pass six builds and 57 noninteractive executions, zero skips. Their ASan Start confirmation times out
+  before any child executes, with verified unchanged desktop state. Fresh foreground validation remains open;
+  earlier focus evidence qualifies its own binaries only.
 
-Current follow-up validation: 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips), four
-native profiling feature cases and six-profile builds. The lead independently verifies exact v2 build/executable
+The original follow-up retains 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips),
+four native profiling feature cases and six-profile builds. The corrected setup-diagnostic inputs separately pass
+six builds and another 57 noninteractive executions. The lead independently verifies exact v2 build/executable
 identities, raw/stamped data, archive copies, timings and UIA timelines; delegated evidence receives independent review.
-The fresh Debug Start dialog times out before any focus child launches, with all three desktop states recorded
-unchanged. Retain this attempt separately and keep fresh Debug/Release/ASan foreground validation open pending
-confirmed local leases. [The profiling packet](../../../Measurements/Performance/2026-10-10-profiling/README.md)
+The [foreground attempts](../../../Measurements/Performance/2026-10-10-profiling/validation/focus/README.md) preserve
+both the successful Debug retry and every cancellation/failure. Source review places the repeated NativeTextInput
+failure before the zero-size operation, without proving activation, focus/session loss or user interference as its
+cause. Bounded passive stage diagnostics compile in all six profiles and pass the noninteractive gates. The
+[corrected-binary runs](../../../Measurements/Performance/2026-10-10-profiling/validation/focus/setup-runs/README.md)
+retain all 57 suite/log/scoped-receipt sets, actual complete post-native state and the canceled confirmation. The
+zero-size observations have not executed; fresh Debug/Release/ASan foreground qualification remains open.
+[The profiling packet](../../../Measurements/Performance/2026-10-10-profiling/README.md)
 and [UIA packet](../../../Measurements/UiaSelection/2026-10-10/README.md) preserve the exact inventories and limits.
 
 This follow-up changes diagnostics/test reporting, not control visuals; review the documentation/gallery contract
