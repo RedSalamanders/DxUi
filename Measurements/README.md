@@ -34,6 +34,12 @@ Application adoption measurements belong in their application's repository.
   both frozen judge results, 72 same-side controls and a reproducible descriptive analysis. All aggregate sets
   remain within the existing noise budget, but all 72 controls drift in some metric. Memory-stage observations
   and 100 ns clock quantization are diagnostic; they do not qualify the policy or attribute a leak.
+- [Prepared Tree accessibility finish, 2026-10-10](PreparedTreeAccessibility/2026-10-10/README.md): current-main integration,
+  real native/embedded UIA reentry and source retirement, six-profile scoped validation and two fresh paired studies.
+  Formal benchmark-policy acceptance and ARM64 foreground qualification remain open; consumer adoption is separate.
+
+- [Embedded interaction layout, 2026-10-06](EmbeddedInteractionLayout/README.md): six matched Release runs per side,
+  unchanged surface/composition budgets and all raw noisy controls retained. Consumer qualification remains separate.
 
 - [Recent-merge production review, 2026-10-08](Review-2026-10-08/README.md): retained baseline, independently
   reproduced lifetime/state failures, final library qualification and paired measurements; unresolved

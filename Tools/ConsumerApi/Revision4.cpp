@@ -1,11 +1,17 @@
-// Frozen consumer compile fixture for API revision 4. Update only with an explicit consumer-API review.
+// Reviewed consumer compile fixture for API revision 4. Prepared Tree/interaction additions were reviewed with the P1 branch.
 #include <DxUi/DxUi.h>
+#include <DxUi/Embedded.h>
 
 #include <memory>
 #include <optional>
 #include <type_traits>
 
 using OptionalRow = std::optional<uint64_t>;
+
+static_assert(std::is_same_v<decltype(&DxUi::ITreeModel::CapturePreparedAccessibilityRows),
+    std::shared_ptr<const DxUi::IPreparedTreeAccessibilityRows> (DxUi::ITreeModel::*)() const noexcept>);
+static_assert(std::is_same_v<decltype(&DxUi::EmbeddedHost::PrepareInteraction),
+    HRESULT (DxUi::EmbeddedHost::*)(UINT, UINT, float) noexcept>);
 
 static_assert(std::is_same_v<decltype(&DxUi::Panel::TakeChild),
     std::unique_ptr<DxUi::Control> (DxUi::Panel::*)(size_t) noexcept>);

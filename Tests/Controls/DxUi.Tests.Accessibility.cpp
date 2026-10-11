@@ -10220,12 +10220,18 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 } // namespace
 
+#include "Scope.Tests.PreparedTreeAccessibilityEvents.h"
+
 void RunAccessibilityTests()
 {
     DXUI_RUN_TEST(TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream);
     DXUI_RUN_TEST(TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary);
     DXUI_RUN_TEST(TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep);
     DXUI_RUN_TEST(TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication);
+    DXUI_RUN_TEST(TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient);
+    DXUI_RUN_TEST(TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback);
+    DXUI_RUN_TEST(TestPreparedTreeInvalidCountFallsBackToCurrentModel);
+    DXUI_RUN_TEST(TestPreparedTreeCaptureCanRetireItsControl);
     DXUI_RUN_TEST(TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint);
     DXUI_RUN_TEST(TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries);
     DXUI_RUN_TEST(TestAccessibilityActionsReportControlsDestroyedByCallbacks);
