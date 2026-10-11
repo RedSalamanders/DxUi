@@ -63,6 +63,10 @@ public:
             if (SUCCEEDED(result))
                 result = label->get_CurrentName(name.put());
             const std::wstring_view text = name ? std::wstring_view(name.get(), SysStringLen(name.get())) : std::wstring_view{};
+            std::cerr << "[RELATIONSHIP EVENT] type=" << eventValue.vt << " result=" << static_cast<unsigned long>(result)
+                      << " first=" << (text == L"Form label first β") << " final=" << (text == L"Form label final Ω")
+                      << " pending=" << (text == L"Form label pending") << " gateOpen=" << (WaitForSingleObject(continueDelivery.get(), 0) == WAIT_OBJECT_0)
+                      << '\n';
             if (! heardFirstRelationship.exchange(true, std::memory_order_acq_rel))
             {
                 if (SUCCEEDED(result) && text != L"Form label first β")
