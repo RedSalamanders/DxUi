@@ -817,7 +817,7 @@ public:
 
 private:
     // UIA can make a chain of COM calls into this STA while constructing an event's cached sender. A Sleep between
-    // dispatches charges a scheduler tick to every call. Wake for queued/sent messages so that the owner services
+    // dispatches can delay each chained call until another scheduler tick. Wake for queued/sent messages so that the owner services
     // the next call promptly; the short timeout still observes predicates that change on the client's MTA.
     static void WaitForOwnerMessages()
     {

@@ -704,6 +704,15 @@ specified by the performance contract.
 
 Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
 
+On 11 October 2026 the developer requested merging the completed S0-S2 library implementation while retaining
+S3-S7 and unfinished qualification in indexed WIP. This implementation-only decision permits normal PR integration
+after current-source functional, build, tooling and synthetic-consumer results are reviewed. Existing unqualified
+performance-policy findings and verified ARM64 foreground refusals before input remain failed/incomplete qualification,
+never `ci-gate` success. This decision does not accept measured degradation or authorize other failed correctness,
+sanitizer, provenance or deterministic-resource checks. Performance/policy, native ARM64 foreground, physical device/input
+and consumer adoption stay open in [the qualification plan](../Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+Ordinary qualification and main/release acceptance requirements remain unchanged.
+
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
 
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.

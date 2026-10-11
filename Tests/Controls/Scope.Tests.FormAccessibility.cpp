@@ -279,9 +279,6 @@ void ExpectEvents(UiaTest::Client& client, size_t mark, const std::vector<std::p
             std::cerr << property.first << ',';
         std::cerr << '\n';
         client.PrintEvents();
-        std::cerr << "    [form UIA late diagnostic] initial deadline failed; pump for a further 15000 ms\n";
-        client.Settle(15000u);
-        client.PrintEvents();
     }
     Require(arrived, "real UIA client hears each form presentation change");
     client.WaitOutTheStream();

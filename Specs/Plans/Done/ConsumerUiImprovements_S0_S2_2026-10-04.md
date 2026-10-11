@@ -315,3 +315,10 @@ Paired non-regression and trusted-policy acceptance remain open, including the l
 - [x] Split the deferred S3-S7 work and all uncompleted S0-S2 acceptance into their WIP records.
 
 This closeout does not close existing menu, Grid, Tree, slider, production-review, consumer or platform plans.
+
+On 11 October the developer requested remote-main integration of this completed implementation, with S3-S7 and
+unfinished qualification retained in their WIP records. The current-source integration must additionally review the
+new embedded label-notification marshalling/lifetime regressions and the form client's message-aware owner wait.
+Historical packets above cannot qualify those executable changes. The dated
+[validation decision](../../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) preserves every unfinished
+performance, foreground/platform, physical-input and consumer acceptance gate without recording a successful `ci-gate`.
