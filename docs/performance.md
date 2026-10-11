@@ -146,6 +146,12 @@ A changed judge, assignment generator or policy remains `policy-review-required`
 qualified. The policy binds the assignment protocol and normalized generator/replay source hash as well as the judge;
 candidate code cannot inherit trust by retaining the protocol name or self-approve the trust policy.
 
+The [S0-S2 final PR review](../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md) reproduces both complete
+methods and all controls from 144 exact raw reports. All three original method-agreement flags remain false and
+69/72 controls are unstable; publication/aggregate remain failed and policy qualification stays open. The recorded
+implementation-only merge supplies no speedup or accepted non-regression. Raw composition and private-memory shifts
+remain investigation targets in the [qualification WIP](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+
 To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
 existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against
 another, or a revision against this checkout's uncommitted edits

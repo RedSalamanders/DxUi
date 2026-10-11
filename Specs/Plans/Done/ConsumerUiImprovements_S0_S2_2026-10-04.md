@@ -2,11 +2,13 @@
 
 - **Status**: DONE on 11 October 2026 for S0-S2 library implementation, normative/usage/design-system publication
   and recorded local x64 validation at the retained source identities. This is the completed portion of the original
-  4 October UI composition plan; it does not claim validation of a later integration or merge tree.
+  4 October UI composition plan. Original local receipts retain their own source; the separate final PR/merge review
+  below records current-source implementation integration.
 - **Scope**: accepted measurement/ownership decisions, intrinsic measurement, opt-in Flex layout and stable forms.
 - **Library owner**: DxUi. No consumer pin, adapter or product behavior was changed by this library work.
 - **Remaining acceptance**: [UI composition qualification](../WIP/ConsumerUiQualification_2026-10-11.md) owns
-  paired-performance/policy acceptance, native ARM64 execution, physical device/input qualification and consumer pilots.
+  paired-performance/policy acceptance, native ARM64 foreground/resource acceptance, physical device/input qualification
+  and consumer pilots.
   Those gates remain open; moving this implementation record to Done neither passes nor waives them.
 - **Deferred implementation**: [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) retain overlay
   sessions, variable-height lists, read-only Markdown help, motion and theme authoring. They are unimplemented.
@@ -15,7 +17,7 @@
 
 The user accepted S0-S2 on 10 October 2026 and requested this implementation/adoption split on 11 October.
 The original plan combined library delivery with later proposals and broader acceptance. This Done record closes
-only the implemented library scope and its recorded local validation. The separate WIP qualification plan retains
+only the implemented library scope, its source-specific validation and reviewed implementation integration. The separate WIP qualification plan retains
 all unfinished performance, platform, physical-input and adoption obligations from that plan.
 
 S0-S2 reduce repeated measurement, field placement and focus bookkeeping while applications continue to own drafts,
@@ -325,7 +327,7 @@ original composition, two-undo and late-result assertions remain. Embedded notif
 the form client's message-aware owner wait have reviewed real-client evidence. Actual compiler/SDK, dependency,
 artifact, harness and environment inputs are compared across archival; `284a9ec6` and `061748aa` remain distinct
 historical runs. The earlier budget repair assigned 60 minutes only to ARM64 ASan while preserving the stage caps
-and existing checks. Exact-head/base/merge-tree PR CI requires its own reviewed results. The dated
+and existing checks. At that stage exact-head/base/merge-tree PR CI still required its own reviewed results. The dated
 [validation decision](../../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) retains unfinished
 performance, native-platform, physical-input and consumer gates without recording a successful `ci-gate`.
 
@@ -335,7 +337,7 @@ fixture repair preserves the production policy/runner, rejection cases and bound
 [portability packet](../../../Measurements/Tooling/2026-10-11-linux-portability/README.md) retains the failed run,
 actual synthetic merge, reproducible Linux negatives and independently reviewed Windows/Linux positives.
 That superseded run was cancelled; it supplies no native, consumer or paired acceptance. Fresh exact-head CI
-remains required before the requested remote integration. The fixtures change no control rendering or gallery
+was still required before integration; the reviewed outcome is recorded below. The fixtures change no control rendering or gallery
 content; the committed design-system previews and their harness provenance remain applicable to their own source.
 
 The subsequent run at head `1cdbfde4c93bafa6a0c794fd80939387467fefa4` completes all x64 Full and synthetic-consumer
@@ -344,4 +346,22 @@ work, but each ARM64 Full step reaches its 25-minute cap before ordinary suite c
 successful independent consumers. ARM64 cold build/provenance now receives a finite 45-minute Full window;
 every enclosing row fits its Full and consumer windows plus setup/artifact allowance. Native per-test watchdogs,
 consumer limits and failure rules stay required. This repair changes no control rendering, gallery or design-system
-content and requires fresh exact-source CI; the truncated run does not qualify ARM64 or paired performance.
+content and at that stage required fresh exact-source CI; the truncated run does not qualify ARM64 or paired performance.
+
+The final [PR #73](https://github.com/RedSalamanders/DxUi/pull/73) normally merged to remote main as
+`670207429d62ecc541769b5dd6c70b9607745e64`, with ordered parents `ec680e866a218b57000a1780018c00101a437f91`
+and `4bd3480170140090ab2d8ff883d05507281b52ee`. Its tree `e695cf74db0e2fc1a5c8c8d183cfb0bd136d639d`
+equals actual tested merge `80d875a1de91d2b2c8602faa5614cf75eab6025b`. The
+[final CI and merge packet](../../../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md) retains the complete
+collection, root reviews and independent numeric replay. All four ordinary jobs and all three x64 Full jobs pass;
+all 38 added functions complete in six profiles, eight synthetic consumers pass, both expected ASan probes detect
+use-after-free and all 18 actual harness images receive root review. Each native ARM profile passes 19 ordinary
+suites; its two foreground suites refuse before any warning click or child input and remain unlaunched failures.
+
+Paired measurement completes 144 reports. Both complete methods and all 72 controls reproduce from the same raw
+bytes, with role/provenance and absolute/exact budgets verified. All three method disagreements are legacy clean
+preparation `improved` versus migrated `within-noise`; neither method contains a regression verdict. With 69 unstable
+controls, the policy remains unqualified, original frozen review remains BLOCKED and aggregate CI remains failure.
+Root explicitly reviewed these findings under the dated implementation-only decision. Descriptive composition and
+memory excursions, earlier flags, native ARM foreground/resource, physical-input/device and consumer adoption
+remain in WIP. No normal qualification or main/release acceptance is closed by this implementation merge.

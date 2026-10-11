@@ -1,0 +1,248 @@
+{
+  "status": "ROOT_CURRENT_X64_FUNCTIONAL_AND_VISUAL_REVIEW",
+  "runId": 38166757540,
+  "attempt": 1,
+  "head": "1cdbfde4c93bafa6a0c794fd80939387467fefa4",
+  "testedMerge": "58e71d4528d8cb041ff71931fe0f6c9aaaeef426",
+  "profiles": [
+    {
+      "profile": "x64/Debug",
+      "review": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8.receipt.txt",
+      "reviewSha256": "AE35020DE450A25B6A7D978C7B8BEEB6486ABFE0FCE34A877E7D6E052F6C7B96",
+      "tests": [
+        "TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs",
+        "TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable",
+        "TestFlexFlowWrapGrowthRtlAndOverflow",
+        "TestFlexCacheInvalidationAndCompositeBounds",
+        "TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry",
+        "TestFlexBoundsCallbacksCannotPublishRetiredOrSupersededPasses",
+        "TestFlexNestedMeasureCannotReplaceArrangementSnapshots",
+        "TestFlexClearChildrenPreservesCallbackAuthoredReplacementOptions",
+        "TestFlexRepresentedEndpointsPreserveMinimaAndOrder",
+        "TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit",
+        "TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts",
+        "TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress",
+        "TestFormsMeasureIsPureAndSharedLabelCacheIsStable",
+        "TestFormsLocalizedGeometryMatrix",
+        "TestFormsConstraintsBudgetsAndCustomFallbackFailBeforeGeometry",
+        "TestFormsFractionalTranslationFailsBeforeAnyChildGeometry",
+        "TestFormsFractionalBesidePartsMeasureTheirCommittedWidths",
+        "TestFormsIntrinsicEditorMinimaDriveNarrowContentAndCache",
+        "TestFormsClearChildrenPreservesCallbackBoundReplacementEditor",
+        "TestFormsNonconvergentCustomMinimaFailBeforeGeometry",
+        "TestFormsMeasurementCallbacksRetireOrSupersedeSafely",
+        "TestFormsBoundsCallbacksKeepNewerLayoutsAndRejectForeignMutations",
+        "TestFormsDetachedCallbacksCannotMoveEarlierInputsOrCompletedGeometry",
+        "TestFormsNestedDetachedMeasureCannotReplaceOlderArrangementSnapshots",
+        "TestFormsMaximumInventoryRetainsCacheAndFiniteGeometry",
+        "TestFormsNestedIntrinsicEditorIsAnAcceptedDescendant",
+        "TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus",
+        "TestFormsNativePreparationAndFactoryCoverage",
+        "TestFormAccessibilityWindowPropertiesAndStableEditor",
+        "TestFormAccessibilityEmbeddedPropertiesAndStableEditor",
+        "TestFormAccessibilityWindowLabelLifetimeAndReplacement",
+        "TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement",
+        "TestFormAccessibilityWindowPresentationEventsAreIdempotent",
+        "TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent",
+        "TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement"
+      ],
+      "gallery": [
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\embedded-controls.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\theme-controls-dark.png",
+          "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\theme-controls-high-contrast.png",
+          "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\theme-controls-light.png",
+          "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\theme-controls-rainbow-dark.png",
+          "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858183-a6de171c750d4cfd9bc5083c0353edd8\\artifact\\gallery\\x64\\Debug\\theme-controls-rainbow-light.png",
+          "sha256": "8C4A0F00E923D211E32517854D3E25DB2E93EBC35E2A61725626DAC7885E2431",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        }
+      ],
+      "consumers": 1,
+      "asanProbes": 0
+    },
+    {
+      "profile": "x64/Release",
+      "review": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a.receipt.txt",
+      "reviewSha256": "15D063B1290515F4CF338CCDDE94AF9318D34B96D5EEA87C2040A16E05646832",
+      "tests": [
+        "TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs",
+        "TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable",
+        "TestFlexFlowWrapGrowthRtlAndOverflow",
+        "TestFlexCacheInvalidationAndCompositeBounds",
+        "TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry",
+        "TestFlexBoundsCallbacksCannotPublishRetiredOrSupersededPasses",
+        "TestFlexNestedMeasureCannotReplaceArrangementSnapshots",
+        "TestFlexClearChildrenPreservesCallbackAuthoredReplacementOptions",
+        "TestFlexRepresentedEndpointsPreserveMinimaAndOrder",
+        "TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit",
+        "TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts",
+        "TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress",
+        "TestFormsMeasureIsPureAndSharedLabelCacheIsStable",
+        "TestFormsLocalizedGeometryMatrix",
+        "TestFormsConstraintsBudgetsAndCustomFallbackFailBeforeGeometry",
+        "TestFormsFractionalTranslationFailsBeforeAnyChildGeometry",
+        "TestFormsFractionalBesidePartsMeasureTheirCommittedWidths",
+        "TestFormsIntrinsicEditorMinimaDriveNarrowContentAndCache",
+        "TestFormsClearChildrenPreservesCallbackBoundReplacementEditor",
+        "TestFormsNonconvergentCustomMinimaFailBeforeGeometry",
+        "TestFormsMeasurementCallbacksRetireOrSupersedeSafely",
+        "TestFormsBoundsCallbacksKeepNewerLayoutsAndRejectForeignMutations",
+        "TestFormsDetachedCallbacksCannotMoveEarlierInputsOrCompletedGeometry",
+        "TestFormsNestedDetachedMeasureCannotReplaceOlderArrangementSnapshots",
+        "TestFormsMaximumInventoryRetainsCacheAndFiniteGeometry",
+        "TestFormsNestedIntrinsicEditorIsAnAcceptedDescendant",
+        "TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus",
+        "TestFormsNativePreparationAndFactoryCoverage",
+        "TestFormAccessibilityWindowPropertiesAndStableEditor",
+        "TestFormAccessibilityEmbeddedPropertiesAndStableEditor",
+        "TestFormAccessibilityWindowLabelLifetimeAndReplacement",
+        "TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement",
+        "TestFormAccessibilityWindowPresentationEventsAreIdempotent",
+        "TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent",
+        "TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement"
+      ],
+      "gallery": [
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\embedded-controls.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\theme-controls-dark.png",
+          "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\theme-controls-high-contrast.png",
+          "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\theme-controls-light.png",
+          "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\theme-controls-rainbow-dark.png",
+          "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858221-958e7fbcdf14477ba8cdbbfe065d205a\\artifact\\gallery\\x64\\Release\\theme-controls-rainbow-light.png",
+          "sha256": "8C4A0F00E923D211E32517854D3E25DB2E93EBC35E2A61725626DAC7885E2431",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        }
+      ],
+      "consumers": 1,
+      "asanProbes": 0
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "review": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d.receipt.txt",
+      "reviewSha256": "061A9A0C6CB3429BC79F86145E35582C5A06A0C9B3C6ED08855A35A6865F65C0",
+      "tests": [
+        "TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs",
+        "TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable",
+        "TestFlexFlowWrapGrowthRtlAndOverflow",
+        "TestFlexCacheInvalidationAndCompositeBounds",
+        "TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry",
+        "TestFlexBoundsCallbacksCannotPublishRetiredOrSupersededPasses",
+        "TestFlexNestedMeasureCannotReplaceArrangementSnapshots",
+        "TestFlexClearChildrenPreservesCallbackAuthoredReplacementOptions",
+        "TestFlexRepresentedEndpointsPreserveMinimaAndOrder",
+        "TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit",
+        "TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts",
+        "TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress",
+        "TestFormsMeasureIsPureAndSharedLabelCacheIsStable",
+        "TestFormsLocalizedGeometryMatrix",
+        "TestFormsConstraintsBudgetsAndCustomFallbackFailBeforeGeometry",
+        "TestFormsFractionalTranslationFailsBeforeAnyChildGeometry",
+        "TestFormsFractionalBesidePartsMeasureTheirCommittedWidths",
+        "TestFormsIntrinsicEditorMinimaDriveNarrowContentAndCache",
+        "TestFormsClearChildrenPreservesCallbackBoundReplacementEditor",
+        "TestFormsNonconvergentCustomMinimaFailBeforeGeometry",
+        "TestFormsMeasurementCallbacksRetireOrSupersedeSafely",
+        "TestFormsBoundsCallbacksKeepNewerLayoutsAndRejectForeignMutations",
+        "TestFormsDetachedCallbacksCannotMoveEarlierInputsOrCompletedGeometry",
+        "TestFormsNestedDetachedMeasureCannotReplaceOlderArrangementSnapshots",
+        "TestFormsMaximumInventoryRetainsCacheAndFiniteGeometry",
+        "TestFormsNestedIntrinsicEditorIsAnAcceptedDescendant",
+        "TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus",
+        "TestFormsNativePreparationAndFactoryCoverage",
+        "TestFormAccessibilityWindowPropertiesAndStableEditor",
+        "TestFormAccessibilityEmbeddedPropertiesAndStableEditor",
+        "TestFormAccessibilityWindowLabelLifetimeAndReplacement",
+        "TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement",
+        "TestFormAccessibilityWindowPresentationEventsAreIdempotent",
+        "TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent",
+        "TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback",
+        "TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement",
+        "TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement"
+      ],
+      "gallery": [
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\embedded-controls.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-dark.png",
+          "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-high-contrast.png",
+          "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-light.png",
+          "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-dark.png",
+          "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        },
+        {
+          "file": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-398\\root-native-review-114550858173-00042b958dcd4138a1b1a4f680d9cd0d\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-light.png",
+          "sha256": "8C4A0F00E923D211E32517854D3E25DB2E93EBC35E2A61725626DAC7885E2431",
+          "visual": "Byte-identical to the six actual Debug harness PNGs root viewed; populated Flex/forms, wrapped French and RTL Arabic, readable help/error and separate actions."
+        }
+      ],
+      "consumers": 2,
+      "asanProbes": 1
+    }
+  ],
+  "scope": "Completed x64 profiles only; ARM timeouts block integration and paired/aggregate review remains pending.",
+  "completedUtc": "2026-10-11T19:45:43.4377840Z"
+}

@@ -1,0 +1,49 @@
+{
+  "status": "ROOT_REPRODUCED_AND_REVIEWED_DESCRIPTIVE_FINDINGS_RETAINED_OPEN",
+  "qualificationPassed": false,
+  "ciGateSucceeded": false,
+  "runId": 38172114803,
+  "head": "4bd3480170140090ab2d8ff883d05507281b52ee",
+  "testedMerge": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+  "testedTree": "e695cf74db0e2fc1a5c8c8d183cfb0bd136d639d",
+  "inputs": {
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\paired-root-replay-run399-01\\paired-replay.receipt.txt": "B60B399218BA9A775E7F7FB3ACAD6B8EF004F79887A615583DA1199A261E8757",
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\paired-root-replay-run399-01\\diagnostics.receipt.txt": "49602CC5E20460FA17B56AC40E837D6901DF3EC6CEF7C9604BA1D7667DBD6996",
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\paired-independent-run399-01\\diagnostics.receipt.txt": "44D69C7A6EA2DE0BCE2D14E3D42A850DA11A2921EE83D9429DE88B4FB3EEAEF2"
+  },
+  "quantization": {
+    "samples": 28800,
+    "nonIntegralTickSamples": 0,
+    "tickNanoseconds": 100,
+    "legacyMedianBeforeMs": 0.0006,
+    "legacyMedianAfterMs": 0.0005,
+    "interpretation": "Few-QPC-tick preparation warrants investigation. Different full statistical methods truthfully disagree; no speedup or noise waiver is inferred."
+  },
+  "defaultDirtyPrivatePeak": {
+    "pairedChangePercent": 0.5316658342829905,
+    "positiveBlocks": 11,
+    "blocks": 12,
+    "holmP": 0.025390625,
+    "medianDifferenceBytes": 92160.0,
+    "sameMetricControl": "Default-block-09-candidate-control",
+    "controlDriftPercent": 3.9646814404432185,
+    "verdict": "within-noise",
+    "interpretation": "Preserve the small directional memory trend for bounded attribution. It is below the declared2% band, its same metric control drifts and no confirmed regression verdict exists. Do not claim causal acceptance or dismiss it as noise."
+  },
+  "distinctCleanComposition": {
+    "pairedChangePercent": 9.211185401286714,
+    "p": 0.85205078125,
+    "holmP": 1.0,
+    "candidateMaximumMs": 0.1662,
+    "rawWorseBand": true,
+    "verdict": "within-noise",
+    "sameMetricControl": "MultilineGridDistinct-block-03-candidate-control",
+    "controlDriftPercent": 759.06432748538,
+    "interpretation": "Preserve B06 and all five native rounds; four elevated composition rounds and the raw worse-band effect remain an investigation target. Statistical/control qualification supplies no confirmed/held regression. Do not remove runs, rebaseline, attribute cause or waive the finding."
+  },
+  "nextQualificationWork": "Retain previous Grid/FPS findings; investigate quantized preparation, B06 scheduling/composition and the Default memory trend with matched fixtures and stable controls before any policy or non-regression acceptance.",
+  "review": "Root read and separately executed both agent drivers; complete replay reproduces raw judgments and all controls. Root compared complete descriptive scenario payloads, then independently inspected the metric arrays, native sample histograms, B06 rounds and exact B17/B18 and B05/B06 control rows. Agent conclusions were checked before archival.",
+  "completedUtc": "2026-10-11T22:02:14.4805626+00:00",
+  "driver": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\Record-DescriptiveReview-399.ps1",
+  "driverSha256": "10419EEF1F34D84FB2DF141AB54D0CA26A713E326A742E2463E9FE8277FFF790"
+}

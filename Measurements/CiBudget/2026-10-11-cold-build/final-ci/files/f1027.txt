@@ -1,0 +1,12 @@
+{
+  "id": 350823440,
+  "node_id": "W_kwDOUPG9gc4U6SQQ",
+  "name": "DxUi validation",
+  "path": ".github/workflows/ci.yml",
+  "state": "active",
+  "created_at": "2026-09-05T11:36:03+02:00",
+  "updated_at": "2026-09-05T11:36:03+02:00",
+  "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/workflows/350823440",
+  "html_url": "https://github.com/RedSalamanders/DxUi/blob/main/.github/workflows/ci.yml",
+  "badge_url": "https://github.com/RedSalamanders/DxUi/workflows/DxUi%20validation/badge.svg"
+}

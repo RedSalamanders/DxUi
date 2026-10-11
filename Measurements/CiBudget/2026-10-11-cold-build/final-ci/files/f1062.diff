@@ -1,0 +1,15 @@
+diff --git "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Review-PrCiEvidence.before.ps1" "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Review-PrCiEvidence.after.ps1"
+index 80a2758c..2083596e 100644
+--- "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Review-PrCiEvidence.before.ps1"
++++ "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Review-PrCiEvidence.after.ps1"
+@@ -74,8 +74,8 @@ function Receipt([string] $Directory, [string] $Suite, [string] $Platform, [stri
+ }
+ function Profile-Job([string] $Platform, [string] $Configuration) {
+     $runner = if ($Platform -ceq 'ARM64') { 'windows-11-vs2026-arm' } else { 'windows-2025-vs2026' }
+-    $budget = if ($Platform -ceq 'ARM64' -and $Configuration -ceq 'ASan Debug') { 60 } else { 40 }
+-    $pattern = '^native \(' + [regex]::Escape($Platform) + ', ' + [regex]::Escape($runner) + ', ' + [regex]::Escape($Configuration) + '(?:, (?<budget>40|60))?\)$'
++    $budget = if ($Platform -ceq 'ARM64') { if ($Configuration -ceq 'ASan Debug') { 80 } else { 65 } } else { if ($Configuration -ceq 'ASan Debug') { 60 } else { 45 } }
++    $pattern = '^native \(' + [regex]::Escape($Platform) + ', ' + [regex]::Escape($runner) + ', ' + [regex]::Escape($Configuration) + '(?:, (?<budget>45|60|65|80))?\)$'
+     $selectedRecords = @($jobs | Where-Object { $_['name'] -cmatch $pattern })
+     Require ($selectedRecords.Count -eq 1) "Missing or duplicate native job $Platform/$Configuration."
+     $display = [regex]::Match($selectedRecords[0]['name'], $pattern)

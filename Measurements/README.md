@@ -1,15 +1,22 @@
 # Independent DxUi measurements
 
+- [S0-S2 final PR evidence and remote merge](CiBudget/2026-10-11-cold-build/final-ci.md): normal #73 merge `67020742`
+  has the reviewed tree; 122 native passes, six unlaunched ARM foreground failures, eight synthetic consumers and two
+  expected ASan detections. Both complete paired methods and all 72 controls reproduce; 69 controls remain unstable,
+  original method disagreement/policy/aggregate failures remain explicit, and qualification stays WIP. All 1,172
+  copied originals, the complete seal, actual harness captures and root/independent reviews are retained.
+
 - [ARM64 ASan CI budget investigation, 2026-10-11](CiBudget/2026-10-11-arm64-asan/README.md): exact historical
   source inputs, GitHub job annotations and complete logs distinguish the enclosing 40-minute cancellation from
   consumer assertions. The bounded 60-minute ARM64 ASan repair retains all stage watchdogs and eight consumer
   qualifications; historical incomplete execution does not qualify the current candidate.
 
-- [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): final native source
+- [S0-S2 prior local integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): final native source
   `bf11ba44` passes three focused x64 profiles and four full foreground suites per profile, with zero skips and
   verified restoration. Actual inputs are compared across archival; `284a9ec6` and `061748aa` remain historical.
-  Controlled IME/UIA records and the bounded ARM64 ASan CI-budget repair are retained separately. Exact-source PR CI,
-  performance-policy, native-platform, physical-input/device and consumer adoption remain separately tracked.
+  Controlled IME/UIA records and the bounded ARM64 ASan CI-budget repair are retained separately. Final PR evidence
+  is the separate packet above; performance-policy, native foreground/resource, physical-input/device and consumer
+  adoption acceptance remain separately tracked.
 
 - [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
   noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency

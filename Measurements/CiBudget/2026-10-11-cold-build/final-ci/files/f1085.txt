@@ -1,0 +1,22 @@
+diff --git "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Review-PrCiEvidence.before.ps1" "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Review-PrCiEvidence.after.ps1"
+index c6b7c7ce..80a2758c 100644
+--- "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Review-PrCiEvidence.before.ps1"
++++ "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Review-PrCiEvidence.after.ps1"
+@@ -124,7 +124,7 @@ function Assert-HostedLease([System.Collections.IDictionary] $Value, [bool] $Ref
+ }
+ function Assert-NativeSuiteLog([string] $Artifact, [System.Collections.IDictionary] $Value, [string] $Suite, [string] $Platform, [string] $Configuration) {
+     Require ((Read-ExactExitCode $Value) -eq 0 -and -not $Value.Contains('timeout')) 'Successful native evidence has a nonzero exit or timeout metadata.'
+-    $suffix = if ($Suite -cin @('Menu','NativeTextInput','MenuResourceScaling','MenuTextLayoutResources')) {'.hosted'} else {''}
++    $suffix = if ($Suite -cin @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) {'.hosted'} else {''}
+     $path = Find-File $Artifact "test-$Suite-$Platform-$Configuration$suffix.log"
+     $text = [IO.File]::ReadAllText($path)
+     Require (-not [string]::IsNullOrWhiteSpace($text)) 'Successful native suite log is empty.'
+@@ -328,7 +328,7 @@ foreach ($profile in $manifest['prCoverage']) {
+                 $profileRefusals.Add($candidate); $armRefusalCandidates.Add($candidate)
+             } else {
+                 Require ($exit -eq 0) "Non-exempt native failure: exit $exit."
+-                if ($suite -cin @('Menu','NativeTextInput','MenuResourceScaling','MenuTextLayoutResources')) { Assert-HostedLease $value $false }
++                if ($suite -cin @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) { Assert-HostedLease $value $false }
+                 $suiteLog = Assert-NativeSuiteLog $artifact $value $suite $platform $configuration
+             }
+             $nativeEvidence.Add([ordered]@{ profile = $profileName; suite = $suite; exitCode = $exit; receipt = $record['file']; receiptSha256 = $record['sha256']; suiteLog=$suiteLog; suiteLogSha256=(Get-FileHash -LiteralPath $suiteLog).Hash; lease=$(if ($value.Contains('lease')) {$value['lease']} else {$null}); executableSha256 = $value['sha256']; performance = $performancePath; buildInputIdentity = $performance['buildInputIdentity']; buildArtifactIdentity = $performance['buildArtifactIdentity']; attestation = $performance['buildAttestationIdentity']; uploadedAttestationBinding=$attestationBinding; possibleDatedArmRefusal = [bool]$possibleRefusal })

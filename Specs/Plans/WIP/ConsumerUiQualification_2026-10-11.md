@@ -40,6 +40,24 @@ but all 72 controls remain unstable. It does not qualify the seed policy or esta
 S0-S2; trusted-base requirements and thresholds stay unchanged. The original retained baseline's drift remains a
 diagnostic and cannot be relabeled a policy qualification.
 
+S0-S2 implementation merged normally through [PR #73](https://github.com/RedSalamanders/DxUi/pull/73), remote merge
+`670207429d62ecc541769b5dd6c70b9607745e64`. The [final PR packet](../../../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md)
+retains the failed aggregate at candidate `4bd34801`, base `ec680e86`, actual tested merge `80d875a1` and tree
+`e695cf74`. Root and an independent reviewer reproduce all 144 reports, both complete 78-slot method decisions,
+72 controls and 24 exact budgets with raw role/overlay/profile binding and absolute allocation checks. Both methods
+contain zero regression verdicts, but all three scenes disagree between legacy clean preparation `improved` and
+migrated `within-noise`. All original agreement flags stay false; policy, frozen reviewer and aggregate remain
+unqualified/BLOCKED/failed. This explicit review closes implementation integration only.
+
+Current controls are unstable in 69/72 comparisons. Retain Distinct-Grid B06's four elevated composition rounds:
+paired clean composition +9.211%, Holm p=1, and same-side B05-to-B06 control +759.064%. Also retain Default dirty
+private peak +0.531666%, 11/12 positive blocks, Holm p=0.025391, median +92,160 bytes and its same-metric B17-to-B18
+control +3.964681%. All 28,800 clean preparation samples are exact 100 ns QPC multiples. These observations require
+bounded attribution with matched fixtures and stable controls; none proves causal regression, noise or accepted
+non-regression. Earlier Grid/FPS flags remain open separately. Independent review does not repair the producer gaps
+or qualify the policy. Hosted uploads omit compiler/SDK/dependency/executable inventories; declared full-v2 fields
+cannot substitute for independent rehashing of absent bytes.
+
 Integration review also identified two producer-check gaps: the diagnostic unchanged-library classification reads
 summary fingerprints without binding them to each scheduled role's raw receipts, and relative exact-budget
 comparisons do not alone enforce absolute clean/dirty allocation limits when both sides violate them equally.
@@ -77,8 +95,9 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 ## 3. Remaining platform and physical qualification
 
-- [ ] Establish native ARM64 runtime evidence in Debug, Release and ASan Debug. Existing cross-builds on this x64 host
-  do not qualify it; record source, toolchain, dependency, artifact, environment, scope and skips for each native run.
+- [ ] Complete native ARM64 foreground/resource acceptance in Debug, Release and ASan Debug. Each native profile now
+  passes 19 ordinary suites at the final PR identities; the two refused foreground suites remain unlaunched failures.
+  Retain exact source/build/environment/scope identities and qualify remaining foreground/resource obligations natively.
 - [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
 - [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
@@ -91,8 +110,17 @@ PR #73's run at `1cdbfde4` completes all three x64 Full jobs, but all three ARM6
 25-minute cap before ordinary suite completion. The [cold-build timing packet](../../../Measurements/CiBudget/2026-10-11-cold-build/README.md)
 retains those incomplete failures separately from successful clean-pin consumers. The finite ARM64 Full window
 is now 45 minutes; every enclosing job fits its selected Full and consumer windows with setup/artifact allowance.
-Fresh complete source-bound CI remains required. Neither the timeout nor a raw, unstamped native benchmark
-qualifies ARM64 runtime, a foreground-refusal exception, paired performance or a successful `ci-gate`.
+At that stage fresh complete source-bound CI was still required. Neither that timeout nor a raw, unstamped native
+benchmark qualifies ARM64 runtime, a foreground-refusal exception, paired performance or a successful `ci-gate`.
+
+Final run399 completes all six native build/provenance stages and the 19 ordinary ARM64 suites per profile within
+the 45-minute Full limit, plus all eight consumers and two expected ASan probes. Root reviews exact warning ownership
+guards and raw restoration records: foreign WWAHost occlusion refuses before the warning click and all child/suite
+input. Saved/exit pointer and foreground/focus/pointer restoration are unchanged. The shared diagnostic cannot
+identify which ownership guard refused first or establish continuous pointer history. Those six unlaunched results
+remain failed foreground qualification. They are the only native failures admitted by the dated implementation-only
+decision; no timeout/cancellation or correctness/resource/sanitizer failure is accepted. Hosted runs do not replace
+the separately agreed manual focus/resource, physical-input or product gates. Main/release acceptance stays separate.
 
 ## 4. Consumer adoption gates
 

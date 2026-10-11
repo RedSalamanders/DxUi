@@ -107,9 +107,14 @@ actual input comparisons across archival. The `284a9ec6` and `061748aa` runs rem
 native ARM64 runtime/foreground, physical-input/device and consumer adoption remain separate; PR CI requires
 review at its own exact source/build identities.
 
+The [final PR/remote-merge evidence](../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md) records normal #73
+integration and 38 added functions completing in all six native profiles, plus 18 reviewed current-source harness
+images. The original failed policy/aggregate and six unlaunched ARM foreground outcomes remain explicit. Native ARM
+ordinary runtime evidence does not close its foreground/resource, physical-input or consumer adoption gates.
+
 Native/embedded library tests, [gallery captures](gallery/README.md) and the
 [design system](../Specs/DesignSystem/README.md) describe library support. Actual consumer pin updates,
-Apply/Cancel parity, physical IME/touch and native ARM64 runtime qualification remain separately tracked in the
+Apply/Cancel parity, physical IME/touch and native ARM64 foreground/resource qualification remain separately tracked in the
 [qualification plan](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md). The completed S0-S2 library work is
 recorded in [Done](../Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md); deferred S3-S7 proposals have their
 own [WIP plan](../Specs/Plans/WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md).

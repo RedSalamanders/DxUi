@@ -1,0 +1,42 @@
+{
+  "run": 38172114803,
+  "attempt": 1,
+  "head": "4bd3480170140090ab2d8ff883d05507281b52ee",
+  "testedMerge": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+  "reviewed": [
+    {
+      "job": 114566698466,
+      "name": "validation",
+      "conclusion": "success",
+      "logSha256": "05DBBA8AEC4CE3BE586AA2CCA8FA8D117F014382F54B87E9085C39F1E72D0965",
+      "actualCheckout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "completedUtc": "2026-10-11T20:28:12Z"
+    },
+    {
+      "job": 114566698240,
+      "name": "windows-tooling",
+      "conclusion": "success",
+      "logSha256": "ECB399D7BEB746B3783A90F5FA001ED153E0DDB60B5D28B0FCCB1CB77ABF99B9",
+      "actualCheckout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "completedUtc": "2026-10-11T20:31:40Z"
+    },
+    {
+      "job": 114566698331,
+      "name": "format",
+      "conclusion": "success",
+      "logSha256": "4DA54E356FCD09E242433E0A99073E55224E906C720936D72ABB03A5C83F1229",
+      "actualCheckout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "completedUtc": "2026-10-11T20:25:32Z"
+    },
+    {
+      "job": 114566698393,
+      "name": "native-scope",
+      "conclusion": "success",
+      "logSha256": "820C57E3E7E5D5347E2B7CE4C93AC4F74181DF420CDD28EAF75DFD24AD456791",
+      "actualCheckout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "completedUtc": "2026-10-11T20:25:18Z"
+    }
+  ],
+  "scope": "Only completed ordinary jobs. Missing running jobs stay pending; no native/consumer/paired or aggregate qualification.",
+  "reviewedUtc": "2026-10-11T20:32:41.1089459Z"
+}

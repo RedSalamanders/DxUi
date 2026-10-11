@@ -1,0 +1,17 @@
+[
+  {
+    "path": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\Collect-PrCiEvidence.ps1",
+    "parserErrors": 0,
+    "sha256": "A629116FAF64D4C9BE07C0F3CF500817CEAE53A78ABADA521C802BB795163231"
+  },
+  {
+    "path": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\Review-PrCiEvidence.ps1",
+    "parserErrors": 0,
+    "sha256": "2B2F6F35AA8473B45B19025349699E09AF4273F2CDEE6E0A0756B3221310A045"
+  },
+  {
+    "path": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\Audit-HelperSlices.ps1",
+    "parserErrors": 0,
+    "sha256": "3F49395AA1F03CB6AD284446D5FB11A89D15818E53F505C61462E13442EEF39A"
+  }
+]

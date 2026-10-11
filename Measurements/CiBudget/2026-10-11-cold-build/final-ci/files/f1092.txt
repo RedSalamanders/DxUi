@@ -1,0 +1,20 @@
+{
+  "helperSha256": "2B2F6F35AA8473B45B19025349699E09AF4273F2CDEE6E0A0756B3221310A045",
+  "passed": [
+    "all six profiles, three/four-value matrix displays",
+    "ARM64 ASan 40-minute display rejected",
+    "x64 ASan 60-minute display rejected",
+    "wrong runner rejected",
+    "historical hosted Menu/NativeTextInput receipt and exact log names",
+    "absent sidecar remains an explicit limitation",
+    "uploaded scoped sidecar bytes/digest bind the v2 field combination",
+    "rebound input identity rejected",
+    "tampered scoped sidecar digest rejected",
+    "inconclusive HOLD retains all 78 synthetic unconfirmed flags",
+    "degraded scenario hidden by inconclusive aggregate rejected",
+    "confirmed metric hidden by inconclusive scenario rejected"
+  ],
+  "checks": 12,
+  "scope": "Pure external helper slices only; no candidate build/test or PR qualification.",
+  "completedUtc": "2026-10-11T17:58:23.7232532Z"
+}

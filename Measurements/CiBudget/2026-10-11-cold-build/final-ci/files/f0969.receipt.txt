@@ -1,0 +1,25 @@
+## Paired benchmark: Inconclusive
+
+The study cannot qualify a pass: policy review, missing identity, drifting controls or insufficient evidence leaves the result unresolved. Re-run or complete independent policy review; do not dismiss flagged metrics as noise.
+
+Policy review required: The base policy is not independently qualified; its verdict cannot establish a candidate pass.
+
+| | |
+|---|---|
+| Baseline | `ec680e866a21` first parent of the merge commit (the base as the merge ref was made) |
+| Candidate | `80d875a1de91` (this checkout) |
+| Library inputs | changed, fingerprint `F8466F65BBF4` to `D1C3380BFDDA` |
+| Method | 12 independent paired blocks; seed 1124970310; independently drawn ABBA/BAAB; exact sign-flip with Holm correction; x64 Release; 5% timing and 2% memory bands, exact budgets stay exact |
+| Runner | runnervmfi6oq; a shared hosted VM, not a controlled quiet desktop |
+| Event | pull request merge ref (refs/pull/73/merge) |
+
+### Scenarios
+
+| Scenario | Check | Set verdict | Regressed | Improved | Metrics held by controls | Controls stable |
+|---|---|---|---:|---:|---:|---:|
+
+### Flagged metrics
+
+None: no metric regressed or improved.
+
+The retained receipts, comparisons and `summary.json` are in the `paired-benchmark-x64-Release` artifact. Migrated timing and memory metrics use the Holm-adjusted p-value and declared band; legacy rows retain their original raw p-value and show no adjusted p-value. Exact-budget rows report median and raw-peak findings separately. `Specs/Core/Core_PerformanceAndResources.md` says what a verdict establishes and what a finding requires.

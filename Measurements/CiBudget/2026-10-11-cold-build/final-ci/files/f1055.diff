@@ -1,0 +1,39 @@
+diff --git "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Audit-HelperSlices.before.ps1" "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Audit-HelperSlices.after.ps1"
+index cccd350e..54bac157 100644
+--- "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Audit-HelperSlices.before.ps1"
++++ "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Audit-HelperSlices.after.ps1"
+@@ -24,7 +24,7 @@ function Expect-Rejection([string]$Label,[scriptblock]$Action,[string]$Reason) {
+     try { & $Action; throw 'Expected rejection did not occur.' }
+     catch { if ($_.Exception.Message -notmatch $Reason) { throw }; $passed.Add($Label) }
+ }
+-$collection = @{workflowDigest='7d4a1afd4c0a74ae8b93185f5ca4f78eda76d0eda4eff3e368bffd8c207730c8'}
++$collection = @{workflowDigest='aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df'}
+ $nativeJobBudgets = [Collections.Generic.List[object]]::new()
+ foreach ($sample in @(@{exitCode=0},@{exitCode=[long]24},@{exitCode=-1073741819})) {
+     Require ((Read-ExactExitCode $sample) -eq $sample['exitCode']) 'An exact signed native exit result was rejected.'
+@@ -39,7 +39,7 @@ foreach ($sample in @(@{exitCode=[long]2147483648},@{exitCode=[long]-2147483649}
+ foreach ($platform in @('x64','ARM64')) {
+     foreach ($configuration in @('Debug','Release','ASan Debug')) {
+         $runner = if ($platform -ceq 'ARM64') { 'windows-11-vs2026-arm' } else { 'windows-2025-vs2026' }
+-        $budget = if ($platform -ceq 'ARM64' -and $configuration -ceq 'ASan Debug') {60} else {40}
++        $budget = if ($platform -ceq 'ARM64') { if ($configuration -ceq 'ASan Debug') {80} else {65} } else { if ($configuration -ceq 'ASan Debug') {60} else {45} }
+         foreach ($displayBudget in @('',", $budget")) {
+             $jobs = @(@{id=1;name="native ($platform, $runner, $configuration$displayBudget)"})
+             Require ((Profile-Job $platform $configuration)['id'] -eq 1) 'Valid matrix display did not select the profile.'
+@@ -47,11 +47,11 @@ foreach ($platform in @('x64','ARM64')) {
+     }
+ }
+ $passed.Add('all six profiles, three/four-value matrix displays')
+-$jobs = @(@{id=1;name='native (ARM64, windows-11-vs2026-arm, ASan Debug, 40)'})
+-Expect-Rejection 'ARM64 ASan 40-minute display rejected' { [void](Profile-Job ARM64 'ASan Debug') } 'another selected job budget'
+-$jobs = @(@{id=1;name='native (x64, windows-2025-vs2026, ASan Debug, 60)'})
+-Expect-Rejection 'x64 ASan 60-minute display rejected' { [void](Profile-Job x64 'ASan Debug') } 'another selected job budget'
+-$jobs = @(@{id=1;name='native (ARM64, windows-2025-vs2026, Release, 40)'})
++$jobs = @(@{id=1;name='native (ARM64, windows-11-vs2026-arm, ASan Debug, 65)'})
++Expect-Rejection 'ARM64 ASan 65-minute display rejected' { [void](Profile-Job ARM64 'ASan Debug') } 'another selected job budget'
++$jobs = @(@{id=1;name='native (x64, windows-2025-vs2026, ASan Debug, 45)'})
++Expect-Rejection 'x64 ASan 45-minute display rejected' { [void](Profile-Job x64 'ASan Debug') } 'another selected job budget'
++$jobs = @(@{id=1;name='native (ARM64, windows-2025-vs2026, Release, 65)'})
+ Expect-Rejection 'wrong runner rejected' { [void](Profile-Job ARM64 Release) } 'Missing or duplicate'
+ $historical = 'C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/native-attestation-inventory-38055762177-44f6c29a8460420c975990fae3881409'
+ foreach ($suite in @('Menu','NativeTextInput')) {

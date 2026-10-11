@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "repository": "RedSalamanders/DxUi",
+  "pullRequest": 73,
+  "runId": 38172114803,
+  "attempt": 1,
+  "expectedHead": "4bd3480170140090ab2d8ff883d05507281b52ee",
+  "expectedBase": "ec680e866a218b57000a1780018c00101a437f91",
+  "testedMerge": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+  "testedTree": "e695cf74db0e2fc1a5c8c8d183cfb0bd136d639d",
+  "workflowDigest": "aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df",
+  "repositoryRoot": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi",
+  "runConclusion": "failure",
+  "collectedUtc": "2026-10-11T21:40:41.2808482Z",
+  "logSource": "Exact gh api job-logs endpoint stdout bytes with escape sequences allowed",
+  "sourceInputs": [
+    {
+      "commit": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": ".github/workflows/ci.yml",
+      "savedPath": "source/ci.yml",
+      "gitBlob": "6a4b686e9305ebe21d6de6fb6c2a3b08249ee793",
+      "sha256": "aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df",
+      "bytes": 14255
+    },
+    {
+      "commit": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "Tests/test-scopes.json",
+      "savedPath": "source/test-scopes.receipt.txt",
+      "gitBlob": "00b590f6fb43f9657157338690e87f759c43bd2b",
+      "sha256": "6788b49469cb8e16aef71a1a11ae8a8272c32e558a078a2de84fc07a791221df",
+      "bytes": 13198
+    },
+    {
+      "commit": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "Tools/PerformanceAcceptancePolicy.v1.json",
+      "savedPath": "source/candidate-policy.receipt.txt",
+      "gitBlob": "a8db3648fd977f31f60671790ac79018469c46ad",
+      "sha256": "bac3f8a8e1b0f31fd109041029439ad2fd35531c24fa4dde33a49d3ff34241a7",
+      "bytes": 1966
+    },
+    {
+      "commit": "ec680e866a218b57000a1780018c00101a437f91",
+      "path": "Tools/PerformanceAcceptancePolicy.v1.json",
+      "savedPath": "source/base-policy.receipt.txt",
+      "gitBlob": "a8db3648fd977f31f60671790ac79018469c46ad",
+      "sha256": "bac3f8a8e1b0f31fd109041029439ad2fd35531c24fa4dde33a49d3ff34241a7",
+      "bytes": 1966
+    },
+    {
+      "commit": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "Tools/PerformanceComparison.psm1",
+      "savedPath": "source/candidate-judge.psm1",
+      "gitBlob": "12b1c4cd3267d41cc762b9d215165161b60e7d64",
+      "sha256": "eb1b3047ed8b031383aeba4d9a72a37d3719b1320a46381eff042897ccb72e33",
+      "bytes": 39995
+    },
+    {
+      "commit": "ec680e866a218b57000a1780018c00101a437f91",
+      "path": "Tools/PerformanceComparison.psm1",
+      "savedPath": "source/base-judge.psm1",
+      "gitBlob": "12b1c4cd3267d41cc762b9d215165161b60e7d64",
+      "sha256": "eb1b3047ed8b031383aeba4d9a72a37d3719b1320a46381eff042897ccb72e33",
+      "bytes": 39995
+    },
+    {
+      "commit": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "Specs/Testing/Testing_Validation.md",
+      "savedPath": "source/Testing_Validation.md",
+      "gitBlob": "82f520763455cfa714d016657edbca3667700518",
+      "sha256": "6c20013aef20fc73663400ec6be6b18ac8be15c21edb6ceef5c3c164d10a6929",
+      "bytes": 80764
+    }
+  ],
+  "rawApiPayloads": [
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/pulls/73",
+      "path": "raw-api/0001.receipt.txt",
+      "bytes": 22045,
+      "sha256": "6e6e17d2b633bbc4d48216a7d329788c0219df274d6a4784c993ae57fe117a4c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/git/ref/heads/main",
+      "path": "raw-api/0002.receipt.txt",
+      "bytes": 336,
+      "sha256": "a6f2deb611150c301c84dba21ee886e440acb3a48759367404f1caa2fdc64ba5"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/actions/workflows/ci.yml",
+      "path": "raw-api/0003.receipt.txt",
+      "bytes": 476,
+      "sha256": "85ddb41b5938c32ffc561408a6a313d1c6067cfa091353260137547d97a058a1"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/actions/runs/38172114803",
+      "path": "raw-api/0004.receipt.txt",
+      "bytes": 12858,
+      "sha256": "5877d88d0023bc46f0ae7195ac5075fdecbdb261d7e0f7b7ad230f30f5b73b4c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/actions/runs/38172114803/attempts/1",
+      "path": "raw-api/0005.receipt.txt",
+      "bytes": 12880,
+      "sha256": "830e8a7be5a32ef5cea3c10a20af0d050ae00d04b3507061125908556fe5cf1e"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/git/commits/80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0006.receipt.txt",
+      "bytes": 2656,
+      "sha256": "bec7009674be49da89507b1d9121d0b3dd3c16b03b54ef0225c0c621537e810b"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/git/commits/4bd3480170140090ab2d8ff883d05507281b52ee",
+      "path": "raw-api/0007.receipt.txt",
+      "bytes": 1148,
+      "sha256": "f81a51842c25bcfe103d770377ba48595813ddee52964709607762b17d2809dd"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/git/commits/ec680e866a218b57000a1780018c00101a437f91",
+      "path": "raw-api/0008.receipt.txt",
+      "bytes": 2776,
+      "sha256": "a18e350ef79d6c0213d1c7130b79f28dda0d400ea362bbeb903c30ffff11fe8a"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/actions/runs/38172114803/attempts/1/jobs?per_page=100&page=1",
+      "path": "raw-api/0009.receipt.txt",
+      "bytes": 31470,
+      "sha256": "5f9df741696440288d64114b679f6496001de9282b41c4943fa74163dff03161"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/.github/workflows/ci.yml?ref=80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0010.receipt.txt",
+      "bytes": 20685,
+      "sha256": "504e11de01587879907de8bb62a809a8c10b30915d4273be7d0c35f56053af33"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Tests/test-scopes.json?ref=80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0011.receipt.txt",
+      "bytes": 19229,
+      "sha256": "a2546df4f5213e237877a1af93e5708f15c621edb48b6828f47472a2b3a3fab6"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Tools/PerformanceAcceptancePolicy.v1.json?ref=80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0012.receipt.txt",
+      "bytes": 3885,
+      "sha256": "f3602583762066a57cb1b10f624a6d2d199f205eb4bc4630447fb6bd3a16e71c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Tools/PerformanceAcceptancePolicy.v1.json?ref=ec680e866a218b57000a1780018c00101a437f91",
+      "path": "raw-api/0013.receipt.txt",
+      "bytes": 3885,
+      "sha256": "11eebacd8b4b656b2fb3a24fc855a91047ebb03d4d8b817fe4511b885edec9dc"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Tools/PerformanceComparison.psm1?ref=80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0014.receipt.txt",
+      "bytes": 56217,
+      "sha256": "ee2dff79f4e5259088be1ce7639ec6f880992a581b2f857d1451d19da2d4060c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Tools/PerformanceComparison.psm1?ref=ec680e866a218b57000a1780018c00101a437f91",
+      "path": "raw-api/0015.receipt.txt",
+      "bytes": 56217,
+      "sha256": "632aa2c20ca07a710485b360e7f43d82847d35e91a97733af90fa5f34f845ba3"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/contents/Specs/Testing/Testing_Validation.md?ref=80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "path": "raw-api/0016.receipt.txt",
+      "bytes": 112402,
+      "sha256": "1897eebc862f426141f144930306c40d83e959ff3c320a71a994bfcb2ef87d42"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/actions/runs/38172114803/artifacts?per_page=100",
+      "path": "raw-api/0017.receipt.txt",
+      "bytes": 5692,
+      "sha256": "68f0446feeb63d53a5f8d8a4ca2d61f2b08d405238d96c41c63ce3661ec3c93c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/pulls/73",
+      "path": "raw-api/0018.receipt.txt",
+      "bytes": 22045,
+      "sha256": "6e6e17d2b633bbc4d48216a7d329788c0219df274d6a4784c993ae57fe117a4c"
+    },
+    {
+      "endpoint": "repos/RedSalamanders/DxUi/git/ref/heads/main",
+      "path": "raw-api/0019.receipt.txt",
+      "bytes": 336,
+      "sha256": "a6f2deb611150c301c84dba21ee886e440acb3a48759367404f1caa2fdc64ba5"
+    }
+  ],
+  "checkouts": [
+    {
+      "job": 114566698380,
+      "name": "paired-benchmark (pull request)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566698380.log"
+    },
+    {
+      "job": 114566761505,
+      "name": "native (ARM64, windows-11-vs2026-arm, Debug, 65)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761505.log"
+    },
+    {
+      "job": 114566761508,
+      "name": "native (x64, windows-2025-vs2026, ASan Debug, 60)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761508.log"
+    },
+    {
+      "job": 114566761511,
+      "name": "native (x64, windows-2025-vs2026, Release, 45)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761511.log"
+    },
+    {
+      "job": 114566761555,
+      "name": "native (x64, windows-2025-vs2026, Debug, 45)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761555.log"
+    },
+    {
+      "job": 114566761574,
+      "name": "native (ARM64, windows-11-vs2026-arm, ASan Debug, 80)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761574.log"
+    },
+    {
+      "job": 114566761575,
+      "name": "native (ARM64, windows-11-vs2026-arm, Release, 65)",
+      "checkout": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+      "log": "logs/job-114566761575.log"
+    }
+  ],
+  "nativeJobBindings": [
+    {
+      "job": 114566761505,
+      "name": "native (ARM64, windows-11-vs2026-arm, Debug, 65)",
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "runner": "windows-11-vs2026-arm",
+      "declaredBudgetMinutes": 65,
+      "displayedBudgetMinutes": 65
+    },
+    {
+      "job": 114566761508,
+      "name": "native (x64, windows-2025-vs2026, ASan Debug, 60)",
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "runner": "windows-2025-vs2026",
+      "declaredBudgetMinutes": 60,
+      "displayedBudgetMinutes": 60
+    },
+    {
+      "job": 114566761511,
+      "name": "native (x64, windows-2025-vs2026, Release, 45)",
+      "platform": "x64",
+      "configuration": "Release",
+      "runner": "windows-2025-vs2026",
+      "declaredBudgetMinutes": 45,
+      "displayedBudgetMinutes": 45
+    },
+    {
+      "job": 114566761555,
+      "name": "native (x64, windows-2025-vs2026, Debug, 45)",
+      "platform": "x64",
+      "configuration": "Debug",
+      "runner": "windows-2025-vs2026",
+      "declaredBudgetMinutes": 45,
+      "displayedBudgetMinutes": 45
+    },
+    {
+      "job": 114566761574,
+      "name": "native (ARM64, windows-11-vs2026-arm, ASan Debug, 80)",
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "runner": "windows-11-vs2026-arm",
+      "declaredBudgetMinutes": 80,
+      "displayedBudgetMinutes": 80
+    },
+    {
+      "job": 114566761575,
+      "name": "native (ARM64, windows-11-vs2026-arm, Release, 65)",
+      "platform": "ARM64",
+      "configuration": "Release",
+      "runner": "windows-11-vs2026-arm",
+      "declaredBudgetMinutes": 65,
+      "displayedBudgetMinutes": 65
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "native-x64-Debug",
+      "id": 11714324005,
+      "directory": "artifacts/native-x64-Debug",
+      "createdUtc": "2026-10-11T20:45:08Z",
+      "digest": "sha256:388bfe6b3413114c1991fbd38cd851fbab5e40e53a833d700410b3bfef9d515b"
+    },
+    {
+      "name": "native-x64-Release",
+      "id": 11714628713,
+      "directory": "artifacts/native-x64-Release",
+      "createdUtc": "2026-10-11T20:49:11Z",
+      "digest": "sha256:be54313625e418aeb18d85df3c5bafe5460593e1949b4c29a7b0e17e8036dcee"
+    },
+    {
+      "name": "native-x64-ASan Debug",
+      "id": 11714946915,
+      "directory": "artifacts/native-x64-ASan_Debug",
+      "createdUtc": "2026-10-11T20:50:17Z",
+      "digest": "sha256:fb0155ee0f5740251a75e3ff45168056907d5399e38ff424d0128cc4d60dee93"
+    },
+    {
+      "name": "native-ARM64-Debug",
+      "id": 11715670996,
+      "directory": "artifacts/native-ARM64-Debug",
+      "createdUtc": "2026-10-11T21:05:41Z",
+      "digest": "sha256:4c906b04b5beaa1a74f1007aad6381aa1742df56bd1b87639e01a8ccdba82046"
+    },
+    {
+      "name": "native-ARM64-Release",
+      "id": 11715915543,
+      "directory": "artifacts/native-ARM64-Release",
+      "createdUtc": "2026-10-11T21:06:35Z",
+      "digest": "sha256:0d3c6581bac8283967a79a0c078bca864faf19fb0fe43ad5e534a4c6b7f0d403"
+    },
+    {
+      "name": "native-ARM64-ASan Debug",
+      "id": 11716070712,
+      "directory": "artifacts/native-ARM64-ASan_Debug",
+      "createdUtc": "2026-10-11T21:11:57Z",
+      "digest": "sha256:b0d8c3149856017fd8e14a06122eab2306a0bad9f26679559770ff266e232ab9"
+    },
+    {
+      "name": "paired-benchmark-x64-Release",
+      "id": 11715949192,
+      "directory": "artifacts/paired-benchmark-x64-Release",
+      "createdUtc": "2026-10-11T21:39:05Z",
+      "digest": "sha256:bf157bb4e0816fcac16a720436e4c21b83405da9f25e331aad0a3c52e65862fe"
+    },
+    {
+      "name": "docs-gallery-x64-Release",
+      "id": 11714863173,
+      "directory": "artifacts/docs-gallery-x64-Release",
+      "createdUtc": "2026-10-11T20:49:11Z",
+      "digest": "sha256:d94c55c0e39bb08157a9086aba37e675c1dbb45b803d40741b3363b90fd08cf0"
+    }
+  ],
+  "limitations": [
+    "CI executable/compiler/SDK/dependency bytes and inventories are not uploaded; recorded identities cannot be independently recomputed from those absent inputs.",
+    "The current native upload selects reports/*.json, while build sidecars live under reports/performance-build/<profile>/; the reviewer inventories actual uploads and verifies any sidecars present without inventing an upload obligation.",
+    "Artifact API zip digests are retained; gh download extracts content, so the original zip digest is not reverified.",
+    "Collection is not ci-gate success or implementation acceptance."
+  ]
+}
