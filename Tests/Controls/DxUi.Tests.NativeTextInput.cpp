@@ -2876,8 +2876,7 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
 {
     using namespace DxUi;
 
-    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(),
-            "the forced IME setup loss uses an explicitly nonactivating window fixture");
+    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(), "the forced IME setup loss uses an explicitly nonactivating window fixture");
 
     {
         AttachedHostWindow window;
