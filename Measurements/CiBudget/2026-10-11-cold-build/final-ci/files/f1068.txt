@@ -1,0 +1,1 @@
+The first compatibility harness attempt failed before checking the Debug packet because Require was invoked before its AST definition was loaded. The failed source bytes are retained under before/current-debug-compatibility-command.ps1. Corrected only this support command initialization; external reviewer and producer files were unaffected.

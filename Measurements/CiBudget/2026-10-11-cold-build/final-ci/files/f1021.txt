@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "policyId": "dxui-complex-ui-paired-v2",
+  "judgeVersion": "dxui-paired-block-sign-flip-holm-v2",
+  "approvedJudgeSha256": "EB1B3047ED8B031383AEBA4D9A72A37D3719B1320A46381EFF042897CCB72E33",
+  "approvedAssignmentSha256": "71EDB95B2C27F3693736D2CC383AF7A271DE15A6B3AF3B6872388194E6861E9A",
+  "qualificationStatus": "policy-review-required",
+  "minimumIndependentBlocks": 12,
+  "assignmentProtocol": "independent-ABBA-BAAB-v1",
+  "independentBlockOrders": ["ABBA", "BAAB"],
+  "primaryFamily": "26 predeclared phase-metric slots per benchmark scenario (13 metrics x clean and dirty phases); Holm correction is per scenario",
+  "familywiseAlpha": 0.05,
+  "multipleComparisonMethod": "Holm step-down",
+  "pairedBlockMethod": "two-sided exact randomization test over all independent equiprobable block-order assignments, using block log-ratios",
+  "timingBandPercent": 5,
+  "memoryBandPercent": 2,
+  "exactBudgets": ["surfaceBytes", "replacementPeakBytes", "cppAllocations", "composeAllocations"],
+  "exactBudgetRule": "A regression is any candidate run median above the baseline run-median median or any raw candidate-round maximum above the retained baseline raw-round maximum; report both findings separately",
+  "requiresFullIdentity": ["sourceCommit", "sourceFingerprint", "executableSha256", "benchmarkSha256", "harnessIdentity", "toolchainIdentity", "dependencyIdentity", "environmentIdentity", "identityStatus", "fixture", "renderer", "width", "height", "dpi", "controls", "modelRows", "framesPerRound", "roundCount", "platform", "configuration", "nativeArchitecture", "machine", "cpu", "os", "compiler", "powerPolicy", "warpVersion", "warpSha256"],
+  "qualified": false,
+  "qualificationNote": "This policy is a proposed migration contract. approvedJudgeSha256 is a review target, not an approval. A trusted versioned base policy and independent policy review/qualification are required before a candidate may pass the migrated gate."
+}

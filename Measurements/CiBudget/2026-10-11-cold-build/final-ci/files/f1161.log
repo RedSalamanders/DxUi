@@ -1,0 +1,49 @@
+== PrePush x64 Debug
+Native test naming: 76 files checked.
+Test plan: PrePush (x64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+== PrePush x64 Release
+Native test naming: 76 files checked.
+Test plan: PrePush (x64 Release); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+== PrePush x64 ASan Debug
+Native test naming: 76 files checked.
+Test plan: PrePush (x64 ASan Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+== PrePush ARM64 Debug
+Native test naming: 76 files checked.
+Test plan: PrePush (ARM64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+== PrePush ARM64 Release
+Native test naming: 76 files checked.
+Test plan: PrePush (ARM64 Release); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+== PrePush ARM64 ASan Debug
+Native test naming: 76 files checked.
+Test plan: PrePush (ARM64 ASan Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: MenuResources — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: MenuResourceScaling — menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+DEFERRED_CI (forthcoming PR, pending success): Accessibility, Animation, ComboBox, Control, EditorControls, Embedded, Foundation, Grid, InteractiveLease, MenuExitLifetime, MultilineText, NewControls, ReadOnly, Rendering, TextField, Theme, Tooling, Tooltip, Tree, WindowHost
+PREPUSH_ACCOUNTING_FINISHED: inspect each profile result; CI_PENDING is not passed, capability skips remain partial, and interactive/native-hardware obligations remain INTERACTIVE_NOT_RUN or NOT_RUN.

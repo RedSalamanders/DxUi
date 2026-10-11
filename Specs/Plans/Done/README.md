@@ -1,6 +1,6 @@
 # Completed plans
 
-- [UI composition S0-S2: intrinsic sizing and stable forms](ConsumerUiImprovements_S0_S2_2026-10-04.md) — completed 2026-10-11 (library implementation, tests, usage contracts, gallery and design-system publication, with exact-source local validation retained; broader performance, platform, physical-input and consumer acceptance remain in the [qualification WIP](../WIP/ConsumerUiQualification_2026-10-11.md), and [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain deferred).
+- [UI composition S0-S2: intrinsic sizing and stable forms](ConsumerUiImprovements_S0_S2_2026-10-04.md) — completed 2026-10-11 and normally merged in [PR #73](https://github.com/RedSalamanders/DxUi/pull/73) at `67020742` (library implementation, tests, usage contracts, gallery/design-system publication and reviewed current-source evidence; the literal failed policy/ARM foreground qualification remains in the [qualification WIP](../WIP/ConsumerUiQualification_2026-10-11.md), and [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain deferred).
 
 - [Review and integration of the remaining branches](BranchIntegration_2026-10-10.md) — completed 2026-10-10 (PR #69 integrated with current snapshot/model guards and first full presentation; two assignment races reproduced and repaired; native and synthetic consumer results archived, with inconclusive performance and refused ARM64 foreground suites explicit; unfinished prepared-tree work retained).
 

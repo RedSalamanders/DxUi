@@ -1,0 +1,28 @@
+diff --git "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Collect-PrCiEvidence.before.ps1" "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Collect-PrCiEvidence.after.ps1"
+index 0879cf31..9db6c42a 100644
+--- "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Collect-PrCiEvidence.before.ps1"
++++ "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\cold-budget-binding-correction\\Collect-PrCiEvidence.after.ps1"
+@@ -6,7 +6,7 @@
+     [long] $RunId = 0,
+     [string] $RepositoryRoot = 'C:/Users/eric/.codex/worktrees/performance-forms/DxUi',
+     [string] $OutputParent = 'C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/ci-evidence',
+-    [ValidatePattern('^[a-f0-9]{64}$')][string] $ExpectedWorkflowDigest = '7d4a1afd4c0a74ae8b93185f5ca4f78eda76d0eda4eff3e368bffd8c207730c8'
++    [ValidatePattern('^[a-f0-9]{64}$')][string] $ExpectedWorkflowDigest = 'aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df'
+ )
+ Set-StrictMode -Version Latest
+ $ErrorActionPreference = 'Stop'
+@@ -159,12 +159,12 @@ $nativeProfileKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]
+ foreach ($job in $nativeJobs) {
+     # GitHub may include every include-matrix value in the expanded display name. The exact source digest
+     # still binds the selected jobTimeoutMinutes when the service omits that value from its display.
+-    $display = [regex]::Match($job['name'], '^native \((?<platform>x64|ARM64), (?<runner>windows-2025-vs2026|windows-11-vs2026-arm), (?<configuration>Debug|Release|ASan Debug)(?:, (?<budget>40|60))?\)$')
++    $display = [regex]::Match($job['name'], '^native \((?<platform>x64|ARM64), (?<runner>windows-2025-vs2026|windows-11-vs2026-arm), (?<configuration>Debug|Release|ASan Debug)(?:, (?<budget>45|60|65|80))?\)$')
+     if (-not $display.Success) { throw "Unexpected native matrix display: $($job['name'])" }
+     $nativePlatform = $display.Groups['platform'].Value
+     $nativeConfiguration = $display.Groups['configuration'].Value
+     $nativeRunner = if ($nativePlatform -ceq 'ARM64') { 'windows-11-vs2026-arm' } else { 'windows-2025-vs2026' }
+-    $nativeBudget = if ($nativePlatform -ceq 'ARM64' -and $nativeConfiguration -ceq 'ASan Debug') { 60 } else { 40 }
++    $nativeBudget = if ($nativePlatform -ceq 'ARM64') { if ($nativeConfiguration -ceq 'ASan Debug') { 80 } else { 65 } } else { if ($nativeConfiguration -ceq 'ASan Debug') { 60 } else { 45 } }
+     if ($display.Groups['runner'].Value -cne $nativeRunner -or ($display.Groups['budget'].Success -and [int]$display.Groups['budget'].Value -ne $nativeBudget)) { throw 'Native profile runner/budget display differs from its exact selected workflow row.' }
+     if (-not $nativeProfileKeys.Add("$nativePlatform/$nativeConfiguration")) { throw 'The run repeats a native profile.' }
+     $nativeJobBindings.Add([ordered]@{ job=$job['id']; name=$job['name']; platform=$nativePlatform; configuration=$nativeConfiguration; runner=$nativeRunner; declaredBudgetMinutes=$nativeBudget; displayedBudgetMinutes=$(if ($display.Groups['budget'].Success) { [int]$display.Groups['budget'].Value } else { $null }) })

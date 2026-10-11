@@ -33,6 +33,12 @@ and row gaps default to 12 DIP with zero container padding. Error meaning is tex
 it never depends on a new hard-coded color. Product minimum hit targets and fixed action regions remain explicit
 consumer policy. See [layout usage](../../docs/layout.md) and [Controls and layout](UI_ControlsAndLayout.md).
 
+The [final S0-S2 PR evidence](../../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md) retains 18 actual
+harness images across x64 Debug/Release/ASan, independently bound to the current-source functional receipts and
+root visual review. The committed component previews remain static design guidance with their original provenance.
+This documentation closeout changes no tokens, control geometry, rendering or gallery pixels; unfinished
+performance, native ARM foreground/resource, physical-input and consumer gates stay explicit.
+
 - Values are exact. Colors come from `ThemePalette` initializers and `MakeDefaultThemePalette`, derived values
   from the same formulas as `MakeThemePalette` and the `Resolve…VisualStyle` resolvers, metrics from `k…Dip`
   constants. Token names are the `ThemePalette` field names. Never round a metric to a scale or re-tint a

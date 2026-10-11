@@ -1,0 +1,26 @@
+{
+  "completedUtc": "2026-10-11T20:12:16.6559535Z",
+  "reviewed": true,
+  "scope": "Only current workflow digest and exact six profile budget bindings changed in collector/reviewer/audit. Raw byte collection, native/consumer/probe/lease and paired acceptance checks remain intact. Independent root review of all three diffs; 125-case root audit binds the final reviewer.",
+  "records": [
+    {
+      "helper": "Collect-PrCiEvidence",
+      "beforeSha256": "BD92AFE4AB95F1A91DD1262988B7A2D2F07D175B8CF4C823FB006A3E81928074",
+      "afterSha256": "D85108857996838D2FAC9FCDC883A34D8059C14EA53FDE7F11A9FC67D98749FF",
+      "parseErrors": 0
+    },
+    {
+      "helper": "Review-PrCiEvidence",
+      "beforeSha256": "286BF08FBB77E5FC8BC6066555C52813A3A094CFE894E257000346E622C25B59",
+      "afterSha256": "D366AC86418220A88E7E49A5B59EC5EB69285AEA7AF7C55E6D5361E2BD55797A",
+      "parseErrors": 0
+    },
+    {
+      "helper": "Audit-HelperSlices",
+      "beforeSha256": "6481109F1CB00A8413ED9FBECE4CBA560A1B341A9DFE04D5F593083EAACCAB2E",
+      "afterSha256": "F1FFDAB2DF94FA442168F1333CF909960F2D39C741B580746AD1111D0E167EA2",
+      "parseErrors": 0
+    }
+  ],
+  "auditSha256": "C349C86C926A414502C127CCC6B87FA4F6D3CE39494DF607514B9ACBD07B88C9"
+}

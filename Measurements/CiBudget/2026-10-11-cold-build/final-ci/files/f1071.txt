@@ -1,0 +1,38 @@
+{
+  "status": "EXTERNAL_NATIVE_CONSUMER_ASAN_REVIEW_REPAIR_FROZEN",
+  "files": [
+    {
+      "path": "Review-PrCiEvidence.ps1",
+      "beforeSha256": "6AA6E41613C13150406F593D7B5743FD4782A2F3B50216D7A886C5B643E079FC",
+      "afterSha256": "8E39BA72B73E21A49F72775830588F29C0FF27E6B478B5FCEBC846CA059019D6"
+    },
+    {
+      "path": "Audit-HelperSlices.ps1",
+      "beforeSha256": "6FDAAE08D6F560198275F73EB888CA2274B2E2281F1A36B62F7D6959ECA052DE",
+      "afterSha256": "30F7220EA8EF586914582E984E2370AE4739060D5F766464C8789923A576D4A8"
+    }
+  ],
+  "parser": [
+    {
+      "path": "Review-PrCiEvidence.ps1",
+      "errors": 0
+    },
+    {
+      "path": "Audit-HelperSlices.ps1",
+      "errors": 0
+    }
+  ],
+  "previousChecks": 53,
+  "currentChecks": 124,
+  "priorCheckLabelsRetained": true,
+  "originalReadExactExitCodeUnchanged": true,
+  "priorAudit": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\slice-audit-0f24f35e05cf4b53a42556ce6fb2530b\\audit.receipt.txt",
+  "currentAudit": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/ci-review-tools/slice-audit-db16cb4628e44b1397ce8dec7dcfca8d/audit.receipt.txt",
+  "currentAuditSha256": "53F684CFAE0C61B35B3CD852B790F6007783569C59D4C649EF62F2E5D8F405AD",
+  "debugCompatibility": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\native-review-repair-247257c535f54346845f705e17f8f3f1\\current-debug-compatibility.receipt.txt",
+  "debugCompatibilitySha256": "2813FBFD93F2E622BBF2E4A831B53E2F1FF4DD81334EAB8EA2A597D0D48ECB61",
+  "unchangedCollectorSha256": "BD92AFE4AB95F1A91DD1262988B7A2D2F07D175B8CF4C823FB006A3E81928074",
+  "unchangedNativeBudgetHelperSha256": "E5041E70A8DD35536A4E1251ECEFC70ABDCFB6429EDEE782A73E137FFE908044",
+  "completedUtc": "2026-10-11T19:37:14.6749009Z",
+  "scope": "External evidence validation only. No production/Git/CI/network/native actions; existing HOLD and human before-input exception review remain open."
+}

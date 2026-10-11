@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "rawResponse": "{\"sha\":\"670207429d62ecc541769b5dd6c70b9607745e64\",\"merged\":true,\"message\":\"Pull Request successfully merged\"}",
+  "completedUtc": "2026-10-11T21:59:23.2526596+00:00"
+}

@@ -1,0 +1,25 @@
+diff --git "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Audit-HelperSlices.before.ps1" "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Audit-HelperSlices.after.ps1"
+index 8e65c6ed..cccd350e 100644
+--- "a/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Audit-HelperSlices.before.ps1"
++++ "b/C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\root-resource-classification-correction\\Audit-HelperSlices.after.ps1"
+@@ -92,7 +92,7 @@ function New-HostedProbeReceipt([string] $Suite='Menu', [string] $Platform='ARM6
+ }
+ $nativeLogRoot = Join-Path $fixture 'native-success-logs'; [void][IO.Directory]::CreateDirectory($nativeLogRoot)
+ foreach ($binding in @(@{suite='Menu';platform='ARM64';configuration='ASan Debug'},@{suite='NativeTextInput';platform='ARM64';configuration='Debug'},
+-        @{suite='MenuResourceScaling';platform='x64';configuration='Release'},@{suite='MenuTextLayoutResources';platform='x64';configuration='Release'})) {
++        @{suite='MenuResourceScaling';platform='x64';configuration='Release'},@{suite='MenuResources';platform='x64';configuration='Release'})) {
+     $record = New-HostedProbeReceipt $binding.suite $binding.platform $binding.configuration
+     Assert-HostedLease $record $false
+     $log = Join-Path $nativeLogRoot "test-$($binding.suite)-$($binding.platform)-$($binding.configuration).hosted.log"
+@@ -100,6 +100,11 @@ foreach ($binding in @(@{suite='Menu';platform='ARM64';configuration='ASan Debug
+     Require ((Assert-NativeSuiteLog $nativeLogRoot $record $binding.suite $binding.platform $binding.configuration) -ceq $log) 'Fresh hosted success log did not bind.'
+ }
+ $passed.Add('fresh hosted success preserves four foreground suite leases and exact raw log names')
++$ordinaryResource=@{suite='MenuTextLayoutResources';platform='x64';configuration='Release';exitCode=0}
++$ordinaryResourceLog=Join-Path $nativeLogRoot 'test-MenuTextLayoutResources-x64-Release.log'
++[IO.File]::WriteAllText($ordinaryResourceLog,"[DONE] MenuTextLayoutResources (0.333 s)`nAll DxUi tests passed.`n",$utf8)
++Require ((Assert-NativeSuiteLog $nativeLogRoot $ordinaryResource MenuTextLayoutResources x64 Release) -ceq $ordinaryResourceLog) 'The noninteractive DirectWrite layout fixture lost its ordinary producer log.'
++$passed.Add('noninteractive MenuTextLayoutResources binds its ordinary log without invented foreground evidence')
+ $hosted = New-HostedProbeReceipt; $unchanged = Copy-ProbeValue $hosted
+ $unchanged.lease.foreground='unchanged'; $unchanged.lease.cursor='unchanged'; $unchanged.lease.runMovedSomething=$false; $unchanged.lease.seconds=0
+ Assert-HostedLease $unchanged $false

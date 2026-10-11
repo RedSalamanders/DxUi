@@ -1,0 +1,1479 @@
+{
+  "status": "ROOT_FULL_CAPTURE_FUNCTIONAL_AND_VISUAL_BYTES_BOUND",
+  "ciGateSucceeded": false,
+  "qualificationPassed": false,
+  "runId": 38172114803,
+  "attempt": 1,
+  "head": "4bd3480170140090ab2d8ff883d05507281b52ee",
+  "testedMerge": "80d875a1de91d2b2c8602faa5614cf75eab6025b",
+  "testedTree": "e695cf74db0e2fc1a5c8c8d183cfb0bd136d639d",
+  "originalFullReviewStatus": "BLOCKED",
+  "originalSealedFiles": 1021,
+  "originalSealSha256": "2FEE9B9FCE0AB362900C0A36585F5DAE49707CE77184C1F61CB6A99778ED6E78",
+  "originalSealUnchanged": true,
+  "inputs": {
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\review-20261011T214113Z-9736815beaff470294e019f3f1a05bd8.receipt.txt": "36F41CB5680597D382D164212AEE50465ECD394DCC8741E06EF4A0527ACC44BB",
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-functional-visual-399-318fd6cdb9ac4db68bcf4a942c7321f0.receipt.txt": "8111B42BB1A9AC323BF2DAE5349D682F8FA2BEBA8E0E7F7F3144CC0DDF758CB1",
+    "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\Review-FunctionalVisual-399.ps1": "08C6496F5D6A9B39EC1B0492682D8A33AF1A09963D19E5DEFBF81B6C0B46DDC3",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt": "68603419926F9077A65BCD1BACD5F6FDDEF70F9EE765DE4609F3CC7B3C328A72",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt": "61A24E7ED132B79A94E2D43BB0315813640DEC32434068BAA1B216934ED7B1B5",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt": "7C48A5E7E632350BC78C47E8594FE135B1DE2DD6EB3D40657E0A5E2C5080EB3D",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt": "F304C4A4AF004621849D8CAE271B2982E078D255ADDF5B0F35CB926BFA0C3E37",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt": "AF98733B65F8D99C68E57C4131946712F6850886C6D3EDC86EF1571BF2BEFC0D",
+    "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt": "BAB933A2261EFEAF8092F3CF6334C2B58C2081187DD2324C031B3F459D01BB2B"
+  },
+  "driver": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-review-tools\\Bind-FullFunctionalVisual-399.ps1",
+  "driverSha256": "A9F1886F67ACE6E31DDE28DA3E78F0DCA614F9FF3618C9E0A2D11E7D57DEB870",
+  "currentSourceFunctionsPerProfile": 38,
+  "profiles": 6,
+  "functionExecutions": 228,
+  "nativeReceipts": [
+    {
+      "profile": "x64/Debug",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Foundation-x64-Debug.json",
+      "finalReceiptSha256": "263FC607E4EA9857E10CF3CE8A0D3F80DDB739E845DA8E0F23994FE667B1D766",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Foundation-x64-Debug.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Embedded-x64-Debug.json",
+      "finalReceiptSha256": "8AA346F171F5A89ACB453FC0506D2AAC536BA3F7D4EBE40B7D69314DD9294A87",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Embedded-x64-Debug.log",
+      "finalLogSha256": "4687242E84AB19785C6B97B27A421072168694D9CFDF2FDCBA75F1C7950DD3E2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Grid-x64-Debug.json",
+      "finalReceiptSha256": "CF36559449385A07033C11470714E02EB92BE80E9A1630F17AB1640017BFCD28",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Grid-x64-Debug.log",
+      "finalLogSha256": "8AFCC95121F0671BE9800E993D2636B55EAF912DA75981B31D62E32AB49C18AD",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Theme-x64-Debug.json",
+      "finalReceiptSha256": "CD95B71F57A08DC85FC1D8B25E8A2A3565B87F0DB54FC16D0923F348C185CCE4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Theme-x64-Debug.log",
+      "finalLogSha256": "9F523A0A189A64A19296874428581932926C43F0A104E8836EB321F6863AA4C1",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Control-x64-Debug.json",
+      "finalReceiptSha256": "BE77011E6F9EA163AFD1320F73FB106C99FFEF264A2A0D4A7119DBDEC5D0BBE3",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Control-x64-Debug.log",
+      "finalLogSha256": "4F243133C95A14E79A289665D62150EEEFD700501FA75603568CD2B07707FDCD",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\MenuExitLifetime-x64-Debug.json",
+      "finalReceiptSha256": "FC75307A0FE791BC09F0371BA94914E3B5D1BAC6B144093B422CBF9CDE17F3BC",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-MenuExitLifetime-x64-Debug.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\NewControls-x64-Debug.json",
+      "finalReceiptSha256": "FD87545BB9E5CB7410F060FB65CB5598D56C68B40BC65CC927E643431824027C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-NewControls-x64-Debug.log",
+      "finalLogSha256": "A906AF786A2C35CA171A605904E81E7149AEEC32476B2F1A2E219156BCA8EB1B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\EditorControls-x64-Debug.json",
+      "finalReceiptSha256": "2DDD54AA5BDD849DE7CBD582936DC04D334EA1A4576E241981E01E7644E23D5B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-EditorControls-x64-Debug.log",
+      "finalLogSha256": "E3CE4F318E11442E3F49F511B3A7F7B9E86EB6EC0AA12A8873C818BBB881C6A7",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\TextField-x64-Debug.json",
+      "finalReceiptSha256": "6DFCD88AD262CA4FFC70BE01F7DC3B341932F41B23CD4DB0D5DD9FCC76ACCF8D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-TextField-x64-Debug.log",
+      "finalLogSha256": "93875571EB43EDA05B5F98CEA127EB9F7980CBCCF13F2223A1E5982DC2F3901E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\MultilineText-x64-Debug.json",
+      "finalReceiptSha256": "C475267C31B5250BE8F8FA496342F868E856B54E4C047D746592D08AAC7B80F4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-MultilineText-x64-Debug.log",
+      "finalLogSha256": "6CDA12577E08500D585C7327D48A9F9832F76922E22C706A25005AE9D392B760",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\ReadOnly-x64-Debug.json",
+      "finalReceiptSha256": "E372624659E80A16056FCFDCF8D576CB8115129B25D99B37C91A20CB48E3B53A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-ReadOnly-x64-Debug.log",
+      "finalLogSha256": "FD19C3E66E612F4E5337455C738E64304F207F7EBFB90136955A2074764ABD80",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\ComboBox-x64-Debug.json",
+      "finalReceiptSha256": "FE4D5FFD6E6F5D638F57FC66F99B53F400C7D9E0B325DBB02D829B862ABE249F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-ComboBox-x64-Debug.log",
+      "finalLogSha256": "80ABE679A0736E200458AD24DFC63A4E0F5E20E9390052C62D75C0EEB4527323",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Tree-x64-Debug.json",
+      "finalReceiptSha256": "99BEDAA868A22AE982ABD8FA354993FCD39B74B228EB814E41B9C6A17D9BCF5A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Tree-x64-Debug.log",
+      "finalLogSha256": "BA695F55C9B5908FF16FC26E8BFE62DC43070FC1CC33667A1098C5C8A6B4CB61",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Tooltip-x64-Debug.json",
+      "finalReceiptSha256": "D88700A2682CB0060B5415B7ED6418AA1B844F0DFA7388337F9A47AEF1876D8D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Tooltip-x64-Debug.log",
+      "finalLogSha256": "0426193036357B368C7596180649CE42FB297AED964077F95C7D6080FC1434D0",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Rendering-x64-Debug.json",
+      "finalReceiptSha256": "79346F25774044C70B17FE63D89F76887D3A140C25D40FE71EF54D17DCF9FCC1",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Rendering-x64-Debug.log",
+      "finalLogSha256": "D67D391AF9F95BA382EAED91C3EE7E2DF7D985993DCA51DE64ADD34798D3BA9A",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Animation-x64-Debug.json",
+      "finalReceiptSha256": "2D4EF91410F58470E94B6887A789CC45F20A1943B5CD452C3ACF0E7ED294C9B5",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Animation-x64-Debug.log",
+      "finalLogSha256": "EA441C2C1D3D1EA4AB0DF12CAAE54B19963DE1926D95CA5576C4A000F358C67E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Accessibility-x64-Debug.json",
+      "finalReceiptSha256": "0C59F67A1357F8C8145C98E70068B20ACD1CD79E7C5E8B5DC3E828F515E85D73",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Accessibility-x64-Debug.log",
+      "finalLogSha256": "B63A0C498D57B3DA0C91AB7E3E6AB4368ABCEEB8F89694B74352308F66ACF687",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\WindowHost-x64-Debug.json",
+      "finalReceiptSha256": "2BF9348AB8D1D133C8A77983F2A939FD17CF3065B74B31CDD78F5B55F50FC29F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-WindowHost-x64-Debug.log",
+      "finalLogSha256": "860FBB38165F60B5999E2E53A116F2856DB3992E7AD5BBD135378897627F8332",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\InteractiveLease-x64-Debug.json",
+      "finalReceiptSha256": "4A6841E6ECEF3E4104BB277AD9DF54FDDA3039B18156A5DF7CB5F3898218D461",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-InteractiveLease-x64-Debug.log",
+      "finalLogSha256": "94AED2107E359FF1FC52C94A4D2A3A7ABF0C47C458986041212C3525B56E1211",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "Menu",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\Menu-x64-Debug.hosted.json",
+      "finalReceiptSha256": "B885B4913C33652D2DA9AF67A33381310E2A62E097152EC9D794EA575960A14C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-Menu-x64-Debug.hosted.log",
+      "finalLogSha256": "97D3FAA634E83CE5B23F1A1DA3C154AF25070648704EFA8E65991FCD34754D51",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Debug",
+      "suite": "NativeTextInput",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\reports\\NativeTextInput-x64-Debug.hosted.json",
+      "finalReceiptSha256": "755C400EBBFE2CC2EF173B48FC488BED595DEB65F314DD44C67EEF89A572B293",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\logs\\test-NativeTextInput-x64-Debug.hosted.log",
+      "finalLogSha256": "68505B1054544E0BCECC6F87F45962C1EA2E90D3A76816ED32E3B88A729B0CDF",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Foundation-x64-Release.json",
+      "finalReceiptSha256": "AFCD838DD974287B51E793E273E63648AEAE93B91F54E6446768231F9B8B716A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Foundation-x64-Release.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Embedded-x64-Release.json",
+      "finalReceiptSha256": "D52646E4F6F3DC5D95B902308485B7363ED5FE9D8ACFDE4B3E019FFBC28B0275",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Embedded-x64-Release.log",
+      "finalLogSha256": "AC11F70FEBF16BA56812336AF35F603055057CEAE86C250F289B5408B4FF8750",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Grid-x64-Release.json",
+      "finalReceiptSha256": "4C5491D7B3550C8880C9B477583B69C245CC01ACFE455F8D7845E5B4AED33205",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Grid-x64-Release.log",
+      "finalLogSha256": "BDF9FF9F22C87252A9EF29794AB0EA3776A23C4FA23B392A141BC98ABBD430A2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Theme-x64-Release.json",
+      "finalReceiptSha256": "312482F3E43FB9671D4B6AE179C73D04EE901AE0DAB49E2E165FD1D7BC2FAC5B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Theme-x64-Release.log",
+      "finalLogSha256": "F7484FD9226EC92E6E501BDB71E911B38852DF0331C1CEEC9DABBD97CFF809E6",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Control-x64-Release.json",
+      "finalReceiptSha256": "E496BFBABB7F8D99BD0BF5AB3A61C98DCECDBB9EC10472E19740CBD94A04FE1B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Control-x64-Release.log",
+      "finalLogSha256": "146CFE1E808A77C99FAC6462AA1E08AC248A2B42C98BCFDDCACA36B552C8ED4B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\MenuExitLifetime-x64-Release.json",
+      "finalReceiptSha256": "BF234214EDD27A457028D255BF86DA8726A85379B8A9029C24B4784623AF22E8",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-MenuExitLifetime-x64-Release.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\NewControls-x64-Release.json",
+      "finalReceiptSha256": "3BA1EF00D989D0DDB154F5C5CF5ACA0A4336D425D0EC31B6DB1F94CE5C94CB1B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-NewControls-x64-Release.log",
+      "finalLogSha256": "D49A0730902A6EF1C5D2682EDA26FCF110C663AC7B120EE5733419DC29076026",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\EditorControls-x64-Release.json",
+      "finalReceiptSha256": "AA4DA94031CCD45F212AF3BCA6B7D6575B7E1DDF468328E5A74F6EF2124DEDF4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-EditorControls-x64-Release.log",
+      "finalLogSha256": "90881FAAEDB14587CDAFCBFAED2305B69D6F974679285F2905987C9371C3BA19",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\TextField-x64-Release.json",
+      "finalReceiptSha256": "6E4DB5437CABE76EAF3B9AAAC377C1A16D40562E17FB91241BC3FEAC2C5E55F4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-TextField-x64-Release.log",
+      "finalLogSha256": "30E875B6FD9E512559B4EDB680C5F677A382B1930F349A11316A49EB3F3DE294",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\MultilineText-x64-Release.json",
+      "finalReceiptSha256": "AFCCC67939E9B54F2BDB91C276E9B9A492EDDD4164C0FA5970FDE8DA80CEE683",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-MultilineText-x64-Release.log",
+      "finalLogSha256": "CE1C4D0C74F68088524FAB7674EFD1BDE801CF85A8CE473CC30D292E5D12AF25",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\ReadOnly-x64-Release.json",
+      "finalReceiptSha256": "6848D706502B877500F64BCE0158037BE2BE83B56FCE41489AB46E4D26DA139D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-ReadOnly-x64-Release.log",
+      "finalLogSha256": "99E0D252ACFD3AB030E407BAC22629F5A0E99A537813971456B9C0E570229FE3",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\ComboBox-x64-Release.json",
+      "finalReceiptSha256": "0493018FE8D9D6AD11BA46B72211F9756C0D9EC3A464D2DCB822C43B21F365F7",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-ComboBox-x64-Release.log",
+      "finalLogSha256": "1AF1854757240502597D7EDB84048F9651623216CBBD43F15F2F6ABFC456B50A",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Tree-x64-Release.json",
+      "finalReceiptSha256": "DABAF0356C937C401D3ED440DB6E48749AEFC5052C79976AE54DD99994C999D0",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Tree-x64-Release.log",
+      "finalLogSha256": "5212F9856F00CD4EA1C6DF6FCB2DB72CED5F4C27075754D99A476B3707119DEB",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Tooltip-x64-Release.json",
+      "finalReceiptSha256": "269C85822F451050223AE1A9E7C18E74CD67C0B23B901979D915898B48646AA6",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Tooltip-x64-Release.log",
+      "finalLogSha256": "66A15BFD71BAA01BDFD45CE85DED3F8A7837BC695258F5F4E1B8D9E6FBCB3B92",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Rendering-x64-Release.json",
+      "finalReceiptSha256": "AEBFE827C097ADE56CBF6C3524EE2EF6E4FF949AF83A90828007DA32EAFFE5D7",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Rendering-x64-Release.log",
+      "finalLogSha256": "EC8D60BF3AAF05A42A08D72EA37F2B87EAFFD048A8545805D41E0E38432FAEF8",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Animation-x64-Release.json",
+      "finalReceiptSha256": "BDFDB7CAD5A544D06A4DBC4F1864D708F7169D6CAA32C5083B39070681D805BE",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Animation-x64-Release.log",
+      "finalLogSha256": "102C00799B2C979458B69295494B9315BBC84973DC92B106245E39FDCBDA72B5",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Accessibility-x64-Release.json",
+      "finalReceiptSha256": "CD279F201211EC680D652EFDE52D9C5E8545215947BFEB48363BA0F4BC66284A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Accessibility-x64-Release.log",
+      "finalLogSha256": "B337CB0B8B37EC845A1FD36838580F2857310432944647E7B92C351E001E8F8D",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\WindowHost-x64-Release.json",
+      "finalReceiptSha256": "74FB2597CF05B471B56D7AA66EA956266F0EA45E24AF4C3D6189F711B1DD4E8C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-WindowHost-x64-Release.log",
+      "finalLogSha256": "74AB3DE56BA2CE16C70C6D8239669A348C7B4D3A27D26563F148CE93F62327B8",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\InteractiveLease-x64-Release.json",
+      "finalReceiptSha256": "B02D40872736316492E7C83C16A562AFBF708D2DF7749E11693D7B5CF80BEE81",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-InteractiveLease-x64-Release.log",
+      "finalLogSha256": "46A4EA8DD32CAA45869B5064A6AE9CD24A75C50F7F64FB5D6854A1633602BA05",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "Menu",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\Menu-x64-Release.hosted.json",
+      "finalReceiptSha256": "447B7D9F85EC43E62358FD19149799A035FA9004A77D3BBFB8B9723CB2C1972A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-Menu-x64-Release.hosted.log",
+      "finalLogSha256": "CCD46EFBB1BD4A9B1625024332F6A19C5D9FFBCFD0339CB767D4ABFE034EBAD0",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "NativeTextInput",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\NativeTextInput-x64-Release.hosted.json",
+      "finalReceiptSha256": "8E694DBCA6F8F183FB0EDF3CFAF0A863CE7BA86E322D1B0C26DDB4B608AE9364",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-NativeTextInput-x64-Release.hosted.log",
+      "finalLogSha256": "F1137C847E54DFC0BE9E6050C8BC681F1EEE053E780D5E0A50862760AFCCA74E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "MenuResourceScaling",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\MenuResourceScaling-x64-Release.hosted.json",
+      "finalReceiptSha256": "42CCA8F2305AA9D7AD4D18D6933229EDB2A1C6D7AE32EB6E061E7B251DFBC27F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-MenuResourceScaling-x64-Release.hosted.log",
+      "finalLogSha256": "58F573133B51580C7199BD55C54028685629F6702014ABB39DFD737C1BFB59B2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/Release",
+      "suite": "MenuTextLayoutResources",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\reports\\MenuTextLayoutResources-x64-Release.json",
+      "finalReceiptSha256": "AD6262859F75884651AA34B8940FF0EFF10C1FBBC72B2DCD57ADA33255447887",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\logs\\test-MenuTextLayoutResources-x64-Release.log",
+      "finalLogSha256": "DAC64AEB95FD534D481EB2C218DF5DF8653EE7DE9ECE79BA31DE8DCFF701B71E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Foundation-x64-ASan Debug.json",
+      "finalReceiptSha256": "BC53DE6A2FD9E9860F365BCE94A88B8AA83AF75887A628040DF1467D36D16E05",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Foundation-x64-ASan Debug.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Embedded-x64-ASan Debug.json",
+      "finalReceiptSha256": "D03BC739122875973DD2485BDFE4CD8C18F10511A0B2ABB154F27B8CE5CFC68C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Embedded-x64-ASan Debug.log",
+      "finalLogSha256": "B9E645C4B02277BDA5CE86807125C3B2E56C7A5EC6CB66D0634DF4FD4A69C5D2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Grid-x64-ASan Debug.json",
+      "finalReceiptSha256": "22D38A9523CD4215E567F461DAEED435C15CB3251E60597F15490694368C47EF",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Grid-x64-ASan Debug.log",
+      "finalLogSha256": "B3CDC61696737794C1B7A8E6E8EECB0A7134EE21421A61AF402FC5E0AC777D77",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Theme-x64-ASan Debug.json",
+      "finalReceiptSha256": "B621C525ADA5AEE9B65BFC58669EE576D6799CF760A17CD264EA655EAB3E879C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Theme-x64-ASan Debug.log",
+      "finalLogSha256": "176C05F1B9CBA1F066F4932179E4AD13C4B7F45C6198470839892DF7083326D2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Control-x64-ASan Debug.json",
+      "finalReceiptSha256": "9601444AA2A94DF620CE54864A4F43A8E6C20E069DEEA2CB35D590B6238B5A9D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Control-x64-ASan Debug.log",
+      "finalLogSha256": "C4BE6A16755D6993F6D4ABE079FC5A6F7299BDC9EF565C2673B5E2EA109A4ECF",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+      "finalReceiptSha256": "517E6CEDE3F03016608404ADA8AE1FEAC88ADFBE839020337B6CC1AE608EDD66",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-MenuExitLifetime-x64-ASan Debug.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\NewControls-x64-ASan Debug.json",
+      "finalReceiptSha256": "06B2EA199E1AD2AF5A8185B389AA6C034BFE46B47C3EADD5AA2D78D8CABC3DC7",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-NewControls-x64-ASan Debug.log",
+      "finalLogSha256": "E3BB945084C06CE7E400EEFB30AA7898806FAD1B215493304D533C1336A284FE",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\EditorControls-x64-ASan Debug.json",
+      "finalReceiptSha256": "9B3DC1240AB212CF4686C002C36F5ED699056F938D0A5D705E186DCF708A251E",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-EditorControls-x64-ASan Debug.log",
+      "finalLogSha256": "20FF52369E06913E5F715072F35A685B2E8663FAFB714D56424F0F66C61F8B87",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\TextField-x64-ASan Debug.json",
+      "finalReceiptSha256": "B021F88B71B5B270DA5F1D2036597116E5AEE4B243FE37FDD73AC1463443CDE3",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-TextField-x64-ASan Debug.log",
+      "finalLogSha256": "E9211B92BB1F6D36CA067FEB44FB771D301477665C5261FC10356729D80A93C3",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\MultilineText-x64-ASan Debug.json",
+      "finalReceiptSha256": "B52AF40897EAE24D8960CC4D8C0F8BE11A1C5441DD7266E5E9495563DFF5BC29",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-MultilineText-x64-ASan Debug.log",
+      "finalLogSha256": "1A452FF5CEA3D1D654D8DCEAD877E69C6F3DEA15B59AE0F2CBBF24FB150840F3",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\ReadOnly-x64-ASan Debug.json",
+      "finalReceiptSha256": "523D26331A196361604C0BFA09ABD2AB91A8546FAF74899C499C0FE08B5A235C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-ReadOnly-x64-ASan Debug.log",
+      "finalLogSha256": "994EB29C2FE603E1D1D2A5F1398C26DF9BE218793F5B9F677F056CB09A93C7CD",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\ComboBox-x64-ASan Debug.json",
+      "finalReceiptSha256": "E357AE3FAC56BEE1419A7825E16BDED0D30209281ABA3962D825A915E7B7F782",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-ComboBox-x64-ASan Debug.log",
+      "finalLogSha256": "8DF2C76CD662089EA9AB1841B6AF2AF6FC77D5F612427B3A04BFDD215B4078BD",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Tree-x64-ASan Debug.json",
+      "finalReceiptSha256": "55E71AECD71D7DA7213EB222093D5322E9DEE56168BA46D52D61957E5285157A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Tree-x64-ASan Debug.log",
+      "finalLogSha256": "530FC57F43752F2F47965AC5B85F6CF123E908F16EBD917080FDC2FEB848C2A7",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Tooltip-x64-ASan Debug.json",
+      "finalReceiptSha256": "DB7AADDD20EED51C7B2B092D5706E67D518F4F19F97457DB740CD3A3AD8D1B2A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Tooltip-x64-ASan Debug.log",
+      "finalLogSha256": "CF1891475801D9B1955EFD45746C4027C775C207EE5E40EC6DBBB63AB84A3DD2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Rendering-x64-ASan Debug.json",
+      "finalReceiptSha256": "0CD060A7F3ABD2B324C1232AB988DA108A469FAB312EA668BE0E204357EEC037",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Rendering-x64-ASan Debug.log",
+      "finalLogSha256": "A19BF19614867B9744DF2A3DA92C4E0CC4369408A00E930C7CB35614B9BAB168",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Animation-x64-ASan Debug.json",
+      "finalReceiptSha256": "7990BDDED61480637ABDAAE437842D8C12908BC0732629FFAF4F1D9909DE1AA3",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Animation-x64-ASan Debug.log",
+      "finalLogSha256": "3893D9F6EF512D36F78BF621B96F301A3FFC043FCF7EB47217A12F9369EAA7C0",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Accessibility-x64-ASan Debug.json",
+      "finalReceiptSha256": "B249B3C5176A0AA68D215B2E43753D9A3873C591101A617A84F8654F205BD24F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Accessibility-x64-ASan Debug.log",
+      "finalLogSha256": "BD0A856F99DE8E9FEB6C4B2F75C879E8863302E2E50758B24DFAB30BEBADFEF0",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\WindowHost-x64-ASan Debug.json",
+      "finalReceiptSha256": "8409B302D453179003B024DD8409F9B64EABB5EC5C3EC9C7D31F3A2230159534",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-WindowHost-x64-ASan Debug.log",
+      "finalLogSha256": "6231A5875C55D8889A0DB08943DE86400F5AEE94715700B6FC045CD06CE50108",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\InteractiveLease-x64-ASan Debug.json",
+      "finalReceiptSha256": "FB8539C27D206B16DF09E6B071921C5FE8AE7477A2C76128D9DB70748D10AFC3",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-InteractiveLease-x64-ASan Debug.log",
+      "finalLogSha256": "6034B7E205A48A625BF4DCF50868200CFE09EDC40511C4F7B8DA097B60384D4E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "Menu",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\Menu-x64-ASan Debug.hosted.json",
+      "finalReceiptSha256": "1B0604F4EF89A8DEF804EB876274A5E93CBE0C8165262E970D76A61F17789F0A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-Menu-x64-ASan Debug.hosted.log",
+      "finalLogSha256": "F0EBDF75B033967DBF4E45A39150D5394E03A90051ABBF7C528F625882F2E3CF",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "suite": "NativeTextInput",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\reports\\NativeTextInput-x64-ASan Debug.hosted.json",
+      "finalReceiptSha256": "D37876389363AB5C9C25040ABF585F6476FF9FDB104BAC5AAF8FFBDE02A98438",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\logs\\test-NativeTextInput-x64-ASan Debug.hosted.log",
+      "finalLogSha256": "DF473EE964B0C33F24F30D96966E03E75868B8343D3EFDD448C2D99111C577A9",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Foundation-ARM64-Debug.json",
+      "finalReceiptSha256": "B4B344C9DAED3023B0362B04B6309DA851A458EEFCCC85783B58CB9B6C333BA8",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Foundation-ARM64-Debug.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Embedded-ARM64-Debug.json",
+      "finalReceiptSha256": "97F2B616F6B5EDD62911E9B063B9D79E6B508D593A763545E71DABF083A7A5FC",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Embedded-ARM64-Debug.log",
+      "finalLogSha256": "A4C838EA293DF460A61447F88919551DBC30896CA54D7B93FB40B164910F0250",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Grid-ARM64-Debug.json",
+      "finalReceiptSha256": "1C92370F27184CC0F7FC58C14D9B9804A7800AD945AB04FDA73A33E1D1A79FEC",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Grid-ARM64-Debug.log",
+      "finalLogSha256": "400D34B4839D5E112E1911051AE49DFC78090CEF118073E1A37BBC4042E3B615",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Theme-ARM64-Debug.json",
+      "finalReceiptSha256": "6B9800B689DD9759EEA850DA9D47CE1EEF634C2540C53222B4ACE402A896AEED",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Theme-ARM64-Debug.log",
+      "finalLogSha256": "860E47D2B1E67238BB4002BAF721C19F749CC799D10E2D411879A77068FD1797",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Control-ARM64-Debug.json",
+      "finalReceiptSha256": "A45EC0DF8466330BD0CFE4B313047D5C4B8990D3C9D587705A60EE0B4687688A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Control-ARM64-Debug.log",
+      "finalLogSha256": "FB71CD6F93A0EE0A662D864082579AD8EAF65700D5665296CD5E186914FCAA84",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\MenuExitLifetime-ARM64-Debug.json",
+      "finalReceiptSha256": "1A8CCAC4F4752B8A2D757BC26550DA58D541ED79DB439C75F9DF4514C49A1236",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-MenuExitLifetime-ARM64-Debug.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\NewControls-ARM64-Debug.json",
+      "finalReceiptSha256": "ABC24DE0848496A0A7161F34041C340A887214B99CCF47B9A942F61B9D3DF816",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-NewControls-ARM64-Debug.log",
+      "finalLogSha256": "1CB86810DFD1C113C07447BB69335501317CD05B94075557BFFEECB38FF3B741",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\EditorControls-ARM64-Debug.json",
+      "finalReceiptSha256": "6AE6BACC2EB12D09C587EAFA896A2BCE7B60099FBEEE9D28AE3DF9D28DE351E0",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-EditorControls-ARM64-Debug.log",
+      "finalLogSha256": "F16A30262ABF31385608A5EFB3D05EFA43E11F214A886A381DE4F1C8A447F4CF",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\TextField-ARM64-Debug.json",
+      "finalReceiptSha256": "56A026435BE829E7690F56EB1A901F654F333D80E947DED2F00A9FD8E6DB4961",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-TextField-ARM64-Debug.log",
+      "finalLogSha256": "CC248CDBDFDDFDA7C6F3BC1265B2F1B1AE44325D42CEB1F256D612E1C0AE9CAE",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\MultilineText-ARM64-Debug.json",
+      "finalReceiptSha256": "7CF87D7B20CB51ECF65A3945FA152B02502A8859D3298D8B370571447FFA1D6D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-MultilineText-ARM64-Debug.log",
+      "finalLogSha256": "B0EAAEB8A2D2DDBEC2D2155D44C9C17D0A44D340A470CFA0F8C23CC01C339629",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\ReadOnly-ARM64-Debug.json",
+      "finalReceiptSha256": "F219E5175C0C7F2714FA0C0769E4987ED5ED7B3593EFC096E59D1090B8CBBEDB",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-ReadOnly-ARM64-Debug.log",
+      "finalLogSha256": "7FE0624453AADDA26FAAE060CC1284C828B1C8193FF394FA5EB5FD7D2FFCA4EE",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\ComboBox-ARM64-Debug.json",
+      "finalReceiptSha256": "8DA8293137C5E219E0A0172B9D588061AC6F36B92F24BD351FDEA1883993EDDA",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-ComboBox-ARM64-Debug.log",
+      "finalLogSha256": "C02DD6355B2D5519C3987C93EA0A7324D6EA3A59202754AAABC79AF903078581",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Tree-ARM64-Debug.json",
+      "finalReceiptSha256": "F6162ECB8E7DB8519990356FFF3C3BC1F0434458D0FBAB75F3A2A7392D4A94EF",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Tree-ARM64-Debug.log",
+      "finalLogSha256": "B0E82F487F797112F3072F637DA83C5F2014AAB6FD3C5D5622B502CCDFF5C146",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Tooltip-ARM64-Debug.json",
+      "finalReceiptSha256": "F28793231807E2C50B653168636EA627136BDB8D92162A45ACC150F063E7732F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Tooltip-ARM64-Debug.log",
+      "finalLogSha256": "F68AFE6D83056A1740FE05B205C865D5087D6CE5B1EBE0A93F22B1B61D7B931B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Rendering-ARM64-Debug.json",
+      "finalReceiptSha256": "C3ACA0EA68FEFD83F8E9CB9DD0C21B8BE43D2678D3C863EF83C3A10CCD4F7937",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Rendering-ARM64-Debug.log",
+      "finalLogSha256": "9B5CDC3CD41F636D545803DBD5B5F3704F77C83B6B3817812B06837E67EE3334",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Animation-ARM64-Debug.json",
+      "finalReceiptSha256": "FCDD3087A0AC51696F73A28F7BF8B92E0509DB6BB2D7030ECE0079199220D447",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Animation-ARM64-Debug.log",
+      "finalLogSha256": "C88CBF7E23031D438025DF36D45CCD7A0E3E6FBAC79A98ED001D02F4DDDD0C40",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Accessibility-ARM64-Debug.json",
+      "finalReceiptSha256": "591BC78BF4AB2725086C715A842D2FCF4D37494CDE67CC20265B5748FA7BB2F4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Accessibility-ARM64-Debug.log",
+      "finalLogSha256": "99D35EB943775A11B9E8A8DB5689FF805BCBC1926A3E4FB4D28F36CA083172DB",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\WindowHost-ARM64-Debug.json",
+      "finalReceiptSha256": "81EBBAC4E3399B79A2B219C8D6763BEB0C6E22A14E205562383BA0C5AD3C0A4A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-WindowHost-ARM64-Debug.log",
+      "finalLogSha256": "137D52972C11B87569664894968FCAC7F2AB8D79FCD926362BA08C47458E58CB",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\InteractiveLease-ARM64-Debug.json",
+      "finalReceiptSha256": "08067992A68D6A0A2F338365E69D818A3185519503779C19A0A2145431474DB4",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-InteractiveLease-ARM64-Debug.log",
+      "finalLogSha256": "3E26511C1B736A8DBAB94FB7BF63238EFF70D66A954E464D5CAED2D5FF2BBF1D",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "Menu",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\Menu-ARM64-Debug.hosted.json",
+      "finalReceiptSha256": "DFBA1ABDE476C0807830AADB26850CD0EEA53D7624AF32B4C52E90C8B73122B1",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-Menu-ARM64-Debug.hosted.log",
+      "finalLogSha256": "4E29934373528A8C39BED81849B5C99744093B40AA94911D3A4CFD646C88D7A7",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Debug",
+      "suite": "NativeTextInput",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\reports\\NativeTextInput-ARM64-Debug.hosted.json",
+      "finalReceiptSha256": "A6E2FCB5F2AB0BB5128ED933A76D53A3384992531CD0E0FCF1A678935C40AD0A",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Debug\\logs\\test-NativeTextInput-ARM64-Debug.hosted.log",
+      "finalLogSha256": "115F131FCBF56B2C3879A145297008DDA92E6E7E6F45B52E02B9CE51D59AA796",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761505-e138349cbe52499789150f129a93528d.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Foundation-ARM64-Release.json",
+      "finalReceiptSha256": "EFA8AC89389D6C0F18587292F5B3B4A468A3461C55C3C5643F0232F068A6D6C0",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Foundation-ARM64-Release.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Embedded-ARM64-Release.json",
+      "finalReceiptSha256": "6F48E1BB10B64E724E9127112236F955D94E10CB27F2CD09828DAFF699BCAC4D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Embedded-ARM64-Release.log",
+      "finalLogSha256": "E4492F10D65C44E36D8DFF784FBDDEE2EC1337554F205D2C4E73C4F8EC3C42B4",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Grid-ARM64-Release.json",
+      "finalReceiptSha256": "AED079AB41F224A58B1B6267D3847AF7189BF6172955520FE4C65EA4F373F578",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Grid-ARM64-Release.log",
+      "finalLogSha256": "260A0C913600671B7291D79387853D3A2A5DDF1FE10D42E79CCF7A2EB12BC556",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Theme-ARM64-Release.json",
+      "finalReceiptSha256": "656D00EAB5452C2FA42BEA83C7E2E0D3E62C779B12962910B8275871801B5638",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Theme-ARM64-Release.log",
+      "finalLogSha256": "F29DE42E1BF54F035489AEFE178B6957D376802CB6E1A1FB3BC9B7B00D244F58",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Control-ARM64-Release.json",
+      "finalReceiptSha256": "D3458C4A901FE3BFF4A2CAAFA53D32A4F12A6413F9A6E7394EF6E1AE91062F5F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Control-ARM64-Release.log",
+      "finalLogSha256": "7645CF4825AC5581D717375A893B6F2D8FBD4C632165001FD87612AB4995B8C9",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\MenuExitLifetime-ARM64-Release.json",
+      "finalReceiptSha256": "6807609E10AFBBC9E8B4EE1DBE3233E56D257E1FC8DE5564308E17C611C464A3",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-MenuExitLifetime-ARM64-Release.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\NewControls-ARM64-Release.json",
+      "finalReceiptSha256": "F60CAEA516673BB88EF0A77F246C762235E06B3A6FC5164093934FE23005B2CE",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-NewControls-ARM64-Release.log",
+      "finalLogSha256": "6C23C390D1504FD2819765A731AB46A23CBEE600F81A40AA7EADBE751FE27D66",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\EditorControls-ARM64-Release.json",
+      "finalReceiptSha256": "42564D66AF7F70EC9DB9DDEE4F18DD5E31B7694FA292C3A2E4704D88F4640E08",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-EditorControls-ARM64-Release.log",
+      "finalLogSha256": "31D54E5C680B4F88ADE376032AAD9A80374278A33B065512E0A047DEAC05905B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\TextField-ARM64-Release.json",
+      "finalReceiptSha256": "1D01359494652811C1F5660FA364FC380F65F5AA868DC4F85696C99CB9D32B49",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-TextField-ARM64-Release.log",
+      "finalLogSha256": "FF290FF81B3093653F7BF82A708A2F290D9A3D5F03C8CB4DEBC20E62B9D2F76C",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\MultilineText-ARM64-Release.json",
+      "finalReceiptSha256": "BC610C501CCFB127ABD14C4B33002CE066576C86E80E68C8D8769693983C392D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-MultilineText-ARM64-Release.log",
+      "finalLogSha256": "18A0308E07290FC5AD57DA0F289B2794AE352D306FAB112AD69992E6A887AF1E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\ReadOnly-ARM64-Release.json",
+      "finalReceiptSha256": "300461BF32AAAD5377202CEA9DCA788067ED155D7DDA5F497735063B3D212B74",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-ReadOnly-ARM64-Release.log",
+      "finalLogSha256": "37556E2DF6F09B1A8F7180F19486705B35FB73ED2296F3BE23E218D48F55E57D",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\ComboBox-ARM64-Release.json",
+      "finalReceiptSha256": "A290EDDCB9151BD17ABE7FCF96FDC5B14DBADB4DFE51F4CBC0247B7D6681712D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-ComboBox-ARM64-Release.log",
+      "finalLogSha256": "BE8B78F61DA5C70E29F879BDE81EF45C2A0ACDEE247E09E54C84D109188FAF07",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Tree-ARM64-Release.json",
+      "finalReceiptSha256": "DAD3168BFCBF6D6998918990FB65F7D01644B3C28040EC5E3794BA1B5710355E",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Tree-ARM64-Release.log",
+      "finalLogSha256": "185AEA2A9B5A0C074F94517E25B22604DE884E9894CA59F7AA4C53D6E3C5DDD2",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Tooltip-ARM64-Release.json",
+      "finalReceiptSha256": "D29C0075A408B176E875F7580FB9AD81040B500E61F152E84B315F7D910F155B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Tooltip-ARM64-Release.log",
+      "finalLogSha256": "FE49CF0A0A9F40EEE3915CEB3FEFDAAD4BB8FEC45107A1900F100C4A0781818D",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Rendering-ARM64-Release.json",
+      "finalReceiptSha256": "4CC7C96E15EEDB8733C2F551BD4184EE57D667F1EA869ECA664F9ECBA9D2DCF9",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Rendering-ARM64-Release.log",
+      "finalLogSha256": "033E15B4EB325F6BB13B291650FEA3DEF786CE36C8DC81357B03BF3A1430B1F5",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Animation-ARM64-Release.json",
+      "finalReceiptSha256": "16A1D178649EA8B21715611342B4824D7D1B77E0BBF2F932AFFB60339838696D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Animation-ARM64-Release.log",
+      "finalLogSha256": "9B8F518DB98E1420D9132A29BB0EBCC1570C5FAF447653937298A62DC9AD007B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Accessibility-ARM64-Release.json",
+      "finalReceiptSha256": "1841CB4FBB7AAD9654DAFC774966965E3363AF3BF89372620AF1586C947D4DDC",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Accessibility-ARM64-Release.log",
+      "finalLogSha256": "574DF1079BEDFE2DBC384D965A09125B95CEA7DF531F4F35FA9E06193BA4FDE6",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\WindowHost-ARM64-Release.json",
+      "finalReceiptSha256": "62F1AA18B24726FC5E151FEA7725CAD8C47ECD2DF3D85822F3E23CB36C47C37D",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-WindowHost-ARM64-Release.log",
+      "finalLogSha256": "CECE903EF493A19705416666973860715DF9C6136FF51F5E0982C1817D0F21D8",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\InteractiveLease-ARM64-Release.json",
+      "finalReceiptSha256": "B2DE7A61D7D52AECE5A0DB3D286225AC2DF0A05B8D08DA0B2D71FEBC25FE853E",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-InteractiveLease-ARM64-Release.log",
+      "finalLogSha256": "ADF68EF2E25587E7714B3E8810BC03563C26828E2BE75376A8FEC272BFB497BF",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "Menu",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\Menu-ARM64-Release.hosted.json",
+      "finalReceiptSha256": "8358C45D9B65E912A9DF7BDF536E4BDAE70394DFAD4C819777F2DDF29E179195",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-Menu-ARM64-Release.hosted.log",
+      "finalLogSha256": "4E29934373528A8C39BED81849B5C99744093B40AA94911D3A4CFD646C88D7A7",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/Release",
+      "suite": "NativeTextInput",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\reports\\NativeTextInput-ARM64-Release.hosted.json",
+      "finalReceiptSha256": "1A05A2B0CA5ED63C92CB2C0D0039649B4CD611262935E59267ED1BCBFAF9D220",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-Release\\logs\\test-NativeTextInput-ARM64-Release.hosted.log",
+      "finalLogSha256": "115F131FCBF56B2C3879A145297008DDA92E6E7E6F45B52E02B9CE51D59AA796",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761575-bc14b80e380941fda01035c9610f0b57.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Foundation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Foundation-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "823CA288B47E9767405A7F038C3A1115827D61F7429AFFD2DB83782F160E0065",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Foundation-ARM64-ASan Debug.log",
+      "finalLogSha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Embedded",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Embedded-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "87C88ED0DE4AAAEA41EDF8A9626E26456AA2F324F54E5ED86ACC4650EBAA0D54",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Embedded-ARM64-ASan Debug.log",
+      "finalLogSha256": "04AEFF9987725D2DF143115699CB4528DFDA50E574E1226F929D5831E3F4BEA4",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Grid",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Grid-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "21ACA0BA1FF1F10352F1D994C2EDF166788208AA3F4912272F551EF96E367B2C",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Grid-ARM64-ASan Debug.log",
+      "finalLogSha256": "DA216D9E9E1A3C2B8313C8280C8A1DED2E9E4D3D33AAFBD40A6028EFA339FC12",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Theme",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Theme-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "8383DACD09D5FAD6B8560AD12379E162BA2E1F1614D1EDFFDBB5A7D50AEAC194",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Theme-ARM64-ASan Debug.log",
+      "finalLogSha256": "B6C34C98805CB03475627F1297183A55885838B77B4BA4009DBAAA44BC81D227",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Control",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Control-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "D6DEFA45134CF50D9CF526EDB50B0A7B95AE3453C1F20E583AFFF90304674AAE",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Control-ARM64-ASan Debug.log",
+      "finalLogSha256": "4F7DC75AF67815F0F19F8A1274E07CC1B75BDC9E869E73E8F81237AD7DC6E820",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "MenuExitLifetime",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\MenuExitLifetime-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "DBB303E0826C2C6C8B56D1199C2D44D6C7233482FAB09B072AC5F39AE5E70850",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-MenuExitLifetime-ARM64-ASan Debug.log",
+      "finalLogSha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "NewControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\NewControls-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "A20750726BFEF0D96E972E539C34673AA166F04DA2F013F00FF55A083CD034FB",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-NewControls-ARM64-ASan Debug.log",
+      "finalLogSha256": "A2859E9AACBD8FD34677D09E36642A5865BF532E3641374DE467E6BED20D795E",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "EditorControls",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\EditorControls-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "F5AE472717C7AAEC959889152AFB6AC9622A94DD60BA93DB5633A6615774BC08",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-EditorControls-ARM64-ASan Debug.log",
+      "finalLogSha256": "8D5C9E859671F4129892C5B61146FAED7050957B6C79301E3B7F6893F935AAB6",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "TextField",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\TextField-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "156445F8E39AF72C99F2E02BC62428A7D72C6F18BAA674E9494D2C84FD5C7686",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-TextField-ARM64-ASan Debug.log",
+      "finalLogSha256": "B8EBB2105B5E6AB57576A6C705E6C4E1FFA71D14CCDD8AC231C9480693187B6D",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "MultilineText",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\MultilineText-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "DE8FE940A137CC46C01D2827758DB32D38A24089BDCA03EA77721E343DD8FA34",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-MultilineText-ARM64-ASan Debug.log",
+      "finalLogSha256": "67DBD000A6817ACC515434BCFCB419B5E196BF38DDF827566230EAEDEC1E8900",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "ReadOnly",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\ReadOnly-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "D7ECEAEC2CF40B335D246409418A32EEA8FFEDE49C98CF1DC700D8BECC67F468",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-ReadOnly-ARM64-ASan Debug.log",
+      "finalLogSha256": "6650852B823F2D66D2B58D8E4232E79917D4DC66AFB75556E56AE0E86FF5EF65",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "ComboBox",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\ComboBox-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "0BE025CA8C1B76F41968A8A80172E069B7B08B1A24EBDADF13BD215C9768FD90",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-ComboBox-ARM64-ASan Debug.log",
+      "finalLogSha256": "6546C841C285C8740B099793475FAAE61D1DF94027753F4E3A453BAF5A941351",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Tree",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Tree-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "86D82B595D8832E5697FBB0C544C796C9570E013451EF17D56588BD78B7CBF11",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Tree-ARM64-ASan Debug.log",
+      "finalLogSha256": "2DD73614A5113506DA8D5F7642268D98B7FA9E42337135783710E13E02F33793",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Tooltip",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Tooltip-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "ACA760A42CC06BB22E87509E18689EC22F091115BE228C4455AD841630C1A663",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Tooltip-ARM64-ASan Debug.log",
+      "finalLogSha256": "489C7E0839823CDF664FF8074A81A10786115BF4AA46DE898566E1E97661EB6A",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Rendering",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Rendering-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "699C03E838DD20DA35778015C928FD71D91939335E0CF6D32C326FA99399E19B",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Rendering-ARM64-ASan Debug.log",
+      "finalLogSha256": "9B58D71233E111A63F93769BB2A1E8E1E2B900635F715F569EBAD2A5B1EC6369",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Animation",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Animation-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "3DD5FA61901F739CDE5E538B6220322394A3D1E80E146EBA333302F235EE0D25",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Animation-ARM64-ASan Debug.log",
+      "finalLogSha256": "39732B04BB04BAA4E0BF9EA2E051F5792ABDA072B5DC1FB8048123CB8304BB4A",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Accessibility",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Accessibility-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "8E07FF8D66C232A601CAF21C6C096AE676D27B8B2885A4C94EA9CE2551946976",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Accessibility-ARM64-ASan Debug.log",
+      "finalLogSha256": "D0EA811A627EF5C12800DFC3DA1DF6E3035CF5864F387A896BE3C28BFFA572C3",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "WindowHost",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\WindowHost-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "5DA634F8D099C6272D8A85BB6FDE54CF0B52E2488DD537A6E299331126D329BF",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-WindowHost-ARM64-ASan Debug.log",
+      "finalLogSha256": "CF947DA48393A6842B9ADF67425EF50B0C642E77D57CC3846A6F05A5D513D71B",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "InteractiveLease",
+      "exitCode": 0,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\InteractiveLease-ARM64-ASan Debug.json",
+      "finalReceiptSha256": "9D5904DA8C34DEBF681C4FBDF756994D11416995F9E378F8E349359201EFE49F",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-InteractiveLease-ARM64-ASan Debug.log",
+      "finalLogSha256": "FCD31F1D6BE2B72CBC8A784A92F98A8028BA362541126986D2A41B562703F300",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "Menu",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\Menu-ARM64-ASan Debug.hosted.json",
+      "finalReceiptSha256": "04094D20D57A2085BD3579E9E66564AE1F83C5CDCEAF0AA4CDFDC38269633E76",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-Menu-ARM64-ASan Debug.hosted.log",
+      "finalLogSha256": "4E29934373528A8C39BED81849B5C99744093B40AA94911D3A4CFD646C88D7A7",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    },
+    {
+      "profile": "ARM64/ASan Debug",
+      "suite": "NativeTextInput",
+      "exitCode": 24,
+      "finalReceipt": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\reports\\NativeTextInput-ARM64-ASan Debug.hosted.json",
+      "finalReceiptSha256": "650683C4802C7FAC92753702354FB779F3B45C0F5B7C0AA235727D81CA954A38",
+      "finalLog": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-ARM64-ASan_Debug\\logs\\test-NativeTextInput-ARM64-ASan Debug.hosted.log",
+      "finalLogSha256": "115F131FCBF56B2C3879A145297008DDA92E6E7E6F45B52E02B9CE51D59AA796",
+      "partialReview": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-native-review-114566761574-f38f37d9dd6440c780ef60ae50110bb5.receipt.txt"
+    }
+  ],
+  "harnessGalleryImages": [
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\embedded-controls.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\theme-controls-dark.png",
+      "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\theme-controls-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\theme-controls-high-contrast.png",
+      "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\theme-controls-high-contrast.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\theme-controls-light.png",
+      "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\theme-controls-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\theme-controls-rainbow-dark.png",
+      "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\theme-controls-rainbow-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Debug\\gallery\\x64\\Debug\\theme-controls-rainbow-light.png",
+      "sha256": "8C4A0F00E923D211E32517854D3E25DB2E93EBC35E2A61725626DAC7885E2431",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761555-be8a5f7950c342a694675d42a9a979aa\\artifact\\gallery\\x64\\Debug\\theme-controls-rainbow-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\embedded-controls.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\theme-controls-dark.png",
+      "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\theme-controls-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\theme-controls-high-contrast.png",
+      "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\theme-controls-high-contrast.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\theme-controls-light.png",
+      "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\theme-controls-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\theme-controls-rainbow-dark.png",
+      "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\theme-controls-rainbow-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/Release",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-Release\\gallery\\x64\\Release\\theme-controls-rainbow-light.png",
+      "sha256": "8C4A0F00E923D211E32517854D3E25DB2E93EBC35E2A61725626DAC7885E2431",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761511-95501c00803b415fbebb6a0ec866f22a\\artifact\\gallery\\x64\\Release\\theme-controls-rainbow-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\embedded-controls.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\theme-controls-dark.png",
+      "sha256": "C39ECC2CFAD50D6001B8121373F3F24E0D5A1750E48AA43A6857F2EDC8D08E18",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\theme-controls-high-contrast.png",
+      "sha256": "CF88C05814B30BDD0D397D8CA71783728090B0DBA531CD9BE6B7ED4BA6224959",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-high-contrast.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\theme-controls-light.png",
+      "sha256": "B59908214F0F9E07236EBFE1DA0A3B158539DD539A13F74C86439DDF163ADC3E",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-dark.png",
+      "sha256": "D70E6F13E360DF4266F03535AB63FEA863AA34780C86C031A9242A6187D4DBF3",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-dark.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": true,
+      "freshVisualReceipt": null
+    },
+    {
+      "profile": "x64/ASan Debug",
+      "finalImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\ci-evidence\\pr-73-run-38172114803-attempt-1-858f3ba12193400b84801b3a1fa75ac2\\artifacts\\native-x64-ASan_Debug\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-light.png",
+      "sha256": "9A2148B267866EA388969AF8182BCC1059BE20DCEB6A79B63CE5B9E4F16D08A3",
+      "originalRootViewedImage": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\root-native-review-114566761508-da17139fd7bb4a8dae5e3b5db7b3bd49\\artifact\\gallery\\x64\\ASan Debug\\theme-controls-rainbow-light.png",
+      "reviewedVisual": "Root-viewed harness PNG bytes; populated layout/forms, readable multilingual labels and help/error, separate actions.",
+      "sameHistoricalPixels": false,
+      "freshVisualReceipt": "C:/Users/eric/.codex/tmp/dpf-s0-s2-merge/early-ci-native-cold-budget/root-viewed-asan-gallery-399.receipt.txt"
+    }
+  ],
+  "originalAssemblyAttempt": "The earlier ad hoc binding selected nonexistent suite Controls. The actual suite is Control; both queried records were null. This driver first used the wrong external location for the previously reviewed driver; rg located it and the location was corrected before binding. No measurement or source failed, and no successful receipt was emitted by either setup attempt.",
+  "scope": "Exact same current-run receipt/log/performance/image bytes as the root-reviewed partial native packets. This binds the retained final collection to those functional and visual reviews. All six unlaunched ARM foreground suites and the original paired/aggregate failures remain failed/incomplete.",
+  "completedUtc": "2026-10-11T21:54:27.5982728+00:00"
+}
