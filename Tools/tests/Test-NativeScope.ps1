@@ -181,22 +181,28 @@ function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
     $steps = [regex]::Matches($Native, '(?ms)^      - (?<body>.*?)(?=^      - |\z)')
     $stageLimits = @{}
     foreach ($stage in @(
-        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling '; Minutes = 25 },
+        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling ' },
         @{ Name = 'Consumer'; Pattern = '^name: Qualify the relocated public consumer\r?\n'; Minutes = 15 },
         @{ Name = 'DisabledAnnotations'; Pattern = '^name: Qualify the consumer with STL annotations disabled\r?\n'; Minutes = 15 }
     )) {
         $selected = @($steps | Where-Object { $_.Groups['body'].Value -cmatch $stage.Pattern })
         Assert-Equal 1 $selected.Count "the $($stage.Name) qualification is present exactly once"
-        $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
-        Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
-        $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
-        Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+        if ($stage.Name -ceq 'Native') {
+            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 45 \|\| 25 \}\}\r?$') 'Full retains the reviewed finite ARM64/x64 windows'
+            $stageLimits.Native = @{ x64 = 25; ARM64 = 45 }
+        } else {
+            $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
+            Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
+            $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
+            Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+        }
     }
-    $arm64AsanStages = $stageLimits.Native + $stageLimits.Consumer + $stageLimits.DisabledAnnotations
-    Assert-True ($limits['ARM64|ASan Debug'] -ge $arm64AsanStages + 5) 'ARM64 ASan has all three stage allowances and five minutes for setup and artifacts'
     foreach ($key in $expected) {
-        $minutes = if ($key -ceq 'ARM64|ASan Debug') { 60 } else { 40 }
-        Assert-Equal $minutes $limits[$key] "only ARM64 ASan changes its enclosing budget: $key"
+        $parts = $key -split '\|', 2
+        $stages = $stageLimits.Native[$parts[0]] + $stageLimits.Consumer
+        if ($parts[1] -ceq 'ASan Debug') { $stages += $stageLimits.DisabledAnnotations }
+        Assert-True ($limits[$key] -ge $stages + 5) "the $key job fits every explicit qualification window and five minutes for setup and artifacts"
+        Assert-Equal ($stages + 5) $limits[$key] "the $key job retains its reviewed bounded allowance"
     }
 }
 
@@ -226,17 +232,38 @@ Invoke-TestCase 'the native jobs follow the scope job, and run when it cannot de
     Assert-True ($gate -cmatch '(?m)^    needs: \[validation, windows-tooling, format, native-scope, native, paired-benchmark\]$') 'the aggregate accounts for every required qualification'
 }
 
-Invoke-TestCase 'native budgets preserve every profile and the complete ARM64 ASan stage windows' {
+Invoke-TestCase 'native budgets preserve every profile and its complete sequential qualification windows' {
     $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
     Assert-NativeWorkflowBudgets (Get-WorkflowJob 'native') $profiles
 }
 
-Invoke-TestCase 'the enclosing 40-minute ARM64 ASan regression fails the budget contract' {
+Invoke-TestCase 'an enclosing limit below any profile qualification windows fails the budget contract' {
     $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
     $native = Get-WorkflowJob 'native'
-    $lowered = [regex]::Replace($native, '(?ms)(^          - platform: ARM64\r?\n            runner: [^\r\n]+\r?\n            configuration: ASan Debug\r?\n            jobTimeoutMinutes: )60(?=\r?\n)', '${1}40')
-    Assert-True ($native -cne $lowered) 'the falsification restores the historical ARM64 ASan enclosing limit'
-    Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'a 40-minute job cannot accommodate its unchanged 25/15/15-minute stages'
+    foreach ($profile in $profiles) {
+        $prefix = '(?ms)(^          - platform: ' + [regex]::Escape($profile.platform) + '\r?\n            runner: [^\r\n]+\r?\n            configuration: ' + [regex]::Escape($profile.configuration) + '\r?\n            jobTimeoutMinutes: )(?<minutes>[1-9]\d*)(?=\r?\n)'
+        $lowered = [regex]::Replace($native, $prefix, { param($match) $match.Groups[1].Value + ([int]$match.Groups['minutes'].Value - 1) })
+        Assert-True ($native -cne $lowered) 'each falsification lowers exactly its selected enclosing limit'
+        Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'an enclosing limit must not cut off its declared qualification windows'
+    }
+}
+
+Invoke-TestCase 'the historical shared 25-minute Full limit cannot truncate cold ARM64 qualification' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    $native = Get-WorkflowJob 'native'
+    $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 45 || 25 }}', 'timeout-minutes: 25')
+    Assert-True ($native -cne $lowered) 'the falsification restores the observed shared Full timeout'
+    Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'the ARM64 cold build must leave time for actual suites and provenance'
+}
+
+Invoke-TestCase 'consumer qualification windows remain bounded and unchanged' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    $native = Get-WorkflowJob 'native'
+    foreach ($limit in @('', '0', '20')) {
+        $changed = $native.Replace('timeout-minutes: 15', "timeout-minutes: $limit")
+        Assert-True ($native -cne $changed) 'the falsification alters the consumer limits'
+        Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing, unbounded or widened consumers do not satisfy the finite contract'
+    }
 }
 
 Invoke-TestCase 'the scope scripts parse and are strict' {

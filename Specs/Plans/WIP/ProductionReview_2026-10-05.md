@@ -1022,10 +1022,12 @@ CI (#46, #49, #61):
   auto-merge is off. Even with protection, no check can require the native matrix: a documentation-only pull request
   reports it under an unexpanded name. Run 37489742358 shows two failing native jobs beside a green `validation`. A
   gallery commit pushed to main leaves main's head without a push run. (`ci-workflows-1`, `ci-workflows-2`, Q21)
-- [ ] **Timeouts**: ARM64 ASan now has a 60-minute enclosing budget with unchanged 25/15/15-minute stage watchdogs;
-  the [retained 40-minute cancellation](../../../Measurements/CiBudget/2026-10-11-arm64-asan/README.md) explains this
-  narrow repair (2026-10-11). The x64 ASan stage allowances still exceed its 40-minute job limit. The validation job
-  is bounded at 20 minutes and Windows tooling/format at 15; the independent `format.yml` check/reformat jobs still
+- [ ] **Timeouts**: the [retained enclosing cancellation](../../../Measurements/CiBudget/2026-10-11-arm64-asan/README.md)
+  and [PR #73 cold-build timeouts](../../../Measurements/CiBudget/2026-10-11-cold-build/README.md) explain the finite
+  repair (2026-10-11). Full is bounded at x64 25/ARM64 45 minutes; consumers remain 15 each. Enclosing budgets now
+  fit all declared sequential qualification windows plus five minutes (x64 45/45/60, ARM64 65/65/80). This repairs
+  the earlier x64 ASan allowance mismatch as well, without claiming future completion. The validation job is bounded
+  at 20 minutes and Windows tooling/format at 15; the independent `format.yml` check/reformat jobs still
   have no timeout. This composite item remains open. (`ci-workflows-3`, `gap-arm64-asan-runtime-6`, `ci-workflows-8`)
 - [ ] Low:
   - the native-scope "license" rule names `LICENSE` while the file is `LICENSE.txt`;

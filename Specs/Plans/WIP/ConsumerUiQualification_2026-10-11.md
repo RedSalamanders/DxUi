@@ -87,6 +87,13 @@ Local x64 functional/resource/focus work is completed at its recorded identities
 30-second automatic-Start mode. Earlier failures/timeouts/refusals remain retained separately. Do not rerun or reuse
 that evidence for changed executable inputs without the validation contract's exact-identity requirements.
 
+PR #73's run at `1cdbfde4` completes all three x64 Full jobs, but all three ARM64 Full steps time out at the prior
+25-minute cap before ordinary suite completion. The [cold-build timing packet](../../../Measurements/CiBudget/2026-10-11-cold-build/README.md)
+retains those incomplete failures separately from successful clean-pin consumers. The finite ARM64 Full window
+is now 45 minutes; every enclosing job fits its selected Full and consumer windows with setup/artifact allowance.
+Fresh complete source-bound CI remains required. Neither the timeout nor a raw, unstamped native benchmark
+qualifies ARM64 runtime, a foreground-refusal exception, paired performance or a successful `ci-gate`.
+
 ## 4. Consumer adoption gates
 
 - [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.

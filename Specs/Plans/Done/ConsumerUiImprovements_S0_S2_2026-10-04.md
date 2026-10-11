@@ -324,7 +324,7 @@ Both original and forced IME undo cases complete. The discarded-edit reset has a
 original composition, two-undo and late-result assertions remain. Embedded notification ownership/coalescing and
 the form client's message-aware owner wait have reviewed real-client evidence. Actual compiler/SDK, dependency,
 artifact, harness and environment inputs are compared across archival; `284a9ec6` and `061748aa` remain distinct
-historical runs. The final budget repair assigns 60 minutes only to ARM64 ASan while preserving the stage caps
+historical runs. The earlier budget repair assigned 60 minutes only to ARM64 ASan while preserving the stage caps
 and existing checks. Exact-head/base/merge-tree PR CI requires its own reviewed results. The dated
 [validation decision](../../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) retains unfinished
 performance, native-platform, physical-input and consumer gates without recording a successful `ci-gate`.
@@ -337,3 +337,11 @@ actual synthetic merge, reproducible Linux negatives and independently reviewed 
 That superseded run was cancelled; it supplies no native, consumer or paired acceptance. Fresh exact-head CI
 remains required before the requested remote integration. The fixtures change no control rendering or gallery
 content; the committed design-system previews and their harness provenance remain applicable to their own source.
+
+The subsequent run at head `1cdbfde4c93bafa6a0c794fd80939387467fefa4` completes all x64 Full and synthetic-consumer
+work, but each ARM64 Full step reaches its 25-minute cap before ordinary suite completion. The
+[cold-build packet](../../../Measurements/CiBudget/2026-10-11-cold-build/README.md) retains those failures and the
+successful independent consumers. ARM64 cold build/provenance now receives a finite 45-minute Full window;
+every enclosing row fits its Full and consumer windows plus setup/artifact allowance. Native per-test watchdogs,
+consumer limits and failure rules stay required. This repair changes no control rendering, gallery or design-system
+content and requires fresh exact-source CI; the truncated run does not qualify ARM64 or paired performance.

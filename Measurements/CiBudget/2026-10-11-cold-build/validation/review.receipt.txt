@@ -1,0 +1,105 @@
+{
+  "reviewedUtc": "2026-10-11T20:23:43.6021287Z",
+  "workflowDigest": "aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df",
+  "preValidationArchiveSealSha256": "71FE44804F11FB60C070844DFC58526426F3F8C8B87B1E88B053209C753D6445",
+  "originalArchivedCopies": 129,
+  "renamedNativeArtifacts": 99,
+  "agentReview": "merge_code_review independently verified final cap sums, unchanged failure handling/native watchdog, source API Git blobs, raw ARM/x64 consumer and suite evidence, cancelled paired verdict, all136 pre-validation sealed files and all129 original copy bytes. No blocking finding. Root independently read source/diffs/raw timing and verified seals, mappings and actual old x64 producer evidence.",
+  "windowsValidation": "Five validators and complete tooling PASS at recorded unchanged dirty candidate snapshot; not clean-head native qualification.",
+  "linuxValidation": "14/14 focused NativeScope cases with exact six-file overlay on native Ubuntu PowerShell7.6.6; final digest binds only this focused scope.",
+  "initialFailure": "Dependency validator rejected14 overlong archive paths; actual payload bytes retained through indexed renaming. Initial driver bootstrap failure occurred before any test and is retained explicitly.",
+  "visual": "No native/control/gallery rendering change in this workflow/test/archive repair; actual old-source five-theme and embedded captures reviewed under their own source identities.",
+  "freshCI": "Required after clean committed push. No old source receipt is relabeled as qualification of the repaired candidate.",
+  "copies": [
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-validate-final.log",
+      "archive": "validation/WindowsFull.log",
+      "bytes": 38605,
+      "sha256": "560761F9CF75FC8069F549A8181F931F5921293006B78E6A05E61AE5CADBF2AA"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-validate-final.receipt.txt",
+      "archive": "validation/WindowsFull.receipt.txt",
+      "bytes": 1846524,
+      "sha256": "BACB9654E4267238ABFD583EA65EF1120FF79F6925FB8E2EF47C221D91FFDA64"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Run-ColdBudget-Validation.ps1",
+      "archive": "validation/WindowsFull-driver.ps1",
+      "bytes": 2464,
+      "sha256": "0DD8200FA42CB2C4298AB7150B6B5AC87CC6D04429DDF390D3CE0E84788946A2"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-validate.log",
+      "archive": "validation/WindowsInitialFailed.log",
+      "bytes": 4081,
+      "sha256": "2CEA73F64A0B2ED2485C816904345559E6DC4DD29582895B8DE96EF2B9306A0C"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-bootstrap.receipt.txt",
+      "archive": "validation/BootstrapFailed.receipt.txt",
+      "bytes": 617,
+      "sha256": "88732723A3F13CBF639B6DAF6C54C72BAFF9C4C36D0D04FC2B6A1FBCAF86449C"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Run-ColdBudget-Validation.bootstrap.ps1",
+      "archive": "validation/BootstrapFailed-driver.ps1",
+      "bytes": 2487,
+      "sha256": "06AA09693C233DCDFA031E766826EB5B2F38E6AFB7E034CE900D8D5E5DBC0BEF"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-linux-focused.log",
+      "archive": "validation/LinuxScope.log",
+      "bytes": 1172,
+      "sha256": "7A02A3E81633CDD5EB985EBDDB327650E0891FE9BDE5EB217D5807AA669C23A0"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-linux-focused.receipt.txt",
+      "archive": "validation/LinuxScope.receipt.txt",
+      "bytes": 1125,
+      "sha256": "D0C1ECB240150F44979FFC9BDC1E61AFC05436B55B29C07684D7D45BADCCE6B6"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Run-Linux-ColdBudgetFocused.ps1",
+      "archive": "validation/LinuxScope-driver.ps1",
+      "bytes": 1866,
+      "sha256": "B622624EFA31708310A75381227DE59DC378E64B77049921BEEA9F563C2CD98E"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-linux-focused.log.initial",
+      "archive": "validation/LinuxInitial.log",
+      "bytes": 1172,
+      "sha256": "7A02A3E81633CDD5EB985EBDDB327650E0891FE9BDE5EB217D5807AA669C23A0"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-linux-focused.receipt.txt.initial",
+      "archive": "validation/LinuxInitial.receipt.txt",
+      "bytes": 1125,
+      "sha256": "97F2D0F5FF37A873C55377F4D454497F02F003BA8EEDF067D9B3ED490F6CDFDF"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-format.log",
+      "archive": "validation/FormatCheck.log",
+      "bytes": 120,
+      "sha256": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\native-cold-budget-explain.log",
+      "archive": "validation/AffectedExplain.log",
+      "bytes": 552580,
+      "sha256": "CD6B464CD9510A7AC9296BE914CD11B91A287A7D9B4BDF7B111C2A47BE4179B3"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\cold-budget-archive-before-shortening.SHA256SUMS",
+      "archive": "validation/BeforeShorteningSeal.receipt.txt",
+      "bytes": 18951,
+      "sha256": "C6AE9D61D43E73AFDD872572D0D864567808A6D97825B96ED24C99B55FA245F9"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\cold-budget-copy-before-shortening.receipt.txt",
+      "archive": "validation/BeforeShorteningCopy.receipt.txt",
+      "bytes": 53567,
+      "sha256": "B66942ABB49F29005F8B14322F7447885BC593DF6EDBB3EABEF958BA92EC0406"
+    }
+  ]
+}

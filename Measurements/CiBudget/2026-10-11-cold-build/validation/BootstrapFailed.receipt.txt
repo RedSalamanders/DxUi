@@ -1,0 +1,7 @@
+This external validation driver failed before launching validate.ps1.
+Tool process exitCode: 1. No validator or tooling test ran in this attempt.
+The launch expression (Get-Command pwsh -CommandType Application).Source returned three installed paths.
+PowerShell treated their array as one command name and reported CommandNotFoundException at driver line29.
+Original driver retained as Run-ColdBudget-Validation.bootstrap.ps1.
+Corrected driver selects the path of its own running PowerShell process.
+This is a recorded driver bootstrap diagnostic, not byte-for-byte native process stdout or a candidate test failure.
