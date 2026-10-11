@@ -5,11 +5,11 @@
   consumer assertions. The bounded 60-minute ARM64 ASan repair retains all stage watchdogs and eight consumer
   qualifications; historical incomplete execution does not qualify the current candidate.
 
-- [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): three fresh x64
-  profiles with 20 selected form/quiet/embedded client cases each and all four full foreground suites, zero skips
-  and verified restoration. Retained negative/positive IME retry controls and UIA payload/lifetime/owner-wait
-  investigations distinguish current results from historical attempts. PR CI, performance-policy, native ARM64
-  foreground, physical-input/device and consumer adoption remain separately tracked.
+- [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): final native source
+  `bf11ba44` passes three focused x64 profiles and four full foreground suites per profile, with zero skips and
+  verified restoration. Actual inputs are compared across archival; `284a9ec6` and `061748aa` remain historical.
+  Controlled IME/UIA records and the bounded ARM64 ASan CI-budget repair are retained separately. Exact-source PR CI,
+  performance-policy, native-platform, physical-input/device and consumer adoption remain separately tracked.
 
 - [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
   noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
