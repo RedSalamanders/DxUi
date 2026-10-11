@@ -319,6 +319,12 @@ This closeout does not close existing menu, Grid, Tree, slider, production-revie
 On 11 October the developer requested remote-main integration of this completed implementation, with S3-S7 and
 unfinished qualification retained in their WIP records. The current-source integration must additionally review the
 new embedded label-notification marshalling/lifetime regressions and the form client's message-aware owner wait.
-Historical packets above cannot qualify those executable changes. The dated
+The [11 October integration packet](../../../Measurements/UiComposition/2026-10-11-integration/README.md) records
+that review at native source `284a9ec60cc767cad16775e4131b597ff1101b23`: 20 selected form/quiet/embedded client cases
+and all four full foreground suites pass in each x64 profile, with zero skips and verified restoration. The IME
+fixture's discarded-edit reset has a controlled pre-fix failure and passing regression; original composition,
+two-undo and late-result assertions remain. Compiled inputs and actual tool/dependency/artifact/environment
+identities are compared across prose/evidence archival. Historical packets above cannot qualify those executable
+changes; exact-source PR CI still requires its own reviewed results. The dated
 [validation decision](../../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) preserves every unfinished
 performance, foreground/platform, physical-input and consumer acceptance gate without recording a successful `ci-gate`.

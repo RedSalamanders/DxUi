@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
 the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge

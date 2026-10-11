@@ -1,0 +1,21 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA publication] embedded=1 preparations=1..2 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [form UIA worker] stage=initialize count=0 property=0 result=00000000 thread=68284
+    [form UIA worker] stage=batch count=5 property=0 result=00000000 thread=68284
+    [form UIA worker] stage=structure-before count=5 property=0 result=00000000 thread=68284
+    [form UIA worker] stage=structure-after count=5 property=0 result=00000000 thread=68284
+    [form UIA worker] stage=sender count=5 property=30005 result=00000000 thread=68284
+    [form UIA worker] stage=property-before count=5 property=30005 result=00000000 thread=68284
+    [form UIA worker] stage=property-after count=5 property=30005 result=00000000 thread=68284
+    [form UIA worker] stage=sender count=5 property=30013 result=00000000 thread=68284
+    [form UIA worker] stage=property-before count=5 property=30013 result=00000000 thread=68284
+    [form UIA] mark=0 expected=4 heard=0 properties=30013,30025,30103,30026,
+    [UIA timeline] failure step=0 mark=0 cutoff=0 cutoffTick=199173546
+    [UIA] frozen event cutoff=0 tick=199173546:
+    [UIA arrivals] entries=0 completed=0 capacity=1024 overflow=0 failed=0
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+FAILED: real UIA client hears each form presentation change

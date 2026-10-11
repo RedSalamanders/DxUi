@@ -1,0 +1,46 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA worker] stage=initialize count=0 property=0 result=00000000 thread=52144 tick=200233984
+    [form UIA publication] embedded=    [form UIA worker] stage=batch count=5 property=0 result=00000000 thread=52144 tick=200233984
+1 preparations=1..2 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [form UIA worker] stage=structure-before count=5 property=0 result=00000000 thread=52144 tick=200233984
+    [form UIA worker] stage=structure-after count=5 property=0 result=00000000 thread=52144 tick=200233984
+    [form UIA worker] stage=sender count=5 property=30005 result=00000000 thread=52144 tick=200234000
+    [form UIA worker] stage=property-before count=5 property=30005 result=00000000 thread=52144 tick=200234000
+    [form UIA worker] stage=property-after count=5 property=30005 result=00000000 thread=52144 tick=200234000
+    [form UIA worker] stage=sender count=5 property=30013 result=00000000 thread=52144 tick=200234000
+    [form UIA worker] stage=property-before count=5 property=30013 result=00000000 thread=52144 tick=200234000
+    [form UIA worker] stage=property-after count=5 property=30013 result=00000000 thread=52144 tick=200234015
+    [form UIA worker] stage=sender count=5 property=30026 result=00000000 thread=52144 tick=200234015
+    [form UIA worker] stage=property-before count=5 property=30026 result=00000000 thread=52144 tick=200234015
+    [form UIA worker] stage=property-after count=5 property=30026 result=00000000 thread=52144 tick=200234031
+    [form UIA worker] stage=sender count=5 property=30025 result=00000000 thread=52144 tick=200234031
+    [form UIA worker] stage=property-before count=5 property=30025 result=00000000 thread=52144 tick=200234031
+    [form UIA worker] stage=property-after count=5 property=30025 result=00000000 thread=52144 tick=200234046
+    [form UIA worker] stage=sender count=5 property=30103 result=00000000 thread=52144 tick=200234046
+    [form UIA worker] stage=property-before count=5 property=30103 result=00000000 thread=52144 tick=200234046
+    [form UIA worker] stage=property-after count=5 property=30103 result=00000000 thread=52144 tick=200234062
+    [form UIA worker] stage=complete count=5 property=0 result=00000000 thread=52144 tick=200234062
+    [form UIA worker] stage=initialize count=0 property=0 result=00000000 thread=16752 tick=200235062
+    [form UIA worker] stage=batch count=4 property=0 result=00000000 thread=16752 tick=200235062
+    [form UIA worker] stage=structure-before count=4 property=0 result=00000000 thread=16752 tick=200235062
+    [form UIA worker] stage=structure-after count=4 property=0 result=00000000 thread=16752 tick=200235078
+    [form UIA worker] stage=sender count=4 property=30013 result=00000000 thread=16752 tick=200235078
+    [form UIA worker] stage=property-before count=4 property=30013 result=00000000 thread=16752 tick=200235078
+    [form UIA worker] stage=property-after count=4 property=30013 result=00000000 thread=16752 tick=200235093
+    [form UIA worker] stage=sender count=4 property=30026 result=00000000 thread=16752 tick=200235093
+    [form UIA worker] stage=property-before count=4 property=30026 result=00000000 thread=16752 tick=200235093
+    [form UIA worker] stage=property-after count=4 property=30026 result=00000000 thread=16752 tick=200235109
+    [form UIA worker] stage=sender count=4 property=30025 result=00000000 thread=16752 tick=200235109
+    [form UIA worker] stage=property-before count=4 property=30025 result=00000000 thread=16752 tick=200235109
+    [form UIA worker] stage=property-after count=4 property=30025 result=00000000 thread=16752 tick=200235125
+    [form UIA worker] stage=sender count=4 property=30103 result=00000000 thread=16752 tick=200235125
+    [form UIA worker] stage=property-before count=4 property=30103 result=00000000 thread=16752 tick=200235125
+    [form UIA worker] stage=property-after count=4 property=30103 result=00000000 thread=16752 tick=200235156
+    [form UIA worker] stage=complete count=4 property=0 result=00000000 thread=16752 tick=200235156
+  [DONE] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent (2.474 s)
+[DONE] Accessibility (2.474 s)
+All DxUi tests passed.

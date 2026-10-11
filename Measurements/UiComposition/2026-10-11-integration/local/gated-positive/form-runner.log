@@ -1,0 +1,48 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2684.42 completed offscreen FPS; p95 0.4543 ms; private 30920704 bytes
+Complex UI clean round 2: 2454.86 completed offscreen FPS; p95 0.5981 ms; private 32460800 bytes
+Complex UI clean round 3: 2599.73 completed offscreen FPS; p95 0.4278 ms; private 32731136 bytes
+Complex UI clean round 4: 2330.01 completed offscreen FPS; p95 0.714 ms; private 32681984 bytes
+Complex UI clean round 5: 2778.3 completed offscreen FPS; p95 0.392 ms; private 32665600 bytes
+Complex UI dirty round 1: 477.562 completed offscreen FPS; p95 2.6221 ms; private 33361920 bytes
+Complex UI dirty round 2: 494.899 completed offscreen FPS; p95 2.4118 ms; private 33222656 bytes
+Complex UI dirty round 3: 484.64 completed offscreen FPS; p95 2.4783 ms; private 33349632 bytes
+Complex UI dirty round 4: 391.628 completed offscreen FPS; p95 5.3396 ms; private 33366016 bytes
+Complex UI dirty round 5: 491.894 completed offscreen FPS; p95 2.2984 ms; private 33337344 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-Debug-c8c05dcf86ad43b0a94243b2205a390b.json
+Running Accessibility (x64 Debug), tests: TestFormAccessibilityWindowPropertiesAndStableEditor, TestFormAccessibilityEmbeddedPropertiesAndStableEditor, TestFormAccessibilityWindowLabelLifetimeAndReplacement, TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement, TestFormAccessibilityWindowPresentationEventsAreIdempotent, TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent, TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback, TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback, TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement, TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement
+FAIL Accessibility exited with code 1
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowLabelLifetimeAndReplacement (3.879 s)
+  [START] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement
+  [DONE] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement (15.249 s)
+  [START] TestFormAccessibilityWindowPresentationEventsAreIdempotent
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPresentationEventsAreIdempotent (3.050 s)
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+FAILED: real UIA client hears each form presentation change

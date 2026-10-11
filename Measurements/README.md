@@ -1,5 +1,11 @@
 # Independent DxUi measurements
 
+- [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): three fresh x64
+  profiles with 20 selected form/quiet/embedded client cases each and all four full foreground suites, zero skips
+  and verified restoration. Retained negative/positive IME retry controls and UIA payload/lifetime/owner-wait
+  investigations distinguish current results from historical attempts. PR CI, performance-policy, native ARM64
+  foreground, physical-input/device and consumer adoption remain separately tracked.
+
 - [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
   noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
   observations; original failures/retests and interactive confirmations retained. All four focus suites pass

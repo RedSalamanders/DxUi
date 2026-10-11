@@ -1,0 +1,15 @@
+{
+  "purpose": "negative-control-integrated-production-with-identical-new-tests",
+  "candidateCommit": "01e82de396c11ff869b123dd5421dea73d70825f",
+  "negativeProductionCommit": "a0269ddda16f9891ced22fc9b8dccda2145e10da",
+  "candidateProductionSha256": "BEBD650CAB91E3A59B21D5439A66C2549939B7F1F2BBD9D46485396802B21076",
+  "negativeProductionSha256": "54E16DE73B9DF580E1AC4F15355EDA744605FFF2B3283D89EEBD25DC9ECE2D27",
+  "arguments": [
+    "--test-prepared-tree-events"
+  ],
+  "nativeExitCode": 1,
+  "artifactSha256": "962B2522B7C4A35168CA56615889F0C66984E4CAD0779F9F8F7B3F72963808AA",
+  "buildExitCode": 0,
+  "identityMatched": true,
+  "restored": true
+}

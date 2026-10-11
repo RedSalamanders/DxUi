@@ -101,6 +101,11 @@ composition allocate no tracked C++ memory; Form retains 7 KiB more warm plain C
 fixture destruction. These diagnostic costs establish no speedup or paired regression acceptance. Later executable
 changes require fresh evidence; native ARM64, physical-input and consumer qualification remain separately tracked.
 
+The [11 October integration packet](../Measurements/UiComposition/2026-10-11-integration/README.md) retains fresh
+three-profile x64 form/quiet/embedded client checks and all four full foreground suites, with zero skips and
+verified restoration. Performance-policy, native ARM64 foreground, physical-input/device and consumer adoption
+remain separate; PR CI results require review at their own source/build identities.
+
 Native/embedded library tests, [gallery captures](gallery/README.md) and the
 [design system](../Specs/DesignSystem/README.md) describe library support. Actual consumer pin updates,
 Apply/Cancel parity, physical IME/touch and native ARM64 runtime qualification remain separately tracked in the

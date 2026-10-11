@@ -1,0 +1,2066 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\after.state.receipt.txt",
+    "copy": "negative/after.state.receipt.txt",
+    "bytes": 2271,
+    "sha256": "4188F0EA2052D5BB5095A68CB456E255A4A6A4F70B5F5C1E5D35E1A6FE634925"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\before.state.receipt.txt",
+    "copy": "negative/before.state.receipt.txt",
+    "bytes": 2271,
+    "sha256": "4188F0EA2052D5BB5095A68CB456E255A4A6A4F70B5F5C1E5D35E1A6FE634925"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\build.log",
+    "copy": "negative/build.log",
+    "bytes": 5205,
+    "sha256": "DCEB0F56ACC0EEFBEF104F7ECCF5AAE11F8650D9924C140331AED8C11DA0987E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\candidate-accessibility.cpp",
+    "copy": "negative/candidate-accessibility.cpp",
+    "bytes": 555544,
+    "sha256": "BEBD650CAB91E3A59B21D5439A66C2549939B7F1F2BBD9D46485396802B21076"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\native.log",
+    "copy": "negative/native.log",
+    "bytes": 711,
+    "sha256": "2AC05FAC925CEBAB516C6C32B1AF1624C6DA854A0B8777B15DF1064991FC752C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\negative-control\\root-review.receipt.txt",
+    "copy": "negative/root-review.receipt.txt",
+    "bytes": 669,
+    "sha256": "257DC8948916C3F14DD249768D59D877E2978D456BDCC1CD36229D7F22FBD610"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug\\after-events.state.receipt.txt",
+    "copy": "first-positive/after-events.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "5E4A238CBD3950565542B6949AF3AB73A8416BDF57E6478B7A15C3E392D34E3F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug\\before.state.receipt.txt",
+    "copy": "first-positive/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "5E4A238CBD3950565542B6949AF3AB73A8416BDF57E6478B7A15C3E392D34E3F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug\\build.log",
+    "copy": "first-positive/build.log",
+    "bytes": 5205,
+    "sha256": "8D6A594A0C5BDDEFE191FCABDCBD21E85E809ECBD4E297F2EE89819925692A3C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug\\embedded-events.log",
+    "copy": "first-positive/embedded-events.log",
+    "bytes": 770,
+    "sha256": "D7AAB9510A069A71201DCE4C2D497015E0DDCAEB74B21475227559E06F4E2E71"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-event-diagnostics\\after-events.state.receipt.txt",
+    "copy": "payload-probe/after-events.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "61C9A5957AA8EF527BAA39832C783DDFCC1383D731253C7EAF1EE6AB141F0383"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-event-diagnostics\\before.state.receipt.txt",
+    "copy": "payload-probe/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "61C9A5957AA8EF527BAA39832C783DDFCC1383D731253C7EAF1EE6AB141F0383"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-event-diagnostics\\build.log",
+    "copy": "payload-probe/build.log",
+    "bytes": 5205,
+    "sha256": "8C8B29CF33C08C3A40E0688F0B9DBB3799ECF9025B7E98501D41F1475BAE31B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-event-diagnostics\\embedded-events.log",
+    "copy": "payload-probe/embedded-events.log",
+    "bytes": 1226,
+    "sha256": "C1A20E2A7C975C48945AE773BA917B57F206298E49C9D14377913DEFFBBBE371"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\after-events.state.receipt.txt",
+    "copy": "gated-positive/after-events.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "67622D0ED9AF9F473225851294DC21D8008379E45216EFB57CF67680BBD68D41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\after-failed-forms.state.receipt.txt",
+    "copy": "gated-positive/after-failed-forms.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "67622D0ED9AF9F473225851294DC21D8008379E45216EFB57CF67680BBD68D41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\before.state.receipt.txt",
+    "copy": "gated-positive/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "67622D0ED9AF9F473225851294DC21D8008379E45216EFB57CF67680BBD68D41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\build.log",
+    "copy": "gated-positive/build.log",
+    "bytes": 5205,
+    "sha256": "91D55BDC1301F3B66F6EC07ED7A46DAE3445E0732A0F8A9400A5637D8CBD131C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "gated-positive/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\canonical-performance.json",
+    "copy": "gated-positive/canonical-performance.json",
+    "bytes": 38506,
+    "sha256": "D8C74C4F0A6C29BE35A79596E8CD85B4C5198EFDCF5E2FB6486702D4FED3D3FC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\embedded-events.log",
+    "copy": "gated-positive/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\form-failed.log",
+    "copy": "gated-positive/form-failed.log",
+    "bytes": 1353,
+    "sha256": "F3615604F61A49D9AC94DAEA44F53FE9D58098CF3ED78172B119C35690CAB327"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\form-failed.receipt.txt",
+    "copy": "gated-positive/form-failed.receipt.txt",
+    "bytes": 36226,
+    "sha256": "82A94497F12DFC6182C14CBF63A4CCE430C9E780A706AA6C2FDB5AAA771E1772"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\positive-debug-final\\form-runner.log",
+    "copy": "gated-positive/form-runner.log",
+    "bytes": 3991,
+    "sha256": "FB6F1344F3DFB0A537BE67193C126961A4DDE9F00948A893DB61BEC257A2511A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\after.state.receipt.txt",
+    "copy": "form-repeat/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "67622D0ED9AF9F473225851294DC21D8008379E45216EFB57CF67680BBD68D41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\before.state.receipt.txt",
+    "copy": "form-repeat/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "67622D0ED9AF9F473225851294DC21D8008379E45216EFB57CF67680BBD68D41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-repeat/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\canonical-performance.json",
+    "copy": "form-repeat/canonical-performance.json",
+    "bytes": 38748,
+    "sha256": "A612A7786C08DAB145B21832AF27D21A9A87BB673469CCD2D22B83DF489A33A9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\form.log",
+    "copy": "form-repeat/form.log",
+    "bytes": 249,
+    "sha256": "C6FBB8FF85FD9FA2CD0D3F0290D4D70197361867F9D6B9C2F6354369EC9B3B6D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\form.receipt.txt",
+    "copy": "form-repeat/form.receipt.txt",
+    "bytes": 35847,
+    "sha256": "FAA8A24974B6D752EF84101D0F9B866FEF4B72858758F77764DD3455655D3162"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\runner-error.txt",
+    "copy": "form-repeat/runner-error.txt",
+    "bytes": 89,
+    "sha256": "7681DC7AEF8D2A78EEE8767FB4036626E2BC8B0D54B6C8CAA9E18EED67364261"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\isolated-form-idempotence\\runner.log",
+    "copy": "form-repeat/runner.log",
+    "bytes": 2970,
+    "sha256": "0B4A4138BA05851ADD2DF0EBD26DE06CA055BB5A093B50CB132A7B9F990D2AF3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\after.state.receipt.txt",
+    "copy": "form-arrivals/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "6C0E57C1C55F710CD42CC8B0A194FD1F833970655DB47FDD2B45FAC5B06DECD8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\before.state.receipt.txt",
+    "copy": "form-arrivals/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "6C0E57C1C55F710CD42CC8B0A194FD1F833970655DB47FDD2B45FAC5B06DECD8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\build.log",
+    "copy": "form-arrivals/build.log",
+    "bytes": 5205,
+    "sha256": "1E8C0280F75E43787E66D26C5B86FD0C4C31AF6847C029A63FBED41317CFECDB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-arrivals/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\canonical-performance.json",
+    "copy": "form-arrivals/canonical-performance.json",
+    "bytes": 38491,
+    "sha256": "7A69C4A25DD7381946583B22128635FCCF85ACE580A4B8372BE35D7B9B4B28C1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\form-runner.log",
+    "copy": "form-arrivals/form-runner.log",
+    "bytes": 3686,
+    "sha256": "D841133BB7F79ACAF8255B9FB243291E903626237C25074E41C066A59444DBAA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\form.log",
+    "copy": "form-arrivals/form.log",
+    "bytes": 624,
+    "sha256": "4061FD664C78AA5E3E35EF3475CEB91A5E79B78D6E0FFF6D3CE5B727908B2146"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\form.receipt.txt",
+    "copy": "form-arrivals/form.receipt.txt",
+    "bytes": 35590,
+    "sha256": "B7D2D6FE043A0298D8B2097DED5431D5FB6936A9209DB4CBECC83A7615360D3B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-missing-events\\root-review.receipt.txt",
+    "copy": "form-arrivals/root-review.receipt.txt",
+    "bytes": 569,
+    "sha256": "0E72BE88FAB28A2DBAD0AFAAF145EC1D0729DA71327B8FC89364719C0F137507"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\after.state.receipt.txt",
+    "copy": "form-owner/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "DEEFC01D639CC7AE76B178B073B123DB20BBB56625476102932E8F60E1B649AC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\before.state.receipt.txt",
+    "copy": "form-owner/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "DEEFC01D639CC7AE76B178B073B123DB20BBB56625476102932E8F60E1B649AC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\build.log",
+    "copy": "form-owner/build.log",
+    "bytes": 5205,
+    "sha256": "1601F052E70A0541013FAF32D14DB9323FD15C1FD670CC1F4DF760A8BA6C1DC7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-owner/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\canonical-performance.json",
+    "copy": "form-owner/canonical-performance.json",
+    "bytes": 38504,
+    "sha256": "ED4ED4A53EFB71DAB0FAEBBED36FCE37E14AE5324CA7F4106F3E9720B8BE4E7A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\form-runner.log",
+    "copy": "form-owner/form-runner.log",
+    "bytes": 3935,
+    "sha256": "1F4DF2BB00C97483B055E8187D0CF784DD94E638E6A834B570DFB5EC122BE4CF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\form.log",
+    "copy": "form-owner/form.log",
+    "bytes": 870,
+    "sha256": "AC31FF8CA5697D003EBAEF8D2F07181A8127DB5A899E14B062CCC14E43EE7458"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\form.receipt.txt",
+    "copy": "form-owner/form.receipt.txt",
+    "bytes": 35603,
+    "sha256": "E62E6EAC97DFFBD614E9F68764180F71869909FF71C1FE59A7814F1A2C7B9D36"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-owner-queue\\root-review.receipt.txt",
+    "copy": "form-owner/root-review.receipt.txt",
+    "bytes": 569,
+    "sha256": "8507959BFC023CD9F4F279BFD4560F1949416ADFACB6FA292A5F8548E0081395"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\after.state.receipt.txt",
+    "copy": "form-worker/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "CC6C82A24CA6EB1BE6FD7E849942A8B1FDE53005D4C95848061AF9A2FB28713D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\before.state.receipt.txt",
+    "copy": "form-worker/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "CC6C82A24CA6EB1BE6FD7E849942A8B1FDE53005D4C95848061AF9A2FB28713D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\build.log",
+    "copy": "form-worker/build.log",
+    "bytes": 5205,
+    "sha256": "8D08B060E43D05CA84BE11B0BE77CCD8FD0C40BD2E8C5A0236F87DF55AAAF313"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-worker/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\canonical-performance.json",
+    "copy": "form-worker/canonical-performance.json",
+    "bytes": 38779,
+    "sha256": "5CC2665A1853382C531E06E334DE63C9253BFF0A35375663D5CBCA3D7F8CFF7B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\form-runner.log",
+    "copy": "form-worker/form-runner.log",
+    "bytes": 4053,
+    "sha256": "21323461C0B9803CC487B233762E71E173EE6B0D4FE9DA70C994E8C1850BDF12"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\form.log",
+    "copy": "form-worker/form.log",
+    "bytes": 1694,
+    "sha256": "B0B04356A67035D4BC8B99427393AFB2EF34B97895C6DDEE1236630DC8CAB3CC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\form.receipt.txt",
+    "copy": "form-worker/form.receipt.txt",
+    "bytes": 35878,
+    "sha256": "85831BCAEFCF9C7BB88C3E6E655F1860B28F3359D6398CD44A28A55ED907D938"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-delivery-stages\\root-review.receipt.txt",
+    "copy": "form-worker/root-review.receipt.txt",
+    "bytes": 569,
+    "sha256": "7FF6E5551C1A282700DD334053C57328C5C3F1D21797CA11F2F5BE32E2D0C4A8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\after.state.receipt.txt",
+    "copy": "form-late/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "CD8549819DB7804A7AE22CBA0A11E5F8EF9AD1E26E1B9CE563E54B7E7287D29B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\before.state.receipt.txt",
+    "copy": "form-late/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "CD8549819DB7804A7AE22CBA0A11E5F8EF9AD1E26E1B9CE563E54B7E7287D29B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\build.log",
+    "copy": "form-late/build.log",
+    "bytes": 5205,
+    "sha256": "B59EC5DBC2BCB29ED442A78189CDB0D79C251A372FD2A251B40F0BCFB9045BAC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-late/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\canonical-performance.json",
+    "copy": "form-late/canonical-performance.json",
+    "bytes": 38516,
+    "sha256": "958F5D6BD9A0CC6331F458622670899A11C3DE97226D6AB406F9B609F21CF8C6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\form-runner.log",
+    "copy": "form-late/form-runner.log",
+    "bytes": 5120,
+    "sha256": "8891F739CAAD91B07091BA102BD6714E33BB0900564B1AB472934A831D7938E5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\form.log",
+    "copy": "form-late/form.log",
+    "bytes": 5172,
+    "sha256": "82C7014CF7B07A2290445E792927F9B4E9975D24A13E931754821D9F67F62758"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\form.receipt.txt",
+    "copy": "form-late/form.receipt.txt",
+    "bytes": 35615,
+    "sha256": "E235820D0C4EDD2822A9033171C789F84AEA6F21E8B7515D02475755FFEDC458"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-late-delivery\\root-review.receipt.txt",
+    "copy": "form-late/root-review.receipt.txt",
+    "bytes": 569,
+    "sha256": "052740D44DBA9856CEE48817294A414E38142F60D66B67CDB04769165B3C5336"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\after.state.receipt.txt",
+    "copy": "form-wake/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "F56804332C974F5FEF5B17F5E0A89C249E6E88C019BC75DCE898CE9393463137"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\before.state.receipt.txt",
+    "copy": "form-wake/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "F56804332C974F5FEF5B17F5E0A89C249E6E88C019BC75DCE898CE9393463137"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\build.log",
+    "copy": "form-wake/build.log",
+    "bytes": 5205,
+    "sha256": "7041F36C2E88CE57967E430FB9703F2F357C91A5F36BB0CAE5475E5D58F1C045"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\canonical-performance.comparison.receipt.txt",
+    "copy": "form-wake/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\canonical-performance.json",
+    "copy": "form-wake/canonical-performance.json",
+    "bytes": 38494,
+    "sha256": "6002E5FBB1413BA523E09099BA94E5981A141A5091CB8818DF9E703D57B907EA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\form-runner.log",
+    "copy": "form-wake/form-runner.log",
+    "bytes": 2827,
+    "sha256": "C0864D793B318D5F18B02A0CB44CA5413E096631E60DFC4E374893A058CEBD0A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\form.log",
+    "copy": "form-wake/form.log",
+    "bytes": 4556,
+    "sha256": "263C3FF2AC231FA0A5DED7DD574C11E4F7E1D6ED6EB8EB2450BFEE12E41999DF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\form.receipt.txt",
+    "copy": "form-wake/form.receipt.txt",
+    "bytes": 35593,
+    "sha256": "2E0FBA68EFC6ECD10E1520192235D2824DFD8870AB46BB5AB18FA0763F4FAE96"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\form-diagnostics-message-wait\\root-review.receipt.txt",
+    "copy": "form-wake/root-review.receipt.txt",
+    "bytes": 569,
+    "sha256": "2C16837F714EDB3F5ABD4C6D3A3B5BE28C780196F8C34DF73D043580515DBE9C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\after.state.receipt.txt",
+    "copy": "before-retry-debug/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "4A022F4DD8FEC5F47AE9B94FFDEC72D0E49269E8807027FA0127D24126E4CD0B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\before.state.receipt.txt",
+    "copy": "before-retry-debug/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "4A022F4DD8FEC5F47AE9B94FFDEC72D0E49269E8807027FA0127D24126E4CD0B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\build.log",
+    "copy": "before-retry-debug/build.log",
+    "bytes": 5205,
+    "sha256": "7CC8F94DA6BE912E4C5500481E9EFFBBDD539E82CF705C0C58426ABDBDD2AFA3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\build.receipt.txt",
+    "copy": "before-retry-debug/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "D7115B980A0609C76C950685FF4F54733EAB993A9ED6469FDB940306B8F7A596"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "before-retry-debug/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\canonical-performance.json",
+    "copy": "before-retry-debug/canonical-performance.json",
+    "bytes": 38478,
+    "sha256": "46605BE7D00F50AA6C9A6EFF12968C32CEA47A7003D07F352726B18A2E8329B2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\embedded-events.log",
+    "copy": "before-retry-debug/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\form-runner.log",
+    "copy": "before-retry-debug/form-runner.log",
+    "bytes": 4495,
+    "sha256": "38A8ADBB1B3A8828A8950B92C9CADC91C37DC3D3690F79ACC8447415E129A266"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\form.log",
+    "copy": "before-retry-debug/form.log",
+    "bytes": 3797,
+    "sha256": "D3D322E7AFC0E6A71D51AB2DA6456359ECF4D1973F9EE5419DB1D1AE4A84635A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\form.receipt.txt",
+    "copy": "before-retry-debug/form.receipt.txt",
+    "bytes": 36501,
+    "sha256": "B83929B7EB7294277C7AE6587B224E3199DA4CAC17D260A05C7CCFAFBFE73F05"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-final\\root-review.receipt.txt",
+    "copy": "before-retry-debug/root-review.receipt.txt",
+    "bytes": 1768,
+    "sha256": "A01C0C7857C546A1601FFF134BCB6DC5EB8FE94B4D608A0768B66DB10B9C0F34"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\after.state.receipt.txt",
+    "copy": "before-retry-release/after.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "B4D2B7D329701B02AE0F8DCD5677355FD3395D4F77213AB1A27E2988E1FC09A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\before.state.receipt.txt",
+    "copy": "before-retry-release/before.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "B4D2B7D329701B02AE0F8DCD5677355FD3395D4F77213AB1A27E2988E1FC09A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\build.log",
+    "copy": "before-retry-release/build.log",
+    "bytes": 5229,
+    "sha256": "425FDDB532C2FAC361957294D654A7C1BAC7967FEC74B35990D769CBD6FF148C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\build.receipt.txt",
+    "copy": "before-retry-release/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "96989EE29A9FBA68AB09FF3D6519C4E85D5549ED38405AFD4FBD3E84730C710D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "before-retry-release/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\canonical-performance.json",
+    "copy": "before-retry-release/canonical-performance.json",
+    "bytes": 38485,
+    "sha256": "1515F18D9976C3A721CC1CDA785C5C5060F10ED16C30FDDF8F1EBC28C19802A8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\embedded-events.log",
+    "copy": "before-retry-release/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\form-runner.log",
+    "copy": "before-retry-release/form-runner.log",
+    "bytes": 4496,
+    "sha256": "EC9AFE1814DDBA29AF4587ED3536E41963DECCB4C940E9E5E17FC0E4150BC6E9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\form.log",
+    "copy": "before-retry-release/form.log",
+    "bytes": 3797,
+    "sha256": "46555F5BBA81401B548AB1933ADD98C78C75C4ECB8EF5328A71C63B496507CD7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\form.receipt.txt",
+    "copy": "before-retry-release/form.receipt.txt",
+    "bytes": 36515,
+    "sha256": "683BA581B7BA00C43668C300F56C6B9FA0CCF776D8E6C8E4A155BA62D7CB8C61"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-final\\root-review.receipt.txt",
+    "copy": "before-retry-release/root-review.receipt.txt",
+    "bytes": 1770,
+    "sha256": "0BE009982CBD2FD645FDAAFE135453D71AFD32CD2389E55F2D72692289FCE492"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\after.state.receipt.txt",
+    "copy": "before-retry-asan/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\before.state.receipt.txt",
+    "copy": "before-retry-asan/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\build.log",
+    "copy": "before-retry-asan/build.log",
+    "bytes": 5265,
+    "sha256": "AFF42313DA4A5A49FFF873C6B1D349F2607283FA2B914D1A41C8124AD37F4B49"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\build.receipt.txt",
+    "copy": "before-retry-asan/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "AD0FC891D324AE9005026C44EE4E1D917A643B5E73A286C9BAD7629FB205C2C9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "before-retry-asan/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\canonical-performance.json",
+    "copy": "before-retry-asan/canonical-performance.json",
+    "bytes": 38581,
+    "sha256": "E6A8C5ECBC00AE29727E3920A9E3B03B3F5E99DDA9E353D89AB578B62B143210"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\embedded-events.log",
+    "copy": "before-retry-asan/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\form-runner.log",
+    "copy": "before-retry-asan/form-runner.log",
+    "bytes": 4583,
+    "sha256": "3D51C8A85337C90D20A9CF75BE221478DE443D6C06333F60DC52CF10536C7BE2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\form.log",
+    "copy": "before-retry-asan/form.log",
+    "bytes": 3797,
+    "sha256": "ABADB71BB4B4CB3DA948C972845C55F8BCA4D402A1F4230ABEA3C13F3336F50E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\form.receipt.txt",
+    "copy": "before-retry-asan/form.receipt.txt",
+    "bytes": 36606,
+    "sha256": "E046CE908019CF3CEEFD9888F32142AF964A73E35E45AE373F0ECFBE0751ED93"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-final\\root-review.receipt.txt",
+    "copy": "before-retry-asan/root-review.receipt.txt",
+    "bytes": 1773,
+    "sha256": "57EF6BEE94E42798EBC6B25E99FC69E02A2B590E7B01DFB9ACD56918A93C8D9F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\canonical-performance.comparison.receipt.txt",
+    "copy": "before-retry-focus-debug/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\canonical-performance.json",
+    "copy": "before-retry-focus-debug/canonical-performance.json",
+    "bytes": 38488,
+    "sha256": "88EA86E9796FCB2FDA5C624DFF601787397FA15C9B7EC32919FE8BBF21FB04AE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\copy.receipt.txt",
+    "copy": "before-retry-focus-debug/copy.receipt.txt",
+    "bytes": 3802,
+    "sha256": "A2B4E8AD15567328B6B1FD1DAF964219363695E652B349C208E42B3D90E0A1F4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\interactive-plan.txt",
+    "copy": "before-retry-focus-debug/interactive-plan.txt",
+    "bytes": 965,
+    "sha256": "A73AAFA227C1C7D1F42AA9F28E5FA6470BABA2E24C2ABBD683F1849AAD731CA4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\interactive-result.txt",
+    "copy": "before-retry-focus-debug/interactive-result.txt",
+    "bytes": 651,
+    "sha256": "CC2586F3E0498EF4C1FFF9E498402988F5823C9320E422DCFB2077E70E42C12B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\Menu.log",
+    "copy": "before-retry-focus-debug/Menu.log",
+    "bytes": 31169,
+    "sha256": "46EFCFB3BDD5485A8E38C1B5D07B622D5E61F585C3864DEAD5CA424B46544779"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\Menu.receipt.txt",
+    "copy": "before-retry-focus-debug/Menu.receipt.txt",
+    "bytes": 36307,
+    "sha256": "3C18F4F627F4FAC9AAB4996AD838E1A0E6DD02E4210FD77A33E50E03C95B5CC9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\MenuResources.log",
+    "copy": "before-retry-focus-debug/MenuResources.log",
+    "bytes": 128687,
+    "sha256": "312F2ADD94A34038A445D72E9083AB7668C94458E2A44D62B294BC1D2DDE500E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\MenuResources.receipt.txt",
+    "copy": "before-retry-focus-debug/MenuResources.receipt.txt",
+    "bytes": 36315,
+    "sha256": "F6D080DCB1DC843325B9E93A1EB7140988CE7DDA78F0BEA804897738CC74A9F1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\MenuResourceScaling.log",
+    "copy": "before-retry-focus-debug/MenuResourceScaling.log",
+    "bytes": 1499845,
+    "sha256": "D8B081F8424317D400C81989D6D6895C108E73EE541EF250E02D31DE7EE90367"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\MenuResourceScaling.receipt.txt",
+    "copy": "before-retry-focus-debug/MenuResourceScaling.receipt.txt",
+    "bytes": 36322,
+    "sha256": "921B1A6ACBE9B002933FB58BD27A3A1F65CC07AA372C1ECC5190E5183D53002D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\NativeTextInput.log",
+    "copy": "before-retry-focus-debug/NativeTextInput.log",
+    "bytes": 57085,
+    "sha256": "7AC822DB131A417398086311A661B79F37DC96CBB14C11A384E3185B8DDD9789"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\NativeTextInput.receipt.txt",
+    "copy": "before-retry-focus-debug/NativeTextInput.receipt.txt",
+    "bytes": 36318,
+    "sha256": "539065E1C94DCF88B270AF0431FEDCB5A6B7998B5C841B28A1B3AB4BB8113ADD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\post-focus.state.receipt.txt",
+    "copy": "before-retry-focus-debug/post-focus.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "4A022F4DD8FEC5F47AE9B94FFDEC72D0E49269E8807027FA0127D24126E4CD0B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\root-review.receipt.txt",
+    "copy": "before-retry-focus-debug/root-review.receipt.txt",
+    "bytes": 2161,
+    "sha256": "5947F8B8844411D9DA49C4E61FE1E72807A1CB250E1FCC0A7A4B9AA8CE52BFE3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt1\\runner.log",
+    "copy": "before-retry-focus-debug/runner.log",
+    "bytes": 4134,
+    "sha256": "D66BAB3502426DD768BB8D614A3103FF8B4864622D5D1BE3FE6259C2A0B50C07"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\canonical-performance.comparison.receipt.txt",
+    "copy": "before-retry-focus-release/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\canonical-performance.json",
+    "copy": "before-retry-focus-release/canonical-performance.json",
+    "bytes": 38461,
+    "sha256": "143E718CB3FDCB8560E6BF18B7349BD2E52A67658DF76B460676F962C0B77718"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\copy.receipt.txt",
+    "copy": "before-retry-focus-release/copy.receipt.txt",
+    "bytes": 3824,
+    "sha256": "BBB7F0F3B4D3DF9673501FD6B7BFF29B686A1E1AE7A4A8BD4BA7686BBD2704A5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\interactive-plan.txt",
+    "copy": "before-retry-focus-release/interactive-plan.txt",
+    "bytes": 981,
+    "sha256": "725722EBF056D4737986582249909E0B5FCFECD9424B64F90F54ADCFDE02382B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\interactive-result.txt",
+    "copy": "before-retry-focus-release/interactive-result.txt",
+    "bytes": 653,
+    "sha256": "754373799DF0790A845D38AEF5196B403146266DB6CD3269F908BAF01B186359"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\Menu.log",
+    "copy": "before-retry-focus-release/Menu.log",
+    "bytes": 31169,
+    "sha256": "B4E4732EFCFB66C9A4BDEF4D07EBEC9D7EEB7224C3297A92E5B72ADC0FB64C35"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\Menu.receipt.txt",
+    "copy": "before-retry-focus-release/Menu.receipt.txt",
+    "bytes": 36291,
+    "sha256": "12A332C9A9A9C4CC812BE85F2B367F303CEC655EBC7CD9E8612CB1DA908F060F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\MenuResources.log",
+    "copy": "before-retry-focus-release/MenuResources.log",
+    "bytes": 128687,
+    "sha256": "B30B147B73C228CD79A5C848A64415D7B4EE5729441454C6BF9AC6AC03744AE7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\MenuResources.receipt.txt",
+    "copy": "before-retry-focus-release/MenuResources.receipt.txt",
+    "bytes": 36299,
+    "sha256": "42E9451FCC8BA3414D6B8306FD1C1CA1E76D99E82E0471FA790085E1187426A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\MenuResourceScaling.log",
+    "copy": "before-retry-focus-release/MenuResourceScaling.log",
+    "bytes": 1499570,
+    "sha256": "BDA3508CEFA0C7A46F08161FA0B15565ED253394B218DC8AFB04F416E112E8C8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\MenuResourceScaling.receipt.txt",
+    "copy": "before-retry-focus-release/MenuResourceScaling.receipt.txt",
+    "bytes": 36306,
+    "sha256": "F76FC159D029B0FA52020F0C1BB600A59208B634C8B6E136E79C8A4DD4FCC409"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\NativeTextInput.log",
+    "copy": "before-retry-focus-release/NativeTextInput.log",
+    "bytes": 57071,
+    "sha256": "7F6BF31BD94B5C1A85CD88772EBE1F8C6765707A9C6FB8D14734F54B1D52E91E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\NativeTextInput.receipt.txt",
+    "copy": "before-retry-focus-release/NativeTextInput.receipt.txt",
+    "bytes": 36302,
+    "sha256": "4FC0AF48352E52ECE687A8ED9F74E4212D10362A83D70E85666EA38E10E186EA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\post-focus.state.receipt.txt",
+    "copy": "before-retry-focus-release/post-focus.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "B4D2B7D329701B02AE0F8DCD5677355FD3395D4F77213AB1A27E2988E1FC09A7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\root-review.receipt.txt",
+    "copy": "before-retry-focus-release/root-review.receipt.txt",
+    "bytes": 2163,
+    "sha256": "2F7A7BC529F0AA04A191A3477807CD77AF3A5EBD1F4B54F3B94D3C11673891D7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt1\\runner.log",
+    "copy": "before-retry-focus-release/runner.log",
+    "bytes": 4147,
+    "sha256": "2719D3BB37FA14A25F2954901CC87502BF13F8902D2924DD2C9782B98F1F87E7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\canonical-performance.comparison.receipt.txt",
+    "copy": "focus-asan-failed/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\canonical-performance.json",
+    "copy": "focus-asan-failed/canonical-performance.json",
+    "bytes": 38568,
+    "sha256": "B54B60B1273D4F0501E49AC04C3E3B72D2534A3479325F41D79D13B642E02C10"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\copy.receipt.txt",
+    "copy": "focus-asan-failed/copy.receipt.txt",
+    "bytes": 3857,
+    "sha256": "DB0EE33DF64BEA83B26001C40E8BD54CFF940BE69B6CE15DE484E27F75C97D0C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\interactive-plan.txt",
+    "copy": "focus-asan-failed/interactive-plan.txt",
+    "bytes": 1005,
+    "sha256": "0907FE4F73E8559F36080236A00C633103811D2884E1E26A9207322F3A3EA187"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\interactive-result.txt",
+    "copy": "focus-asan-failed/interactive-result.txt",
+    "bytes": 653,
+    "sha256": "EC17EAFF4F71ABE6346B9D927E57F82F00D69E77293B246CEB05BDB6E2DC3A58"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\Menu.log",
+    "copy": "focus-asan-failed/Menu.log",
+    "bytes": 31150,
+    "sha256": "F932AB537E2112EA481CE77B4404C4F5BEDF0BECBEF5230CFB6B3208346672D3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\Menu.receipt.txt",
+    "copy": "focus-asan-failed/Menu.receipt.txt",
+    "bytes": 36396,
+    "sha256": "EC9FB9EBFA238FE3BE1A1270865B623602D280C0DDF3169AE8D2A7414DE74701"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\MenuResources.log",
+    "copy": "focus-asan-failed/MenuResources.log",
+    "bytes": 130222,
+    "sha256": "47000B5A6F6FC7D74AD9990E0B92785D9507CCF4DC0DCA90200EFF176420ED41"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\MenuResources.receipt.txt",
+    "copy": "focus-asan-failed/MenuResources.receipt.txt",
+    "bytes": 36404,
+    "sha256": "99388530880178DBB50C6B550C389631FAB5096289608AD2076BE4AACDB6B83C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\MenuResourceScaling.log",
+    "copy": "focus-asan-failed/MenuResourceScaling.log",
+    "bytes": 1467488,
+    "sha256": "46E128120595D3E5768D761EFC08FD45AB55971FABFF5941254404E321E145DB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\MenuResourceScaling.receipt.txt",
+    "copy": "focus-asan-failed/MenuResourceScaling.receipt.txt",
+    "bytes": 36411,
+    "sha256": "6C605EECFC1DED8FCD8BD75689C32BFF59027EE77ACDBEC0C0C938848BCDEE76"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\NativeTextInput.log",
+    "copy": "focus-asan-failed/NativeTextInput.log",
+    "bytes": 34553,
+    "sha256": "30B3B00F355B0051C8CCC845585D47268357A97CEAFFA735F3955D000CD28F61"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\NativeTextInput.receipt.txt",
+    "copy": "focus-asan-failed/NativeTextInput.receipt.txt",
+    "bytes": 36407,
+    "sha256": "4341B2F4F96C5CAEDB4AA859A079E555465A37A888A825C221EC218A7066097E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\post-focus.state.receipt.txt",
+    "copy": "focus-asan-failed/post-focus.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\root-review.receipt.txt",
+    "copy": "focus-asan-failed/root-review.receipt.txt",
+    "bytes": 1486,
+    "sha256": "DD4B82FFA7E57F8729164B82E16853E69290B5CAC38188AF3227DD2BEAEE0498"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt1\\runner.log",
+    "copy": "focus-asan-failed/runner.log",
+    "bytes": 5293,
+    "sha256": "4DAF13FFD8C4A3A194D9F32CB99535AEC0859BE87B5119C7D79B1F9DF09607D5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\after.state.receipt.txt",
+    "copy": "input-undo-repeat/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\before.state.receipt.txt",
+    "copy": "input-undo-repeat/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-undo-repeat/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\canonical-performance.json",
+    "copy": "input-undo-repeat/canonical-performance.json",
+    "bytes": 38576,
+    "sha256": "1BA69BD00AF77B41A3D1C2FEAFF95F6CAFAD05158677C1C2534BCD58AF09726D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\input.log",
+    "copy": "input-undo-repeat/input.log",
+    "bytes": 611,
+    "sha256": "4B5971705934CB5BC8AE867B0627CE763B8A288ADB66098364F9B1CC8087257B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\input.receipt.txt",
+    "copy": "input-undo-repeat/input.receipt.txt",
+    "bytes": 36509,
+    "sha256": "8EDAAF8F37584CEA89DFFECA4BC1CDA3FD2711787B15621924D796CEA4412E57"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\interactive-plan.txt",
+    "copy": "input-undo-repeat/interactive-plan.txt",
+    "bytes": 346,
+    "sha256": "FC34B9F50FBDAA865D1FBE8CFA913C8B6FA694862281E6E4E6AF00B601A95AA5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\interactive-result.txt",
+    "copy": "input-undo-repeat/interactive-result.txt",
+    "bytes": 421,
+    "sha256": "6EF151F1245C7D5B9773623961343299F2B849220865973A76B4DBEF986EAE4E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\root-review.receipt.txt",
+    "copy": "input-undo-repeat/root-review.receipt.txt",
+    "bytes": 607,
+    "sha256": "4C67851B28F5EB020B5B3AD1360A798526CCDA50184E99B40125EB7F7BA4CC63"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-isolated\\runner.log",
+    "copy": "input-undo-repeat/runner.log",
+    "bytes": 4403,
+    "sha256": "FB8B944132C62ED98C0CFE694096D797FA5FC89EC03651F79F0BD772615D3A36"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\canonical-performance.comparison.receipt.txt",
+    "copy": "focus-asan-failed2/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\canonical-performance.json",
+    "copy": "focus-asan-failed2/canonical-performance.json",
+    "bytes": 39090,
+    "sha256": "0E5F264510F45725B83B0E88B48C7CBA3B0A8322EA9DA60469BEEBC5E1849204"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\copy.receipt.txt",
+    "copy": "focus-asan-failed2/copy.receipt.txt",
+    "bytes": 3857,
+    "sha256": "39AC8D1F5130191CF2186EDA88C30DDF694B2B9F57D7465CD46B23DBB496F26C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\interactive-plan.txt",
+    "copy": "focus-asan-failed2/interactive-plan.txt",
+    "bytes": 1005,
+    "sha256": "0907FE4F73E8559F36080236A00C633103811D2884E1E26A9207322F3A3EA187"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\interactive-result.txt",
+    "copy": "focus-asan-failed2/interactive-result.txt",
+    "bytes": 652,
+    "sha256": "E30B57842098ABE0B60AAED72A4AE9AA7B28E9E52E834FD0E4631F8CEA11D0A6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\Menu.log",
+    "copy": "focus-asan-failed2/Menu.log",
+    "bytes": 31152,
+    "sha256": "F7C2EBFFD354178E686A333EBD013A25B134CD23F8522652A03180530C08F62E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\Menu.receipt.txt",
+    "copy": "focus-asan-failed2/Menu.receipt.txt",
+    "bytes": 36917,
+    "sha256": "CBEF1005642DE4C8C6C538919E07FF7887173FEDC33655570BEF32F1B440A25D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\MenuResources.log",
+    "copy": "focus-asan-failed2/MenuResources.log",
+    "bytes": 130222,
+    "sha256": "1FB40A0F32D11357FAD271110318BB2D7BC5C1ED0C8981CEA9226FA90DEB4888"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\MenuResources.receipt.txt",
+    "copy": "focus-asan-failed2/MenuResources.receipt.txt",
+    "bytes": 36924,
+    "sha256": "543B642F42FAF2FA65BF794C4398DAF79FACC672D4E3851CD601EF5CC791C077"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\MenuResourceScaling.log",
+    "copy": "focus-asan-failed2/MenuResourceScaling.log",
+    "bytes": 1467488,
+    "sha256": "8AA6B80293F5594BF1B75B24C0C9B995EBB408987E2C8BD32DF596FBCD33E59D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\MenuResourceScaling.receipt.txt",
+    "copy": "focus-asan-failed2/MenuResourceScaling.receipt.txt",
+    "bytes": 36931,
+    "sha256": "87CC64E5A495887C617A2E5113DCD59C604B5AC0223E40B90293362C012773CA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\NativeTextInput.log",
+    "copy": "focus-asan-failed2/NativeTextInput.log",
+    "bytes": 34637,
+    "sha256": "91C588373005E0D0560AB2EDD448928B092C279238431155B2BD693A41291158"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\NativeTextInput.receipt.txt",
+    "copy": "focus-asan-failed2/NativeTextInput.receipt.txt",
+    "bytes": 36927,
+    "sha256": "B2EDD950CB5BA27802DFA529487C69169B6344E36725D745FED19F53A3D1D6C4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\post-focus.state.receipt.txt",
+    "copy": "focus-asan-failed2/post-focus.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "14886441F87D921495C936D577BACFADACEB45D2AAE9C070D9B8BDC1011DF880"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\root-review.receipt.txt",
+    "copy": "focus-asan-failed2/root-review.receipt.txt",
+    "bytes": 1485,
+    "sha256": "3049780C5B7CF467178586977EDA4601F498B52D653C57E90C779AAE5CC10817"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt2\\runner.log",
+    "copy": "focus-asan-failed2/runner.log",
+    "bytes": 5294,
+    "sha256": "49743C1B1C8004425BD669176FCDEF523C2687A90B0E80E263F9997093C90CF0"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\after.state.receipt.txt",
+    "copy": "input-activation-timeout/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "D6A332484A4D254792765645A10BB6AF68BD3F779A75F8856DA34714AAA6CF3B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\before.state.receipt.txt",
+    "copy": "input-activation-timeout/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "D6A332484A4D254792765645A10BB6AF68BD3F779A75F8856DA34714AAA6CF3B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\build.log",
+    "copy": "input-activation-timeout/build.log",
+    "bytes": 5265,
+    "sha256": "0DF489B2C8CC64EB7A9EFDA673C457A7A595F5A9994F9D1E571A26C9FAAFF5B8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\build.receipt.txt",
+    "copy": "input-activation-timeout/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "F39B78FD31299F017301DD3BFB476D9D1807378BE3479CADD6FBEA9DC4F5D4BD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-activation-timeout/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\canonical-performance.json",
+    "copy": "input-activation-timeout/canonical-performance.json",
+    "bytes": 38575,
+    "sha256": "C429ED77B3CA85EA8AA25F3C3A673FB975ECC67BB6B8DE046BB4FBFCB2C09AF5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\input.log",
+    "copy": "input-activation-timeout/input.log",
+    "bytes": 34845,
+    "sha256": "4A0C97C316789DCEEE39AFEC0C478842B2D0496B94FC967C75C71F4A2742A87F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\input.receipt.txt",
+    "copy": "input-activation-timeout/input.receipt.txt",
+    "bytes": 36437,
+    "sha256": "0E166BBD8F4F936A2E502AF914446ACB0FEA4E94C15A26BF01F64A17BDFEB55B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\interactive-plan.txt",
+    "copy": "input-activation-timeout/interactive-plan.txt",
+    "bytes": 258,
+    "sha256": "A5B542121F12ECCBA672BB25EF1033B28E31C69D7DE529678B7347A2BB991A9E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\interactive-result.txt",
+    "copy": "input-activation-timeout/interactive-result.txt",
+    "bytes": 448,
+    "sha256": "0DAF5AF93A51EB14FF7E6E84953A4FFA23787EF545A5BE831BD9EE7A3897528E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\root-review.receipt.txt",
+    "copy": "input-activation-timeout/root-review.receipt.txt",
+    "bytes": 559,
+    "sha256": "B159E9AE630132274FEE918645C50B8FD1287D31E23CA0C91CEED72ED3F4FCE3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-undo-attempts\\runner.log",
+    "copy": "input-activation-timeout/runner.log",
+    "bytes": 5344,
+    "sha256": "28E7F17EE1A83C41D387FE783C8FCA8D032FB5BF3F17B4903C7A3D157D1382A2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\after.state.receipt.txt",
+    "copy": "input-repeat-edit/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "EF88D16D2D0B8C27BC80D87F849B38E00F0003D79161D1C4F5D09BCE20E3C435"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\before.state.receipt.txt",
+    "copy": "input-repeat-edit/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "EF88D16D2D0B8C27BC80D87F849B38E00F0003D79161D1C4F5D09BCE20E3C435"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\build.log",
+    "copy": "input-repeat-edit/build.log",
+    "bytes": 5265,
+    "sha256": "C4FCFFE9287C2E007CA86A85901653B403CD710D8638B00F3064E39F328ABE86"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\build.receipt.txt",
+    "copy": "input-repeat-edit/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "270B4BFCDC90DFD1FFC56F49DC782CAA040E6CD72A5B297E2E314171D5E9DC57"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-repeat-edit/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\canonical-performance.json",
+    "copy": "input-repeat-edit/canonical-performance.json",
+    "bytes": 38568,
+    "sha256": "FE66F2F6E7969085188E501B835A02817DC10BFED3E68BC76A2DF287A10C5653"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\input.log",
+    "copy": "input-repeat-edit/input.log",
+    "bytes": 35174,
+    "sha256": "3E9778FBF03400AE4A0A444518DFF40A06BEA69051D64F4281B2A4B7FE1C5771"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\input.receipt.txt",
+    "copy": "input-repeat-edit/input.receipt.txt",
+    "bytes": 36424,
+    "sha256": "F2FF4BBD67B507946A803DF9018E232ACABA6950AFD900B57BFBD979F22E2FB6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\interactive-plan.txt",
+    "copy": "input-repeat-edit/interactive-plan.txt",
+    "bytes": 258,
+    "sha256": "A5B542121F12ECCBA672BB25EF1033B28E31C69D7DE529678B7347A2BB991A9E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\interactive-result.txt",
+    "copy": "input-repeat-edit/interactive-result.txt",
+    "bytes": 445,
+    "sha256": "0E966BE206B0541B647B9FE8D2C48EEBD522B2FB1C9505E5A092FB3046991DC1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\root-review.receipt.txt",
+    "copy": "input-repeat-edit/root-review.receipt.txt",
+    "bytes": 559,
+    "sha256": "ACF852E359674B418712D4954A2CF66C1A4C67D002980F887FF63C3549D19FB3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-activation-wait\\runner.log",
+    "copy": "input-repeat-edit/runner.log",
+    "bytes": 5759,
+    "sha256": "45AD8C941163EEB77A7AC0D59DEA3B337520539AE6D0C3015C717BE602778B18"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\after.state.receipt.txt",
+    "copy": "input-invalid-guard/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "95B84E8ED4D0A346707320E4928A1E9F7AF84BF096E346F34B7E95178EE9252D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\before.state.receipt.txt",
+    "copy": "input-invalid-guard/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "95B84E8ED4D0A346707320E4928A1E9F7AF84BF096E346F34B7E95178EE9252D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\build.log",
+    "copy": "input-invalid-guard/build.log",
+    "bytes": 5265,
+    "sha256": "2FC7BBA741525266C817D6F8EB7864BF29A2E11C701F17A81AA764EB6F88F751"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\build.receipt.txt",
+    "copy": "input-invalid-guard/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "F62A21B44E593ECFFD6E5E538753656F1D89E93DDEAF25FAD9CE20AE8816FD33"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-invalid-guard/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\canonical-performance.json",
+    "copy": "input-invalid-guard/canonical-performance.json",
+    "bytes": 38572,
+    "sha256": "ED08D15F9F8D3970D544AF04746067DF71B5C3E1A069B927EA1C69B16C741DB7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\input.log",
+    "copy": "input-invalid-guard/input.log",
+    "bytes": 270,
+    "sha256": "4FB8AF7AC07F7ABEDF35956BD709EB9C30441F878FD68FCEF444BCB034020E27"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\input.receipt.txt",
+    "copy": "input-invalid-guard/input.receipt.txt",
+    "bytes": 36498,
+    "sha256": "CF26712F0EADEE03C2459CC942EDD41FBC971FDA1C1EFE4DDF8DD24AB8C7E7D0"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\interactive-plan.txt",
+    "copy": "input-invalid-guard/interactive-plan.txt",
+    "bytes": 332,
+    "sha256": "86F583B31EEEBF222DAAB3C918427324F2766131F7680BBF1F75B464025EDECA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\interactive-result.txt",
+    "copy": "input-invalid-guard/interactive-result.txt",
+    "bytes": 428,
+    "sha256": "8EF3D612A589672228B6FFA55A238BFB987D21F1C69D4768D36EA104977CC756"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\root-review.receipt.txt",
+    "copy": "input-invalid-guard/root-review.receipt.txt",
+    "bytes": 692,
+    "sha256": "E42DA98E4217C1214F43FEF8D7BBACC28D767A5164126F99D37167B80FA8582F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative\\runner.log",
+    "copy": "input-invalid-guard/runner.log",
+    "bytes": 4728,
+    "sha256": "E5E88653AD64E22CEDC3BB84797F7A3AABD5A96FA9CBDD3D3DB1C0175E0B493E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\after.state.receipt.txt",
+    "copy": "input-forced-negative/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "9CC70834E9950F2A94DD3557A0448DF0FFF2EF9BC028479FE027D940949BB079"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\before.state.receipt.txt",
+    "copy": "input-forced-negative/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "9CC70834E9950F2A94DD3557A0448DF0FFF2EF9BC028479FE027D940949BB079"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\build.log",
+    "copy": "input-forced-negative/build.log",
+    "bytes": 5265,
+    "sha256": "34A3DF53DA6D87E6B7FC15FA06AC502276A92AE8A456FC1FEEAE897105E250F2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\build.receipt.txt",
+    "copy": "input-forced-negative/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "45EBC7EDD0668A61EAD336E1ADAEE4A94B350DB1D1D743BF30C89A7283889879"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-forced-negative/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\canonical-performance.json",
+    "copy": "input-forced-negative/canonical-performance.json",
+    "bytes": 38571,
+    "sha256": "DC0D439CD0C4E04E174601AF6D159559C209334C3777910037D11459AB6FF7D9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\input.log",
+    "copy": "input-forced-negative/input.log",
+    "bytes": 911,
+    "sha256": "242AA882B2C32C69E9E0C4CAA8B69916DB2A6242AD2D1A43540ACFF19D0ACB74"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\input.receipt.txt",
+    "copy": "input-forced-negative/input.receipt.txt",
+    "bytes": 36497,
+    "sha256": "98650E62CF0A11B4D34563382D2AE8BC34C53DE1F170281965CF7246F64F6B78"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\interactive-plan.txt",
+    "copy": "input-forced-negative/interactive-plan.txt",
+    "bytes": 332,
+    "sha256": "86F583B31EEEBF222DAAB3C918427324F2766131F7680BBF1F75B464025EDECA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\interactive-result.txt",
+    "copy": "input-forced-negative/interactive-result.txt",
+    "bytes": 428,
+    "sha256": "2467AE0DDA81ED63D46413C8061E17AF22D394E11F9A7B6CA4585B5726BE8077"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\root-review.receipt.txt",
+    "copy": "input-forced-negative/root-review.receipt.txt",
+    "bytes": 692,
+    "sha256": "EE2806869B2AC8156A286BA31609895DD3ECD46D93C75B25DA1812005478EA3D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-negative-2\\runner.log",
+    "copy": "input-forced-negative/runner.log",
+    "bytes": 5369,
+    "sha256": "4279BF8E5E1B1EA04C5C60E65419035121049AEB879BB9FA34635AD9FD7F405A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\after.state.receipt.txt",
+    "copy": "input-forced-positive/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "7446C523DE220927C58284B76465BAA8892E3FDF4247F5A71D668C64BDE106B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\before.state.receipt.txt",
+    "copy": "input-forced-positive/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "7446C523DE220927C58284B76465BAA8892E3FDF4247F5A71D668C64BDE106B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\build.log",
+    "copy": "input-forced-positive/build.log",
+    "bytes": 5265,
+    "sha256": "D20A70B3EDE0B9C5C650FFE9738AB5CC3CA2C97D470489B1693CCDACE406DF39"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\build.receipt.txt",
+    "copy": "input-forced-positive/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "A8A5908FE706ABEE4ECA185C4B760BE3EA4BCAA293BB1D72B367538DD6BF9254"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\canonical-performance.comparison.receipt.txt",
+    "copy": "input-forced-positive/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\canonical-performance.json",
+    "copy": "input-forced-positive/canonical-performance.json",
+    "bytes": 38557,
+    "sha256": "331EC1EA4ECA1DDC3A4297EE8BAB6174F1A03F8676390DDD764E87AF1436EFB3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\input.log",
+    "copy": "input-forced-positive/input.log",
+    "bytes": 1110,
+    "sha256": "78BC3EBBF5DD0EE5FBBFD99F8E359455E01D7C867F544A25374253A1F7995F19"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\input.receipt.txt",
+    "copy": "input-forced-positive/input.receipt.txt",
+    "bytes": 36483,
+    "sha256": "6BA1462775E4171D31272DD48F2145C27765FC9A3E683012874D7B8D5FFA461B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\interactive-plan.txt",
+    "copy": "input-forced-positive/interactive-plan.txt",
+    "bytes": 332,
+    "sha256": "86F583B31EEEBF222DAAB3C918427324F2766131F7680BBF1F75B464025EDECA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\interactive-result.txt",
+    "copy": "input-forced-positive/interactive-result.txt",
+    "bytes": 428,
+    "sha256": "39362CCA76FF5E732BEB554374BF2C09B799D27F399A140C70782C16AA3A705E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\root-review.receipt.txt",
+    "copy": "input-forced-positive/root-review.receipt.txt",
+    "bytes": 692,
+    "sha256": "41580098986A97D08480C9BD97B5F976B2D1C58EB524072B1CB08D13C7B4255C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\input-diagnostic-forced-loss-positive\\runner.log",
+    "copy": "input-forced-positive/runner.log",
+    "bytes": 4215,
+    "sha256": "C1F6CB01FAEDCEF08CBC80EED14BF01D2B826F2A445B6D03D43FCE02D0C96918"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\after.state.receipt.txt",
+    "copy": "final-debug/after.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "18F371F41601CF5DCBE8EEFD7246F667420AD157E3F8AE40E1D63635EA3D34DD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\before.state.receipt.txt",
+    "copy": "final-debug/before.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "18F371F41601CF5DCBE8EEFD7246F667420AD157E3F8AE40E1D63635EA3D34DD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\build.log",
+    "copy": "final-debug/build.log",
+    "bytes": 5205,
+    "sha256": "C0F290A509D1EE7D037747E18835C9C7958EA3C7FECC27BCE918A011B9855DD4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\build.receipt.txt",
+    "copy": "final-debug/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "B6ACAFA59A3AB74014EB8873DBC886170D7D1308E55D7BCE0588A9A245DB2BA6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "final-debug/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\canonical-performance.json",
+    "copy": "final-debug/canonical-performance.json",
+    "bytes": 38488,
+    "sha256": "A5EB17C5E3D3905C2542643B0D88DB3A1A816242C67AC43017233886C6830F08"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\embedded-events.log",
+    "copy": "final-debug/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\form-runner.log",
+    "copy": "final-debug/form-runner.log",
+    "bytes": 4493,
+    "sha256": "7842129E5B0F33D67783506E7687D13DFD8DA7EB2B9D9DF5F1B59E35F87F7277"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\form.log",
+    "copy": "final-debug/form.log",
+    "bytes": 3797,
+    "sha256": "E9EC81F0E98A2DAAA76F31903941544A7AACB2922278753C15DCFA765FA5CB43"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\form.receipt.txt",
+    "copy": "final-debug/form.receipt.txt",
+    "bytes": 36511,
+    "sha256": "AA06C92BA48A91E2362FBB47885F4B69437C4D6A74D17A92CC5E5201C28D4C72"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-debug-ime-final\\root-review.receipt.txt",
+    "copy": "final-debug/root-review.receipt.txt",
+    "bytes": 1768,
+    "sha256": "69177746B9D7B11DC9EE30107B6ACF5153D4A706EDF4FE7209323D8E791C6836"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\after.state.receipt.txt",
+    "copy": "final-release/after.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "A4D34806E164EB0F62072C7F58CD2889C8FE363CC4561C78E9B6E40BAC5B7921"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\before.state.receipt.txt",
+    "copy": "final-release/before.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "A4D34806E164EB0F62072C7F58CD2889C8FE363CC4561C78E9B6E40BAC5B7921"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\build.log",
+    "copy": "final-release/build.log",
+    "bytes": 5229,
+    "sha256": "6BAB861A452E5D76D4B7DF749F6E6F0D4FAC472EA6CB409CDA6BDBDB6CDD64C9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\build.receipt.txt",
+    "copy": "final-release/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "CB0FCDCFA40D3AD75B4BFA75953941570B702E6AD99320D3229A89C44562865A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "final-release/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\canonical-performance.json",
+    "copy": "final-release/canonical-performance.json",
+    "bytes": 38372,
+    "sha256": "522DE2E77BC1B1987142F38CAD4628F5D658842E66380A7C7ED33511A59B0BBF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\embedded-events.log",
+    "copy": "final-release/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "4AC2361BB05CC39C21AEF04ACD3EEC0DAF2CF3033D3ECA746DE06C9289FFDE09"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\form-runner.log",
+    "copy": "final-release/form-runner.log",
+    "bytes": 4496,
+    "sha256": "A8D83E864D64A4A00FDB2C96ADADF8FD789D6AE39CFBBA3E5FDFF475F9705064"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\form.log",
+    "copy": "final-release/form.log",
+    "bytes": 3797,
+    "sha256": "3E194C6808D1C263A3CB1E698D8939984AC358703A4EF8ABEE9E15A7803697CD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\form.receipt.txt",
+    "copy": "final-release/form.receipt.txt",
+    "bytes": 36402,
+    "sha256": "6E174948535D47920F5334E141148CA5CD881C5D46625C8629C18F2BAFA02F52"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-release-ime-final\\root-review.receipt.txt",
+    "copy": "final-release/root-review.receipt.txt",
+    "bytes": 1770,
+    "sha256": "106E518F930F45E3967BC944FC04B67FBD4392EC1CC07E0CFB079951C336FDB1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\after.state.receipt.txt",
+    "copy": "final-asan/after.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "7446C523DE220927C58284B76465BAA8892E3FDF4247F5A71D668C64BDE106B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\before.state.receipt.txt",
+    "copy": "final-asan/before.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "7446C523DE220927C58284B76465BAA8892E3FDF4247F5A71D668C64BDE106B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\build.receipt.txt",
+    "copy": "final-asan/build.receipt.txt",
+    "bytes": 259,
+    "sha256": "A8A5908FE706ABEE4ECA185C4B760BE3EA4BCAA293BB1D72B367538DD6BF9254"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\canonical-performance.comparison.receipt.txt",
+    "copy": "final-asan/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\canonical-performance.json",
+    "copy": "final-asan/canonical-performance.json",
+    "bytes": 38576,
+    "sha256": "F42924B2C0D7447826A6B112A7E11EAD63C804C9B91E8B22ED375248C8F0E911"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\embedded-events.log",
+    "copy": "final-asan/embedded-events.log",
+    "bytes": 1227,
+    "sha256": "B69C2C0F1FCD8750D5A0A222E2F33161F76837D69FE577453466327A3556A51A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\form-runner.log",
+    "copy": "final-asan/form-runner.log",
+    "bytes": 4583,
+    "sha256": "24BBB36243881B3EC7E6A21B3FACEDD3E3A4CBBA9CBE8E1A099D8B161BAA19B7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\form.log",
+    "copy": "final-asan/form.log",
+    "bytes": 3797,
+    "sha256": "EC2FD52C5F2CADF5D130AB14DE22C64DEBEA965DE48B927BFD75187D7752E9C5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\form.receipt.txt",
+    "copy": "final-asan/form.receipt.txt",
+    "bytes": 36601,
+    "sha256": "D8F53EF6A47C2E17EF7384414A24E4AF46362E5975D362B83C72151A782D3C53"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\qualified-asan-ime-final\\root-review.receipt.txt",
+    "copy": "final-asan/root-review.receipt.txt",
+    "bytes": 1773,
+    "sha256": "6CFE56FE2B13B10981BBD7F9BA80A0010F82B51A84819E53D52B7247763DEA92"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\canonical-performance.comparison.receipt.txt",
+    "copy": "focus-debug/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\canonical-performance.json",
+    "copy": "focus-debug/canonical-performance.json",
+    "bytes": 38492,
+    "sha256": "9D886051FAAB16BEAD8B5F2898DF1C3E88AC101F8C71C5BE5D6730B979EFC71C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\copy.receipt.txt",
+    "copy": "focus-debug/copy.receipt.txt",
+    "bytes": 3802,
+    "sha256": "6AFE33643F83599631CA9895A2E9D65C80F9A0BDA6DECCB4583417FBC6A85AD7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\interactive-plan.txt",
+    "copy": "focus-debug/interactive-plan.txt",
+    "bytes": 965,
+    "sha256": "A73AAFA227C1C7D1F42AA9F28E5FA6470BABA2E24C2ABBD683F1849AAD731CA4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\interactive-result.txt",
+    "copy": "focus-debug/interactive-result.txt",
+    "bytes": 657,
+    "sha256": "0348F2588CD9DDFD5B54D0670C9E88102E171DBB9D69FAB7B6D8D0F2C273ABDA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\Menu.log",
+    "copy": "focus-debug/Menu.log",
+    "bytes": 31169,
+    "sha256": "4338E9324B72473E1CBD8A22B1BC59C0BDBF88B0289DB0C6E77BFE093C69D803"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\Menu.receipt.txt",
+    "copy": "focus-debug/Menu.receipt.txt",
+    "bytes": 36317,
+    "sha256": "3E8B4C82685A9F635107986FE9FF6214F7A304A00C81704AD2D815C65E415F18"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\MenuResources.log",
+    "copy": "focus-debug/MenuResources.log",
+    "bytes": 128687,
+    "sha256": "4BFC9DF1EE70AF71D3B46A39D2595345D9307C11DCB6C81BDAE0ABA7AE244FD9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\MenuResources.receipt.txt",
+    "copy": "focus-debug/MenuResources.receipt.txt",
+    "bytes": 36325,
+    "sha256": "DBA884E2B554407F6DD8BA2151DE64AD9EDF005DF338F7B9741B2BCD4D9D92CC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\MenuResourceScaling.log",
+    "copy": "focus-debug/MenuResourceScaling.log",
+    "bytes": 1499768,
+    "sha256": "AC46F20445556DA6BC48DD5D3774B5F5CA62AF92E0873C506FCF246C01DA12C7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\MenuResourceScaling.receipt.txt",
+    "copy": "focus-debug/MenuResourceScaling.receipt.txt",
+    "bytes": 36332,
+    "sha256": "F00E70CC7C8D79C78139F34BF9A40CE337FE5D28884C63E901E59AB222E971DE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\NativeTextInput.log",
+    "copy": "focus-debug/NativeTextInput.log",
+    "bytes": 58297,
+    "sha256": "983738C8C1C5DA824ABD441F35226FACB2DE37F52D6E8AC37192184EE7C3ADD7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\NativeTextInput.receipt.txt",
+    "copy": "focus-debug/NativeTextInput.receipt.txt",
+    "bytes": 36328,
+    "sha256": "6D3EFDC12F11AD9A4C3CDFE4C9C59C3F1AF98A1B1C994F8C3B3A4E2496630354"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\post-focus.state.receipt.txt",
+    "copy": "focus-debug/post-focus.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "18F371F41601CF5DCBE8EEFD7246F667420AD157E3F8AE40E1D63635EA3D34DD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\root-review.receipt.txt",
+    "copy": "focus-debug/root-review.receipt.txt",
+    "bytes": 2165,
+    "sha256": "69796C9294DD23A555D654FF95CA5A4C18C6EC5A25380ED2E3592ACB9E764B8A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Debug-attempt3\\runner.log",
+    "copy": "focus-debug/runner.log",
+    "bytes": 4136,
+    "sha256": "6E60F7A0F7002CC15588A4C726C7BFD6850463A99690D3340040C4CB22526F59"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\canonical-performance.comparison.receipt.txt",
+    "copy": "focus-release/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\canonical-performance.json",
+    "copy": "focus-release/canonical-performance.json",
+    "bytes": 38350,
+    "sha256": "11F8C980D8A616C71880F99EE11958C91D32B2E513E5404D11FF939D6C52ED9A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\copy.receipt.txt",
+    "copy": "focus-release/copy.receipt.txt",
+    "bytes": 3824,
+    "sha256": "A1D1FA021F37546043CA9567778BE1826EA4336488E2B868BCC109CCB565CB1B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\interactive-plan.txt",
+    "copy": "focus-release/interactive-plan.txt",
+    "bytes": 981,
+    "sha256": "725722EBF056D4737986582249909E0B5FCFECD9424B64F90F54ADCFDE02382B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\interactive-result.txt",
+    "copy": "focus-release/interactive-result.txt",
+    "bytes": 657,
+    "sha256": "C1FEEDF09D949A53773FC736FA89E0187B92BB2752C3A6AC90F194EF9353B0AE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\Menu.log",
+    "copy": "focus-release/Menu.log",
+    "bytes": 31169,
+    "sha256": "070BC26D500B021C19C9DAED2EB05225AFD7528DBFC7B40E7D23516717DC1E27"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\Menu.receipt.txt",
+    "copy": "focus-release/Menu.receipt.txt",
+    "bytes": 36184,
+    "sha256": "B13A31FBB288B8312F4CC9367BE6F1EBFAC2D9DCD30940123928B76EC0F9D2E6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\MenuResources.log",
+    "copy": "focus-release/MenuResources.log",
+    "bytes": 128687,
+    "sha256": "1F617E535FFBF0D262DE08D3E5AE524D9A663E753055B546C7E8912836267623"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\MenuResources.receipt.txt",
+    "copy": "focus-release/MenuResources.receipt.txt",
+    "bytes": 36192,
+    "sha256": "C42C0986C5E76FC23C0CF4DBB5687600EDB9A56362B6127999C3363D037424CA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\MenuResourceScaling.log",
+    "copy": "focus-release/MenuResourceScaling.log",
+    "bytes": 1499529,
+    "sha256": "3A259D6A9E9DED8A31622985258EE6A9A011177700ED9A6A0E4F6914F7CF2C9D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\MenuResourceScaling.receipt.txt",
+    "copy": "focus-release/MenuResourceScaling.receipt.txt",
+    "bytes": 36199,
+    "sha256": "9C532EE342B09C99A5B5339AC8F7C7556A57A163B46B374A8599C18F859AA1E4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\NativeTextInput.log",
+    "copy": "focus-release/NativeTextInput.log",
+    "bytes": 58296,
+    "sha256": "B703B361FE8B47B8DE3A19E73C81FC8295F4B742A8E0E6138C8BCAD6623DA2E2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\NativeTextInput.receipt.txt",
+    "copy": "focus-release/NativeTextInput.receipt.txt",
+    "bytes": 36195,
+    "sha256": "8C7E42B48A8189614695496E52D913BDB8161090BA75543E7E51AD46248F70DA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\post-focus.state.receipt.txt",
+    "copy": "focus-release/post-focus.state.receipt.txt",
+    "bytes": 2274,
+    "sha256": "A4D34806E164EB0F62072C7F58CD2889C8FE363CC4561C78E9B6E40BAC5B7921"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\root-review.receipt.txt",
+    "copy": "focus-release/root-review.receipt.txt",
+    "bytes": 2167,
+    "sha256": "E8D21F6C96353BD4DD0D345FE90026842D56080D75871F95AD4B12A74DDFD50B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-Release-attempt3\\runner.log",
+    "copy": "focus-release/runner.log",
+    "bytes": 4148,
+    "sha256": "58D3C7F08BF9663DA85539518A91072794DB9E273B5E82A109D243DA715C6C43"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\canonical-performance.comparison.receipt.txt",
+    "copy": "focus-asan/canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\canonical-performance.json",
+    "copy": "focus-asan/canonical-performance.json",
+    "bytes": 38581,
+    "sha256": "2894ECAF4321887DD96C196FD7847F7D738415DF1DC60C2B2182E76CA54FF976"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\copy.receipt.txt",
+    "copy": "focus-asan/copy.receipt.txt",
+    "bytes": 3857,
+    "sha256": "67ADA2C764BA9E2B2BA9B5450D3D751BC58983C59B41833A87EF5916868E3A9B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\interactive-plan.txt",
+    "copy": "focus-asan/interactive-plan.txt",
+    "bytes": 1005,
+    "sha256": "0907FE4F73E8559F36080236A00C633103811D2884E1E26A9207322F3A3EA187"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\interactive-result.txt",
+    "copy": "focus-asan/interactive-result.txt",
+    "bytes": 657,
+    "sha256": "7C4E811156D004A70A0E4536063D562D7FCB0E98C72E4F79F64FAF4F6AFB074F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\Menu.log",
+    "copy": "focus-asan/Menu.log",
+    "bytes": 31151,
+    "sha256": "5039518879D722B29955BC7D577DE47B7FC095F1AECC926C22D4DBE192F835A2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\Menu.receipt.txt",
+    "copy": "focus-asan/Menu.receipt.txt",
+    "bytes": 36413,
+    "sha256": "E61F800FA11958235050687F15524D3FC63F1F817BEC9ED27483C667A6C85C05"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\MenuResources.log",
+    "copy": "focus-asan/MenuResources.log",
+    "bytes": 130222,
+    "sha256": "384B48EB2AF75E05434CCBAD5F6F26CA34559522F497816246DA1D1018B23D65"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\MenuResources.receipt.txt",
+    "copy": "focus-asan/MenuResources.receipt.txt",
+    "bytes": 36421,
+    "sha256": "A2F84A361F42F1EA30B1CE3B0E1AED7087B71F554618EC3E1B897CA963DD5718"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\MenuResourceScaling.log",
+    "copy": "focus-asan/MenuResourceScaling.log",
+    "bytes": 1467488,
+    "sha256": "1C8B3244A9643D9832713717AE9288B8DA99D6E02BC65AE7CCD151A994D718BB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\MenuResourceScaling.receipt.txt",
+    "copy": "focus-asan/MenuResourceScaling.receipt.txt",
+    "bytes": 36428,
+    "sha256": "CAACA48871918B7588326239B366F0E96AA1DDE2E36EE614B4870C1759530159"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\NativeTextInput.log",
+    "copy": "focus-asan/NativeTextInput.log",
+    "bytes": 58296,
+    "sha256": "48F11DB49A1AE11910BD244DE161645F6F339A175D069844ECC8C3DE67913F63"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\NativeTextInput.receipt.txt",
+    "copy": "focus-asan/NativeTextInput.receipt.txt",
+    "bytes": 36424,
+    "sha256": "F92D919D4F1ED6A7492F7BD7EDCB0D9A43DAA561244B1225C5B1D9BBDD8547C9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\post-focus.state.receipt.txt",
+    "copy": "focus-asan/post-focus.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "7446C523DE220927C58284B76465BAA8892E3FDF4247F5A71D668C64BDE106B9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\root-review.receipt.txt",
+    "copy": "focus-asan/root-review.receipt.txt",
+    "bytes": 2170,
+    "sha256": "424C064068E1071839AA1A76068B57338A151D3E83AAD19D2647B0FD7F7D40F6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\focus-integration-ASanDebug-attempt3\\runner.log",
+    "copy": "focus-asan/runner.log",
+    "bytes": 4243,
+    "sha256": "95C0DB9241D3427E0AAD6015638B186F37BDEC1984B9F9F2834021159C2D49F5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-NegativeControl.ps1",
+    "copy": "drivers/Invoke-NegativeControl.ps1",
+    "bytes": 3826,
+    "sha256": "4BA90B9D309E087E9E737D80ED0DA72C2ABAC70A7E52AE0B88B495F300579BE3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-PositiveDebug.ps1",
+    "copy": "drivers/Invoke-PositiveDebug.ps1",
+    "bytes": 4470,
+    "sha256": "BA56A4C92ACCDC7845C74ACFAD48EFAFEEDC836AAE55B666B641C952A5B9996E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-PositiveDebugEventDiagnostics.ps1",
+    "copy": "drivers/Invoke-PositiveDebugEventDiagnostics.ps1",
+    "bytes": 4488,
+    "sha256": "9664820F0CC8235F7C40C95A5FFE565D47C429B3B8C1BFCB7F6C513FA4070664"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-PositiveDebugFinal.ps1",
+    "copy": "drivers/Invoke-PositiveDebugFinal.ps1",
+    "bytes": 4476,
+    "sha256": "6D7551E848B0722886C42DF11AADACD305197DAA26465C5BF41420238EF7EAF8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-FormDiagnostics.ps1",
+    "copy": "drivers/Invoke-FormDiagnostics.ps1",
+    "bytes": 3205,
+    "sha256": "67815A3A3C1DD0D445F5EE2A797BDABA1297EACD7BCC76417C05373351833760"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-Integration-Focused.ps1",
+    "copy": "drivers/Invoke-Integration-Focused.ps1",
+    "bytes": 4116,
+    "sha256": "1F086961F0DA2C55EF504B2EA9A72A4D750C83D1AEDD6433CFFD3E5B2D008A91"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-Integration-Focused-Native.ps1",
+    "copy": "drivers/Invoke-Integration-Focused-Native.ps1",
+    "bytes": 1235,
+    "sha256": "E7BDC09BABCDE2BF3605306DEB772A2EADAF14FB967B143CA130A67800C498AB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-Integration-Focus.ps1",
+    "copy": "drivers/Invoke-Integration-Focus.ps1",
+    "bytes": 1844,
+    "sha256": "1B1FFE744811795859462A3F0E0D0C9446006DD13F6CF68B00D7D0C9107523AA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-Integration-Focus-Native.ps1",
+    "copy": "drivers/Invoke-Integration-Focus-Native.ps1",
+    "bytes": 725,
+    "sha256": "AFAB43282747A540EB5AD39908FE4597FC32A41F2DC7EB3D9D298EB0AD486AF8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Snapshot-Integration-Focus.ps1",
+    "copy": "drivers/Snapshot-Integration-Focus.ps1",
+    "bytes": 11277,
+    "sha256": "432BCA497F14C9C512B2D4C18A78C1AB01057C6C9C181F9B28E01D554143861C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-InputDiagnostic.ps1",
+    "copy": "drivers/Invoke-InputDiagnostic.ps1",
+    "bytes": 3284,
+    "sha256": "265D9FC84D25C2E0BEB5EC9A792D1338C32A77A74C8894396BEBA925E99B2E6A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-InputFullDiagnostic.ps1",
+    "copy": "drivers/Invoke-InputFullDiagnostic.ps1",
+    "bytes": 3568,
+    "sha256": "B4A05CCBB08AB408992B82C55017C4411B43B3CB3658D984FA22A262BF973AFE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-InputCaseDiagnostic.ps1",
+    "copy": "drivers/Invoke-InputCaseDiagnostic.ps1",
+    "bytes": 4809,
+    "sha256": "E28990990637D0CDE8E1A666F90396AAF8D79791AC79D59ADADDC99AC51361D6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Invoke-Final-Local.ps1",
+    "copy": "drivers/Invoke-Final-Local.ps1",
+    "bytes": 1269,
+    "sha256": "F3045ED1B8F920173F51FA918F03897B9CD50D25D3FA71E7741EC50D6C1D804E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Assert-Archival-Inputs.ps1",
+    "copy": "drivers/Assert-Archival-Inputs.ps1",
+    "bytes": 3063,
+    "sha256": "E30F096C72537F78336A82487CA8D102E4241AEEE67CAE3894B22D75DD5D35C9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\Retain-Local-Integration.ps1",
+    "copy": "drivers/Retain-Local-Integration.ps1",
+    "bytes": 6429,
+    "sha256": "8E58350DF6691B94FA3AF6CCFC34A7FE903B79B2313635F4CFC7A39F0C15907B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\original-integrated-accessibility.cpp",
+    "copy": "negative/original-accessibility.cpp",
+    "bytes": 539899,
+    "sha256": "54E16DE73B9DF580E1AC4F15355EDA744605FFF2B3283D89EEBD25DC9ECE2D27"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\forced-ime-retry-negative.cpp",
+    "copy": "input-forced-negative/native-text-input.cpp",
+    "bytes": 486300,
+    "sha256": "BF725CAC98BC5282AB2D1BF0F83DA318F1C1F7E40FAE85E8CC5D4CC5902BCB5B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\AddressSanitizer-x64.json",
+    "copy": "final-asan/detection.receipt.txt",
+    "bytes": 545,
+    "sha256": "3FD2D75ABCCC20CB2157194B5CDF7DC17D8104A30F3A5428F4F4E83E0C3D65F8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log",
+    "copy": "final-asan/detection.log",
+    "bytes": 5930,
+    "sha256": "3972FD1DC978070060788956CCCCAED02743D4E20B3A1F128670D9D2668B0141"
+  }
+]

@@ -1,0 +1,45 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA worker] stage=initialize count=0 property=0 result=00000000 thread=74992 tick=199607968
+    [form UIA publication] embedded=1 preparations=1..    [form UIA worker] stage=batch count=5 property=0 result=00000000 thread=74992 tick=199607968
+2 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [form UIA worker] stage=structure-before count=5 property=0 result=00000000 thread=74992 tick=199607984
+    [form UIA worker] stage=structure-after count=5 property=0 result=00000000 thread=74992 tick=199608671
+    [form UIA worker] stage=sender count=5 property=30005 result=00000000 thread=74992 tick=199608703
+    [form UIA worker] stage=property-before count=5 property=30005 result=00000000 thread=74992 tick=199608703
+    [form UIA worker] stage=property-after count=5 property=30005 result=00000000 thread=74992 tick=199609312
+    [form UIA worker] stage=sender count=5 property=30013 result=00000000 thread=74992 tick=199609343
+    [form UIA worker] stage=property-before count=5 property=30013 result=00000000 thread=74992 tick=199609343
+    [form UIA] mark=0 expected=4 heard=0 properties=30013,30025,30103,30026,
+    [UIA timeline] failure step=0 mark=0 cutoff=0 cutoffTick=199610968
+    [UIA] frozen event cutoff=0 tick=199610968:
+    [UIA arrivals] entries=0 completed=0 capacity=1024 overflow=0 failed=0
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [form UIA late diagnostic] initial deadline failed; pump for a further 15000 ms
+    [form UIA worker] stage=property-after count=5 property=30013 result=00000000 thread=74992 tick=199611406
+    [form UIA worker] stage=sender count=5 property=30026 result=00000000 thread=74992 tick=199611421
+    [form UIA worker] stage=property-before count=5 property=30026 result=00000000 thread=74992 tick=199611421
+    [form UIA worker] stage=property-after count=5 property=30026 result=00000000 thread=74992 tick=199613406
+    [form UIA worker] stage=sender count=5 property=30025 result=00000000 thread=74992 tick=199613421
+    [form UIA worker] stage=property-before count=5 property=30025 result=00000000 thread=74992 tick=199613421
+    [form UIA worker] stage=property-after count=5 property=30025 result=00000000 thread=74992 tick=199615125
+    [form UIA worker] stage=sender count=5 property=30103 result=00000000 thread=74992 tick=199615140
+    [form UIA worker] stage=property-before count=5 property=30103 result=00000000 thread=74992 tick=199615140
+    [form UIA worker] stage=property-after count=5 property=30103 result=00000000 thread=74992 tick=199617171
+    [form UIA worker] stage=complete count=5 property=0 result=00000000 thread=74992 tick=199617171
+    [UIA timeline] failure step=0 mark=0 cutoff=8 cutoffTick=199625968
+    [UIA] frozen event cutoff=8 tick=199625968: [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.] [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.] [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.] [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.] [property 30025 from Edit 'Largeur du dessin ? ?' = true] [property 30025 from Edit 'Largeur du dessin ? ?' = true] [property 30103 from Edit 'Largeur du dessin ? ?' = false] [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [UIA arrivals] entries=8 completed=8 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=1 index=0 entered=199611109 completed=199611109 [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.]
+    [UIA arrival] seq=2 index=1 entered=199611406 completed=199611406 [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.]
+    [UIA arrival] seq=3 index=2 entered=199613125 completed=199613125 [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.]
+    [UIA arrival] seq=4 index=3 entered=199613406 completed=199613406 [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.]
+    [UIA arrival] seq=5 index=4 entered=199614812 completed=199614812 [property 30025 from Edit 'Largeur du dessin ? ?' = true]
+    [UIA arrival] seq=6 index=5 entered=199615125 completed=199615125 [property 30025 from Edit 'Largeur du dessin ? ?' = true]
+    [UIA arrival] seq=7 index=6 entered=199616859 completed=199616859 [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [UIA arrival] seq=8 index=7 entered=199617171 completed=199617171 [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+FAILED: real UIA client hears each form presentation change

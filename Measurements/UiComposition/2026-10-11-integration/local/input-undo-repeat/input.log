@@ -1,0 +1,12 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NativeTextInput
+  [START] TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText (1.394 s)
+[DONE] NativeTextInput (1.395 s)
+All DxUi tests passed.

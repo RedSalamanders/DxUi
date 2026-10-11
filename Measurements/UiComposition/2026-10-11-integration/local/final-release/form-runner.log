@@ -1,0 +1,37 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2208.3 completed offscreen FPS; p95 0.6038 ms; private 27684864 bytes
+Complex UI clean round 2: 2664.75 completed offscreen FPS; p95 0.4597 ms; private 28815360 bytes
+Complex UI clean round 3: 2601.64 completed offscreen FPS; p95 0.469 ms; private 28000256 bytes
+Complex UI clean round 4: 2349.2 completed offscreen FPS; p95 0.4606 ms; private 27963392 bytes
+Complex UI clean round 5: 2499.88 completed offscreen FPS; p95 0.4785 ms; private 27844608 bytes
+Complex UI dirty round 1: 613.063 completed offscreen FPS; p95 1.8164 ms; private 28418048 bytes
+Complex UI dirty round 2: 505.606 completed offscreen FPS; p95 2.1751 ms; private 28811264 bytes
+Complex UI dirty round 3: 580.691 completed offscreen FPS; p95 1.8403 ms; private 28811264 bytes
+Complex UI dirty round 4: 612.737 completed offscreen FPS; p95 1.8521 ms; private 28811264 bytes
+Complex UI dirty round 5: 653.346 completed offscreen FPS; p95 1.654 ms; private 29663232 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-Release-e4119bce27f34fa7bfd9b1c72cffb173.json
+Running Accessibility (x64 Release), tests: TestFormAccessibilityWindowPropertiesAndStableEditor, TestFormAccessibilityEmbeddedPropertiesAndStableEditor, TestFormAccessibilityWindowLabelLifetimeAndReplacement, TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement, TestFormAccessibilityWindowPresentationEventsAreIdempotent, TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent, TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback, TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback, TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement, TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement, TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream, TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary, TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep, TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication
+PASS Accessibility (0 capability skips recorded; filtered to TestFormAccessibilityWindowPropertiesAndStableEditor, TestFormAccessibilityEmbeddedPropertiesAndStableEditor, TestFormAccessibilityWindowLabelLifetimeAndReplacement, TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement, TestFormAccessibilityWindowPresentationEventsAreIdempotent, TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent, TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback, TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback, TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement, TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement, TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream, TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary, TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep, TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication)
+All 1 requested suites passed.

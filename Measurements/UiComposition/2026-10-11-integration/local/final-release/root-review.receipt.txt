@@ -1,0 +1,34 @@
+{
+  "purpose": "root-reviewed-focused-integrated-form-and-real-client-validation",
+  "sourceCommit": "284a9ec60cc767cad16775e4131b597ff1101b23",
+  "sourceFingerprint": "D1C3380BFDDAA3A1BD37534C666FF24A29C5936A27185DBFA4D26EE8B0D11A46",
+  "sourceDirty": false,
+  "configuration": "Release",
+  "platform": "x64",
+  "embeddedArguments": [
+    "--test-prepared-tree-events"
+  ],
+  "embeddedExitCode": 0,
+  "formExitCode": 0,
+  "tests": [
+    "TestFormAccessibilityWindowPropertiesAndStableEditor",
+    "TestFormAccessibilityEmbeddedPropertiesAndStableEditor",
+    "TestFormAccessibilityWindowLabelLifetimeAndReplacement",
+    "TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement",
+    "TestFormAccessibilityWindowPresentationEventsAreIdempotent",
+    "TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent",
+    "TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback",
+    "TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback",
+    "TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement",
+    "TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement",
+    "TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream",
+    "TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary",
+    "TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep",
+    "TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication"
+  ],
+  "nativeSkips": 0,
+  "embeddedSha256": "44691DEE3992A782A9F1288FACA839075571CF88E50B7E9FFB20226551258B50",
+  "controlSha256": "3F0AD998339AA9A87622ED33412DC789045C802F3948B9539372DE4655D73A73",
+  "exactSourceDependencyToolchainArtifactEnvironmentMatched": true,
+  "performanceAcceptance": "unpaired-observation-only"
+}
