@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "outcome": "PASSED",
+  "identity": "6907c81d625f994fb9883e91ed70ab83429911f220939dc4a4d3df116c940311",
+  "completedUtc": "2026-10-11T09:48:42.8563925Z",
+  "digest": "78c13779b961fe812e286e6a06996fa14b3383dafcb0aee27de3cc0ebad0631f"
+}

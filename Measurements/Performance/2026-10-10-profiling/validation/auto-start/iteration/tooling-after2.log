@@ -1,0 +1,34 @@
+ok   the interactive suites are the suites DxUi.ControlTests.exe runs with real focus
+ok   a run without -Suites takes Menu and NativeTextInput, and the fixtures only when they are named
+ok   a suite that does not need the desktop is refused by name, and the interactive ones are listed
+ok   a run refuses where there is no desktop to take, and says why
+ok   only verified GitHub-hosted Windows jobs bypass the interactive desktop lease
+ok   hosted foreground mode is selected only for verified hosted jobs that contain a foreground suite
+ok   the estimate is the suites and the lease overhead, per configuration
+ok   a command line is quoted as CreateProcess reads it
+ok   the plan is one tab-separated line per child
+ok   the result is read back as the lease writes it
+ok   a result that is missing, empty or not the lease's is no result
+ok   what is wrong with a finished lease is said in a message
+ok   the runner cannot describe failed restoration as an unchanged desktop
+ok   unchanged and restored summaries depend on the recorded statuses, not the moved flag
+ok   every unsuccessful or unknown restoration status stays visible and cannot imply an unchanged desktop
+ok   a missing result or missing restoration fields produces an unverified summary
+ok   mixed restoration reports retain successful parts without hiding a failure or mutating the result
+ok   Cancel and confirmation timeout retain their incomplete state even when desktop restoration succeeded
+ok   the pointer notice reports positions without attributing movement to a suite or inventing missing coordinates
+ok   a missing result stays a failure even when the lease exit code is zero
+ok   the exit codes of the lease are the ones the PowerShell side reads
+ok   desktop takeover requires local -Interactive or the verified hosted foreground wrapper
+ok   an interactive run is settled before anything is built or run
+ok   a suite that needs real focus is never given --no-activate, and every other control suite always is
+ok   test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built
+ok   test.ps1 -Interactive refuses in a CI job before it builds or runs anything
+FAIL approved automatic starts retain their mode, bounded countdown and distinct result
+     Assertion failed: approved local automatic mode sends its 30-second countdown: --run | - | - | a | u | t | o | - | s | t | a | r | t | --plan=C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\tooling-fixtures\bf0fb2a3fbfd412e96db50c6833ed69a\interactive-plan.txt | --result=C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\tooling-fixtures\bf0fb2a3fbfd412e96db50c6833ed69a\interactive-result.txt | --label=Menu | --estimate=1 | --confirm-timeout=30 | --child-timeout=900 (line 37)
+ok   automatic start without an interactive request stops before tooling, build or output writes
+ok   an approved automatic request still refuses a CI desktop before building or running
+ok   lease console output cannot replace the result object or hide a failed child
+ok   the hosted wrapper rechecks authorization and the shared lease core removes stale results
+ok   a missing lease child replaces an existing suite log with the current launch failure
+Interactive mode: 31 of 32 passed

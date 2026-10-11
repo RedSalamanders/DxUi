@@ -1,0 +1,9 @@
+{
+  "purpose": "root-verified-original-profiling-packet-before-adding-autostart-evidence",
+  "sealedFiles": 801,
+  "sealSha256": "66FC516B8E783B02D98A7C65BEEE6EBB758B3CDA2BEF03E66185CFCCD1C91079",
+  "originalSealCopy": "C:/Users/eric/.codex/tmp/dpf-followup/autostart-original-parent-SHA256SUMS.receipt.txt",
+  "analysisSha256": "F6C55350C0801D6B4928FF01B2DAB0C49E90E585D624E98745CBB711AA3C5914",
+  "allOriginalSealedBytesMatched": true,
+  "reviewedUtc": "2026-10-11T10:55:38.9266553Z"
+}

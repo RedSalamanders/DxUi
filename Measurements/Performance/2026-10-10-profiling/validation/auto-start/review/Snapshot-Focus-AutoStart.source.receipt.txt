@@ -1,0 +1,121 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][ValidateSet('Debug','Release','ASan Debug')][string] $Configuration,
+    [Parameter(Mandatory)][int] $Attempt,
+    [Parameter(Mandatory)][int] $ParentExitCode
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$root = 'C:/Users/eric/.codex/worktrees/performance-forms/DxUi'
+$tag = $Configuration.Replace(' ', '')
+$output = Join-Path $PSScriptRoot "focus-autostart-$tag-attempt$Attempt"
+if (Test-Path -LiteralPath $output) { throw "Snapshot output already exists: $output" }
+$suites = @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')
+$reports = Join-Path $root '.build/reports'
+$logs = Join-Path $root '.build/logs'
+$runnerLog = Join-Path $logs "interactive-autostart-focus-$tag-attempt$Attempt.txt"
+$firstReceipt = Get-Content -LiteralPath (Join-Path $reports "Menu-x64-$Configuration.interactive.json") -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+$performancePath = [string]$firstReceipt.performanceReport
+$sources = [Collections.Generic.List[object]]::new()
+$sources.Add([pscustomobject]@{ Original=$runnerLog; Copy='runner.log' })
+$sources.Add([pscustomobject]@{ Original=(Join-Path $logs 'interactive-plan.txt'); Copy='interactive-plan.txt' })
+$sources.Add([pscustomobject]@{ Original=(Join-Path $logs 'interactive-result.txt'); Copy='interactive-result.txt' })
+foreach ($suite in $suites) {
+    $sources.Add([pscustomobject]@{ Original=(Join-Path $reports "$suite-x64-$Configuration.interactive.json"); Copy="$suite.receipt.txt" })
+    $sources.Add([pscustomobject]@{ Original=(Join-Path $logs "test-$suite-x64-$Configuration.interactive.log"); Copy="$suite.log" })
+}
+$sources.Add([pscustomobject]@{ Original=$performancePath; Copy='canonical-performance.json' })
+$sources.Add([pscustomobject]@{ Original=($performancePath + '.comparison.json'); Copy='canonical-performance.comparison.receipt.txt' })
+New-Item -ItemType Directory -Path $output | Out-Null
+$copies = @(foreach ($source in $sources) {
+    $original = [IO.Path]::GetFullPath($source.Original)
+    $length = (Get-Item -LiteralPath $original).Length
+    $hash = (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash
+    $copy = Join-Path $output $source.Copy
+    Copy-Item -LiteralPath $original -Destination $copy
+    if ((Get-Item -LiteralPath $copy).Length -ne $length -or (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $hash -or
+        (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash -cne $hash) { throw "Snapshot changed bytes: $original" }
+    [ordered]@{ original=$original; copy=$source.Copy; bytes=$length; sha256=$hash }
+})
+[IO.File]::WriteAllText((Join-Path $output 'copy.receipt.txt'), ((ConvertTo-Json -InputObject $copies -Depth 8) + [char]10), [Text.UTF8Encoding]::new($false))
+
+Import-Module (Join-Path $root 'Tools/PerformancePolicy.psm1') -Force
+Import-Module (Join-Path $root 'Tools/InteractiveRun.psm1') -Force
+$lease = Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText((Join-Path $output 'interactive-result.txt')))
+$performance = Get-Content -LiteralPath (Join-Path $output 'canonical-performance.json') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+$state = Get-PerformanceMeasurementState -Root $root -Platform x64 -Configuration $Configuration
+$before = [ordered]@{}
+foreach ($key in $state.Keys) {
+    if (-not $performance.Contains($key)) { throw "Missing native run provenance: $key" }
+    $before[$key] = $performance[$key]
+}
+Assert-PerformanceMeasurementState -Before $before -After $state
+Assert-PerformanceBuildAttestation -Root $root -Platform x64 -Configuration $Configuration -State $state
+[IO.File]::WriteAllText((Join-Path $output 'post-focus.state.receipt.txt'), ((ConvertTo-Json -InputObject $state -Depth 12) + [char]10), [Text.UTF8Encoding]::new($false))
+if ($ParentExitCode -ne 0) {
+    $failure = [ordered]@{ purpose='root-retained-failed-native-focus-attempt'; configuration=$Configuration; platform='x64'; attempt=$Attempt
+        parentExitCode=$ParentExitCode; state=$lease.State; confirmation=$lease.Confirmation; automaticStart=$lease.AutoStart; confirmationSeconds=$lease.ConfirmationSeconds; leaseExitCode=$lease.Exit
+        foreground=$lease.Foreground; focus=$lease.Focus; pointer=$lease.Cursor; children=$lease.Children; copiedOriginals=$copies.Count
+        qualification='failed-attempt-preserved-not-a-pass'; exactPostFocusIdentityMatched=$true; sourceCommit=$state.sourceCommit; sourceDirty=$state.sourceDirty; sourceFingerprint=$state.sourceFingerprint; reviewerScriptSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash }
+    [IO.File]::WriteAllText((Join-Path $output 'root-review.receipt.txt'), ((ConvertTo-Json -InputObject $failure -Depth 12) + [char]10), [Text.UTF8Encoding]::new($false))
+    Write-Output "Retained failed ${Configuration} attempt; $($copies.Count) original/copy bindings. No successful qualification is inferred."
+    exit 0
+}
+if (@($lease.ConfirmationDuplicates).Count) { throw 'Native focus result repeats contradictory or duplicate automatic-start confirmation or policy fields.' }
+if ($ParentExitCode -ne 0 -or $lease.State -cne 'completed' -or $lease.Exit -ne 0 -or $lease.Confirmation -cnotin @('started','autostarted') -or -not $lease.AutoStart -or $lease.ConfirmationSeconds -ne 30) { throw 'Native focus run did not complete under an approved successful automatic-start lease.' }
+foreach ($part in @('Foreground','Focus','Cursor')) { if ($lease.$part -cnotin @('unchanged','restored')) { throw "Desktop restoration is not verified: $part=$($lease.$part)" } }
+if (@($lease.Children).Count -ne 4 -or ($lease.Children.Name -join '|') -cne ($suites -join '|')) { throw 'The lease child inventory differs from the four declared suites.' }
+$controlExe = Join-Path $root ".build/x64/$Configuration/DxUi.ControlTests.exe"
+$leaseExe = Join-Path $root ".build/x64/$Configuration/DxUi.InteractiveLease.exe"
+$expectedPlan = New-DxUiLeasePlanText -Runs @(foreach ($suite in $suites) {
+    [pscustomobject]@{ Name=$suite; Log=(Join-Path $logs "test-$suite-x64-$Configuration.interactive.log");
+        CommandLine=(ConvertTo-DxUiCommandLine -Program $controlExe -Arguments @("--suite=$suite")) }
+})
+if ([IO.File]::ReadAllText((Join-Path $output 'interactive-plan.txt')) -cne $expectedPlan) { throw 'Retained focus plan differs from the four canonical full-suite executable, log paths or commands.' }
+$controlHash = (Get-FileHash -LiteralPath $controlExe -Algorithm SHA256).Hash
+$leaseHash = (Get-FileHash -LiteralPath $leaseExe -Algorithm SHA256).Hash
+$suiteChecks = @(foreach ($suite in $suites) {
+    $receipt = Get-Content -LiteralPath (Join-Path $output "$suite.receipt.txt") -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+    $child = @($lease.Children | Where-Object Name -CEQ $suite)
+    $lines = @(Get-Content -LiteralPath (Join-Path $output "$suite.log"))
+    if ($child.Count -ne 1 -or -not $child[0].Launched -or $child[0].ExitCode -ne 0 -or $child[0].Seconds -le 0 -or
+        $child[0].TimedOut -or $child[0].Interrupted) { throw "Invalid native child completion: $suite" }
+    if ($receipt.suite -cne $suite -or $receipt.configuration -cne $Configuration -or $receipt.platform -cne 'x64' -or
+        $receipt.nativeArchitecture -cne 'X64' -or $receipt.exitCode -ne 0 -or @($receipt.skips).Count -ne 0 -or
+        -not $receipt.interactive -or $receipt.lease.mode -cne 'local-approved-auto-start' -or $receipt.lease.hosted -or
+        $receipt.lease.state -cne 'completed' -or $receipt.lease.exitCode -ne 0 -or $receipt.lease.confirmation -cne $lease.Confirmation -or -not $receipt.lease.autoStart -or $receipt.lease.confirmationSeconds -ne 30 -or -not $receipt.lease.requestedAutoStart -or $receipt.lease.requestedConfirmationSeconds -ne 30 -or
+        [IO.Path]::GetFullPath($receipt.executable) -cne [IO.Path]::GetFullPath($controlExe) -or
+        [IO.Path]::GetFullPath($receipt.lease.executable) -cne [IO.Path]::GetFullPath($leaseExe) -or
+        $receipt.sha256 -cne $controlHash -or $receipt.lease.sha256 -cne $leaseHash -or $receipt.performanceReport -cne $performancePath -or
+        $receipt.lease.seconds -ne $child[0].Seconds -or
+        $receipt.performanceComparison -cne 'unpaired' -or @($lines | Where-Object { $_ -match '^SKIPPED:|^TIMEOUT:' }).Count -ne 0 -or
+        @($lines | Where-Object { $_ -ceq 'All DxUi tests passed.' }).Count -ne 1) { throw "Invalid full native focus suite receipt/log: $suite" }
+    if ($receipt.Contains('tests')) { throw "Filtered receipt cannot establish the complete suite: $suite" }
+    foreach ($part in @('foreground','focus','cursor')) { if ($receipt.lease[$part] -cne $lease.$part) { throw "Receipt/lease restoration mismatch: $suite/$part" } }
+    [ordered]@{ suite=$suite; exitCode=$receipt.exitCode; skips=@($receipt.skips).Count; seconds=$child[0].Seconds; executableSha256=$controlHash; leaseSha256=$leaseHash }
+})
+$performance = Get-Content -LiteralPath (Join-Path $output 'canonical-performance.json') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+$comparison = Get-Content -LiteralPath (Join-Path $output 'canonical-performance.comparison.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable
+if ($comparison.status -cne 'unpaired') { throw 'The parent benchmark is not the recorded unpaired observation.' }
+$state = Get-PerformanceMeasurementState -Root $root -Platform x64 -Configuration $Configuration
+$before = [ordered]@{}
+foreach ($key in $state.Keys) {
+    if (-not $performance.Contains($key)) { throw "Missing native run provenance: $key" }
+    $before[$key] = $performance[$key]
+}
+Assert-PerformanceMeasurementState -Before $before -After $state
+Assert-PerformanceBuildAttestation -Root $root -Platform x64 -Configuration $Configuration -State $state
+[IO.File]::WriteAllText((Join-Path $output 'post-focus.state.receipt.txt'), ((ConvertTo-Json -InputObject $state -Depth 12) + [char]10), [Text.UTF8Encoding]::new($false))
+$review = [ordered]@{
+    purpose='root-verified-full-native-focus-suites'; configuration=$Configuration; platform='x64'; attempt=$Attempt
+    parentExitCode=$ParentExitCode; sourceCommit=$state.sourceCommit; sourceDirty=$state.sourceDirty; sourceFingerprint=$state.sourceFingerprint
+    state=$lease.State; confirmation=$lease.Confirmation; automaticStart=$lease.AutoStart; confirmationSeconds=$lease.ConfirmationSeconds; leaseExitCode=$lease.Exit
+    foreground=$lease.Foreground; focus=$lease.Focus; pointer=$lease.Cursor
+    suites=$suiteChecks; copiedOriginals=$copies.Count; exactPostFocusIdentityMatched=$true; canonicalFullSuitePlanMatched=$true
+    postFocusStateSha256=(Get-FileHash -LiteralPath (Join-Path $output 'post-focus.state.receipt.txt') -Algorithm SHA256).Hash
+    reviewerScriptSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
+    performanceAcceptance='unpaired-observation-only'; reviewedUtc=[DateTime]::UtcNow.ToString('o')
+}
+[IO.File]::WriteAllText((Join-Path $output 'root-review.receipt.txt'), ((ConvertTo-Json -InputObject $review -Depth 12) + [char]10), [Text.UTF8Encoding]::new($false))
+Write-Output "PASS ${Configuration}: four full native focus suites, zero skips, approved automatic-start lease, verified desktop restoration and complete post-focus identity; $($copies.Count) original/copy bindings"
+Write-Output "Snapshot: $output"

@@ -434,6 +434,11 @@ After the person explicitly approves automatic start and the test time, add
 Cancel, Esc, closing the dialog and Ctrl+C stop it. This mode keeps desktop checks and verified restoration and
 records `autostarted` separately from a clicked Start, with the actual native policy/countdown checked against the request.
 
+The [approved automatic-start validation](../Measurements/Performance/2026-10-10-profiling/validation/auto-start/README.md)
+retains six builds and 69 complete native suite passes, including all four foreground suites in each x64 profile
+with zero skips and verified restoration. Its Default before/candidate comparison flags about 14% lower clean
+and dirty FPS. Two fixed same-binary controls retain their variability; performance acceptance remains open.
+
 `performance-forms.ps1 -Configuration Release -Platform x64 -Blocks 12 -Seed 20261010` measures a synthetic
 eight-field manual/form pair within one candidate. Before timing it requires matching leaf state, UIA metadata,
 geometry and populated pixels in five states across standard LTR/above and compact RTL/beside profiles. The

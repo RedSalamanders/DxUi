@@ -16,7 +16,10 @@ Application adoption measurements belong in their application's repository.
   fresh focus attempts remain individually retained, including a successful Debug retry and Release/ASan failures.
   Corrected setup-diagnostic binaries pass six builds and another 57 noninteractive executions, zero skips. Their
   first two ASan confirmations expire before any foreground suite runs; the third completes four full focus
-  suites with zero skips and verified restoration. Fresh Release/Debug validation remains open; original failure
+  suites with zero skips and verified restoration. A later [approved automatic-start candidate](Performance/2026-10-10-profiling/validation/auto-start/README.md)
+  passes six fresh builds, 57 noninteractive and twelve full foreground suite executions across all three x64
+  profiles, zero native skips and verified restoration. Its new Default performance comparison flags about 14%
+  lower clean/dirty FPS; two fixed candidate-only controls show variability and leave acceptance open. Original failure
   causes remain unproved.
 - [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
   timeout regressions and eleven passing ASan reproduction processes with bounded provider/client timelines;

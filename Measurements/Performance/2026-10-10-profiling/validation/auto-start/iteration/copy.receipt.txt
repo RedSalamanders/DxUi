@@ -1,0 +1,56 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-policy-gaps-before2.txt",
+    "copy": "policy-gaps-before2.log",
+    "bytes": 2981,
+    "sha256": "AE94450F05035C849BFB5864DA7322FE79E5047357AF6A7B1962218E3D7E3E67"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-policy-gaps-after.txt",
+    "copy": "policy-gaps-after.log",
+    "bytes": 2789,
+    "sha256": "DF3BDDFBFA27487CF5D895B0BF9BFD2B48E156567AD7D46D868A7DCBC1707840"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-tooling-before.txt",
+    "copy": "tooling-before.log",
+    "bytes": 3044,
+    "sha256": "DDC644205F01A4E6942334149A94AB3AC5E22766F2165D31DA9C5297761107FB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-tooling-after.txt",
+    "copy": "tooling-after.log",
+    "bytes": 2881,
+    "sha256": "B465357AFE6B446999D24968447B1F1E4EA24215645FC2AA5CEB6B4F473F5970"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-tooling-after2.txt",
+    "copy": "tooling-after2.log",
+    "bytes": 3299,
+    "sha256": "30FEBD07F8DAFCF21D8CF82610B2E0B30F87E242F21C82FF038066EE3937B901"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-tooling-after3.txt",
+    "copy": "tooling-after3.log",
+    "bytes": 2789,
+    "sha256": "DF3BDDFBFA27487CF5D895B0BF9BFD2B48E156567AD7D46D868A7DCBC1707840"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-private-Debug-early.txt",
+    "copy": "private-Debug-early.log",
+    "bytes": 535,
+    "sha256": "37BDCC6A7BCB7306CFC9C4740F97510EB907E6121646FAB858790E1E8DD6F7C7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-explain.txt",
+    "copy": "explain.log",
+    "bytes": 2941,
+    "sha256": "7D240A43804FBDCA1F10E5366BF04ADC69D7FBFA8907F745E1D7664600359192"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-format-final-check.txt",
+    "copy": "format-final-check.log",
+    "bytes": 120,
+    "sha256": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7"
+  }
+]

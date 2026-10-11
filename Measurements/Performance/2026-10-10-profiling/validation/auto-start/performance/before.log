@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2732.11 completed offscreen FPS; p95 0.4038 ms; private 28028928 bytes
+Complex UI clean round 2: 2748.97 completed offscreen FPS; p95 0.4165 ms; private 27963392 bytes
+Complex UI clean round 3: 2767.25 completed offscreen FPS; p95 0.3895 ms; private 27955200 bytes
+Complex UI clean round 4: 2728.72 completed offscreen FPS; p95 0.3958 ms; private 27926528 bytes
+Complex UI clean round 5: 2754.01 completed offscreen FPS; p95 0.3947 ms; private 27897856 bytes
+Complex UI dirty round 1: 651.598 completed offscreen FPS; p95 1.776 ms; private 29184000 bytes
+Complex UI dirty round 2: 662.942 completed offscreen FPS; p95 1.6517 ms; private 29372416 bytes
+Complex UI dirty round 3: 666.646 completed offscreen FPS; p95 1.5989 ms; private 29437952 bytes
+Complex UI dirty round 4: 674.404 completed offscreen FPS; p95 1.546 ms; private 29503488 bytes
+Complex UI dirty round 5: 666.189 completed offscreen FPS; p95 1.6039 ms; private 29466624 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\interactive-autostart\before-Release.json

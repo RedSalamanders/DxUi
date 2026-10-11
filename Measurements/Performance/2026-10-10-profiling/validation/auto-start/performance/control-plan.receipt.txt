@@ -1,0 +1,14 @@
+{
+  "purpose": "fixed-two-current-binary-control-reports-after-flagged-source-pair",
+  "inventory": [
+    "control1-Release.json",
+    "control2-Release.json"
+  ],
+  "configuration": "Release",
+  "platform": "x64",
+  "scenario": "Default",
+  "candidate": "02961a88321c75ccd39090873f48977206d6dfdb",
+  "basis": "existing flagged after-Release report remains unchanged",
+  "qualification": "diagnostic variability checks only; cannot qualify the seed policy or substitute for matched baseline-side controls",
+  "declaredUtc": "2026-10-11T10:33:35.2240578Z"
+}

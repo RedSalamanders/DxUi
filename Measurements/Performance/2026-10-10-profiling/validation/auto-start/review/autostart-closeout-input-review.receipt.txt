@@ -1,0 +1,52 @@
+{
+  "purpose": "root-current-compiled-dependency-artifact-immutability-after-prose-closeout",
+  "checkedProfiles": 6,
+  "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+  "profiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "buildInputIdentity": "290054fbf7882929788809fcfc540982088540b03bfa893879407a6db0e1e198",
+      "buildArtifactIdentity": "cc9ed30593438148d874fa5d52d494d6397f2b19290423dff26dc219eb044b5f",
+      "capturedResolvedBuildIdentity": "fbfd29fcf644f2d38b8312f4865d6c41edcb4fdfa84b83a19fde618ca76c43ad"
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "buildInputIdentity": "330f16b9e6fbc24a4ec0ced761e61855e026036beaf78f7f8b9c97946d17a7ba",
+      "buildArtifactIdentity": "e953534d4bc601d2e9685d6706179f4c0073ca0fc99e76f6bffcf1019a29acb2",
+      "capturedResolvedBuildIdentity": "5609b7858efea16f83feac4c1b43f6643e62c828d5cc723e924500b1447380ca"
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "buildInputIdentity": "7583ac9461b95644b85ac28cc65ecf68c6a6e6acf938ecb08dfea2c2ad19bf91",
+      "buildArtifactIdentity": "03d175e1c72e29d179cc92867ebdc8ad6e60b96fdfd9d81f08367adf293e2526",
+      "capturedResolvedBuildIdentity": "1106a3f3b4c7d5f8288306b487a9784eb7874fce1e6bd4e15238485c8fc26b91"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "buildInputIdentity": "28acbeb138cac63f182b718a0a18a2b74ad1a6a236e2b3c261a537e0d8ef425e",
+      "buildArtifactIdentity": "058169426f160f67932ae0f4b2864e16e3250718dca9914bfa9943bc29bee19e",
+      "capturedResolvedBuildIdentity": "74a90f5ebf53fe54b6fd9e357bd8c4b1f3278fa12f625d16d422c9a60285de0b"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "buildInputIdentity": "69314d79bcc4805a8338174927b25f38289e434f36bfce0f09a5ebb9d7f0c243",
+      "buildArtifactIdentity": "12317278381b1185ed2ec88b14fa5fe76cc762f56e6b338bff640742d71f054a",
+      "capturedResolvedBuildIdentity": "fcdbe4288dd497888b80a85805836e3f2e65e73e3236f98d8d889cee2ab63383"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "buildInputIdentity": "4648c99a8900fcf253b59556b33193f485fef1acc0b70a4dc5b0582e8b18ca6f",
+      "buildArtifactIdentity": "d35c77602be028f2b6da34e87c809f8c8d3d91877491593e3b23dba6ca85848c",
+      "capturedResolvedBuildIdentity": "de07088769a34b0ad0efbc133339c16c7c8a1517395f6162d07e46c1c7a52dc3"
+    }
+  ],
+  "allInputAndArtifactIdentitiesMatched": true,
+  "scope": "Current compiled source, dependency and output bytes match captured builds. This replay uses the captured resolved build-profile identities; actual compiler/SDK byte checks were performed by the original full native guards, not repeated by this check. It executes no native work and creates no performance acceptance.",
+  "reviewedUtc": "2026-10-11T11:04:23.5372454Z"
+}

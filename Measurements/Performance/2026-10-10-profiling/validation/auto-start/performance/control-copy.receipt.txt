@@ -1,0 +1,38 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\interactive-autostart\\control1-Release.json",
+    "copy": "control1-Release.json",
+    "bytes": 38484,
+    "sha256": "4BC7B71B65994C58B79C713BBBC40406FB0043EE97F597C24175CF9896D856BA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\interactive-autostart\\control1-Release.json.comparison.json",
+    "copy": "control1-comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-control1-Release.txt",
+    "copy": "control1.log",
+    "bytes": 1147,
+    "sha256": "99D12E7A6A3A8B478B9898363F3C97A9D7DB4ACD06C655B3C0477A7BEBC87779"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\interactive-autostart\\control2-Release.json",
+    "copy": "control2-Release.json",
+    "bytes": 38491,
+    "sha256": "9A66744077946973EA0B80C0B95BED496B60487CACD0F3D84736D9772F84CF5B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\interactive-autostart\\control2-Release.json.comparison.json",
+    "copy": "control2-comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-control2-Release.txt",
+    "copy": "control2.log",
+    "bytes": 1144,
+    "sha256": "D3EED9D76275CCBA8F8D258A3E14B90E71E044F0F8F15D7FDEFF4151C1C362CA"
+  }
+]

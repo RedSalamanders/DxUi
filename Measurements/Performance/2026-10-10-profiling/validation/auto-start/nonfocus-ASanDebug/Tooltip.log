@@ -1,0 +1,64 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Tooltip
+  [START] TestTooltipLayerTrackingUpdateReusesVisibleTooltip
+  [DONE] TestTooltipLayerTrackingUpdateReusesVisibleTooltip (0.866 s)
+  [START] TestTooltipLayerPrefersBelowRightWhenSpaceAllows
+  [DONE] TestTooltipLayerPrefersBelowRightWhenSpaceAllows (0.001 s)
+  [START] TestTooltipLayerFlipsAboveNearBottomEdge
+  [DONE] TestTooltipLayerFlipsAboveNearBottomEdge (0.000 s)
+  [START] TestTooltipLayerFlipsLeftNearRightEdge
+  [DONE] TestTooltipLayerFlipsLeftNearRightEdge (0.000 s)
+  [START] TestTooltipLayerWrapsLongTextAndStaysClamped
+  [DONE] TestTooltipLayerWrapsLongTextAndStaysClamped (0.000 s)
+  [START] TestTooltipLayerClampsBothAxesInTinyViewport
+  [DONE] TestTooltipLayerClampsBothAxesInTinyViewport (0.001 s)
+  [START] TestTooltipInspectionScrollsWithoutChangingFocusOrValue
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipInspectionScrollsWithoutChangingFocusOrValue (0.186 s)
+  [START] TestTooltipInspectionMirrorsMixedScriptLayoutAndPlacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipInspectionMirrorsMixedScriptLayoutAndPlacement (0.281 s)
+  [START] TestTooltipInspectionOutsideDismissalConsumesWholeGesture
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipInspectionOutsideDismissalConsumesWholeGesture (0.274 s)
+  [START] TestTooltipInspectionCaptureCallbackWinsReentrantOpen
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipInspectionCaptureCallbackWinsReentrantOpen (0.003 s)
+  [START] TestTooltipLayerHideDelayExpiresAfterTimerTicks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipLayerHideDelayExpiresAfterTimerTicks (0.418 s)
+  [START] TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick
+  [DONE] TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick (0.000 s)
+  [START] TestTooltipLayerTrackingMoveCancelsPendingHideDelay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTooltipLayerTrackingMoveCancelsPendingHideDelay (0.404 s)
+  [START] TestGridTooltipTracksPointerWithinSameCell
+  [DONE] TestGridTooltipTracksPointerWithinSameCell (0.232 s)
+  [START] TestInteractiveTooltipSurvivesEmptySupplementalTargetPass
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestInteractiveTooltipSurvivesEmptySupplementalTargetPass (0.041 s)
+  [START] TestTreeTooltipTracksPointerWithinSameRow
+  [DONE] TestTreeTooltipTracksPointerWithinSameRow (0.236 s)
+  [START] TestTreeTooltipFallsBackToClippedItemText
+  [DONE] TestTreeTooltipFallsBackToClippedItemText (0.013 s)
+  [START] TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough (0.075 s)
+[DONE] Tooltip (3.035 s)
+All DxUi tests passed.

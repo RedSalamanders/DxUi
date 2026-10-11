@@ -98,8 +98,13 @@ identity was compared with the later successful Debug retry. The new bounded set
 suite executions with zero skips and complete actual provenance. Two ASan confirmations time out before any
 foreground child runs, with verified unchanged desktop state. The third ASan attempt completes four full suites,
 zero skips, with verified restoration and complete actual provenance on unchanged bytes at clean `4bcc32fb`.
-The fresh Release confirmation times out before any child runs. Fresh Release/Debug foreground validation remains
-open; the earlier passes qualify their archived binaries only. Causes remain unproved.
+The fresh Release confirmation times out before any child runs. Those corrected-binary receipts qualify their
+archived source only. The later [approved automatic-start packet](validation/auto-start/README.md) records six
+fresh builds, 57 noninteractive and twelve complete foreground suite passes on clean `02961a88`, zero native
+skips and verified restoration in all three x64 profiles. Its actual clicked Start receipts are distinct from
+the private native no-click expiry regressions. The new Default comparison flags about 14% lower clean/dirty
+FPS; two fixed candidate-only controls show variability and leave performance acceptance open. Original
+UIA/setup causes remain unproved. The original analytical and raw pilot bytes remain unchanged.
 
 Replay the packet with `Analyze.ps1`, which requires the retained `SHA256SUMS` and checks imported helper bytes
 against the recorded profiling closure. If those helpers have changed, use their recorded `cc77bec2` versions.

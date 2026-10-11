@@ -31,5 +31,9 @@ are unpaired and separate from the fixed twelve-report pilot. No non-regression 
 
 Fresh ASan foreground validation passes on the exact corrected binaries. The zero-size setup acquires native and
 logical focus with an active session/TSF document on its first attempt, and its original assertions pass. Release
-and Debug foreground validation remain open. The original activation/focus/session failure's cause remains
-unproved. Native ARM64, physical IME/assistive technology and consumer acceptance remain separate.
+and Debug foreground validation remain open for this archived source. The later
+[approved automatic-start candidate](../../auto-start/README.md) separately passes six builds, all 57
+noninteractive and twelve full foreground executions in Debug/Release/ASan, zero native skips and verified
+restoration. These new receipts qualify their own lease bytes; the records here stay unchanged. The original
+activation/focus/session failure's cause remains unproved. Native ARM64, physical IME/assistive technology and
+consumer acceptance remain separate.

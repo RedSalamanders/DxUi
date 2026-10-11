@@ -98,19 +98,23 @@ investigation of the intermittent ASan UIA selection-event failure. Continue on 
 - [x] Complete affected noninteractive checks and six-profile build accounting, update usage/domain contracts and
   changelog fragments, and independently review delegated code/evidence. The lead repeats all fifteen UIA replay
   cases; the strengthened reader rejects the twelve corruptions the earlier reader accepted.
-- [ ] Complete fresh Debug/Release/ASan focus suites through confirmed local leases. Preserve the canceled initial
+- [x] Complete fresh Debug/Release/ASan focus suites through approved local leases. Preserve the canceled initial
   Debug attempt and four later confirmed attempts on `5763d57e`: Debug retry passes with verified restoration;
   Release fails Menu popup discovery and ASan repeats the initial NativeTextInput setup failure, followed by grant/
   restoration failures. Bounded attempt-local setup diagnostics preserve activation/assertion policy; their corrected
   binaries pass six builds and 57 noninteractive executions, zero skips. Two ASan confirmations time out without
   child execution; the third completes all four full focus suites, zero skips, with verified restoration and
   complete actual provenance on unchanged bytes at clean `4bcc32fb`. The fresh Release confirmation also times out
-  before any child executes. Fresh Release/Debug foreground validation remains open; earlier focus evidence
-  qualifies its own binaries only.
-- [ ] Implement and qualify the user's approved automatic Start mode (11 October): a visible 30-second countdown,
+  before any child executes. The approved automatic-start candidate at clean `02961a88` then passes all four
+  complete foreground suites in each profile, zero skips, with full actual provenance and verified restoration.
+  Earlier focus evidence qualifies its own binaries only.
+- [x] Implement and qualify the user's approved automatic Start mode (11 October): a visible 30-second countdown,
   immediate cancellation, distinct native start/mode/countdown provenance, post-countdown desktop recheck, private-
   desktop/fake/tooling regressions and fresh focus execution. Ordinary manual confirmation remains the default for
-  runs without explicit automatic-start approval. Existing ASan success qualifies its archived lease bytes only.
+  runs without explicit automatic-start approval. Six fresh builds, 57 complete noninteractive executions and
+  twelve complete foreground executions pass on `02961a88`; private lease and 32/32 tooling cases cover expiry,
+  cancellation, wrong/duplicate metadata and local/manual compatibility. Independent review repairs two external
+  focus-reviewer gaps; focused negative proofs and exact bytes are retained in the new packet.
 
 The original follow-up retains 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips),
 four native profiling feature cases and six-profile builds. The corrected setup-diagnostic inputs separately pass
@@ -123,7 +127,13 @@ cause. Bounded passive stage diagnostics compile in all six profiles and pass th
 [corrected-binary runs](../../../Measurements/Performance/2026-10-10-profiling/validation/focus/setup-runs/README.md)
 retain all 57 suite/log/scoped-receipt sets, actual complete post-native state and every canceled confirmation.
 The third ASan attempt exercises the setup observations and passes all four full foreground suites, zero skips,
-with verified restoration. Fresh Release/Debug foreground qualification remains open; the earlier cause is unproved.
+with verified restoration. The [automatic-start packet](../../../Measurements/Performance/2026-10-10-profiling/validation/auto-start/README.md)
+separately closes fresh local x64 foreground execution in all three profiles on clean `02961a88`. Its native
+receipts record clicked Start under the approved 30-second mode; private native regressions exercise no-click
+expiry. The lead independently checks all archived copy bindings and actual post-run build/tool/SDK/dependency/
+artifact states. The original UIA/setup failure causes remain unproved. The frozen before/candidate Default pair
+flags ten timing/FPS metrics, including about 14% lower clean and dirty FPS. Two fixed same-binary control reports
+show variability but do not dismiss those flags or qualify baseline-side controls; performance acceptance stays open.
 [The profiling packet](../../../Measurements/Performance/2026-10-10-profiling/README.md)
 and [UIA packet](../../../Measurements/UiaSelection/2026-10-10/README.md) preserve the exact inventories and limits.
 

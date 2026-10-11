@@ -1,0 +1,36 @@
+{
+  "purpose": "root-independent-replay-of-agent-archived-noninteractive-audit",
+  "sourceCommit": "02961a88321c75ccd39090873f48977206d6dfdb",
+  "copiedOriginals": 191,
+  "envelopeDigests": 66,
+  "profiles": [
+    {
+      "configuration": "Debug",
+      "suites": 19,
+      "skips": 0,
+      "newCases": 5,
+      "copiedOriginals": 63,
+      "capturedStateFields": 26
+    },
+    {
+      "configuration": "Release",
+      "suites": 19,
+      "skips": 0,
+      "newCases": 5,
+      "copiedOriginals": 63,
+      "capturedStateFields": 26
+    },
+    {
+      "configuration": "ASan Debug",
+      "suites": 19,
+      "skips": 0,
+      "newCases": 5,
+      "copiedOriginals": 65,
+      "capturedStateFields": 26
+    }
+  ],
+  "verified": null,
+  "scope": "Archived consistency and positive complete suite execution; actual live provenance was checked by each original root snapshot helper. This replay does not execute native work or establish focus/performance acceptance.",
+  "reviewerScriptSha256": "53F2D8D67B23CB58297F071E06D1B6AC3BEDBBC209A8ADC18586FE98396848D2",
+  "reviewedUtc": "2026-10-11T10:43:49.0186766Z"
+}

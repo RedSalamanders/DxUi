@@ -1,0 +1,40 @@
+[CmdletBinding()]
+param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$root = 'C:/Users/eric/.codex/worktrees/performance-forms/DxUi'
+$folder = Join-Path $PSScriptRoot 'focus-autostart-ASanDebug-attempt1'
+$review = Get-Content -LiteralPath (Join-Path $folder 'root-review.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+if ($review.parentExitCode -ne 0 -or $review.sourceCommit -cne '02961a88321c75ccd39090873f48977206d6dfdb' -or
+    $review.sourceDirty -or -not $review.exactPostFocusIdentityMatched) { throw 'A successful fresh ASan focus snapshot is required.' }
+$sources = @(
+    [ordered]@{ original=(Join-Path $root '.build/reports/AddressSanitizer-x64.json'); copy='AddressSanitizer.receipt.txt' },
+    [ordered]@{ original=(Join-Path $root '.build/logs/test-AddressSanitizer-x64.log'); copy='AddressSanitizer.log' }
+)
+$bindings = @(foreach ($source in $sources) {
+    $copy = Join-Path $folder $source.copy
+    if (Test-Path -LiteralPath $copy) { throw 'An immutable sanitizer companion already exists.' }
+    $hash = (Get-FileHash -LiteralPath $source.original -Algorithm SHA256).Hash
+    $length = (Get-Item -LiteralPath $source.original).Length
+    Copy-Item -LiteralPath $source.original -Destination $copy
+    if ((Get-Item -LiteralPath $copy).Length -ne $length -or (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $hash -or
+        (Get-FileHash -LiteralPath $source.original -Algorithm SHA256).Hash -cne $hash) { throw 'Sanitizer companion bytes changed during copying.' }
+    [ordered]@{ original=$source.original; copy=$source.copy; bytes=$length; sha256=$hash }
+})
+$probe = Get-Content -LiteralPath (Join-Path $folder 'AddressSanitizer.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable
+$previous = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'nonfocus-autostart-ASanDebug/AddressSanitizer.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable
+$executable = Join-Path $root '.build/x64/ASan Debug/DxUi.FoundationTests.exe'
+if ($probe.suite -cne 'AddressSanitizer' -or $probe.configuration -cne 'ASan Debug' -or $probe.platform -cne 'x64' -or
+    $probe.nativeArchitecture -cne 'X64' -or $probe.exitCode -ne 1 -or -not $probe.detected -or
+    [DateTime]$probe.completedUtc -le [DateTime]$previous.completedUtc -or
+    [IO.Path]::GetFullPath($probe.executable) -cne [IO.Path]::GetFullPath($executable) -or
+    $probe.sha256 -cne (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash -or
+    @(Select-String -LiteralPath (Join-Path $folder 'AddressSanitizer.log') -Pattern '^==.*ERROR: AddressSanitizer: heap-use-after-free').Count -ne 1) { throw 'The fresh isolated sanitizer probe is not diagnosed and bound to current bytes.' }
+[IO.File]::WriteAllText((Join-Path $folder 'probe-copy.receipt.txt'), ((ConvertTo-Json -InputObject $bindings -Depth 8)+[char]10), [Text.UTF8Encoding]::new($false))
+$probeReview = [ordered]@{ purpose='root-reviewed-fresh-isolated-asan-detection-companions'; ordinaryFocusSuitesPassed=4; ordinarySuiteSkips=0;
+    expectedProbeExitCode=$probe.exitCode; deliberateHeapUseAfterFreeDetected=$probe.detected; executableSha256=$probe.sha256;
+    completedUtc=$probe.completedUtc; laterThanNoninteractiveProbe=$true; copiedOriginals=$bindings.Count;
+    qualification='The intentional isolated sanitizer failure establishes detection, independently of the four ordinary passing foreground suites.';
+    reviewerScriptSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; reviewedUtc=[DateTime]::UtcNow.ToString('o') }
+[IO.File]::WriteAllText((Join-Path $folder 'probe-review.receipt.txt'), ((ConvertTo-Json -InputObject $probeReview -Depth 12)+[char]10), [Text.UTF8Encoding]::new($false))
+Write-Output 'PASS fresh ASan isolated detection probe: expected exit 1, deliberate heap-use-after-free diagnosed, two exact companion copies.'

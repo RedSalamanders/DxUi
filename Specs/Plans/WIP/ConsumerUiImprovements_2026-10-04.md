@@ -709,7 +709,7 @@ Library validation cannot complete those product gates. Keep adoption measuremen
 
 Documentation/gallery review for S0-S2: the control guide, layout usage, normative contracts, capability inventory,
 three component guidelines/previews and published 33-control gallery are updated. All six harness images were
-reviewed for clipping, overlap and missing content. Local functional/resource evidence is retained above. The remaining focus, native-platform and paired-performance gates
+reviewed for clipping, overlap and missing content. Local functional/resource evidence is retained above. The remaining native-platform and paired-performance gates
 above still determine stage acceptance; completed implementation checkboxes do not qualify those gates. S3-S7 and
 consumer adoption remain deferred. This plan does not close existing menu, Grid, Tree, slider, consumer or platform
 plans.
