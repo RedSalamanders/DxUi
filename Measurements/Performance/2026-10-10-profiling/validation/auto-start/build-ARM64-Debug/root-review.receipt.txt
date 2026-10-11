@@ -1,0 +1,64 @@
+{
+  "purpose": "root-reviewed-clean-candidate-cross-build",
+  "platform": "ARM64",
+  "configuration": "Debug",
+  "nativeRuntimeQualified": false,
+  "startedUtc": "2026-10-11T09:52:41.0800197Z",
+  "completedUtc": "2026-10-11T09:56:12.7976624Z",
+  "exitCode": 0,
+  "buildLogBasis": "canonical build.ps1 complete console stream",
+  "actualBuildState": {
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "nativeArchitecture": "X64",
+    "machine": "SINON",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "os": "Microsoft Windows 10.0.26300",
+    "warpVersion": "10.0.26100.9278 (WinBuild.160101.0800)",
+    "warpSha256": "CD1A6F11EABE677CA3D8F5E7721CDE1E56C552E253CE13BDFBB9A056C2B2ED52",
+    "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+    "sourceCommit": "02961a88321c75ccd39090873f48977206d6dfdb",
+    "sourceDirty": false,
+    "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+    "executableSha256": "C8A935958D6C84F3DBE432E2F209FBA6EA4C92BAB3122E10690F23816CEE3FF4",
+    "benchmarkInputs": {
+      "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+      "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+      "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+      "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+      "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+    },
+    "benchmarkSha256": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+    "buildInputIdentity": "28acbeb138cac63f182b718a0a18a2b74ad1a6a236e2b3c261a537e0d8ef425e",
+    "buildArtifactIdentity": "058169426f160f67932ae0f4b2864e16e3250718dca9914bfa9943bc29bee19e",
+    "buildIdentityVersion": 2,
+    "resolvedBuildIdentity": "74a90f5ebf53fe54b6fd9e357bd8c4b1f3278fa12f625d16d422c9a60285de0b",
+    "identityStatus": "verifiable",
+    "identityScope": "full",
+    "harnessIdentity": "DF2EE5E067BED1AA5AAA9FE82B045D1931C723966EEFD99A41CF1890069C9A5B",
+    "toolchainIdentity": "5829BDCCB1937034061D6385339388A3C9EE8FE5745D53CA5B0ADAF72FDA8A62",
+    "dependencyIdentity": "17D4E19ABE61FB09AED292BBC09B9C551178F6FA7D405016D1DAC59B1EEB28C7",
+    "environmentIdentity": "B4400980D018CC9680976FD0FAC7C566CBBA848D5BE8269AFB97AA9150671D08",
+    "buildAttestationIdentity": "5ae539b5ddc2c119e6cd1db00e1dd7ea1850114b378f8af7f75723f3926c2ea1"
+  },
+  "copies": [
+    {
+      "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-build-final-ARM64-Debug.txt",
+      "copy": "build.log",
+      "bytes": 5229,
+      "sha256": "BFD45A362A6C744FD30956FCB3EF2C3E80A028DCA4EB2FDD0D7C93FFFA34A579"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Debug\\build.json",
+      "copy": "build.receipt.txt",
+      "bytes": 259,
+      "sha256": "3BF78193DF91E387B14429EE318B4AC8A3CF8836936E94BC12BDDB370AFB8604"
+    },
+    {
+      "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Debug\\incremental.json",
+      "copy": "incremental.receipt.txt",
+      "bytes": 259,
+      "sha256": "CF28CA028A4725E0BCBB1A5D1D126F258011297FBDF9398E1A0A4B6B80375471"
+    }
+  ]
+}

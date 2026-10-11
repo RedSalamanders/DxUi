@@ -1,0 +1,53 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2560.38 completed offscreen FPS; p95 0.453 ms; private 31834112 bytes
+Complex UI clean round 2: 2554.8 completed offscreen FPS; p95 0.4493 ms; private 31703040 bytes
+Complex UI clean round 3: 2657.3 completed offscreen FPS; p95 0.4384 ms; private 32387072 bytes
+Complex UI clean round 4: 2608.82 completed offscreen FPS; p95 0.4377 ms; private 32559104 bytes
+Complex UI clean round 5: 2753.04 completed offscreen FPS; p95 0.4146 ms; private 32681984 bytes
+Complex UI dirty round 1: 496.252 completed offscreen FPS; p95 2.2127 ms; private 33902592 bytes
+Complex UI dirty round 2: 502.055 completed offscreen FPS; p95 2.1927 ms; private 33943552 bytes
+Complex UI dirty round 3: 389.511 completed offscreen FPS; p95 7.2465 ms; private 33931264 bytes
+Complex UI dirty round 4: 428.633 completed offscreen FPS; p95 3.4658 ms; private 33914880 bytes
+Complex UI dirty round 5: 496.333 completed offscreen FPS; p95 2.3096 ms; private 33263616 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-Debug-0b338b99dde1417683086229a71c7a12.json
+Running Accessibility (x64 Debug), tests: TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+FAIL Accessibility exited with code 1
+    [UIA] frozen event cutoff=8 tick=199625968: [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.] [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.] [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.] [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.] [property 30025 from Edit 'Largeur du dessin ? ?' = true] [property 30025 from Edit 'Largeur du dessin ? ?' = true] [property 30103 from Edit 'Largeur du dessin ? ?' = false] [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [UIA arrivals] entries=8 completed=8 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=1 index=0 entered=199611109 completed=199611109 [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.]
+    [UIA arrival] seq=2 index=1 entered=199611406 completed=199611406 [property 30013 from Edit 'Largeur du dessin ? ?' = Largeur finale du dessin.]
+    [UIA arrival] seq=3 index=2 entered=199613125 completed=199613125 [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.]
+    [UIA arrival] seq=4 index=3 entered=199613406 completed=199613406 [property 30026 from Edit 'Largeur du dessin ? ?' = Saisissez une largeur comprise entre 1 et 4096 pixels.]
+    [UIA arrival] seq=5 index=4 entered=199614812 completed=199614812 [property 30025 from Edit 'Largeur du dessin ? ?' = true]
+    [UIA arrival] seq=6 index=5 entered=199615125 completed=199615125 [property 30025 from Edit 'Largeur du dessin ? ?' = true]
+    [UIA arrival] seq=7 index=6 entered=199616859 completed=199616859 [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [UIA arrival] seq=8 index=7 entered=199617171 completed=199617171 [property 30103 from Edit 'Largeur du dessin ? ?' = false]
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+FAILED: real UIA client hears each form presentation change
+Exception: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\test.ps1:262
+Line |
+ 262 |  … es.Count) { throw "DxUi failed suites: $($failures -join '; '). See . …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | DxUi failed suites: Accessibility exited with code 1. See .build/logs and .build/reports.

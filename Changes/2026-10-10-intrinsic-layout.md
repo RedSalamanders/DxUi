@@ -1,0 +1,2 @@
+- Add opt-in intrinsic control measurement and FlexPanel flow with shaped Unicode metrics, explicit wrapping and fallback sizes, stable editor widths, bounded numeric caches, overflow reporting, RTL geometry, and shared native/embedded preparation guarded against reentrant callbacks.
+  - Preserve callback-authored replacement options, retire staged arrangements after nested measurement, and validate represented fractional/extreme-coordinate bounds before child geometry is committed.

@@ -1,0 +1,20 @@
+[
+  {
+    "index": 1,
+    "configuration": "Debug",
+    "scenario": "Default",
+    "heap": false,
+    "report": "validation-01-Default-Debug.json",
+    "exitCode": 0,
+    "completedUtc": "2026-10-10T22:05:22.7459167Z"
+  },
+  {
+    "index": 2,
+    "configuration": "Debug",
+    "scenario": "MultilineGrid",
+    "heap": true,
+    "report": "validation-02-MultilineGrid-Debug.json",
+    "exitCode": 0,
+    "completedUtc": "2026-10-10T22:05:50.9799323Z"
+  }
+]

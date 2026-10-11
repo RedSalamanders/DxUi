@@ -1149,6 +1149,57 @@ void AddComboItems(ComboBox& combo)
         }
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"FlexPanel / Intrinsic wrapping", 1u, 158.0f);
+        auto* panel     = scene.root->AddChild<FlexPanel>();
+        panel->SetBounds(D2D1::RectF(tile.content.left + 8, tile.content.top + 8, tile.content.right - 8, tile.content.bottom - 8));
+        RequireSucceeded(panel->SetOrientation(StackOrientation::Horizontal), "gallery horizontal intrinsic flow");
+        RequireSucceeded(panel->SetWrap(true), "gallery intrinsic wrapping");
+        RequireSucceeded(panel->SetGap(8), "gallery intrinsic gap");
+        panel->AddChild<Button>(L"Conserver");
+        panel->AddChild<Button>(L"Annuler");
+        panel->AddChild<Button>(L"Réessayer");
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"FormField / Required and invalid", 2u, 220.0f);
+        auto* field     = scene.root->AddChild<FormField>(L"document.name", L"Nom du document");
+        field->SetBounds(D2D1::RectF(tile.content.left + 8, tile.content.top + 8, tile.content.right - 8, tile.content.bottom - 8));
+        Require(field->AddEditor<TextField>(L"Projet e\u0301 \U0001F642") != nullptr, "gallery form field editor");
+        field->SetDescription(L"Ce nom est conservé avec votre document.");
+        RequireSucceeded(field->SetRequired(true), "gallery required field semantics");
+        RequireSucceeded(field->SetValidation(ValidationState::Error, L"Saisissez un nom unique avant de confirmer."), "gallery textual field error");
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"FormPanel / Two columns and separate actions", 2u, 230.0f);
+        auto* form      = scene.root->AddChild<FormPanel>();
+        form->SetBounds(D2D1::RectF(tile.content.left + 8, tile.content.top + 8, tile.content.right - 8, tile.content.bottom - 52));
+        RequireSucceeded(form->SetColumns(2), "gallery form columns");
+        auto* width  = form->AddField(L"canvas.width", L"Largeur du dessin");
+        auto* height = form->AddField(L"canvas.height", L"Hauteur du dessin");
+        Require(width && height, "gallery stable form field identities");
+        auto* widthEditor  = width->AddEditor<NumericStepper>();
+        auto* heightEditor = height->AddEditor<NumericStepper>();
+        Require(widthEditor && heightEditor, "gallery form numeric editors");
+        widthEditor->SetValue(1920);
+        heightEditor->SetValue(1080);
+        width->SetDescription(L"Pixels, de 1 à 4096.");
+        height->SetDescription(L"La valeur reste un brouillon.");
+        auto* action = scene.root->AddChild<Button>(L"Confirmer les dimensions");
+        action->SetBounds(D2D1::RectF(tile.content.left + 8, tile.content.bottom - 40, tile.content.right - 8, tile.content.bottom - 8));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"FormPanel / Beside labels, RTL and errors", 2u, 280.0f);
+        auto* form      = scene.root->AddChild<FormPanel>();
+        form->SetBounds(D2D1::RectF(tile.content.left + 8, tile.content.top + 8, tile.content.right - 8, tile.content.bottom - 8));
+        form->SetFlowDirection(FlowDirection::RightToLeft);
+        RequireSucceeded(form->SetLabelPlacement(LabelPlacement::Beside), "gallery shared RTL labels");
+        auto* field = form->AddField(L"profile.name", L"اسم المستند");
+        auto* mode  = form->AddField(L"profile.mode", L"وضع العرض");
+        Require(field && mode && field->AddEditor<TextField>(L"وثيقة جديدة") && mode->AddEditor<ComboBox>(), "gallery RTL form editors");
+        field->SetDescription(L"يحافظ التخطيط على النص وترتيب التنقل.");
+        RequireSucceeded(field->SetValidation(ValidationState::Error, L"أدخل اسماً فريداً قبل التأكيد."), "gallery RTL textual error");
+        AddComboItems(*static_cast<ComboBox*>(mode->GetEditor()));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"Tree / Hierarchy", 2u, 156.0f);
         scene.treeModel = std::make_unique<GalleryTreeModel>();
         auto* tree      = scene.root->AddChild<Tree>();

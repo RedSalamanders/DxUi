@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Scope.Tests.FormAccessibility.h"
 #include "Scope.Tests.GridUiaPattern.h"
 
 #include <array>
@@ -8686,25 +8687,107 @@ void TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport()
            a.get() == b.get();
 }
 
+void TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream()
+{
+    ULONGLONG now   = 0u;
+    const auto busy = UiaTest::WaitForQuiescence(500u, 1000u, [&] { return now; }, [&] { return static_cast<size_t>(now / 100u); }, [&] { ++now; });
+    Require(! busy.quiet && busy.completed == 1000u && busy.endCount == 10u && busy.lastArrival == 1000u,
+            "an active event stream reaches the deadline without establishing quiescence");
+    now                      = 0u;
+    const auto shortDeadline = UiaTest::WaitForQuiescence(500u, 499u, [&] { return now; }, [] { return 0u; }, [&] { ++now; });
+    Require(! shortDeadline.quiet && shortDeadline.completed == 499u, "a deadline shorter than the quiet interval cannot silently pass even without arrivals");
+    now                = 0u;
+    const auto overrun = UiaTest::WaitForQuiescence(500u, 1000u, [&] { return now; }, [] { return 0u; }, [&] { now = 1500u; });
+    Require(! overrun.quiet && overrun.completed == 1500u,
+            "a slow pump returning beyond the deadline cannot establish successful quiescence from the silence it observed");
+    now                  = 0u;
+    const auto inclusive = UiaTest::WaitForQuiescence(500u, 500u, [&] { return now; }, [] { return 0u; }, [&] { now = 500u; });
+    Require(inclusive.quiet && inclusive.completed == 500u, "a complete quiet interval observed exactly at the deadline is accepted");
+}
+
+void TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary()
+{
+    for (const ULONGLONG arrivalAt : {400ull, 500ull})
+    {
+        ULONGLONG now    = 0u;
+        const auto quiet = UiaTest::WaitForQuiescence(500u, 1500u, [&] { return now; }, [&] { return now >= arrivalAt ? 1u : 0u; }, [&] { ++now; });
+        Require(quiet.quiet && quiet.endCount == 1u && quiet.lastArrival == arrivalAt && quiet.completed == arrivalAt + 500u,
+                "an arrival at or before the quiet boundary starts a complete new quiet interval");
+    }
+    ULONGLONG now          = 0u;
+    const auto twoArrivals = UiaTest::WaitForQuiescence(
+        500u, 1500u, [&] { return now; }, [&] { return static_cast<size_t>(now >= 400u) + static_cast<size_t>(now >= 800u); }, [&] { ++now; });
+    Require(twoArrivals.quiet && twoArrivals.endCount == 2u && twoArrivals.lastArrival == 800u && twoArrivals.completed == 1300u,
+            "every later count change resets the quiet interval");
+}
+
+void TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep()
+{
+    const UiaTest::HeardEvent selected{
+        UiaTest::EventKind::Automation, UIA_SelectionItem_ElementSelectedEventId, UIA_DataItemControlTypeId, L"Ligne 3", L"row-3", {}};
+    std::vector<UiaTest::HeardEvent> events{selected};
+    ULONGLONG now     = 0u;
+    const auto before = UiaTest::WaitForQuiescence(500u, 1500u, [&] { return now; }, [&] { return events.size(); }, [&] { ++now; });
+    Require(before.quiet && now == 500u, "the first notification stream has an observed five hundred milliseconds of silence");
+    const size_t mark = events.size();
+    const auto after  = UiaTest::WaitForQuiescence(500u,
+                                                   1500u,
+                                                   [&] { return now; },
+                                                   [&] { return events.size(); },
+                                                   [&]
+    {
+        if (++now == 501u)
+            events.push_back(selected);
+    });
+    Require(after.quiet && after.lastArrival == 501u && after.completed == 1001u, "a repeat beyond the prior quiet boundary starts another quiet interval");
+    Require(UiaTest::DistinctEventsSince(events, mark) == std::vector<UiaTest::HeardEvent>{selected},
+            "a repeated payload after a new mark remains visible rather than being silently discarded across steps");
+}
+
+void TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication()
+{
+    const UiaTest::HeardEvent selected{
+        UiaTest::EventKind::Automation, UIA_SelectionItem_ElementSelectedEventId, UIA_DataItemControlTypeId, L"Ligne 3", L"row-3", {}};
+    UiaTest::HeardEvent otherRow = selected;
+    otherRow.name                = L"Ligne 4";
+    otherRow.automationId        = L"row-4";
+    UiaTest::HeardEvent isSelected{
+        UiaTest::EventKind::Property, UIA_SelectionItemIsSelectedPropertyId, UIA_DataItemControlTypeId, L"Ligne 3", L"row-3", L"true"};
+    UiaTest::HeardEvent deselected = isSelected;
+    deselected.value               = L"false";
+    UiaTest::EventSnapshot snapshot;
+    snapshot.events   = {selected, selected, isSelected, deselected, otherRow, selected};
+    snapshot.arrivals = {{1u, 0u, 10u, 11u}, {2u, 1u, 1000u, 1001u}};
+    Require(snapshot.arrivals[0].sequence != snapshot.arrivals[1].sequence && snapshot.events[0] == snapshot.events[1],
+            "different callback times and sequences do not change event equality");
+    const auto distinct = UiaTest::DistinctEventsSince(snapshot.events, 0u);
+    Require(distinct.size() == 4u && std::ranges::count(distinct, selected) == 1 && std::ranges::count(distinct, isSelected) == 1 &&
+                std::ranges::count(distinct, deselected) == 1 && std::ranges::count(distinct, otherRow) == 1,
+            "within-step duplicates collapse while row identity, event kind and property value keep their existing distinctions");
+    Require(UiaTest::DistinctEventsSince(snapshot.events, 5u) == std::vector<UiaTest::HeardEvent>{selected},
+            "a later step can legitimately hear the same selection payload again");
+    Require(UiaTest::DistinctEventsSince(snapshot.events, snapshot.events.size() + 1u).empty(), "a mark beyond the captured cutoff remains empty");
+}
+
 // A UI Automation client of one test window, with what the tests ask of it. `root` is the window's element.
 class SingleControlClient final
 {
 public:
-    explicit SingleControlClient(AttachedHostWindow& window, UiaTest::Subscription subscription = {})
-        : client(window.Hwnd(), std::move(subscription), [&window] { window.PumpMessages(); }),
+    explicit SingleControlClient(AttachedHostWindow& window, UiaTest::Subscription subscription = {}, bool timeline = false)
+        : client(window.Hwnd(), std::move(subscription), [&window] { window.PumpMessages(); }, timeline),
           root(client.Root())
     {
     }
 
-    // An expectation of what the client sees. A failed one first reports the tree the client walks and the events it heard.
+    // Freeze heard events before the diagnostic tree walk can pump further notifications.
     void Expect(bool condition, const char* message)
     {
         if (! condition)
         {
+            client.PrintEvents(); // Freeze the failure cutoff before Dump pumps providers and further arrivals.
             std::cerr << "    [UIA] the client walks from the window's element:\n";
             for (const wchar_t unit : client.Dump(root))
                 std::cerr << (unit < 0x80 ? static_cast<char>(unit) : '?');
-            client.PrintEvents();
         }
         Require(condition, message);
     }
@@ -9193,6 +9276,8 @@ void SizeClientAreaInDips(AttachedHostWindow& window, float widthDip, float heig
 // Requires that the client heard `expected`, no more and no less, for a step of a test: what HearSelectionEvents returned.
 void ExpectHeard(SingleControlClient& walk, const std::vector<std::wstring>& heard, std::vector<std::wstring> expected, const char* step)
 {
+    if (walk.client.TimelineEnabled())
+        std::cerr << "    [UIA timeline] step=" << walk.client.DiagnosticStep() << " name=" << step << '\n';
     expected = UiaTest::SortedEvents(std::move(expected));
     if (heard == expected)
         return;
@@ -9393,6 +9478,119 @@ struct SelectionGridWindow final
     DxUi::Grid* grid = nullptr;
 };
 
+// The existing provider hook runs after a raise attempt, including IsSelected properties. These are attempts, not successful
+// delivery counts or event payload identities. Record only numeric data in the hook; printing never pumps messages.
+class GridSelectionAttemptTimeline final
+{
+public:
+    explicit GridSelectionAttemptTimeline(UiaTest::Client& client) : _client(client)
+    {
+        _client.SetFailureDiagnostic([this] { Print(0u); });
+        DxUi::DebugSetAccessibilitySelectionEventHookForTest(&GridSelectionAttemptTimeline::OnAttempt, this);
+        std::cerr << "    [UIA provider attempts] capacity=" << _attempts.size() << " storageBytes=" << sizeof(_attempts)
+                  << " callbackData=numeric-only hook=after-raise-attempt\n";
+    }
+
+    GridSelectionAttemptTimeline(const GridSelectionAttemptTimeline&)            = delete;
+    GridSelectionAttemptTimeline& operator=(const GridSelectionAttemptTimeline&) = delete;
+
+    ~GridSelectionAttemptTimeline()
+    {
+        DxUi::DebugSetAccessibilitySelectionEventHookForTest(nullptr, nullptr);
+        _client.SetFailureDiagnostic({});
+    }
+
+    void BeginStep() noexcept
+    {
+        ++_step;
+        _first = _count;
+        _phase = Phase::BeforeAction;
+    }
+
+    void BeginAction() noexcept
+    {
+        _actionFirst = _count;
+        _phase       = Phase::Action;
+    }
+
+    void EndAction() noexcept
+    {
+        _phase = Phase::AfterAction;
+    }
+
+    void FinishStep()
+    {
+        Print(_printed);
+        _printed = _count;
+        if (_count > _attempts.size())
+            UiaTest::Fail("the bounded provider selection-attempt timeline overflowed");
+    }
+
+    [[nodiscard]] bool ActionRaisedNothing() const noexcept
+    {
+        return _count == _actionFirst;
+    }
+
+private:
+    enum class Phase : uint32_t
+    {
+        BeforeAction,
+        Action,
+        AfterAction,
+    };
+
+    struct Attempt
+    {
+        size_t sequence = 0u;
+        size_t step     = 0u;
+        ULONGLONG tick  = 0u;
+        Phase phase     = Phase::BeforeAction;
+        DWORD thread    = 0u;
+    };
+
+    static const char* PhaseName(Phase phase) noexcept
+    {
+        switch (phase)
+        {
+            case Phase::BeforeAction: return "before";
+            case Phase::Action: return "action";
+            case Phase::AfterAction: return "after";
+        }
+        return "unknown";
+    }
+
+    static void OnAttempt(void* context) noexcept
+    {
+        auto& self         = *static_cast<GridSelectionAttemptTimeline*>(context);
+        const size_t index = self._count++;
+        if (index < self._attempts.size())
+            self._attempts[index] = Attempt{index + 1u, self._step, GetTickCount64(), self._phase, GetCurrentThreadId()};
+    }
+
+    void Print(size_t first) const
+    {
+        const size_t cutoff = (std::min)(_count, _attempts.size());
+        std::cerr << "    [UIA provider attempts] step=" << _step << " phase=" << PhaseName(_phase) << " counts=" << first << ".." << _count
+                  << " stepFirst=" << _first << " actionFirst=" << _actionFirst << " capacity=" << _attempts.size()
+                  << " overflow=" << (_count > _attempts.size()) << '\n';
+        for (size_t index = first; index < cutoff; ++index)
+        {
+            const auto& attempt = _attempts[index];
+            std::cerr << "    [UIA provider attempt] seq=" << attempt.sequence << " step=" << attempt.step << " tick=" << attempt.tick
+                      << " phase=" << PhaseName(attempt.phase) << " thread=" << attempt.thread << '\n';
+        }
+    }
+
+    UiaTest::Client& _client;
+    std::array<Attempt, UiaTest::kEventTimelineCapacity> _attempts{};
+    size_t _count       = 0u;
+    size_t _step        = 0u;
+    size_t _first       = 0u;
+    size_t _printed     = 0u;
+    size_t _actionFirst = 0u;
+    Phase _phase        = Phase::BeforeAction;
+};
+
 // The selection events of a grid's rows, as a client subscribed to the window hears them from the library. A row the selection
 // becomes alone is selected, which says that the others left it; rows that Ctrl+click, Shift+click, clearing or the application
 // add or remove are each added or removed; each row whose state changed reports its IsSelected change; more than 20 changes, or a
@@ -9400,12 +9598,32 @@ struct SelectionGridWindow final
 // selection; and a republish that changed no selection is silent. What a client hears is the same whether the window's element
 // stands for the grid or the grid has an element of its own. A cell is a child of its row: an event raised on it reaches the
 // client too.
-void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
+void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test, bool diagnose = false)
 {
-    SingleControlClient walk(test.window, UiaTest::SelectionEventsSubscription());
+    SingleControlClient walk(test.window, UiaTest::SelectionEventsSubscription(), diagnose);
+    std::unique_ptr<GridSelectionAttemptTimeline> attempts;
+    if (diagnose)
+        attempts = std::make_unique<GridSelectionAttemptTimeline>(walk.client);
     DxUi::Grid& grid                   = *test.grid;
     const NumberedRowsGridModel& model = test.model;
-    const auto hear = [&](size_t expected, const std::function<void()>& action) { return UiaTest::HearSelectionEvents(walk.client, expected, action); };
+    const auto hear                    = [&](size_t expected, const std::function<void()>& action)
+    {
+        if (! attempts)
+            return UiaTest::HearSelectionEvents(walk.client, expected, action);
+        attempts->BeginStep();
+        auto heard = UiaTest::HearSelectionEvents(walk.client,
+                                                  expected,
+                                                  [&]
+        {
+            attempts->BeginAction();
+            action();
+            attempts->EndAction();
+        });
+        attempts->FinishStep();
+        if (expected == 0u)
+            walk.Expect(attempts->ActionRaisedNothing(), "republishing an unchanged selection makes no provider selection-event attempt");
+        return heard;
+    };
     const auto row  = [](std::wstring_view what, size_t number) { return std::wstring(what) + L" DataItem 'Ligne " + std::to_wstring(number) + L"'"; };
     const auto rows = [&](std::wstring_view what, size_t first, size_t last)
     {
@@ -9517,12 +9735,14 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
     RequireSucceeded(UiaRaiseAutomationEvent(cell.get(), UIA_SelectionItem_ElementSelectedEventId), "raise an event on a grid cell");
     walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Ligne 2")),
                 "a client subscribed to the window hears an event raised on a grid cell");
+    if (diagnose)
+        walk.client.PrintArrivalTail();
 }
 
 void TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow()
 {
     SelectionGridWindow test(true);
-    ExpectClientHearsGridSelectionEvents(test);
+    ExpectClientHearsGridSelectionEvents(test, true);
 }
 
 void TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow()
@@ -10004,6 +10224,10 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream);
+    DXUI_RUN_TEST(TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary);
+    DXUI_RUN_TEST(TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep);
+    DXUI_RUN_TEST(TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication);
     DXUI_RUN_TEST(TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient);
     DXUI_RUN_TEST(TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback);
     DXUI_RUN_TEST(TestPreparedTreeInvalidCountFallsBackToCurrentModel);
@@ -10136,6 +10360,16 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation);
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringRowNavigation);
     DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPropertiesAndStableEditor);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPropertiesAndStableEditor);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowLabelLifetimeAndReplacement);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPresentationEventsAreIdempotent);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);

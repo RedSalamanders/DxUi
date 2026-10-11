@@ -1,0 +1,31 @@
+== validate-skills.ps1
+== validate-specs.ps1
+== validate-dependencies.ps1
+Path of 151 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/logs/build-ARM64-ASan Debug-d29922e26d334ea0a5000c0f490ebc9f.log
+Path of 170 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json.receipt.txt
+Path of 169 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json.receipt.txt
+Path of 189 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/reports/Performance-ARM64-ASan Debug-48475721e3854b51beba13efba81549a.json.comparison.json.receipt.txt
+Path of 173 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/reports/Performance-ARM64-ASan Debug-48475721e3854b51beba13efba81549a.json.receipt.txt
+Path of 158 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-144-editable.png
+Path of 158 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-144-readonly.png
+Path of 158 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-192-editable.png
+Path of 158 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-192-readonly.png
+Path of 157 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-96-editable.png
+Path of 157 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-ASan_Debug/artifact/test-artifacts/caret-viewport/offscreen-below-selected-96-readonly.png
+Path of 160 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-Debug/artifact/reports/ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json.receipt.txt
+Path of 163 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-Debug/artifact/reports/Performance-ARM64-Debug-3ecb4226cfe147059ffaf89185c39efc.json.receipt.txt
+Path of 164 characters, over the 150 a consumer's pinned restore can check out: Measurements/CiBudget/2026-10-11-cold-build/native-artifacts/ARM64-Release/artifact/reports/ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json.receipt.txt
+Exception: Dependency validation failed with 14 finding(s).
+FAILED: validate-dependencies.ps1 exited with code 1
+== validate-test-port.ps1
+== validate-build-matrix.ps1
+== Tools/tests/Invoke-ToolingTests.ps1
+warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
+
+Validation summary:
+  ok     validate-skills.ps1
+  ok     validate-specs.ps1
+  FAILED validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  ok     Tools/tests/Invoke-ToolingTests.ps1

@@ -1,0 +1,24 @@
+{
+  "purpose": "permission-preflight-only-no-workload",
+  "utc": "2026-10-10T20:59:34.6604504Z",
+  "instance": "DxUiProfilingPreflight-34044ba28c0740018b00d46b4ab8ca42",
+  "requestedBufferKiB": 64,
+  "requestedBuffers": 64,
+  "memoryMode": true,
+  "durationSeconds": 2,
+  "startExit": -984068079,
+  "startOutput": [
+    "",
+    "\tFailed to enable the policy to profile system performance.",
+    "",
+    "",
+    "\tProfile Id: DxUiPreflight.Verbose.Memory",
+    "\t",
+    "\tError code: 0xc5585011",
+    "\t",
+    "\tFailed to enable the policy to profile system performance.",
+    "",
+    "\t",
+    "\t"
+  ]
+}

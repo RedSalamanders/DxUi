@@ -1,0 +1,38 @@
+{
+  "formatVersion": 1,
+  "historicalMainSource": "ec680e866a218b57000a1780018c00101a437f91",
+  "historicalRun": 38055762177,
+  "historicalRunAttempt": 1,
+  "historicalJob": 114223901297,
+  "priorReviewedSource": "1432180d9b252083663481ad8838bdd16f3d3ad8",
+  "priorReviewedRun": 38046179264,
+  "priorReviewedJob": 114196109052,
+  "proposalBaselineSource": "061748aab88c8db0b623e8a244ba884d9193b933",
+  "archivePurpose": "Historical cancellation investigation; not candidate runtime or consumer qualification.",
+  "inputs": [
+    {
+      "repositoryPath": ".github/workflows/ci.yml",
+      "archivePath": "inputs/ci.yml",
+      "sourceCommit": "ec680e866a218b57000a1780018c00101a437f91",
+      "gitBlobSha1": "02a70f8651a98a6db02c14ba9cccf91f7e6494ba",
+      "bytes": 13863,
+      "sha256": "1404978e11f48d98d5966f6b2e494c64e7d67389e77f066191e75bf844138066"
+    },
+    {
+      "repositoryPath": "test-consumer.ps1",
+      "archivePath": "inputs/test-consumer.ps1",
+      "sourceCommit": "ec680e866a218b57000a1780018c00101a437f91",
+      "gitBlobSha1": "4eb1055fc89a3ae9627bbbf1c7377329eef5ef4d",
+      "bytes": 13827,
+      "sha256": "23bb4cf19b0623f4891ee07ce5d136e636c17ed7a3700758ff9051e9b4f840ec"
+    },
+    {
+      "repositoryPath": "vcpkg-install.ps1",
+      "archivePath": "inputs/vcpkg-install.ps1",
+      "sourceCommit": "ec680e866a218b57000a1780018c00101a437f91",
+      "gitBlobSha1": "3f5d4bba0566758bdea68370178e66aa60b3b7b8",
+      "bytes": 7219,
+      "sha256": "112bdf8eb6fb292b03870c4c87a2fb879355427ee553293b9d02918c33da9108"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+Cloning into '/home/a/codex-dpf-s0-s2-portability-20261011'...
+Baseline Test-PerformancePolicy.ps1 exit 1
+ok   v2 measurement identity rejects missing old-version or unbound attestation metadata without rewriting historical reports
+ok   measurement guards reject source, executable, fixture, tools, dependencies, environment or power changes
+ok   a project or imported option changed during measurement invalidates before-after build state
+ok   build-only toolchain identity cannot qualify a benchmark receipt
+ok   the migrated acceptance policy describes the implemented family and exact peak rules without self-qualification
+PerformancePolicy: 29 of 33 passed
+Exception: PerformancePolicy: 4 test(s) failed
+Baseline Test-PerformanceProfiling.ps1 exit 1
+ok   owned child timeout terminates that child and preserves its exit/PID
+ok   direct child exit with inherited pipe still has bounded drain and explicit error
+FAIL timeout kills the original handle while a test-owned descendant survives and drains remain bounded
+     surviving helper identity: expected <639273410183492175>, got <639273410183475592> (line 41)
+ok   incremental pipe storage retains a bounded prefix and declares overflow
+PerformanceProfiling: 101 of 102 passed
+Exception: PerformanceProfiling: 1 test(s) failed
+Candidate Test-PerformancePolicy.ps1 exit 1
+ok   v2 measurement identity rejects missing old-version or unbound attestation metadata without rewriting historical reports
+ok   measurement guards reject source, executable, fixture, tools, dependencies, environment or power changes
+ok   a project or imported option changed during measurement invalidates before-after build state
+ok   build-only toolchain identity cannot qualify a benchmark receipt
+ok   the migrated acceptance policy describes the implemented family and exact peak rules without self-qualification
+PerformancePolicy: 32 of 33 passed
+Exception: PerformancePolicy: 1 test(s) failed
+Exception: /mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/Run-Linux-Portability.ps1:39
+Line |
+  39 |  …    if ($exit -ne 0) { throw "Linux candidate fixture failed: $name" }
+     |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Linux candidate fixture failed: Test-PerformancePolicy.ps1

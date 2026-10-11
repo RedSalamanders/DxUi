@@ -1,0 +1,354 @@
+All DxUi tests passed.
+[WATCHDOG] each test may run 60 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [UIA provider attempts] capacity=1024 storageBytes=32768 callbackData=numeric-only hook=after-raise-attempt
+    [UIA timeline] begin step=1 mark=0 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144462984..144463484 lastArrival=144462984 counts=0..0
+    [UIA timeline] step=1 mark=0 cutoff=4 cutoffTick=144464109 expected=2 expectedArrived=1 action=144463484..144463500
+    [UIA stream] phase=after quiet=1 ticks=144463500..144464109 lastArrival=144463609 counts=2..4
+    [UIA arrivals] entries=4 completed=4 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=1 index=0 entered=144463500 completed=144463500 [property 30079 from DataItem 'Ligne 1' = true]
+    [UIA arrival] seq=2 index=1 entered=144463500 completed=144463500 [event 20012 from DataItem 'Ligne 1']
+    [UIA arrival] seq=3 index=2 entered=144463531 completed=144463531 [property 30079 from DataItem 'Ligne 1' = true]
+    [UIA arrival] seq=4 index=3 entered=144463593 completed=144463593 [event 20012 from DataItem 'Ligne 1']
+    [UIA provider attempts] step=1 phase=after counts=0..2 stepFirst=0 actionFirst=0 capacity=1024 overflow=0
+    [UIA provider attempt] seq=1 step=1 tick=144463500 phase=after thread=69024
+    [UIA provider attempt] seq=2 step=1 tick=144463500 phase=after thread=69024
+    [UIA timeline] step=1 name=a click on a row of an empty selection
+    [UIA timeline] begin step=2 mark=4 expected=3
+    [UIA stream] phase=before quiet=1 ticks=144464109..144464609 lastArrival=144464109 counts=4..4
+    [UIA timeline] step=2 mark=4 cutoff=10 cutoffTick=144465296 expected=3 expectedArrived=1 action=144464609..144464625
+    [UIA stream] phase=after quiet=1 ticks=144464625..144465296 lastArrival=144464796 counts=7..10
+    [UIA arrivals] entries=10 completed=10 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=5 index=4 entered=144464625 completed=144464625 [property 30079 from DataItem 'Ligne 1' = false]
+    [UIA arrival] seq=6 index=5 entered=144464625 completed=144464625 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=7 index=6 entered=144464625 completed=144464625 [event 20012 from DataItem 'Ligne 2']
+    [UIA arrival] seq=8 index=7 entered=144464671 completed=144464671 [property 30079 from DataItem 'Ligne 1' = false]
+    [UIA arrival] seq=9 index=8 entered=144464718 completed=144464718 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=10 index=9 entered=144464781 completed=144464781 [event 20012 from DataItem 'Ligne 2']
+    [UIA provider attempts] step=2 phase=after counts=2..5 stepFirst=2 actionFirst=2 capacity=1024 overflow=0
+    [UIA provider attempt] seq=3 step=2 tick=144464625 phase=after thread=69024
+    [UIA provider attempt] seq=4 step=2 tick=144464625 phase=after thread=69024
+    [UIA provider attempt] seq=5 step=2 tick=144464625 phase=after thread=69024
+    [UIA timeline] step=2 name=a click on another row
+    [UIA timeline] begin step=3 mark=10 expected=3
+    [UIA stream] phase=before quiet=1 ticks=144465296..144465796 lastArrival=144465296 counts=10..10
+    [UIA timeline] step=3 mark=10 cutoff=16 cutoffTick=144466484 expected=3 expectedArrived=1 action=144465796..144465796
+    [UIA stream] phase=after quiet=1 ticks=144465812..144466484 lastArrival=144465984 counts=13..16
+    [UIA arrivals] entries=16 completed=16 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=11 index=10 entered=144465796 completed=144465796 [property 30079 from DataItem 'Ligne 2' = false]
+    [UIA arrival] seq=12 index=11 entered=144465796 completed=144465796 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=13 index=12 entered=144465796 completed=144465796 [event 20012 from DataItem 'Ligne 3']
+    [UIA arrival] seq=14 index=13 entered=144465843 completed=144465843 [property 30079 from DataItem 'Ligne 2' = false]
+    [UIA arrival] seq=15 index=14 entered=144465906 completed=144465906 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=16 index=15 entered=144465968 completed=144465968 [event 20012 from DataItem 'Ligne 3']
+    [UIA provider attempts] step=3 phase=after counts=5..8 stepFirst=5 actionFirst=5 capacity=1024 overflow=0
+    [UIA provider attempt] seq=6 step=3 tick=144465796 phase=after thread=69024
+    [UIA provider attempt] seq=7 step=3 tick=144465796 phase=after thread=69024
+    [UIA provider attempt] seq=8 step=3 tick=144465796 phase=after thread=69024
+    [UIA timeline] step=3 name=Down
+    [UIA timeline] begin step=4 mark=16 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144466484..144466984 lastArrival=144466484 counts=16..16
+    [UIA timeline] step=4 mark=16 cutoff=20 cutoffTick=144467609 expected=2 expectedArrived=1 action=144466984..144466984
+    [UIA stream] phase=after quiet=1 ticks=144467000..144467609 lastArrival=144467109 counts=18..20
+    [UIA arrivals] entries=20 completed=20 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=17 index=16 entered=144467000 completed=144467000 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=18 index=17 entered=144467000 completed=144467000 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=19 index=18 entered=144467031 completed=144467031 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=20 index=19 entered=144467093 completed=144467093 [event 20010 from DataItem 'Ligne 5']
+    [UIA provider attempts] step=4 phase=after counts=8..10 stepFirst=8 actionFirst=8 capacity=1024 overflow=0
+    [UIA provider attempt] seq=9 step=4 tick=144467000 phase=after thread=69024
+    [UIA provider attempt] seq=10 step=4 tick=144467000 phase=after thread=69024
+    [UIA timeline] step=4 name=Ctrl+click
+    [UIA timeline] begin step=5 mark=20 expected=6
+    [UIA stream] phase=before quiet=1 ticks=144467625..144468125 lastArrival=144467625 counts=20..20
+    [UIA timeline] step=5 mark=20 cutoff=32 cutoffTick=144469015 expected=6 expectedArrived=1 action=144468125..144468140
+    [UIA stream] phase=after quiet=1 ticks=144468156..144469015 lastArrival=144468515 counts=26..32
+    [UIA arrivals] entries=32 completed=32 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=21 index=20 entered=144468140 completed=144468140 [property 30079 from DataItem 'Ligne 3' = false]
+    [UIA arrival] seq=22 index=21 entered=144468140 completed=144468140 [event 20011 from DataItem 'Ligne 3']
+    [UIA arrival] seq=23 index=22 entered=144468140 completed=144468140 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=24 index=23 entered=144468140 completed=144468140 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=25 index=24 entered=144468140 completed=144468140 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=26 index=25 entered=144468156 completed=144468156 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=27 index=26 entered=144468187 completed=144468187 [property 30079 from DataItem 'Ligne 3' = false]
+    [UIA arrival] seq=28 index=27 entered=144468250 completed=144468250 [event 20011 from DataItem 'Ligne 3']
+    [UIA arrival] seq=29 index=28 entered=144468312 completed=144468312 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=30 index=29 entered=144468375 completed=144468375 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=31 index=30 entered=144468453 completed=144468453 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=32 index=31 entered=144468515 completed=144468515 [event 20010 from DataItem 'Ligne 7']
+    [UIA provider attempts] step=5 phase=after counts=10..16 stepFirst=10 actionFirst=10 capacity=1024 overflow=0
+    [UIA provider attempt] seq=11 step=5 tick=144468140 phase=after thread=69024
+    [UIA provider attempt] seq=12 step=5 tick=144468140 phase=after thread=69024
+    [UIA provider attempt] seq=13 step=5 tick=144468140 phase=after thread=69024
+    [UIA provider attempt] seq=14 step=5 tick=144468140 phase=after thread=69024
+    [UIA provider attempt] seq=15 step=5 tick=144468140 phase=after thread=69024
+    [UIA provider attempt] seq=16 step=5 tick=144468156 phase=after thread=69024
+    [UIA timeline] step=5 name=Shift+click
+    [UIA timeline] begin step=6 mark=32 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144469031..144469531 lastArrival=144469031 counts=32..32
+    [UIA timeline] step=6 mark=32 cutoff=36 cutoffTick=144470156 expected=2 expectedArrived=1 action=144469531..144469531
+    [UIA stream] phase=after quiet=1 ticks=144469546..144470156 lastArrival=144469656 counts=34..36
+    [UIA arrivals] entries=36 completed=36 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=33 index=32 entered=144469546 completed=144469546 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=34 index=33 entered=144469546 completed=144469546 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=35 index=34 entered=144469578 completed=144469578 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=36 index=35 entered=144469640 completed=144469640 [event 20010 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=6 phase=after counts=16..18 stepFirst=16 actionFirst=16 capacity=1024 overflow=0
+    [UIA provider attempt] seq=17 step=6 tick=144469546 phase=after thread=69024
+    [UIA provider attempt] seq=18 step=6 tick=144469546 phase=after thread=69024
+    [UIA timeline] step=6 name=Ctrl+click adds a row outside the range
+    [UIA timeline] begin step=7 mark=36 expected=8
+    [UIA stream] phase=before quiet=1 ticks=144470156..144470656 lastArrival=144470156 counts=36..36
+    [UIA timeline] step=7 mark=36 cutoff=52 cutoffTick=144471656 expected=8 expectedArrived=1 action=144470656..144470656
+    [UIA stream] phase=after quiet=1 ticks=144470671..144471656 lastArrival=144471156 counts=44..52
+    [UIA arrivals] entries=52 completed=52 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=37 index=36 entered=144470656 completed=144470671 [property 30079 from DataItem 'Ligne 5' = false]
+    [UIA arrival] seq=38 index=37 entered=144470671 completed=144470671 [event 20011 from DataItem 'Ligne 5']
+    [UIA arrival] seq=39 index=38 entered=144470671 completed=144470671 [property 30079 from DataItem 'Ligne 6' = false]
+    [UIA arrival] seq=40 index=39 entered=144470671 completed=144470671 [event 20011 from DataItem 'Ligne 6']
+    [UIA arrival] seq=41 index=40 entered=144470671 completed=144470671 [property 30079 from DataItem 'Ligne 7' = false]
+    [UIA arrival] seq=42 index=41 entered=144470671 completed=144470671 [event 20011 from DataItem 'Ligne 7']
+    [UIA arrival] seq=43 index=42 entered=144470671 completed=144470671 [property 30079 from DataItem 'Ligne 4' = false]
+    [UIA arrival] seq=44 index=43 entered=144470671 completed=144470671 [event 20011 from DataItem 'Ligne 4']
+    [UIA arrival] seq=45 index=44 entered=144470703 completed=144470703 [property 30079 from DataItem 'Ligne 5' = false]
+    [UIA arrival] seq=46 index=45 entered=144470765 completed=144470765 [event 20011 from DataItem 'Ligne 5']
+    [UIA arrival] seq=47 index=46 entered=144470828 completed=144470828 [property 30079 from DataItem 'Ligne 6' = false]
+    [UIA arrival] seq=48 index=47 entered=144470890 completed=144470890 [event 20011 from DataItem 'Ligne 6']
+    [UIA arrival] seq=49 index=48 entered=144470953 completed=144470953 [property 30079 from DataItem 'Ligne 7' = false]
+    [UIA arrival] seq=50 index=49 entered=144471015 completed=144471015 [event 20011 from DataItem 'Ligne 7']
+    [UIA arrival] seq=51 index=50 entered=144471078 completed=144471078 [property 30079 from DataItem 'Ligne 4' = false]
+    [UIA arrival] seq=52 index=51 entered=144471140 completed=144471140 [event 20011 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=7 phase=after counts=18..26 stepFirst=18 actionFirst=18 capacity=1024 overflow=0
+    [UIA provider attempt] seq=19 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=20 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=21 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=22 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=23 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=24 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=25 step=7 tick=144470671 phase=after thread=69024
+    [UIA provider attempt] seq=26 step=7 tick=144470671 phase=after thread=69024
+    [UIA timeline] step=7 name=clearing the selection
+    [UIA timeline] begin step=8 mark=52 expected=1
+    [UIA stream] phase=before quiet=1 ticks=144471671..144472171 lastArrival=144471671 counts=52..52
+    [UIA timeline] step=8 mark=52 cutoff=54 cutoffTick=144472750 expected=1 expectedArrived=1 action=144472171..144472171
+    [UIA stream] phase=after quiet=1 ticks=144472187..144472750 lastArrival=144472250 counts=53..54
+    [UIA arrivals] entries=54 completed=54 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=53 index=52 entered=144472187 completed=144472187 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=54 index=53 entered=144472234 completed=144472234 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=8 phase=after counts=26..27 stepFirst=26 actionFirst=26 capacity=1024 overflow=0
+    [UIA provider attempt] seq=27 step=8 tick=144472187 phase=after thread=69024
+    [UIA timeline] step=8 name=Ctrl+A
+    [UIA timeline] begin step=9 mark=54 expected=1
+    [UIA stream] phase=before quiet=1 ticks=144472750..144473250 lastArrival=144472750 counts=54..54
+    [UIA timeline] step=9 mark=54 cutoff=56 cutoffTick=144473843 expected=1 expectedArrived=1 action=144473250..144473265
+    [UIA stream] phase=after quiet=1 ticks=144473281..144473843 lastArrival=144473343 counts=55..56
+    [UIA arrivals] entries=56 completed=56 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=55 index=54 entered=144473265 completed=144473265 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=56 index=55 entered=144473328 completed=144473328 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=9 phase=after counts=27..28 stepFirst=27 actionFirst=27 capacity=1024 overflow=0
+    [UIA provider attempt] seq=28 step=9 tick=144473265 phase=after thread=69024
+    [UIA timeline] step=9 name=a click after Ctrl+A
+    [UIA timeline] begin step=10 mark=56 expected=40
+    [UIA stream] phase=before quiet=1 ticks=144473859..144474359 lastArrival=144473859 counts=56..56
+    [UIA timeline] step=10 mark=56 cutoff=136 cutoffTick=144477421 expected=40 expectedArrived=1 action=144474359..144474359
+    [UIA stream] phase=after quiet=1 ticks=144474437..144477421 lastArrival=144476921 counts=96..136
+    [UIA arrivals] entries=136 completed=136 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=57 index=56 entered=144474359 completed=144474359 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=58 index=57 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 2']
+    [UIA arrival] seq=59 index=58 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=60 index=59 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 3']
+    [UIA arrival] seq=61 index=60 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=62 index=61 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=63 index=62 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=64 index=63 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=65 index=64 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=66 index=65 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=67 index=66 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=68 index=67 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=69 index=68 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 8' = true]
+    [UIA arrival] seq=70 index=69 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 8']
+    [UIA arrival] seq=71 index=70 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 9' = true]
+    [UIA arrival] seq=72 index=71 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 9']
+    [UIA arrival] seq=73 index=72 entered=144474375 completed=144474375 [property 30079 from DataItem 'Ligne 10' = true]
+    [UIA arrival] seq=74 index=73 entered=144474375 completed=144474375 [event 20010 from DataItem 'Ligne 10']
+    [UIA arrival] seq=75 index=74 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 11' = true]
+    [UIA arrival] seq=76 index=75 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 11']
+    [UIA arrival] seq=77 index=76 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 12' = true]
+    [UIA arrival] seq=78 index=77 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 12']
+    [UIA arrival] seq=79 index=78 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 13' = true]
+    [UIA arrival] seq=80 index=79 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 13']
+    [UIA arrival] seq=81 index=80 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 14' = true]
+    [UIA arrival] seq=82 index=81 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 14']
+    [UIA arrival] seq=83 index=82 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 15' = true]
+    [UIA arrival] seq=84 index=83 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 15']
+    [UIA arrival] seq=85 index=84 entered=144474390 completed=144474390 [property 30079 from DataItem 'Ligne 16' = true]
+    [UIA arrival] seq=86 index=85 entered=144474390 completed=144474390 [event 20010 from DataItem 'Ligne 16']
+    [UIA arrival] seq=87 index=86 entered=144474406 completed=144474406 [property 30079 from DataItem 'Ligne 17' = true]
+    [UIA arrival] seq=88 index=87 entered=144474406 completed=144474406 [event 20010 from DataItem 'Ligne 17']
+    [UIA arrival] seq=89 index=88 entered=144474406 completed=144474406 [property 30079 from DataItem 'Ligne 18' = true]
+    [UIA arrival] seq=90 index=89 entered=144474406 completed=144474406 [event 20010 from DataItem 'Ligne 18']
+    [UIA arrival] seq=91 index=90 entered=144474406 completed=144474406 [property 30079 from DataItem 'Ligne 19' = true]
+    [UIA arrival] seq=92 index=91 entered=144474406 completed=144474406 [event 20010 from DataItem 'Ligne 19']
+    [UIA arrival] seq=93 index=92 entered=144474406 completed=144474406 [property 30079 from DataItem 'Ligne 20' = true]
+    [UIA arrival] seq=94 index=93 entered=144474406 completed=144474406 [event 20010 from DataItem 'Ligne 20']
+    [UIA arrival] seq=95 index=94 entered=144474406 completed=144474406 [property 30079 from DataItem 'Ligne 21' = true]
+    [UIA arrival] seq=96 index=95 entered=144474406 completed=144474406 [event 20010 from DataItem 'Ligne 21']
+    [UIA arrival] seq=97 index=96 entered=144474468 completed=144474468 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=98 index=97 entered=144474531 completed=144474531 [event 20010 from DataItem 'Ligne 2']
+    [UIA arrival] seq=99 index=98 entered=144474593 completed=144474593 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=100 index=99 entered=144474656 completed=144474656 [event 20010 from DataItem 'Ligne 3']
+    [UIA arrival] seq=101 index=100 entered=144474718 completed=144474718 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=102 index=101 entered=144474781 completed=144474781 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=103 index=102 entered=144474843 completed=144474843 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=104 index=103 entered=144474906 completed=144474906 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=105 index=104 entered=144474968 completed=144474968 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=106 index=105 entered=144475031 completed=144475031 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=107 index=106 entered=144475093 completed=144475093 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=108 index=107 entered=144475156 completed=144475156 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=109 index=108 entered=144475218 completed=144475218 [property 30079 from DataItem 'Ligne 8' = true]
+    [UIA arrival] seq=110 index=109 entered=144475281 completed=144475281 [event 20010 from DataItem 'Ligne 8']
+    [UIA arrival] seq=111 index=110 entered=144475343 completed=144475343 [property 30079 from DataItem 'Ligne 9' = true]
+    [UIA arrival] seq=112 index=111 entered=144475406 completed=144475406 [event 20010 from DataItem 'Ligne 9']
+    [UIA arrival] seq=113 index=112 entered=144475468 completed=144475468 [property 30079 from DataItem 'Ligne 10' = true]
+    [UIA arrival] seq=114 index=113 entered=144475531 completed=144475531 [event 20010 from DataItem 'Ligne 10']
+    [UIA arrival] seq=115 index=114 entered=144475593 completed=144475593 [property 30079 from DataItem 'Ligne 11' = true]
+    [UIA arrival] seq=116 index=115 entered=144475656 completed=144475656 [event 20010 from DataItem 'Ligne 11']
+    [UIA arrival] seq=117 index=116 entered=144475718 completed=144475718 [property 30079 from DataItem 'Ligne 12' = true]
+    [UIA arrival] seq=118 index=117 entered=144475781 completed=144475781 [event 20010 from DataItem 'Ligne 12']
+    [UIA arrival] seq=119 index=118 entered=144475843 completed=144475843 [property 30079 from DataItem 'Ligne 13' = true]
+    [UIA arrival] seq=120 index=119 entered=144475906 completed=144475906 [event 20010 from DataItem 'Ligne 13']
+    [UIA arrival] seq=121 index=120 entered=144475968 completed=144475968 [property 30079 from DataItem 'Ligne 14' = true]
+    [UIA arrival] seq=122 index=121 entered=144476031 completed=144476031 [event 20010 from DataItem 'Ligne 14']
+    [UIA arrival] seq=123 index=122 entered=144476093 completed=144476093 [property 30079 from DataItem 'Ligne 15' = true]
+    [UIA arrival] seq=124 index=123 entered=144476156 completed=144476156 [event 20010 from DataItem 'Ligne 15']
+    [UIA arrival] seq=125 index=124 entered=144476218 completed=144476218 [property 30079 from DataItem 'Ligne 16' = true]
+    [UIA arrival] seq=126 index=125 entered=144476281 completed=144476281 [event 20010 from DataItem 'Ligne 16']
+    [UIA arrival] seq=127 index=126 entered=144476343 completed=144476343 [property 30079 from DataItem 'Ligne 17' = true]
+    [UIA arrival] seq=128 index=127 entered=144476406 completed=144476406 [event 20010 from DataItem 'Ligne 17']
+    [UIA arrival] seq=129 index=128 entered=144476468 completed=144476468 [property 30079 from DataItem 'Ligne 18' = true]
+    [UIA arrival] seq=130 index=129 entered=144476531 completed=144476531 [event 20010 from DataItem 'Ligne 18']
+    [UIA arrival] seq=131 index=130 entered=144476593 completed=144476593 [property 30079 from DataItem 'Ligne 19' = true]
+    [UIA arrival] seq=132 index=131 entered=144476656 completed=144476656 [event 20010 from DataItem 'Ligne 19']
+    [UIA arrival] seq=133 index=132 entered=144476718 completed=144476718 [property 30079 from DataItem 'Ligne 20' = true]
+    [UIA arrival] seq=134 index=133 entered=144476781 completed=144476781 [event 20010 from DataItem 'Ligne 20']
+    [UIA arrival] seq=135 index=134 entered=144476843 completed=144476843 [property 30079 from DataItem 'Ligne 21' = true]
+    [UIA arrival] seq=136 index=135 entered=144476906 completed=144476906 [event 20010 from DataItem 'Ligne 21']
+    [UIA provider attempts] step=10 phase=after counts=28..68 stepFirst=28 actionFirst=28 capacity=1024 overflow=0
+    [UIA provider attempt] seq=29 step=10 tick=144474359 phase=after thread=69024
+    [UIA provider attempt] seq=30 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=31 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=32 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=33 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=34 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=35 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=36 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=37 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=38 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=39 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=40 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=41 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=42 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=43 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=44 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=45 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=46 step=10 tick=144474375 phase=after thread=69024
+    [UIA provider attempt] seq=47 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=48 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=49 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=50 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=51 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=52 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=53 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=54 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=55 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=56 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=57 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=58 step=10 tick=144474390 phase=after thread=69024
+    [UIA provider attempt] seq=59 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=60 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=61 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=62 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=63 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=64 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=65 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=66 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=67 step=10 tick=144474406 phase=after thread=69024
+    [UIA provider attempt] seq=68 step=10 tick=144474406 phase=after thread=69024
+    [UIA timeline] step=10 name=twenty rows added at once
+    [UIA timeline] begin step=11 mark=136 expected=1
+    [UIA stream] phase=before quiet=1 ticks=144477453..144477953 lastArrival=144477453 counts=136..136
+    [UIA timeline] step=11 mark=136 cutoff=138 cutoffTick=144478531 expected=1 expectedArrived=1 action=144477953..144477953
+    [UIA stream] phase=after quiet=1 ticks=144477968..144478531 lastArrival=144478031 counts=137..138
+    [UIA arrivals] entries=138 completed=138 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=137 index=136 entered=144477953 completed=144477953 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=138 index=137 entered=144478015 completed=144478015 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=11 phase=after counts=68..69 stepFirst=68 actionFirst=68 capacity=1024 overflow=0
+    [UIA provider attempt] seq=69 step=11 tick=144477953 phase=after thread=69024
+    [UIA timeline] step=11 name=nine rows replacing twenty-one
+    [UIA timeline] begin step=12 mark=138 expected=1
+    [UIA stream] phase=before quiet=1 ticks=144478531..144479031 lastArrival=144478531 counts=138..138
+    [UIA timeline] step=12 mark=138 cutoff=140 cutoffTick=144479609 expected=1 expectedArrived=1 action=144479031..144479031
+    [UIA stream] phase=after quiet=1 ticks=144479046..144479609 lastArrival=144479109 counts=139..140
+    [UIA arrivals] entries=140 completed=140 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=139 index=138 entered=144479031 completed=144479031 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=140 index=139 entered=144479093 completed=144479093 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=12 phase=after counts=69..70 stepFirst=69 actionFirst=69 capacity=1024 overflow=0
+    [UIA provider attempt] seq=70 step=12 tick=144479031 phase=after thread=69024
+    [UIA timeline] step=12 name=clearing a selection out of view
+    [UIA timeline] begin step=13 mark=140 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144479609..144480109 lastArrival=144479609 counts=140..140
+    [UIA timeline] step=13 mark=140 cutoff=144 cutoffTick=144480734 expected=2 expectedArrived=1 action=144480109..144480109
+    [UIA stream] phase=after quiet=1 ticks=144480125..144480734 lastArrival=144480234 counts=142..144
+    [UIA arrivals] entries=144 completed=144 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=141 index=140 entered=144480109 completed=144480109 [property 30079 from DataItem 'Ligne 25' = true]
+    [UIA arrival] seq=142 index=141 entered=144480109 completed=144480125 [event 20012 from DataItem 'Ligne 25']
+    [UIA arrival] seq=143 index=142 entered=144480156 completed=144480156 [property 30079 from DataItem 'Ligne 25' = true]
+    [UIA arrival] seq=144 index=143 entered=144480218 completed=144480218 [event 20012 from DataItem 'Ligne 25']
+    [UIA provider attempts] step=13 phase=after counts=70..72 stepFirst=70 actionFirst=70 capacity=1024 overflow=0
+    [UIA provider attempt] seq=71 step=13 tick=144480109 phase=after thread=69024
+    [UIA provider attempt] seq=72 step=13 tick=144480125 phase=after thread=69024
+    [UIA timeline] step=13 name=the application selecting a row off screen
+    [UIA timeline] begin step=14 mark=144 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144480734..144481234 lastArrival=144480734 counts=144..144
+    [UIA timeline] step=14 mark=144 cutoff=148 cutoffTick=144481859 expected=2 expectedArrived=1 action=144481234..144481234
+    [UIA stream] phase=after quiet=1 ticks=144481250..144481859 lastArrival=144481359 counts=146..148
+    [UIA arrivals] entries=148 completed=148 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=145 index=144 entered=144481234 completed=144481234 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=146 index=145 entered=144481250 completed=144481250 [event 20012 from DataItem 'Ligne 3']
+    [UIA arrival] seq=147 index=146 entered=144481281 completed=144481281 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=148 index=147 entered=144481343 completed=144481343 [event 20012 from DataItem 'Ligne 3']
+    [UIA provider attempts] step=14 phase=after counts=72..74 stepFirst=72 actionFirst=72 capacity=1024 overflow=0
+    [UIA provider attempt] seq=73 step=14 tick=144481250 phase=after thread=69024
+    [UIA provider attempt] seq=74 step=14 tick=144481250 phase=after thread=69024
+    [UIA timeline] step=14 name=a click that replaces a selection out of view
+    [UIA timeline] begin step=15 mark=148 expected=0
+    [UIA stream] phase=before quiet=1 ticks=144481859..144482359 lastArrival=144481859 counts=148..148
+    [UIA timeline] step=15 mark=148 cutoff=148 cutoffTick=144482859 expected=0 expectedArrived=1 action=144482359..144482359
+    [UIA stream] phase=after quiet=1 ticks=144482359..144482859 lastArrival=144482359 counts=148..148
+    [UIA arrivals] entries=148 completed=148 capacity=1024 overflow=0 failed=0
+    [UIA provider attempts] step=15 phase=after counts=74..74 stepFirst=74 actionFirst=74 capacity=1024 overflow=0
+    [UIA timeline] step=15 name=republishing an unchanged selection
+    [UIA timeline] begin step=16 mark=148 expected=2
+    [UIA stream] phase=before quiet=1 ticks=144482859..144483359 lastArrival=144482859 counts=148..148
+    [UIA timeline] step=16 mark=148 cutoff=152 cutoffTick=144483984 expected=2 expectedArrived=1 action=144483359..144483359
+    [UIA stream] phase=after quiet=1 ticks=144483375..144483984 lastArrival=144483484 counts=150..152
+    [UIA arrivals] entries=152 completed=152 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=149 index=148 entered=144483359 completed=144483359 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=150 index=149 entered=144483359 completed=144483359 [event 20012 from DataItem 'Ligne 4']
+    [UIA arrival] seq=151 index=150 entered=144483406 completed=144483406 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=152 index=151 entered=144483468 completed=144483468 [event 20012 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=16 phase=after counts=74..76 stepFirst=74 actionFirst=74 capacity=1024 overflow=0
+    [UIA provider attempt] seq=75 step=16 tick=144483359 phase=after thread=69024
+    [UIA provider attempt] seq=76 step=16 tick=144483359 phase=after thread=69024
+    [UIA timeline] step=16 name=the selected row leaving the grid
+    [UIA timeline] tail step=16 mark=148 cutoff=153 cutoffTick=144483984
+    [UIA arrivals] entries=153 completed=153 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=153 index=152 entered=144483984 completed=144483984 [event 20012 from Text 'Ligne 2']
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow (21.245 s)
+[DONE] Accessibility (21.246 s)

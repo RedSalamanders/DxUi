@@ -1,0 +1,134 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-x64-Debug.txt",
+    "copy": "x64-Debug.log",
+    "bytes": 5205,
+    "sha256": "4EA5FA9C117D5491869A4E7249F9AF4E6F29644276F7CC04920D9E562515C410"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\nonfocus-setup-Debug\\post-native.state.receipt.txt",
+    "copy": "x64-Debug.state.receipt.txt",
+    "bytes": 2271,
+    "sha256": "69DD2EA16901075754150D59BC167848D31E33D1182E3E6B2EB7F77B6F9388B5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-Debug\\build.json",
+    "copy": "x64-Debug.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "F1767D09D0C8C3FBFF37F80290A611EA5B6D870CACB42B91245933DDC66AB425"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-Debug\\incremental.json",
+    "copy": "x64-Debug.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "342723457CCBB914443237F05C9E0FDD1E70FD325DEACDCF2AD30363EECE7FD3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-x64-Release.txt",
+    "copy": "x64-Release.log",
+    "bytes": 5229,
+    "sha256": "BB9D7CCC342614E20917FD216677010C158C153B1E69ED6E9530AD19B3E18C60"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\nonfocus-setup-Release\\post-native.state.receipt.txt",
+    "copy": "x64-Release.state.receipt.txt",
+    "bytes": 2273,
+    "sha256": "3BAA3144F79A6E841192B0F37F47F9730EB82A45A19D931DBFF51013E8677525"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-Release\\build.json",
+    "copy": "x64-Release.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "22E7DE2CE9B82BE0267F3C209D5A8B4AB368CA8488B054F439DB070E12BB457C"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-Release\\incremental.json",
+    "copy": "x64-Release.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "A593B3853CC6B00D401B8ED5DD03B149284FDE4F0304352AA36CF6107053E8D2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-x64-ASanDebug.txt",
+    "copy": "x64-ASanDebug.log",
+    "bytes": 5265,
+    "sha256": "103E0BFAA3FFEF21B215C33D7CD03DAFBA13C91EC430AC2FBE41998D69887FFF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\nonfocus-setup-ASanDebug\\post-native.state.receipt.txt",
+    "copy": "x64-ASanDebug.state.receipt.txt",
+    "bytes": 2276,
+    "sha256": "F355AD168FC739E58249218237389DA86CE2B03D224DF5D64AD447B0183F7E83"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-ASanDebug\\build.json",
+    "copy": "x64-ASanDebug.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "4B9FDEE4C09E164135D7683F759CA781962DE0C633C8FC1E211755AF2BAF3EAB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-ASanDebug\\incremental.json",
+    "copy": "x64-ASanDebug.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "F542EB8153A945C554ECAEF25C993226488ABF33CBE2E9A62F2D8D23414FA028"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-ARM64-Debug.txt",
+    "copy": "ARM64-Debug.log",
+    "bytes": 5229,
+    "sha256": "FEEC21FE8C720990D09F1804D64AA0A8A98758636B0B983C202E772DB21948F3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Debug\\build.json",
+    "copy": "ARM64-Debug.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "BFABE953937041B6DCCC30492444F1DE7AAAD611F555B06886DB50A3A46B9CFF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Debug\\incremental.json",
+    "copy": "ARM64-Debug.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "003D5D7924166C646CD8CB436C421E5A21493CD07EB43172F63E761BABE20700"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-ARM64-Release.txt",
+    "copy": "ARM64-Release.log",
+    "bytes": 5253,
+    "sha256": "8368A847E34F470257E1A7999A71CEA70D3CDE069413EBED637A52A6F107446A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Release\\build.json",
+    "copy": "ARM64-Release.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "9FC77C7BFCCBFBF281F4549A573ACA190E67965AA746257AE7DC3B6582EA085E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-Release\\incremental.json",
+    "copy": "ARM64-Release.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "3CDBFA43437BF136FA7D55D602390211ECCB3AF787DE7151CC84248592AEB0B8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\profiling-focus-diagnostics-build-final-ARM64-ASanDebug.txt",
+    "copy": "ARM64-ASanDebug.log",
+    "bytes": 5289,
+    "sha256": "5BB51E257912D6DC164EAC47E4CF0031D4E6FCF7219381F7C3726DB70380A1DC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-ASanDebug\\build.json",
+    "copy": "ARM64-ASanDebug.build.receipt.txt",
+    "bytes": 259,
+    "sha256": "C7E398340E0C6BBADAD49417DD409941AD5054FF5D70E510A7A1E69BEE37CCBA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\ARM64-ASanDebug\\incremental.json",
+    "copy": "ARM64-ASanDebug.incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "CAE649FBFE3BBF8D4289382A255A8DB48C37F863DD74F1FBB5A473B2EE472032"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\Retain-Diagnostic-Matrix.ps1",
+    "copy": "retainer.source.receipt.txt",
+    "bytes": 4313,
+    "sha256": "C6B260871CCEAD74E7E86104647DD7793E1FB3B4C6EF70225D4956126C403395"
+  }
+]

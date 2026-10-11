@@ -1,0 +1,21 @@
+{
+  "purpose": "root-retained-failed-native-focus-attempt",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "attempt": 2,
+  "parentExitCode": 1,
+  "state": "timedout",
+  "confirmation": "timedout",
+  "leaseExitCode": 21,
+  "foreground": "unchanged",
+  "focus": "unchanged",
+  "pointer": "unchanged",
+  "children": [],
+  "copiedOriginals": 13,
+  "qualification": "failed-attempt-preserved-not-a-pass",
+  "exactPostFocusIdentityMatched": true,
+  "sourceCommit": "4bcc32fbeea60fe2d4d50338966d9d5c3e914d59",
+  "sourceDirty": false,
+  "sourceFingerprint": "B0A180F7917AAE43B5F442C3D4E8D513B46F15A91E239D5EC9E3B18B367DAE6F",
+  "reviewerScriptSha256": "CA50D6F2781CF5BB6544EFFBEB2195A3F54E8FB3EBCFCC7180A055058C28E9F8"
+}

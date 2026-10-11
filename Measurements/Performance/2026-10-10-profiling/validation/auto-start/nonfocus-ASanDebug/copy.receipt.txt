@@ -1,0 +1,392 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-autostart-noninteractive-ASanDebug.txt",
+    "copy": "runner.log",
+    "bytes": 10882,
+    "sha256": "0AE0AFB0B5615B3DB48C2ECB1117EEA94DBF8EAB7E4E6FFF6B1E20D9E71E1950"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Foundation-x64-ASan Debug.json",
+    "copy": "Foundation.receipt.txt",
+    "bytes": 35591,
+    "sha256": "0C85F06111C0503AB8E7AC248EB2FED6265107F21C4D43C1D7FF8B66F0AE5BBF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Foundation-x64-ASan Debug.log",
+    "copy": "Foundation.log",
+    "bytes": 24,
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Foundation.json",
+    "copy": "Foundation.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "C296A4C413457A19C3B55AB5957B880EE8D27D43497CD157F7BED7643372C755"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Embedded-x64-ASan Debug.json",
+    "copy": "Embedded.receipt.txt",
+    "bytes": 35587,
+    "sha256": "AACB79222CAB5C35C16F5F0EFEF38B6D6C22992F102BDBE46440C1E9D8B1BEE2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Embedded-x64-ASan Debug.log",
+    "copy": "Embedded.log",
+    "bytes": 3579,
+    "sha256": "DE29FA0B1A240DCAC43CEA0AE04D1F86838C17AC65E2C7AC77EFB12091674822"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Embedded.json",
+    "copy": "Embedded.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "AC86D626F456EF4EC404BA2903A3D349441467C9C1F9CF81F1A4C00AD632E070"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Grid-x64-ASan Debug.json",
+    "copy": "Grid.receipt.txt",
+    "bytes": 35582,
+    "sha256": "F4B0A003D353F28CB1847B033E5DA9403127A6698CE544EAC76BD7DADEEF9937"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Grid-x64-ASan Debug.log",
+    "copy": "Grid.log",
+    "bytes": 17318,
+    "sha256": "CEBD92E2298FB12159B0F42CF0AE691CAF55DABD9FE848CCBA9B84BB0CDE36EE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Grid.json",
+    "copy": "Grid.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "C99F027F70A42CDD64CE3A34CCF2CA9111C42E5AE88E7EF8E5E3A083DC0B1D7A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Theme-x64-ASan Debug.json",
+    "copy": "Theme.receipt.txt",
+    "bytes": 35583,
+    "sha256": "F3480FC55B81D55762DA9CD76C9199FD2AC7917E364A8B60191E2DD1BFA74A05"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Theme-x64-ASan Debug.log",
+    "copy": "Theme.log",
+    "bytes": 11880,
+    "sha256": "F29C3767D1DB879CFD619F3634EEF52CABCF1E4001B3FD5E324038A584C3BD3D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Theme.json",
+    "copy": "Theme.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "B93CB512A3AAD33FC4232AB704B1ADD00FFD0D73B909EA9B24EF1BAEEB0AAFB5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Control-x64-ASan Debug.json",
+    "copy": "Control.receipt.txt",
+    "bytes": 35585,
+    "sha256": "AA3F798B1E0A19E6CA2F15DEFD802C96325105FA8596B19FFEC26EE2AEAE807B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Control-x64-ASan Debug.log",
+    "copy": "Control.log",
+    "bytes": 14758,
+    "sha256": "FBB60EABF9063C1BCCAA00EB2464A8C55ABDFC3F75A332ADCA05CC55DFFFB258"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Control.json",
+    "copy": "Control.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "5407F41292D6E7073CDB7CC8E24B8CCDBE75BD0411F11ABB60A8578DDDDD8E3E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+    "copy": "MenuExitLifetime.receipt.txt",
+    "bytes": 35594,
+    "sha256": "2DFD387DE4D3C46B757359DC889E8935BEDA1A40021CEA1D05E0E98A4EEA71F8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-MenuExitLifetime-x64-ASan Debug.log",
+    "copy": "MenuExitLifetime.log",
+    "bytes": 205,
+    "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MenuExitLifetime.json",
+    "copy": "MenuExitLifetime.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "9F1043A430210C58FAAAA92B6BD441262CA856CB224676D6A72DC80356AE1CC7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\NewControls-x64-ASan Debug.json",
+    "copy": "NewControls.receipt.txt",
+    "bytes": 35589,
+    "sha256": "B2E2C2DCC8C7D31403E3DD796755A0D52C389E9E9127C8FEA5A0C0D9A4C5039A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-NewControls-x64-ASan Debug.log",
+    "copy": "NewControls.log",
+    "bytes": 14276,
+    "sha256": "978C4382A712446E663CED38E363556574BB1111B532E4FB2EE73775D88ACBEC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\NewControls.json",
+    "copy": "NewControls.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "E6935BFD35BB8417C60E8027362C0CE32FA6D123DBC7F34D1D68FD5DA97248FA"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\EditorControls-x64-ASan Debug.json",
+    "copy": "EditorControls.receipt.txt",
+    "bytes": 35592,
+    "sha256": "F2044CF9DBAF50171F582183E74FCAFF688DE1F0B005C4FC828F82C6F527ED46"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-EditorControls-x64-ASan Debug.log",
+    "copy": "EditorControls.log",
+    "bytes": 12041,
+    "sha256": "D2676CE0162B7F41B0DB4530789D369D6B5D9F0AF5D774692A3DAE74C7724212"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\EditorControls.json",
+    "copy": "EditorControls.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "127E283816F34200CB0B648AC3CB95A89BF8894519D6B78640FD81D947E66BFF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\TextField-x64-ASan Debug.json",
+    "copy": "TextField.receipt.txt",
+    "bytes": 35587,
+    "sha256": "0E2F6D7A0854438420AA6BD2CF3BD2094048D7C7ACDC34C3A6AA7C9870625D3D"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-TextField-x64-ASan Debug.log",
+    "copy": "TextField.log",
+    "bytes": 14626,
+    "sha256": "8B57B408A1BCC7EA90568899601BD3193A554C2DC3EE74D2D1AE3763169B1A40"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\TextField.json",
+    "copy": "TextField.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "DFA1D915D740917B827C9D1535FC3752D4D0480CB5F527D4961D584C68809AF1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\MultilineText-x64-ASan Debug.json",
+    "copy": "MultilineText.receipt.txt",
+    "bytes": 35591,
+    "sha256": "AA8B05B622BBDAB3B5D2B3229EC4FDD52AC95AACCD9F28A292007FF0688C0ECF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-MultilineText-x64-ASan Debug.log",
+    "copy": "MultilineText.log",
+    "bytes": 16451,
+    "sha256": "F6369F82BE7B0D9A135B9896AB3D36416E3108FC04AF67808A2F2710F1EDEDC2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\MultilineText.json",
+    "copy": "MultilineText.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "EA453087C41A03A30EA6EF416C7964BC2C816735827B39483538866756D72D86"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\ReadOnly-x64-ASan Debug.json",
+    "copy": "ReadOnly.receipt.txt",
+    "bytes": 35586,
+    "sha256": "5090512DD30813E7D6D4E4DCADE15510D6E415805C4448456F30AAC4F0D141B4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-ReadOnly-x64-ASan Debug.log",
+    "copy": "ReadOnly.log",
+    "bytes": 7406,
+    "sha256": "774F5DD2DB13902DC0105A0DA4F082CFA43CD9A6CEB275FB5B32D7EF517C42E3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ReadOnly.json",
+    "copy": "ReadOnly.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "C5E8A0F72535DE851FF386E360C2AF187283674B063EEA88A209387A005DF0EB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\ComboBox-x64-ASan Debug.json",
+    "copy": "ComboBox.receipt.txt",
+    "bytes": 35586,
+    "sha256": "B849C98F4DB5FFFE9E4538ABD98B28D8E3E92C55D38163C783795965F6991683"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-ComboBox-x64-ASan Debug.log",
+    "copy": "ComboBox.log",
+    "bytes": 6140,
+    "sha256": "BB6B49E71E5FC2589AA54117AA6078C1C45B401AC4A398B3DC690C00EC3CCBF4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\ComboBox.json",
+    "copy": "ComboBox.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "B857C0BBA6AE7491A4EA483A606C0B8F5E976296648C3626C4BD7BAB1137AEA3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Tree-x64-ASan Debug.json",
+    "copy": "Tree.receipt.txt",
+    "bytes": 35582,
+    "sha256": "50B15D88E29397F1C899C80149125A2A22B916C9BF0D159E7028152C8BE29A1F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Tree-x64-ASan Debug.log",
+    "copy": "Tree.log",
+    "bytes": 8718,
+    "sha256": "FFE65B0EF2B556EFD0B8C8753913FBF89D7BEB0B6FBED215177687B5C0B936BC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tree.json",
+    "copy": "Tree.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "6CF5372FAED7819000A852496A6F2A55B209C8656BB6E2B388CE8F260ADAA3A8"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Tooltip-x64-ASan Debug.json",
+    "copy": "Tooltip.receipt.txt",
+    "bytes": 35585,
+    "sha256": "832035266B76235413E93D8DE21A7C5BE28AD901FCBD05E4364643781C86541A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Tooltip-x64-ASan Debug.log",
+    "copy": "Tooltip.log",
+    "bytes": 3600,
+    "sha256": "417B553B518D40BA30ED4034151DC831D1AB92EEF58AB5A11C2683A479044902"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Tooltip.json",
+    "copy": "Tooltip.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "5E00565C40E684234D83447308A882398A80964BB73B93885D0F724B26BB31D7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Rendering-x64-ASan Debug.json",
+    "copy": "Rendering.receipt.txt",
+    "bytes": 35587,
+    "sha256": "38E20A630D2C9819BD7A2C4B323F689D6A8D5EE685019958D9B8DB512218A1F2"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Rendering-x64-ASan Debug.log",
+    "copy": "Rendering.log",
+    "bytes": 31484,
+    "sha256": "D9A7053726217C7F3EB78101A926B7BB2FF7B918C10E1D015A64EE9E28E124B3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Rendering.json",
+    "copy": "Rendering.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "4D338BBC9FE706F2C127205C89F20C9543A75EC0F657638D14508C0B06C2A64A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Animation-x64-ASan Debug.json",
+    "copy": "Animation.receipt.txt",
+    "bytes": 35587,
+    "sha256": "6EC58BF25E4574EEA02B64F6EB5F6EC4DD8BCEB4260BAEF4B2FBE6EECC93FDB4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Animation-x64-ASan Debug.log",
+    "copy": "Animation.log",
+    "bytes": 5562,
+    "sha256": "2E6D1DBC5A808883032A599E0B481DAC70D65BB7501E3F40A28E9B03CEC4B323"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Animation.json",
+    "copy": "Animation.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "825826BE555BD35B45D1A160F9D5FB1DDB145C8596D3046AD7FCCD7C6B9D4544"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Accessibility-x64-ASan Debug.json",
+    "copy": "Accessibility.receipt.txt",
+    "bytes": 35591,
+    "sha256": "369FBEDE20F513D239C01F4A5EBDA590741B5AB2C3BDAF063BC37EF576DC1B43"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Accessibility-x64-ASan Debug.log",
+    "copy": "Accessibility.log",
+    "bytes": 96121,
+    "sha256": "3A1A6A16997DE8D44BD18EC7A4763E49419D39D670E5768F9625E884D0DBB500"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\Accessibility.json",
+    "copy": "Accessibility.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "39DA16522E58BCBA4145EB00922A32F4C88DABF6906F121894D99F62D76F940B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\WindowHost-x64-ASan Debug.json",
+    "copy": "WindowHost.receipt.txt",
+    "bytes": 35588,
+    "sha256": "9F5C040684DF82049FBA9416D9DAF385AB8082765F32B373BB3115C9D7FDEA0A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-WindowHost-x64-ASan Debug.log",
+    "copy": "WindowHost.log",
+    "bytes": 24489,
+    "sha256": "E0A18787DB27563927EFF2A87A1A50EAB4B22BBD3C8C06513D0AA3E0DDBCAA5A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\WindowHost.json",
+    "copy": "WindowHost.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "8C2D90239CBE01A803B7A49BC11C0A4F7527304ECC890953A1917582B352830E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\InteractiveLease-x64-ASan Debug.json",
+    "copy": "InteractiveLease.receipt.txt",
+    "bytes": 35594,
+    "sha256": "FC5514F22ECB720FB4A48978B7CCC830148C936378253325030FC7617A07A9AF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-InteractiveLease-x64-ASan Debug.log",
+    "copy": "InteractiveLease.log",
+    "bytes": 5269,
+    "sha256": "A2368268B4C00CB57C71DA9B6AA97844FBCFAC7023ACABE333001E1EA1C3C72B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\InteractiveLease.json",
+    "copy": "InteractiveLease.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "883AE6F554B96CC8E896C946FE49B1E4033D093DA78767FE115D4E8F69F49315"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Performance-x64-ASan Debug-19257a159be841f788c30f5ee70428bc.json",
+    "copy": "canonical-performance.json",
+    "bytes": 38578,
+    "sha256": "C127247E09168FDFFF6B93550B080A53A7B1BB701C06CA0B28C0AA70FB0B4EF3"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Performance-x64-ASan Debug-19257a159be841f788c30f5ee70428bc.json.comparison.json",
+    "copy": "canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\x64-ASanDebug\\build.json",
+    "copy": "scoped-build.receipt.txt",
+    "bytes": 259,
+    "sha256": "2645C101E09C0485284D70A38B99DC4D038A239BF45FE2CB253290AA31134879"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\performance-build\\x64-ASanDebug\\build.json",
+    "copy": "performance-build.receipt.txt",
+    "bytes": 259,
+    "sha256": "7E69643C377E647AC21C57C84CF89DD91DD93767D40CCAEB4B7F883AEE98AD8E"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\scoped-tests\\independent\\Tooling.json",
+    "copy": "Tooling.scoped.receipt.txt",
+    "bytes": 259,
+    "sha256": "883ABDC584494A6D2D2E9A002A39C2313E606A57740D44CC4A31D08550CC62AF"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\AddressSanitizer-x64.json",
+    "copy": "AddressSanitizer.receipt.txt",
+    "bytes": 545,
+    "sha256": "E3C699B0510E53050FC0178272A865B9848F7FF3D729A446F8EBF20EB1E8D96F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log",
+    "copy": "AddressSanitizer.log",
+    "bytes": 5930,
+    "sha256": "8EBBA2BE8B02840D40FC5B980003F68652D8A3A0129835B16299A32B23F4305F"
+  }
+]

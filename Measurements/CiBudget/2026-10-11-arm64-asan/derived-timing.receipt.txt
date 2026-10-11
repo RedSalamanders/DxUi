@@ -1,0 +1,13 @@
+{
+  "historicalMainSource": "ec680e866a218b57000a1780018c00101a437f91",
+  "currentSource": "284a9ec60cc767cad16775e4131b597ff1101b23",
+  "nativeStepSeconds": 1248,
+  "normalConsumerSeconds": 584,
+  "disabledConsumerObservedSeconds": 483,
+  "normalPostModuleTailSeconds": 163.9154439,
+  "priorDisabledPostModuleTailSeconds": 156.129568,
+  "disabledObservedPostModuleTailSeconds": 75.2612289,
+  "estimatedFinishUsingNormalTail": "2026-10-10T14:08:54.0599521Z",
+  "estimatedFinishUsingPriorDisabledTail": "2026-10-10T14:08:46.2740762Z",
+  "estimatesAreNotCompletedResults": true
+}

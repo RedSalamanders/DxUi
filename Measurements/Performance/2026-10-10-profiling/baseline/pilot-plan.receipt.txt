@@ -1,0 +1,18 @@
+{
+  "purpose": "bounded-frozen-baseline-pilot",
+  "sourceHead": "01f1aed1017e5c83dfdbf85a226444bbb1c63419",
+  "executable": ".build/x64/Release/DxUi.EmbeddedTests.exe",
+  "executableSha256": "198D5A32F3EC51631AAA4A7C20120997A344D0CBB6ED2749E474291EA44E61AF",
+  "scenarios": [
+    "Default",
+    "MultilineGrid",
+    "Default",
+    "MultilineGrid",
+    "Default",
+    "MultilineGrid"
+  ],
+  "reportBudget": 6,
+  "startedUtc": "2026-10-10T20:52:13.6341679Z",
+  "acceptance": "descriptive-only",
+  "notes": "Serial fresh processes. No other task builds/tests or source edits while before/after guards run. No ambient-load trace or dedicated-host claim."
+}

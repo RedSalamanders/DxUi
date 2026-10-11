@@ -1,0 +1,128 @@
+{
+  "head": "1cdbfde4c93bafa6a0c794fd80939387467fefa4",
+  "testedMerge": "58e71d4528d8cb041ff71931fe0f6c9aaaeef426",
+  "run": 38166757540,
+  "attempt": 1,
+  "profiles": [
+    {
+      "job": 114550858172,
+      "name": "native (ARM64, windows-11-vs2026-arm, Release, 40)",
+      "run": 38166757540,
+      "attempt": 1,
+      "head": "1cdbfde4c93bafa6a0c794fd80939387467fefa4",
+      "jobConclusion": "failure",
+      "nativeFull": {
+        "name": "Run ./test.ps1 -Full -SkipTooling -Configuration \"Release\" -Platform ARM64",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4,
+        "started_at": "2026-10-11T19:10:19Z",
+        "completed_at": "2026-10-11T19:35:19Z"
+      },
+      "nativeFullSeconds": 1500.0,
+      "precompilationBoundaryUtc": "2026-10-11T19:17:39.3929406+00:00",
+      "precompilationSeconds": 440.3929406,
+      "precompilationMeaning": "From Full step API start to Compiling DxUi; includes PowerShell/startup/discovery and required prebuild v2 attestation. Internal subphase durations are not logged.",
+      "reportedMSBuildSeconds": 931,
+      "buildSuccessUtc": "2026-10-11T19:34:12.6754487+00:00",
+      "elapsedThroughBuildSuccessSeconds": 1433.6754487,
+      "ordinarySuitesStarted": false,
+      "performanceFinalReceiptPrinted": false,
+      "benchmarkNativeSamplesPrinted": false,
+      "performanceProvenanceCompleted": false,
+      "asanDetectionProbeCompleted": false,
+      "foregroundRefusalEstablished": false,
+      "regularConsumer": {
+        "name": "Qualify the relocated public consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-11T19:35:19Z",
+        "completed_at": "2026-10-11T19:45:07Z"
+      },
+      "regularConsumerSeconds": 588.0,
+      "consumerFinalPassPrinted": true,
+      "partialNativeEvidenceIsQualifying": false
+    },
+    {
+      "job": 114550858255,
+      "name": "native (ARM64, windows-11-vs2026-arm, Debug, 40)",
+      "run": 38166757540,
+      "attempt": 1,
+      "head": "1cdbfde4c93bafa6a0c794fd80939387467fefa4",
+      "jobConclusion": "failure",
+      "nativeFull": {
+        "name": "Run ./test.ps1 -Full -SkipTooling -Configuration \"Debug\" -Platform ARM64",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4,
+        "started_at": "2026-10-11T19:10:26Z",
+        "completed_at": "2026-10-11T19:35:26Z"
+      },
+      "nativeFullSeconds": 1500.0,
+      "precompilationBoundaryUtc": "2026-10-11T19:19:01.4066756+00:00",
+      "precompilationSeconds": 515.4066756,
+      "precompilationMeaning": "From Full step API start to Compiling DxUi; includes PowerShell/startup/discovery and required prebuild v2 attestation. Internal subphase durations are not logged.",
+      "reportedMSBuildSeconds": 769,
+      "buildSuccessUtc": "2026-10-11T19:32:54.7953602+00:00",
+      "elapsedThroughBuildSuccessSeconds": 1348.7953602,
+      "ordinarySuitesStarted": false,
+      "performanceFinalReceiptPrinted": false,
+      "benchmarkNativeSamplesPrinted": true,
+      "performanceProvenanceCompleted": false,
+      "asanDetectionProbeCompleted": false,
+      "foregroundRefusalEstablished": false,
+      "regularConsumer": {
+        "name": "Qualify the relocated public consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-11T19:35:26Z",
+        "completed_at": "2026-10-11T19:45:04Z"
+      },
+      "regularConsumerSeconds": 578.0,
+      "consumerFinalPassPrinted": true,
+      "partialNativeEvidenceIsQualifying": false
+    }
+  ],
+  "armAsan": "Awaiting completed original job log and annotation-disabled consumer; no outcome inferred.",
+  "proposedFullMinutes": {
+    "x64": 25,
+    "ARM64": 45
+  },
+  "proposedJobMinutes": [
+    {
+      "minutes": 45,
+      "platform": "x64",
+      "configuration": "Debug"
+    },
+    {
+      "minutes": 45,
+      "platform": "x64",
+      "configuration": "Release"
+    },
+    {
+      "minutes": 60,
+      "platform": "x64",
+      "configuration": "ASan Debug"
+    },
+    {
+      "minutes": 65,
+      "platform": "ARM64",
+      "configuration": "Debug"
+    },
+    {
+      "minutes": 65,
+      "platform": "ARM64",
+      "configuration": "Release"
+    },
+    {
+      "minutes": 80,
+      "platform": "ARM64",
+      "configuration": "ASan Debug"
+    }
+  ],
+  "consumerStepMinutes": 15,
+  "nativeTestWatchdogSeconds": 300,
+  "proposedBudgetIsAQualificationResult": false
+}

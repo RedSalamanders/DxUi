@@ -136,6 +136,7 @@ function Read-DxUiLeaseResult {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
     $facts = [ordered]@{}
     $children = [Collections.Generic.List[object]]::new()
+    $confirmationDuplicates = [Collections.Generic.List[string]]::new()
     foreach ($line in $Text -split '\r?\n') {
         if ($line -notmatch '^(?<key>[A-Za-z][A-Za-z0-9.]*): (?<value>.*)$') { continue }
         $key = $Matches['key']
@@ -150,7 +151,12 @@ function Read-DxUiLeaseResult {
                     TimedOut = $Matches['timedout'] -eq '1'; Interrupted = $Matches['interrupted'] -eq '1'
                 })
             }
-        } else { $facts[$key] = $value }
+        } else {
+            if ($key -in @('confirmation','confirmation.autoStart','confirmation.seconds') -and $facts.Contains($key)) {
+                $confirmationDuplicates.Add($key)
+            }
+            $facts[$key] = $value
+        }
     }
     if (-not $facts.Contains('state')) { return $null }
     $part = { param([string] $Key) if ($facts.Contains($Key)) { $facts[$Key] } else { 'none' } }
@@ -159,6 +165,9 @@ function Read-DxUiLeaseResult {
         Exit = if ($facts.Contains('exit')) { [int]$facts['exit'] } else { -1 }
         Reason = if ($facts.Contains('reason')) { $facts['reason'] } else { '' }
         Confirmation = & $part 'confirmation'
+        AutoStart = $facts.Contains('confirmation.autoStart') -and $facts['confirmation.autoStart'] -eq '1'
+        ConfirmationSeconds = if ($facts.Contains('confirmation.seconds') -and $facts['confirmation.seconds'] -match '^\d+$') { [uint32]$facts['confirmation.seconds'] } else { $null }
+        ConfirmationDuplicates = $confirmationDuplicates.ToArray()
         SavedForeground = if ($facts.Contains('foreground.saved')) { $facts['foreground.saved'] } else { '' }
         Foreground = & $part 'restoration.foreground'
         Focus = & $part 'restoration.focus'
@@ -174,7 +183,7 @@ function Get-DxUiLeaseExitMeaning {
     # What a lease exit code says, for a message.
     [CmdletBinding()] param([Parameter(Mandatory)][int] $ExitCode)
     switch ($ExitCode) {
-        0 { 'every suite passed and the desktop is as it was' }
+        0 { 'the lease returned success' }
         1 { 'a suite failed' }
         2 { 'the lease was given a malformed command line' }
         20 { 'there is no interactive desktop to take' }
@@ -210,6 +219,46 @@ function Get-DxUiLeaseProblems {
     return $problems.ToArray()
 }
 
+function Get-DxUiLeaseSummary {
+    # Presentation only: successful restoration flags cannot establish the state of failed, skipped or unrecorded parts.
+    [CmdletBinding()] param([AllowNull()] $Result)
+    $read = {
+        param([string] $Name, [string] $Fallback)
+        $property = if ($null -ne $Result) { $Result.PSObject.Properties[$Name] }
+        if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { return $Fallback }
+        return [string]$property.Value
+    }
+    $state = & $read 'State' 'missing'
+    $foreground = & $read 'Foreground' 'none'
+    $focus = & $read 'Focus' 'none'
+    $cursor = & $read 'Cursor' 'none'
+    $parts = @($foreground, $focus, $cursor)
+    $restoration = if ($parts -ccontains 'failed') {
+        'Desktop restoration failed.'
+    } elseif (@($parts | Where-Object { $_ -cnotin @('unchanged', 'restored') }).Count) {
+        'Desktop restoration was not fully verified.'
+    } elseif ($parts -ccontains 'restored') {
+        'The desktop states were restored or unchanged.'
+    } else {
+        'All three desktop states were unchanged.'
+    }
+    $pointerNotice = $null
+    if ($cursor -ceq 'restored') {
+        $saved = & $read 'CursorSaved' 'none'
+        $atExit = & $read 'CursorAtExit' 'none'
+        $pointerNotice = if ($saved -match '^-?\d+,-?\d+$' -and $atExit -match '^-?\d+,-?\d+$') {
+            "The lease restored the pointer from $atExit to $saved."
+        } else {
+            'The lease restored the pointer; one or both positions were not recorded.'
+        }
+        $pointerNotice += ' The desktop is captured before confirmation; this report does not identify which action moved the pointer.'
+    }
+    return [pscustomobject]@{
+        Message = "Foreground lease ($state): foreground $foreground, focus $focus, pointer $cursor; $restoration"
+        PointerNotice = $pointerNotice
+    }
+}
+
 function Test-DxUiDesktopAvailable {
     # Asks DxUi.InteractiveLease.exe whether this session has a desktop to take, without taking or showing anything. $null when it
     # does, otherwise the reason it says.
@@ -232,9 +281,15 @@ function Invoke-DxUiLeaseCore {
         [Parameter(Mandatory)][int] $EstimateSeconds,
         [Parameter(Mandatory)][string] $WorkDirectory,
         [switch] $Hosted,
+        [switch] $AutoStart,
         [int] $ConfirmSeconds = 120,
         [int] $ChildTimeoutSeconds = 900
     )
+    if ($AutoStart) {
+        if ($Hosted) { throw 'Automatic start is limited to an explicitly approved local interactive run.' }
+        if (-not $PSBoundParameters.ContainsKey('ConfirmSeconds')) { $ConfirmSeconds = 30 }
+        if ($ConfirmSeconds -le 0) { throw 'Automatic start requires a positive countdown.' }
+    }
     $plan = Join-Path $WorkDirectory 'interactive-plan.txt'
     $result = Join-Path $WorkDirectory 'interactive-result.txt'
     # A result left by an earlier run must never be taken for this run's.
@@ -242,10 +297,27 @@ function Invoke-DxUiLeaseCore {
     [IO.File]::WriteAllText($plan, (New-DxUiLeasePlanText -Runs $Runs), [Text.UTF8Encoding]::new($false))
     # Native stdout is progress for the person, not part of this function's returned object.
     $mode = if ($Hosted) { '--run-hosted' } else { '--run' }
-    & $Executable $mode "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
+    $automatic = @(if ($AutoStart) { '--auto-start' })
+    & $Executable $mode @automatic "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
     $exit = $LASTEXITCODE
     $parsed = if (Test-Path -LiteralPath $result -PathType Leaf) { Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText($result)) }
-    return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan }
+    $policyProblems = @()
+    if ($AutoStart -and $null -ne $parsed) {
+        if (@($parsed.ConfirmationDuplicates).Count) { $policyProblems += 'the native lease repeated automatic-start confirmation or policy fields' }
+        if ($parsed.State -eq 'completed' -and $parsed.Confirmation -cnotin @('started','autostarted')) {
+            $policyProblems += 'the completed approved lease did not record a clicked or automatic Start'
+        }
+    }
+    if ($AutoStart -and ($null -eq $parsed -or -not $parsed.AutoStart -or $parsed.ConfirmationSeconds -ne $ConfirmSeconds)) {
+        $policyProblems += 'the native lease did not record the requested automatic-start policy and countdown'
+    } elseif ($null -ne $parsed -and $parsed.AutoStart -and -not $AutoStart) {
+        $policyProblems += 'the native lease recorded an automatic-start policy that was not requested'
+    }
+    if ($null -ne $parsed -and $parsed.Confirmation -eq 'autostarted' -and (-not $parsed.AutoStart -or $parsed.ConfirmationSeconds -le 0)) {
+        $policyProblems += 'the native lease recorded automatic Start without a positive approved countdown'
+    }
+    return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan;
+        RequestedAutoStart=[bool]$AutoStart; RequestedConfirmationSeconds=$ConfirmSeconds; PolicyProblems=$policyProblems }
 }
 
 function Write-DxUiLeaseFailureLog {
@@ -260,6 +332,7 @@ function Invoke-DxUiInteractiveLease {
         [Parameter(Mandatory)][string] $Label,
         [Parameter(Mandatory)][int] $EstimateSeconds,
         [Parameter(Mandatory)][string] $WorkDirectory,
+        [switch] $AutoStart,
         [int] $ConfirmSeconds = 120,
         [int] $ChildTimeoutSeconds = 900
     )
@@ -283,4 +356,4 @@ function Invoke-DxUiHostedForegroundLease {
 
 Export-ModuleMember -Function Get-DxUiInteractiveSuiteNames, Test-DxUiInteractiveSuite, Get-DxUiLeaseExitCodes, Resolve-DxUiInteractiveSuites,
     Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Test-DxUiHostedForegroundLeaseRequired, Resolve-DxUiForegroundLeaseSuites, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
-    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease
+    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Get-DxUiLeaseSummary, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease

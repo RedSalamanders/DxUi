@@ -1,0 +1,98 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\canonical-performance.comparison.receipt.txt",
+    "copy": "canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\canonical-performance.json",
+    "copy": "canonical-performance.json",
+    "bytes": 38480,
+    "sha256": "25B9BF24A363C9CC212E1981C63AF34DC1B7F5124299AE6530E466EC0370269F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\copy.receipt.txt",
+    "copy": "copy.receipt.txt",
+    "bytes": 3800,
+    "sha256": "AD0A7280F282CDC2D082DF611E9E5D1B8271BEE4CA402484E347DB6E67C23764"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\interactive-plan.txt",
+    "copy": "interactive-plan.txt",
+    "bytes": 965,
+    "sha256": "A73AAFA227C1C7D1F42AA9F28E5FA6470BABA2E24C2ABBD683F1849AAD731CA4"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\interactive-result.txt",
+    "copy": "interactive-result.txt",
+    "bytes": 603,
+    "sha256": "261016D4C995AA3D2E7A79D57FE208451B9F159885AB971B802A058D93A7F8F0"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\Menu.log",
+    "copy": "Menu.log",
+    "bytes": 31171,
+    "sha256": "77392D516711EAD08F499E19F24327D4AB293D138112C9A06BECFFEE58D8EC6B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\Menu.receipt.txt",
+    "copy": "Menu.receipt.txt",
+    "bytes": 36162,
+    "sha256": "518E78977B0FD3E9121BF09AA9FDFFDB9F8C681942EF0C476868934F00877E19"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\MenuResources.log",
+    "copy": "MenuResources.log",
+    "bytes": 128687,
+    "sha256": "4D4B27A84A3B77CC4C6B18659DD9E8F325F14280A7B9B554A5EC574B6AEDBB94"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\MenuResources.receipt.txt",
+    "copy": "MenuResources.receipt.txt",
+    "bytes": 36170,
+    "sha256": "41F2641D7C7992396C111E040163C682DE3C102BF00A61C680EF60F0C5D446E6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\MenuResourceScaling.log",
+    "copy": "MenuResourceScaling.log",
+    "bytes": 1499588,
+    "sha256": "54A5C9A670FC7B3FF3F38CEAADDC87193A8C7CE4B79571F9A7F85AF90F058361"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\MenuResourceScaling.receipt.txt",
+    "copy": "MenuResourceScaling.receipt.txt",
+    "bytes": 36177,
+    "sha256": "10BDA57CD4F249195A1945CF8E91043F6E5FB8E213F91DBB81579142765F60F5"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\NativeTextInput.log",
+    "copy": "NativeTextInput.log",
+    "bytes": 55415,
+    "sha256": "16BFB02D22D75BA5BC51A37EBBAA495D5580F141089A74BBDB9A9FEDCA4A77F6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\NativeTextInput.receipt.txt",
+    "copy": "NativeTextInput.receipt.txt",
+    "bytes": 36173,
+    "sha256": "1A8D3ECD6D8CB25A10A88A350197FAD06D2D5521AF6652E87F218586D2247739"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\post-focus.state.receipt.txt",
+    "copy": "post-focus.state.receipt.txt",
+    "bytes": 2272,
+    "sha256": "ACF909BDC0B9F5A57F76FEEF276C3BBE00C6E6FC7AA8D25C1B52069CF00188CE"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\root-review.receipt.txt",
+    "copy": "root-review.receipt.txt",
+    "bytes": 2062,
+    "sha256": "CBC104838AE928622401C43A8742ED5CF4453B048E7927B3A302EC50333C9BCD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-Debug-5763d57e-attempt3\\runner.log",
+    "copy": "runner.log",
+    "bytes": 4738,
+    "sha256": "7AE576AFFBE55AA77A56DD852D17BF9A1538CFD09E3C1B3E9F5B5549F9D21E3E"
+  }
+]

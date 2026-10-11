@@ -1,0 +1,102 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                 ⚡  ASAN DEBUG  /  X64  /  REBUILD  ⚡                 │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  Generating Code...
+  Compiling...
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.lib
+  InteractiveLease.Tests.Runner.cpp
+  Foundation.Tests.Foundation.cpp
+  DxUi.Tests.Accessibility.cpp
+  Main.cpp
+  Embedded.Tests.Embedded.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  DxUi.InteractiveLease.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:29
+Output: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\logs\build-x64-ASan Debug-468248297a4c40f59186502215653ca3.log
+========================================

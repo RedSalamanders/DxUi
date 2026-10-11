@@ -1765,25 +1765,139 @@ void TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus()
 {
     using namespace DxUi;
 
+    class ObservedTextField final : public TextField
+    {
+    public:
+        using TextField::GetLifetimeToken;
+        using TextField::TextField;
+    };
     const ScopedActivatingTestWindows activatingWindows;
     AttachedHostWindow window;
     static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
     auto root   = std::make_unique<Panel>();
-    auto* field = root->AddChild<TextField>(L"alpha");
+    auto* field = root->AddChild<ObservedTextField>(L"alpha");
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
     window.Host().SetRoot(std::move(root));
 
+    // Passive, fixed-size observations distinguish setup failure from the zero-size transition below.
+    // No text, window titles, provider calls, extra pumping or activation requests are collected.
+    struct FocusObservation
+    {
+        HWND foreground         = nullptr;
+        HWND focus              = nullptr;
+        HWND active             = nullptr;
+        DWORD foregroundProcess = 0u;
+        DWORD foregroundThread  = 0u;
+        RECT client{};
+        bool clientReadable       = false;
+        bool visible              = false;
+        bool fieldAlive           = false;
+        bool logicalTarget        = false;
+        bool acknowledgedFocus    = false;
+        bool nativeSession        = false;
+        bool tsfDocument          = false;
+        UINT width                = 0u;
+        UINT height               = 0u;
+        uint32_t foregroundLosses = 0u;
+        NativeTextInputEventCounters counters{};
+    };
+    struct FocusAttempt
+    {
+        const char* terminalStage = "not-attempted";
+        bool activated            = false;
+        size_t observedStages     = 0u;
+        std::array<FocusObservation, 4u> observations{};
+    };
+    constexpr int maximumRuns = 5;
+    std::array<FocusAttempt, maximumRuns> attempts{};
+    size_t attemptCount                    = 0u;
+    const std::weak_ptr<int> fieldLifetime = field->GetLifetimeToken();
+    const auto observe                     = [&]
+    {
+        FocusObservation result{};
+        result.foreground        = GetForegroundWindow();
+        result.focus             = GetFocus();
+        result.active            = GetActiveWindow();
+        result.foregroundThread  = GetWindowThreadProcessId(result.foreground, &result.foregroundProcess);
+        result.clientReadable    = GetClientRect(window.Hwnd(), &result.client) != FALSE;
+        result.visible           = IsWindowVisible(window.Hwnd()) != FALSE;
+        result.fieldAlive        = ! fieldLifetime.expired();
+        result.logicalTarget     = window.Host().GetFocusControl() == field;
+        result.acknowledgedFocus = result.fieldAlive && field->HasFocus();
+        result.nativeSession     = window.Host().DebugHasActiveNativeTextInputSession();
+        result.tsfDocument       = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        result.width             = window.Host().DebugGetWidthPx();
+        result.height            = window.Host().DebugGetHeightPx();
+        result.foregroundLosses  = window.ForegroundLossCount();
+        result.counters          = window.Host().DebugGetNativeTextInputEventCounters();
+        return result;
+    };
     bool focused                = false;
     const auto activateAndFocus = [&]
     {
-        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+        focused                                        = false;
+        FocusAttempt& attempt                          = attempts[attemptCount++];
+        attempt                                        = {};
+        attempt.observations[attempt.observedStages++] = observe();
+        attempt.activated                              = TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+        attempt.observations[attempt.observedStages++] = observe();
+        if (! attempt.activated)
             return;
         window.Host().SetFocusControl(field);
+        attempt.observations[attempt.observedStages++] = observe();
         window.PumpMessages();
-        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        focused                                        = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        attempt.observations[attempt.observedStages++] = observe();
     };
-    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input zero-size suspension"))
+    const auto run = RunWhileForegroundHeld(window, activateAndFocus, maximumRuns);
+    constexpr std::array<const char*, 4u> stageNames{"before-activation", "after-activation", "after-logical-focus", "after-pump"};
+    for (size_t attemptIndex = 0u; attemptIndex < attemptCount; ++attemptIndex)
+    {
+        const FocusAttempt& attempt = attempts[attemptIndex];
+        std::cerr << std::format("    [FOCUS-SETUP] attempt={} activated={} terminal={} target={:x} process={} thread={} sequenceHeld={}\n",
+                                 attemptIndex + 1u,
+                                 attempt.activated,
+                                 attempt.terminalStage,
+                                 reinterpret_cast<uintptr_t>(window.Hwnd()),
+                                 GetCurrentProcessId(),
+                                 GetCurrentThreadId(),
+                                 run.held);
+        for (size_t stage = 0u; stage < attempt.observedStages; ++stage)
+        {
+            const auto& state    = attempt.observations[stage];
+            const auto& counters = state.counters;
+            std::cerr << std::format(
+                "    [FOCUS-SETUP] stage={} foreground={:x} foregroundProcess={} foregroundThread={} focus={:x} active={:x} "
+                "clientReadable={} client={}x{} host={}x{} visible={} fieldAlive={} logicalTarget={} acknowledgedFocus={} "
+                "nativeSession={} tsfDocument={} losses={} activation={} deactivation={} tsfAttempts={} tsfSuccess={} tsfFailure={} tsfDeactivation={}\n",
+                stageNames[stage],
+                reinterpret_cast<uintptr_t>(state.foreground),
+                state.foregroundProcess,
+                state.foregroundThread,
+                reinterpret_cast<uintptr_t>(state.focus),
+                reinterpret_cast<uintptr_t>(state.active),
+                state.clientReadable,
+                state.client.right - state.client.left,
+                state.client.bottom - state.client.top,
+                state.width,
+                state.height,
+                state.visible,
+                state.fieldAlive,
+                state.logicalTarget,
+                state.acknowledgedFocus,
+                state.nativeSession,
+                state.tsfDocument,
+                state.foregroundLosses,
+                counters.activationCount,
+                counters.deactivationCount,
+                counters.tsfActivationAttemptCount,
+                counters.tsfActivationSuccessCount,
+                counters.tsfActivationFailureCount,
+                counters.tsfDeactivationCount);
+        }
+    }
+    if (! ForegroundHeldOrSkip(run, "native text input zero-size suspension"))
         return;
     Require(focused, "zero-size suspension fixture owns actual keyboard focus and an active native session");
 
@@ -2758,9 +2872,11 @@ void TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement()
     Require(state.text == field->GetText(), "native ime end after result commit keeps native state synchronized with retained text");
 }
 
-void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
+bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
 {
     using namespace DxUi;
+
+    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(), "the forced IME setup loss uses an explicitly nonactivating window fixture");
 
     {
         AttachedHostWindow window;
@@ -2773,18 +2889,105 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         field->SetOnTextChanged([&notifications](std::wstring_view) { ++notifications; });
         window.Host().SetRoot(std::move(root));
 
-        bool setup              = false;
-        const auto focusAndType = [&]
+        struct SetupAttempt
         {
-            if (! TryActivateDxUiTestWindow(window.Hwnd()))
-                return;
-            window.Host().SetFocusControl(field);
-            setup = field->OnChar(window.Host(), L'a', 0u);
-            window.PumpMessages();
+            const char* terminalStage = "not-attempted";
+            bool activated            = false;
+            bool onChar               = false;
+            size_t beforeLength       = 0u;
+            bool beforeOneA           = false;
+            size_t typedLength        = 0u;
+            size_t pumpedLength       = 0u;
+            bool typedOneA            = false;
+            bool pumpedOneA           = false;
+            HWND foreground           = nullptr;
+            HWND focus                = nullptr;
+            DWORD foregroundProcess   = 0u;
+            bool logicalTarget        = false;
+            bool nativeSession        = false;
+            uint32_t foregroundLosses = 0u;
         };
-        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusAndType), "native IME composition undo grouping"))
-            return;
+        constexpr int maximumRuns = 5;
+        std::array<SetupAttempt, maximumRuns> attempts{};
+        size_t attemptCount        = 0u;
+        bool setup                 = false;
+        bool discardedTextSurvived = false;
+        const auto focusAndType    = [&]
+        {
+            SetupAttempt& attempt = attempts[attemptCount++];
+            attempt.beforeLength  = field->GetText().size();
+            attempt.beforeOneA    = field->GetText() == L"a";
+            setup                 = false;
+            notifications         = 0u;
+            attempt.activated     = simulateFirstLoss || TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+            if (simulateFirstLoss)
+                attempt.terminalStage = "simulated-nonactivating";
+            const auto observe = [&]
+            {
+                attempt.foreground = GetForegroundWindow();
+                attempt.focus      = GetFocus();
+                static_cast<void>(GetWindowThreadProcessId(attempt.foreground, &attempt.foregroundProcess));
+                attempt.logicalTarget    = window.Host().GetFocusControl() == field;
+                attempt.nativeSession    = window.Host().DebugHasActiveNativeTextInputSession();
+                attempt.foregroundLosses = window.ForegroundLossCount();
+            };
+            if (! attempt.activated)
+            {
+                observe();
+                return;
+            }
+            field->SetText(L"");
+            window.Host().SetFocusControl(field);
+            setup               = field->OnChar(window.Host(), L'a', 0u);
+            attempt.onChar      = setup;
+            attempt.typedLength = field->GetText().size();
+            attempt.typedOneA   = field->GetText() == L"a";
+            if (simulateFirstLoss && attemptCount == 1u)
+            {
+                SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+                discardedTextSurvived = field->GetText() == L"a";
+            }
+            window.PumpMessages();
+            attempt.pumpedLength = field->GetText().size();
+            attempt.pumpedOneA   = field->GetText() == L"a";
+            observe();
+        };
+        const auto run = RunWhileForegroundHeld(window, focusAndType, maximumRuns);
+        for (size_t index = 0u; index < attemptCount; ++index)
+        {
+            const auto& attempt = attempts[index];
+            std::cerr << std::format("    [IME-UNDO-SETUP] attempt={} activated={} terminal={} onChar={} textLengths={}/{}/{} oneA={}/{} "
+                                     "foreground={:x} foregroundProcess={} focus={:x} target={:x} logicalTarget={} nativeSession={} losses={} sequenceHeld={} "
+                                     "finalNotifications={}\n",
+                                     index + 1u,
+                                     attempt.activated,
+                                     attempt.terminalStage,
+                                     attempt.onChar,
+                                     attempt.beforeLength,
+                                     attempt.typedLength,
+                                     attempt.pumpedLength,
+                                     attempt.typedOneA,
+                                     attempt.pumpedOneA,
+                                     reinterpret_cast<uintptr_t>(attempt.foreground),
+                                     attempt.foregroundProcess,
+                                     reinterpret_cast<uintptr_t>(attempt.focus),
+                                     reinterpret_cast<uintptr_t>(window.Hwnd()),
+                                     attempt.logicalTarget,
+                                     attempt.nativeSession,
+                                     attempt.foregroundLosses,
+                                     run.held,
+                                     notifications);
+        }
+        if (! ForegroundHeldOrSkip(run, "native IME composition undo grouping"))
+            return false;
+        if (simulateFirstLoss)
+        {
+            Require(run.runs == 2 && attemptCount == 2u, "the forced first IME setup loss retries exactly once");
+            Require(discardedTextSurvived && attempts[1].beforeOneA, "the discarded direct edit survives foreground loss until the next setup resets it");
+        }
         Require(setup && field->GetText() == L"a", "undo fixture creates one earlier independent typed edit");
+        Require(GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession(),
+                "native IME undo grouping owns thread keyboard focus and an active native session");
         notifications = 0u;
 
         static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
@@ -2812,7 +3015,30 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         Require(field->GetText() == L"a", "the first undo removes the complete composition and restores composition-entry text");
         Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the earlier typed edit remains independently undoable");
         Require(field->GetText().empty(), "the second undo removes only the earlier typed edit");
+        if (simulateFirstLoss)
+        {
+            const unsigned previousNotifications = notifications;
+            Require(! field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the discarded setup leaves no earlier direct edit to undo");
+            Require(field->GetText().empty() && notifications == previousNotifications,
+                    "an empty undo history preserves text and emits no additional notification");
+        }
     }
+
+    return true;
+}
+
+void TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    Require(VerifyNativeImeUndoGrouping(true), "the forced first IME setup loss completes the original composition and two-undo assertions");
+}
+
+void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
+{
+    using namespace DxUi;
+
+    if (! VerifyNativeImeUndoGrouping(false))
+        return;
 
     {
         AttachedHostWindow window;
@@ -8793,6 +9019,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement);
     DXUI_RUN_TEST(TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText);
+    DXUI_RUN_TEST(TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt);
     DXUI_RUN_TEST(TestNativeImeResultCallbacksPreserveNewerTextAndComposition);
     DXUI_RUN_TEST(TestNativeImeCancellationCallbacksPreserveNewerState);
     DXUI_RUN_TEST(TestNativeTextInputProviderExposesImeTextEditRanges);

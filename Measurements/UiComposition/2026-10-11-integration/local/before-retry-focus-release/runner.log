@@ -1,0 +1,53 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 2410.25 completed offscreen FPS; p95 0.5713 ms; private 27557888 bytes
+Complex UI clean round 2: 1923.28 completed offscreen FPS; p95 0.6049 ms; private 27525120 bytes
+Complex UI clean round 3: 2473.4 completed offscreen FPS; p95 0.4845 ms; private 28086272 bytes
+Complex UI clean round 4: 2469.85 completed offscreen FPS; p95 0.4941 ms; private 28594176 bytes
+Complex UI clean round 5: 2522.31 completed offscreen FPS; p95 0.4336 ms; private 28590080 bytes
+Complex UI dirty round 1: 601.166 completed offscreen FPS; p95 1.8599 ms; private 29474816 bytes
+Complex UI dirty round 2: 621.897 completed offscreen FPS; p95 1.927 ms; private 29560832 bytes
+Complex UI dirty round 3: 482.945 completed offscreen FPS; p95 4.8256 ms; private 29749248 bytes
+Complex UI dirty round 4: 601.599 completed offscreen FPS; p95 2.1216 ms; private 29794304 bytes
+Complex UI dirty round 5: 611.344 completed offscreen FPS; p95 1.7424 ms; private 29765632 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-Release-d5e10f5b9d534b89b0e5931b36d34e42.json
+Foreground run: Menu, NativeTextInput, MenuResources, MenuResourceScaling (x64 Release) takes the desktop for about 6 minute(s) after an approved automatic Start countdown (30 seconds; Cancel stops it).
+Ran Menu (x64 Release) under the interactive foreground lease
+PASS Menu (0 capability skips recorded)
+Ran NativeTextInput (x64 Release) under the interactive foreground lease
+PASS NativeTextInput (0 capability skips recorded)
+Ran MenuResources (x64 Release) under the interactive foreground lease
+PASS MenuResources (0 capability skips recorded)
+Ran MenuResourceScaling (x64 Release) under the interactive foreground lease
+PASS MenuResourceScaling (0 capability skips recorded)
+Foreground lease (completed): foreground unchanged, focus unchanged, pointer restored; The desktop states were restored or unchanged.
+The lease restored the pointer from 2117,1703 to 1915,1128. The desktop is captured before confirmation; this report does not identify which action moved the pointer.
+All 4 requested suites passed.

@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-11
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -12,6 +12,74 @@ capture cancellation/continuation, unavailable/full-failure transitions, cross-t
 geometry publication. It preserves every preceding assertion; consumer pin adoption requires actual host tests.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
+cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
+unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;
+destructive, reentrant and detached callbacks; replacement editors during detach; embedded composition, selection
+and focus; and nonactivating native preparation. Accessibility additionally verifies both native and embedded
+form property providers and real client-thread property notifications, including weak label lifetime and teardown.
+An existing manually positioned container must preserve its explicit geometry when these opt-in APIs are added.
+
+Real UIA event checks MUST fail when their bounded quiet wait expires; silently continuing loses the boundary
+between actions. A 500 ms quiet interval records observed silence, not a guarantee that no delayed notification
+can arrive later. Diagnostic callback times/sequence numbers MUST remain outside semantic event equality and
+deduplication. The Grid unchanged-selection regression records both provider emission attempts and client arrivals,
+retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
+messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
+
+The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
+admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does
+not initialize it again. Each admitted attempt clears the field with `SetText(L"")` before creating its one earlier
+independent typed edit. Original composition notifications, composition undo, earlier-edit undo and late-result
+assertions remain required. The synthetic first-loss regression additionally requires exactly two attempts and
+an empty third undo with no text or notification change. Its `WS_EX_NOACTIVATE` window is excluded from helper
+foreground activation but still requests native thread keyboard focus, so the NativeTextInput lease remains
+required. Synthetic retry isolation does not qualify physical IME or product behavior.
+
+The activation helper MUST preserve its 800 ms polling deadline while servicing sent messages through
+`MsgWaitForMultipleObjectsEx` and `PeekMessageW` with `PM_NOREMOVE`; queued input remains for its normal pump.
+A sent callback can outlast the polling interval, so this deadline is not a hard callback bound. The native
+watchdog and existing foreground checks, grants, authorization and bounded attempts remain required.
+
+`performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
+manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
+allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2
+build attestations, the diagnostic source/dispatcher/runner hashes and the before/after execution state, and refuses
+stale, malformed or mismatched evidence. This within-candidate diagnostic cannot establish source non-regression,
+approve the acceptance policy, waive native platform gates or substitute for consumer harness evidence.
+
+`performance-profile.ps1` runs the separate `dxui-complex-ui-profiling-v1` fixture. It retains fixed 20/100/200-frame
+warm-up checkpoints and clean/dirty probe windows, phase-boundary process/main/worker CPU observations, Grid cache
+statistics and optional heap totals. All telemetry and JSON output occur outside timed frames; thread inventories
+are bounded and record unavailable queries and overflow. Heap traversal time is measured but is not bounded by the
+inventory capacity. Heap-off/on reports expose sampling effects; they are different diagnostic profiles, not matched
+canonical acceptance runs. The runner requires fresh v2 build attestation, hashes its own fixture/helper/dispatcher
+closure, checks identities before and after execution, preserves exact native bytes and limits its owned child to
+120 seconds. Structurally missing, malformed, stale or changed reports cannot acquire a valid stamped receipt.
+Explicit API-unavailable observations or bounded inventory overflow retain partial telemetry status; provenance
+validity does not turn unavailable values into observed zeros or supply performance acceptance. CPU consumption and
+allowed affinity do not establish actual processor placement, context-switch delays or attribution to WARP. Retain
+failed tracing preflights; unavailable kernel tracing is not evidence of a quiet machine. These diagnostics change
+neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets or required-CI qualification hold.
+
+Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and
+truncation flags, exact log bindings, quiet intervals and matching callback/provider snapshot cutoffs. Callback
+entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.
+A quiet interval does not guarantee no later delivery. Provider attempts MUST NOT substitute for semantic event
+payloads or delivery success, and partial callback completion MUST NOT be reported as a complete timeline.
+
+Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
+while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
+judges are replayed from the same hashed native reports, including every same-side control. Historical v1 reports
+remain diagnostic records; a fresh build is required for v2 qualification.
+Default-output incremental reuse additionally requires an exact receipt for the complete intermediate profile inventory
+and bytes; altered objects, tracking logs or generated shaders force `Rebuild` despite unchanged timestamps. Final
+`SkipBuild` remains independent of disposable cache. Resolved C++/HLSL bytes and owned include trees are attested per side;
+selected native tool header/library roots include extensionless and optional inputs. Ignored/external native inputs,
+response/path overrides and unsupported cache/header/output arrangements fail closed. Focused provenance fixtures use
+real file mutations and production receipt validation, with synthetic discovery/metadata explicitly separated from native
+build and policy qualification evidence.
 
 The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
 without bitmap capture. It rotates and reverses cases across 32 cycles, varying
@@ -92,10 +160,20 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 33 s, and of the fixture suites `Gallery` took 5 s, 4.5 s and 10 s and `ButtonContrast`, `MenuTextLayoutResources` and
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
-instead of at the 40-minute limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI also bounds its steps, at about twice their slowest runs on 2026-09-30:
-`test.ps1` at 25 minutes (13 at most) and each consumer build at 15 (9 at most), so a hang the watchdog cannot reach
-(Foundation, Embedded, the consumer) still leaves the job time to upload its logs.
+instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
+how close any of their tests comes. Native CI bounds `test.ps1` at 25 minutes on x64 and 45 minutes on ARM64, and each clean-pin
+consumer qualification at 15 minutes, including hangs the per-test watchdog cannot reach (Foundation, Embedded, the consumer).
+The enclosing budgets are 45 minutes for x64 Debug/Release, 60 for x64 ASan Debug, 65 for ARM64 Debug/Release and 80 for ARM64
+ASan Debug. Each row includes its selected Full stage, regular consumer, separate annotations-disabled consumer when ASan,
+and five minutes for setup, resource/gallery work and artifact collection. The per-test watchdogs, six standard consumer qualifications, both
+annotations-disabled ASan qualifications and failure accounting remain required.
+The [source-bound cold-build investigation](../../Measurements/CiBudget/2026-10-11-cold-build/README.md) records PR #73's
+three ARM64 Full timeouts: cold compilation plus v2 provenance consumed almost all the prior 25-minute window.
+Debug/Release were interrupted before ordinary suites; ASan completed 14 suites before being interrupted in Rendering.
+Those incomplete results block integration and cannot become foreground-refusal exceptions.
+The [earlier enclosing cancellation](../../Measurements/CiBudget/2026-10-11-arm64-asan/README.md) remains historical evidence,
+not a passing consumer qualification. Finite timing allowances do not relax correctness, sanitizer, resource, provenance
+or performance-policy gates; fresh complete CI evidence is still required.
 `test.ps1` reports a control suite that exits nonzero with its exit code, the `TIMEOUT:` line when the watchdog ended it (also
 stored as `timeout` in the suite's receipt) and the last twelve lines of its log (`Tools/SuiteFailure.psm1`), and its final
 error carries the first two: `DxUi failed suites: Menu exited with code 124 (TIMEOUT: <TestName> after 300 s)`.
@@ -127,6 +205,18 @@ itself can pass when run alone and fail under them, and a tooling test requires 
 enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
 agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
 cannot fail it.
+Portable tooling fixtures MUST distinguish raw Windows project spelling from evaluated items on the current host:
+each native item identity and full path must resolve to the same existing owned file. Positive closure checks must
+complete before negative boundary checks, including mismatched identity/full-path pairs that each name an existing
+owned file. Windows-shaped profile normalization remains a separate regression.
+
+Profiling process-control fixtures identify an owned helper by both PID and native creation instance. On Linux,
+the creation instance is the boot ID and exact boot-relative `/proc/<pid>/stat` start tick; an absolute .NET
+`StartTime` reconstructed in separate processes is not the cross-handle identity. Other hosts retain the exact
+UTC creation timestamp. Cleanup acts only on the retained process whose identity was checked. The direct-child
+timeout, descendant survival and bounded pipe-drain assertions remain required; no timestamp tolerance or
+descendant-tree termination substitutes for them. The [Linux portability packet](../../Measurements/Tooling/2026-10-11-linux-portability/README.md)
+retains the original PR failures and same-source before/after fixtures; it does not qualify native performance.
 `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
@@ -291,6 +381,14 @@ application takes the foreground in every run, the fixture records a capability 
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
 can activate: the sequence repeats once, and stops after the maximum with the application named.
+Foreground-loss counting does not establish initial acquisition. The zero-size NativeTextInput fixture MUST reset
+its setup-success observation at the start of each attempt and fail an unmet setup condition when no foreground
+loss was observed; an earlier successful attempt cannot authorize a later failed acquisition. This fixture records
+at most five attempts and four passive setup stages per attempt, including the activation helper's terminal branch,
+native/logical focus, geometry,
+session/TSF state and existing counters. These sequential observations do not establish Windows message history,
+causal attribution or performance acceptance. Diagnostic collection does not add activation, pumping, retries or
+timeout extensions, and the original behavior assertions remain required.
 A fixture with several windows, or with windows a later run must not inherit (one UI Automation has never seen), plays
 each run with windows of its own through `RunUntilForegroundHeld`, of which `RunWhileForegroundHeld` is the one-window
 form. The run reports whether another application took the foreground from any of its windows, and the same rule
@@ -497,6 +595,15 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   person's window, focus and pointer are restored afterwards. Its default button is Cancel, so a key pressed by accident as the dialog
   appears cannot start a takeover; Start needs a click or Alt+S. If nobody answers within two minutes the answer is Cancel: nothing
   was taken and the run exits with code 21. Ctrl+C while it asks ends the run as well.
+  After the person explicitly agrees to automatic start and the time, `test.ps1 -Interactive -InteractiveAutoStart`
+  MAY select an approved automatic countdown. Its visible dialog defaults to Start and starts after 30 seconds without
+  a click. Cancel, Esc, closing the dialog and Ctrl+C still prevent launch. The countdown starts when the dialog opens,
+  after preflight/build/benchmark work; a terminal answer MUST NOT be replaced by a later timer or button notification.
+  `-InteractiveAutoStart` MUST require `-Interactive`; it does not authorize CI, hosted, locked or disconnected desktops.
+  Native `--auto-start` MUST require local `--run` and a positive countdown, and MUST reject check/self-test/hosted modes
+  before desktop work or result writes. Approved runs MUST recheck input-desktop availability after the countdown or an
+  early clicked Start, before showing the warning or starting a child. All ordinary warning, lifetime and restoration
+  requirements still apply.
 - **During the run.** A banner at the top of the primary monitor, above every window and click-through, says that the tests are
   running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
   `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
@@ -511,15 +618,23 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
-  left it as the person had it), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
+  was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
   that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
-  person had (`cursor.saved`) and the one the run left (`cursor.atExit`), and whether the run had moved anything
-  (`runMovedSomething`): restoring is an action, not a check, so a pointer the fixtures did not put back is shown and never counted
-  as theirs.
+  lease captured before confirmation (`cursor.saved`) and the one observed before pointer restoration (`cursor.atExit`).
+  `runMovedSomething` reports whether at least one part was successfully restored; false does not establish that the
+  desktop was unchanged, because failed/skipped/unrecorded parts can also produce it. Human summaries MUST derive their
+  restoration claim from all three statuses, retain failed or unverified outcomes, and avoid inferring which action
+  moved the pointer from these positions alone. Exit code 0 without a result supplies no verified restoration evidence.
 - **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
   lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+  Automatic-mode receipts MUST preserve native `confirmation.autoStart` and `confirmation.seconds`; `autostarted`
+  identifies an expired approved countdown, while `started` identifies a clicked Start. The launcher MUST compare the
+  returned mode/countdown against the request and fail mismatched or missing automatic metadata.
+  Completed approved runs MUST report `started` or `autostarted`, and repeated confirmation
+  or policy fields MUST fail automatic-mode validation rather than overwrite contradictory values. Historical ordinary
+  receipts without these fields remain readable and establish only their original execution.
 
 Verified GitHub-hosted Windows foreground runs MUST use the same lease's anchor, child-specific foreground grant,
 bounded child lifetime and verified restoration. `test.ps1` and `DxUi.InteractiveLease.exe --run-hosted` each independently
@@ -624,6 +739,15 @@ specified by the performance contract.
 `-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
 
 Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+
+On 11 October 2026 the developer requested merging the completed S0-S2 library implementation while retaining
+S3-S7 and unfinished qualification in indexed WIP. This implementation-only decision permits normal PR integration
+after current-source functional, build, tooling and synthetic-consumer results are reviewed. Existing unqualified
+performance-policy findings and verified ARM64 foreground refusals before input remain failed/incomplete qualification,
+never `ci-gate` success. This decision does not accept measured degradation or authorize other failed correctness,
+sanitizer, provenance or deterministic-resource checks. Performance/policy, native ARM64 foreground, physical device/input
+and consumer adoption stay open in [the qualification plan](../Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+Ordinary qualification and main/release acceptance requirements remain unchanged.
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
 

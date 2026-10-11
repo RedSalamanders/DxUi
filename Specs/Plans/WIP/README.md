@@ -2,11 +2,13 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. Obvious lifetime, keyboard, accessibility and tooling corrections pass local x64 Debug/Release/ASan validation; ARM64 builds, paired measurements, harness gallery and validators are retained. Product/architecture decisions and platform/desktop/consumer qualification remain open.
+- **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
 
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.
 
-- **ACTIVE**: [UI composition improvements for the three consumers](ConsumerUiImprovements_2026-10-04.md). Proposed intrinsic sizing/forms, variable-height lists, overlay sessions, read-only Markdown help, reusable motion and theme authoring, grounded in RedSalamander, RedXe and RedPrism. Includes proposed APIs, staged implementation, resource evidence and separate consumer adoption gates; no new capability is implemented yet.
+- **HOLD**: [UI composition proposals S3-S7](ConsumerUiImprovements_S3_S7_2026-10-11.md). Overlay sessions, variable-height lists, read-only Markdown help, motion and theme authoring are deferred proposals requiring separate scope acceptance. Completed S0-S2 library implementation is recorded in Done; these later stages remain unimplemented.
+
+- **ACTIVE**: [UI composition qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Remaining S0-S2 paired-performance/policy, native ARM64 runtime, physical-input/device and consumer pilot/pin acceptance. Recorded local x64 validation does not close these gates; the completed library implementation and deferred S3-S7 work have separate records.
 
 - **ACTIVE**: [Slider touch thumb and halo](SliderTouchHalo_2026-10-04.md). The library feature merged in #62 and its hosted paired comparison passed before merge (run 37201375166); synthetic window/embedded tests prove device propagation and halo behavior. Physical-touch qualification and Q26's parent/viewport clipping plus neighboring-content/menu overlap checks remain. Consumer API-revision-4 pin and `PointerEvent::device` adoption are tracked separately in `ProductionReview_2026-10-05/api4-consumer-handoffs.md`.
 

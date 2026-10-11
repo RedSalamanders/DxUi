@@ -1,0 +1,45 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$root='C:/Users/eric/.codex/worktrees/performance-forms/DxUi'
+$destination=Join-Path $root 'Measurements/Performance/2026-10-10-profiling/validation/focus/setup-diagnostics/builds-final'
+if (Test-Path -LiteralPath $destination) {throw 'Final diagnostic build archive already exists.'}
+New-Item -ItemType Directory -Path $destination -Force | Out-Null
+$copies=[Collections.Generic.List[object]]::new()
+function Copy-ExactMatrixFile([string] $Original,[string] $Name) {
+    $hash=(Get-FileHash -LiteralPath $Original -Algorithm SHA256).Hash
+    $bytes=(Get-Item -LiteralPath $Original).Length
+    $copy=Join-Path $destination $Name
+    Copy-Item -LiteralPath $Original -Destination $copy
+    if ((Get-Item -LiteralPath $copy).Length -ne $bytes -or (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $hash -or
+        (Get-FileHash -LiteralPath $Original -Algorithm SHA256).Hash -cne $hash) {throw "Matrix copy differs: $Original"}
+    $copies.Add([ordered]@{original=[IO.Path]::GetFullPath($Original);copy=$Name;bytes=$bytes;sha256=$hash})
+}
+Import-Module (Join-Path $root 'Tools/PerformancePolicy.psm1') -Force
+$profiles=@(foreach ($platform in @('x64','ARM64')) {foreach ($configuration in @('Debug','Release','ASan Debug')) {
+    $tag=$configuration.Replace(' ','')
+    $log=Join-Path $root ".build/logs/profiling-focus-diagnostics-build-final-$platform-$tag.txt"
+    $lines=@(Get-Content -LiteralPath $log)
+    if (@($lines | Where-Object {$_ -match '^DxUi build passed in '}).Count -ne 1 -or
+        -not ($lines -ccontains "  Configuration: $configuration") -or -not ($lines -ccontains "  Platform:      $platform")) {throw "No successful final matrix log for $platform/$configuration"}
+    Copy-ExactMatrixFile $log "$platform-$tag.log"
+    if ($platform -ceq 'x64') {
+        $stateSource=Join-Path $PSScriptRoot "nonfocus-setup-$tag/post-native.state.receipt.txt"
+        $state=Get-Content -LiteralPath $stateSource -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+        Assert-PerformanceBuildAttestation -Root $root -Platform $platform -Configuration $configuration -State $state
+        Copy-ExactMatrixFile $stateSource "$platform-$tag.state.receipt.txt"
+    } else {
+        $state=Get-PerformanceMeasurementState -Root $root -Platform $platform -Configuration $configuration
+        Assert-PerformanceBuildAttestation -Root $root -Platform $platform -Configuration $configuration -State $state
+        [IO.File]::WriteAllText((Join-Path $destination "$platform-$tag.state.receipt.txt"),((ConvertTo-Json -InputObject $state -Depth 16)+[char]10),[Text.UTF8Encoding]::new($false))
+    }
+    Copy-ExactMatrixFile (Join-Path $root ".build/reports/performance-build/$platform-$tag/build.json") "$platform-$tag.build.receipt.txt"
+    Copy-ExactMatrixFile (Join-Path $root ".build/reports/performance-build/$platform-$tag/incremental.json") "$platform-$tag.incremental.receipt.txt"
+    Write-Output "PASS retained build attestation $platform/$configuration; ARM64 execution not performed by this checker."
+    [ordered]@{platform=$platform;configuration=$configuration;finalMatrixLog="$platform-$tag.log";buildIdentityVersion=$state.buildIdentityVersion;
+        buildAttestationIdentity=$state.buildAttestationIdentity;buildInputIdentity=$state.buildInputIdentity;buildArtifactIdentity=$state.buildArtifactIdentity;
+        nativeArchitecture=$state.nativeArchitecture;runtimeQualification=$(if ($platform -ceq 'x64') {'nineteen noninteractive suites recorded separately'} else {'cross-build only; native execution not performed'})}
+}})
+Copy-ExactMatrixFile $PSCommandPath 'retainer.source.receipt.txt'
+[IO.File]::WriteAllText((Join-Path $destination 'copy.receipt.txt'),((ConvertTo-Json -InputObject $copies.ToArray() -Depth 10)+[char]10),[Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $destination 'root-review.receipt.txt'),((ConvertTo-Json -InputObject ([ordered]@{purpose='corrected-source-six-builds-and-current-attestations';profiles=$profiles;originalCopyBindings=$copies.Count;reviewedUtc=[DateTime]::UtcNow.ToString('o')}) -Depth 16)+[char]10),[Text.UTF8Encoding]::new($false))
+Write-Output "Retained six final diagnostic matrix logs and current exact v2 build states; $($copies.Count) copy bindings."

@@ -1,0 +1,71 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 1722.92 completed offscreen FPS; p95 1.5257 ms; private 223461376 bytes
+Complex UI clean round 2: 2414.74 completed offscreen FPS; p95 0.5494 ms; private 227942400 bytes
+Complex UI clean round 3: 2398.27 completed offscreen FPS; p95 0.5206 ms; private 230481920 bytes
+Complex UI clean round 4: 2416.41 completed offscreen FPS; p95 0.5488 ms; private 233320448 bytes
+Complex UI clean round 5: 2356.67 completed offscreen FPS; p95 0.6389 ms; private 236158976 bytes
+Complex UI dirty round 1: 121.083 completed offscreen FPS; p95 9.9823 ms; private 333586432 bytes
+Complex UI dirty round 2: 133.42 completed offscreen FPS; p95 7.8016 ms; private 429293568 bytes
+Complex UI dirty round 3: 118.631 completed offscreen FPS; p95 11.074 ms; private 524763136 bytes
+Complex UI dirty round 4: 124.874 completed offscreen FPS; p95 10.77 ms; private 560422912 bytes
+Complex UI dirty round 5: 123.294 completed offscreen FPS; p95 10.6856 ms; private 570900480 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\reports\Performance-x64-ASan Debug-55e75dbcac6b4e77a3450b13ebe76c16.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Foreground run: NativeTextInput (x64 ASan Debug) takes the desktop for about 1 minute(s) after an approved automatic Start countdown (30 seconds; Cancel stops it).
+[LEASE] foreground window to restore: class 'WinUIDesktopWin32WindowClass' of WhatsApp.Root.exe (process 40856)
+[LEASE] NativeTextInput (x64 ASan Debug): about a minute; approved automatic Start in 30 s; Cancel stops it
+[LEASE] confirmation: autostarted
+[LEASE] NativeTextInput: started
+[LEASE] NativeTextInput: exit code 1 in 38.4 s
+[LEASE] Restoration: foreground=restored focus=restored cursor=restored
+[LEASE] completed
+Ran NativeTextInput (x64 ASan Debug) under the interactive foreground lease
+FAIL NativeTextInput exited with code 1
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll (0.415 s)
+  [START] TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement (0.357 s)
+  [START] TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText
+    [FOREGROUND] explorer.exe (process 16612) took the foreground in run 1 of 5
+    [IME-UNDO-SETUP] attempt=1 activated=true terminal=foreground-and-focus onChar=true textLengths=0/1/1 oneA=true/true foreground=4101c88 foregroundProcess=69604 focus=0 target=4101c88 logicalTarget=true nativeSession=false losses=1 held=true notifications=2
+    [IME-UNDO-SETUP] attempt=2 activated=true terminal=already-foreground onChar=true textLengths=1/2/2 oneA=false/false foreground=4101c88 foregroundProcess=69604 focus=4101c88 target=4101c88 logicalTarget=true nativeSession=true losses=1 held=true notifications=2
+FAILED: undo fixture creates one earlier independent typed edit
+Foreground lease (completed): foreground restored, focus restored, pointer restored; The desktop states were restored or unchanged.
+The lease restored the pointer from 1728,1689 to 2012,1394. The desktop is captured before confirmation; this report does not identify which action moved the pointer.
+Exception: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\test.ps1:262
+Line |
+ 262 |  … es.Count) { throw "DxUi failed suites: $($failures -join '; '). See . …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | DxUi failed suites: NativeTextInput exited with code 1. See .build/logs and .build/reports.

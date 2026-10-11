@@ -1,0 +1,13 @@
+{
+  "purpose": "root-verified-isolated-ASan-probe-for-completed-focus-attempt",
+  "configuration": "ASan Debug",
+  "attempt": 3,
+  "probeExitCode": 1,
+  "detected": true,
+  "executableSha256": "802B30E1AC0D4F3BCC1C1C20EA01CE6780151739261004CDF9E4551BB5B5781D",
+  "sourceCommit": "4bcc32fbeea60fe2d4d50338966d9d5c3e914d59",
+  "sourceDirty": false,
+  "focusSuitesPassed": 4,
+  "qualification": "isolated-expected-failure-verified-separately-from-foreground-suites",
+  "reviewedUtc": "2026-10-11T07:54:43.2529184Z"
+}

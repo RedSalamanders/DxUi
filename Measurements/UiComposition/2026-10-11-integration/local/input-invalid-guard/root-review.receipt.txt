@@ -1,0 +1,18 @@
+{
+  "purpose": "named-native-IME-undo-diagnostic",
+  "sourceCommit": "2e1214d09a946a9d40016a6675992c6e4f569be2",
+  "sourceFingerprint": "D1C3380BFDDAA3A1BD37534C666FF24A29C5936A27185DBFA4D26EE8B0D11A46",
+  "sourceDirty": false,
+  "nativeExitCode": 1,
+  "tests": [
+    "TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt"
+  ],
+  "nativeSkips": 0,
+  "controlSha256": "94E4BB5E315BD976A592F40660548B9168AE5898A16FA5E5C4385BF3E4ECE4FD",
+  "confirmation": "autostarted",
+  "foreground": "restored",
+  "focus": "restored",
+  "pointer": "unchanged",
+  "exactSourceDependencyToolchainArtifactEnvironmentMatched": true,
+  "performanceAcceptance": "unpaired-observation-only"
+}

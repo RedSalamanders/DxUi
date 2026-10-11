@@ -1,0 +1,16 @@
+state: completed
+exit: 1
+confirmation: started
+confirmation.autoStart: 1
+confirmation.seconds: 30
+foreground.saved: class 'Chrome_WidgetWin_1' of claude.exe (process 83172)
+restoration.foreground: unchanged
+restoration.focus: unchanged
+restoration.cursor: restored
+cursor.saved: 2336,1019
+cursor.atExit: 2330,1112
+restoration.runMovedSomething: 1
+child: Menu launched=1 exit=0 seconds=96.4 timedout=0 interrupted=0
+child: NativeTextInput launched=1 exit=1 seconds=48.9 timedout=0 interrupted=0
+child: MenuResources launched=1 exit=0 seconds=9.3 timedout=0 interrupted=0
+child: MenuResourceScaling launched=1 exit=0 seconds=19.4 timedout=0 interrupted=0

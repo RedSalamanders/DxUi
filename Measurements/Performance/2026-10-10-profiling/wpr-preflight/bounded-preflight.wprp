@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="DxUi" Team="DxUi" Comments="Bounded kernel-tracing permission preflight">
+  <Profiles>
+    <SystemCollector Id="DxUiPreflightCollector" Name="DxUi profiling preflight"><BufferSize Value="64"/><Buffers Value="64"/></SystemCollector>
+    <SystemProvider Id="DxUiPreflightProvider"><Keywords><Keyword Value="ProcessThread"/><Keyword Value="CSwitch"/><Keyword Value="ReadyThread"/><Keyword Value="SampledProfile"/></Keywords></SystemProvider>
+    <Profile Id="DxUiPreflight.Verbose.Memory" Name="DxUiPreflight" Description="4 MiB requested circular buffers, two-second preflight" DetailLevel="Verbose" LoggingMode="Memory">
+      <Collectors><SystemCollectorId Value="DxUiPreflightCollector"><SystemProviderId Value="DxUiPreflightProvider"/></SystemCollectorId></Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

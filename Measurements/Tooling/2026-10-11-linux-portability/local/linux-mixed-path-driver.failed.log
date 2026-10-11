@@ -1,0 +1,20 @@
+     | Tooling tests failed: Test-VcpkgTriplet.ps1
+FAILED: Tools/tests/Invoke-ToolingTests.ps1 exited with code 1
+
+Validation summary:
+  ok     validate-skills.ps1
+  ok     validate-specs.ps1
+  ok     validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  FAILED Tools/tests/Invoke-ToolingTests.ps1
+Exception: /home/a/codex-dpf-s0-s2-portability-20261011/validate.ps1:18
+Line |
+  18 |  … ed.Count) { throw "Validation failed: $(($failed | ForEach-Object { $ …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Validation failed: Tools/tests/Invoke-ToolingTests.ps1
+Exception: /mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/Run-Portability-Validation.ps1:23
+Line |
+  23 |  …  ($taskExit -ne 0) { throw "Portability $HostLabel $script failed." }
+     |                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Portability linux validate.ps1 failed.

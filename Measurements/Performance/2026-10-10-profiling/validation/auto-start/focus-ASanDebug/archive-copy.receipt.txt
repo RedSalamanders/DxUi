@@ -1,0 +1,122 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\AddressSanitizer.log",
+    "copy": "AddressSanitizer.log",
+    "bytes": 5930,
+    "sha256": "70C172396CB88DB786010AA07788AFA891D03245E83D6FEAD982D253FC137EE7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\AddressSanitizer.receipt.txt",
+    "copy": "AddressSanitizer.receipt.txt",
+    "bytes": 545,
+    "sha256": "FC1220EDC7FCFD6D407701B9F6550D513A3734EF870DA284D039C550B8DAC0CD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\canonical-performance.comparison.receipt.txt",
+    "copy": "canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\canonical-performance.json",
+    "copy": "canonical-performance.json",
+    "bytes": 38610,
+    "sha256": "B74A00D1DC99D50128F8A3B882B5221BEAD8475218CE62CCB37F64DA4A2504E1"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\copy.receipt.txt",
+    "copy": "copy.receipt.txt",
+    "bytes": 3867,
+    "sha256": "A0AA7D942FE840AB6E3D68591B8FB9AFED56846FD0FE42E5AEFDA15285172625"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\interactive-plan.txt",
+    "copy": "interactive-plan.txt",
+    "bytes": 1005,
+    "sha256": "0907FE4F73E8559F36080236A00C633103811D2884E1E26A9207322F3A3EA187"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\interactive-result.txt",
+    "copy": "interactive-result.txt",
+    "bytes": 655,
+    "sha256": "D64E6CE185FA210BF696EA97CBFEE458F3E87D41DB1F947CA4A56733A29E933B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\Menu.log",
+    "copy": "Menu.log",
+    "bytes": 31150,
+    "sha256": "BFB11991BD3EFAE3935F6A851DF518FD0FD6A8B1A7BB3CCA4ED460A991CA279A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\Menu.receipt.txt",
+    "copy": "Menu.receipt.txt",
+    "bytes": 36439,
+    "sha256": "7C7C7A848860D97DEFD6B6CA584D2628F834A3BCB46EE172B78F533CAE7F2E3B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\MenuResources.log",
+    "copy": "MenuResources.log",
+    "bytes": 130223,
+    "sha256": "C3EFC8F4AA189F7433D7593BC381FC6CA6E3692746EB183AB2EDC56F4DFFDC27"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\MenuResources.receipt.txt",
+    "copy": "MenuResources.receipt.txt",
+    "bytes": 36448,
+    "sha256": "EEEE157E3E1E181D07801971BE27E691A158489BFCAF6A0FD8E276BB184DECD6"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\MenuResourceScaling.log",
+    "copy": "MenuResourceScaling.log",
+    "bytes": 1467488,
+    "sha256": "871C02BDC28F8945B054617E730C19DA7C1B2AE08BD911947CBE0E93382C0B78"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\MenuResourceScaling.receipt.txt",
+    "copy": "MenuResourceScaling.receipt.txt",
+    "bytes": 36454,
+    "sha256": "70277B02251D1B9EB991C1A78EA8C7BF2A0588CD8C15333DA21396F253ADDA5F"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\NativeTextInput.log",
+    "copy": "NativeTextInput.log",
+    "bytes": 57078,
+    "sha256": "64269D9C8618BA03092A97E3E3A83A0A3260C926CFD52B1229E96E5014351112"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\NativeTextInput.receipt.txt",
+    "copy": "NativeTextInput.receipt.txt",
+    "bytes": 36450,
+    "sha256": "DDD93F0C8B8FB5AA76E0B7CA22F0DAF99006923BE3F77BECAA3B4E800373A4B7"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\post-focus.state.receipt.txt",
+    "copy": "post-focus.state.receipt.txt",
+    "bytes": 2277,
+    "sha256": "4F278BF47184DEB3595F221EA40638C51FCF9D499AD0ADC8D5A3A05E80CF46AB"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\probe-copy.receipt.txt",
+    "copy": "probe-copy.receipt.txt",
+    "bytes": 560,
+    "sha256": "D405671285607D21D3126FD188ED0FCEF468EB1910D9B8A589834F476F5E72D9"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\probe-review.receipt.txt",
+    "copy": "probe-review.receipt.txt",
+    "bytes": 721,
+    "sha256": "D8156F7E302ED6259EB0DBB85D22181160ECACF7573C1417649661F5FEF53933"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\root-review.receipt.txt",
+    "copy": "root-review.receipt.txt",
+    "bytes": 2167,
+    "sha256": "267EE7C3E2A7C497E151DE8C52B2A5ED3D6AB279328A47D78756F402F82F0E0B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\focus-autostart-ASanDebug-attempt1\\runner.log",
+    "copy": "runner.log",
+    "bytes": 4246,
+    "sha256": "4459FDB850BF829D1AA0ED878A229B63CEDAA5C2EDE8D39EA5D06768A2601BE7"
+  }
+]

@@ -122,6 +122,10 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Scope.Tests.ComplexUiProfiling.h"
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+#include "Scope.Tests.FormLayoutBenchmark.h"
+#endif
 #include "Embedded.Tests.PreparedTreeAccessibilityBenchmark.h"
 #include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
 #include "Embedded.Tests.PreparedTreeEvents.h"
@@ -1123,6 +1127,25 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
+    if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
+    {
+        const std::wstring_view scenario(__wargv[3]);
+        const std::wstring_view heaps(__wargv[4]);
+        Check(scenario == L"Default" || scenario == L"MultilineGrid", "profiling scenario");
+        Check(heaps == L"Off" || heaps == L"On", "profiling heap sampling mode");
+        ComplexUiProfiling::Run(__wargv[2], scenario == L"MultilineGrid", heaps == L"On");
+        return 0;
+    }
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+    if (__argc >= 3 && __argc <= 5 && std::wstring_view(__wargv[1]) == L"--benchmark-form-layout")
+    {
+        FormLayoutBenchmark::Run(__wargv[2],
+                                 __argc >= 4 ? FormLayoutBenchmark::ParseSeed(__wargv[3]) : FormLayoutBenchmark::kDefaultSeed,
+                                 __argc == 5 ? FormLayoutBenchmark::ParseBlocks(__wargv[4]) : FormLayoutBenchmark::kBlockCount);
+        return 0;
+    }
+#endif
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-prepared-tree-accessibility")
     {
 #if DXUI_TEST_HAS_PREPARED_TREE_ROWS
@@ -1157,6 +1180,10 @@ __declspec(noinline) static int RunFunctionalTests()
         TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
         TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
         TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+        TestPreparedTreeLabeledByEventPermitsOwnerReentry(gpu);
+        TestPreparedTreeLabeledByBurstCoalescesWithoutRetainingSources(gpu);
+#endif
         return 0;
     }
     static size_t diagnosticCalls = 0;
@@ -1183,6 +1210,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringEmbeddedCallback(gpu);
     TestPreparedTreePropertyEventPermitsOwnerReentry(gpu);
     TestPreparedTreePropertyBurstCoalescesWithoutRetainingSources(gpu);
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+    TestPreparedTreeLabeledByEventPermitsOwnerReentry(gpu);
+    TestPreparedTreeLabeledByBurstCoalescesWithoutRetainingSources(gpu);
+#endif
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
@@ -1425,7 +1456,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 30, "catalog contains all 30 controls");
+    Check(DxUi::GetControlCatalog().size() == 33, "catalog contains all 33 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

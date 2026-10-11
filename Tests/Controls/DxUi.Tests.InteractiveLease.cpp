@@ -796,6 +796,97 @@ void TestLeaseRunsEachChildAndRestoresAfterThem()
     Require(outcome.savedForeground == "class 'Fake' of fake.exe (process 100)", "it names the window it restored");
 }
 
+void TestApprovedAutomaticLeaseRunsAndRecordsItsCountdown()
+{
+    Lease lease;
+    lease.services.answer      = Confirmation::AutoStarted;
+    LeaseRequest request       = RequestFor({L"Menu", L"NativeTextInput"});
+    request.autoStart          = true;
+    request.confirmSeconds     = 30u;
+    const LeaseOutcome outcome = RunLease(lease.services, request);
+    Require(outcome.exitCode == LeaseExit::kPassed && outcome.children.size() == 2u, "an approved automatic lease runs both children");
+    Require(outcome.confirmation == Confirmation::AutoStarted && outcome.autoStart && outcome.confirmSeconds == 30u,
+            "the actual automatic answer and approved countdown remain distinct from a clicked Start");
+    Require(outcome.restoration.has_value() && outcome.restoration->Succeeded(), "and verifies restoration afterwards");
+    Require(Count(lease.events, "check") == 2u, "desktop availability is checked again after the countdown");
+    const std::string text = FormatLeaseResult(outcome);
+    Require(text.contains("confirmation: autostarted\nconfirmation.autoStart: 1\nconfirmation.seconds: 30\n"),
+            "the result preserves the automatic mode and bound");
+}
+
+void TestAutomaticAnswerNeedsAnApprovedRequestAndPositiveCountdown()
+{
+    Lease unapproved;
+    unapproved.services.answer = Confirmation::AutoStarted;
+    const LeaseOutcome refused = RunLease(unapproved.services, RequestFor({L"Menu"}));
+    Require(refused.exitCode == LeaseExit::kNoWarning && unapproved.services.children == 0u, "an automatic answer cannot authorize an ordinary request");
+    Require(refused.restoration.has_value() && refused.restoration->Succeeded(), "the refused answer still restores the recorded desktop");
+    Lease unlimited;
+    LeaseRequest request       = RequestFor({L"Menu"});
+    request.autoStart          = true;
+    request.confirmSeconds     = 0u;
+    const LeaseOutcome invalid = RunLease(unlimited.services, request);
+    Require(invalid.exitCode == LeaseExit::kUsage && unlimited.events.empty(), "an automatic request needs a positive countdown before any desktop work");
+}
+
+void TestApprovedAutomaticLeaseCanBeCancelledAndInterrupted()
+{
+    for (const Confirmation answer : {Confirmation::Declined, Confirmation::Interrupted})
+    {
+        Lease lease;
+        lease.services.answer      = answer;
+        LeaseRequest request       = RequestFor({L"Menu"});
+        request.autoStart          = true;
+        request.confirmSeconds     = 30u;
+        const LeaseOutcome outcome = RunLease(lease.services, request);
+        Require(outcome.exitCode != LeaseExit::kPassed && lease.services.children == 0u && Count(lease.events, "warning") == 0u,
+                "Cancel and interruption prevent any automatic child launch");
+        Require(outcome.restoration.has_value() && outcome.restoration->Succeeded() && Count(lease.events, "release") == 1u,
+                "the cancelled countdown restores the desktop and releases the lease");
+    }
+}
+
+void TestApprovedAutomaticLeaseRefusesADesktopLostDuringTheCountdown()
+{
+    for (const Confirmation answer : {Confirmation::AutoStarted, Confirmation::Started})
+    {
+        Lease lease;
+        lease.services.answer      = answer;
+        lease.services.onConfirm   = [&] { lease.services.availability = {false, "the session locked during the countdown"}; };
+        LeaseRequest request       = RequestFor({L"Menu"});
+        request.autoStart          = true;
+        request.confirmSeconds     = 30u;
+        const LeaseOutcome outcome = RunLease(lease.services, request);
+        Require(outcome.exitCode == LeaseExit::kNoDesktop && outcome.reason == "the session locked during the countdown",
+                "automatic and early clicked Start recheck the approved run's input desktop");
+        Require(lease.services.children == 0u && Count(lease.events, "warning") == 0u && Count(lease.events, "release") == 1u,
+                "the lost desktop starts no warning or child and releases the lease");
+        Require(outcome.restoration.has_value(), "restoration is still attempted on the refusal path");
+    }
+}
+
+void TestApprovedAutomaticLeaseRestoresAfterWarningAndChildFailures()
+{
+    LeaseRequest request   = RequestFor({L"Menu", L"NativeTextInput"});
+    request.autoStart      = true;
+    request.confirmSeconds = 30u;
+    Lease unwarned;
+    unwarned.services.answer       = Confirmation::AutoStarted;
+    unwarned.services.warningShows = false;
+    const LeaseOutcome warning     = RunLease(unwarned.services, request);
+    Require(warning.exitCode == LeaseExit::kNoWarning && unwarned.services.children == 0u,
+            "an approved deadline never launches a child when the warning is refused");
+    Require(warning.restoration.has_value() && warning.restoration->Succeeded(), "the refused warning restores the captured desktop");
+    Lease failed;
+    failed.services.answer   = Confirmation::AutoStarted;
+    failed.services.results  = {Exited(1), Exited(0)};
+    const LeaseOutcome child = RunLease(failed.services, request);
+    Require(child.exitCode == LeaseExit::kChildFailed && child.children.size() == 2u,
+            "an automatic run retains a failed child and still checks the next suite");
+    Require(child.restoration.has_value() && child.restoration->Succeeded() && Count(failed.events, "release") == 1u,
+            "the automatic failure restores the desktop and releases the lease");
+}
+
 void TestLeaseRestoresAfterAFailingChild()
 {
     Lease lease;
@@ -1040,6 +1131,11 @@ void RunInteractiveLeaseTests()
     DXUI_RUN_TEST(TestLeaseDoesNotTakeTheDesktopWhenTheAnswerIsCancel);
     DXUI_RUN_TEST(TestLeaseCancelsWhenNobodyAnswers);
     DXUI_RUN_TEST(TestLeaseRunsEachChildAndRestoresAfterThem);
+    DXUI_RUN_TEST(TestApprovedAutomaticLeaseRunsAndRecordsItsCountdown);
+    DXUI_RUN_TEST(TestAutomaticAnswerNeedsAnApprovedRequestAndPositiveCountdown);
+    DXUI_RUN_TEST(TestApprovedAutomaticLeaseCanBeCancelledAndInterrupted);
+    DXUI_RUN_TEST(TestApprovedAutomaticLeaseRefusesADesktopLostDuringTheCountdown);
+    DXUI_RUN_TEST(TestApprovedAutomaticLeaseRestoresAfterWarningAndChildFailures);
     DXUI_RUN_TEST(TestLeaseRestoresAfterAFailingChild);
     DXUI_RUN_TEST(TestLeaseRestoresAfterTheWatchdogEndsAChild);
     DXUI_RUN_TEST(TestLeaseRestoresAfterAChildTheLeaseEnded);

@@ -1,0 +1,59 @@
+{
+  "purpose": "root-verified-full-native-focus-suites",
+  "configuration": "Debug",
+  "platform": "x64",
+  "attempt": 1,
+  "parentExitCode": 0,
+  "sourceCommit": "c2d05357fc65156ba9a16f38bdc8d316fbd5f369",
+  "sourceDirty": false,
+  "sourceFingerprint": "D1C3380BFDDAA3A1BD37534C666FF24A29C5936A27185DBFA4D26EE8B0D11A46",
+  "state": "completed",
+  "confirmation": "started",
+  "automaticStart": true,
+  "confirmationSeconds": 30,
+  "leaseExitCode": 0,
+  "foreground": "unchanged",
+  "focus": "unchanged",
+  "pointer": "restored",
+  "suites": [
+    {
+      "suite": "Menu",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 83.1,
+      "executableSha256": "016AED234790B29CFDEB1BCC93607D4344C92A4025C826C88D252C2D5B03A168",
+      "leaseSha256": "CFE588B909945BF10040E4C98A4C265A1BC6546815E829FAE4F033F2519D1ECD"
+    },
+    {
+      "suite": "NativeTextInput",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 44.5,
+      "executableSha256": "016AED234790B29CFDEB1BCC93607D4344C92A4025C826C88D252C2D5B03A168",
+      "leaseSha256": "CFE588B909945BF10040E4C98A4C265A1BC6546815E829FAE4F033F2519D1ECD"
+    },
+    {
+      "suite": "MenuResources",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 7.7,
+      "executableSha256": "016AED234790B29CFDEB1BCC93607D4344C92A4025C826C88D252C2D5B03A168",
+      "leaseSha256": "CFE588B909945BF10040E4C98A4C265A1BC6546815E829FAE4F033F2519D1ECD"
+    },
+    {
+      "suite": "MenuResourceScaling",
+      "exitCode": 0,
+      "skips": 0,
+      "seconds": 18.6,
+      "executableSha256": "016AED234790B29CFDEB1BCC93607D4344C92A4025C826C88D252C2D5B03A168",
+      "leaseSha256": "CFE588B909945BF10040E4C98A4C265A1BC6546815E829FAE4F033F2519D1ECD"
+    }
+  ],
+  "copiedOriginals": 13,
+  "exactPostFocusIdentityMatched": true,
+  "canonicalFullSuitePlanMatched": true,
+  "postFocusStateSha256": "4A022F4DD8FEC5F47AE9B94FFDEC72D0E49269E8807027FA0127D24126E4CD0B",
+  "reviewerScriptSha256": "432BCA497F14C9C512B2D4C18A78C1AB01057C6C9C181F9B28E01D554143861C",
+  "performanceAcceptance": "unpaired-observation-only",
+  "reviewedUtc": "2026-10-11T14:36:54.4404637Z"
+}

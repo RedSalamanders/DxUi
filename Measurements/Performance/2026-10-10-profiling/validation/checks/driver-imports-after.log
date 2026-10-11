@@ -1,0 +1,4 @@
+ok   Measurements/Performance/2026-10-10-profiling/Invoke-Pilot.ps1 keeps identity guards callable after real module imports
+ok   Measurements/Performance/2026-10-10-profiling/Analyze.ps1 keeps identity guards callable after real module imports
+ok   Measurements/UiaSelection/2026-10-10/Invoke-Reproduction.ps1 keeps identity guards callable after real module imports
+ProfilingDriverImports: 3 of 3 passed

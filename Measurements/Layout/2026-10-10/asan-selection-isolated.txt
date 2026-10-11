@@ -1,0 +1,9 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow (21.115 s)
+[DONE] Accessibility (21.115 s)
+All DxUi tests passed.

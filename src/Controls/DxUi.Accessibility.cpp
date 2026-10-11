@@ -262,7 +262,32 @@ std::atomic<HANDLE> g_accessibilityPeerCreationGateEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityPeerCreationGateReleaseEvent{nullptr};
 std::atomic<uint32_t> g_accessibilityPeerCreationGateHolders{0u};
 std::atomic<bool> g_accessibilityPeerCreationGateArmed{false};
+std::atomic<ControlHost*> g_accessibilityPropertyDeliveryGateHost{nullptr};
+std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateEnteredEvent{nullptr};
+std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateReleaseEvent{nullptr};
+std::atomic<uint32_t> g_accessibilityPropertyDeliveryGateHolders{0u};
+std::atomic<bool> g_accessibilityPropertyDeliveryGateArmed{false};
 constexpr DWORD kAccessibilityFocusResolutionGateTimeoutMs = 5000u;
+
+void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host) noexcept
+{
+    if (! host || g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
+        ! g_accessibilityPropertyDeliveryGateArmed.load(std::memory_order_acquire))
+        return;
+    g_accessibilityPropertyDeliveryGateHolders.fetch_add(1u, std::memory_order_seq_cst);
+    const auto leave = wil::scope_exit([]() noexcept
+    {
+        g_accessibilityPropertyDeliveryGateHolders.fetch_sub(1u, std::memory_order_seq_cst);
+        g_accessibilityPropertyDeliveryGateHolders.notify_all();
+    });
+    if (g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
+        ! g_accessibilityPropertyDeliveryGateArmed.exchange(false, std::memory_order_acq_rel))
+        return;
+    if (const HANDLE enteredEvent = g_accessibilityPropertyDeliveryGateEnteredEvent.load(std::memory_order_acquire))
+        static_cast<void>(::SetEvent(enteredEvent));
+    if (const HANDLE releaseEvent = g_accessibilityPropertyDeliveryGateReleaseEvent.load(std::memory_order_acquire))
+        static_cast<void>(::WaitForSingleObject(releaseEvent, 20000u));
+}
 
 // Holds a call of `hwnd`'s GetFocus while a test has gated that window: sets the test's entered event and waits, bounded,
 // for its release event. Dormant (two loads) otherwise.
@@ -308,6 +333,15 @@ void NotifySelectionEventRaisedForTest() noexcept
     {
         hook(g_accessibilitySelectionEventHookContext.load(std::memory_order_acquire));
     }
+}
+
+std::atomic<AccessibilityPropertyEventHookForTest> g_accessibilityPropertyEventHook{nullptr};
+std::atomic<void*> g_accessibilityPropertyEventHookContext{nullptr};
+
+void NotifyPropertyEventRaisedForTest(PROPERTYID propertyId) noexcept
+{
+    if (const AccessibilityPropertyEventHookForTest hook = g_accessibilityPropertyEventHook.load(std::memory_order_acquire))
+        hook(propertyId, g_accessibilityPropertyEventHookContext.load(std::memory_order_acquire));
 }
 
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
@@ -388,6 +422,14 @@ constexpr void HoldFocusResolutionForTest(HWND, bool = false) noexcept
 }
 
 constexpr void NotifySelectionEventRaisedForTest() noexcept
+{
+}
+
+constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
+{
+}
+
+constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*) noexcept
 {
 }
 #endif
@@ -498,6 +540,10 @@ struct AccessibilityControlNavigationSnapshot
     CONTROLTYPEID controlTypeId = UIA_TextControlTypeId;
     std::wstring controlAccessibleName;
     std::wstring controlAccessibleHelpText;
+    std::wstring controlAccessibleItemStatus;
+    uint64_t controlLabelIdentity = 0;
+    bool controlRequiredForForm   = false;
+    bool controlDataValidForForm  = true;
     std::wstring controlAutomationId;
     std::wstring controlAccessibleValue;
     std::wstring controlAccessibleText;
@@ -757,7 +803,38 @@ struct AccessibilityPendingProperty final
     std::shared_ptr<AccessibilityPropertyRegistration> registration;
     wil::unique_variant previous;
     wil::unique_variant current;
+    std::shared_ptr<AccessibilityPropertyRegistration> previousInterface;
+    std::shared_ptr<AccessibilityPropertyRegistration> currentInterface;
 };
+
+// Relationship values are COM providers too. Capture them on the owning apartment without putting a raw
+// interface pointer in the cross-apartment batch; delivery resolves its own proxy before handing it to UIA.
+HRESULT CaptureAccessibilityPropertyValue(const VARIANT& value, wil::unique_variant& scalar, std::shared_ptr<AccessibilityPropertyRegistration>& interfaceValue)
+{
+    if (value.vt != VT_UNKNOWN || ! value.punkVal)
+        return VariantCopy(&scalar, &value);
+    auto registration = std::make_shared<AccessibilityPropertyRegistration>();
+    HRESULT result    = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(registration->git.put()));
+    if (SUCCEEDED(result))
+        result = registration->git->RegisterInterfaceInGlobal(value.punkVal, __uuidof(IUnknown), &registration->cookie);
+    if (FAILED(result))
+        return result;
+    interfaceValue = std::move(registration);
+    return S_OK;
+}
+
+HRESULT ResolveAccessibilityPropertyValue(const std::shared_ptr<AccessibilityPropertyRegistration>& interfaceValue, wil::unique_variant& value) noexcept
+{
+    if (! interfaceValue)
+        return S_OK;
+    wil::com_ptr_nothrow<IUnknown> provider;
+    const HRESULT result = interfaceValue->git->GetInterfaceFromGlobal(interfaceValue->cookie, IID_PPV_ARGS(provider.put()));
+    if (FAILED(result))
+        return result;
+    value.vt      = VT_UNKNOWN;
+    value.punkVal = provider.detach();
+    return S_OK;
+}
 
 struct RequestedGridRow
 {
@@ -881,7 +958,7 @@ struct WindowHostAccessibilityTarget final
     bool structureNotificationScheduled = false;
     bool structureInvalidationPending   = false;
     // One coalesced property per live control/property key. Entries hold scalar/BSTR values and
-    // marshalled weak-identity senders, never snapshots or prepared row sources.
+    // marshalled weak-identity senders/relationships, never snapshots or prepared row sources.
     std::vector<AccessibilityPendingProperty> pendingProperties;
     wil::com_ptr_nothrow<IRawElementProviderSimple> structureNotificationProvider;
     // Embedded public providers belong to the owner's STA. Resolve a COM-marshalled proxy in the delivery
@@ -1916,17 +1993,22 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         // Made in place, and complete before the children below add theirs.
         AccessibilityControlNavigationSnapshot& record = snapshot.controlNavigationRecords.emplace_back();
 
-        record.path                      = basePath;
-        record.controlLifetime           = GetControlLifetimeToken(*current);
-        record.controlIdentity           = ControlIdentityOf(record.controlLifetime);
-        record.controlTypeId             = GetControlTypeId(current);
-        record.controlAccessibleName     = std::wstring(GetControlAccessibleName(root, current));
-        record.controlAccessibleHelpText = current->GetAccessibleHelpText();
-        record.controlAutomationId       = current->GetAccessibleAutomationId();
-        record.controlVisible            = current->IsVisible();
-        record.controlEnabled            = effectiveEnabled;
-        record.controlFocusable          = current->IsFocusable();
-        record.controlHasFocus           = current->HasFocus();
+        record.path                        = basePath;
+        record.controlLifetime             = GetControlLifetimeToken(*current);
+        record.controlIdentity             = ControlIdentityOf(record.controlLifetime);
+        record.controlTypeId               = GetControlTypeId(current);
+        record.controlAccessibleName       = std::wstring(GetControlAccessibleName(root, current));
+        record.controlAccessibleHelpText   = current->GetAccessibleHelpText();
+        record.controlAccessibleItemStatus = current->GetAccessibleItemStatus();
+        if (const auto* label = current->GetAccessibleLabelledBy())
+            record.controlLabelIdentity = ControlIdentityOf(GetControlLifetimeToken(*label));
+        record.controlRequiredForForm  = current->IsAccessibleRequiredForForm();
+        record.controlDataValidForForm = current->IsAccessibleDataValidForForm();
+        record.controlAutomationId     = current->GetAccessibleAutomationId();
+        record.controlVisible          = current->IsVisible();
+        record.controlEnabled          = effectiveEnabled;
+        record.controlFocusable        = current->IsFocusable();
+        record.controlHasFocus         = current->HasFocus();
         if (const auto* textField = dynamic_cast<const TextField*>(current))
         {
             record.controlIsPassword = textField->IsMasked();
@@ -2288,6 +2370,18 @@ const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const 
     const std::optional<uint32_t> ordinal = snapshot.controlRecordsByPath.Find(
         HashControlPath(path), [&](uint32_t placed) noexcept { return AreControlPathsEqual(snapshot.controlNavigationRecords[placed].path, path); });
     return ordinal ? &snapshot.controlNavigationRecords[ordinal.value()] : nullptr;
+}
+
+// Resolve relationships from the complete immutable tree, including label removal or ancestor visibility changes.
+// A previous snapshot still names its former label after that control dies; provider creation retains its identity,
+// never the Control pointer. Zero is the manual-layout fast path and requires no extra index or storage.
+[[nodiscard]] const AccessibilityControlNavigationSnapshot* FindSnapshotFormLabel(const AccessibilitySnapshot& snapshot, uint64_t identity) noexcept
+{
+    if (! identity)
+        return nullptr;
+    const auto label = std::ranges::find_if(snapshot.controlNavigationRecords,
+                                            [identity](const auto& record) noexcept { return record.controlIdentity == identity && record.controlVisible; });
+    return label == snapshot.controlNavigationRecords.end() ? nullptr : &*label;
 }
 
 const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const AccessibilitySnapshot& snapshot,
@@ -7356,6 +7450,21 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         case UIA_ControlTypePropertyId: *outValue = VariantFromInt(record->controlTypeId); return S_OK;
         case UIA_NamePropertyId: return SetVariantFromString(outValue, record->controlAccessibleName);
         case UIA_HelpTextPropertyId: return SetVariantFromString(outValue, record->controlAccessibleHelpText);
+        case UIA_ItemStatusPropertyId: return SetVariantFromString(outValue, record->controlAccessibleItemStatus);
+        case UIA_IsRequiredForFormPropertyId: *outValue = VariantFromBool(record->controlRequiredForForm); return S_OK;
+        case UIA_IsDataValidForFormPropertyId: *outValue = VariantFromBool(record->controlDataValidForForm); return S_OK;
+        case UIA_LabeledByPropertyId:
+        {
+            const auto* label = FindSnapshotFormLabel(*snapshot, record->controlLabelIdentity);
+            if (! label || label->controlLifetime.expired())
+                return S_OK;
+            auto provider = CreateControlElement(_target, _hwnd, label->path, CaptureControlIdentity(*label));
+            if (! provider)
+                return E_OUTOFMEMORY;
+            outValue->vt      = VT_UNKNOWN;
+            outValue->punkVal = provider.detach();
+            return S_OK;
+        }
         case UIA_AutomationIdPropertyId: return SetVariantFromString(outValue, record->controlAutomationId);
         case UIA_ExpandCollapseExpandCollapseStatePropertyId:
             if (record->controlVisible && record->controlDisclosureExpanded.has_value())
@@ -9648,7 +9757,10 @@ HRESULT AccessibilityProvider::ValidateActionEnabled() const noexcept
             : (_kind == AccessibilityFragmentKind::GridHeader || _kind == AccessibilityFragmentKind::GridRow || _kind == AccessibilityFragmentKind::GridCell
                    ? static_cast<Control*>(ResolveMutableGridControl())
                    : ResolveMutableControl());
-    // Window-only and unsupported targets retain their existing executor result.
+    // A concrete element no longer reachable at its retained identity is unavailable, even when an embedded view's
+    // last immutable read snapshot still contains it. Window-only roots retain their existing executor result.
+    if (_kind != AccessibilityFragmentKind::Root && (! host || ! control))
+        return UIA_E_ELEMENTNOTAVAILABLE;
     if (host && control && ! IsControlEffectivelyInteractive(host->GetRoot(), control))
         return UIA_E_ELEMENTNOTENABLED;
     return S_OK;
@@ -11441,6 +11553,8 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     }
     if (SUCCEEDED(initialized))
     {
+        if (target->embedded && ! properties.empty())
+            HoldAccessibilityPropertyDeliveryForTest(target->host.load(std::memory_order_acquire));
         if (git && cookie != 0)
             static_cast<void>(git->GetInterfaceFromGlobal(cookie, IID_PPV_ARGS(root.put())));
         bool alive = false;
@@ -11457,8 +11571,27 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
             if (! target->host.load(std::memory_order_acquire))
                 break;
             wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-            if (SUCCEEDED(property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()))))
-                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), property.propertyId, property.previous, property.current));
+            const HRESULT senderResult = property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()));
+            if (SUCCEEDED(senderResult))
+            {
+                wil::unique_variant previous, current;
+                const HRESULT oldResult = ResolveAccessibilityPropertyValue(property.previousInterface, previous);
+                const HRESULT newResult = ResolveAccessibilityPropertyValue(property.currentInterface, current);
+                if (FAILED(oldResult) || FAILED(newResult))
+                {
+                    Debug::Error(L"DxUi: embedded property notification value resolution failed ({:08X}, {:08X})", oldResult, newResult);
+                    continue; // No raw-interface or synchronous fallback after failed marshalling.
+                }
+                // Scalar/BSTR values already belong to this batch; do not copy or allocate them again during delivery.
+                const HRESULT deliveryResult = UiaRaiseAutomationPropertyChangedEvent(provider.get(),
+                                                                                      property.propertyId,
+                                                                                      property.previousInterface ? previous : property.previous,
+                                                                                      property.currentInterface ? current : property.current);
+                if (FAILED(deliveryResult))
+                    Debug::Error(L"DxUi: embedded property notification delivery failed (property {}, {:08X})", property.propertyId, deliveryResult);
+            }
+            else
+                Debug::Error(L"DxUi: embedded property notification sender resolution failed (property {}, {:08X})", property.propertyId, senderResult);
         }
     }
     else
@@ -11555,7 +11688,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
         property.path            = record.path;
         property.controlIdentity = record.controlIdentity;
         property.propertyId      = id;
-        if (FAILED(VariantCopy(&property.previous, &previous)) || FAILED(VariantCopy(&property.current, &current)))
+        if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)) ||
+            FAILED(CaptureAccessibilityPropertyValue(current, property.current, property.currentInterface)))
         {
             Debug::Error(L"DxUi: embedded property notification value capture failed");
             return;
@@ -11566,8 +11700,11 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             {
                 if (pending.controlIdentity == property.controlIdentity && pending.propertyId == id && AreControlPathsEqual(pending.path, property.path))
                 {
-                    pending.current = std::move(property.current);
-                    return; // Preserve the oldest undelivered value; replace only the latest value.
+                    // Preserve the oldest undelivered value and replace only the latest. The retired value
+                    // and GIT registration move into the local property, released after this lock unwinds.
+                    std::swap(pending.current, property.current);
+                    pending.currentInterface.swap(property.currentInterface);
+                    return;
                 }
             }
         }
@@ -11650,6 +11787,10 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
     }
     if (! root)
         return;
+    ControlHost* const notificationHost = target.ResolveHost();
+    if (! notificationHost)
+        return;
+    const uint64_t interactionRevision = notificationHost->GetInteractionRevision();
     if (target.embedded)
     {
         try
@@ -11664,14 +11805,17 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
     }
     const auto connected = [&]
     {
-        return target.host.load(std::memory_order_acquire) != nullptr && target.snapshot.load(std::memory_order_acquire) == current &&
-               (target.embedded || target.publishedRevision == target.dirtyRevision);
+        return target.host.load(std::memory_order_acquire) == notificationHost && target.snapshot.load(std::memory_order_acquire) == current &&
+               (target.embedded ? ! target.rootLifetime.expired() && notificationHost->GetInteractionRevision() == interactionRevision
+                                : target.publishedRevision == target.dirtyRevision);
     };
     bool structureChanged = previous->controlNavigationRecords.size() != current->controlNavigationRecords.size();
     for (const auto& record : current->controlNavigationRecords)
     {
         if (! connected())
             return;
+        if (record.controlLifetime.expired())
+            continue;
         const auto* before = FindControlNavigationRecord(*previous, record.path);
         if (! before || before->controlIdentity != record.controlIdentity)
         {
@@ -11680,10 +11824,16 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         }
         if ((before->preparedTreeRows || record.preparedTreeRows) && before->preparedTreeRows != record.preparedTreeRows)
             structureChanged = true;
-        const bool nameChanged  = before->controlAccessibleName != record.controlAccessibleName;
-        const bool helpChanged  = before->controlAccessibleHelpText != record.controlAccessibleHelpText;
-        const bool textChanged  = before->controlAccessibleText != record.controlAccessibleText;
-        const bool valueChanged = before->controlAccessibleValue != record.controlAccessibleValue;
+        const bool nameChanged   = before->controlAccessibleName != record.controlAccessibleName;
+        const bool helpChanged   = before->controlAccessibleHelpText != record.controlAccessibleHelpText;
+        const auto* beforeLabel  = FindSnapshotFormLabel(*previous, before->controlLabelIdentity);
+        const auto* currentLabel = FindSnapshotFormLabel(*current, record.controlLabelIdentity);
+        const bool labelChanged  = (beforeLabel ? beforeLabel->controlIdentity : 0u) != (currentLabel ? currentLabel->controlIdentity : 0u);
+        const bool formChanged   = before->controlAccessibleItemStatus != record.controlAccessibleItemStatus ||
+                                   before->controlRequiredForForm != record.controlRequiredForForm ||
+                                   before->controlDataValidForForm != record.controlDataValidForForm || labelChanged;
+        const bool textChanged   = before->controlAccessibleText != record.controlAccessibleText;
+        const bool valueChanged  = before->controlAccessibleValue != record.controlAccessibleValue;
         const bool selectionChanged =
             before->controlTextSelectionStart != record.controlTextSelectionStart || before->controlTextSelectionEnd != record.controlTextSelectionEnd;
         const bool compositionChanged =
@@ -11692,7 +11842,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         const bool rangeChanged    = record.controlSupportsRangeValue && std::ranges::any_of(rangeProperties, [](const RangePropertyChange& property) noexcept {
             return property.previous != property.current;
         });
-        if (! nameChanged && ! helpChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
+        if (! nameChanged && ! helpChanged && ! formChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
             before->controlEnabled == record.controlEnabled && before->controlToggleChecked == record.controlToggleChecked &&
             before->controlDisclosureExpanded == record.controlDisclosureExpanded && ! rangeChanged && before->controlHasFocus == record.controlHasFocus)
             continue;
@@ -11701,12 +11851,15 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             return;
         const auto property = [&](PROPERTYID id, VARIANT oldValue, VARIANT newValue)
         {
-            if (connected())
+            if (connected() && ! record.controlLifetime.expired())
             {
                 if (target.embedded)
                     QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue);
                 else
                     static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                // Test retirement stays on the owner. Embedded delivery occurs later on the work item's MTA;
+                // this hook denotes queue-time publication there, never a foreign-thread control callback.
+                NotifyPropertyEventRaisedForTest(id);
             }
         };
         const auto stringProperty = [&](PROPERTYID id, const std::wstring& oldText, const std::wstring& newText)
@@ -11725,6 +11878,38 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             stringProperty(UIA_NamePropertyId, before->controlAccessibleName, record.controlAccessibleName);
         if (helpChanged)
             stringProperty(UIA_HelpTextPropertyId, before->controlAccessibleHelpText, record.controlAccessibleHelpText);
+        if (before->controlAccessibleItemStatus != record.controlAccessibleItemStatus)
+            stringProperty(UIA_ItemStatusPropertyId, before->controlAccessibleItemStatus, record.controlAccessibleItemStatus);
+        if (before->controlRequiredForForm != record.controlRequiredForForm)
+            property(UIA_IsRequiredForFormPropertyId, VariantFromBool(before->controlRequiredForForm), VariantFromBool(record.controlRequiredForForm));
+        if (before->controlDataValidForForm != record.controlDataValidForForm)
+            property(UIA_IsDataValidForFormPropertyId, VariantFromBool(before->controlDataValidForForm), VariantFromBool(record.controlDataValidForForm));
+        if (labelChanged)
+        {
+            const auto labelValue = [&](const AccessibilityControlNavigationSnapshot* label, wil::com_ptr_nothrow<IRawElementProviderSimple>& retained)
+            {
+                VARIANT value = {};
+                if (label)
+                {
+                    retained = CreateControlEventElement(target, *label);
+                    if (retained)
+                    {
+                        value.vt      = VT_UNKNOWN;
+                        value.punkVal = retained.get();
+                    }
+                }
+                return value;
+            };
+            wil::com_ptr_nothrow<IRawElementProviderSimple> oldLabel, newLabel;
+            const auto oldValue = labelValue(beforeLabel, oldLabel);
+            const auto newValue = labelValue(currentLabel, newLabel);
+            // Native historical labels can legitimately be unavailable in the current tree. Embedded event
+            // providers do not resolve history at creation; failure there, or for a current label, is not a clear.
+            if ((currentLabel && ! newLabel) || (target.embedded && beforeLabel && ! oldLabel))
+                Debug::Error(L"DxUi: relationship notification provider creation failed");
+            else
+                property(UIA_LabeledByPropertyId, oldValue, newValue);
+        }
         if (valueChanged)
             stringProperty(UIA_ValueValuePropertyId, before->controlAccessibleValue, record.controlAccessibleValue);
         if (before->controlEnabled != record.controlEnabled)
@@ -11746,11 +11931,11 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         {
             property(UIA_HasKeyboardFocusPropertyId, VariantFromBool(before->controlHasFocus), VariantFromBool(record.controlHasFocus));
         }
-        if (connected() && record.controlSupportsText && textChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && textChanged)
             static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId));
-        if (connected() && record.controlSupportsText && selectionChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && selectionChanged)
             static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextSelectionChangedEventId));
-        if (connected() && record.controlSupportsText && compositionChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && compositionChanged)
         {
             unique_safearray changed(SafeArrayCreateVector(VT_BSTR, 0, 0));
             if (changed)
@@ -12170,6 +12355,25 @@ void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent
     g_accessibilityPeerCreationGateReleaseEvent.store(nullptr, std::memory_order_release);
 }
 
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+{
+    if (host && enteredEvent && releaseEvent)
+    {
+        g_accessibilityPropertyDeliveryGateEnteredEvent.store(enteredEvent, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateReleaseEvent.store(releaseEvent, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateArmed.store(true, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateHost.store(host, std::memory_order_seq_cst);
+        return;
+    }
+    g_accessibilityPropertyDeliveryGateHost.store(nullptr, std::memory_order_seq_cst);
+    g_accessibilityPropertyDeliveryGateArmed.store(false, std::memory_order_seq_cst);
+    for (uint32_t holders = g_accessibilityPropertyDeliveryGateHolders.load(std::memory_order_seq_cst); holders != 0u;
+         holders          = g_accessibilityPropertyDeliveryGateHolders.load(std::memory_order_seq_cst))
+        g_accessibilityPropertyDeliveryGateHolders.wait(holders);
+    g_accessibilityPropertyDeliveryGateEnteredEvent.store(nullptr, std::memory_order_release);
+    g_accessibilityPropertyDeliveryGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept
 {
     if (! hook)
@@ -12180,6 +12384,18 @@ void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventH
     }
     g_accessibilitySelectionEventHookContext.store(context, std::memory_order_release);
     g_accessibilitySelectionEventHook.store(hook, std::memory_order_release);
+}
+
+void DebugSetAccessibilityPropertyEventHookForTest(AccessibilityPropertyEventHookForTest hook, void* context) noexcept
+{
+    if (! hook)
+    {
+        g_accessibilityPropertyEventHook.store(nullptr, std::memory_order_release);
+        g_accessibilityPropertyEventHookContext.store(nullptr, std::memory_order_release);
+        return;
+    }
+    g_accessibilityPropertyEventHookContext.store(context, std::memory_order_release);
+    g_accessibilityPropertyEventHook.store(hook, std::memory_order_release);
 }
 
 void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept

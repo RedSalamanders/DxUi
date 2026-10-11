@@ -156,6 +156,7 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     _host._d2dFactory    = g.factory.get();
     _host._d2dDevice     = g.d2d.get();
     _host._dwriteFactory = g.write.get();
+    ++_host._typographyRevision;
     g.device->GetImmediateContext(_host._d3dContext.put());
     RETURN_IF_FAILED(g.d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);

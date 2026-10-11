@@ -1,0 +1,7 @@
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed

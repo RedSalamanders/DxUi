@@ -1,0 +1,128 @@
+{
+  "scheduled": 12,
+  "attempted": 12,
+  "wallSeconds": 357.4047715,
+  "results": [
+    {
+      "index": 1,
+      "scenario": "Default",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-01-Default-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:23:15.3305979Z"
+    },
+    {
+      "index": 2,
+      "scenario": "MultilineGrid",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-02-MultilineGrid-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:23:43.4014015Z"
+    },
+    {
+      "index": 3,
+      "scenario": "Default",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-03-Default-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:24:09.8486741Z"
+    },
+    {
+      "index": 4,
+      "scenario": "MultilineGrid",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-04-MultilineGrid-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:24:38.0071311Z"
+    },
+    {
+      "index": 5,
+      "scenario": "MultilineGrid",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-05-MultilineGrid-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:25:06.5128816Z"
+    },
+    {
+      "index": 6,
+      "scenario": "Default",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-06-Default-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:25:33.1117409Z"
+    },
+    {
+      "index": 7,
+      "scenario": "MultilineGrid",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-07-MultilineGrid-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:26:03.0748941Z"
+    },
+    {
+      "index": 8,
+      "scenario": "Default",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-08-Default-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:26:31.5879330Z"
+    },
+    {
+      "index": 9,
+      "scenario": "Default",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-09-Default-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:27:03.3336222Z"
+    },
+    {
+      "index": 10,
+      "scenario": "MultilineGrid",
+      "heap": false,
+      "exitCode": 0,
+      "report": "profile-10-MultilineGrid-NoHeap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:27:37.5730807Z"
+    },
+    {
+      "index": 11,
+      "scenario": "Default",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-11-Default-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:28:09.5741746Z"
+    },
+    {
+      "index": 12,
+      "scenario": "MultilineGrid",
+      "heap": true,
+      "exitCode": 0,
+      "report": "profile-12-MultilineGrid-Heap.json",
+      "identityMatched": true,
+      "identityError": "",
+      "completedUtc": "2026-10-10T22:28:43.1429190Z"
+    }
+  ],
+  "acceptance": "not-established"
+}

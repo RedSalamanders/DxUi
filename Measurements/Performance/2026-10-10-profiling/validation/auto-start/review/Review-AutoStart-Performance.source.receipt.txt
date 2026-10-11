@@ -1,0 +1,67 @@
+[CmdletBinding()]
+param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$root = 'C:/Users/eric/.codex/worktrees/performance-forms/DxUi'
+$output = Join-Path $PSScriptRoot 'performance-autostart'
+$bindings = @(Get-Content -LiteralPath (Join-Path $output 'initial-copy.receipt.txt') -Raw | ConvertFrom-Json -Depth 16)
+foreach ($binding in $bindings) {
+    $copy = Join-Path $output $binding.copy
+    if ((Get-Item -LiteralPath $copy).Length -ne $binding.bytes -or (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $binding.sha256) { throw 'An immutable initial comparison copy changed.' }
+}
+$extra = @(foreach ($number in 1,2) {
+    foreach ($kind in 'report','comparison','log') {
+        $original = switch ($kind) {
+            report { Join-Path $root ".build/reports/interactive-autostart/control$number-Release.json" }
+            comparison { Join-Path $root ".build/reports/interactive-autostart/control$number-Release.json.comparison.json" }
+            log { Join-Path $root ".build/logs/interactive-autostart-control$number-Release.txt" }
+        }
+        $name = switch ($kind) {
+            report { "control$number-Release.json" }
+            comparison { "control$number-comparison.receipt.txt" }
+            log { "control$number.log" }
+        }
+        $copy = Join-Path $output $name
+        if (Test-Path -LiteralPath $copy) { throw "Immutable control copy already exists: $name" }
+        $length = (Get-Item -LiteralPath $original).Length
+        $hash = (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash
+        Copy-Item -LiteralPath $original -Destination $copy
+        if ((Get-Item -LiteralPath $copy).Length -ne $length -or (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $hash -or
+            (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash -cne $hash) { throw "Control bytes changed during copying: $name" }
+        [ordered]@{ original=$original; copy=$name; bytes=$length; sha256=$hash }
+    }
+})
+[IO.File]::WriteAllText((Join-Path $output 'control-copy.receipt.txt'), ((ConvertTo-Json -InputObject $extra -Depth 8)+[char]10), [Text.UTF8Encoding]::new($false))
+$plan = Get-Content -LiteralPath (Join-Path $output 'control-plan.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable
+if (($plan.inventory -join '|') -cne 'control1-Release.json|control2-Release.json') { throw 'The fixed control inventory changed.' }
+$candidate = Get-Content -LiteralPath (Join-Path $output 'after-Release.json') -Raw | ConvertFrom-Json -AsHashtable -Depth 64
+$rows = @(foreach ($name in 'before-Release.json','after-Release.json','control1-Release.json','control2-Release.json') {
+    $report = Get-Content -LiteralPath (Join-Path $output $name) -Raw | ConvertFrom-Json -AsHashtable -Depth 64
+    if ($report.configuration -cne 'Release' -or $report.platform -cne 'x64' -or $report.workloadOwner -cne 'DxUi' -or
+        $report.sourceDirty -or $report.identityStatus -cne 'verifiable' -or $report.buildIdentityVersion -ne 2) { throw "Unqualified report identity: $name" }
+    if ($name -like 'control*') {
+        if ([DateTime]$report.completedUtc -le [DateTime]$plan.declaredUtc) { throw 'Control completed before its declared plan.' }
+        foreach ($key in 'sourceCommit','sourceFingerprint','executableSha256','benchmarkSha256','buildInputIdentity','buildArtifactIdentity','buildAttestationIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity') {
+            if ($report[$key] -cne $candidate[$key]) { throw "Same-binary control identity differs: $name/$key" }
+        }
+        $comparison = Get-Content -LiteralPath (Join-Path $output ($name.Replace('-Release.json','-comparison.receipt.txt'))) -Raw | ConvertFrom-Json -AsHashtable
+        if ($comparison.status -cne 'unpaired') { throw 'Diagnostic control changed its scope.' }
+    }
+    foreach ($scenario in $report.scenarios) {
+        if (@($scenario.rounds).Count -ne 5) { throw 'Unexpected raw round count.' }
+        $fps = @($scenario.rounds.fps | Sort-Object)
+        [ordered]@{ report=$name; sourceCommit=$report.sourceCommit; scenario=$scenario.name;
+            medianFps=$fps[2]; minimumFps=$fps[0]; maximumFps=$fps[4]; orderedRoundFps=@($scenario.rounds.fps) }
+    }
+})
+$comparison = Get-Content -LiteralPath (Join-Path $output 'after-comparison.receipt.txt') -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+if ($comparison.status -cne 'advice-required') { throw 'The original flagged comparison changed.' }
+$review = [ordered]@{ purpose='root-reviewed-fixed-two-report-variability-check'; initialRawBindings=$bindings.Count;
+    controlRawBindings=$extra.Count; plannedReports=2; completedReports=2; sourceCommit=$candidate.sourceCommit;
+    executableSha256=$candidate.executableSha256; candidateControlIdentitiesMatched=$true; rows=$rows;
+    originalComparisonStatus=$comparison.status; acceptance='open; the original flagged pair remains retained and unaccepted';
+    limitations='Two candidate-only same-binary observations cannot qualify matched baseline-side controls, dismiss timing flags or qualify the seed policy.';
+    reviewedUtc=[DateTime]::UtcNow.ToString('o'); reviewerScriptSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash }
+[IO.File]::WriteAllText((Join-Path $output 'root-review.receipt.txt'), ((ConvertTo-Json -InputObject $review -Depth 16)+[char]10), [Text.UTF8Encoding]::new($false))
+$rows | ForEach-Object { '{0} {1}: median {2:N3}, range {3:N3}-{4:N3}' -f $_.report,$_.scenario,$_.medianFps,$_.minimumFps,$_.maximumFps }
+Write-Output 'The original advice-required comparison remains unaccepted.'

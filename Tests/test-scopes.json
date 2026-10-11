@@ -106,6 +106,26 @@
   ],
   "rules": [
     {
+      "pattern": "Tests/Controls/Scope.Tests.IntrinsicLayout.*",
+      "scopes": ["Control"],
+      "reason": "intrinsic leaf measurement and FlexPanel behavior in the owning Control suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Layout.cpp",
+      "scopes": ["Control", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "MultilineText", "Accessibility", "Rendering"],
+      "reason": "opt-in intrinsic sizing shares leaf metrics and native/embedded preparation, focus and geometry"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.Forms.*",
+      "scopes": ["Control"],
+      "reason": "form measurement, arrangement, ownership and editor state scenarios in the Control suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Forms.cpp",
+      "scopes": ["Control", "Accessibility", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "Rendering"],
+      "reason": "form layout preserves semantic editors and shares native/embedded preparation and UIA publication"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.Grid.cpp",
       "scopes": [
         "Grid"
@@ -202,6 +222,13 @@
         "Accessibility"
       ],
       "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.FormAccessibility.cpp",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "active native and embedded form provider coverage"
     },
     {
       "pattern": "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
@@ -536,6 +563,6 @@
       "platform": "ARM64"
     }
   ],
-  "prWorkflowDigest": "1404978e11f48d98d5966f6b2e494c64e7d67389e77f066191e75bf844138066",
+  "prWorkflowDigest": "aee4e10d1136b1c5bda45be06591cb02644ec13decf94370a0f97d0c6b9ee1df",
   "prNativeScopeModule": "Tools/NativeScope.psm1"
 }

@@ -1,0 +1,427 @@
+[
+  {
+    "file": "job-114550858172.log",
+    "line": 405,
+    "text": "2026-10-11T19:10:19.1532638Z ##[group]Run ./test.ps1 -Full -SkipTooling -Configuration \"Release\" -Platform ARM64"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 406,
+    "text": "2026-10-11T19:10:19.1533315Z \u001b[36;1m./test.ps1 -Full -SkipTooling -Configuration \"Release\" -Platform ARM64\u001b[0m"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 410,
+    "text": "2026-10-11T19:17:39.3673867Z Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts."
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 432,
+    "text": "2026-10-11T19:17:39.3929406Z Compiling DxUi..."
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 466,
+    "text": "2026-10-11T19:25:20.4870937Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 474,
+    "text": "2026-10-11T19:25:41.5502610Z   DxUi.FoundationTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.FoundationTests.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 475,
+    "text": "2026-10-11T19:25:42.3509370Z   DxUi.EmbeddedControls.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 476,
+    "text": "2026-10-11T19:25:44.5218906Z   DxUi.InteractiveLease.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.InteractiveLease.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 478,
+    "text": "2026-10-11T19:26:01.4103146Z   DxUi.EmbeddedTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 504,
+    "text": "2026-10-11T19:33:10.4785998Z   DxUi.ControlTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 507,
+    "text": "2026-10-11T19:34:12.6754487Z DxUi build passed in 15:31"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 541,
+    "text": "2026-10-11T19:35:19.2220390Z ##[error]The action 'Run ./test.ps1 -Full -SkipTooling -Configuration \"Release\" -Platform ARM64' has timed out after 25 minutes."
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 847,
+    "text": "2026-10-11T19:40:36.2984403Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\deps\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 858,
+    "text": "2026-10-11T19:41:28.7654656Z   ExternalConsumer.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\bin\\ExternalConsumer.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 863,
+    "text": "2026-10-11T19:41:33.8994744Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\deps\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 867,
+    "text": "2026-10-11T19:41:46.5605463Z   NativeModuleA.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\bin\\NativeModuleA.dll"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 869,
+    "text": "2026-10-11T19:41:51.3067577Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\deps\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 873,
+    "text": "2026-10-11T19:42:04.0874736Z   NativeModuleB.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\bin\\NativeModuleB.dll"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 875,
+    "text": "2026-10-11T19:42:08.8295982Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\deps\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 881,
+    "text": "2026-10-11T19:42:25.3123704Z   NativeModuleDriver.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b\\app space\\bin\\NativeModuleDriver.exe"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 894,
+    "text": "2026-10-11T19:42:26.0375959Z Native module fixture: 0 failed probes across EXE + two DLLs"
+  },
+  {
+    "file": "job-114550858172.log",
+    "line": 896,
+    "text": "2026-10-11T19:45:06.9882377Z PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: C:\\a\\DxUi\\DxUi\\.build\\consumers\\dd2c11b24e6b"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 415,
+    "text": "2026-10-11T19:10:26.0941184Z ##[group]Run ./test.ps1 -Full -SkipTooling -Configuration \"Debug\" -Platform ARM64"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 416,
+    "text": "2026-10-11T19:10:26.0941876Z \u001b[36;1m./test.ps1 -Full -SkipTooling -Configuration \"Debug\" -Platform ARM64\u001b[0m"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 420,
+    "text": "2026-10-11T19:19:01.3813575Z Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts."
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 442,
+    "text": "2026-10-11T19:19:01.4066756Z Compiling DxUi..."
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 476,
+    "text": "2026-10-11T19:25:28.0164403Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 484,
+    "text": "2026-10-11T19:25:45.7579622Z   DxUi.InteractiveLease.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.InteractiveLease.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 485,
+    "text": "2026-10-11T19:25:47.9942595Z   DxUi.EmbeddedControls.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 486,
+    "text": "2026-10-11T19:25:48.4523143Z   DxUi.FoundationTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 487,
+    "text": "2026-10-11T19:25:55.8150206Z   DxUi.EmbeddedTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 514,
+    "text": "2026-10-11T19:31:50.5732133Z   DxUi.ControlTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 517,
+    "text": "2026-10-11T19:32:54.7953602Z DxUi build passed in 12:49"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 561,
+    "text": "2026-10-11T19:35:26.1682947Z ##[error]The action 'Run ./test.ps1 -Full -SkipTooling -Configuration \"Debug\" -Platform ARM64' has timed out after 25 minutes."
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 873,
+    "text": "2026-10-11T19:40:24.8064169Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\deps\\ARM64\\Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 884,
+    "text": "2026-10-11T19:41:20.5759690Z   ExternalConsumer.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\bin\\ExternalConsumer.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 889,
+    "text": "2026-10-11T19:41:25.9005206Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\deps\\ARM64\\Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 893,
+    "text": "2026-10-11T19:41:39.8485179Z   NativeModuleA.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\bin\\NativeModuleA.dll"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 895,
+    "text": "2026-10-11T19:41:44.7295317Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\deps\\ARM64\\Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 899,
+    "text": "2026-10-11T19:41:58.6994993Z   NativeModuleB.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\bin\\NativeModuleB.dll"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 901,
+    "text": "2026-10-11T19:42:03.5374546Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\deps\\ARM64\\Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 907,
+    "text": "2026-10-11T19:42:21.2463066Z   NativeModuleDriver.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca\\app space\\bin\\NativeModuleDriver.exe"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 920,
+    "text": "2026-10-11T19:42:22.0522099Z Native module fixture: 0 failed probes across EXE + two DLLs"
+  },
+  {
+    "file": "job-114550858255.log",
+    "line": 922,
+    "text": "2026-10-11T19:45:04.4959439Z PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: C:\\a\\DxUi\\DxUi\\.build\\consumers\\a12cbae3d4ca"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 413,
+    "text": "2026-10-11T19:10:27.8063245Z ##[group]Run ./test.ps1 -Full -SkipTooling -Configuration \"ASan Debug\" -Platform ARM64"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 414,
+    "text": "2026-10-11T19:10:27.8072001Z \u001b[36;1m./test.ps1 -Full -SkipTooling -Configuration \"ASan Debug\" -Platform ARM64\u001b[0m"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 418,
+    "text": "2026-10-11T19:18:22.1097491Z Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts."
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 440,
+    "text": "2026-10-11T19:18:22.1345206Z Compiling DxUi..."
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 474,
+    "text": "2026-10-11T19:24:22.3779742Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 481,
+    "text": "2026-10-11T19:24:38.1061780Z   DxUi.InteractiveLease.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.InteractiveLease.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 482,
+    "text": "2026-10-11T19:24:39.1333893Z   DxUi.EmbeddedControls.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 484,
+    "text": "2026-10-11T19:24:43.7943770Z   DxUi.FoundationTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 485,
+    "text": "2026-10-11T19:24:46.8430848Z   DxUi.EmbeddedTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 512,
+    "text": "2026-10-11T19:30:06.5772896Z   DxUi.ControlTests.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 515,
+    "text": "2026-10-11T19:31:08.2934625Z DxUi build passed in 11:44"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 559,
+    "text": "2026-10-11T19:34:01.5728157Z Performance comparison: unpaired"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 560,
+    "text": "2026-10-11T19:34:01.5761252Z Performance receipt: C:\\a\\DxUi\\DxUi\\.build\\reports\\Performance-ARM64-ASan Debug-48475721e3854b51beba13efba81549a.json"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 561,
+    "text": "2026-10-11T19:34:02.0700411Z PASS AddressSanitizer detection probe (isolated expected failure)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 567,
+    "text": "2026-10-11T19:34:02.9038100Z [LEASE] Restoration: foreground=unchanged focus=unchanged cursor=unchanged"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 569,
+    "text": "2026-10-11T19:34:02.9334022Z Running Foundation (ARM64 ASan Debug)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 570,
+    "text": "2026-10-11T19:34:03.0678523Z PASS Foundation (0 capability skips recorded)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 571,
+    "text": "2026-10-11T19:34:03.0697744Z Running Embedded (ARM64 ASan Debug)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 572,
+    "text": "2026-10-11T19:34:28.2196007Z PASS Embedded (0 capability skips recorded)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 597,
+    "text": "2026-10-11T19:35:06.0832629Z Running Rendering (ARM64 ASan Debug)"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 598,
+    "text": "2026-10-11T19:35:27.8932926Z ##[error]The action 'Run ./test.ps1 -Full -SkipTooling -Configuration \"ASan Debug\" -Platform ARM64' has timed out after 25 minutes."
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 917,
+    "text": "2026-10-11T19:40:19.7492988Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 929,
+    "text": "2026-10-11T19:41:13.6884483Z   ExternalConsumer.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\bin\\ExternalConsumer.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 934,
+    "text": "2026-10-11T19:41:19.1578331Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 939,
+    "text": "2026-10-11T19:41:32.5987261Z   NativeModuleA.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\bin\\NativeModuleA.dll"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 941,
+    "text": "2026-10-11T19:41:37.5276584Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 946,
+    "text": "2026-10-11T19:41:50.9507077Z   NativeModuleB.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\bin\\NativeModuleB.dll"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 948,
+    "text": "2026-10-11T19:41:55.8338390Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 955,
+    "text": "2026-10-11T19:42:13.0491908Z   NativeModuleDriver.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba\\app space\\bin\\NativeModuleDriver.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 968,
+    "text": "2026-10-11T19:42:14.4005611Z Native module fixture: 0 failed probes across EXE + two DLLs"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 970,
+    "text": "2026-10-11T19:44:55.9679603Z PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: C:\\a\\DxUi\\DxUi\\.build\\consumers\\c4176f0fa2ba"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1288,
+    "text": "2026-10-11T19:49:40.2721173Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1300,
+    "text": "2026-10-11T19:50:30.4093353Z   ExternalConsumer.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\bin\\ExternalConsumer.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1305,
+    "text": "2026-10-11T19:50:35.8129437Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1310,
+    "text": "2026-10-11T19:50:49.1096544Z   NativeModuleA.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\bin\\NativeModuleA.dll"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1312,
+    "text": "2026-10-11T19:50:53.9747967Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1317,
+    "text": "2026-10-11T19:51:07.3350354Z   NativeModuleB.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\bin\\NativeModuleB.dll"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1319,
+    "text": "2026-10-11T19:51:12.1838248Z   DxUi.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\deps\\ARM64\\ASan Debug\\DxUi.lib"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1326,
+    "text": "2026-10-11T19:51:29.3185720Z   NativeModuleDriver.vcxproj -> C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5\\app space\\bin\\NativeModuleDriver.exe"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1339,
+    "text": "2026-10-11T19:51:30.6100711Z Native module fixture: 0 failed probes across EXE + two DLLs"
+  },
+  {
+    "file": "job-114550858318.log",
+    "line": 1341,
+    "text": "2026-10-11T19:54:05.3986390Z PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: C:\\a\\DxUi\\DxUi\\.build\\consumers\\e3f61dec36b5"
+  }
+]

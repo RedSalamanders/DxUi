@@ -1,0 +1,13 @@
+{
+  "purpose": "root-independent-archived-six-build-replay",
+  "sourceCommit": "02961a88321c75ccd39090873f48977206d6dfdb",
+  "configurations": 6,
+  "rawBindings": 18,
+  "envelopeDigests": 12,
+  "fullBuildIdentities": 6,
+  "archivedIdentitiesMatched": true,
+  "nativeRuntimeQualified": false,
+  "scope": "Archived consistency only; original snapshot root reviews record actual live build input, tool, SDK, dependency and artifact checks. Incremental intermediate trees are not archived or reconstructed; only their original envelope digest and copy binding are replayed.",
+  "reviewerScriptSha256": "02D656A56E059049828AED62F0750FCE5C4E76C3633C22349EA35D2E802EBB7D",
+  "reviewedUtc": "2026-10-11T10:51:35.1806857Z"
+}

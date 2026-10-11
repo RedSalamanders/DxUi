@@ -1,0 +1,23 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestFormAccessibilityWindowPropertiesAndStableEditor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPropertiesAndStableEditor (0.273 s)
+  [START] TestFormAccessibilityEmbeddedPropertiesAndStableEditor
+  [DONE] TestFormAccessibilityEmbeddedPropertiesAndStableEditor (0.017 s)
+  [START] TestFormAccessibilityWindowLabelLifetimeAndReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowLabelLifetimeAndReplacement (3.879 s)
+  [START] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement
+  [DONE] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement (15.249 s)
+  [START] TestFormAccessibilityWindowPresentationEventsAreIdempotent
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPresentationEventsAreIdempotent (3.050 s)
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+FAILED: real UIA client hears each form presentation change

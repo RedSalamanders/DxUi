@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../BenchmarkGate.psm1') -Force
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -40,7 +41,8 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
+        'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
         'Tools/Get-BenchmarkScope.ps1' = 'paired measurement or gate'; 'Tools/Publish-BenchmarkVerdict.ps1' = 'paired measurement or gate'
@@ -59,7 +61,7 @@ Invoke-TestCase 'documentation, specifications, measurements, other tests and ot
         'Specs/Core/Core_PerformanceAndResources.md', 'Specs/DesignSystem/components/Tree/preview.html', 'Specs/Plans/WIP/README.md', 'Measurements/GridSelection/2026-10-01/README.md',
         'Measurements/GridSelection/2026-10-01/summary.receipt.txt', '.agents/skills/performance-resources/SKILL.md', 'capabilities.json',
         'Tests/Controls/DxUi.Tests.Grid.cpp', 'Tests/Foundation/Foundation.Tests.Foundation.cpp', 'Tests/ConsumerModules/Consumer.cpp', 'Tools/tests/Test-PairedRun.ps1',
-        'Tools/Validation.psm1', 'Tools/Changelog.psm1', 'Tools/Commit-Gallery.ps1', 'Tools/ConsumerUpdate.psm1', 'Tools/README.md', 'test.ps1', 'test-consumer.ps1',
+        'Tools/Commit-Gallery.ps1', 'Tools/ConsumerUpdate.psm1', 'Tools/README.md', 'test.ps1', 'test-consumer.ps1',
         'validate.ps1', 'validate-specs.ps1', 'format.ps1', 'gallery.ps1', '.clang-format', '.github/workflows/format.yml', '.github/workflows/gallery.yml',
         # Markdown is never compiled, even inside a measured directory.
         'src/README.md', 'include/DxUi/NOTES.md', 'Samples/ComplexUi/README.md', 'Tests/Embedded/NOTES.md')
@@ -145,6 +147,7 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
         }
     }
     Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1')) 'the walk reaches the comparator, the schedule and the restore'
+    Assert-True ($seen.Contains('Tools/Validation.psm1') -and $seen.Contains('Tools/Changelog.psm1')) 'the solution attestation helper closure is measured too'
 }
 
 Invoke-FixtureCase 'the baseline is the merge commit''s first parent, so only this pull request is compared' {
@@ -223,6 +226,109 @@ function New-SetMetric {
         pValue = $P; u = 1.0; rankDirection = 'higher'; baselineSpreadPercent = 3.0; candidateSpreadPercent = 4.0; verdict = $Verdict
         baselineRuns = @($Before); candidateRuns = @($After)
     }
+}
+
+function New-GateReceipt([string] $Run, [string] $Side) {
+    $receipt = [ordered]@{}
+    foreach ($key in Get-PerformanceIdentityKeys) { $receipt[$key] = 'fixture' }
+    $receipt.roundCount = 5; $receipt.framesPerRound = 40
+    $receipt.hiddenPreparations = 0; $receipt.hiddenComposites = 0
+    foreach ($key in @('sourceCommit','sourceFingerprint','executableSha256')) { $receipt[$key] = $Side }
+    foreach ($key in @('benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity','warpSha256')) { $receipt[$key] = 'fixture' }
+    $receipt.identityStatus = 'verifiable'; $receipt.identityScope = 'full'; $receipt.run = $Run
+    # Synthetic receipts exercise the real v2 structural/digest validation; they establish no actual build evidence.
+    $receipt.buildIdentityVersion = 2
+    foreach ($key in @('resolvedBuildIdentity','buildInputIdentity','buildArtifactIdentity')) { $receipt[$key] = 'a' * 64 }
+    $receipt.buildAttestationIdentity = Get-PerformanceBuildAttestationIdentity -State $receipt -ArtifactIdentity $receipt.buildArtifactIdentity
+    $receipt.scenarios = @(foreach ($phase in @('clean','dirty')) { [ordered]@{
+        name=$phase; rounds=@(foreach ($round in 1..5) {
+            $values = [ordered]@{}
+            foreach ($metric in Get-PerformanceMetricNames) { $values[$metric] = 100 }
+            $values.composeAllocations = 0
+            $values
+        })
+    } })
+    return $receipt
+}
+
+function Get-QualifiedFixtureConclusion([System.Collections.IDictionary] $Summary, [string] $Directory, [string] $JudgeHash, [string] $JudgeVersion,
+    [switch] $Strict, [switch] $ChangeControlsAfterReplay) {
+    # Scope only the policy lookup to a fixture trust anchor. The production source hashes, schedule, raw receipt
+    # inventory and both real judge replays remain active, and no policy file is modified or qualified by this test.
+    $gateModule = Get-Module BenchmarkGate
+    return & $gateModule {
+        param($Report,$ReportsDirectory,$FixtureJudgeHash,$FixtureJudgeVersion,$FixtureStrict,$FixtureChangeControlsAfterReplay)
+        function Get-TrustedPerformancePolicy {
+            param($BaselineCommit,$RepositoryRoot,$CandidatePolicyPath)
+            return [ordered]@{trusted=$true;status='trusted';policySha256='fixture-policy';
+                policy=[ordered]@{approvedJudgeSha256=$FixtureJudgeHash;judgeVersion=$FixtureJudgeVersion}}
+        }
+        if ($FixtureChangeControlsAfterReplay) {
+            # Keep the real validation, then simulate files changing before verdict projection. The projection must
+            # consume its validated raw-receipt drift maps rather than read these later file contents.
+            $actualReplay = (Get-Command Test-DualJudgeReceiptEvidence).ScriptBlock
+            function Test-DualJudgeReceiptEvidence {
+                param($Summary,$ReportsDirectory,$ApprovedJudgeSha256,$ApprovedJudgeVersion)
+                $verified = & $actualReplay @PSBoundParameters
+                foreach ($scenario in $Summary.scenarios) {
+                    foreach ($control in $scenario.comparisons) {
+                        [IO.File]::WriteAllText((Join-Path $ReportsDirectory $control.file), '{}', [Text.UTF8Encoding]::new($false))
+                    }
+                }
+                return $verified
+            }
+        }
+        Get-BenchmarkConclusion -Summary $Report -ReportsDirectory $ReportsDirectory -RequireQualifiedPolicy -StrictControls:$FixtureStrict
+    } $Summary $Directory $JudgeHash $JudgeVersion ([bool]$Strict) ([bool]$ChangeControlsAfterReplay)
+}
+
+function New-ScheduledGateControls([string] $Root, [string] $Name, [object[]] $Blocks, [System.Collections.IDictionary] $ReceiptsByRun) {
+    return @(foreach ($block in $Blocks) {
+        foreach ($side in @('Baseline','Candidate')) {
+            $runs = $block["${side}Runs"]
+            $comparison = Compare-PerformanceReceipt -Before $ReceiptsByRun[$runs[0]] -After $ReceiptsByRun[$runs[1]]
+            $controlName = "$Name-$($block.Name)-$($side.ToLowerInvariant())-control"
+            $file = "$controlName.comparison.json"
+            Set-FixtureJson $Root $file $comparison
+            $drift = @($comparison.changes | Where-Object {
+                if ($null -eq $_.changePercent) { $_.before -ne $_.after } else { [Math]::Abs([double]$_.changePercent) -gt [double]$_.noisePercent }
+            })
+            [ordered]@{name=$controlName;file=$file;status=$(if ($drift.Count) { 'unstable-control' } else { 'stable-control' });drift=@()}
+        }
+    })
+}
+
+function New-ReceiptBoundGateStudy([string] $Root, [switch] $NoisyControl, [string] $ControlMetric = 'prepareP95Ms',
+    [double] $ControlBefore = 100.0, [double] $ControlAfter = 130.0) {
+    $baseCommit = (& git -C $repository rev-parse HEAD).Trim()
+    $judges = Get-VersionedPerformanceJudge -RepositoryRoot $repository -BaselineCommit $baseCommit -CandidateModulePath (Join-Path $repository 'Tools/PerformanceComparison.psm1')
+    Assert-Equal 'available' $judges.status 'the fixture uses the real immutable base and candidate judges'
+    $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
+    $scenarios = @(foreach ($name in Get-BenchmarkGateScenarios) {
+        $byRun = @{}; $hashes = @()
+        foreach ($step in $schedule.Steps) {
+            $receipt = New-GateReceipt $step.Name $step.Side
+            if ($NoisyControl -and $name -ceq 'Default') {
+                if ($step.Name -ceq $schedule.Blocks[0].BaselineRuns[0]) { foreach ($round in $receipt.scenarios[0].rounds) { $round[$ControlMetric] = $ControlBefore } }
+                if ($step.Name -ceq $schedule.Blocks[0].BaselineRuns[1]) { foreach ($round in $receipt.scenarios[0].rounds) { $round[$ControlMetric] = $ControlAfter } }
+            }
+            Set-FixtureJson $Root "$name-$($step.Name).json" $receipt
+            $byRun[$step.Name] = $receipt
+            $hashes += [ordered]@{run=$step.Name;sha256=(Get-FileHash -LiteralPath (Join-Path $Root "$name-$($step.Name).json") -Algorithm SHA256).Hash}
+        }
+        $blocks = @($schedule.Blocks | ForEach-Object { [ordered]@{
+            name=$_.Name;order=$_.Order;Baseline=@($_.BaselineRuns|ForEach-Object {$byRun[$_]});Candidate=@($_.CandidateRuns|ForEach-Object {$byRun[$_]})
+        } })
+        $legacy = & $judges.module { param($Blocks) Compare-PerformanceSet -Baseline @($Blocks | ForEach-Object {$_.Baseline}) -Candidate @($Blocks | ForEach-Object {$_.Candidate}) } $blocks
+        $migrated = & $judges.candidateModule { param($Blocks,$Protocol) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -AssignmentProtocol $Protocol } $blocks $schedule.Allocation
+        [ordered]@{scenario=$name;comparisons=(New-ScheduledGateControls $Root $name $schedule.Blocks $byRun);set=(Copy-JsonValue $migrated);
+            judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$judges.baseJudgeSha256;candidateJudgeSha256=$judges.candidateJudgeSha256;reportBytesStable=$true;verdictAgreement=$true;
+                sameReceiptsSha256=$hashes;legacyJudge=(Copy-JsonValue $legacy);migratedJudge=(Copy-JsonValue $migrated)}}
+    })
+    return [ordered]@{studyVersion=3;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;allocation=$schedule.Allocation;order=$schedule.Order;
+        baseline=[ordered]@{commit=$baseCommit};acceptancePolicy=[ordered]@{status='trusted';policySha256='fixture-policy'};
+        judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$judges.baseJudgeSha256;candidateJudgeSha256=$judges.candidateJudgeSha256;baseJudgeVersion=$judges.baseJudgeVersion;candidateJudgeVersion=$judges.candidateJudgeVersion};
+        blockSchedule=(Copy-JsonValue $schedule.Blocks);steps=(Copy-JsonValue $schedule.Steps);scenarios=$scenarios}
 }
 
 function New-ControlChange([string] $Phase, [string] $Metric, [double] $Before, [double] $After, [double] $Noise = 5.0, [switch] $Exact) {
@@ -469,14 +575,21 @@ Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-
 
 Invoke-FixtureCase 'both judges are bound to the exact same retained receipt bytes' {
     param($root)
-    $steps = @(); $hashes = @()
+    $steps = @(); $hashes = @(); $receiptsByRun = @{}
     $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
     Assert-Equal 6 @($schedule.Blocks | Where-Object Order -eq 'ABBA').Count 'a coincidentally balanced independent assignment remains valid'
     foreach ($step in $schedule.Steps) {
         $run = [string]$step.Name
         $steps += $step
         $path = Join-Path $root "Default-$run.json"
-        Set-FixtureFile $root "Default-$run.json" "receipt $run`n"
+        $receipt = New-GateReceipt $run ([string]$step.Side)
+        Set-FixtureJson $root "Default-$run.json" $receipt
+        if ($steps.Count -eq 1) {
+            # Accepted receipts may contain one UTF-8 BOM; hash and replay must consume the same bytes.
+            $jsonBytes = [IO.File]::ReadAllBytes($path)
+            Set-FixtureBytes $root "Default-$run.json" ([byte[]](@(0xef,0xbb,0xbf) + $jsonBytes))
+        }
+        $receiptsByRun[$run] = Read-PerformanceReceipt $path
         $hashes += [ordered]@{run=$run;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
     }
     $baseCommit = (& git -C $repository rev-parse HEAD).Trim()
@@ -494,11 +607,17 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
         $baseJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($baseJudgeText)))
         $candidateJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateJudgeText)))
     } finally { $sha.Dispose() }
-    $judgeMetrics = @(foreach($phase in @('clean','dirty')){foreach($metric in Get-PerformanceMetricNames){[ordered]@{phase=$phase;metric=$metric;verdict='within-noise'}}})
-    $scenario = [ordered]@{ scenario='Default'; set=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
+    $blocks = @($schedule.Blocks | ForEach-Object { [ordered]@{
+        name=$_.Name; order=$_.Order
+        Baseline=@($_.BaselineRuns | ForEach-Object { $receiptsByRun[[string]$_] })
+        Candidate=@($_.CandidateRuns | ForEach-Object { $receiptsByRun[[string]$_] })
+    } })
+    $flatBaseline = @($blocks | ForEach-Object { $_['Baseline'] }); $flatCandidate = @($blocks | ForEach-Object { $_['Candidate'] })
+    $legacyDecision = & $baseJudgeModule { param($Baseline,$Candidate) Compare-PerformanceSet -Baseline $Baseline -Candidate $Candidate } $flatBaseline $flatCandidate
+    $migratedDecision = & $candidateJudgeModule { param($Blocks,$Protocol) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -AssignmentProtocol $Protocol } $blocks $schedule.Allocation
+    $scenario = [ordered]@{ scenario='Default'; comparisons=(New-ScheduledGateControls $root 'Default' $schedule.Blocks $receiptsByRun); set=(Copy-JsonValue $migratedDecision);
         judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;reportBytesStable=$true;verdictAgreement=$true;
-            sameReceiptsSha256=$hashes;legacyJudge=[ordered]@{status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
-            migratedJudge=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)}} }
+            sameReceiptsSha256=$hashes;legacyJudge=(Copy-JsonValue $legacyDecision);migratedJudge=(Copy-JsonValue $migratedDecision)} }
     $retainedBlockSchedule = Copy-JsonValue $schedule.Blocks
     $summary = [ordered]@{studyVersion=3;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;allocation=$schedule.Allocation;order=$schedule.Order;
         baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion=$baseJudgeVersion;candidateJudgeVersion=$candidateJudgeVersion};
@@ -506,6 +625,123 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
     $approvedJudgeVersion = $candidateJudgeVersion
     $initialEvidence = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
     Assert-True $initialEvidence.valid "all receipt hashes and explicitly approved judge identity match both decisions: $($initialEvidence.reason)"
+    $fullStudy = Copy-JsonValue $summary
+    $fullStudy.acceptancePolicy = [ordered]@{status='trusted';policySha256='fixture-policy'}
+    $fullStudy.scenarios = @(foreach ($name in Get-BenchmarkGateScenarios) {
+        $entry = Copy-JsonValue $scenario
+        $entry.scenario = $name
+        if ($name -cne 'Default') {
+            foreach ($step in $schedule.Steps) {
+                $run = [string]$step.Name
+                Set-FixtureBytes $root "$name-$run.json" ([IO.File]::ReadAllBytes((Join-Path $root "Default-$run.json")))
+            }
+        }
+        $entry.comparisons = New-ScheduledGateControls $root $name $schedule.Blocks $receiptsByRun
+        $entry
+    })
+    $complete = Get-QualifiedFixtureConclusion $fullStudy $root $candidateJudgeHash $approvedJudgeVersion
+    Assert-Equal 'pass' $complete.Conclusion 'a complete three-scenario study passes with real retained-receipt replays under the fixture policy'
+    Assert-Equal 3 @($complete.Scenarios).Count 'all contract scenarios are qualified'
+    foreach ($entry in $complete.Scenarios) {
+        Assert-Equal 24 $entry.Controls.Total 'every independent block contributes its two scheduled controls'
+        Assert-Equal 26 $entry.Held 'all declared metric slots are held by all complete replayed stable controls'
+    }
+    foreach ($missing in Get-BenchmarkGateScenarios) {
+        $partial = Copy-JsonValue $fullStudy
+        $partial.scenarios = @($partial.scenarios | Where-Object { $_.scenario -cne $missing })
+        $partialConclusion = Get-QualifiedFixtureConclusion $partial $root $candidateJudgeHash $approvedJudgeVersion
+        Assert-Equal 'inconclusive' $partialConclusion.Conclusion "qualification requires the $missing scenario"
+        Assert-True ($partialConclusion.Notes -join ' ').Contains('complete contract scenario set') 'missing scenario evidence is explicitly named'
+    }
+    foreach ($replacement in @('Default','Unknown','default')) {
+        $wrongScenarios = Copy-JsonValue $fullStudy
+        $wrongScenarios.scenarios[1].scenario = $replacement
+        Assert-Equal 'inconclusive' (Get-QualifiedFixtureConclusion $wrongScenarios $root $candidateJudgeHash $approvedJudgeVersion).Conclusion "qualification rejects a duplicate, unknown or incorrectly cased contract scenario ($replacement)"
+    }
+    $extraScenario = Copy-JsonValue $fullStudy
+    $extraScenario.scenarios += Copy-JsonValue $extraScenario.scenarios[0]
+    Assert-Equal 'inconclusive' (Get-QualifiedFixtureConclusion $extraScenario $root $candidateJudgeHash $approvedJudgeVersion).Conclusion 'an extra duplicate cannot qualify as another independent scenario'
+    $readableSubset = Copy-JsonValue $summary
+    $readableSubset.acceptancePolicy = [ordered]@{status='trusted'}
+    Assert-Equal 'pass' (Get-BenchmarkConclusion -Summary $readableSubset -ReportsDirectory $root).Conclusion 'non-qualification diagnostics keep a valid scenario subset readable'
+    $forgedSet = Copy-JsonValue $summary
+    $forgedSet.acceptancePolicy = [ordered]@{status='trusted'}
+    $forgedSet.scenarios[0].comparisons = @()
+    $forgedSet.scenarios[0].set.metrics = @()
+    foreach ($judge in @('legacyJudge','migratedJudge')) {
+        $forgedSet.scenarios[0].judgeComparison[$judge].status = 'advice-required'
+        $forgedSet.scenarios[0].judgeComparison[$judge].metrics[0].verdict = 'regressed'
+    }
+    $forgedEvidence = Test-DualJudgeReceiptEvidence -Summary $forgedSet -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True (-not $forgedEvidence.valid) 'a metric-free passing set cannot replace both judges'' regressed decisions'
+    Assert-True $forgedEvidence.reason.Contains('consumed set differs') 'the consumed set is independently checked against the retained judge'
+    $forgedGate = Copy-JsonValue $fullStudy
+    $forgedGate.scenarios[0] = Copy-JsonValue $forgedSet.scenarios[0]
+    Assert-Equal 'inconclusive' (Get-QualifiedFixtureConclusion $forgedGate $root $candidateJudgeHash $approvedJudgeVersion).Conclusion 'the qualification branch rejects a substituted empty passing set even when all scenario names are present'
+    $changedStatus = Copy-JsonValue $summary
+    $changedStatus.scenarios[0].set.status = 'advice-required'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $changedStatus -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'a consumed status cannot disagree with its complete metric decisions'
+    foreach ($decision in @('set','legacyJudge','migratedJudge')) {
+        foreach ($inventory in @('empty','missing','duplicate','unknown','wrong-phase','unknown-verdict')) {
+            $badInventory = Copy-JsonValue $summary
+            $changedDecision = if ($decision -eq 'set') { $badInventory.scenarios[0].set } else { $badInventory.scenarios[0].judgeComparison[$decision] }
+            switch ($inventory) {
+                'empty' { $changedDecision.metrics = @() }
+                'missing' { $changedDecision.metrics = @($changedDecision.metrics | Select-Object -Skip 1) }
+                'duplicate' { $changedDecision.metrics[0] = Copy-JsonValue $changedDecision.metrics[1] }
+                'unknown' { $changedDecision.metrics[0].metric = 'invented' }
+                'wrong-phase' { $changedDecision.metrics[0].phase = 'hidden' }
+                'unknown-verdict' { $changedDecision.metrics[0].verdict = 'dismissed' }
+            }
+            Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $badInventory -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) "$decision must retain the full unique declared inventory ($inventory)"
+        }
+    }
+    $changedSet = Copy-JsonValue $summary
+    $changedSet.scenarios[0].set.metrics[0].exact = $true
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $changedSet -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'a set cannot alter exact-budget evidence while keeping the same verdict labels'
+    foreach ($field in @('status','familySize','minimumAttainableP','regressedMetrics','metrics')) {
+        $omitted = Copy-JsonValue $summary
+        foreach ($decision in @($omitted.scenarios[0].set,$omitted.scenarios[0].judgeComparison.migratedJudge)) { [void]$decision.Remove($field) }
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $omitted -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) "both migrated/set records cannot omit decision evidence ($field)"
+    }
+    foreach ($field in @('baselineMedian','adjustedPValue','exact','peakBudgetVerdict')) {
+        $omitted = Copy-JsonValue $summary
+        foreach ($decision in @($omitted.scenarios[0].set,$omitted.scenarios[0].judgeComparison.migratedJudge)) { [void]$decision.metrics[0].Remove($field) }
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $omitted -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) "both migrated/set records cannot omit metric evidence ($field)"
+    }
+    $forgedJudges = Copy-JsonValue $summary
+    $forgedJudges.scenarios[0].judgeComparison.legacyJudge.metrics[0].baselineMedian = 1
+    $rejectedReplay = Test-DualJudgeReceiptEvidence -Summary $forgedJudges -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True (-not $rejectedReplay.valid) 'a fabricated base decision is rejected despite matching labels and receipt hashes'
+    Assert-True $rejectedReplay.reason.Contains('differ from replay') 'the independently recomputed evidence detects a changed base metric'
+    $forgedJudges = Copy-JsonValue $summary
+    foreach ($decision in @($forgedJudges.scenarios[0].set,$forgedJudges.scenarios[0].judgeComparison.migratedJudge)) { $decision.metrics[0].adjustedPValue = 0.01 }
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $forgedJudges -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'matching fabricated migrated/set evidence is rejected by replay of the receipt bytes'
+    $bothForged = Copy-JsonValue $summary
+    foreach ($decision in @($bothForged.scenarios[0].set,$bothForged.scenarios[0].judgeComparison.legacyJudge,$bothForged.scenarios[0].judgeComparison.migratedJudge)) {
+        $decision.status = 'advice-required'; $decision.metrics[0].verdict = 'regressed'
+    }
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $bothForged -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'agreement among three fabricated decisions cannot replace raw-receipt replay'
+    $candidateRun = [string]@($schedule.Steps | Where-Object { $_.Side -ceq 'candidate' })[0].Name
+    $candidateFile = "Default-$candidateRun.json"
+    $originalBytes = [IO.File]::ReadAllBytes((Join-Path $root $candidateFile))
+    try {
+        $changedRaw = Copy-JsonValue $receiptsByRun[$candidateRun]
+        $changedRaw.scenarios[0].rounds[0].surfaceBytes = 101
+        Set-FixtureJson $root $candidateFile $changedRaw
+        $reattestedRaw = Copy-JsonValue $summary
+        foreach ($record in $reattestedRaw.scenarios[0].judgeComparison.sameReceiptsSha256) {
+            if ($record.run -ceq $candidateRun) { $record.sha256 = (Get-FileHash -LiteralPath (Join-Path $root $candidateFile) -Algorithm SHA256).Hash }
+        }
+        $changedRawReplay = Test-DualJudgeReceiptEvidence -Summary $reattestedRaw -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+        Assert-True (-not $changedRawReplay.valid) 'reattesting changed raw exact-budget samples cannot retain an earlier passing decision'
+        Assert-True $changedRawReplay.reason.Contains('differ from replay') 'raw-round peak tampering is found by replay even when its new hash is recorded'
+        Set-FixtureFile $root $candidateFile 'not JSON'
+        foreach ($record in $reattestedRaw.scenarios[0].judgeComparison.sameReceiptsSha256) {
+            if ($record.run -ceq $candidateRun) { $record.sha256 = (Get-FileHash -LiteralPath (Join-Path $root $candidateFile) -Algorithm SHA256).Hash }
+        }
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $reattestedRaw -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'hash-attested non-JSON receipt bytes cannot qualify'
+    } finally { Set-FixtureBytes $root $candidateFile $originalBytes }
     foreach ($marker in @('', 'balanced-ABBA-BAAB')) {
         $wrongProtocol = Copy-JsonValue $summary
         $wrongProtocol.allocation = $marker
@@ -555,6 +791,180 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
     $changed = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
     Assert-True (-not $changed.valid) 'post-judge receipt mutation fails'
     Assert-True $changed.reason.Contains('changed after judgment') 'mutation is named'
+}
+
+Invoke-FixtureCase 'qualification controls reproduce their complete scheduled raw receipt pairs' {
+    param($root)
+    $study = New-ReceiptBoundGateStudy $root -NoisyControl
+    $judgeHash = $study.judgeProvenance.candidateJudgeSha256
+    $judgeVersion = $study.judgeProvenance.candidateJudgeVersion
+    foreach ($entry in $study.scenarios) {
+        Assert-Equal 'within-noise-budget' $entry.set.status 'one drifting control does not manufacture an aggregate flag'
+        Assert-Equal 'within-noise-budget' $entry.judgeComparison.legacyJudge.status 'the original aggregate judge also stays within noise'
+    }
+    $honest = Get-QualifiedFixtureConclusion $study $root $judgeHash $judgeVersion -Strict
+    Assert-Equal 'inconclusive' $honest.Conclusion 'strict controls retain the genuine same-binary drift'
+    Assert-Equal 1 $honest.Scenarios[0].Controls.Unstable 'exactly one Default control drifted'
+    $controlFile = $study.scenarios[0].comparisons[0].file
+    $originalBytes = [IO.File]::ReadAllBytes((Join-Path $root $controlFile))
+    $rawComparison = Get-FixtureJson $root $controlFile
+    $changedMetric = @($rawComparison.changes | Where-Object { $_.scenario -ceq 'clean' -and $_.metric -ceq 'prepareP95Ms' })[0]
+    Assert-True ([double]$changedMetric.before -eq 100.0) 'the first scheduled A run'
+    Assert-True ([double]$changedMetric.after -eq 130.0) 'the second scheduled A run'
+    $stableComparison = Get-FixtureJson $root $study.scenarios[0].comparisons[1].file
+    $results = @(foreach ($variant in @('forged-file','forged-status','omitted-noisy-control','all-controls-missing','duplicate-stable-control','missing-metric')) {
+        $changed = Copy-JsonValue $study
+        try {
+            switch ($variant) {
+                'forged-file' {
+                    Set-FixtureJson $root $controlFile $stableComparison
+                    $changed.scenarios[0].comparisons[0].status = 'stable-control'
+                }
+                'forged-status' { $changed.scenarios[0].comparisons[0].status = 'stable-control' }
+                'omitted-noisy-control' { $changed.scenarios[0].comparisons = @($changed.scenarios[0].comparisons | Select-Object -Skip 1) }
+                'all-controls-missing' { foreach ($entry in $changed.scenarios) { $entry.comparisons = @() } }
+                'duplicate-stable-control' { $changed.scenarios[0].comparisons[0] = Copy-JsonValue $changed.scenarios[0].comparisons[1] }
+                'missing-metric' {
+                    $comparison = Copy-JsonValue $rawComparison
+                    $comparison.changes = @($comparison.changes | Where-Object { $_.scenario -cne 'clean' -or $_.metric -cne 'prepareP95Ms' })
+                    Set-FixtureJson $root $controlFile $comparison
+                    $changed.scenarios[0].comparisons[0].status = 'stable-control'
+                }
+            }
+            $evidence = Test-DualJudgeReceiptEvidence -Summary $changed -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion
+            $verdict = Get-QualifiedFixtureConclusion $changed $root $judgeHash $judgeVersion -Strict
+            Write-Host "Control trust reproduction (${variant}): evidence valid=$($evidence.valid), strict qualification=$($verdict.Conclusion)"
+            [ordered]@{variant=$variant;evidenceValid=$evidence.valid;conclusion=$verdict.Conclusion}
+        } finally { Set-FixtureBytes $root $controlFile $originalBytes }
+    })
+    foreach ($result in $results) {
+        Assert-True (-not $result.evidenceValid) "raw receipt replay rejects $($result.variant)"
+        Assert-Equal 'inconclusive' $result.conclusion "qualification rejects $($result.variant)"
+    }
+    foreach ($variant in @('empty-metrics','duplicate-metric','unknown-metric','wrong-phase','changed-before','changed-after','changed-band',
+        'changed-percent','changed-regression','changed-file-status','missing-field','reversed-pair','unknown-control','wrong-control-case','wrong-file')) {
+        $changed = Copy-JsonValue $study
+        $changed.scenarios = @($changed.scenarios[0])
+        $comparison = Copy-JsonValue $rawComparison
+        $metric = @($comparison.changes | Where-Object { $_.scenario -ceq 'clean' -and $_.metric -ceq 'prepareP95Ms' })[0]
+        try {
+            switch ($variant) {
+                'empty-metrics' { $comparison.changes = @() }
+                'duplicate-metric' { $comparison.changes[0] = Copy-JsonValue $comparison.changes[1] }
+                'unknown-metric' { $metric.metric = 'invented' }
+                'wrong-phase' { $metric.scenario = 'hidden' }
+                'changed-before' { $metric.before = 130 }
+                'changed-after' { $metric.after = 100 }
+                'changed-band' { $metric.noisePercent = 50 }
+                'changed-percent' { $metric.changePercent = 0 }
+                'changed-regression' { $metric.regressed = $false }
+                'changed-file-status' { $comparison.status = 'within-noise-budget' }
+                'missing-field' { [void]$metric.Remove('noisePercent') }
+                'reversed-pair' {
+                    $runs = $study.blockSchedule[0].BaselineRuns
+                    $comparison = Compare-PerformanceReceipt -Before (Get-FixtureJson $root "Default-$($runs[1]).json") -After (Get-FixtureJson $root "Default-$($runs[0]).json")
+                }
+                'unknown-control' { $changed.scenarios[0].comparisons[0].name = 'Default-unscheduled-baseline-control' }
+                'wrong-control-case' { $changed.scenarios[0].comparisons[0].name = $changed.scenarios[0].comparisons[0].name.ToUpperInvariant() }
+                'wrong-file' { $changed.scenarios[0].comparisons[0].file = $changed.scenarios[0].comparisons[1].file }
+            }
+            Set-FixtureJson $root $controlFile $comparison
+            $evidence = Test-DualJudgeReceiptEvidence -Summary $changed -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion
+            Assert-True (-not $evidence.valid) "complete scheduled control evidence rejects $variant"
+            Assert-True $evidence.reason.Contains('ontrol') "control rejection is identified for $variant"
+        } finally { Set-FixtureBytes $root $controlFile $originalBytes }
+    }
+    $reordered = Copy-JsonValue $study
+    foreach ($entry in $reordered.scenarios) { [array]::Reverse($entry.comparisons) }
+    Assert-True (Test-DualJudgeReceiptEvidence -Summary $reordered -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion).valid 'metadata order does not alter the exact named control schedule'
+}
+
+Invoke-FixtureCase 'replayed controls use absolute timing memory and exact bands in either direction' {
+    param($root)
+    foreach ($case in @(
+        @{metric='prepareP95Ms';before=130.0;after=100.0;noise=5.0},
+        @{metric='privateBytes';before=100.0;after=103.0;noise=2.0},
+        @{metric='privateBytes';before=103.0;after=100.0;noise=2.0},
+        @{metric='surfaceBytes';before=100.0;after=99.0;noise=0.0},
+        @{metric='cppAllocations';before=0.0;after=1.0;noise=0.0}
+    )) {
+        $study = New-ReceiptBoundGateStudy $root -NoisyControl -ControlMetric $case.metric -ControlBefore $case.before -ControlAfter $case.after
+        $verdict = Get-QualifiedFixtureConclusion $study $root $study.judgeProvenance.candidateJudgeSha256 $study.judgeProvenance.candidateJudgeVersion -Strict
+        Assert-Equal 'inconclusive' $verdict.Conclusion "absolute control bands retain $($case.metric) drift $($case.before) -> $($case.after)"
+        Assert-Equal 1 $verdict.Scenarios[0].Controls.Unstable 'one scheduled control is unstable'
+        $metric = @($verdict.Scenarios[0].Metrics | Where-Object { $_.Phase -ceq 'clean' -and $_.Metric -ceq $case.metric })[0]
+        Assert-True $metric.ControlDrifted 'the canonical metric drift is preserved'
+        Assert-True (-not $metric.Held) 'a drifting metric is never held'
+        Assert-True ([double]$metric.NoisePercent -eq $case.noise) 'the original timing memory or exact band is unchanged'
+    }
+}
+
+Invoke-FixtureCase 'qualification consumes canonical control drift after comparison files change' {
+    param($root)
+    foreach ($noisy in @($false,$true)) {
+        $study = New-ReceiptBoundGateStudy $root -NoisyControl:$noisy
+        $verdict = Get-QualifiedFixtureConclusion $study $root $study.judgeProvenance.candidateJudgeSha256 $study.judgeProvenance.candidateJudgeVersion -Strict -ChangeControlsAfterReplay
+        Assert-Equal $(if ($noisy) { 'inconclusive' } else { 'pass' }) $verdict.Conclusion 'a post-validation comparison-file change cannot replace the raw control verdict'
+        foreach ($entry in $verdict.Scenarios) {
+            Assert-Equal 24 $entry.Controls.Total 'all scheduled controls are retained'
+            Assert-Equal 0 $entry.Controls.Missing 'validated controls do not become a second file read'
+            Assert-Equal $(if ($noisy -and $entry.Scenario -ceq 'Default') { 25 } else { 26 }) $entry.Held 'the canonical metric inventory and held status survive changed files'
+        }
+        $later = Get-FixtureJson $root $study.scenarios[0].comparisons[0].file
+        Assert-Equal 0 $later.Count 'the fixture changed the files after real validation'
+    }
+}
+
+Invoke-FixtureCase 'qualification requires full v2 build identity on every raw receipt' {
+    param($root)
+    $study = New-ReceiptBoundGateStudy $root
+    $judgeHash = $study.judgeProvenance.candidateJudgeSha256
+    $judgeVersion = $study.judgeProvenance.candidateJudgeVersion
+    Assert-Equal 'pass' (Get-QualifiedFixtureConclusion $study $root $judgeHash $judgeVersion).Conclusion 'complete synthetic v2 structures exercise real qualification validation'
+    $run = [string]$study.steps[0].Name
+    $file = "Default-$run.json"
+    $originalBytes = [IO.File]::ReadAllBytes((Join-Path $root $file))
+    $original = Get-FixtureJson $root $file
+    foreach ($variant in @('missing-scope','build-only','platform-only','unverifiable-status','missing-version','legacy-version','legacy-domain',
+        'missing-resolved','missing-input','missing-artifact','missing-attestation','malformed-resolved','invalid-attestation',
+        'rebound-resolved','rebound-input','rebound-artifact','rebound-toolchain')) {
+        $receipt = Copy-JsonValue $original
+        $changed = Copy-JsonValue $study
+        try {
+            switch ($variant) {
+                'missing-scope' { [void]$receipt.Remove('identityScope') }
+                'build-only' { $receipt.identityScope = 'build-only'; $receipt.identityStatus = 'build-only' }
+                'platform-only' { $receipt.identityScope = 'platform-only'; $receipt.identityStatus = 'verifiable' }
+                'unverifiable-status' { $receipt.identityStatus = 'identity-unverifiable' }
+                'missing-version' { [void]$receipt.Remove('buildIdentityVersion') }
+                'legacy-version' { $receipt.buildIdentityVersion = 1 }
+                'legacy-domain' {
+                    $oldDomain = @('dxui-performance-build-v1',$receipt.buildInputIdentity,$receipt.toolchainIdentity,$receipt.buildArtifactIdentity) -join "`n"
+                    $receipt.buildAttestationIdentity = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($oldDomain))).ToLowerInvariant()
+                }
+                'missing-resolved' { [void]$receipt.Remove('resolvedBuildIdentity') }
+                'missing-input' { [void]$receipt.Remove('buildInputIdentity') }
+                'missing-artifact' { [void]$receipt.Remove('buildArtifactIdentity') }
+                'missing-attestation' { [void]$receipt.Remove('buildAttestationIdentity') }
+                'malformed-resolved' { $receipt.resolvedBuildIdentity = 'not-a-digest' }
+                'invalid-attestation' { $receipt.buildAttestationIdentity = 'b' * 64 }
+                'rebound-resolved' { $receipt.resolvedBuildIdentity = 'b' * 64 }
+                'rebound-input' { $receipt.buildInputIdentity = 'b' * 64 }
+                'rebound-artifact' { $receipt.buildArtifactIdentity = 'b' * 64 }
+                'rebound-toolchain' { $receipt.toolchainIdentity = 'changed tools' }
+            }
+            Set-FixtureJson $root $file $receipt
+            foreach ($record in $changed.scenarios[0].judgeComparison.sameReceiptsSha256) {
+                if ($record.run -ceq $run) { $record.sha256 = (Get-FileHash -LiteralPath (Join-Path $root $file) -Algorithm SHA256).Hash }
+            }
+            $evidence = Test-DualJudgeReceiptEvidence -Summary $changed -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion
+            Assert-True (-not $evidence.valid) "raw receipt qualification rejects $variant even after recording its new file hash"
+            Assert-True $evidence.reason.Contains('full v2 build/receipt identity') "the v2 identity problem is named for $variant"
+            Assert-Equal 'inconclusive' (Get-QualifiedFixtureConclusion $changed $root $judgeHash $judgeVersion).Conclusion "required qualification cannot accept $variant"
+            $diagnostic = Get-BenchmarkConclusion -Summary $changed -ReportsDirectory $root
+            Assert-Equal 3 @($diagnostic.Scenarios).Count 'local diagnosis remains readable through its original comparison path'
+        } finally { Set-FixtureBytes $root $file $originalBytes }
+    }
 }
 
 Invoke-FixtureCase 'a summary the gate cannot read is invalid, never an exception' {

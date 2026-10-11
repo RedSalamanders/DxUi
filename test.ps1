@@ -16,6 +16,10 @@ foreground window, its keyboard focus and the pointer position back however the 
 124 and Ctrl+C included. A suite that records a capability skip fails the run, since an interactive run exists to run what other runs
 skip. Run it only when the person at the desktop has agreed to the time. Ordinary local calls without -Interactive do not use the
 lease. Foreground suites on verified hosted Windows runners use the separately guarded hosted lease mode.
+.PARAMETER InteractiveAutoStart
+Use only after the person at the desktop explicitly agrees to automatic start and the time. Requires -Interactive. The visible
+dialog defaults to Start and starts after 30 seconds if nobody clicks; Cancel, Esc, closing the dialog and Ctrl+C stop the run.
+All desktop checks, the warning, suite accounting and verified restoration still apply. Ordinary -Interactive retains its Cancel default.
 .PARAMETER SkipTooling
 Leaves independent tooling tests to the selected Tooling scope or the CI validation job. Native runner/watchdog checks remain.
 .PARAMETER Full
@@ -32,11 +36,13 @@ param(
     [string[]] $Tests = @(),
     [ValidateRange(0, 999999)][Nullable[int]] $TestTimeout = $null,
     [switch] $Interactive,
+    [switch] $InteractiveAutoStart,
     [switch] $SkipTooling,
     [switch] $Full
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($InteractiveAutoStart -and -not $Interactive) { throw '-InteractiveAutoStart requires -Interactive and prior agreement to automatic start and the time.' }
 # Ordinary iteration uses source impact. Explicit suites and Full retain the lower-level runner surface.
 if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
     @($PSBoundParameters.Keys | Where-Object { $_ -notin @('Platform','Configuration','SkipBuild') }).Count -eq 0) {
@@ -164,16 +170,17 @@ try {
         })
         # The lease's bound on one suite is for what the runner's watchdog cannot reach; it never cuts a suite the watchdog allows.
         $bound = if ($TestTimeout -eq 0) { 0 } elseif ($null -ne $TestTimeout) { [Math]::Max(900, 3 * $TestTimeout) } else { 900 }
-        $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } else { 'after local confirmation' }
+        $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } elseif ($InteractiveAutoStart) { 'after an approved automatic Start countdown (30 seconds; Cancel stops it)' } else { 'after local confirmation' }
         Write-Host "Foreground run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) $leaseStart."
         if ($hostedForegroundLease) {
             $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
         } else {
-            $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+            $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
         }
-        $leaseProblems = @(Get-DxUiLeaseProblems -Result $lease.Result -ExitCode $lease.ExitCode)
+        $leaseProblems = @(Get-DxUiLeaseProblems -Result $lease.Result -ExitCode $lease.ExitCode) + @($lease.PolicyProblems)
         $leaseResult = if ($null -ne $lease.Result) { $lease.Result } else {
             [pscustomobject]@{ State='missing'; Exit=$lease.ExitCode; Reason='the native lease wrote no result'; Confirmation='none';
+                AutoStart=$false; ConfirmationSeconds=$null;
                 SavedForeground=''; Foreground='none'; Focus='none'; Cursor='none'; CursorSaved=''; CursorAtExit=''; RunMovedSomething=$false; Children=@() }
         }
     }
@@ -224,7 +231,9 @@ try {
         if ($suiteUsesForegroundLease) {
             $receipt['interactive'] = $true
             $receipt['lease'] = [ordered]@{
-                mode=$(if ($hostedForegroundLease) { 'verified-github-hosted' } else { 'local-confirmed' }); hosted=$hostedForegroundLease
+                mode=$(if ($hostedForegroundLease) { 'verified-github-hosted' } elseif ($InteractiveAutoStart) { 'local-approved-auto-start' } else { 'local-confirmed' }); hosted=$hostedForegroundLease
+                autoStart=$leaseResult.AutoStart; confirmationSeconds=$leaseResult.ConfirmationSeconds
+                requestedAutoStart=$lease.RequestedAutoStart; requestedConfirmationSeconds=$lease.RequestedConfirmationSeconds
                 state=$leaseResult.State; exitCode=$lease.ExitCode; confirmation=$leaseResult.Confirmation; foreground=$leaseResult.Foreground; focus=$leaseResult.Focus
                 cursor=$leaseResult.Cursor; cursorSaved=$leaseResult.CursorSaved; cursorAtExit=$leaseResult.CursorAtExit
                 runMovedSomething=$leaseResult.RunMovedSomething; savedForeground=$leaseResult.SavedForeground; seconds=$(if ($child) { $child.Seconds } else { $null })
@@ -245,7 +254,10 @@ try {
     }
     $failures += $leaseProblems
 } finally { Pop-Location }
-if ($foregroundLeaseRequired) { Write-Host "Foreground lease ($($leaseResult.State)): foreground $($leaseResult.Foreground), focus $($leaseResult.Focus), pointer $($leaseResult.Cursor)$(if ($leaseResult.RunMovedSomething) { '; the lease gave back what the run had moved' } else { '; the run left the desktop as the person had it' })." }
-if ($foregroundLeaseRequired -and $leaseResult.Cursor -eq 'restored') { Write-Warning "The suites left the pointer at $($leaseResult.CursorAtExit), and the lease moved it back to $($leaseResult.CursorSaved). A fixture that moves the pointer puts it back itself, so a pointer left behind is a fixture to look at." }
+if ($foregroundLeaseRequired) {
+    $leaseSummary = Get-DxUiLeaseSummary -Result $leaseResult
+    Write-Host $leaseSummary.Message
+    if ($leaseSummary.PointerNotice) { Write-Host $leaseSummary.PointerNotice }
+}
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }
 Write-Host "All $($Suites.Count) requested suites passed."

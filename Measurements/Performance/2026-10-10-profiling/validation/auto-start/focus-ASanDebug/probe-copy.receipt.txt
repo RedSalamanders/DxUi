@@ -1,0 +1,14 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\AddressSanitizer-x64.json",
+    "copy": "AddressSanitizer.receipt.txt",
+    "bytes": 545,
+    "sha256": "FC1220EDC7FCFD6D407701B9F6550D513A3734EF870DA284D039C550B8DAC0CD"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log",
+    "copy": "AddressSanitizer.log",
+    "bytes": 5930,
+    "sha256": "70C172396CB88DB786010AA07788AFA891D03245E83D6FEAD982D253FC137EE7"
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "purpose": "root-retained-failed-native-focus-attempt",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "attempt": 1,
+  "parentExitCode": 1,
+  "state": "launchfailed",
+  "confirmation": "started",
+  "leaseExitCode": 24,
+  "foreground": "failed",
+  "focus": "skipped",
+  "pointer": "failed",
+  "children": [
+    {
+      "Name": "Menu",
+      "Launched": true,
+      "ExitCode": 0,
+      "Seconds": 81.6,
+      "TimedOut": false,
+      "Interrupted": false
+    },
+    {
+      "Name": "NativeTextInput",
+      "Launched": true,
+      "ExitCode": 1,
+      "Seconds": 38.3,
+      "TimedOut": false,
+      "Interrupted": false
+    },
+    {
+      "Name": "MenuResources",
+      "Launched": false,
+      "ExitCode": 0,
+      "Seconds": 0.0,
+      "TimedOut": false,
+      "Interrupted": false
+    }
+  ],
+  "copiedOriginals": 13,
+  "qualification": "failed-attempt-preserved-not-a-pass",
+  "reviewerScriptSha256": "5F3A961E0B880C9A27CAD870B0455E4B1917B5BA767F5492841DA680C02D903D"
+}

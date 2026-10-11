@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -16,6 +16,101 @@ after extensible child callbacks and stops if the container was retired.
 StackPanel layout reacquires owned child storage after each bounds callback and stops an outer pass after owner/child
 retirement or a nested change to layout inputs. It allocates no traversal snapshot. Call ApplyLayout after changing
 children, bounds or layout settings; a nested completed reflow is not overwritten by stale outer geometry.
+
+## Opt-in intrinsic measurement and flow
+
+`Control::Measure(MeasureContext, LayoutConstraints, DesiredSize&)` is an additive, non-pure extension point.
+Legacy custom controls return `E_NOTIMPL`; `Panel`, `StackPanel` and manually arranged controls keep their existing
+layout contract. A layout owner supplies an explicit size for unsupported children. The previous arranged bounds
+never act as an implicit preferred size. Constraints use finite nonnegative minima and optional finite maxima;
+an absent maximum axis is unbounded. Negative, nonfinite or contradictory constraints fail without changing
+the caller's desired-size output. Desired size contains an optional baseline and an explicit overflow flag.
+Minimum and intrinsic extents remain authoritative when the available parent extent is too small; a container
+reports overflow instead of silently shrinking an interactive target or truncating measured content.
+
+Label, Button, Toggle, Checkbox, TextField, ComboBox and NumericStepper measure with the current host's
+DirectWrite font roles, flow direction and density. Wrapping requires an explicit opt-in and finite width;
+single-line measurement preserves its natural text extent. Toggle reserves the larger of its two localized
+state labels. Single-line editors measure stable font/chrome requirements and use the owning layout's minimum
+or explicit preferred width; typing, selecting an item or nudging a value does not resize the editor. A masked
+multiline field measures its displayed mask. Shaping is bounded to 65,536 UTF-16 units per measured text value and
+per container pass across cache misses and nested measures. `MeasureContext::remainingTextUnits` optionally borrows
+an existing pass budget; nested containers preserve it and cached results consume no units. Excess input fails
+before text-layout allocation. No character-count width approximation is a measurement fallback.
+
+`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 logical child
+slots. It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
+constraints, cross-axis alignment and positive growth. A child maximum caps growth; remaining growth is
+redistributed among eligible siblings. Hidden children occupy no flow space. RTL mirrors physical rectangles
+while preserving logical ownership and focus/accessibility order. Measurement cache identity includes the
+child's measurement revision, constraints, host typography revision, DPI, flow and density. Content, font,
+wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
+checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
+per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again.
+
+Intrinsic owners request work through the shared pending-layout traversal used by native painting and embedded
+`Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A failed or superseded layout
+prevents the host from publishing that preparation. The layout owner stages all numeric geometry before the first
+extensible bounds callback and leaves child bounds unchanged on validation, allocation, measurement or arithmetic
+failure. After custom measurement or bounds callbacks it rechecks lifetime, ownership, host, geometry and input
+revisions. A callback that retires, reparents or replaces the owner/child, changes sibling geometry, or starts a
+newer layout aborts the stale pass. Geometry authored by such a callback remains authoritative; already completed
+callbacks are not rolled back, and the incomplete outer pass does not publish its content extent or frame.
+
+Flex arrangement stages absolute endpoints in logical line order. Positive intrinsic extents, gaps and padding that collapse at a
+finite origin fail with arithmetic overflow before any bounds callback. An inward-rounded endpoint advances
+outward, with following anchors consuming that corrected edge; represented minima, gaps, order and applicable
+growth maxima remain authoritative. Optional Grow/Stretch additions can round inward while preserving the
+intrinsic minimum; an uncapped minimum-size overflow remains valid when no smaller endpoint preserves that minimum.
+Bounded trailing insets are checked against the represented parent far edge;
+End alignment uses the represented line endpoint. `Measure` returns the preferred extent; successful `ApplyLayout`
+publishes at least the occupied represented extent plus padding, and reports overflow when that content or its
+absolute geometry with padding exceeds its bounds.
+Scratch generations retire an older arrangement after a nested pure measure replaces its reusable records.
+`ClearChildren` retires entry records before detach callbacks, preserving options and layouts authored for newer children.
+
+### Reusable form composition
+
+`FormPanel` and `FormField` are opt-in retained layout owners. The application explicitly selects one or two
+uniform field columns and labels above or beside editors; no hidden breakpoint or settings schema chooses those
+values. Beside labels share a measured width across currently visible fields, capped to leave the editor lane
+usable. Description and error text wrap in the editor lane. Flow direction mirrors rectangles without changing
+logical ownership, tab order, editor identity, selection, draft or composition. Footer actions remain separate
+siblings arranged by their owner, using the existing measured-action helper when required.
+
+A form supports at most 256 logical field slots. `AddField` requires a nonempty, unique identity and bounds its
+identity/initial label to 65,536 UTF-16 units. Arbitrary visible non-field children fail form layout rather than
+being silently ignored. A field owns one editor and three text parts; a custom editor returning `E_NOTIMPL`
+uses the explicitly supplied preferred editor size, whose default is 180 by 32 DIP. Preferred width is at least
+48 DIP and preferred height is positive. Above fields retain at least 48 DIP and beside fields at least 108 DIP
+per column. These are library geometry minima, not a product touch-target policy. When the parent is narrower,
+content retains those minima and reports overflow; the owner provides scrolling or a more suitable column tier.
+Successful editor measurement can declare a larger intrinsic minimum, including numeric label/unit chrome. The form
+retains that minimum and expands its uniform column width rather than collapsing the semantic editor or overlapping
+neighboring columns. An unsupported editor's preferred fallback width may shrink to the lane while preserving 48 DIP.
+Column widths settle in at most four preparation passes under the same aggregate shaping budget. A custom minimum
+that keeps growing with each offered width fails with `HRESULT_FROM_WIN32(ERROR_RETRY)` before geometry changes.
+The settled width is cached by input revision, typography, host, available width and horizontal origin, so unchanged
+overflowing forms do not repeatedly rediscover their minima.
+
+Measurement uses the same aggregate text budget as `FlexPanel`, numeric per-part caches and current host
+typography. A form's shared-label measurement is pure: it does not mutate a field's layout inputs or revisions
+while measuring. Unchanged preparation performs no new shaping. Complete numeric geometry is validated before
+any bounds callback, using each part's final represented endpoint width as its cache key. The commit half performs no
+measurement or allocation from translation rounding. Reentrant measurement/arrangement stops the older pass and preserves a newer completed
+pass. Invalid constraints, arithmetic overflow and measurement failures leave pre-existing child geometry intact.
+
+Validation is presentation only. `ValidationState::Error` requires a nonempty textual explanation; required,
+description and validation metadata belong to the stable semantic editor (the inner text field of a
+`NumericStepper`). Their UI Automation contract is specified in [Input and accessibility](UI_InputAndAccessibility.md).
+`AddEditor` refuses a second editor and removes a newly added editor when binding fails. Setters contain named
+allocation failures; sequential text/UIA publication can be partially applied when later allocation or reentrancy
+fails, so callers inspect the returned HRESULT and retry or replace the presentation. They never commit values,
+save settings or choose a focus successor implicitly. Removing or hiding a field follows the existing host
+focus/capture/composition retirement rules; position-only reflow cancels obsolete pointer geometry without
+reconstructing or blurring an available editor.
+`ClearChildren` retires the entry snapshot's semantic pointers before detachment callbacks run. A replacement editor
+bound by such a callback remains owned and recognized after the older clear returns, and a second editor is refused.
 
 Registered `std::function` callbacks own shared callable storage. Dispatch retains that storage rather than copying
 the target, preserving mutable callback state across invocations without allocating callback storage during dispatch,

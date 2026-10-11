@@ -67,6 +67,11 @@ Invoke-TestCase 'the self-test passes: children, the session''s lease, the confi
         foreach ($proof in @(
             'the confirmation starts the run when Start is chosen', 'and does not when Cancel is chosen', 'nobody answering is a cancellation',
             'a run stopped while the person is asked ends the confirmation', 'a confirmation without a time limit waits for the person',
+            'an approved countdown starts without a click and records automatic Start', 'automatic Start waits for the visible countdown to expire',
+            'Cancel before the automatic deadline prevents Start', 'closing the approved countdown prevents Start',
+            'a clicked Start remains distinct from an automatic Start', 'interruption prevents an approved automatic Start',
+            'automatic mode never opens an unlimited countdown', 'a committed cancellation is not overwritten by a later deadline',
+            'a later button notification does not relabel a committed automatic Start',
             'the warning is shown', 'above every window, and the pointer and keys pass through it', 'and is gone when hidden',
             'clipping excludes the rest of the warning from its actual input region',
             'outside, wrong-button and transposed hit-test messages cannot activate the patch',
@@ -115,6 +120,10 @@ Invoke-FixtureCase 'a malformed command line is a usage error before anything is
         'a seconds value that is not a number' = @('--run', '--estimate=soon')
         'an empty time limit' = @('--run', '--confirm-timeout=')
         'a negative bound' = @('--run', '--child-timeout=-1')
+        'automatic check' = @('--check', '--auto-start', "--result=$result")
+        'automatic self-test' = @('--self-test', '--auto-start')
+        'automatic hosted mode' = @('--run-hosted', '--auto-start', "--plan=$(Join-Path $root 'no-tabs.txt')", "--result=$result")
+        'an unlimited automatic countdown' = @('--run', '--auto-start', '--confirm-timeout=0', "--plan=$(Join-Path $root 'no-tabs.txt')", "--result=$result")
     }
     foreach ($name in $cases.Keys) {
         $run = Invoke-Bounded $cases[$name] 30
@@ -144,15 +153,16 @@ Invoke-FixtureCase '--run-hosted refuses every unverified runner marker before d
         Assert-True (@($run.Output | Where-Object { $_ -like '*interactive desktop*' }).Count -eq 0) 'it does not inspect or take the desktop'
     }
 }
-Invoke-TestCase 'the confirmation defaults to Cancel, and cancels itself when nobody answers' {
+Invoke-TestCase 'ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start' {
     # The self-test proves each answer; what no run can observe is which button is the default, so that is read from the source.
     $dialog = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h'))
-    Assert-True ($dialog -match 'nDefaultButton\s*=\s*IDCANCEL;') 'Cancel is the default button: a key pressed by accident as the dialog appears cannot start a takeover'
+    Assert-True ($dialog -match 'nDefaultButton\s*=\s*request.autoStart\s*\?\s*kStartButton\s*:\s*IDCANCEL;') 'ordinary calls default to Cancel; explicitly approved automatic calls default to Start'
     Assert-True ($dialog -match 'TDF_ALLOW_DIALOG_CANCELLATION') 'and Esc and the close button cancel'
     Assert-True ($dialog -match 'dwCommonButtons\s*=\s*TDCBF_CANCEL_BUTTON;') 'with a Cancel button of its own'
-    Assert-True ($dialog -match 'Confirmation::TimedOut;\s*SendMessageW\(dialog, TDM_CLICK_BUTTON, IDCANCEL') 'a confirmation that runs out of time clicks Cancel'
+    Assert-True ($dialog -match 'Confirmation::AutoStarted\s*:\s*TestSupport::Confirmation::TimedOut') 'expiry distinguishes an approved automatic start from ordinary cancellation'
     $main = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp'))
     Assert-True ($main -match 'unsigned confirmSeconds\s*=\s*120u;') 'the lease waits two minutes for an answer unless told otherwise'
+    Assert-True ($main -match '(?s)if \(! confirmSecondsSpecified\)\s*options.confirmSeconds = 30u;') 'explicit automatic mode gets its thirty-second default'
     $module = [IO.File]::ReadAllText((Join-Path $repo 'Tools/InteractiveRun.psm1'))
     Assert-True ($module -match '\[int\] \$ConfirmSeconds = 120') 'and so does the script that starts it, which never passes a longer time'
     Assert-True (-not ([IO.File]::ReadAllText((Join-Path $repo 'test.ps1')) -match '-ConfirmSeconds')) 'test.ps1 offers no way to wait longer, or to skip the question'

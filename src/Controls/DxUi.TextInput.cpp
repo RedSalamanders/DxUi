@@ -962,7 +962,9 @@ void TextField::RefreshAccessibilitySnapshot() const noexcept
 
 void TextField::SetText(std::wstring text)
 {
-    _text       = std::move(text);
+    _text = std::move(text);
+    if (_multiline)
+        InvalidateMeasure();
     _caretIndex = std::min(_caretIndex, _text.size());
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -1067,6 +1069,7 @@ void TextField::SetMasked(bool masked) noexcept
     }
 
     _masked = masked;
+    InvalidateMeasure();
     RegenerateConcealedMaskEpoch();
     InvalidateSingleLineLayoutCache();
     if (ControlHost* const host = GetHost(); host && HasFocus())
@@ -1089,7 +1092,8 @@ void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
         return;
     }
 
-    _passwordRevealMode            = mode;
+    _passwordRevealMode = mode;
+    InvalidateMeasure();
     _passwordRevealButtonHovered   = false;
     _passwordRevealButtonPressed   = false;
     _passwordRevealKeyboardFocused = false;
@@ -1253,7 +1257,10 @@ void TextField::SetPlaceholder(std::wstring text)
 
 void TextField::SetMultiline(bool multiline) noexcept
 {
+    if (_multiline == multiline)
+        return;
     _multiline = multiline;
+    InvalidateMeasure();
     _preferredMultilineXOffsetDip.reset();
     _multilineFirstVisibleLine    = 0u;
     _multilineWheelDeltaRemainder = 0.0f;
@@ -1268,7 +1275,10 @@ bool TextField::IsMultiline() const noexcept
 
 void TextField::SetClearButtonEnabled(bool enabled) noexcept
 {
+    if (_clearButtonEnabled == enabled)
+        return;
     _clearButtonEnabled = enabled;
+    InvalidateMeasure();
     if (! enabled)
     {
         _clearButtonHovered = false;
@@ -1297,6 +1307,7 @@ void TextField::SetHorizontalTextPadding(float leftDip, float rightDip) noexcept
     _hasExplicitHorizontalTextPadding = true;
     _textPaddingLeftDip               = clampedLeftDip;
     _textPaddingRightDip              = clampedRightDip;
+    InvalidateMeasure();
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
@@ -1318,6 +1329,7 @@ void TextField::SetVerticalTextPadding(float topDip, float bottomDip) noexcept
     _hasExplicitVerticalTextPadding = true;
     _textPaddingTopDip              = clampedTopDip;
     _textPaddingBottomDip           = clampedBottomDip;
+    InvalidateMeasure();
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
@@ -2927,7 +2939,9 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
         RecordUndoStateForDirectEdit();
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _text       = state.text;
+    _text = state.text;
+    if (_multiline && previousText != _text)
+        InvalidateMeasure();
     _caretIndex = std::min(state.caretIndex, _text.size());
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
@@ -3000,6 +3014,8 @@ TextField::EditHistoryState TextField::CaptureEditHistoryState() const
 
 void TextField::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
+    if (_multiline && _text != state.text)
+        InvalidateMeasure();
     _text       = state.text;
     _caretIndex = std::min(state.caretIndex, _text.size());
     if (state.selectionAnchorIndex)
@@ -3480,6 +3496,8 @@ void TextField::ResetCaretBlink(ControlHost& host) noexcept
 
 bool TextField::NotifyChanged()
 {
+    if (_multiline)
+        InvalidateMeasure();
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     FinishEditTransactionMetric();

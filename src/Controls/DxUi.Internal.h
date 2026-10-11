@@ -12,6 +12,14 @@
 
 namespace DxUi
 {
+inline constexpr float kToggleTrackWidthDip           = 34.0f;
+inline constexpr float kToggleTrackHeightDip          = 20.0f;
+inline constexpr float kToggleKnobDiameterDip         = 16.0f;
+inline constexpr float kToggleKnobInsetDip            = 2.0f;
+inline constexpr float kToggleRowPaddingXDip          = 6.0f;
+inline constexpr float kToggleTextTrackGapDip         = 8.0f;
+inline constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
+
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
 struct ControlModelQueryAccess
@@ -524,12 +532,18 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
 void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent, bool afterSnapshot = false) noexcept;
 void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Holds one embedded property batch after extraction, outside the slot mutex and before UIA delivery, for at most
+// twenty seconds. Clearing waits for its holder to leave before the test closes the events.
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 // Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
 // change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
 // raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or
 // disconnects the control from it. A null hook clears it.
 using AccessibilitySelectionEventHookForTest = void (*)(void* context) noexcept;
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept;
+// Runs after a property notification, with its PROPERTYID. A test can retire the source during synchronous publication.
+using AccessibilityPropertyEventHookForTest = void (*)(long propertyId, void* context) noexcept;
+void DebugSetAccessibilityPropertyEventHookForTest(AccessibilityPropertyEventHookForTest hook, void* context) noexcept;
 // Counting starts at zero when enabled and covers every record, table slot and tree node a provider call or event
 // examines to resolve a control on the calling thread; it is off (and free) otherwise.
 void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept;

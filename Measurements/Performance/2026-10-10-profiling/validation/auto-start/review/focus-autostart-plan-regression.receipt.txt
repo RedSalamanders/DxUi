@@ -1,0 +1,41 @@
+{
+  "purpose": "root-independent-focus-plan-guard-regression",
+  "scope": "exact saved reviewer AST plan guard and canonical production plan builder; no native or SDK execution",
+  "reviewerScriptSha256": "7CE16991E48A009475623757C9EB95CE067E93670FD409287D339830D73723A8",
+  "malformedPlans": [
+    {
+      "variant": "filtered-Menu",
+      "rejected": true
+    },
+    {
+      "variant": "filtered-NativeTextInput",
+      "rejected": true
+    },
+    {
+      "variant": "wrong-executable",
+      "rejected": true
+    },
+    {
+      "variant": "wrong-log",
+      "rejected": true
+    },
+    {
+      "variant": "missing-suite",
+      "rejected": true
+    },
+    {
+      "variant": "extra-child",
+      "rejected": true
+    },
+    {
+      "variant": "extra-argument",
+      "rejected": true
+    },
+    {
+      "variant": "wrong-suite",
+      "rejected": true
+    }
+  ],
+  "canonicalFourSuitePlanAccepted": true,
+  "reviewedUtc": "2026-10-11T09:43:30.8217681Z"
+}

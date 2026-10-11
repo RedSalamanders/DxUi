@@ -1,0 +1,43 @@
+== validate-skills.ps1
+== validate-specs.ps1
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-undo-repeat\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-repeat-edit\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-invalid-guard\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-forced-positive\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-forced-negative\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\input-activation-timeout\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\gated-positive\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-worker\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-wake\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-repeat\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-owner\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-late\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\form-arrivals\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\focus-release\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\focus-debug\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\focus-asan-failed2\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\focus-asan-failed\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\focus-asan\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\final-release\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\final-debug\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\final-asan\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\before-retry-release\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\before-retry-focus-release\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\before-retry-focus-debug\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\before-retry-debug\canonical-performance.json
+Missing measurement explanation: Measurements\UiComposition\2026-10-11-integration\local\before-retry-asan\canonical-performance.json
+Exception: Specification validation failed with 26 finding(s).
+FAILED: validate-specs.ps1 exited with code 1
+== validate-dependencies.ps1
+== validate-test-port.ps1
+== validate-build-matrix.ps1
+== Tools/tests/Invoke-ToolingTests.ps1
+warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
+
+Validation summary:
+  ok     validate-skills.ps1
+  FAILED validate-specs.ps1
+  ok     validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  ok     Tools/tests/Invoke-ToolingTests.ps1

@@ -1,0 +1,16 @@
+[LEASE] foreground window to restore: class 'Chrome_WidgetWin_1' of claude.exe (process 83172)
+[LEASE] Menu, NativeTextInput, MenuResources, MenuResourceScaling (x64 Release): about 5 minutes; approved automatic Start in 30 s; Cancel stops it
+[LEASE] confirmation: autostarted
+[LEASE] Menu: started
+[LEASE] Menu: exit code 0 in 58.9 s
+[LEASE] NativeTextInput: started
+[LEASE] NativeTextInput: exit code 0 in 30.6 s
+[LEASE] MenuResources: started
+[LEASE] MenuResources: exit code 0 in 4.8 s
+[LEASE] MenuResourceScaling: started
+[LEASE] MenuResourceScaling: exit code 0 in 10.8 s
+[LEASE] Restoration: foreground=unchanged focus=unchanged cursor=restored
+[LEASE] completed
+PASS Release: four full native focus suites, zero skips, approved automatic-start lease, verified desktop restoration and complete post-focus identity; 13 original/copy bindings
+Snapshot: C:\Users\eric\.codex\tmp\dpf-s0-s2-merge\focus-integration-Release-attempt6
+Fresh Release foreground qualification completed at bf11ba44fbd661fd5e1e6015f95d5719a4bfba83.

@@ -1,0 +1,58 @@
+<# Read-only current-attempt native artifact capture. No native execution, Git mutation or remote writes. #>
+[CmdletBinding()] param([Parameter(Mandatory)][long] $JobId,[Parameter(Mandatory)][ValidateSet('x64','ARM64')][string] $Platform,[Parameter(Mandatory)][ValidateSet('Debug','Release','ASan Debug')][string] $Configuration)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$taskExternal = 'C:/Users/eric/.codex/tmp/dpf-s0-s2-merge'
+$captureDir = Join-Path $PSScriptRoot ("$Platform-$($Configuration.Replace(' ','_'))-$JobId-" + [guid]::NewGuid().ToString('N'))
+[void][IO.Directory]::CreateDirectory($captureDir)
+$utf8 = [Text.UTF8Encoding]::new($false)
+$taskTokens = $null; $taskErrors = $null
+$taskCollector = Join-Path $taskExternal 'ci-review-tools/Collect-PrCiEvidence.ps1'
+if ((Get-FileHash -LiteralPath $taskCollector).Hash -cne 'BD92AFE4AB95F1A91DD1262988B7A2D2F07D175B8CF4C823FB006A3E81928074') { throw 'Byte-reader source changed; review before capture.' }
+$taskAst = [Management.Automation.Language.Parser]::ParseFile($taskCollector,[ref]$taskTokens,[ref]$taskErrors)
+if ($taskErrors.Count) { throw 'Collector parser errors.' }
+$taskFunction = @($taskAst.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Invoke-GhBytes'},$true))
+if ($taskFunction.Count -ne 1) { throw 'Missing audited byte reader.' }
+. ([scriptblock]::Create($taskFunction[0].Extent.Text))
+Copy-Item -LiteralPath $PSCommandPath -Destination (Join-Path $captureDir 'capture-driver.ps1')
+$taskSnapshots = [ordered]@{}
+foreach ($taskName in @('run','job','artifacts','pr','merge')) {
+    $taskEndpoint = switch ($taskName) {
+        run { 'repos/RedSalamanders/DxUi/actions/runs/38166757540' }
+        job { "repos/RedSalamanders/DxUi/actions/jobs/$JobId" }
+        artifacts { 'repos/RedSalamanders/DxUi/actions/runs/38166757540/artifacts?per_page=100' }
+        pr { 'repos/RedSalamanders/DxUi/pulls/73' }
+        merge { 'repos/RedSalamanders/DxUi/git/commits/58e71d4528d8cb041ff71931fe0f6c9aaaeef426' }
+    }
+    $taskBytes = Invoke-GhBytes @('api',$taskEndpoint)
+    [IO.File]::WriteAllBytes((Join-Path $captureDir ($taskName + '.receipt.txt')),$taskBytes)
+    $taskSnapshots[$taskName] = $utf8.GetString($taskBytes) | ConvertFrom-Json -AsHashtable -DateKind String
+}
+$job = $taskSnapshots['job']; $pr = $taskSnapshots['pr']; $run = $taskSnapshots['run']; $merge = $taskSnapshots['merge']
+$head = '1cdbfde4c93bafa6a0c794fd80939387467fefa4'; $base = 'ec680e866a218b57000a1780018c00101a437f91'; $tested = '58e71d4528d8cb041ff71931fe0f6c9aaaeef426'
+$expectedRunner = if ($Platform -ceq 'ARM64') { 'windows-11-vs2026-arm' } else { 'windows-2025-vs2026' }
+$expectedBudget = if ($Platform -ceq 'ARM64' -and $Configuration -ceq 'ASan Debug') { 60 } else { 40 }
+if ($job['id'] -ne $JobId -or $job['run_id'] -ne 38166757540 -or $job['run_attempt'] -ne 1 -or $job['name'] -cne "native ($Platform, $expectedRunner, $Configuration, $expectedBudget)" -or $job['status'] -cne 'completed' -or $job['conclusion'] -cnotin @('success','failure')) { throw 'Completed native attempt/profile binding differs; timeout/cancellation is incomplete.' }
+if ($run['run_attempt'] -ne 1 -or $run['head_sha'] -cne $head -or $run['event'] -cne 'pull_request' -or $pr['head']['sha'] -cne $head -or $pr['base']['sha'] -cne $base -or $pr['merge_commit_sha'] -cne $tested) { throw 'Current run/PR binding drifted.' }
+if (@($merge['parents']).Count -ne 2 -or $merge['parents'][0]['sha'] -cne $base -or $merge['parents'][1]['sha'] -cne $head -or $merge['tree']['sha'] -cne 'be000995bef911cfb3a9bf66868d4e92e47049cf') { throw 'Actual tested parents/tree drifted.' }
+$artifactName = "native-$Platform-$Configuration"
+$taskArtifact = @($taskSnapshots['artifacts']['artifacts'] | Where-Object { $_['name'] -ceq $artifactName })
+if ($taskSnapshots['artifacts']['total_count'] -gt 100 -or $taskArtifact.Count -ne 1 -or $taskArtifact[0]['expired'] -ne $false -or $taskArtifact[0]['workflow_run']['id'] -ne 38166757540 -or $taskArtifact[0]['workflow_run']['head_sha'] -cne $head -or [DateTimeOffset]::Parse($taskArtifact[0]['created_at']) -lt [DateTimeOffset]::Parse($run['run_started_at'])) { throw 'Artifact is incomplete, stale, expired or differently bound.' }
+$taskBytes = Invoke-GhBytes @('api',"repos/RedSalamanders/DxUi/actions/jobs/$JobId/logs",'--allow-escape-sequences')
+[IO.File]::WriteAllBytes((Join-Path $captureDir "job-$JobId.log"),$taskBytes)
+$taskCheckoutFunction = @($taskAst.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-CheckoutCommit'},$true))
+if ($taskCheckoutFunction.Count -ne 1) { throw 'Missing checkout reader.' }
+. ([scriptblock]::Create($taskCheckoutFunction[0].Extent.Text))
+if ((Get-CheckoutCommit (Join-Path $captureDir "job-$JobId.log")) -cne $tested) { throw 'Actual checkout differs from current tested merge.' }
+gh run download 38166757540 --repo RedSalamanders/DxUi --name $artifactName --dir (Join-Path $captureDir 'artifact')
+if ($LASTEXITCODE) { throw 'Artifact download failed.' }
+$prBytes = Invoke-GhBytes @('api','repos/RedSalamanders/DxUi/pulls/73')
+[IO.File]::WriteAllBytes((Join-Path $captureDir 'pr-after.receipt.txt'),$prBytes)
+$prAfter = $utf8.GetString($prBytes) | ConvertFrom-Json -AsHashtable
+if ($prAfter['head']['sha'] -cne $head -or $prAfter['base']['sha'] -cne $base -or $prAfter['merge_commit_sha'] -cne $tested) { throw 'PR changed during capture.' }
+$taskSeal = foreach ($taskFile in Get-ChildItem -LiteralPath $captureDir -File -Recurse | Sort-Object FullName) {
+    $taskRelative = [IO.Path]::GetRelativePath($captureDir,$taskFile.FullName).Replace('\','/')
+    ((Get-FileHash -LiteralPath $taskFile.FullName).Hash.ToLowerInvariant() + '  ' + $taskRelative)
+}
+[IO.File]::WriteAllText((Join-Path $captureDir 'SHA256SUMS'),(($taskSeal -join "`n") + "`n"),$utf8)
+Write-Output "EARLY_NATIVE_BYTES_COLLECTED: $captureDir; sealed=$($taskSeal.Count); job=$($job['conclusion']); not CI-gate or manual review acceptance."

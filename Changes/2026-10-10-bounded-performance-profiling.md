@@ -1,0 +1,1 @@
+- Add a separate, bounded ComplexUi startup/CPU/cache/heap diagnostic and guarded runner with exact native receipts and checked batch-driver imports, without changing benchmark acceptance metrics or policy qualification requirements.

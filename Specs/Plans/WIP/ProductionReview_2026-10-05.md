@@ -21,6 +21,129 @@
 
 ## How the review was made
 
+### Performance qualification execution (10 October)
+
+The user accepted quiet-host A/A calibration, targeted Grid/residency profiling and independent policy qualification,
+followed by S0-S2 of the consumer UI composition plan. Work is isolated on `codex/performance-forms` from clean
+`60e1cbff8f7a75757e9447073965d09101d9833c`; other registered worktrees and consumer pins remain independently owned.
+The retained same-binary study uses that explicit revision, twelve independently drawn ABBA/BAAB blocks and the
+unchanged Default, MultilineGrid and MultilineGridDistinct scenarios. The original study is complete and retained
+in [the A/A packet](../../../Measurements/Performance/2026-10-10-aa/README.md). All 72 same-binary controls are
+unstable, while exact budgets remain constant; it establishes no non-regression or trusted-policy claim.
+
+- [x] Retain and independently audit original A/A receipts and actual host/clock provenance: 144 raw receipts,
+  72 controls, 78 metric cells and 3,744 control values; all 437 packet hashes and regenerated analytical bytes checked.
+- [x] Run focused Grid initialization/6,000-frame retention/process-heap diagnostics, including a 50 FPS paced run,
+  and retain actual preparation clocks, surfaces, handles and process/heap snapshots.
+- [ ] Attribute the earlier preparation/resident-memory excursions; current bounded runs do not resolve their paired flags.
+- [x] Repair demonstrated receipt replay/build-provenance defects with failing regression fixtures and independent reruns.
+- [x] Repeat the same-binary calibration after repairs and independently replay the frozen judges, complete raw/control
+  inventories and seeded assignment. All 144 v2-guarded reports complete; both full decisions reproduce exactly.
+- [ ] Establish stable controls and independently qualify a seed policy. The repaired study still has 72/72 unstable
+  controls, with excursions in all 54 timing/memory cells; no threshold relaxation or qualified pass is inferred.
+- [ ] Verify an ordinary candidate against the qualified trusted base before enabling the required CI rule.
+- [x] Correct the foreground-run human summary in `test.ps1`: `RunMovedSomething=false` does not establish an
+  unchanged desktop when restoration is failed/skipped/unknown. Retain the original third ASan attempt, preserve
+  fail-closed accounting and add tooling coverage for failed and unavailable restoration summaries before a runner update.
+
+The policy is still unqualified. Provisioned native ARM64 foreground execution and physical IME/AT/touch acceptance
+remain separate obligations. Implementation readiness does not close these recorded gates.
+
+The implementation review also found two evidence defects: candidate control summaries could substitute for full
+raw replay, and unchanged artifact timestamps could authorize stale build inputs/options. Gate regressions now
+require complete raw/control inventories and both frozen judges; v2 provenance binds each side's resolved projects
+and actual compiler/shader/linker profile with before/after guards. Focused lead reruns pass 48 gate, 33 provenance,
+25 paired-run and 49 diagnostic-runner cases. These synthetic/tooling checks do not qualify a policy or replace
+fresh native evidence. The first integrated Debug build found a const-accessor error in the new form snapshot;
+that error was corrected before the renewed build rather than counted as passing evidence.
+
+[The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains the corrected six-profile
+builds, all 57 x64 noninteractive suite/log pairs with zero skips, candidate-only eight-field Manual/Form costs and
+three Release Grid diagnostics. Hidden work remains zero; Grid handles/surfaces are constant across 6,000 scroll
+frames. Process memory ends below the starting sample, while heap busy-byte directions differ between runs; this
+does not attribute or dismiss the earlier roughly 1.05 MB working-set flag. The 600-to-700 ns clean-prepare flag is
+one 100 ns QPC tick, with real overhead still plausible. Thresholds, exact budgets and frozen judges are unchanged.
+An initial ASan UIA client event failure passes isolation and a whole same-binary rerun, with its cause unproven.
+Two initial Debug lease confirmations time out before Start; the later confirmed Debug, Release and ASan runs
+each pass all four focus suites with zero skips and successful restoration, completing the local x64 focus gate.
+Three earlier ASan Debug confirmations time out before any child runs. The third reports failed foreground/pointer
+restoration and its subsequent native desktop check reports an inaccessible input desktop (error 5). The fourth
+ASan attempt starts locally after desktop access is restored. All attempts and the refusal remain separately
+retained without a restoration claim for the third attempt.
+[The repaired v2 A/A packet](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes the authorized
+quiet-window repeat in about 64 minutes. All 72 controls remain unstable despite both judges' zero aggregate flags;
+611/1,872 control observations exceed the frozen bands. All 24 exact-budget cells hold. Initialization/warm-up
+spread precedes PNG capture, and Default A07/A19 are extreme same-binary FPS outliers. This identifies an attribution
+lead, not a cause. Recommend a bounded initialization/backend/scheduler pilot before another complete calibration;
+the seed policy, ordinary trusted-base comparison and required-rule acceptance remain open.
+
+### Accepted profiling and test follow-up (10 October)
+
+The user accepted a bounded performance profiling pilot first, correction of the foreground-run summary and
+investigation of the intermittent ASan UIA selection-event failure. Continue on `codex/performance-forms` from
+`01f1aed1`; preserve all original measurement/failure receipts and keep the judges, thresholds and required-CI hold.
+
+- [x] Retain six serial fresh-process Release/x64 reports on the frozen executable, alternating Default and
+  MultilineGrid, before implementation. Stop at the fixed inventory; this pilot is descriptive, not calibration.
+- [x] Add bounded initialization/backend warm-up, process/thread CPU consumption, allowed scheduling properties and
+  heap-residency observations; record sampling overhead and unavailable observations. Actual scheduler attribution is unavailable.
+- [x] Run all twelve instrumented reports serially, retain every outlier and independently review the 3,360 frames.
+  Longer warm-up does not establish convergence; total sampling costs 0.840-1.521 seconds per report, including
+  optional heap accounting. Keep policy unqualified.
+- [x] Correct the human desktop summary from restoration statuses and cover unchanged/restored, failed/skipped,
+  missing/unrecorded and canceled/timed-out results without changing fail-closed lease accounting.
+- [x] Investigate client-observed UIA events and provider emission paths; fix the discarded quiescence timeout with
+  four executable regressions. All eleven declared ASan reproduction processes pass with unchanged event assertions;
+  unchanged republishing has zero provider attempts/client arrivals. The original extra-event cause remains unproven.
+- [x] Complete affected noninteractive checks and six-profile build accounting, update usage/domain contracts and
+  changelog fragments, and independently review delegated code/evidence. The lead repeats all fifteen UIA replay
+  cases; the strengthened reader rejects the twelve corruptions the earlier reader accepted.
+- [x] Complete fresh Debug/Release/ASan focus suites through approved local leases. Preserve the canceled initial
+  Debug attempt and four later confirmed attempts on `5763d57e`: Debug retry passes with verified restoration;
+  Release fails Menu popup discovery and ASan repeats the initial NativeTextInput setup failure, followed by grant/
+  restoration failures. Bounded attempt-local setup diagnostics preserve activation/assertion policy; their corrected
+  binaries pass six builds and 57 noninteractive executions, zero skips. Two ASan confirmations time out without
+  child execution; the third completes all four full focus suites, zero skips, with verified restoration and
+  complete actual provenance on unchanged bytes at clean `4bcc32fb`. The fresh Release confirmation also times out
+  before any child executes. The approved automatic-start candidate at clean `02961a88` then passes all four
+  complete foreground suites in each profile, zero skips, with full actual provenance and verified restoration.
+  Earlier focus evidence qualifies its own binaries only.
+- [x] Implement and qualify the user's approved automatic Start mode (11 October): a visible 30-second countdown,
+  immediate cancellation, distinct native start/mode/countdown provenance, post-countdown desktop recheck, private-
+  desktop/fake/tooling regressions and fresh focus execution. Ordinary manual confirmation remains the default for
+  runs without explicit automatic-start approval. Six fresh builds, 57 complete noninteractive executions and
+  twelve complete foreground executions pass on `02961a88`; private lease and 32/32 tooling cases cover expiry,
+  cancellation, wrong/duplicate metadata and local/manual compatibility. Independent review repairs two external
+  focus-reviewer gaps; focused negative proofs and exact bytes are retained in the new packet.
+
+The original follow-up retains 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips),
+four native profiling feature cases and six-profile builds. The corrected setup-diagnostic inputs separately pass
+six builds and another 57 noninteractive executions. The lead independently verifies exact v2 build/executable
+identities, raw/stamped data, archive copies, timings and UIA timelines; delegated evidence receives independent review.
+The [foreground attempts](../../../Measurements/Performance/2026-10-10-profiling/validation/focus/README.md) preserve
+both the successful Debug retry and every cancellation/failure. Source review places the repeated NativeTextInput
+failure before the zero-size operation, without proving activation, focus/session loss or user interference as its
+cause. Bounded passive stage diagnostics compile in all six profiles and pass the noninteractive gates. The
+[corrected-binary runs](../../../Measurements/Performance/2026-10-10-profiling/validation/focus/setup-runs/README.md)
+retain all 57 suite/log/scoped-receipt sets, actual complete post-native state and every canceled confirmation.
+The third ASan attempt exercises the setup observations and passes all four full foreground suites, zero skips,
+with verified restoration. The [automatic-start packet](../../../Measurements/Performance/2026-10-10-profiling/validation/auto-start/README.md)
+separately closes fresh local x64 foreground execution in all three profiles on clean `02961a88`. Its native
+receipts record clicked Start under the approved 30-second mode; private native regressions exercise no-click
+expiry. The lead independently checks all archived copy bindings and actual post-run build/tool/SDK/dependency/
+artifact states. The original UIA/setup failure causes remain unproved. The frozen before/candidate Default pair
+flags ten timing/FPS metrics, including about 14% lower clean and dirty FPS. Two fixed same-binary control reports
+show variability but do not dismiss those flags or qualify baseline-side controls; performance acceptance stays open.
+[The profiling packet](../../../Measurements/Performance/2026-10-10-profiling/README.md)
+and [UIA packet](../../../Measurements/UiaSelection/2026-10-10/README.md) preserve the exact inventories and limits.
+
+This follow-up changes diagnostics/test reporting, not control visuals; review the documentation/gallery contract
+and retain the published design-system/gallery assets unless investigation changes visible product behavior.
+The approved automatic-start change affects the private test-harness dialog and workflow. Public controls, layout,
+themes, design-system tokens/previews and published gallery pixels are unchanged; no gallery regeneration is applicable.
+Native ARM64, physical-input and consumer gates stay separately owned. Stable controls and independently qualified
+policy/candidate evidence remain prerequisites for enabling the required CI rule.
+
 ### Accepted implementation (9 October)
 
 The user accepted Q1-Q31. Continue on the existing feature branch, preserve the immutable 8 October packet as the
@@ -899,8 +1022,13 @@ CI (#46, #49, #61):
   auto-merge is off. Even with protection, no check can require the native matrix: a documentation-only pull request
   reports it under an unexpanded name. Run 37489742358 shows two failing native jobs beside a green `validation`. A
   gallery commit pushed to main leaves main's head without a push run. (`ci-workflows-1`, `ci-workflows-2`, Q21)
-- [ ] **Timeouts**: the ASan step budgets exceed the 40-minute job limit (6 minutes of headroom on ARM64), and the
-  validation and format jobs have no timeout. (`ci-workflows-3`, `gap-arm64-asan-runtime-6`, `ci-workflows-8`)
+- [ ] **Timeouts**: the [retained enclosing cancellation](../../../Measurements/CiBudget/2026-10-11-arm64-asan/README.md)
+  and [PR #73 cold-build timeouts](../../../Measurements/CiBudget/2026-10-11-cold-build/README.md) explain the finite
+  repair (2026-10-11). Full is bounded at x64 25/ARM64 45 minutes; consumers remain 15 each. Enclosing budgets now
+  fit all declared sequential qualification windows plus five minutes (x64 45/45/60, ARM64 65/65/80). This repairs
+  the earlier x64 ASan allowance mismatch as well, without claiming future completion. The validation job is bounded
+  at 20 minutes and Windows tooling/format at 15; the independent `format.yml` check/reformat jobs still
+  have no timeout. This composite item remains open. (`ci-workflows-3`, `gap-arm64-asan-runtime-6`, `ci-workflows-8`)
 - [ ] Low:
   - the native-scope "license" rule names `LICENSE` while the file is `LICENSE.txt`;
   - `Commit-Gallery.ps1` commits everything already staged;

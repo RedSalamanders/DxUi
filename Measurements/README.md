@@ -1,9 +1,50 @@
 # Independent DxUi measurements
 
+- [ARM64 ASan CI budget investigation, 2026-10-11](CiBudget/2026-10-11-arm64-asan/README.md): exact historical
+  source inputs, GitHub job annotations and complete logs distinguish the enclosing 40-minute cancellation from
+  consumer assertions. The bounded 60-minute ARM64 ASan repair retains all stage watchdogs and eight consumer
+  qualifications; historical incomplete execution does not qualify the current candidate.
+
+- [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): final native source
+  `bf11ba44` passes three focused x64 profiles and four full foreground suites per profile, with zero skips and
+  verified restoration. Actual inputs are compared across archival; `284a9ec6` and `061748aa` remain historical.
+  Controlled IME/UIA records and the bounded ARM64 ASan CI-budget repair are retained separately. Exact-source PR CI,
+  performance-policy, native-platform, physical-input/device and consumer adoption remain separately tracked.
+
+- [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
+  noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
+  observations; original failures/retests and interactive confirmations retained. All four focus suites pass
+  in Debug/Release/ASan with successful desktop restoration; native ARM64, physical-input, consumer and
+  paired-policy qualification remain open.
+
 This directory retains reviewed evidence from DxUi's own samples and benchmarks. Scenarios may be inspired by real
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Bounded profiling pilot, 2026-10-10](Performance/2026-10-10-profiling/README.md): six original frozen baseline
+  reports, twelve guarded diagnostic reports, four native feature cases and 57 zero-skip x64 suite passes;
+  all six configurations build. Sampling cost and variability leave the original flags and required-CI hold open;
+  fresh focus attempts remain individually retained, including a successful Debug retry and Release/ASan failures.
+  Corrected setup-diagnostic binaries pass six builds and another 57 noninteractive executions, zero skips. Their
+  first two ASan confirmations expire before any foreground suite runs; the third completes four full focus
+  suites with zero skips and verified restoration. A later [approved automatic-start candidate](Performance/2026-10-10-profiling/validation/auto-start/README.md)
+  passes six fresh builds, 57 noninteractive and twelve full foreground suite executions across all three x64
+  profiles, zero native skips and verified restoration. Its new Default performance comparison flags about 14%
+  lower clean/dirty FPS; two fixed candidate-only controls show variability and leave acceptance open. Original failure
+  causes remain unproved.
+- [UIA selection-event investigation, 2026-10-10](UiaSelection/2026-10-10/README.md): explicit client quiescence
+  timeout regressions and eleven passing ASan reproduction processes with bounded provider/client timelines;
+  unchanged event assertions and original failure evidence remain authoritative, with the original cause unproven.
+
+- [Guarded v2 A/A calibration, 2026-10-10](Performance/2026-10-10-aa-v2/README.md): 144 exact-byte guarded reports,
+  both fully replayed judges and 72 controls. Every control remains unstable; all 54 timing/memory cells drift
+  while all 24 exact-budget cells hold. The seed policy and required CI gate remain unqualified, with the
+  original Grid flags open and a bounded initialization/scheduler attribution pilot recommended.
+
+- [Same-binary paired calibration, 2026-10-10](Performance/2026-10-10-aa/README.md): all 144 original raw receipts,
+  both frozen judge results, 72 same-side controls and a reproducible descriptive analysis. All aggregate sets
+  remain within the existing noise budget, but all 72 controls drift in some metric. Memory-stage observations
+  and 100 ns clock quantization are diagnostic; they do not qualify the policy or attribute a leak.
 - [Prepared Tree accessibility finish, 2026-10-10](PreparedTreeAccessibility/2026-10-10/README.md): current-main integration,
   real native/embedded UIA reentry and source retirement, six-profile scoped validation and two fresh paired studies.
   Formal benchmark-policy acceptance and ARM64 foreground qualification remain open; consumer adoption is separate.

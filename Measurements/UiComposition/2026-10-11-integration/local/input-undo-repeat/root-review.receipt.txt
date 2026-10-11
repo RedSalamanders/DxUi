@@ -1,0 +1,14 @@
+{
+  "purpose": "isolated-same-binary-native-IME-undo-diagnostic",
+  "sourceCommit": "c2d05357fc65156ba9a16f38bdc8d316fbd5f369",
+  "sourceFingerprint": "D1C3380BFDDAA3A1BD37534C666FF24A29C5936A27185DBFA4D26EE8B0D11A46",
+  "sourceDirty": false,
+  "nativeExitCode": 0,
+  "tests": [
+    "TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText"
+  ],
+  "nativeSkips": 0,
+  "controlSha256": "82105EBD3FB845E1E661DDA8FFAF7CCC43FB1EB62D503BF31C2838318F7992A9",
+  "exactSourceDependencyToolchainArtifactEnvironmentMatched": true,
+  "performanceAcceptance": "unpaired-observation-only"
+}

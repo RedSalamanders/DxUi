@@ -1,0 +1,1009 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NativeTextInput
+  [START] TestNativeClipboardTransportBenchmark
+CLIPBOARD_BENCHMARK units=65536 round=1 iterations=50 durationUs=1226 globalAllocations=50 peakGlobalBytes=262148
+CLIPBOARD_BENCHMARK units=65536 round=2 iterations=50 durationUs=1202 globalAllocations=50 peakGlobalBytes=262148
+CLIPBOARD_BENCHMARK units=65536 round=3 iterations=50 durationUs=1282 globalAllocations=50 peakGlobalBytes=262148
+CLIPBOARD_BENCHMARK units=65536 round=4 iterations=50 durationUs=1195 globalAllocations=50 peakGlobalBytes=262148
+CLIPBOARD_BENCHMARK units=65536 round=5 iterations=50 durationUs=1206 globalAllocations=50 peakGlobalBytes=262148
+  [DONE] TestNativeClipboardTransportBenchmark (0.012 s)
+  [START] TestNativeClipboardLargeSelections
+  [DONE] TestNativeClipboardLargeSelections (0.345 s)
+  [START] TestNativeClipboardFailuresPreserveText
+  [DONE] TestNativeClipboardFailuresPreserveText (0.115 s)
+  [START] TestEmbeddedClipboardRejectsLargeNativePayload
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestEmbeddedClipboardRejectsLargeNativePayload (0.007 s)
+  [START] TestApplicationTextStoreInsertionAndLayout
+  [DONE] TestApplicationTextStoreInsertionAndLayout (0.000 s)
+  [START] TestApplicationTextStoreTransactions
+  [DONE] TestApplicationTextStoreTransactions (0.000 s)
+  [START] TestApplicationTextStoreDefersExternalNotificationUntilLockUnwinds
+  [DONE] TestApplicationTextStoreDefersExternalNotificationUntilLockUnwinds (0.000 s)
+  [START] TestApplicationTextStoreDeferredLocks
+  [DONE] TestApplicationTextStoreDeferredLocks (0.000 s)
+  [START] TestApplicationCompositionCancelAfterFocusReplacement
+  [DONE] TestApplicationCompositionCancelAfterFocusReplacement (0.000 s)
+  [START] TestApplicationTextStoreFailuresAndGeometry
+  [DONE] TestApplicationTextStoreFailuresAndGeometry (0.000 s)
+  [START] TestApplicationTextServiceLifecycle
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceLifecycle (0.004 s)
+  [START] TestApplicationTextServiceReadReentrancyPreservesNewClient
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceReadReentrancyPreservesNewClient (0.004 s)
+  [START] TestApplicationTextServiceCancelReentrancyPreservesNewClient
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceCancelReentrancyPreservesNewClient (0.004 s)
+  [START] TestApplicationTextServiceSameClientReattachmentSurvivesReadCallbacks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceSameClientReattachmentSurvivesReadCallbacks (0.008 s)
+  [START] TestApplicationTextServiceRetirementReadReentrancyPreservesSameClientSuccessor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceRetirementReadReentrancyPreservesSameClientSuccessor (0.005 s)
+  [START] TestApplicationTextServiceDetachRejectsReentrantReattach
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceDetachRejectsReentrantReattach (0.004 s)
+  [START] TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner (0.152 s)
+  [START] TestApplicationClipboardCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestApplicationClipboardCommands (0.013 s)
+  [START] TestBoundedClipboardDecode
+  [DONE] TestBoundedClipboardDecode (0.000 s)
+  [START] TestWindowHostDefaultsToNativeTextInputBackend
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostDefaultsToNativeTextInputBackend (0.004 s)
+  [START] TestNativeTextInputBackendFocusesHostWithoutBridgeChild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendFocusesHostWithoutBridgeChild (0.166 s)
+  [START] TestNativeTextInputBackendActivatesTsfDocumentOnFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendActivatesTsfDocumentOnFocus (0.181 s)
+  [START] TestNativeTextInputHostFocusTransferPreservesNestedTsfActivation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputHostFocusTransferPreservesNestedTsfActivation (0.162 s)
+  [START] TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus (0.153 s)
+  [START] TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately (0.770 s)
+  [START] TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession
+    [TSF] foreign focus retirement callback: afterPop=0 query=0 matchesForeign=0
+    [TSF] foreign focus retirement callback: afterPop=0 query=0 matchesForeign=1
+    [TSF] foreign focus retirement: create=0 before=0 established=1 after=0 preserved=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession (0.219 s)
+  [START] TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor (0.156 s)
+  [START] TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken
+    [FOREGROUND] DxUi.ControlTests.exe (process 28752) took the foreground in run 1 of 5
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken (0.165 s)
+  [START] TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt
+    [FOREGROUND] DxUi.ControlTests.exe (process 28752) took the foreground in run 1 of 3
+    [FOREGROUND] DxUi.ControlTests.exe (process 28752) took the foreground in run 2 of 3
+    [FOREGROUND] DxUi.ControlTests.exe (process 28752) took the foreground in run 3 of 3
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt (0.171 s)
+  [START] TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd (0.149 s)
+  [START] TestNativeTextInputBackendMovesSystemCaretAfterKeyInput
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMovesSystemCaretAfterKeyInput (0.134 s)
+  [START] TestNativeTextInputBackendClearsSessionWhenRootResets
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendClearsSessionWhenRootResets (0.153 s)
+  [START] TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale (0.146 s)
+  [START] TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves (0.133 s)
+  [START] TestNativeTextInputBackendHostFocusLossControlsNativeSession
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendHostFocusLossControlsNativeSession (0.162 s)
+  [START] TestNativeTextInputBackendTabMovesFocusToNextControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendTabMovesFocusToNextControl (0.162 s)
+  [START] TestNativeTextInputBackendMultilineDialogKeysStayHostOwned
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineDialogKeysStayHostOwned (0.295 s)
+  [START] TestNativeTextInputBackendEnterInvokesDefaultButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEnterInvokesDefaultButton (0.137 s)
+  [START] TestNativeTextInputBackendEscapeInvokesCancelButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEscapeInvokesCancelButton (0.149 s)
+  [START] TestNativeTextInputBackendRevealedMaskedFieldRemasksBeforeEscapeCancel
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendRevealedMaskedFieldRemasksBeforeEscapeCancel (0.135 s)
+  [START] TestNativeTextInputBackendMenuKeyInvokesContextMenu
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMenuKeyInvokesContextMenu (0.157 s)
+  [START] TestNativeTextInputBackendMultilineContextMenuKeysStayOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineContextMenuKeysStayOnHostHwnd (0.599 s)
+  [START] TestNativeTextInputBackendSyncsPrintableCharIntoSessionState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSyncsPrintableCharIntoSessionState (0.136 s)
+  [START] TestNativeTextInputBackendSingleLineTabCharAndPasteReplacementSyncState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSingleLineTabCharAndPasteReplacementSyncState (0.131 s)
+  [START] TestNativeTextInputBackendStateMirrorsInheritedFlowDirection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendStateMirrorsInheritedFlowDirection (0.150 s)
+  [START] TestNativeTextInputBackendSyncsFocusedInheritedFlowDirectionChanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSyncsFocusedInheritedFlowDirectionChanges (0.154 s)
+  [START] TestNativeTextInputBackendEditableComboSyncsTextAndFlowDirection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditableComboSyncsTextAndFlowDirection (0.145 s)
+  [START] TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState (0.133 s)
+  [START] TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection (0.142 s)
+  [START] TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState (0.142 s)
+  [START] TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState (0.136 s)
+  [START] TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry (0.138 s)
+  [START] TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown (0.006 s)
+  [START] TestNativeTextInputTextStoreExposesOwnerCompositionSink
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreExposesOwnerCompositionSink (0.160 s)
+  [START] TestNativeTextInputTextStoreCompositionCommitsOnceAndDisconnectCancels
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreCompositionCommitsOnceAndDisconnectCancels (0.288 s)
+  [START] TestNativeTextStoreCookieRejectsRetiredPreviewButBlurRollsBack
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextStoreCookieRejectsRetiredPreviewButBlurRollsBack (0.132 s)
+  [START] TestNativeTextInputTextStoreRejectsDirectLocksAfterFieldIsHidden
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreRejectsDirectLocksAfterFieldIsHidden (0.135 s)
+  [START] TestNativeTextStoreRejectsLocksUnderDisabledAncestorAndRecovers
+  [DONE] TestNativeTextStoreRejectsLocksUnderDisabledAncestorAndRecovers (0.096 s)
+  [START] TestNativeTextStoreCompositionRangeUsesStagedTextAfterInsert
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextStoreCompositionRangeUsesStagedTextAfterInsert (0.025 s)
+  [START] TestNativeTextStoreSequentialCompositionsInOneLockHaveSeparateUndoUnits
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextStoreSequentialCompositionsInOneLockHaveSeparateUndoUnits (0.142 s)
+  [START] TestNativeTextStoreStaleSameLockCompositionCannotReplaceExternalText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextStoreStaleSameLockCompositionCannotReplaceExternalText (0.295 s)
+  [START] TestNativeTextInputTextStoreExposesAcp2Surface
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreExposesAcp2Surface (0.138 s)
+  [START] TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport (0.272 s)
+  [START] TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry (0.130 s)
+  [START] TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry (0.147 s)
+  [START] TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp (0.138 s)
+  [START] TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp (0.139 s)
+  [START] TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds (0.149 s)
+  [START] TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextWithoutEcho
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextWithoutEcho (0.165 s)
+  [START] TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp (0.142 s)
+  [START] TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho (0.133 s)
+  [START] TestNativeTextInputTextStoreCallbackInvalidation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreCallbackInvalidation (1.133 s)
+  [START] TestNativeTextInputTextStoreExternalRetainedChangesNotifySink
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreExternalRetainedChangesNotifySink (0.142 s)
+  [START] TestNativeTextInputDeferredStoreWorkRejectsRetiredSessionCookie
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputDeferredStoreWorkRejectsRetiredSessionCookie (0.157 s)
+  [START] TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock (0.133 s)
+  [START] TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded (0.131 s)
+  [START] TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink (0.130 s)
+  [START] TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock (0.140 s)
+  [START] TestNativeTextStoreExternalTextWinsCompositionEndAndDisconnect
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextStoreExternalTextWinsCompositionEndAndDisconnect (0.586 s)
+  [START] TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation (0.138 s)
+  [START] TestNativeTextInputBackendKeyToPaintMetricScenario
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendKeyToPaintMetricScenario (0.173 s)
+  [START] TestNativeTextInputBackendImeStartEndUpdatesCompositionState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeStartEndUpdatesCompositionState (0.149 s)
+  [START] TestNativeTextInputBackendReadOnlySuppressesImeComposition
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendReadOnlySuppressesImeComposition (0.313 s)
+  [START] TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible (0.356 s)
+  [START] TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus
+    [FOCUS-SETUP] attempt=1 activated=true terminal=already-foreground target=ea61c7c process=28752 thread=22976 sequenceHeld=true
+    [FOCUS-SETUP] stage=before-activation foreground=e52135e foregroundProcess=59160 foregroundThread=75576 focus=0 active=0 clientReadable=true client=304x161 host=304x161 visible=true fieldAlive=true logicalTarget=false acknowledgedFocus=false nativeSession=false tsfDocument=false losses=0 activation=0 deactivation=0 tsfAttempts=0 tsfSuccess=0 tsfFailure=0 tsfDeactivation=0
+    [FOCUS-SETUP] stage=after-activation foreground=ea61c7c foregroundProcess=28752 foregroundThread=22976 focus=ea61c7c active=ea61c7c clientReadable=true client=304x161 host=304x161 visible=true fieldAlive=true logicalTarget=true acknowledgedFocus=true nativeSession=true tsfDocument=true losses=0 activation=1 deactivation=0 tsfAttempts=1 tsfSuccess=1 tsfFailure=0 tsfDeactivation=0
+    [FOCUS-SETUP] stage=after-logical-focus foreground=ea61c7c foregroundProcess=28752 foregroundThread=22976 focus=ea61c7c active=ea61c7c clientReadable=true client=304x161 host=304x161 visible=true fieldAlive=true logicalTarget=true acknowledgedFocus=true nativeSession=true tsfDocument=true losses=0 activation=1 deactivation=0 tsfAttempts=1 tsfSuccess=1 tsfFailure=0 tsfDeactivation=0
+    [FOCUS-SETUP] stage=after-pump foreground=ea61c7c foregroundProcess=28752 foregroundThread=22976 focus=ea61c7c active=ea61c7c clientReadable=true client=304x161 host=304x161 visible=true fieldAlive=true logicalTarget=true acknowledgedFocus=true nativeSession=true tsfDocument=true losses=0 activation=1 deactivation=0 tsfAttempts=1 tsfSuccess=1 tsfFailure=0 tsfDeactivation=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus (0.187 s)
+  [START] TestNativeTextInputHiddenHostRejectsLateImeAndDoesNotStealFocusOnShow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputHiddenHostRejectsLateImeAndDoesNotStealFocusOnShow (0.216 s)
+  [START] TestNativeTextInputNewerApplicationTextWinsImmCancellation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputNewerApplicationTextWinsImmCancellation (0.177 s)
+  [START] TestNativeTextInputBackendMaskedFieldRejectsTextServices
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedFieldRejectsTextServices (0.172 s)
+  [START] TestNativeTextInputBackendImeStartTracksSelectedCompositionRange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeStartTracksSelectedCompositionRange (0.147 s)
+  [START] TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange (0.132 s)
+  [START] TestNativeTextInputImeNoGcsFlagsCancelsOwnedPreviewAndPreservesHistory
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputImeNoGcsFlagsCancelsOwnedPreviewAndPreservesHistory (0.130 s)
+  [START] TestNativeTextInputBackendImeWindowsTrackCaretRect
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsTrackCaretRect (0.144 s)
+  [START] TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines (0.261 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves (0.139 s)
+  [START] TestNativeTextInputBackendMultilineImeWindowsUpdateWhenFocusedFieldMoves
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineImeWindowsUpdateWhenFocusedFieldMoves (0.294 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateWhenEditableComboMoves
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateWhenEditableComboMoves (0.135 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticTextFieldCaretMove
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticTextFieldCaretMove (0.129 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticEditableComboCaretMove
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticEditableComboCaretMove (0.137 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterFocusedTextFieldPaddingChange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterFocusedTextFieldPaddingChange (0.152 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterFocusedEditableComboDensityChange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterFocusedEditableComboDensityChange (0.143 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange (0.133 s)
+  [START] TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll (0.135 s)
+  [START] TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement (0.159 s)
+  [START] TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText
+    [IME-UNDO-SETUP] attempt=1 activated=true terminal=foreground-and-focus onChar=true textLengths=0/1/1 oneA=true/true foreground=ebb1c7c foregroundProcess=28752 focus=ebb1c7c target=ebb1c7c logicalTarget=true nativeSession=true losses=0 sequenceHeld=true finalNotifications=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText (0.333 s)
+  [START] TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt
+    [FOREGROUND] DxUi.ControlTests.exe (process 28752) took the foreground in run 1 of 5
+    [IME-UNDO-SETUP] attempt=1 activated=true terminal=simulated-nonactivating onChar=true textLengths=0/1/1 oneA=true/true foreground=30e6e foregroundProcess=83172 focus=ebd1c7c target=ebd1c7c logicalTarget=true nativeSession=false losses=1 sequenceHeld=true finalNotifications=1
+    [IME-UNDO-SETUP] attempt=2 activated=true terminal=simulated-nonactivating onChar=true textLengths=1/1/1 oneA=true/true foreground=30e6e foregroundProcess=83172 focus=ebd1c7c target=ebd1c7c logicalTarget=true nativeSession=true losses=1 sequenceHeld=true finalNotifications=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt (0.163 s)
+  [START] TestNativeImeResultCallbacksPreserveNewerTextAndComposition
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeImeResultCallbacksPreserveNewerTextAndComposition (1.079 s)
+  [START] TestNativeImeCancellationCallbacksPreserveNewerState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeImeCancellationCallbacksPreserveNewerState (0.191 s)
+  [START] TestNativeTextInputProviderExposesImeTextEditRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputProviderExposesImeTextEditRanges (0.167 s)
+  [START] TestNativeTextInputRaisesTextAndTextEditEventCounters
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputRaisesTextAndTextEditEventCounters (0.180 s)
+  [START] TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase (0.138 s)
+  [START] TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges (0.143 s)
+  [START] TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRanges (0.151 s)
+  [START] TestNativeTextInputBackendImeMultilineWrappedPreviewThenResultCommitsAtOriginalAnchor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeMultilineWrappedPreviewThenResultCommitsAtOriginalAnchor (0.143 s)
+  [START] TestNativeTextInputBackendImeCompositionOwnsSpecialKeys
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionOwnsSpecialKeys (0.132 s)
+  [START] TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute (0.179 s)
+  [START] TestNativeTextInputBackendMultilineImeCompositionOwnsSpecialKeys
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineImeCompositionOwnsSpecialKeys (0.319 s)
+  [START] TestNativeTextInputBackendImeResultOnlyResumesHostKeyRouting
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeResultOnlyResumesHostKeyRouting (0.483 s)
+  [START] TestNativeTextInputBackendImeResultAndCompositionKeepsKeyOwnership
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeResultAndCompositionKeepsKeyOwnership (0.420 s)
+  [START] TestNativeTextInputBackendSyncsKeySelectionIntoSessionState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSyncsKeySelectionIntoSessionState (0.141 s)
+  [START] TestNativeTextInputBackendExposesBackendNeutralTextInputState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendExposesBackendNeutralTextInputState (0.144 s)
+  [START] TestNativeTextInputBackendSurrogatePairDeletionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSurrogatePairDeletionSyncsState (0.281 s)
+  [START] TestNativeTextInputBackendEmojiZwJDeletionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEmojiZwJDeletionSyncsState (0.265 s)
+  [START] TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState (0.295 s)
+  [START] TestNativeTextInputBackendEmojiSuffixDeletionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEmojiSuffixDeletionSyncsState (0.602 s)
+  [START] TestNativeTextInputBackendEmojiShiftSelectionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEmojiShiftSelectionSyncsState (0.170 s)
+  [START] TestNativeTextInputBackendCtrlWordDeletionSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendCtrlWordDeletionSyncsState (0.295 s)
+  [START] TestNativeTextInputBackendPointerCaretPlacementSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendPointerCaretPlacementSyncsState (0.156 s)
+  [START] TestNativeTextInputBackendSingleLineDoubleClickSelectsWordOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSingleLineDoubleClickSelectsWordOnHostHwnd (0.172 s)
+  [START] TestNativeTextInputBackendSingleLineRepeatedClicksWithoutClassDoubleClicksSelectWord
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSingleLineRepeatedClicksWithoutClassDoubleClicksSelectWord (0.158 s)
+  [START] TestNativeTextInputBackendSingleLineThirdClickSelectsAllOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSingleLineThirdClickSelectsAllOnHostHwnd (0.173 s)
+  [START] TestNativeTextInputBackendSingleLineDragSelectionReplacesRangeOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendSingleLineDragSelectionReplacesRangeOnHostHwnd (0.163 s)
+  [START] TestNativeTextInputBackendMixedBiDiDragSelectionCopiesLogicalOrderOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMixedBiDiDragSelectionCopiesLogicalOrderOnHostHwnd (0.301 s)
+  [START] TestNativeTextInputBackendMixedBiDiPointerHitTestMatchesDirectWriteVisualOrderOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMixedBiDiPointerHitTestMatchesDirectWriteVisualOrderOnHostHwnd (0.284 s)
+  [START] TestNativeTextInputBackendBiDiPointerScenarioMatrixMatchesDirectWriteOnHostHwnd
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendBiDiPointerScenarioMatrixMatchesDirectWriteOnHostHwnd (0.740 s)
+  [START] TestNativeTextInputBackendBiDiKeyboardLogicalBoundaryCommandsSyncState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendBiDiKeyboardLogicalBoundaryCommandsSyncState (0.149 s)
+  [START] TestNativeTextInputBackendMixedBiDiEditTransactionsPreserveLogicalOrder
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMixedBiDiEditTransactionsPreserveLogicalOrder (0.140 s)
+  [START] TestNativeTextInputBackendPointerHitTestDoesNotSplitEmojiTextElements
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendPointerHitTestDoesNotSplitEmojiTextElements (0.545 s)
+  [START] TestNativeTextInputBackendEditableComboPointerHitTestDoesNotSplitEmojiTextElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditableComboPointerHitTestDoesNotSplitEmojiTextElement (0.155 s)
+  [START] TestNativeTextInputBackendNoSelectionCopyLeavesClipboardUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendNoSelectionCopyLeavesClipboardUnchanged (0.151 s)
+  [START] TestNativeTextInputBackendCtrlCopyCutPasteSyncsState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendCtrlCopyCutPasteSyncsState (0.132 s)
+  [START] TestNativeTextInputBackendUndoRedoAndRedoClear
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendUndoRedoAndRedoClear (0.127 s)
+  [START] TestNativeTextInputBackendEditTransactionsNotifyOnceAndIgnoreNoOps
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditTransactionsNotifyOnceAndIgnoreNoOps (0.131 s)
+  [START] TestNativeTextInputBackendEmojiClipboardReplacementUndoRedo
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEmojiClipboardReplacementUndoRedo (0.143 s)
+  [START] TestNativeTextInputBackendMaskedHiddenSuppressesCopyAndCut
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedHiddenSuppressesCopyAndCut (0.142 s)
+  [START] TestNativeTextInputBackendMaskedExactPolicyCountsTextElements
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedExactPolicyCountsTextElements (0.170 s)
+  [START] TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets (0.156 s)
+  [START] TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs (0.133 s)
+  [START] TestNativeTextInputBackendConcealedEditingAffordancesAndPointerPolicy
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendConcealedEditingAffordancesAndPointerPolicy (0.137 s)
+  [START] TestNativeTextInputBackendRevealedMaskedFieldAllowsCopyAndCut
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendRevealedMaskedFieldAllowsCopyAndCut (0.130 s)
+  [START] TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisable
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisable (0.420 s)
+  [START] TestNativeTextInputBackendImeCompositionClearsOnWindowDeactivate
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendImeCompositionClearsOnWindowDeactivate (0.147 s)
+  [START] TestNativeTextInputBackendRevealedMaskedFieldRemasksOnWindowDeactivate
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendRevealedMaskedFieldRemasksOnWindowDeactivate (0.148 s)
+  [START] TestNativeTextInputBackendMaskedRevealButtonRemasksOnCaptureLoss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedRevealButtonRemasksOnCaptureLoss (0.134 s)
+  [START] TestNativeTextInputBackendMaskedRevealButtonPeeksWithoutClearingSecret
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedRevealButtonPeeksWithoutClearingSecret (0.124 s)
+  [START] TestNativeTextInputBackendMaskedRevealButtonSupportsKeyboardPeek
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMaskedRevealButtonSupportsKeyboardPeek (0.132 s)
+  [START] TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility (0.297 s)
+  [START] TestNativeTextInputBackendReadOnlyAllowsCopyAndSuppressesMutation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendReadOnlyAllowsCopyAndSuppressesMutation (0.142 s)
+  [START] TestNativeTextInputBackendMultilineCtrlCopyPastePreservesLogicalNewlines
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineCtrlCopyPastePreservesLogicalNewlines (0.129 s)
+  [START] TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState (0.528 s)
+  [START] TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection (0.141 s)
+  [START] TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol (0.173 s)
+  [START] TestNativeTextInputBackendEditMessagesRejectIneligibleReplaceBeforeReadingPointer
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditMessagesRejectIneligibleReplaceBeforeReadingPointer (0.320 s)
+  [START] TestNativeTextInputPublicSetTextClearsComposition
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputPublicSetTextClearsComposition (0.162 s)
+  [START] TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput (0.006 s)
+  [START] TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged (0.136 s)
+[DONE] NativeTextInput (30.613 s)
+All DxUi tests passed.

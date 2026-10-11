@@ -1,0 +1,12 @@
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=15
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=0
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+FAIL: a blocked real notification does not retain intermediate prepared source generations

@@ -1,0 +1,14 @@
+[
+  {
+    "original": "C:/Users/eric/.codex/tmp/dpf-followup/Snapshot-NonFocus-Setup.ps1",
+    "copy": "nonfocus-reviewer.source.receipt.txt",
+    "bytes": 10900,
+    "sha256": "E0E6FDC7CC9E4B22768132761C5EA927F302647E284D2EBEDB0C1F2ECF4D7966"
+  },
+  {
+    "original": "C:/Users/eric/.codex/tmp/dpf-followup/Archive-Setup-Snapshot.ps1",
+    "copy": "archiver.source.receipt.txt",
+    "bytes": 3028,
+    "sha256": "ED45BF361A1CA9065B17ED47EF23DDE5DA637E8D7C4974E7B11ED74DA50C0E79"
+  }
+]

@@ -42,6 +42,7 @@ require full preparation. Do not acknowledge a partial layout or geometry that o
 Embedded structure and control-property notifications are coalesced and delivered from an MTA through COM-marshalled
 STA providers. Keep pumping the application's owner thread while a client reads or invokes a control. A held event
 callback does not block `UpdateAccessibility`; pending property changes preserve the first old and latest new value.
+`LabeledBy` relationship values are marshalled with the sender and resolve only their original live label identity.
 These notification batches hold no prepared Tree row snapshots. Source admission and final-release scheduling remain
 the consumer's responsibility; native library fixtures do not qualify a product's source budget or screen reader.
 Captured drag continuation may update a draft between paints. Moving, removing, hiding or disabling the captured

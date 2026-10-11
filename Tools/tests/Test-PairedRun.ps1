@@ -413,6 +413,39 @@ Invoke-TestCase 'the harness is the driver, the comparator and every benchmark i
     foreach ($path in $harness) { Assert-True (Test-Path -LiteralPath (Join-Path $repository $path) -PathType Leaf) "the harness file exists: $path" }
 }
 
+Invoke-FixtureCase 'the paired driver overlays and restores its attestation helper and build driver without changing baseline library source' {
+    param($root)
+    $tokens = $null; $errors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'performance-paired.ps1'), [ref]$tokens, [ref]$errors)
+    Assert-Equal 0 $errors.Count 'paired driver parses'
+    $assignment = $ast.Find({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -ceq 'harness' }, $true)
+    $harness = @(& ([scriptblock]::Create($assignment.Right.Extent.Text)))
+    Assert-Contains $harness 'build.ps1' 'the measured build driver is shared'
+    Assert-Contains $harness 'Tools/ScopedTesting.psm1' 'old baselines receive the current attestation helper'
+    Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
+    Assert-Contains $harness 'Tools/Changelog.psm1' 'the validator import closure is complete'
+    Assert-Equal $harness.Count @($harness | Select-Object -Unique).Count 'the effective driver harness has no duplicates'
+    $target = Join-Path $root 'baseline'
+    $backup = Join-Path $root 'backup'
+    Set-FixtureFile $target 'src/Control.cpp' 'original baseline library source'
+    Set-FixtureFile $target 'src/DxUi.vcxproj' 'original baseline project'
+    Set-FixtureFile $target 'build.ps1' 'original baseline build driver'
+    Set-FixtureFile $target 'Tools/ScopedTesting.psm1' 'original baseline scoped helper'
+    Set-FixtureFile $target 'Tools/Validation.psm1' 'original baseline solution validator'
+    Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
+    $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
+    Assert-HarnessOverlay -Target $target -Records $records
+    Assert-Equal 'original baseline library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Control.cpp'))) 'candidate library source did not enter the baseline'
+    Assert-Equal 'original baseline project' ([IO.File]::ReadAllText((Join-Path $target 'src/DxUi.vcxproj'))) 'baseline compiler/project inputs stay their own'
+    Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
+    Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
+    Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
+    Assert-Equal 'original baseline solution validator' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Validation.psm1'))) 'the baseline validator was restored'
+    Assert-Equal 'original baseline validator dependency' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Changelog.psm1'))) 'the validator dependency was restored'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/PerformancePolicy.psm1'))) 'created harness files are removed after the study'
+}
+
 function Get-HistoricFingerprint([string] $Root) {
     # performance.ps1's own computation before it moved into the comparator module, verbatim, run from the tree's root.
     Push-Location $Root

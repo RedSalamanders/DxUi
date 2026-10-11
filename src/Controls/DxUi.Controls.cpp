@@ -1223,14 +1223,6 @@ float ResolveConstrainedExtent(const LayoutConstraint& constraint, float availab
     return (std::clamp)(preferredExtent, minExtent, (std::min)(available, maxExtent));
 }
 
-constexpr float kToggleTrackWidthDip           = 34.0f;
-constexpr float kToggleTrackHeightDip          = 20.0f;
-constexpr float kToggleKnobDiameterDip         = 16.0f;
-constexpr float kToggleKnobInsetDip            = 2.0f;
-constexpr float kToggleRowPaddingXDip          = 6.0f;
-constexpr float kToggleTextTrackGapDip         = 8.0f;
-constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
-
 [[nodiscard]] ToggleLayoutMetrics BuildToggleLayoutMetrics(const D2D1_RECT_F& bounds, bool checked, bool compactSwitchOnly) noexcept
 {
     ToggleLayoutMetrics metrics{};
@@ -1325,6 +1317,7 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         }
         if (! ownerLifetime.expired())
         {
+            InvalidateMeasure();
             if (host)
                 host->RefreshAccessibilitySnapshot();
             if (! ownerLifetime.expired())
@@ -1340,6 +1333,7 @@ void Panel::ClearChildren() noexcept
     // Dispatch against the entry snapshot. Reentrant additions stay in the live panel while the original owners are
     // detached from it, so recursive ClearChildren calls cannot invalidate this pass.
     auto children = std::exchange(_children, std::vector<std::unique_ptr<Control>>{});
+    InvalidateMeasure();
     for (auto& child : children)
     {
         if (child)
@@ -2269,15 +2263,36 @@ void PageHost::SyncChildBounds() noexcept
 
 bool ControlHost::PreparePendingPageLayout() noexcept
 {
-    if (! _pendingPageLayout)
+    if (! _pendingPageLayout && ! _pendingIntrinsicLayout)
         return true;
     _pendingPageLayout      = false;
+    _pendingIntrinsicLayout = false;
+    bool intrinsicPending   = false;
+    bool complete           = true;
+    bool preparedIntrinsic  = false;
     Control* const root     = _root.get();
     const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
     const auto rootCurrent  = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
-    const auto prepare      = [&](auto&& self, Control& control) noexcept -> void
+    const auto prepare      = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
     {
         const auto lifetime = GetControlLifetimeToken(control);
+        const bool visible  = ancestorsVisible && control.IsVisible();
+        if (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending)
+        {
+            preparedIntrinsic               = true;
+            control._intrinsicLayoutPending = false;
+            const HRESULT hr                = control.PrepareIntrinsicLayout({*this});
+            if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
+            {
+                complete = false;
+                return;
+            }
+            if (FAILED(hr))
+            {
+                control._intrinsicLayoutPending = true;
+                complete                        = false;
+            }
+        }
         if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_childBoundsPending)
         {
             page->_childBoundsPending = false;
@@ -2300,7 +2315,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 return;
             const auto childLifetime = child ? GetControlLifetimeToken(*child) : std::weak_ptr<int>{};
             if (child)
-                self(self, *child);
+                self(self, *child, visible);
             if (lifetime.expired() || ! rootCurrent())
                 return;
             Control* const current = control.GetLogicalChild(index);
@@ -2313,17 +2328,42 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         if (lifetime.expired() || ! rootCurrent())
             return;
         if (index < remaining)
+        {
             _pendingPageLayout = true;
+            intrinsicPending   = true;
+        }
         // Transition pages still paint even though only the current page belongs to logical navigation.
         if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
         {
-            self(self, *page->_outgoingPage);
+            self(self, *page->_outgoingPage, visible);
         }
+        if (lifetime.expired() || ! rootCurrent())
+            return;
+        intrinsicPending = intrinsicPending || (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending);
     };
     if (root)
-        prepare(prepare, *root);
+        prepare(prepare, *root, true);
+    if (! root || rootCurrent())
+        _pendingIntrinsicLayout = intrinsicPending;
+    if (complete && preparedIntrinsic && rootCurrent() && _capturedControl)
+    {
+        Control* const captured     = _capturedControl;
+        const auto capturedLifetime = GetControlLifetimeToken(*captured);
+        if (IsControlInTree(root, captured) && rootCurrent() && ! capturedLifetime.expired() && _capturedControl == captured)
+        {
+            const auto bounds = _capturedControl->GetBounds();
+            if (bounds.left != _capturedBounds.left || bounds.top != _capturedBounds.top || bounds.right != _capturedBounds.right ||
+                bounds.bottom != _capturedBounds.bottom)
+            {
+                // Pending intrinsic layout can move the press after the host's entry capture check. Preserve a
+                // splitter whose own bounds stayed put, but never commit a press against newly arranged geometry.
+                CancelCapturedControlInteraction();
+                ClearPendingPointerDoubleClick();
+            }
+        }
+    }
     // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
-    return (! root || rootCurrent()) && ! _pendingPageLayout;
+    return complete && (! root || rootCurrent()) && ! _pendingPageLayout && ! _pendingIntrinsicLayout;
 }
 
 bool PageHost::FinishTransition() noexcept
@@ -2374,6 +2414,7 @@ void Label::SetText(std::wstring text)
     if (_text != text)
     {
         _text = std::move(text);
+        InvalidateMeasure();
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -2394,7 +2435,10 @@ Control* Label::GetMnemonicTarget() const noexcept
 
 void Label::SetFontRole(FontRole fontRole) noexcept
 {
+    if (_fontRole == fontRole)
+        return;
     _fontRole = fontRole;
+    InvalidateMeasure();
     RequestInvalidate();
 }
 
@@ -2406,7 +2450,10 @@ void Label::SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept
 
 void Label::SetMultiline(bool multiline) noexcept
 {
+    if (_multiline == multiline)
+        return;
     _multiline = multiline;
+    InvalidateMeasure();
     RequestInvalidate();
 }
 
@@ -2466,6 +2513,7 @@ void Button::SetMultiline(bool multiline) noexcept
     if (_multiline != multiline)
     {
         _multiline = multiline;
+        InvalidateMeasure();
         RequestInvalidate();
     }
 }
@@ -2480,6 +2528,7 @@ void Button::SetText(std::wstring text)
     if (_text != text)
     {
         _text = std::move(text);
+        InvalidateMeasure();
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -2501,7 +2550,10 @@ bool Button::IsPrimary() const noexcept
 
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
+    if (_variant == variant)
+        return;
     _variant = variant;
+    InvalidateMeasure();
     RequestInvalidate();
 }
 
@@ -3238,6 +3290,7 @@ void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText
 {
     _uncheckedText = std::move(uncheckedText);
     _checkedText   = std::move(checkedText);
+    InvalidateMeasure();
     RequestInvalidate();
 }
 

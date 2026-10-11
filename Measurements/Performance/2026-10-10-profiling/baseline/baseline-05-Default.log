@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2604 completed offscreen FPS; p95 0.5365 ms; private 27447296 bytes
+Complex UI clean round 2: 2718.07 completed offscreen FPS; p95 0.4144 ms; private 27066368 bytes
+Complex UI clean round 3: 2229.98 completed offscreen FPS; p95 0.5328 ms; private 27709440 bytes
+Complex UI clean round 4: 2413.8 completed offscreen FPS; p95 0.6326 ms; private 28008448 bytes
+Complex UI clean round 5: 2706.12 completed offscreen FPS; p95 0.402 ms; private 27942912 bytes
+Complex UI dirty round 1: 522.274 completed offscreen FPS; p95 3.4774 ms; private 28659712 bytes
+Complex UI dirty round 2: 623.441 completed offscreen FPS; p95 1.8256 ms; private 29581312 bytes
+Complex UI dirty round 3: 658.031 completed offscreen FPS; p95 1.599 ms; private 28934144 bytes
+Complex UI dirty round 4: 649.071 completed offscreen FPS; p95 1.7358 ms; private 29786112 bytes
+Complex UI dirty round 5: 659.362 completed offscreen FPS; p95 1.6754 ms; private 29679616 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\tmp\dpf-pilot\20261010T205213Z-01f1aed1\baseline-05-Default.json

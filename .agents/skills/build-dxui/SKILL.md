@@ -18,6 +18,10 @@ The suites that need the person's real desktop (`Menu`, `NativeTextInput` and th
 `test.ps1 -Interactive` (`-Suites` to pick, `-SkipBuild` after a build): it refuses without an interactive desktop, asks first (Cancel
 is the default), warns while it runs and restores the foreground window, focus and pointer however the run ends. Run it, or any of those
 suites, only when the person at the desktop has agreed to the time; leave them out of `-Suites` otherwise.
+When that person also explicitly approves automatic start, add `-InteractiveAutoStart` to `-Interactive`.
+Its visible dialog defaults to Start and starts after 30 seconds without a click; Cancel, Esc, closing the dialog
+and Ctrl+C still stop it. It retains desktop refusal, the warning, verified restoration and native mode/countdown
+receipt checks. Ordinary `-Interactive` keeps the Cancel default; never infer automatic-start approval from silence.
 
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded

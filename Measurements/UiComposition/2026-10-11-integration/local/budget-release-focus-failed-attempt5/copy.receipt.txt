@@ -1,0 +1,80 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\merge-s0-s2-focus-Release-attempt5.txt",
+    "copy": "runner.log",
+    "bytes": 4133,
+    "sha256": "C9A52AAEFC32D53D8F2D6FCD6D69AFE3E73B734D7081E5B7869D2555963D9518"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-plan.txt",
+    "copy": "interactive-plan.txt",
+    "bytes": 981,
+    "sha256": "725722EBF056D4737986582249909E0B5FCFECD9424B64F90F54ADCFDE02382B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\interactive-result.txt",
+    "copy": "interactive-result.txt",
+    "bytes": 635,
+    "sha256": "FADB94314E265E52F3E22EA0483A0B1F74268ADC8C60FB1F2048C682F4BC1ADC"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Menu-x64-Release.interactive.json",
+    "copy": "Menu.receipt.txt",
+    "bytes": 36167,
+    "sha256": "F3BCB7BCACBF658E1442A980AD7B355A40AE6E678CF1EFD5FCCA2F4BC2A28399"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-Menu-x64-Release.interactive.log",
+    "copy": "Menu.log",
+    "bytes": 31169,
+    "sha256": "CB9ED51D50DF35A0E94CC8D438B6E282D158CB8882DAF38EB5531C774E0B1418"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\NativeTextInput-x64-Release.interactive.json",
+    "copy": "NativeTextInput.receipt.txt",
+    "bytes": 36178,
+    "sha256": "36CCBA402A511E73C94BB1052C0ED74AF7EF0158409791A5EE1FBA795CDC9898"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-NativeTextInput-x64-Release.interactive.log",
+    "copy": "NativeTextInput.log",
+    "bytes": 58297,
+    "sha256": "CAA907FB39B267E179954ED0758A61C4DBE2A53B8DC85209363A48A649797D39"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\MenuResources-x64-Release.interactive.json",
+    "copy": "MenuResources.receipt.txt",
+    "bytes": 36175,
+    "sha256": "E7221B9D52A23D4194615FEAD7C5EB2F9BB7ED6BB17F05940C26EC11A90E0F91"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-MenuResources-x64-Release.interactive.log",
+    "copy": "MenuResources.log",
+    "bytes": 128687,
+    "sha256": "1A634AC563226A6CDA3B7A081333CAAE0257F14E3366497F1A948405946C511A"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\MenuResourceScaling-x64-Release.interactive.json",
+    "copy": "MenuResourceScaling.receipt.txt",
+    "bytes": 36182,
+    "sha256": "DCA3EAE8B1EA12A65BA07803C4591BDF86083C10345CEC488B9BA9C878AAEE4B"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\logs\\test-MenuResourceScaling-x64-Release.interactive.log",
+    "copy": "MenuResourceScaling.log",
+    "bytes": 1499707,
+    "sha256": "5C83E41E2A47A2B825BAF01514E49CC54DBAF821BB1C0666E0750700E73A8042"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Performance-x64-Release-fa52b324b4284d06b2809f39dee60adb.json",
+    "copy": "canonical-performance.json",
+    "bytes": 38355,
+    "sha256": "C9A7E327A3A19FE48DE53FBA0CDB8468A0C0B613B7B29FE230A0786346387018"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\worktrees\\performance-forms\\DxUi\\.build\\reports\\Performance-x64-Release-fa52b324b4284d06b2809f39dee60adb.json.comparison.json",
+    "copy": "canonical-performance.comparison.receipt.txt",
+    "bytes": 48,
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  }
+]

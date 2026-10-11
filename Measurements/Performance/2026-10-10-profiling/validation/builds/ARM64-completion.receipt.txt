@@ -1,0 +1,26 @@
+[
+  {
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "log": ".build/logs/profiling-build-ARM64-Debug.txt",
+    "completedUtc": "2026-10-10T23:00:18.1512518Z",
+    "runtimeExecution": "not-run-cross-compile"
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "log": ".build/logs/profiling-build-ARM64-Release.txt",
+    "completedUtc": "2026-10-10T23:04:30.9688637Z",
+    "runtimeExecution": "not-run-cross-compile"
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "log": ".build/logs/profiling-build-ARM64-ASanDebug.txt",
+    "completedUtc": "2026-10-10T23:07:54.4791862Z",
+    "runtimeExecution": "not-run-cross-compile"
+  }
+]

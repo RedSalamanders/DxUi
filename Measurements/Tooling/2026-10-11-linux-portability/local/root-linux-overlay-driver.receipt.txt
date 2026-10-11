@@ -1,0 +1,21 @@
+[CmdletBinding()]
+param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$taskRoot = '/home/a/codex-dpf-s0-s2-portability-20261011'
+$taskSource = '/mnt/c/Users/eric/.codex/worktrees/performance-forms/DxUi'
+$taskExternal = '/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge'
+# WSL normally appends Windows PATH entries. Native Ubuntu CI has no Windows PowerShell bridge;
+# do not invoke a Windows parser with a Linux-native repository path during this portability check.
+[Environment]::SetEnvironmentVariable('PATH','/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin')
+[ordered]@{ platform='Native Ubuntu WSL'; path=[Environment]::GetEnvironmentVariable('PATH'); git=(Get-Command git -CommandType Application | Select-Object -First 1).Source; windowsPowerShellAvailable=[bool](Get-Command powershell.exe -CommandType Application -ErrorAction SilentlyContinue); cmakeAvailable=[bool](Get-Command cmake -CommandType Application -ErrorAction SilentlyContinue) } | ConvertTo-Json | Set-Content (Join-Path $taskExternal 'portability-linux-native-environment.receipt.txt')
+foreach ($path in @('.gitattributes','Tools/tests/Test-PerformancePolicy.ps1','Tools/tests/Test-PerformanceProfiling.ps1',
+    'Tools/README.md','Specs/Testing/Testing_Validation.md','Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md',
+    'Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md','Changes/2026-10-11-linux-performance-fixtures.md',
+    'Measurements/Tooling/2026-10-11-linux-portability/README.md')) {
+    $destination = Join-Path $taskRoot $path
+    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+    Copy-Item -LiteralPath (Join-Path $taskSource $path) -Destination $destination
+    if ((Get-FileHash (Join-Path $taskSource $path)).Hash -cne (Get-FileHash $destination).Hash) { throw 'Linux overlay byte mismatch.' }
+}
+& (Join-Path $taskExternal 'Run-Portability-Validation.ps1') -Root $taskRoot -HostLabel linux -External $taskExternal

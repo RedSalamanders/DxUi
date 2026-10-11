@@ -1,0 +1,121 @@
+{
+  "scheduled": 11,
+  "attempted": 11,
+  "results": [
+    {
+      "index": 1,
+      "kind": "isolated",
+      "receipt": "uia-01-isolated.receipt.txt",
+      "log": "uia-01-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 2,
+      "kind": "isolated",
+      "receipt": "uia-02-isolated.receipt.txt",
+      "log": "uia-02-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 3,
+      "kind": "isolated",
+      "receipt": "uia-03-isolated.receipt.txt",
+      "log": "uia-03-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 4,
+      "kind": "isolated",
+      "receipt": "uia-04-isolated.receipt.txt",
+      "log": "uia-04-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 5,
+      "kind": "isolated",
+      "receipt": "uia-05-isolated.receipt.txt",
+      "log": "uia-05-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 6,
+      "kind": "isolated",
+      "receipt": "uia-06-isolated.receipt.txt",
+      "log": "uia-06-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 7,
+      "kind": "isolated",
+      "receipt": "uia-07-isolated.receipt.txt",
+      "log": "uia-07-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 8,
+      "kind": "isolated",
+      "receipt": "uia-08-isolated.receipt.txt",
+      "log": "uia-08-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 9,
+      "kind": "isolated",
+      "receipt": "uia-09-isolated.receipt.txt",
+      "log": "uia-09-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 10,
+      "kind": "isolated",
+      "receipt": "uia-10-isolated.receipt.txt",
+      "log": "uia-10-isolated.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    },
+    {
+      "index": 11,
+      "kind": "preceding-tree-prefix",
+      "receipt": "uia-11-preceding-tree-prefix.receipt.txt",
+      "log": "uia-11-preceding-tree-prefix.log",
+      "exitCode": 0,
+      "timedOut": false,
+      "terminationError": "",
+      "drainError": ""
+    }
+  ],
+  "wallSeconds": 265.4266882,
+  "identityMatched": true,
+  "identityError": "",
+  "originalFailureCause": "unproven",
+  "notes": "Successful repetitions do not establish the cause of the archived failure or guarantee no later repeats."
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\build-autostart-final\\ARM64-Debug\\build.log",
+    "copy": "build.log",
+    "bytes": 5229,
+    "sha256": "BFD45A362A6C744FD30956FCB3EF2C3E80A028DCA4EB2FDD0D7C93FFFA34A579"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\build-autostart-final\\ARM64-Debug\\build.receipt.txt",
+    "copy": "build.receipt.txt",
+    "bytes": 259,
+    "sha256": "3BF78193DF91E387B14429EE318B4AC8A3CF8836936E94BC12BDDB370AFB8604"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\build-autostart-final\\ARM64-Debug\\incremental.receipt.txt",
+    "copy": "incremental.receipt.txt",
+    "bytes": 259,
+    "sha256": "CF28CA028A4725E0BCBB1A5D1D126F258011297FBDF9398E1A0A4B6B80375471"
+  },
+  {
+    "original": "C:\\Users\\eric\\.codex\\tmp\\dpf-followup\\build-autostart-final\\ARM64-Debug\\root-review.receipt.txt",
+    "copy": "root-review.receipt.txt",
+    "bytes": 3627,
+    "sha256": "67DAE3E8C004EA784F0E32364280426B32AE6E3EAAC3AB55150BB92C40731583"
+  }
+]

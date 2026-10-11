@@ -4,6 +4,7 @@
 MultilineGridHeap adds process-local heap walks outside timed rounds for attribution; its retention timing is diagnostic, not performance acceptance.
 MultilineGridHeapPaced additionally targets 50 retention frames/second to distinguish frame-count retention from wall-clock cleanup effects.
 MultilineGridDistinct gives every grid cell its own French multiline text, so a layout cache must hold one layout per visible cell.
+.PARAMETER SkipBuild Reuse only a successful v2 default-output build attested against its complete per-side compiled projects, resolved compiler/shader/link profiles and actual artifacts. Older attestations require a fresh build. Every measurement verifies its complete identity before and after native execution.
 #>
 [CmdletBinding()]
 param(
@@ -50,39 +51,28 @@ try {
     # A receipt left at this path by an earlier run must never be re-stamped as this run's evidence: an executable
     # that does not know the scenario flag runs its functional tests, exits 0 and writes nothing.
     if (Test-Path -LiteralPath $OutputPath -PathType Leaf) { Remove-Item -LiteralPath $OutputPath }
-    & $exe $benchmarkArgument $OutputPath
-    if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
-    if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) { throw "The benchmark wrote no receipt for scenario ${Scenario}: $OutputPath. Executable: $exe" }
-    $receipt = Get-Content -Raw -LiteralPath $OutputPath | ConvertFrom-Json -AsHashtable
-    $receipt.platform = $Platform
-    $receipt.configuration = $Configuration
-    $receipt.nativeArchitecture = $native
-    $receipt.machine = [Environment]::MachineName
-    $receipt.cpu = (Get-ItemProperty -LiteralPath 'HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0' -Name ProcessorNameString).ProcessorNameString.Trim()
-    $receipt.os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-    $warpPath = Join-Path $env:SystemRoot 'System32/d3d10warp.dll'
-    $receipt.warpVersion = (Get-Item -LiteralPath $warpPath).VersionInfo.FileVersion
-    $receipt.warpSha256 = (Get-FileHash -LiteralPath $warpPath -Algorithm SHA256).Hash
-    $receipt.powerPolicy = ((& powercfg.exe /getactivescheme) -join ' ').Trim()
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the active power policy.' }
-    $toolIdentity = Get-PerformanceToolIdentities -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
-    foreach ($key in $toolIdentity.Keys) { $receipt[$key] = $toolIdentity[$key] }
-    $receipt.buildSkipped = [bool]$SkipBuild
-    $receipt.completedUtc = [DateTime]::UtcNow.ToString('o')
-    $receipt.sourceCommit = (& git rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source commit.' }
-    $receipt.sourceDirty = [bool](& git status --porcelain)
-    $receipt.sourceFingerprint = Get-SourceFingerprint -Root $PSScriptRoot
-    $receipt.executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
-    $receipt.workloadOwner = 'DxUi'
-    $receipt.benchmarkInputs = [ordered]@{}
-    foreach ($inputPath in Get-BenchmarkInputPaths) {
-        $receipt.benchmarkInputs[$inputPath] = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash
+    $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $before
+    try {
+        & $exe $benchmarkArgument $OutputPath
+        if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
+        if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) { throw "The benchmark wrote no receipt for scenario ${Scenario}: $OutputPath. Executable: $exe" }
+        $completedUtc = [DateTime]::UtcNow.ToString('o')
+        $after = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+        Assert-PerformanceMeasurementState -Before $before -After $after
+        Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $after
+    } catch {
+        # Retain invalid native samples separately; never leave a qualifying receipt at the requested path.
+        if (Test-Path -LiteralPath $OutputPath -PathType Leaf) {
+            Move-Item -LiteralPath $OutputPath -Destination ($OutputPath + '.' + [guid]::NewGuid().ToString('N') + '.invalid.json')
+        }
+        throw
     }
-    $fixtureIdentity = ($receipt.benchmarkInputs.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" }) -join "`n"
-    $fixtureHasher = [Security.Cryptography.SHA256]::Create()
-    try { $receipt.benchmarkSha256 = [Convert]::ToHexString($fixtureHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($fixtureIdentity))) }
-    finally { $fixtureHasher.Dispose() }
+    $receipt = Get-Content -Raw -LiteralPath $OutputPath | ConvertFrom-Json -AsHashtable
+    foreach ($key in $before.Keys) { $receipt[$key] = $before[$key] }
+    $receipt.buildSkipped = [bool]$SkipBuild
+    $receipt.completedUtc = $completedUtc
+    $receipt.workloadOwner = 'DxUi'
     $receipt.measurement = 'Completed offscreen WARP frames, including clear and blocking one-pixel readback; no swap-chain presentation or vsync.'
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $OutputPath -Encoding utf8
     $comparison = $OutputPath + '.comparison.json'

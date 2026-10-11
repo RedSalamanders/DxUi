@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-11
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
@@ -23,6 +23,27 @@ After the association callback, a newer host transition or a different callback-
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+Form editors expose `LabeledBy`, `IsRequiredForForm`, `IsDataValidForForm`, textual error `ItemStatus`, description
+`HelpText` and the stable field identity as `AutomationId`. A `NumericStepper` attaches these semantics to its
+inner editable text provider. The visual label remains a real element with its own full name and mnemonic target;
+form layout never inserts a duplicate hidden announcement. A label relationship borrows a weak lifetime identity
+and resolves only to the same live, visible element in the current host snapshot. Hidden, detached, expired or
+same-path replacement labels leave `LabeledBy` empty until a valid relationship is explicitly established.
+Snapshot publication raises property changes for effective relationships and metadata, including removal through
+visibility or ownership changes; unchanged republishing raises none. Native and embedded providers read immutable
+published relationships, never a mutable raw label pointer from a client thread. Retained providers disconnect
+when their element retires, and publication stops after a reentrant property notification retires its owner.
+Property and text notifications recheck the semantic editor lifetime between outgoing calls; embedded publication
+also checks its attached root lifetime and preparation's interaction revision. A detached retained editor or hidden
+field stops the old event batch too, even while a snapshot and provider keep their own storage alive. Read-only
+embedded properties still use the last published snapshot until the application's next coherent publication;
+actions already return `UIA_E_ELEMENTNOTAVAILABLE` for an unavailable editor and never change its retained draft.
+
+Opt-in layout prepares matching visible, hit and provider bounds before publishing. Reflow preserves editor
+identity, focus, draft, selection and composition; it does not take HWND focus. A captured press whose control
+geometry moved is cancelled before a later button-up can commit through the old rectangle. An unchanged layout
+retains capture. Removal, hiding or disabling uses the existing interaction retirement rules.
 
 Localized adaptive layout must preserve the focused control's stable identity through wrapping,
 disclosure and DPI changes, and publish matching visible/hit/UIA rectangles. If a focused child is
@@ -190,6 +211,11 @@ navigates again.
 Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the next focus, size, pointer or state
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
 the control a collapsed semantic root stands for reports through the window's element.
+
+Library event tests use a client thread subscribed to the actual window subtree. Bounded quiet waits fail explicitly
+on timeout, while diagnostic provider-attempt/client-arrival timelines remain separate from event semantics.
+Observed silence cannot rule out later delivery. Unchanged Grid republishing must emit no selection changes and
+the client assertion remains empty; an unexplained late event remains an investigation rather than a waived assertion.
 
 A window whose only semantic control is a Tree, a Grid, a Button, a Checkbox or Toggle, a TextField, a ComboBox, a Slider or a
 ColorSwatch, or whose root has the Status role, has a collapsed semantic root: the window's element stands for that control, with
@@ -547,7 +573,12 @@ alive must not retain a superseded prepared source after publication.
 
 Embedded control-property events use the same event-driven work item as structure invalidation. The owner captures
 the property values and registers a weak-identity sender in the COM Global Interface Table; the delivery MTA resolves
-a proxy before calling UIA. No raw STA provider crosses apartments. There is one active batch and one pending batch,
+a proxy before calling UIA. Interface-valued properties such as `LabeledBy` also register each non-null old/new
+reference on the owner apartment and resolve it on the delivery apartment; scalar and BSTR values remain owned copies.
+Relationship event values use weak-identity providers, so retaining either value does not retain a prepared row epoch.
+A replaced pending reference is retired outside the notification lock. Failed value marshalling or resolution drops
+that event with a diagnostic; it must not manufacture an empty relationship value. No raw STA provider crosses
+apartments. There is one active batch and one pending batch,
 with at most one pending entry per current control identity/property ID. Repeated changes preserve the oldest
 undelivered value and replace the latest value. Each publication removes pending entries for retired controls, so a
 held client cannot accumulate retired control epochs. Batches own scalar/BSTR values and registrations, not row
@@ -557,6 +588,13 @@ batch reference releases them, in its initialized apartment, as permitted by the
 [GIT revocation contract](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-iglobalinterfacetable-revokeinterfacefromglobal).
 Capture/marshalling/work failures are logged without a synchronous fallback or automatic retry loop. Selection,
 text and focus events retain their separate contracts.
+
+Coalescing concerns entries still in the library's pending batch, not the number of callbacks delivered by UIA.
+Holding a client callback does not by itself prove that the library's active delivery is held. Real-client tests
+deduplicate successfully resolved equal payloads, reject unexpected values, and use a bounded internal delivery
+gate when proving replacement of the pending batch. The gate runs outside the notification mutex before UIA;
+it is diagnostic-only and dormant during ordinary delivery. Client fixtures close admission, unsubscribe and drain
+accepted callbacks before retiring references, since UIA can deliver callbacks after unsubscription.
 
 Internal embedded property-event providers retain the target and the published control's weak lifetime/identity,
 then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;

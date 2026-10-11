@@ -1,0 +1,162 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint (0.011 s)
+  [START] TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries (0.004 s)
+  [START] TestAccessibilityActionsReportControlsDestroyedByCallbacks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityActionsReportControlsDestroyedByCallbacks (0.006 s)
+  [START] TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries (0.003 s)
+  [START] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction
+    [UIA focus reentry] invoke=0 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA focus reentry] invoke=1 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction (0.005 s)
+  [START] TestNativeAccessibilityProvidersRejectReplacementAtSamePath
+    [UIA lifetime] replaceRoot=0 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA lifetime] replaceRoot=1 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityProvidersRejectReplacementAtSamePath (1.104 s)
+  [START] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt (0.004 s)
+  [START] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement (0.004 s)
+  [START] TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires (0.003 s)
+  [START] TestNativeAccessibilityPostedSelectRejectsReplacement
+    [UIA lifetime] posted-select result=0x80040201
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedSelectRejectsReplacement (0.266 s)
+  [START] TestNativeAccessibilityPostedInvokeRejectsReplacement
+    [UIA lifetime] posted-invoke result=0x80040201 original=0 replacement=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedInvokeRejectsReplacement (0.013 s)
+  [START] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus (0.023 s)
+  [START] TestSingleTreeWindowElementIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowElementIsTheParentOfItsItems (2.087 s)
+  [START] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn (0.804 s)
+  [START] TestTreeBesideAnotherControlIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlIsTheParentOfItsItems (1.146 s)
+  [START] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells (2.733 s)
+  [START] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells (1.615 s)
+  [START] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton (1.004 s)
+  [START] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow (9.178 s)
+  [START] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow (9.170 s)
+  [START] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow
+    [UIA] the client walks from the window's element:
+DataGrid 'R?sultats'
+  HeaderItem 'Nom'
+  DataItem 'Ligne 1'
+    Text 'Ligne 1'
+  DataItem 'Ligne 2'
+    Text 'Ligne 2'
+  DataItem 'Ligne 3'
+    Text 'Ligne 3'
+  DataItem 'Ligne 4'
+    Text 'Ligne 4'
+  DataItem 'Ligne 5'
+    Text 'Ligne 5'
+  DataItem 'Ligne 6'
+    Text 'Ligne 6'
+  DataItem 'Ligne 7'
+    Text 'Ligne 7'
+  DataItem 'Ligne 8'
+    Text 'Ligne 8'
+  DataItem 'Ligne 9'
+    Text 'Ligne 9'
+  DataItem 'Ligne 10'
+    Text 'Ligne 10'
+  DataItem 'Ligne 11'
+    Text 'Ligne 11'
+  DataItem 'Ligne 12'
+    Text 'Ligne 12'
+    [UIA] events heard: [property 30079 from DataItem 'Ligne 1' = true] [event 20012 from DataItem 'Ligne 1'] [property 30079 from DataItem 'Ligne 1' = true] [event 20012 from DataItem 'Ligne 1'] [property 30079 from DataItem 'Ligne 1' = false] [property 30079 from DataItem 'Ligne 2' = true] [event 20012 from DataItem 'Ligne 2'] [property 30079 from DataItem 'Ligne 1' = false] [property 30079 from DataItem 'Ligne 2' = true] [event 20012 from DataItem 'Ligne 2'] [property 30079 from DataItem 'Ligne 2' = false] [property 30079 from DataItem 'Ligne 3' = true] [event 20012 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 2' = false] [property 30079 from DataItem 'Ligne 3' = true] [event 20012 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 5' = true] [event 20010 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 5' = true] [event 20010 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 3' = false] [event 20011 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 6' = true] [event 20010 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = true] [event 20010 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 3' = false] [event 20011 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 6' = true] [event 20010 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = true] [event 20010 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 4' = true] [event 20010 from DataItem 'Ligne 4'] [property 30079 from DataItem 'Ligne 4' = true] [event 20010 from DataItem 'Ligne 4'] [property 30079 from DataItem 'Ligne 5' = false] [event 20011 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 6' = false] [event 20011 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = false] [event 20011 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 4' = false] [event 20011 from DataItem 'Ligne 4'] [property 30079 from DataItem 'Ligne 5' = false] [event 20011 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 6' = false] [event 20011 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = false] [event 20011 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 4' = false] [event 20011 from DataItem 'Ligne 4'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [property 30079 from DataItem 'Ligne 2' = true] [event 20010 from DataItem 'Ligne 2'] [property 30079 from DataItem 'Ligne 3' = true] [event 20010 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 4' = true] [event 20010 from DataItem 'Ligne 4'] [property 30079 from DataItem 'Ligne 5' = true] [event 20010 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 6' = true] [event 20010 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = true] [event 20010 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 8' = true] [event 20010 from DataItem 'Ligne 8'] [property 30079 from DataItem 'Ligne 9' = true] [event 20010 from DataItem 'Ligne 9'] [property 30079 from DataItem 'Ligne 10' = true] [event 20010 from DataItem 'Ligne 10'] [property 30079 from DataItem 'Ligne 11' = true] [event 20010 from DataItem 'Ligne 11'] [property 30079 from DataItem 'Ligne 12' = true] [event 20010 from DataItem 'Ligne 12'] [property 30079 from DataItem 'Ligne 13' = true] [event 20010 from DataItem 'Ligne 13'] [property 30079 from DataItem 'Ligne 14' = true] [event 20010 from DataItem 'Ligne 14'] [property 30079 from DataItem 'Ligne 15' = true] [event 20010 from DataItem 'Ligne 15'] [property 30079 from DataItem 'Ligne 16' = true] [event 20010 from DataItem 'Ligne 16'] [property 30079 from DataItem 'Ligne 17' = true] [event 20010 from DataItem 'Ligne 17'] [property 30079 from DataItem 'Ligne 18' = true] [event 20010 from DataItem 'Ligne 18'] [property 30079 from DataItem 'Ligne 19' = true] [event 20010 from DataItem 'Ligne 19'] [property 30079 from DataItem 'Ligne 20' = true] [event 20010 from DataItem 'Ligne 20'] [property 30079 from DataItem 'Ligne 21' = true] [event 20010 from DataItem 'Ligne 21'] [property 30079 from DataItem 'Ligne 2' = true] [event 20010 from DataItem 'Ligne 2'] [property 30079 from DataItem 'Ligne 3' = true] [event 20010 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 4' = true] [event 20010 from DataItem 'Ligne 4'] [property 30079 from DataItem 'Ligne 5' = true] [event 20010 from DataItem 'Ligne 5'] [property 30079 from DataItem 'Ligne 6' = true] [event 20010 from DataItem 'Ligne 6'] [property 30079 from DataItem 'Ligne 7' = true] [event 20010 from DataItem 'Ligne 7'] [property 30079 from DataItem 'Ligne 8' = true] [event 20010 from DataItem 'Ligne 8'] [property 30079 from DataItem 'Ligne 9' = true] [event 20010 from DataItem 'Ligne 9'] [property 30079 from DataItem 'Ligne 10' = true] [event 20010 from DataItem 'Ligne 10'] [property 30079 from DataItem 'Ligne 11' = true] [event 20010 from DataItem 'Ligne 11'] [property 30079 from DataItem 'Ligne 12' = true] [event 20010 from DataItem 'Ligne 12'] [property 30079 from DataItem 'Ligne 13' = true] [event 20010 from DataItem 'Ligne 13'] [property 30079 from DataItem 'Ligne 14' = true] [event 20010 from DataItem 'Ligne 14'] [property 30079 from DataItem 'Ligne 15' = true] [event 20010 from DataItem 'Ligne 15'] [property 30079 from DataItem 'Ligne 16' = true] [event 20010 from DataItem 'Ligne 16'] [property 30079 from DataItem 'Ligne 17' = true] [event 20010 from DataItem 'Ligne 17'] [property 30079 from DataItem 'Ligne 18' = true] [event 20010 from DataItem 'Ligne 18'] [property 30079 from DataItem 'Ligne 19' = true] [event 20010 from DataItem 'Ligne 19'] [property 30079 from DataItem 'Ligne 20' = true] [event 20010 from DataItem 'Ligne 20'] [property 30079 from DataItem 'Ligne 21' = true] [event 20010 from DataItem 'Ligne 21'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [event 20013 from DataGrid 'R?sultats'] [property 30079 from DataItem 'Ligne 25' = true] [event 20012 from DataItem 'Ligne 25'] [property 30079 from DataItem 'Ligne 25' = true] [event 20012 from DataItem 'Ligne 25'] [property 30079 from DataItem 'Ligne 3' = true] [event 20012 from DataItem 'Ligne 3'] [property 30079 from DataItem 'Ligne 3' = true] [event 20012 from DataItem 'Ligne 3']
+FAILED: republishing an unchanged selection: the client heard [Selected DataItem 'Ligne 3'], not nothing

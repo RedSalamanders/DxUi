@@ -1,0 +1,59 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream
+  [DONE] TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream (0.000 s)
+  [START] TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary
+  [DONE] TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary (0.000 s)
+  [START] TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep
+  [DONE] TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep (0.000 s)
+  [START] TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication
+  [DONE] TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication (0.000 s)
+  [START] TestFormAccessibilityWindowPropertiesAndStableEditor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPropertiesAndStableEditor (0.307 s)
+  [START] TestFormAccessibilityEmbeddedPropertiesAndStableEditor
+  [DONE] TestFormAccessibilityEmbeddedPropertiesAndStableEditor (0.021 s)
+  [START] TestFormAccessibilityWindowLabelLifetimeAndReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowLabelLifetimeAndReplacement (3.380 s)
+  [START] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement
+  [DONE] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement (3.239 s)
+  [START] TestFormAccessibilityWindowPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA publication] embedded=0 preparations=0..0 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPresentationEventsAreIdempotent (2.312 s)
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA publication] embedded=1 preparations=1..2 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+  [DONE] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent (2.336 s)
+  [START] TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback (1.293 s)
+  [START] TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback
+  [DONE] TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback (1.157 s)
+  [START] TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement (3.921 s)
+  [START] TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement
+  [DONE] TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement (3.523 s)
+[DONE] Accessibility (21.490 s)
+All DxUi tests passed.

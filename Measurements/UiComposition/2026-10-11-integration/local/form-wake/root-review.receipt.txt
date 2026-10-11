@@ -1,0 +1,13 @@
+{
+  "purpose": "form-real-client-missing-event-diagnostic",
+  "sourceCommit": "d90919011146f5a9039fcf231c2b917866d4ca48",
+  "sourceFingerprint": "AD0B35CC2C17CA7D267D5C1E74C472DB11D8DF4E6455D908B64C30FA3019BFC5",
+  "sourceDirty": false,
+  "nativeExitCode": 0,
+  "tests": [
+    "TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent"
+  ],
+  "controlSha256": "6F818BE7E15230A49302581DCA4788A6923D497592721964E3A66B2F44E959E3",
+  "exactSourceDependencyToolchainArtifactEnvironmentMatched": true,
+  "performanceAcceptance": "unpaired-observation-only"
+}

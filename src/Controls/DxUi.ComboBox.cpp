@@ -458,7 +458,10 @@ ComboBox::ComboBox()
 
 void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
 {
-    _variant            = variant;
+    const bool changed = _variant != variant;
+    _variant           = variant;
+    if (changed)
+        InvalidateMeasure();
     const bool editable = variant == ComboBoxVariant::Edit;
     _editable           = editable;
     if (_editable)
@@ -491,6 +494,7 @@ void ComboBox::SetChromeVisible(bool visible) noexcept
     }
 
     _chromeVisible = visible;
+    InvalidateMeasure();
     RequestInvalidate();
 }
 

@@ -91,31 +91,38 @@ jobs:
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Debug
+            jobTimeoutMinutes: 45
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Release
+            jobTimeoutMinutes: 45
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Debug
+            jobTimeoutMinutes: 65
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Release
+            jobTimeoutMinutes: 65
           - platform: x64
             runner: windows-2025-vs2026
             configuration: ASan Debug
+            jobTimeoutMinutes: 60
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: ASan Debug
+            jobTimeoutMinutes: 80
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: ${{ matrix.jobTimeoutMinutes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
-      # Step limits (about twice the slowest runs: 13 min for test.ps1, 9 for a consumer build) end a hang the per-test
-      # watchdog cannot reach (Foundation, Embedded, the consumer) while the job still has time to upload its logs.
+      # Cold ARM64 Debug/Release builds plus v2 provenance consumed nearly 24 minutes before suites in PR #73.
+      # Keep finite Full windows (x64 25, ARM64 45), the native per-test watchdog and both consumer 15-minute limits.
+      # Every row includes its Full + consumer(s) windows and five minutes for setup, resource/gallery work and artifacts.
       - shell: pwsh
-        timeout-minutes: 25
+        timeout-minutes: ${{ matrix.platform == 'ARM64' && 45 || 25 }}
         # Tooling has one qualification per host. Native runner/filter/watchdog checks remain per profile.
         run: ./test.ps1 -Full -SkipTooling -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       # The relocated consumer builds its own clean pin and does not require the foreground lease. Retain its

@@ -522,7 +522,8 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     Hr(replacementToggle->Toggle(), "UIA replacement toggle activation");
     Check(replacementCommands == 1, "new provider targets only the new control");
     replacement->SetVisible(false);
-    Check(replacementToggle->Toggle() == UIA_E_NOTSUPPORTED && replacementCommands == 1, "hidden control cannot be activated from its old snapshot");
+    Check(replacementToggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE && replacementCommands == 1,
+          "hidden control is unavailable for activation from its old snapshot");
     view.Controls().SetRoot(std::make_unique<DxUi::Panel>());
     Check(nextRoot->GetFocus(focused.put()) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement invalidates providers immediately");
     view.Detach();

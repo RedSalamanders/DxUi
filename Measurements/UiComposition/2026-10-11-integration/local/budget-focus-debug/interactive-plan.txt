@@ -1,0 +1,4 @@
+Menu	C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\logs\test-Menu-x64-Debug.interactive.log	"C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\Debug\DxUi.ControlTests.exe" --suite=Menu
+NativeTextInput	C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\logs\test-NativeTextInput-x64-Debug.interactive.log	"C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\Debug\DxUi.ControlTests.exe" --suite=NativeTextInput
+MenuResources	C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\logs\test-MenuResources-x64-Debug.interactive.log	"C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\Debug\DxUi.ControlTests.exe" --suite=MenuResources
+MenuResourceScaling	C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\logs\test-MenuResourceScaling-x64-Debug.interactive.log	"C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\x64\Debug\DxUi.ControlTests.exe" --suite=MenuResourceScaling
