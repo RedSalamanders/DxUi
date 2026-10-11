@@ -1,0 +1,47 @@
+[
+  {
+    "configuration": "Debug",
+    "nativeSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalDirty": true,
+    "comparedActualFields": 24,
+    "allowedProseArchivalDifferences": [
+      "sourceCommit",
+      "sourceDirty"
+    ],
+    "originalStateSha256": "35C640A7A3ED9A6617D2A4CB85C70784B1055B20749FD3DF6B2CA9DE5C848CD6",
+    "currentStateSha256": "F7EF5682EDC755E07669A90D0ADA98F467F34B646620182F7F19F7C99D961264",
+    "compiledSourceIdentity": "1b1630a8538fc33777c6d4d4805c57db1829462b15e17c97367a2cfd2a6727df",
+    "actualCompilerSdkDependencyArtifactEnvironmentUnchanged": true
+  },
+  {
+    "configuration": "Release",
+    "nativeSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalDirty": true,
+    "comparedActualFields": 24,
+    "allowedProseArchivalDifferences": [
+      "sourceCommit",
+      "sourceDirty"
+    ],
+    "originalStateSha256": "124A5404DED95656C160BCC48A00069DB6632FCE169D05E20E7738EB0A161A1A",
+    "currentStateSha256": "44C4BC32B2ACFDF00B77E8850ABA58BAE8A4F904CF5A50BE82B0D7F33A3F69A2",
+    "compiledSourceIdentity": "1b1630a8538fc33777c6d4d4805c57db1829462b15e17c97367a2cfd2a6727df",
+    "actualCompilerSdkDependencyArtifactEnvironmentUnchanged": true
+  },
+  {
+    "configuration": "ASan Debug",
+    "nativeSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalSourceCommit": "061748aab88c8db0b623e8a244ba884d9193b933",
+    "archivalDirty": true,
+    "comparedActualFields": 24,
+    "allowedProseArchivalDifferences": [
+      "sourceCommit",
+      "sourceDirty"
+    ],
+    "originalStateSha256": "8013FBFC12811D25C69D0608742F66EFA1011A75D6AD4F8F089F0F04531E8430",
+    "currentStateSha256": "C02090B26116D9ED3AB4B881DAE0407B59A413FBB7D04989B78F7AD95FBDC5FA",
+    "compiledSourceIdentity": "1b1630a8538fc33777c6d4d4805c57db1829462b15e17c97367a2cfd2a6727df",
+    "actualCompilerSdkDependencyArtifactEnvironmentUnchanged": true
+  }
+]

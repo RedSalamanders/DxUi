@@ -1,0 +1,1 @@
+- Bound the ARM64 ASan native CI job at 60 minutes while retaining all stage watchdogs and eight consumer qualifications; add workflow budget regression coverage and preserve the source-bound historical cancellation evidence.

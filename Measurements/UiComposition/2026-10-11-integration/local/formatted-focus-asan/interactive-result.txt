@@ -1,0 +1,16 @@
+state: completed
+exit: 0
+confirmation: autostarted
+confirmation.autoStart: 1
+confirmation.seconds: 30
+foreground.saved: class 'Chrome_WidgetWin_1' of msedge.exe (process 82560)
+restoration.foreground: unchanged
+restoration.focus: unchanged
+restoration.cursor: restored
+cursor.saved: 2339,1159
+cursor.atExit: 2339,1160
+restoration.runMovedSomething: 1
+child: Menu launched=1 exit=0 seconds=85.8 timedout=0 interrupted=0
+child: NativeTextInput launched=1 exit=0 seconds=70.0 timedout=0 interrupted=0
+child: MenuResources launched=1 exit=0 seconds=9.6 timedout=0 interrupted=0
+child: MenuResourceScaling launched=1 exit=0 seconds=20.0 timedout=0 interrupted=0

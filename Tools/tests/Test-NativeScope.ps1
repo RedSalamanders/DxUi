@@ -162,6 +162,44 @@ function Get-WorkflowJob([string] $Name) {
     return $match.Groups['body'].Value
 }
 
+function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
+    Assert-True ($Native -cmatch '(?m)^    timeout-minutes: \$\{\{ matrix\.jobTimeoutMinutes \}\}\r?$') 'the enclosing timeout follows the selected matrix row'
+    $rows = [regex]::Matches($Native, '(?ms)^          - platform: (?<platform>\S+)\r?\n(?<body>.*?)(?=^          - platform:|^    runs-on:|\z)')
+    Assert-Equal 6 $rows.Count 'six native profiles retain their own job budgets'
+    Assert-Equal $Profiles.Count $rows.Count 'the native matrix matches the scoped PR profile count'
+    $expected = @($Profiles | ForEach-Object { "$($_.platform)|$($_.configuration)" })
+    $limits = @{}
+    foreach ($row in $rows) {
+        $configuration = [regex]::Match($row.Groups['body'].Value, '(?m)^            configuration: (?<name>[^\r\n]+)\r?$')
+        $budget = [regex]::Match($row.Groups['body'].Value, '(?m)^            jobTimeoutMinutes: (?<minutes>[1-9]\d*)\r?$')
+        Assert-True ($configuration.Success -and $budget.Success) 'each row declares a configuration and a positive numeric budget'
+        $key = "$($row.Groups['platform'].Value)|$($configuration.Groups['name'].Value)"
+        Assert-Contains $expected $key 'every matrix row has declared scoped PR coverage'
+        Assert-True (-not $limits.ContainsKey($key)) "the native profile $key is unique"
+        $limits[$key] = [int]$budget.Groups['minutes'].Value
+    }
+    $steps = [regex]::Matches($Native, '(?ms)^      - (?<body>.*?)(?=^      - |\z)')
+    $stageLimits = @{}
+    foreach ($stage in @(
+        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling '; Minutes = 25 },
+        @{ Name = 'Consumer'; Pattern = '^name: Qualify the relocated public consumer\r?\n'; Minutes = 15 },
+        @{ Name = 'DisabledAnnotations'; Pattern = '^name: Qualify the consumer with STL annotations disabled\r?\n'; Minutes = 15 }
+    )) {
+        $selected = @($steps | Where-Object { $_.Groups['body'].Value -cmatch $stage.Pattern })
+        Assert-Equal 1 $selected.Count "the $($stage.Name) qualification is present exactly once"
+        $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
+        Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
+        $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
+        Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+    }
+    $arm64AsanStages = $stageLimits.Native + $stageLimits.Consumer + $stageLimits.DisabledAnnotations
+    Assert-True ($limits['ARM64|ASan Debug'] -ge $arm64AsanStages + 5) 'ARM64 ASan has all three stage allowances and five minutes for setup and artifacts'
+    foreach ($key in $expected) {
+        $minutes = if ($key -ceq 'ARM64|ASan Debug') { 60 } else { 40 }
+        Assert-Equal $minutes $limits[$key] "only ARM64 ASan changes its enclosing budget: $key"
+    }
+}
+
 Invoke-TestCase 'a push validates main alone, and every pull request and manual run is validated' {
     Assert-True ($workflow -cmatch '(?m)^  push:\r?\n    branches: \[main\]\r?\n  pull_request:\r?\n  workflow_dispatch:\r?\n') 'pushes to main, every pull request and every dispatch'
     $format = [IO.File]::ReadAllText((Join-Path $repository '.github/workflows/format.yml'))
@@ -186,6 +224,19 @@ Invoke-TestCase 'the native jobs follow the scope job, and run when it cannot de
     $gate = Get-WorkflowJob 'ci-gate'
     Assert-True $gate.Contains('if: ${{ always() }}') 'the required aggregate runs even when a producer fails or is skipped'
     Assert-True ($gate -cmatch '(?m)^    needs: \[validation, windows-tooling, format, native-scope, native, paired-benchmark\]$') 'the aggregate accounts for every required qualification'
+}
+
+Invoke-TestCase 'native budgets preserve every profile and the complete ARM64 ASan stage windows' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    Assert-NativeWorkflowBudgets (Get-WorkflowJob 'native') $profiles
+}
+
+Invoke-TestCase 'the enclosing 40-minute ARM64 ASan regression fails the budget contract' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    $native = Get-WorkflowJob 'native'
+    $lowered = [regex]::Replace($native, '(?ms)(^          - platform: ARM64\r?\n            runner: [^\r\n]+\r?\n            configuration: ASan Debug\r?\n            jobTimeoutMinutes: )60(?=\r?\n)', '${1}40')
+    Assert-True ($native -cne $lowered) 'the falsification restores the historical ARM64 ASan enclosing limit'
+    Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'a 40-minute job cannot accommodate its unchanged 25/15/15-minute stages'
 }
 
 Invoke-TestCase 'the scope scripts parse and are strict' {

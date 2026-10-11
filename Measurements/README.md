@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [ARM64 ASan CI budget investigation, 2026-10-11](CiBudget/2026-10-11-arm64-asan/README.md): exact historical
+  source inputs, GitHub job annotations and complete logs distinguish the enclosing 40-minute cancellation from
+  consumer assertions. The bounded 60-minute ARM64 ASan repair retains all stage watchdogs and eight consumer
+  qualifications; historical incomplete execution does not qualify the current candidate.
+
 - [S0-S2 current-main integration, 2026-10-11](UiComposition/2026-10-11-integration/README.md): three fresh x64
   profiles with 20 selected form/quiet/embedded client cases each and all four full foreground suites, zero skips
   and verified restoration. Retained negative/positive IME retry controls and UIA payload/lifetime/owner-wait

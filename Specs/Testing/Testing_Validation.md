@@ -160,10 +160,16 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 33 s, and of the fixture suites `Gallery` took 5 s, 4.5 s and 10 s and `ButtonContrast`, `MenuTextLayoutResources` and
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
-instead of at the 40-minute limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI also bounds its steps, at about twice their slowest runs on 2026-09-30:
-`test.ps1` at 25 minutes (13 at most) and each consumer build at 15 (9 at most), so a hang the watchdog cannot reach
-(Foundation, Embedded, the consumer) still leaves the job time to upload its logs.
+instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
+how close any of their tests comes. Native CI bounds `test.ps1` at 25 minutes and each clean-pin consumer qualification at 15 minutes, including hangs
+the per-test watchdog cannot reach (Foundation, Embedded, the consumer). The ARM64 ASan Debug job has a 60-minute
+enclosing limit: its native, regular consumer and annotations-disabled consumer stage allowances total 55 minutes,
+leaving five minutes for setup and artifact collection. The other five native profiles retain 40-minute enclosing
+limits. All stage watchdogs, six standard consumer qualifications, both annotations-disabled ASan qualifications and
+failure accounting remain unchanged. The [source-bound 2026-10-10 cancellation investigation](../../Measurements/CiBudget/2026-10-11-arm64-asan/README.md)
+records why the previous ARM64 ASan enclosing limit prevented the final consumer from finishing; that incomplete
+historical result is not a passing consumer qualification. This budget change does not relax correctness, sanitizer,
+resource, provenance or performance-policy gates.
 `test.ps1` reports a control suite that exits nonzero with its exit code, the `TIMEOUT:` line when the watchdog ended it (also
 stored as `timeout` in the suite's receipt) and the last twelve lines of its log (`Tools/SuiteFailure.psm1`), and its final
 error carries the first two: `DxUi failed suites: Menu exited with code 124 (TIMEOUT: <TestName> after 300 s)`.

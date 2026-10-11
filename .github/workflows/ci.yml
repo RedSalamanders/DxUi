@@ -91,29 +91,35 @@ jobs:
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Debug
+            jobTimeoutMinutes: 40
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Release
+            jobTimeoutMinutes: 40
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Debug
+            jobTimeoutMinutes: 40
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Release
+            jobTimeoutMinutes: 40
           - platform: x64
             runner: windows-2025-vs2026
             configuration: ASan Debug
+            jobTimeoutMinutes: 40
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: ASan Debug
+            jobTimeoutMinutes: 60
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: ${{ matrix.jobTimeoutMinutes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
-      # Step limits (about twice the slowest runs: 13 min for test.ps1, 9 for a consumer build) end a hang the per-test
-      # watchdog cannot reach (Foundation, Embedded, the consumer) while the job still has time to upload its logs.
+      # Step limits end hangs outside the per-test watchdog. ARM64 ASan's 60-minute enclosing budget accommodates
+      # its 25 + 15 + 15 minute stage allowances, with five minutes for setup and artifact collection.
       - shell: pwsh
         timeout-minutes: 25
         # Tooling has one qualification per host. Native runner/filter/watchdog checks remain per profile.
