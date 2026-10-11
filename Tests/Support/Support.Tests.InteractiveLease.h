@@ -117,14 +117,16 @@ struct LeaseRequest
     std::vector<ChildRun> children;
     std::wstring label; // What the run is called to the person: "Menu, NativeTextInput (x64 Debug)".
     unsigned estimateSeconds     = 0u;
-    unsigned confirmSeconds      = 120u; // How long the confirmation waits before it is cancelled; 0 waits for as long as it takes.
-    unsigned childTimeoutSeconds = 900u; // The most one child may take before the lease ends it; 0 sets no bound.
+    unsigned confirmSeconds      = 120u;  // Confirmation deadline; approved automatic mode starts on expiry. 0 waits in manual mode only.
+    unsigned childTimeoutSeconds = 900u;  // The most one child may take before the lease ends it; 0 sets no bound.
+    bool autoStart               = false; // Explicit prior time agreement: start after a positive, visible countdown unless cancelled.
 };
 
 enum class Confirmation
 {
     None, // The person was never asked.
     Started,
+    AutoStarted, // The explicitly approved countdown expired without cancellation.
     Declined,    // Cancel, the dialog closed, or Esc.
     TimedOut,    // Nobody answered: the answer is Cancel.
     Interrupted, // The run was stopped while the person was asked.
@@ -137,6 +139,7 @@ enum class Confirmation
     {
         case Confirmation::None: return "none";
         case Confirmation::Started: return "started";
+        case Confirmation::AutoStarted: return "autostarted";
         case Confirmation::Declined: return "declined";
         case Confirmation::TimedOut: return "timedout";
         case Confirmation::Interrupted: return "interrupted";
@@ -151,6 +154,8 @@ struct LeaseOutcome
     std::string state; // completed, refused, busy, declined, timedout, interrupted, unwarned, launchfailed.
     std::string reason;
     Confirmation confirmation = Confirmation::None;
+    bool autoStart            = false;
+    unsigned confirmSeconds   = 0u;
     std::string savedForeground; // The window the person had, for messages.
     std::optional<RestoreReport> restoration;
     std::vector<ChildOutcome> children;
@@ -211,7 +216,29 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
     outcome.confirmation = services.Confirm(request);
     switch (outcome.confirmation)
     {
-        case Confirmation::Started: break;
+        case Confirmation::AutoStarted:
+            if (! request.autoStart)
+            {
+                outcome.state    = "unwarned";
+                outcome.exitCode = LeaseExit::kNoWarning;
+                outcome.reason   = "automatic start was not explicitly requested";
+                return;
+            }
+            [[fallthrough]];
+        case Confirmation::Started:
+            if (request.autoStart)
+            {
+                // A countdown is not evidence that the input desktop stayed available while nobody was answering.
+                const Availability available = services.CheckDesktop();
+                if (! available.available)
+                {
+                    outcome.state    = "refused";
+                    outcome.exitCode = LeaseExit::kNoDesktop;
+                    outcome.reason   = available.reason;
+                    return;
+                }
+            }
+            break;
         case Confirmation::Declined:
             outcome.state    = "declined";
             outcome.exitCode = LeaseExit::kDeclined;
@@ -280,6 +307,15 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
 [[nodiscard]] inline LeaseOutcome RunLease(LeaseServices& services, const LeaseRequest& request)
 {
     LeaseOutcome outcome{};
+    outcome.autoStart      = request.autoStart;
+    outcome.confirmSeconds = request.confirmSeconds;
+    if (request.autoStart && request.confirmSeconds == 0u)
+    {
+        outcome.state    = "invalid";
+        outcome.exitCode = LeaseExit::kUsage;
+        outcome.reason   = "automatic start requires a positive countdown";
+        return outcome;
+    }
     const Availability availability = services.CheckDesktop();
     if (! availability.available)
     {
@@ -335,6 +371,7 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
     if (! outcome.reason.empty())
         text += std::format("reason: {}\n", oneLine(outcome.reason));
     text += std::format("confirmation: {}\n", ConfirmationName(outcome.confirmation));
+    text += std::format("confirmation.autoStart: {}\nconfirmation.seconds: {}\n", outcome.autoStart ? 1 : 0, outcome.confirmSeconds);
     if (! outcome.savedForeground.empty())
         text += std::format("foreground.saved: {}\n", oneLine(outcome.savedForeground));
     if (outcome.restoration.has_value())

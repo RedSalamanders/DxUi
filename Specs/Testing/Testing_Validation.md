@@ -554,6 +554,15 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   person's window, focus and pointer are restored afterwards. Its default button is Cancel, so a key pressed by accident as the dialog
   appears cannot start a takeover; Start needs a click or Alt+S. If nobody answers within two minutes the answer is Cancel: nothing
   was taken and the run exits with code 21. Ctrl+C while it asks ends the run as well.
+  After the person explicitly agrees to automatic start and the time, `test.ps1 -Interactive -InteractiveAutoStart`
+  MAY select an approved automatic countdown. Its visible dialog defaults to Start and starts after 30 seconds without
+  a click. Cancel, Esc, closing the dialog and Ctrl+C still prevent launch. The countdown starts when the dialog opens,
+  after preflight/build/benchmark work; a terminal answer MUST NOT be replaced by a later timer or button notification.
+  `-InteractiveAutoStart` MUST require `-Interactive`; it does not authorize CI, hosted, locked or disconnected desktops.
+  Native `--auto-start` MUST require local `--run` and a positive countdown, and MUST reject check/self-test/hosted modes
+  before desktop work or result writes. Approved runs MUST recheck input-desktop availability after the countdown or an
+  early clicked Start, before showing the warning or starting a child. All ordinary warning, lifetime and restoration
+  requirements still apply.
 - **During the run.** A banner at the top of the primary monitor, above every window and click-through, says that the tests are
   running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
   `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
@@ -579,6 +588,12 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
   lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+  Automatic-mode receipts MUST preserve native `confirmation.autoStart` and `confirmation.seconds`; `autostarted`
+  identifies an expired approved countdown, while `started` identifies a clicked Start. The launcher MUST compare the
+  returned mode/countdown against the request and fail mismatched or missing automatic metadata.
+  Completed approved runs MUST report `started` or `autostarted`, and repeated confirmation
+  or policy fields MUST fail automatic-mode validation rather than overwrite contradictory values. Historical ordinary
+  receipts without these fields remain readable and establish only their original execution.
 
 Verified GitHub-hosted Windows foreground runs MUST use the same lease's anchor, child-specific foreground grant,
 bounded child lifetime and verified restoration. `test.ps1` and `DxUi.InteractiveLease.exe --run-hosted` each independently

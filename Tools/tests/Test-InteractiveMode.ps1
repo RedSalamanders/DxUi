@@ -474,6 +474,85 @@ Invoke-FixtureCase 'test.ps1 -Interactive refuses in a CI job before it builds o
         Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
     }
 }
+Invoke-FixtureCase 'approved automatic starts retain their mode, bounded countdown and distinct result' { param($fixture)
+    $fake = Join-Path $fixture 'auto-start-lease.ps1'
+    @'
+param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
+$resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
+[IO.File]::WriteAllText(($resultPath + '.arguments.txt'), ($Arguments -join "`n"))
+$confirmation = if ($Arguments -contains '--auto-start') { 'autostarted' } else { 'started' }
+$autoStart = [int]($Arguments -contains '--auto-start')
+$seconds = ($Arguments | Where-Object { $_ -like '--confirm-timeout=*' }) -replace '^--confirm-timeout=', ''
+$label = ($Arguments | Where-Object { $_ -like '--label=*' }) -replace '^--label=', ''
+$policy = "confirmation.autoStart: $autoStart`nconfirmation.seconds: $seconds`n"
+$action = "confirmation: $confirmation`n"
+switch ($label) {
+    'missing' { $policy = '' }
+    'wrong-mode' { $policy = "confirmation.autoStart: 0`nconfirmation.seconds: $seconds`n" }
+    'wrong-countdown' { $policy = "confirmation.autoStart: $autoStart`nconfirmation.seconds: 999`n" }
+    'invalid-countdown' { $policy = "confirmation.autoStart: $autoStart`nconfirmation.seconds: invalid`n" }
+    'missing-action' { $action = '' }
+    'declined-action' { $action = "confirmation: declined`n" }
+    'unknown-action' { $action = "confirmation: unexpected`n" }
+    'duplicate-mode' { $policy = "confirmation.autoStart: 0`n" + $policy }
+    'duplicate-countdown' { $policy = "confirmation.seconds: invalid`n" + $policy }
+    'duplicate-action' { $action = "confirmation: declined`n" + $action }
+    'unrequested' { $policy = "confirmation.autoStart: 1`nconfirmation.seconds: 30`n"; $confirmation = 'autostarted' }
+}
+if ($label -eq 'unrequested') { $action = "confirmation: $confirmation`n" }
+"state: completed`nexit: 0`n${action}${policy}restoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: unchanged`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
+$global:LASTEXITCODE = 0
+'@ | Set-Content -LiteralPath $fake
+    $parameters = @{ Executable=$fake; Runs=@([pscustomobject]@{ Name='Menu'; CommandLine='unused.exe'; Log='unused.log' }); Label='Menu'; EstimateSeconds=1; WorkDirectory=$fixture }
+    $ordinary = Invoke-DxUiInteractiveLease @parameters
+    $argumentsPath = $ordinary.ResultPath + '.arguments.txt'
+    $arguments = [IO.File]::ReadAllLines($argumentsPath)
+    Assert-True ($arguments -contains '--run' -and $arguments -notcontains '--auto-start' -and $arguments -contains '--confirm-timeout=120') 'ordinary calls retain explicit confirmation and its two-minute cancellation'
+    foreach ($case in @(@{ Bound=@{}; Seconds=30 }, @{ Bound=@{ ConfirmSeconds=7 }; Seconds=7 })) {
+        $bound = $case.Bound
+        $answer = Invoke-DxUiInteractiveLease @parameters @bound -AutoStart
+        $arguments = [IO.File]::ReadAllLines($argumentsPath)
+        Assert-True ($arguments -contains '--run' -and $arguments -contains '--auto-start' -and $arguments -contains "--confirm-timeout=$($case.Seconds)") "approved local automatic mode sends its $($case.Seconds)-second countdown: $($arguments -join ' | ')"
+        Assert-Equal 'autostarted' $answer.Result.Confirmation 'an automatic start is recorded separately from a clicked Start'
+        Assert-True ($answer.Result.AutoStart -and $answer.Result.ConfirmationSeconds -eq $case.Seconds) 'actual native policy and countdown survive parsing'
+        Assert-Equal 0 @($answer.PolicyProblems).Count 'the native policy matches the requested automatic run'
+        Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $answer.Result -ExitCode $answer.ExitCode).Count 'a complete automatic result has no lease problem'
+    }
+    $before = [IO.File]::ReadAllText($argumentsPath)
+    $thrown = $false
+    try { [void](Invoke-DxUiInteractiveLease @parameters -AutoStart -ConfirmSeconds 0) } catch { $thrown = $_.Exception.Message.Contains('positive countdown') }
+    Assert-True $thrown 'automatic mode refuses a zero countdown before native launch'
+    Assert-Equal $before ([IO.File]::ReadAllText($argumentsPath)) 'the refused call did not launch or replace the prior arguments'
+    $acceptedInvalid = [Collections.Generic.List[string]]::new()
+    foreach ($label in @('missing','wrong-mode','wrong-countdown','invalid-countdown','missing-action','declined-action','unknown-action','duplicate-mode','duplicate-countdown','duplicate-action')) {
+        $parameters.Label = $label
+        $answer = Invoke-DxUiInteractiveLease @parameters -AutoStart
+        if (@($answer.PolicyProblems).Count -eq 0) { $acceptedInvalid.Add($label) }
+    }
+    Assert-Equal 0 $acceptedInvalid.Count "invalid automatic results are rejected; accepted: $($acceptedInvalid -join ', ')"
+    $parameters.Label = 'unrequested'
+    $answer = Invoke-DxUiInteractiveLease @parameters
+    Assert-True (@($answer.PolicyProblems).Count -gt 0) 'ordinary calls reject an unrequested automatic policy'
+    $parameters.Label = 'missing'
+    $answer = Invoke-DxUiInteractiveLease @parameters
+    Assert-Equal 0 @($answer.PolicyProblems).Count 'ordinary historical results remain readable without the new metadata'
+}
+Invoke-FixtureCase 'automatic start without an interactive request stops before tooling, build or output writes' { param($fixture)
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    $run = Invoke-TestScript @('-InteractiveAutoStart', '-Suites', 'Grid') @{ CI='true' } $fixture
+    Assert-True ($run.Exited -and $run.Exit -ne 0) 'the invalid combination ends with a failure'
+    Assert-True ((Get-FlatText $run.Output).Contains('-InteractiveAutoStart requires -Interactive')) 'it names the required explicit interactive request'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'nothing was built, logged or reported'
+}
+Invoke-FixtureCase 'an approved automatic request still refuses a CI desktop before building or running' { param($fixture)
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    $run = Invoke-TestScript @('-Interactive', '-InteractiveAutoStart') @{ CI='true' } $fixture
+    Assert-True ($run.Exited -and $run.Exit -ne 0) 'the unavailable desktop is refused'
+    Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none')) 'automatic mode keeps the existing desktop refusal'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no test or build output was written'
+}
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'
     @'

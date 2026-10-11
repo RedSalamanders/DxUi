@@ -107,6 +107,10 @@ investigation of the intermittent ASan UIA selection-event failure. Continue on 
   complete actual provenance on unchanged bytes at clean `4bcc32fb`. The fresh Release confirmation also times out
   before any child executes. Fresh Release/Debug foreground validation remains open; earlier focus evidence
   qualifies its own binaries only.
+- [ ] Implement and qualify the user's approved automatic Start mode (11 October): a visible 30-second countdown,
+  immediate cancellation, distinct native start/mode/countdown provenance, post-countdown desktop recheck, private-
+  desktop/fake/tooling regressions and fresh focus execution. Ordinary manual confirmation remains the default for
+  runs without explicit automatic-start approval. Existing ASan success qualifies its archived lease bytes only.
 
 The original follow-up retains 57 noninteractive suite passes (nineteen each in Debug/Release/ASan, zero skips),
 four native profiling feature cases and six-profile builds. The corrected setup-diagnostic inputs separately pass
@@ -125,6 +129,8 @@ and [UIA packet](../../../Measurements/UiaSelection/2026-10-10/README.md) preser
 
 This follow-up changes diagnostics/test reporting, not control visuals; review the documentation/gallery contract
 and retain the published design-system/gallery assets unless investigation changes visible product behavior.
+The approved automatic-start change affects the private test-harness dialog and workflow. Public controls, layout,
+themes, design-system tokens/previews and published gallery pixels are unchanged; no gallery regeneration is applicable.
 Native ARM64, physical-input and consumer gates stay separately owned. Stable controls and independently qualified
 policy/candidate evidence remain prerequisites for enabling the required CI rule.
 

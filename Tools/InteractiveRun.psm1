@@ -136,6 +136,7 @@ function Read-DxUiLeaseResult {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
     $facts = [ordered]@{}
     $children = [Collections.Generic.List[object]]::new()
+    $confirmationDuplicates = [Collections.Generic.List[string]]::new()
     foreach ($line in $Text -split '\r?\n') {
         if ($line -notmatch '^(?<key>[A-Za-z][A-Za-z0-9.]*): (?<value>.*)$') { continue }
         $key = $Matches['key']
@@ -150,7 +151,12 @@ function Read-DxUiLeaseResult {
                     TimedOut = $Matches['timedout'] -eq '1'; Interrupted = $Matches['interrupted'] -eq '1'
                 })
             }
-        } else { $facts[$key] = $value }
+        } else {
+            if ($key -in @('confirmation','confirmation.autoStart','confirmation.seconds') -and $facts.Contains($key)) {
+                $confirmationDuplicates.Add($key)
+            }
+            $facts[$key] = $value
+        }
     }
     if (-not $facts.Contains('state')) { return $null }
     $part = { param([string] $Key) if ($facts.Contains($Key)) { $facts[$Key] } else { 'none' } }
@@ -159,6 +165,9 @@ function Read-DxUiLeaseResult {
         Exit = if ($facts.Contains('exit')) { [int]$facts['exit'] } else { -1 }
         Reason = if ($facts.Contains('reason')) { $facts['reason'] } else { '' }
         Confirmation = & $part 'confirmation'
+        AutoStart = $facts.Contains('confirmation.autoStart') -and $facts['confirmation.autoStart'] -eq '1'
+        ConfirmationSeconds = if ($facts.Contains('confirmation.seconds') -and $facts['confirmation.seconds'] -match '^\d+$') { [uint32]$facts['confirmation.seconds'] } else { $null }
+        ConfirmationDuplicates = $confirmationDuplicates.ToArray()
         SavedForeground = if ($facts.Contains('foreground.saved')) { $facts['foreground.saved'] } else { '' }
         Foreground = & $part 'restoration.foreground'
         Focus = & $part 'restoration.focus'
@@ -272,9 +281,15 @@ function Invoke-DxUiLeaseCore {
         [Parameter(Mandatory)][int] $EstimateSeconds,
         [Parameter(Mandatory)][string] $WorkDirectory,
         [switch] $Hosted,
+        [switch] $AutoStart,
         [int] $ConfirmSeconds = 120,
         [int] $ChildTimeoutSeconds = 900
     )
+    if ($AutoStart) {
+        if ($Hosted) { throw 'Automatic start is limited to an explicitly approved local interactive run.' }
+        if (-not $PSBoundParameters.ContainsKey('ConfirmSeconds')) { $ConfirmSeconds = 30 }
+        if ($ConfirmSeconds -le 0) { throw 'Automatic start requires a positive countdown.' }
+    }
     $plan = Join-Path $WorkDirectory 'interactive-plan.txt'
     $result = Join-Path $WorkDirectory 'interactive-result.txt'
     # A result left by an earlier run must never be taken for this run's.
@@ -282,10 +297,27 @@ function Invoke-DxUiLeaseCore {
     [IO.File]::WriteAllText($plan, (New-DxUiLeasePlanText -Runs $Runs), [Text.UTF8Encoding]::new($false))
     # Native stdout is progress for the person, not part of this function's returned object.
     $mode = if ($Hosted) { '--run-hosted' } else { '--run' }
-    & $Executable $mode "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
+    $automatic = @(if ($AutoStart) { '--auto-start' })
+    & $Executable $mode @automatic "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
     $exit = $LASTEXITCODE
     $parsed = if (Test-Path -LiteralPath $result -PathType Leaf) { Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText($result)) }
-    return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan }
+    $policyProblems = @()
+    if ($AutoStart -and $null -ne $parsed) {
+        if (@($parsed.ConfirmationDuplicates).Count) { $policyProblems += 'the native lease repeated automatic-start confirmation or policy fields' }
+        if ($parsed.State -eq 'completed' -and $parsed.Confirmation -cnotin @('started','autostarted')) {
+            $policyProblems += 'the completed approved lease did not record a clicked or automatic Start'
+        }
+    }
+    if ($AutoStart -and ($null -eq $parsed -or -not $parsed.AutoStart -or $parsed.ConfirmationSeconds -ne $ConfirmSeconds)) {
+        $policyProblems += 'the native lease did not record the requested automatic-start policy and countdown'
+    } elseif ($null -ne $parsed -and $parsed.AutoStart -and -not $AutoStart) {
+        $policyProblems += 'the native lease recorded an automatic-start policy that was not requested'
+    }
+    if ($null -ne $parsed -and $parsed.Confirmation -eq 'autostarted' -and (-not $parsed.AutoStart -or $parsed.ConfirmationSeconds -le 0)) {
+        $policyProblems += 'the native lease recorded automatic Start without a positive approved countdown'
+    }
+    return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan;
+        RequestedAutoStart=[bool]$AutoStart; RequestedConfirmationSeconds=$ConfirmSeconds; PolicyProblems=$policyProblems }
 }
 
 function Write-DxUiLeaseFailureLog {
@@ -300,6 +332,7 @@ function Invoke-DxUiInteractiveLease {
         [Parameter(Mandatory)][string] $Label,
         [Parameter(Mandatory)][int] $EstimateSeconds,
         [Parameter(Mandatory)][string] $WorkDirectory,
+        [switch] $AutoStart,
         [int] $ConfirmSeconds = 120,
         [int] $ChildTimeoutSeconds = 900
     )

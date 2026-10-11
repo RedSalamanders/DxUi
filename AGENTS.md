@@ -80,6 +80,9 @@ DxUi's own suites that take real focus (`Menu`, `NativeTextInput` and the two me
 `test.ps1 -Interactive`, which refuses without an interactive desktop, asks first, warns while it runs and restores the foreground
 window, keyboard focus and pointer however the run ends. Run it, or any of those suites, only when the person at the desktop has
 agreed to the time; otherwise leave them out of `-Suites`.
+Explicit agreement to automatic start also permits `test.ps1 -Interactive -InteractiveAutoStart`: its visible
+30-second countdown defaults to Start unless cancelled. It retains desktop checks, warning and verified restoration.
+Ordinary `-Interactive` still asks first and defaults to Cancel. Silence supplies no automatic-start authorization.
 
 ## Scoped testing policy (2026-10-05)
 

@@ -2,7 +2,7 @@
 //
 // The control suites that need real focus (Menu, NativeTextInput and the two menu resource fixtures) take the foreground, the keyboard
 // focus and the pointer. This program runs them for a person who agreed to it, or for an exactly verified GitHub-hosted Windows job:
-// it refuses when there is no desktop to take, asks a local person first (the default answer is Cancel), shows a warning for the length
+// it refuses when there is no desktop to take, confirms locally (or counts down an explicitly approved automatic start), shows a warning for the length
 // of the run, runs each suite as a child of its own, and puts the
 // person's foreground window, keyboard focus and pointer position back whatever ended the run: a failed suite, the runner's watchdog
 // (exit code 124), a hung child, Ctrl+C. The logic is in Tests/Support/Support.Tests.InteractiveLease.h and DesktopLease.h, which the control
@@ -10,7 +10,7 @@
 //
 //   DxUi.InteractiveLease.exe --check [--result=<file>]
 //   DxUi.InteractiveLease.exe --run --plan=<file> --result=<file> [--label=<text>] [--estimate=<seconds>]
-//                             [--confirm-timeout=<seconds>] [--child-timeout=<seconds>]
+//                             [--auto-start] [--confirm-timeout=<seconds>] [--child-timeout=<seconds>]
 //   DxUi.InteractiveLease.exe --self-test
 //
 // Exit codes are in DxUi::TestSupport::LeaseExit. --self-test takes nothing of the person's desktop: it opens the dialog and the
@@ -292,6 +292,7 @@ public:
                         TS::ToUtf8(request.label),
                         TS::FormatApproximateDuration(request.estimateSeconds),
                         request.confirmSeconds == 0u ? std::string("the confirmation waits for an answer")
+                        : request.autoStart          ? std::format("approved automatic Start in {} s; Cancel stops it", request.confirmSeconds)
                                                      : std::format("the confirmation cancels itself in {} s", request.confirmSeconds)));
         const TS::Confirmation answer = IL::Confirm(request, g_interrupted);
         Log(std::format("confirmation: {}", TS::ConfirmationName(answer)));
@@ -432,6 +433,7 @@ int Usage(std::string_view problem)
                  "%.*s\n"
                  "usage: DxUi.InteractiveLease.exe --check [--result=<file>]\n"
                  "       DxUi.InteractiveLease.exe --run --plan=<file> --result=<file> [--label=<text>] [--estimate=<seconds>]\n"
+                 "                                 [--auto-start] [--confirm-timeout=<seconds>] [--child-timeout=<seconds>]\n"
                  "       DxUi.InteractiveLease.exe --run-hosted --plan=<file> --result=<file> [--label=<text>] [--estimate=<seconds>]\n"
                  "                                 [--confirm-timeout=<seconds>] [--child-timeout=<seconds>]\n"
                  "       DxUi.InteractiveLease.exe --self-test\n",
@@ -461,6 +463,7 @@ struct RunOptions
     unsigned estimateSeconds     = 0u;
     unsigned confirmSeconds      = 120u;
     unsigned childTimeoutSeconds = 900u;
+    bool autoStart               = false;
 };
 
 int Run(const RunOptions& options, bool hosted)
@@ -481,6 +484,7 @@ int Run(const RunOptions& options, bool hosted)
     request.estimateSeconds     = options.estimateSeconds;
     request.confirmSeconds      = options.confirmSeconds;
     request.childTimeoutSeconds = options.childTimeoutSeconds;
+    request.autoStart           = options.autoStart;
 
     Win32LeaseServices services(kLeaseMutexName, hosted);
     const TS::LeaseOutcome outcome = TS::RunLease(services, request);
@@ -794,9 +798,10 @@ private:
             request.label           = L"Menu, NativeTextInput (x64 Debug)";
             request.estimateSeconds = 100u;
             const std::atomic<bool> calm{false};
-            const auto ask = [&](unsigned seconds, IL::DialogScript script, const std::atomic<bool>& stopped)
+            const auto ask = [&](unsigned seconds, IL::DialogScript script, const std::atomic<bool>& stopped, bool autoStart = false)
             {
                 request.confirmSeconds = seconds;
+                request.autoStart      = autoStart;
                 script.silent          = true; // A test run makes no sound.
                 return IL::Confirm(request, stopped, script);
             };
@@ -821,6 +826,30 @@ private:
                 Check(ask(30u, {}, stopped) == TS::Confirmation::Interrupted, "a run stopped while the person is asked ends the confirmation");
             }
             Check(ask(0u, {IL::kStartButton, 300u}, calm) == TS::Confirmation::Started, "a confirmation without a time limit waits for the person");
+            {
+                const auto before = std::chrono::steady_clock::now();
+                Check(ask(1u, {}, calm, true) == TS::Confirmation::AutoStarted, "an approved countdown starts without a click and records automatic Start");
+                const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - before).count();
+                Check(seconds >= 0.9 && seconds < 20.0, "automatic Start waits for the visible countdown to expire");
+            }
+            Check(ask(1u, {IDCANCEL, 300u}, calm, true) == TS::Confirmation::Declined, "Cancel before the automatic deadline prevents Start");
+            Check(ask(1u, {0, 300u, true, true}, calm, true) == TS::Confirmation::Declined, "closing the approved countdown prevents Start");
+            Check(ask(1u, {IL::kStartButton, 300u}, calm, true) == TS::Confirmation::Started, "a clicked Start remains distinct from an automatic Start");
+            {
+                const std::atomic<bool> stopped{true};
+                Check(ask(1u, {}, stopped, true) == TS::Confirmation::Interrupted, "interruption prevents an approved automatic Start");
+                Check(ask(0u, {}, calm, true) == TS::Confirmation::Unavailable, "automatic mode never opens an unlimited countdown");
+            }
+            {
+                IL::DialogState cancelled(1u, true);
+                cancelled.answer = TS::Confirmation::Declined;
+                IL::DialogCallback(nullptr, TDN_TIMER, 1000u, 0, reinterpret_cast<LONG_PTR>(&cancelled));
+                Check(cancelled.answer == TS::Confirmation::Declined, "a committed cancellation is not overwritten by a later deadline");
+                IL::DialogState started(1u, true);
+                started.answer = TS::Confirmation::AutoStarted;
+                IL::DialogCallback(nullptr, TDN_BUTTON_CLICKED, IDCANCEL, 0, reinterpret_cast<LONG_PTR>(&started));
+                Check(started.answer == TS::Confirmation::AutoStarted, "a later button notification does not relabel a committed automatic Start");
+            }
 
             IL::WarningBanner banner;
             Check(banner.Show(request.label, request.estimateSeconds), "the warning is shown");
@@ -947,6 +976,7 @@ int wmain(int argc, wchar_t** argv)
         SelfTest
     } mode = Mode::None;
     RunOptions options;
+    bool confirmSecondsSpecified = false;
     std::filesystem::path checkResult;
     std::optional<std::wstring> selfTestChildMode;
     for (int index = 1; index < argc; ++index)
@@ -958,6 +988,8 @@ int wmain(int argc, wchar_t** argv)
             mode = Mode::Run;
         else if (argument == L"--run-hosted")
             mode = Mode::RunHosted;
+        else if (argument == L"--auto-start")
+            options.autoStart = true;
         else if (argument == L"--self-test")
             mode = Mode::SelfTest;
         else if (const auto child = ValueOf(argument, L"--self-test-child"))
@@ -980,6 +1012,7 @@ int wmain(int argc, wchar_t** argv)
         {
             if (! ParseSeconds(*confirm, options.confirmSeconds))
                 return Usage("--confirm-timeout takes a whole number of seconds (0 waits for as long as it takes)");
+            confirmSecondsSpecified = true;
         }
         else if (const auto bound = ValueOf(argument, L"--child-timeout"))
         {
@@ -993,6 +1026,15 @@ int wmain(int argc, wchar_t** argv)
         return Usage("choose --check, --run, --run-hosted or --self-test");
     if ((mode == Mode::Run || mode == Mode::RunHosted) && (options.plan.empty() || options.result.empty()))
         return Usage("--run and --run-hosted need --plan=<file> and --result=<file>");
+    if (options.autoStart)
+    {
+        if (mode != Mode::Run || selfTestChildMode.has_value())
+            return Usage("--auto-start requires a local --run with prior agreement to the time");
+        if (! confirmSecondsSpecified)
+            options.confirmSeconds = 30u;
+        if (options.confirmSeconds == 0u)
+            return Usage("--auto-start requires a positive countdown");
+    }
     // The hosted path bypasses the person-facing confirmation only when every runner marker is exact. Keep this check before desktop
     // inspection, DPI changes, warning creation, lease acquisition or result-file writes.
     if (mode == Mode::RunHosted && ! IsVerifiedGitHubHostedRunner())

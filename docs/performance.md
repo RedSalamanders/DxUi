@@ -428,7 +428,11 @@ suite that records a skip fails the run, since the run exists to execute what ot
 (a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
 [validation contract](../Specs/Testing/Testing_Validation.md) has the details.
 The human summary follows the recorded foreground/focus/pointer statuses. Missing or failed restoration never means
-unchanged just because `runMovedSomething` is false. Saved/exit pointer positions do not identify which action moved it.
+an unchanged desktop just because `runMovedSomething` is false. Saved/exit pointer positions do not identify which action moved it.
+After the person explicitly approves automatic start and the test time, add
+`-InteractiveAutoStart` to `-Interactive`. The visible dialog starts after a 30-second countdown if nobody clicks;
+Cancel, Esc, closing the dialog and Ctrl+C stop it. This mode keeps desktop checks and verified restoration and
+records `autostarted` separately from a clicked Start, with the actual native policy/countdown checked against the request.
 
 `performance-forms.ps1 -Configuration Release -Platform x64 -Blocks 12 -Seed 20261010` measures a synthetic
 eight-field manual/form pair within one candidate. Before timing it requires matching leaf state, UIA metadata,

@@ -51,7 +51,18 @@ initial acquisition. Setup failure remains a failure, and retries retain all ear
 Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;
-ordinary local and self-hosted runs still require the person's confirmation through `-Interactive`.
+ordinary local and self-hosted runs still require the person's time agreement through `-Interactive`, followed by
+the native Start confirmation unless automatic start was explicitly approved.
+When the person has explicitly approved automatic start and the test time, add `-InteractiveAutoStart`:
+
+```powershell
+./test.ps1 -Configuration Release -Platform x64 -SkipBuild -Interactive -InteractiveAutoStart -Suites Menu,NativeTextInput,MenuResources,MenuResourceScaling
+```
+
+The visible dialog defaults to Start and starts after 30 seconds if nobody clicks. Cancel, Esc, closing the dialog
+and Ctrl+C stop it. Ordinary `-Interactive` keeps its two-minute Cancel default. Both modes use the same warning,
+desktop refusal and verified restoration. Automatic receipts record the native mode/countdown and distinguish
+`autostarted` from a clicked `started`; missing or mismatched automatic metadata fails the parent run.
 The printed summary uses all three restoration statuses. A false `runMovedSomething` flag or exit code 0 without a
 result cannot establish an unchanged desktop; saved/exit pointer coordinates alone do not identify what moved it.
 If a verified hosted runner refuses ordinary warning activation, the lease can briefly clip its warning to a marked
