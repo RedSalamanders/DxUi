@@ -2872,9 +2872,12 @@ void TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement()
     Require(state.text == field->GetText(), "native ime end after result commit keeps native state synchronized with retained text");
 }
 
-void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
+bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
 {
     using namespace DxUi;
+
+    Require(! simulateFirstLoss || TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
+            "the forced IME setup loss uses an explicitly nonactivating window fixture");
 
     {
         AttachedHostWindow window;
@@ -2893,6 +2896,7 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
             bool activated            = false;
             bool onChar               = false;
             size_t beforeLength       = 0u;
+            bool beforeOneA           = false;
             size_t typedLength        = 0u;
             size_t pumpedLength       = 0u;
             bool typedOneA            = false;
@@ -2906,14 +2910,20 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         };
         constexpr int maximumRuns = 5;
         std::array<SetupAttempt, maximumRuns> attempts{};
-        size_t attemptCount     = 0u;
-        bool setup              = false;
-        const auto focusAndType = [&]
+        size_t attemptCount        = 0u;
+        bool setup                 = false;
+        bool discardedTextSurvived = false;
+        const auto focusAndType    = [&]
         {
             SetupAttempt& attempt = attempts[attemptCount++];
             attempt.beforeLength  = field->GetText().size();
-            attempt.activated     = TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
-            const auto observe    = [&]
+            attempt.beforeOneA    = field->GetText() == L"a";
+            setup                 = false;
+            notifications         = 0u;
+            attempt.activated     = simulateFirstLoss || TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+            if (simulateFirstLoss)
+                attempt.terminalStage = "simulated-nonactivating";
+            const auto observe = [&]
             {
                 attempt.foreground = GetForegroundWindow();
                 attempt.focus      = GetFocus();
@@ -2932,6 +2942,11 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
             attempt.onChar      = setup;
             attempt.typedLength = field->GetText().size();
             attempt.typedOneA   = field->GetText() == L"a";
+            if (simulateFirstLoss && attemptCount == 1u)
+            {
+                SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+                discardedTextSurvived = field->GetText() == L"a";
+            }
             window.PumpMessages();
             attempt.pumpedLength = field->GetText().size();
             attempt.pumpedOneA   = field->GetText() == L"a";
@@ -2941,31 +2956,38 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         for (size_t index = 0u; index < attemptCount; ++index)
         {
             const auto& attempt = attempts[index];
-            std::cerr << std::format(
-                "    [IME-UNDO-SETUP] attempt={} activated={} terminal={} onChar={} textLengths={}/{}/{} oneA={}/{} "
-                "foreground={:x} foregroundProcess={} focus={:x} target={:x} logicalTarget={} nativeSession={} losses={} held={} notifications={}\n",
-                index + 1u,
-                attempt.activated,
-                attempt.terminalStage,
-                attempt.onChar,
-                attempt.beforeLength,
-                attempt.typedLength,
-                attempt.pumpedLength,
-                attempt.typedOneA,
-                attempt.pumpedOneA,
-                reinterpret_cast<uintptr_t>(attempt.foreground),
-                attempt.foregroundProcess,
-                reinterpret_cast<uintptr_t>(attempt.focus),
-                reinterpret_cast<uintptr_t>(window.Hwnd()),
-                attempt.logicalTarget,
-                attempt.nativeSession,
-                attempt.foregroundLosses,
-                run.held,
-                notifications);
+            std::cerr << std::format("    [IME-UNDO-SETUP] attempt={} activated={} terminal={} onChar={} textLengths={}/{}/{} oneA={}/{} "
+                                     "foreground={:x} foregroundProcess={} focus={:x} target={:x} logicalTarget={} nativeSession={} losses={} sequenceHeld={} "
+                                     "finalNotifications={}\n",
+                                     index + 1u,
+                                     attempt.activated,
+                                     attempt.terminalStage,
+                                     attempt.onChar,
+                                     attempt.beforeLength,
+                                     attempt.typedLength,
+                                     attempt.pumpedLength,
+                                     attempt.typedOneA,
+                                     attempt.pumpedOneA,
+                                     reinterpret_cast<uintptr_t>(attempt.foreground),
+                                     attempt.foregroundProcess,
+                                     reinterpret_cast<uintptr_t>(attempt.focus),
+                                     reinterpret_cast<uintptr_t>(window.Hwnd()),
+                                     attempt.logicalTarget,
+                                     attempt.nativeSession,
+                                     attempt.foregroundLosses,
+                                     run.held,
+                                     notifications);
         }
         if (! ForegroundHeldOrSkip(run, "native IME composition undo grouping"))
-            return;
+            return false;
+        if (simulateFirstLoss)
+        {
+            Require(run.runs == 2 && attemptCount == 2u, "the forced first IME setup loss retries exactly once");
+            Require(discardedTextSurvived && attempts[1].beforeOneA, "the discarded direct edit survives foreground loss until the next setup resets it");
+        }
         Require(setup && field->GetText() == L"a", "undo fixture creates one earlier independent typed edit");
+        Require(GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession(),
+                "native IME undo grouping owns thread keyboard focus and an active native session");
         notifications = 0u;
 
         static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
@@ -2994,6 +3016,22 @@ void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
         Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the earlier typed edit remains independently undoable");
         Require(field->GetText().empty(), "the second undo removes only the earlier typed edit");
     }
+
+    return true;
+}
+
+void TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    Require(VerifyNativeImeUndoGrouping(true), "the forced first IME setup loss completes the original composition and two-undo assertions");
+}
+
+void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
+{
+    using namespace DxUi;
+
+    if (! VerifyNativeImeUndoGrouping(false))
+        return;
 
     {
         AttachedHostWindow window;
@@ -8974,6 +9012,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement);
     DXUI_RUN_TEST(TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText);
+    DXUI_RUN_TEST(TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt);
     DXUI_RUN_TEST(TestNativeImeResultCallbacksPreserveNewerTextAndComposition);
     DXUI_RUN_TEST(TestNativeImeCancellationCallbacksPreserveNewerState);
     DXUI_RUN_TEST(TestNativeTextInputProviderExposesImeTextEditRanges);
