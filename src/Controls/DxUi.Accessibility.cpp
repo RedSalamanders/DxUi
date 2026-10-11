@@ -11571,7 +11571,8 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
             if (! target->host.load(std::memory_order_acquire))
                 break;
             wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-            if (SUCCEEDED(property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()))))
+            const HRESULT senderResult = property.registration->git->GetInterfaceFromGlobal(property.registration->cookie, IID_PPV_ARGS(provider.put()));
+            if (SUCCEEDED(senderResult))
             {
                 wil::unique_variant previous, current;
                 const HRESULT oldResult = ResolveAccessibilityPropertyValue(property.previousInterface, previous);
@@ -11582,11 +11583,15 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
                     continue; // No raw-interface or synchronous fallback after failed marshalling.
                 }
                 // Scalar/BSTR values already belong to this batch; do not copy or allocate them again during delivery.
-                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(),
-                                                                         property.propertyId,
-                                                                         property.previousInterface ? previous : property.previous,
-                                                                         property.currentInterface ? current : property.current));
+                const HRESULT deliveryResult = UiaRaiseAutomationPropertyChangedEvent(provider.get(),
+                                                                                      property.propertyId,
+                                                                                      property.previousInterface ? previous : property.previous,
+                                                                                      property.currentInterface ? current : property.current);
+                if (FAILED(deliveryResult))
+                    Debug::Error(L"DxUi: embedded property notification delivery failed (property {}, {:08X})", property.propertyId, deliveryResult);
             }
+            else
+                Debug::Error(L"DxUi: embedded property notification sender resolution failed (property {}, {:08X})", property.propertyId, senderResult);
         }
     }
     else

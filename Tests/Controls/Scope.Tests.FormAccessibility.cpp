@@ -5,6 +5,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 
+#include <array>
 #include <thread>
 
 namespace
@@ -235,14 +236,47 @@ struct FormFixture final
     return events;
 }
 
+struct PropertyPublicationAttempts final
+{
+    PropertyPublicationAttempts()
+    {
+        DxUi::DebugSetAccessibilityPropertyEventHookForTest(&OnEvent, this);
+    }
+    ~PropertyPublicationAttempts()
+    {
+        DxUi::DebugSetAccessibilityPropertyEventHookForTest(nullptr, nullptr);
+    }
+    PropertyPublicationAttempts(const PropertyPublicationAttempts&)            = delete;
+    PropertyPublicationAttempts& operator=(const PropertyPublicationAttempts&) = delete;
+
+    static void OnEvent(long property, void* context) noexcept
+    {
+        auto& self = *static_cast<PropertyPublicationAttempts*>(context);
+        if (self.count < self.properties.size())
+            self.properties[self.count] = property;
+        ++self.count;
+    }
+
+    void Print() const
+    {
+        std::cerr << "    [form UIA owner] attempts=" << count << " properties=";
+        for (size_t index = 0u; index < (std::min)(count, properties.size()); ++index)
+            std::cerr << properties[index] << ',';
+        std::cerr << " truncated=" << (count > properties.size()) << '\n';
+    }
+
+    std::array<long, 32u> properties{};
+    size_t count = 0u;
+};
+
 void ExpectEvents(UiaTest::Client& client, size_t mark, const std::vector<std::pair<PROPERTYID, std::wstring>>& expected)
 {
     const bool arrived = client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]() { return FieldEvents(client, mark).size() >= expected.size(); });
     if (! arrived)
     {
         std::cerr << "    [form UIA] mark=" << mark << " expected=" << expected.size() << " heard=" << FieldEvents(client, mark).size() << " properties=";
-        for (const auto& [property, value] : expected)
-            std::cerr << property << ',';
+        for (const auto& property : expected)
+            std::cerr << property.first << ',';
         std::cerr << '\n';
         client.PrintEvents();
     }
@@ -385,25 +419,35 @@ void PresentationEventsAreIdempotent(Hosting hosting)
     UiaTest::Client client(fixture.Hwnd(), FormSubscription(), [&]() { fixture.Pump(); }, true);
     Require(FindClientField(client, client.Root()) != 0u, "real UIA client walks to form semantic editor");
     client.WaitOutTheStream();
-    auto mark = client.Mark();
+    PropertyPublicationAttempts attempts;
+    client.SetFailureDiagnostic([&]() { attempts.Print(); });
+    const auto clearDiagnostic   = wil::scope_exit([&]() noexcept { client.SetFailureDiagnostic({}); });
+    auto mark                    = client.Mark();
+    const auto beforePreparation = fixture.view.GetStatistics().preparations;
+    const bool listeningBefore   = UiaClientsAreListening() != FALSE;
     fixture.field->SetDescription(L"Largeur finale du dessin.");
     RequireSucceeded(fixture.field->SetRequired(true), "change form required state");
     RequireSucceeded(fixture.field->SetValidation(DxUi::ValidationState::Error, std::wstring(kError)), "change form validation state");
     fixture.Publish();
+    std::cerr << "    [form UIA publication] embedded=" << (hosting == Hosting::Embedded) << " preparations=" << beforePreparation << ".."
+              << fixture.view.GetStatistics().preparations << " listening=" << listeningBefore << ".." << (UiaClientsAreListening() != FALSE) << '\n';
+    attempts.Print();
     ExpectEvents(client,
                  mark,
                  {{UIA_HelpTextPropertyId, L"Largeur finale du dessin."},
                   {UIA_IsRequiredForFormPropertyId, L"true"},
                   {UIA_IsDataValidForFormPropertyId, L"false"},
                   {UIA_ItemStatusPropertyId, std::wstring(kError)}});
-    mark = client.Mark();
+    mark           = client.Mark();
+    attempts.count = 0u;
     fixture.field->SetDescription(L"Largeur finale du dessin.");
     RequireSucceeded(fixture.field->SetRequired(true), "repeat required state");
     RequireSucceeded(fixture.field->SetValidation(DxUi::ValidationState::Error, std::wstring(kError)), "repeat validation state");
     fixture.Publish();
     client.WaitOutTheStream();
     Require(FieldEvents(client, mark).empty(), "repeated unchanged presentation raises no UIA property events");
-    mark = client.Mark();
+    mark           = client.Mark();
+    attempts.count = 0u;
     fixture.field->SetDescription({});
     RequireSucceeded(fixture.field->SetRequired(false), "restore optional state");
     RequireSucceeded(fixture.field->SetValidation(DxUi::ValidationState::None, {}), "restore valid state");
