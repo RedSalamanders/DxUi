@@ -28,6 +28,20 @@ deduplication. The Grid unchanged-selection regression records both provider emi
 retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
 messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
 
+The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
+admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does
+not initialize it again. Each admitted attempt clears the field with `SetText(L"")` before creating its one earlier
+independent typed edit. Original composition notifications, composition undo, earlier-edit undo and late-result
+assertions remain required. The synthetic first-loss regression additionally requires exactly two attempts and
+an empty third undo with no text or notification change. Its `WS_EX_NOACTIVATE` window is excluded from helper
+foreground activation but still requests native thread keyboard focus, so the NativeTextInput lease remains
+required. Synthetic retry isolation does not qualify physical IME or product behavior.
+
+The activation helper MUST preserve its 800 ms polling deadline while servicing sent messages through
+`MsgWaitForMultipleObjectsEx` and `PeekMessageW` with `PM_NOREMOVE`; queued input remains for its normal pump.
+A sent callback can outlast the polling interval, so this deadline is not a hard callback bound. The native
+watchdog and existing foreground checks, grants, authorization and bounded attempts remain required.
+
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
 allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2

@@ -95,11 +95,11 @@ extents or incompatible numeric limits fail before any bounds callback. `Measure
 before timing. It retains a candidate-only diagnostic report and raw native bytes; it cannot qualify the paired
 regression policy or consumer performance. See the [performance guide](performance.md).
 
-The [10 October native/form/Grid evidence](../Measurements/Layout/2026-10-10/README.md) retains all three x64
-noninteractive profiles, six builds and the two eight-field form profiles. Unchanged work and composition allocate
-no tracked C++ memory; Form retains 7 KiB more warm plain C++ memory than Manual, released on fixture destruction.
-These diagnostic costs establish no speedup or paired regression acceptance. Focus, native ARM64 and consumer
-qualification remain open as described in the packet.
+The [10 October native/form/Grid evidence](../Measurements/Layout/2026-10-10/README.md) retains its exact-source
+local x64 noninteractive and foreground results, six builds and two eight-field form profiles. Unchanged work and
+composition allocate no tracked C++ memory; Form retains 7 KiB more warm plain C++ memory than Manual, released on
+fixture destruction. These diagnostic costs establish no speedup or paired regression acceptance. Later executable
+changes require fresh evidence; native ARM64, physical-input and consumer qualification remain separately tracked.
 
 Native/embedded library tests, [gallery captures](gallery/README.md) and the
 [design system](../Specs/DesignSystem/README.md) describe library support. Actual consumer pin updates,

@@ -52,6 +52,20 @@ distinguish initial setup from the later resize assertion. `sequenceHeld` descri
 stage reads are sequential observations, not message history. A missing foreground-loss message does not prove
 initial acquisition. Setup failure remains a failure, and retries retain all earlier attempts and their exact bytes.
 
+The IME undo-grouping fixture records bounded `[IME-UNDO-SETUP]` observations. Each admitted attempt clears its
+field with `SetText(L"")` before `SetFocusControl`, then creates one independent typed `a`. This resets any text and
+undo history from a discarded attempt while preserving the same editor and its existing focus behavior.
+`TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt` forces one discarded typed attempt, checks the original
+composition notifications and two undos, then requires a third undo to return false without changing text or
+notifications. The ordinary foreground case retains its late-result assertions. The forced window is excluded
+from helper foreground activation by `WS_EX_NOACTIVATE`; it still requests native thread keyboard focus and runs
+under the NativeTextInput lease. This is synthetic retry coverage; physical IME and product gates remain separate.
+
+The activation helper services sent messages through `MsgWaitForMultipleObjectsEx` and `PeekMessageW` with
+`PM_NOREMOVE`, retaining its 800 ms polling deadline and leaving queued input to the normal pump. Sent callbacks
+can outlast a polling interval; the native watchdog still bounds the test. Foreground checks, grants and retry
+limits remain unchanged.
+
 Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;

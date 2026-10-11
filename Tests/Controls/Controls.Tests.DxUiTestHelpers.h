@@ -225,8 +225,8 @@ inline bool RunDxUiTest(const char* name, void (*test)())
             return finish(focused, focused ? "foreground-and-focus" : "focus-after-foreground");
         }
 
-        // Cross-queue activation can need a sent-message nudge. Service those messages within the existing
-        // deadline without dispatching queued input or spinning on an already queued paint/timer message.
+        // Cross-queue activation can need a sent-message nudge. Keep the existing polling deadline and leave
+        // queued input to the normal pump. A dispatched sent callback can outlast a poll; the test watchdog remains.
         if (MsgWaitForMultipleObjectsEx(0u, nullptr, 10u, QS_SENDMESSAGE, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
         {
             return finish(false, "foreground-message-wait-failed");

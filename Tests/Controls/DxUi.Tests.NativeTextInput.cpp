@@ -2937,6 +2937,7 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
                 observe();
                 return;
             }
+            field->SetText(L"");
             window.Host().SetFocusControl(field);
             setup               = field->OnChar(window.Host(), L'a', 0u);
             attempt.onChar      = setup;
