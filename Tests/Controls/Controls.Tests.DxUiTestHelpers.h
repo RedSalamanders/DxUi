@@ -225,7 +225,14 @@ inline bool RunDxUiTest(const char* name, void (*test)())
             return finish(focused, focused ? "foreground-and-focus" : "focus-after-foreground");
         }
 
-        Sleep(10);
+        // Cross-queue activation can need a sent-message nudge. Service those messages within the existing
+        // deadline without dispatching queued input or spinning on an already queued paint/timer message.
+        if (MsgWaitForMultipleObjectsEx(0u, nullptr, 10u, QS_SENDMESSAGE, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
+        {
+            return finish(false, "foreground-message-wait-failed");
+        }
+        MSG message{};
+        static_cast<void>(PeekMessageW(&message, nullptr, WM_NULL, WM_NULL, PM_NOREMOVE));
     } while (GetTickCount64() < deadline);
 
     const bool focused = GetForegroundWindow() == hwnd && GetFocus() == hwnd;
