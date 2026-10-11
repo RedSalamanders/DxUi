@@ -589,6 +589,13 @@ batch reference releases them, in its initialized apartment, as permitted by the
 Capture/marshalling/work failures are logged without a synchronous fallback or automatic retry loop. Selection,
 text and focus events retain their separate contracts.
 
+Coalescing concerns entries still in the library's pending batch, not the number of callbacks delivered by UIA.
+Holding a client callback does not by itself prove that the library's active delivery is held. Real-client tests
+deduplicate successfully resolved equal payloads, reject unexpected values, and use a bounded internal delivery
+gate when proving replacement of the pending batch. The gate runs outside the notification mutex before UIA;
+it is diagnostic-only and dormant during ordinary delivery. Client fixtures close admission, unsubscribe and drain
+accepted callbacks before retiring references, since UIA can deliver callbacks after unsubscription.
+
 Internal embedded property-event providers retain the target and the published control's weak lifetime/identity,
 then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;
 they must not pin complete creation snapshots or prepared row epochs. Replacing the control invalidates them even

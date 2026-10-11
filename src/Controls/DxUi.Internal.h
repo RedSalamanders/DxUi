@@ -532,6 +532,9 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
 void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent, bool afterSnapshot = false) noexcept;
 void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Holds one embedded property batch after extraction, outside the slot mutex and before UIA delivery, for at most
+// twenty seconds. Clearing waits for its holder to leave before the test closes the events.
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 // Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
 // change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
 // raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or

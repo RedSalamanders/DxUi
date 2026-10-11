@@ -262,7 +262,32 @@ std::atomic<HANDLE> g_accessibilityPeerCreationGateEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityPeerCreationGateReleaseEvent{nullptr};
 std::atomic<uint32_t> g_accessibilityPeerCreationGateHolders{0u};
 std::atomic<bool> g_accessibilityPeerCreationGateArmed{false};
+std::atomic<ControlHost*> g_accessibilityPropertyDeliveryGateHost{nullptr};
+std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateEnteredEvent{nullptr};
+std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateReleaseEvent{nullptr};
+std::atomic<uint32_t> g_accessibilityPropertyDeliveryGateHolders{0u};
+std::atomic<bool> g_accessibilityPropertyDeliveryGateArmed{false};
 constexpr DWORD kAccessibilityFocusResolutionGateTimeoutMs = 5000u;
+
+void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host) noexcept
+{
+    if (! host || g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
+        ! g_accessibilityPropertyDeliveryGateArmed.load(std::memory_order_acquire))
+        return;
+    g_accessibilityPropertyDeliveryGateHolders.fetch_add(1u, std::memory_order_seq_cst);
+    const auto leave = wil::scope_exit([]() noexcept
+    {
+        g_accessibilityPropertyDeliveryGateHolders.fetch_sub(1u, std::memory_order_seq_cst);
+        g_accessibilityPropertyDeliveryGateHolders.notify_all();
+    });
+    if (g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
+        ! g_accessibilityPropertyDeliveryGateArmed.exchange(false, std::memory_order_acq_rel))
+        return;
+    if (const HANDLE enteredEvent = g_accessibilityPropertyDeliveryGateEnteredEvent.load(std::memory_order_acquire))
+        static_cast<void>(::SetEvent(enteredEvent));
+    if (const HANDLE releaseEvent = g_accessibilityPropertyDeliveryGateReleaseEvent.load(std::memory_order_acquire))
+        static_cast<void>(::WaitForSingleObject(releaseEvent, 20000u));
+}
 
 // Holds a call of `hwnd`'s GetFocus while a test has gated that window: sets the test's entered event and waits, bounded,
 // for its release event. Dormant (two loads) otherwise.
@@ -401,6 +426,10 @@ constexpr void NotifySelectionEventRaisedForTest() noexcept
 }
 
 constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
+{
+}
+
+constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*) noexcept
 {
 }
 #endif
@@ -11524,6 +11553,8 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     }
     if (SUCCEEDED(initialized))
     {
+        if (target->embedded && ! properties.empty())
+            HoldAccessibilityPropertyDeliveryForTest(target->host.load(std::memory_order_acquire));
         if (git && cookie != 0)
             static_cast<void>(git->GetInterfaceFromGlobal(cookie, IID_PPV_ARGS(root.put())));
         bool alive = false;
@@ -11867,7 +11898,12 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             wil::com_ptr_nothrow<IRawElementProviderSimple> oldLabel, newLabel;
             const auto oldValue = labelValue(beforeLabel, oldLabel);
             const auto newValue = labelValue(currentLabel, newLabel);
-            property(UIA_LabeledByPropertyId, oldValue, newValue);
+            // Native historical labels can legitimately be unavailable in the current tree. Embedded event
+            // providers do not resolve history at creation; failure there, or for a current label, is not a clear.
+            if ((currentLabel && ! newLabel) || (target.embedded && beforeLabel && ! oldLabel))
+                Debug::Error(L"DxUi: relationship notification provider creation failed");
+            else
+                property(UIA_LabeledByPropertyId, oldValue, newValue);
         }
         if (valueChanged)
             stringProperty(UIA_ValueValuePropertyId, before->controlAccessibleValue, record.controlAccessibleValue);
@@ -12312,6 +12348,25 @@ void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent
         g_accessibilityPeerCreationGateHolders.wait(holders);
     g_accessibilityPeerCreationGateEnteredEvent.store(nullptr, std::memory_order_release);
     g_accessibilityPeerCreationGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+{
+    if (host && enteredEvent && releaseEvent)
+    {
+        g_accessibilityPropertyDeliveryGateEnteredEvent.store(enteredEvent, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateReleaseEvent.store(releaseEvent, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateArmed.store(true, std::memory_order_release);
+        g_accessibilityPropertyDeliveryGateHost.store(host, std::memory_order_seq_cst);
+        return;
+    }
+    g_accessibilityPropertyDeliveryGateHost.store(nullptr, std::memory_order_seq_cst);
+    g_accessibilityPropertyDeliveryGateArmed.store(false, std::memory_order_seq_cst);
+    for (uint32_t holders = g_accessibilityPropertyDeliveryGateHolders.load(std::memory_order_seq_cst); holders != 0u;
+         holders          = g_accessibilityPropertyDeliveryGateHolders.load(std::memory_order_seq_cst))
+        g_accessibilityPropertyDeliveryGateHolders.wait(holders);
+    g_accessibilityPropertyDeliveryGateEnteredEvent.store(nullptr, std::memory_order_release);
+    g_accessibilityPropertyDeliveryGateReleaseEvent.store(nullptr, std::memory_order_release);
 }
 
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept

@@ -1,7 +1,12 @@
 #pragma once
 
 #include "../Support/Support.Tests.PreparedTreeSemanticFixture.h"
+#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
+#include <mutex>
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT) && DXUI_ENABLE_DIAGNOSTICS
+#include "../../src/Controls/DxUi.Internal.h"
+#endif
 
 class EmbeddedPreparedTreeObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                                IUIAutomationStructureChangedEventHandler,
@@ -31,18 +36,58 @@ public:
     std::atomic<HRESULT> clearedRelationshipResult{E_PENDING};
     std::atomic<bool> expectClearedRelationship{false};
     std::atomic<size_t> intermediateRelationships{0u};
+    std::atomic<size_t> duplicateFirstRelationships{0u};
+    std::atomic<size_t> duplicateLatestRelationships{0u};
+    std::atomic<bool> latestRelationshipClaimed{false};
+    std::atomic<bool> clearedRelationshipClaimed{false};
+    std::atomic<size_t> callbackActivity{0u};
     wil::com_ptr_nothrow<IUIAutomationElement> firstRelationship;
     wil::com_ptr_nothrow<IUIAutomationElement> latestRelationship;
     wil::unique_event relationshipCleared{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+    wil::unique_event callbacksDrained{CreateEventW(nullptr, TRUE, TRUE, nullptr)};
+
+    void CloseCallbacks() noexcept
+    {
+        const std::scoped_lock lock(callbackMutex);
+        acceptingCallbacks = false;
+    }
+
+    bool AdmitCallback() noexcept
+    {
+        const std::scoped_lock lock(callbackMutex);
+        if (! acceptingCallbacks)
+            return false;
+        ++activeCallbacks;
+        ++callbackActivity;
+        ResetEvent(callbacksDrained.get());
+        return true;
+    }
+
+    void LeaveCallback() noexcept
+    {
+        const std::scoped_lock lock(callbackMutex);
+        ++callbackActivity;
+        if (--activeCallbacks == 0u)
+            SetEvent(callbacksDrained.get());
+    }
+
+    std::mutex callbackMutex;
+    bool acceptingCallbacks = true;
+    size_t activeCallbacks  = 0u;
 
     HRESULT STDMETHODCALLTYPE HandlePropertyChangedEvent(IUIAutomationElement* sender, PROPERTYID property, VARIANT eventValue) noexcept override
     {
+        if (! AdmitCallback())
+            return S_OK;
+        const auto leave = wil::scope_exit([&]() noexcept { LeaveCallback(); });
         if (relationshipEvent)
         {
             if (property != UIA_LabeledByPropertyId)
                 return S_OK;
             if (expectClearedRelationship.load() && (eventValue.vt == VT_EMPTY || (eventValue.vt == VT_UNKNOWN && ! eventValue.punkVal)))
             {
+                if (clearedRelationshipClaimed.exchange(true, std::memory_order_acq_rel))
+                    return S_OK;
                 wil::com_ptr_nothrow<IUIAutomationElement> current;
                 HRESULT result = sender->get_CurrentLabeledBy(current.put());
                 if (SUCCEEDED(result) && current)
@@ -67,16 +112,26 @@ public:
                       << " first=" << (text == L"Form label first β") << " final=" << (text == L"Form label final Ω")
                       << " pending=" << (text == L"Form label pending") << " gateOpen=" << (WaitForSingleObject(continueDelivery.get(), 0) == WAIT_OBJECT_0)
                       << '\n';
-            if (! heardFirstRelationship.exchange(true, std::memory_order_acq_rel))
+            if (SUCCEEDED(result) && text == L"Form label first β")
             {
-                if (SUCCEEDED(result) && text != L"Form label first β")
-                    result = E_FAIL;
+                // UIA can deliver the same literal relationship more than once through the bridge. Each
+                // payload was queried above; only the first valid copy owns the reentrant action and pointer.
+                if (heardFirstRelationship.exchange(true, std::memory_order_acq_rel))
+                {
+                    ++duplicateFirstRelationships;
+                    return S_OK;
+                }
                 firstRelationship       = std::move(label);
                 firstRelationshipResult = result;
-                return HandleStructureChangedEvent(sender, StructureChangeType_ChildrenInvalidated, nullptr);
+                return HandleNotification(StructureChangeType_ChildrenInvalidated);
             }
             if (SUCCEEDED(result) && text == L"Form label final Ω")
             {
+                if (latestRelationshipClaimed.exchange(true, std::memory_order_acq_rel))
+                {
+                    ++duplicateLatestRelationships;
+                    return S_OK;
+                }
                 // UIA supplies the new relationship in the event. Its current property must name that same
                 // live label after the queued changes, on this real client's apartment.
                 wil::com_ptr_nothrow<IUIAutomationElement> current;
@@ -97,10 +152,18 @@ public:
         if (property == UIA_NamePropertyId && eventValue.vt == VT_BSTR && eventValue.bstrVal &&
             std::wstring_view(eventValue.bstrVal, SysStringLen(eventValue.bstrVal)) == L"Root replacement dernier Ω")
             heardLatestProperty.store(true);
-        return property == UIA_NamePropertyId ? HandleStructureChangedEvent(sender, StructureChangeType_ChildrenInvalidated, nullptr) : S_OK;
+        return property == UIA_NamePropertyId ? HandleNotification(StructureChangeType_ChildrenInvalidated) : S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE HandleStructureChangedEvent(IUIAutomationElement*, StructureChangeType change, SAFEARRAY*) noexcept override
+    {
+        if (! AdmitCallback())
+            return S_OK;
+        const auto leave = wil::scope_exit([&]() noexcept { LeaveCallback(); });
+        return HandleNotification(change);
+    }
+
+    HRESULT HandleNotification(StructureChangeType change) noexcept
     {
         if (change != StructureChangeType_ChildrenInvalidated || ! armed.exchange(false, std::memory_order_acq_rel))
             return S_OK;
@@ -194,16 +257,25 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
     Hr(bridge.Attach(false, 9317u), "attach embedded event source");
     wil::com_ptr_nothrow<EmbeddedPreparedTreeObserver> observer;
     observer.attach(Microsoft::WRL::Make<EmbeddedPreparedTreeObserver>().Detach());
-    Check(observer && observer->completed && observer->entered && observer->continueDelivery && observer->relationshipCleared,
+    Check(observer && observer->completed && observer->entered && observer->continueDelivery && observer->relationshipCleared && observer->callbacksDrained,
           "prepared Tree allocates the real client observer and delivery gates");
-    observer->gateDelivery      = coalescedBurst;
+    const bool gatedPropertyBatch =
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT) && DXUI_ENABLE_DIAGNOSTICS
+        coalescedBurst && relationshipEvent;
+#else
+        false;
+#endif
+    observer->gateDelivery      = coalescedBurst && ! gatedPropertyBatch;
     observer->retireRoot        = ! (propertyEvent && coalescedBurst);
     observer->relationshipEvent = relationshipEvent;
     wil::unique_event ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     wil::unique_event finished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    Check(ready && stop && finished, "prepared Tree client lifetime events exist");
+    wil::unique_event batchEntered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event batchRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Check(ready && stop && finished && batchEntered && batchRelease, "prepared Tree client lifetime events exist");
     std::atomic<HRESULT> setup{E_PENDING};
+    std::atomic<HRESULT> teardown{E_PENDING};
     const HWND hwnd = bridge.Hwnd();
     std::jthread client([&]
     {
@@ -280,16 +352,27 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
         if (SUCCEEDED(result))
         {
             WaitForSingleObject(stop.get(), INFINITE);
+            observer->CloseCallbacks();
             if (propertyEvent)
-                static_cast<void>(automation->RemovePropertyChangedEventHandler(element.get(), observer.get()));
+                result = automation->RemovePropertyChangedEventHandler(element.get(), observer.get());
             else
-                static_cast<void>(automation->RemoveStructureChangedEventHandler(element.get(), observer.get()));
+                result = automation->RemoveStructureChangedEventHandler(element.get(), observer.get());
         }
-        observer->lastRow.reset();
-        observer->replaceRoot.reset();
-        observer->probeOwner.reset();
-        observer->firstRelationship.reset();
-        observer->latestRelationship.reset();
+        else
+            observer->CloseCallbacks();
+        // Unsubscription can return while an already accepted callback is still running. The owner keeps
+        // pumping until finished; only after admission is closed and accepted callbacks drain can these reset.
+        if (WaitForSingleObject(observer->callbacksDrained.get(), 20000u) == WAIT_OBJECT_0)
+        {
+            observer->lastRow.reset();
+            observer->replaceRoot.reset();
+            observer->probeOwner.reset();
+            observer->firstRelationship.reset();
+            observer->latestRelationship.reset();
+        }
+        else
+            result = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+        teardown.store(result);
         SetEvent(finished.get());
     });
     const auto waitFor = [&](HANDLE event)
@@ -314,9 +397,22 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
         SetEvent(observer->continueDelivery.get());
         SetEvent(stop.get());
         Check(waitFor(finished.get()), "prepared Tree client unsubscription finishes before join");
+        Check(SUCCEEDED(teardown.load()), "accepted prepared Tree callbacks drain before client references retire");
     });
     Check(waitFor(ready.get()) && SUCCEEDED(setup.load()), "real client subscribes to prepared Tree structure changes");
     Check(probeActions == 1, "real client owner action succeeds outside the notification callback");
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT) && DXUI_ENABLE_DIAGNOSTICS
+    const auto releasePropertyGate = wil::scope_exit([&]() noexcept
+    {
+        if (gatedPropertyBatch)
+        {
+            SetEvent(batchRelease.get());
+            DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
+        }
+    });
+    if (gatedPropertyBatch)
+        DebugSetAccessibilityPropertyDeliveryGateForTest(&view.Controls(), batchEntered.get(), batchRelease.get());
+#endif
     observer->armed.store(true, std::memory_order_release);
     const auto notificationWitness = relationshipEvent ? std::make_shared<PreparedTreeSourceWitness>() : witness;
     model.Replace(
@@ -337,7 +433,8 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
     std::cerr << "[PREPARED TREE PUBLISH] notifyMs=" << notifyFinished - notifyStarted << " refreshMs=" << publishFinished - notifyFinished << '\n';
     if (coalescedBurst)
     {
-        Check(waitFor(observer->entered.get()), "real notification enters its retained-client gate before the publication burst");
+        Check(waitFor(gatedPropertyBatch ? batchEntered.get() : observer->entered.get()),
+              "the active notification batch or real callback enters its explicit gate before the publication burst");
         std::array<std::shared_ptr<PreparedTreeSourceWitness>, 32u> burstWitnesses;
         for (size_t index = 0u; index < burstWitnesses.size(); ++index)
         {
@@ -357,12 +454,13 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
             Hr(bridge.Update(), "publish changed embedded source");
         }
         for (size_t index = 0u; index + 1u < burstWitnesses.size(); ++index)
-            Check(burstWitnesses[index]->destructions.load() == 1u, "a blocked real notification does not retain intermediate prepared source generations");
+            Check(burstWitnesses[index]->destructions.load() == 1u, "a held notification does not retain intermediate prepared source generations");
         if (relationshipEvent)
-            Check(notificationWitness->destructions.load() == 1u, "a client-retained relationship event value does not pin its prepared row source");
+            Check(notificationWitness->destructions.load() == 1u, "a retained relationship notification value does not pin its prepared row source");
         Check(burstWitnesses.back()->destructions.load() == 0u && replacements == 0u,
               "the final coherent source stays alive and the client action waits behind its explicit gate");
         SetEvent(observer->continueDelivery.get());
+        SetEvent(batchRelease.get());
     }
     const bool notified = waitFor(observer->completed.get());
     std::cerr << "[PREPARED TREE CLIENT] notified=" << notified << " read=" << std::hex << observer->readResult.load()
@@ -389,7 +487,23 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
         if (relationshipEvent)
         {
             Check(observer->latestRelationshipResult.load() == S_OK, "latest relationship event and current LabeledBy property name the same live label");
-            Check(observer->intermediateRelationships.load() == 0u, "held relationship delivery coalesces intermediate changes to the latest value");
+            Check(waitFor(observer->callbacksDrained.get()), "relationship callbacks finish before the event set is reviewed");
+            const auto quiet = UiaTest::WaitForQuiescence(250u,
+                                                          5000u,
+                                                          [] { return GetTickCount64(); },
+                                                          [&] { return observer->callbackActivity.load(); },
+                                                          [&]
+            {
+                bridge.Pump();
+                static_cast<void>(MsgWaitForMultipleObjectsEx(0, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+            });
+            Check(quiet.quiet && WaitForSingleObject(observer->callbacksDrained.get(), 0) == WAIT_OBJECT_0,
+                  "relationship event review records bounded quiet with no admitted callback still using the labels");
+            if (gatedPropertyBatch)
+                Check(observer->intermediateRelationships.load() == 0u, "one pending relationship batch coalesces to the latest distinct value");
+            std::cerr << "[RELATIONSHIP DELIVERY] intermediate=" << observer->intermediateRelationships.load()
+                      << " duplicateFirst=" << observer->duplicateFirstRelationships.load()
+                      << " duplicateFinal=" << observer->duplicateLatestRelationships.load() << " gatedBatch=" << gatedPropertyBatch << '\n';
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
             observer->expectClearedRelationship.store(true);
             auto* const panel = dynamic_cast<Panel*>(view.Controls().GetRoot());
