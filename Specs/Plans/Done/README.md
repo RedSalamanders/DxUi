@@ -1,5 +1,7 @@
 # Completed plans
 
+- [UI composition S0-S2: intrinsic sizing and stable forms](ConsumerUiImprovements_S0_S2_2026-10-04.md) — completed 2026-10-11 (library implementation, tests, usage contracts, gallery and design-system publication, with exact-source local validation retained; broader performance, platform, physical-input and consumer acceptance remain in the [qualification WIP](../WIP/ConsumerUiQualification_2026-10-11.md), and [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain deferred).
+
 - [Review and integration of the remaining branches](BranchIntegration_2026-10-10.md) — completed 2026-10-10 (PR #69 integrated with current snapshot/model guards and first full presentation; two assignment races reproduced and repaired; native and synthetic consumer results archived, with inconclusive performance and refused ARM64 foreground suites explicit; unfinished prepared-tree work retained).
 
 - [WindowHost first full presentation](WindowHostFirstFullPresentation_2026-10-08.md) — completed 2026-10-08 (a new or resized native flip-model swap chain keeps full-frame rendering and presentation pending until EndDraw and Present both succeed; all six DxUi native profiles pass, and the identified x64 consumer cases and their eight lifecycle frames pass separately; broader consumer gates and smaller possible performance costs remain open).

@@ -1,37 +1,22 @@
-# UI composition improvements for RedSalamander, RedXe and RedPrism
+# Deferred S3-S7 UI composition proposals
 
-- **Status**: ACTIVE. S0-S2 were accepted on 10 October 2026 alongside performance qualification/profiling. Implementation,
-  synthetic library qualification and independently owned consumer adoption remain distinct; no new layout feature is
-  advertised as implemented until its code and evidence are present.
-- **Scope**: intrinsic sizing and forms; variable-height lists; overlay lifetime and focus; read-only Markdown help;
-  reusable motion and theme authoring.
+- **Status**: HOLD; unimplemented proposals split from the original 4 October plan on 11 October 2026.
+- **Scope**: overlay sessions (S3), variable-height lists (S4), read-only Markdown help (S5), reusable motion (S6)
+  and theme metadata/authoring diagnostics (S7). No API in this file is supported merely because it is proposed here.
 - **Library owner**: DxUi. Product behavior, data, persistence, scheduling and adoption remain in each consumer.
-- **Request**: use GPUI Kit as a source of ideas, then design around the actual needs of the three Windows consumers.
-  A full code editor is outside this work.
-- **Closeout**: complete the library stages and their validation before moving this plan to Done. Separately deferred
-  consumer or platform gates stay explicitly on HOLD in their owning repositories.
+- **Completed prerequisite**: [S0-S2 library implementation](../Done/ConsumerUiImprovements_S0_S2_2026-10-04.md).
+- **Separate acceptance**: [S0-S2 qualification](ConsumerUiQualification_2026-10-11.md) keeps outstanding performance,
+  native-platform, physical-input and consumer gates. This proposal does not pass or replace them.
 
 ## 1. Purpose and authority
-
-### Accepted execution scope (10 October)
-
-Execute intrinsic measurement, opt-in flow layout and reusable form composition (S0-S2). Keep later S3-S7 proposals
-unimplemented. The work follows Q22's original calibration and retained baseline; code, behavior tests, normative
-contracts, usage documentation, catalog/gallery and design-system previews accompany each implemented stage.
-Consumer pins and actual product adoption require separately qualified library commits and consumer-owned changes.
-The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
-but all 72 controls remain unstable. It does not qualify the seed policy or establish performance acceptance for
-S0-S2; the ordinary trusted-base and consumer gates stay open with unchanged thresholds.
-Recheck the 4 October source inventory rather than treating its historical pins as current.
-
-The largest immediate benefit is reducing repeated measurement, field placement and focus bookkeeping without
+S0-S2 implemented reusable measurement and field placement. The later proposals extend reuse without
 changing how an application saves settings, acknowledges an AV command or edits a document. General virtualization
 and native help rendering extend what can be composed from retained controls. Motion and theme work should make
 existing capabilities easier to reuse rather than introduce a second renderer, scheduler or theme language.
 
 This document owns proposals, sequencing, decisions and acceptance evidence. It does not override current contracts.
 Before implementing a stage, reconcile its accepted behavior in the owning domain below; keep enduring requirements
-there and record the stage's result here. S0-S2's accepted APIs are documented in `include/DxUi/DxUi.h` and
+there and record the stage's result here. S0-S2's implemented APIs are documented in `include/DxUi/DxUi.h` and
 [the layout guide](../../../docs/layout.md). Later stages remain design sketches rather than supported APIs.
 
 | Area | Owning contracts to reconcile before implementation |
@@ -60,7 +45,10 @@ there and record the stage's result here. S0-S2's accepted APIs are documented i
 Do not translate a CSS-style API wholesale, replace retained ownership with GPUI entities, or import GPUI's Rust
 runtime. The useful behavior must work with DxUi's single library target, Win32 and embedded D3D11 hosts.
 
-## 2. Consumer evidence and priorities
+## 2. Historical consumer evidence and priorities
+
+The 4/10 October inventories remain historical planning observations. Recheck each consumer before any future
+pilot; completed S0-S2 library work never moves its pin or qualifies its product behavior.
 
 ### 2.1 Inspection provenance
 
@@ -149,114 +137,11 @@ themselves increment `apiRevision`. Removing/renaming interfaces, changing exist
 call does. Rebuild every adopting consumer with matching headers, library, toolchain and CRT; C++ ownership never
 crosses a plugin ABI. All three current revision-3 pins need an explicit revision-4 compatibility/adoption review.
 
-## 4. Workstream A: intrinsic sizing and reusable form layout
+## 4. Completed layout prerequisite
 
-### 4.1 Current support and problem
-
-DxUi already has `Panel`, `StackPanel`, `ScrollPanel`, typography helpers and `ArrangeMeasuredActions`.
-`StackPanel` needs supplied child extents; `Toolbar` is a plain panel. Before S1/S2 there was no common intrinsic
-measurement contract or reusable label/editor/description/validation field layout, so consumers calculate the
-same text heights, label widths, margins and footer positions in multiple places. This branch implements the
-new opt-in primitives; runtime, resource and publication evidence below determines their stage closeout.
-
-Retain the existing measured-action helper for atomic action wrapping. Do not replace it with a layout system that
-splits buttons, obscures commands or introduces an unreviewed density policy.
-
-### 4.2 Accepted S0 public concepts
-
-| Concept | Accepted responsibility |
-| --- | --- |
-| `LayoutConstraints` | Finite minimum/maximum DIP sizes, an explicit unbounded axis, and validation |
-| `DesiredSize` | Measured size and optional baseline; independent of the control's current position |
-| `MeasureContext` | Borrowed host typography/environment and preparation-scoped cache access |
-| Intrinsic measurement hook | Optional default implementation for existing/custom controls; explicit extent fallback |
-| `FlexPanel` | Row/column layout, gap, padding, min/max extent, grow and alignment; wrapping is explicit |
-| `FormPanel` | Uniform field layout, shared label column, app-selected column count and independent actions |
-| `FormField` | Owns label, editor, optional description and validation message; stable field identity |
-
-Accepted usage:
-
-```cpp
-// Candidate API; check HRESULTs and nullable additions in production code. See docs/layout.md.
-LayoutConstraints limits = LayoutConstraints::AtMost(bodyWidthDip, bodyHeightDip);
-DesiredSize desired;
-HRESULT result = MeasureControl(control, context, limits, desired);
-
-auto* form = body->AddChild<FormPanel>();
-form->SetColumns(1);                 // application decides the responsive tier
-form->SetLabelPlacement(LabelPlacement::Above);
-auto* width = form->AddField(L"canvas.width", localizedWidthLabel);
-auto* editor = width->AddEditor<NumericStepper>();
-width->SetDescription(localizedWidthHint);
-width->SetValidation(ValidationState::Error, localizedError);
-// Product code owns the value, unit conversion, validation and Save/Cancel.
-```
-
-S0 chose a non-pure `Control::MeasureOverride` with a checked `Control::Measure` boundary and `MeasureControl`
-convenience call. Existing custom controls return `E_NOTIMPL` and keep explicit extents. Manual Panel/StackPanel/
-Toolbar semantics remain intact. New containers are opt-in; additive API does not increment the existing revision
-4 again, but C++ object-layout changes require every adopting consumer to rebuild with the same pin.
-
-Reuse inventory: host DirectWrite formats and reading-direction resolution supply real shaping; existing lifetime
-tokens, `Panel::TakeChild`, interaction retirement, text-service snapshots, immutable UIA publication and
-`ArrangeMeasuredActions` retain their responsibilities. Numeric measurement caches are new container-owned state;
-no parallel text renderer, focus manager, schema validator or action-wrapper is added. Native and embedded hosts
-share one pending intrinsic traversal during preparation, with no composition work or new scheduling service.
-
-Accepted limits are 1,024 logical Flex slots, 256 logical form fields and 65,536 UTF-16 shaping units per pass across
-nested/cache-miss work. Optional maxima represent unbounded axes; invalid constraints and arithmetic fail before
-geometry commits. Measured natural extents can exceed a constrained width for an indivisible glyph and report
-overflow. Cache keys bind actual content/revision, constraints and host typography; color/hover do not dirty shape.
-Custom callbacks revalidate owner, child, host and interaction identity before continuation. The retained baseline
-is the original same-binary study at the exact base above, linked from [Measurements](../../../Measurements/README.md);
-its drift is diagnostic and cannot be relabeled a policy qualification. Form-specific manual/intrinsic synthetic
-cost and visual evidence are required before S2 closeout.
-
-### 4.3 Measurement and arrangement behavior
-
-- Measure leaf text using existing DirectWrite formats, actual shaping and wrapping, including trailing lines,
-  surrogate pairs, combining sequences and RTL. No character-count width estimates.
-- A minimum interactive extent is distinct from a preferred text extent. The application supplies product-specific
-  minima, including RedXe's live 48 DIP actions. A constrained container reports overflow or scrolls; it does not
-  silently shrink a critical target.
-- Validate non-finite values, negative extents and contradictory constraints before mutating geometry. Unbounded
-  axes are explicit rather than represented by arbitrary huge floats.
-- Measure only invalidated dependencies. Arrangement writes changed bounds during preparation; repeated identical
-  preparation does not invalidate capture, reshuffle focus or shape text again.
-- Start with row/column flow and simple wrapping. Exclude arbitrary CSS selectors, percentages, absolute-position
-  cascades and a general grid track-sizing engine. Add another primitive only for a demonstrated consumer need.
-- Manual children keep explicit extents until their owner opts into measurement. `Panel`, `StackPanel` and
-  `Toolbar` retain their present meaning and existing examples remain valid.
-
-### 4.4 Form behavior
-
-- Support labels above or beside editors, one or two application-selected field columns, shared label widths,
-  descriptions and validation messages. Calculate label widths from the current visible field group.
-- Keep editor ownership stable while changing columns or label placement. Do not reconstruct the tree on resize,
-  update a draft by rebinding controls, or alter tab order according to incidental geometric sort.
-- Associate the field label and description with the editor's UIA provider. Required/error state needs accurate
-  semantics and a textual explanation; color alone is insufficient.
-- Keep footer actions separate from the scrollable body. Reuse measured action wrapping; invalid forms remain
-  inspectable and their error text can be copied/read.
-- Expose validation presentation only. No schema language, implicit validation, auto-submit, dirty-state manager,
-  save transaction or app settings dependency is included.
-- When a field is removed or becomes unavailable, cancel its gesture/composition through existing host rules and
-  ask the owner for a safe successor. Merely reflowing a field retains its focus, selection and draft.
-
-### 4.5 Implementation and evidence
-
-- [x] A1: inventory and reuse measurement helpers; settle the public hook, cache keys and failure semantics (S0).
-- [x] A2: implement leaf measurement for the controls required by the pilots, then opt-in `FlexPanel`.
-- [x] A3: implement form/field composition and label/description/validation UIA relationships.
-- [x] A4: add localized form samples, gallery states and design guidance; publish visual changes.
-- [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.
-- [ ] A6: consider the RedSalamander speed-limit prompt and RedXe profile editor after those pilots pass.
-
-Acceptance: long labels and error messages at 96/144/192 DPI, narrow/wide widths, standard/compact density and both
-flow directions remain readable; tab order and IME survive reflow; fixed actions remain available; unchanged forms
-perform no new measurement. Compare old/manual and proposed layout on the same synthetic form and consumer scenario.
-Record reduced duplicated measurement/bounds logic alongside latency, allocations and memory; a shorter API is not
-evidence of a faster UI.
+Intrinsic measurement, opt-in Flex layout and stable Form composition are implemented in the S0-S2 Done record.
+Reuse their supported APIs and accepted ownership/cache/budget decisions; this deferred plan adds no second layout
+engine. Their wider platform, performance and product acceptance remains in the qualification WIP.
 
 ## 5. Workstream B: a general variable-height virtual list
 
@@ -319,7 +204,7 @@ the application to the UI thread. Removed/reused keys cannot make an old callbac
 - Reflow after DPI/width/font changes retains the anchor and remeasures only the necessary visible work before
   progressively correcting estimates. Do not pre-shape all offscreen content to achieve an exact scrollbar.
 
-Initial budget proposal for S0, to validate against fixtures before making it normative: up to 100,000 indexed items,
+Deferred list budget proposal, to validate against fixtures before making it normative: up to 100,000 indexed items,
 4 MiB size/identity metadata, 256 realized row trees including overscan and focus/capture pins, and two overscan rows
 per side. These are independent caps, not promises that every combination fits. Saturation returns a diagnostic
 and keeps the last valid model/view; explicit consumer overrides need their own evidence. Existing surface/cache
@@ -577,45 +462,47 @@ Acceptance: metadata coverage of public roles, exact unchanged default palettes,
 invalid/unknown input, transparent alert pairs, accent refresh, stable hue seeds, live apply/cancel and system
 high-contrast override. Measure palette/brush churn across repeated identical and changing themes.
 
-## 9. Implementation stages and dependencies
 
-Keep one WIP record and execute focused stages. Each code stage gets its own reviewed change and changelog fragment;
-do not combine five new subsystems into one implementation PR.
+## 9. Deferred stages and dependencies
+
+Execute focused stages only after their scope is accepted. Each code stage gets its own reviewed change and changelog
+fragment; do not combine five subsystems into one implementation PR. This WIP owns S3-S7 sequencing; completed S0-S2
+and their outstanding wider qualification are linked above.
 
 | Stage | Deliverable | Depends on | Exit evidence |
 | --- | --- | --- | --- |
-| S0 | Recheck consumers; API/ownership decisions; reusable helper inventory; synthetic fixtures and retained baselines | This proposal | Accepted domain updates, exact fixture/source identities, compatibility and budget decisions |
-| S1 | Intrinsic measurement and opt-in flow layout | S0 | Leaf/cache/layout tests, both hosts, manual-layout non-regression, paired resource evidence |
-| S2 | Form composition and accessibility | S1 | Localized forms, stable editors/IME, gallery/docs; separate native and embedded consumer pilots |
-| S3 | Overlay sessions and explicit focus policies | S0 | Lifecycle/input/UIA matrix; Prism policy parity and non-activating Salamander adapter gate |
-| S4 | Vertical variable-height VirtualList | S1; S3 where rows launch overlays | Realization/anchoring/recycling/UIA tests, scaling budgets, conditional task-card pilot |
-| S5 | Read-only MarkdownView | S1; S0 parser decision | Declared-subset, selection/link/UIA tests; parse/reflow evidence and bounded help pilot |
-| S6 | Reusable motion and optional presence | S0; S3 for presence | Existing animation parity, deterministic clock, reduced-motion/idle/hidden evidence |
-| S7 | Theme metadata and authoring diagnostics | S0 | Adapter/default parity, token completeness, gallery/publication, workbench handoff |
-| S8 | Library closeout and consumer handoffs | Completed accepted library stages | Honest capabilities/docs, reviewed receipts, Done record; each deferred gate explicitly owned |
+| S3 | Overlay sessions and explicit focus policies | S0 decisions in Done | Lifecycle/input/UIA matrix; Prism policy parity and non-activating Salamander adapter gate |
+| S4 | Vertical variable-height VirtualList | Implemented S1; S3 where rows launch overlays | Realization/anchoring/recycling/UIA tests, scaling budgets, conditional task-card pilot |
+| S5 | Read-only MarkdownView | Implemented S1; separate parser decision | Declared-subset, selection/link/UIA tests; parse/reflow evidence and bounded help pilot |
+| S6 | Reusable motion and optional presence | S0 decisions; S3 for presence | Existing animation parity, deterministic clock, reduced-motion/idle/hidden evidence |
+| S7 | Theme metadata and authoring diagnostics | S0 decisions | Adapter/default parity, token completeness, gallery/publication, workbench handoff |
+| S8 (future closeout) | Library closeout and consumer handoffs for accepted later stages | Completed accepted library stages | Honest capabilities/docs, reviewed receipts, Done record; each deferred gate explicitly owned |
 
 S3 and S7 can be designed independently of layout implementation. S6 starts by extracting existing behavior;
 spring motion is not on the critical path. S4/S5 do not require general editor support or a CSS layout engine.
 
-### 9.1 Accepted S0 decisions and deferred later-stage decisions
+### 9.1 Deferred decisions
 
-- [x] Choose measurement adapter versus a default non-pure control hook; define cache/invalidation ownership.
-- [x] Settle form ownership, stable field IDs and UIA label/description relationships.
+S0's chosen measurement hook, cache ownership, stable fields/UIA relationships and API compatibility decisions are
+recorded in Done. The original unfinished later-stage choices remain:
+
 - [ ] Settle list model revisions, batch mutation semantics, key reuse rules and concrete finite budgets.
 - [ ] Define external focus return callbacks and teardown/dismissal reentrancy rules.
 - [ ] Choose the Markdown parser and explicit subset after checking real localized documents and dependency policy.
 - [ ] Choose one theme metadata source of truth and decide whether deterministic generation is necessary.
-- [x] Classify accepted S0-S2 public changes under current compatibility rules; record explicit consumer migration needs.
-- [ ] Establish consumer pilot value criteria and leave optional product additions deferred if no need is shown.
+
+First S0-S2 consumer value/pilot criteria remain in the qualification WIP. B5/B6, C4/C5, D5 and E8 keep later product
+value decisions in their own consumer changes; do not add optional product UI merely because the library can support it.
 
 ## 10. Validation, benchmarks and resource evidence
 
 ### 10.1 Library scenarios
 
 Use library-owned synthetic models and content. No fixture requires consumer settings, devices, documents or
-services. The proposed scenario names below are additions to design, not existing script switches.
+services. The scenario names below remain planning labels, not script switches. The existing manual/intrinsic form
+diagnostic and its bounded costs are recorded in the S0-S2 Done record; its wider qualification remains open.
 
-| Proposed fixture | Baseline comparison | Principal evidence |
+| Fixture category | Baseline comparison | Principal evidence |
 | --- | --- | --- |
 | IntrinsicForms | Current manual layout vs new container on identical labels/editors/actions | Measure/arrange calls, cache hits, dirty p95, allocations, stable geometry/focus |
 | VariableHeightList | Current retained ScrollPanel rows vs new list; increasing N at fixed viewport | Realized trees/layouts, index bytes, bind counts, scroll/append/reflow p95 |
@@ -640,76 +527,36 @@ resources and allocation peaks separately. WARP throughput with a blocking readb
 No source found in this research establishes an apples-to-apples GPUI Kit versus DxUi benchmark; published numbers
 from different runtimes/hardware/scenes must not become a performance target or a superiority claim.
 
-### 10.2 Coverage and platform gates
+### 10.2 Future implementation coverage
 
-For each implemented stage:
+These gates apply when a deferred stage is accepted and implemented. Existing S0-S2 passes cannot qualify new code.
 
-- [x] Run `validate.ps1` and `format.ps1 -Check` at the frozen native source; later docs/evidence require renewed tooling validation.
-- [x] Run all nineteen noninteractive control/Embedded/foundation/host scopes in x64 Debug, Release and ASan Debug:
-  57 passing suite/log pairs, zero skips and all 38 new tests completed in every profile. Their complex-UI receipts are unpaired.
-- [x] Build ARM64 Debug, Release and ASan Debug.
-- [ ] Establish native ARM64 runtime evidence; cross-builds on this x64 host do not qualify it.
-- [x] Record WARP preparation/composition and synthetic graphics-generation replacement plus clean/dirty/hidden
-  lifetime evidence. Physical hardware/device-removal acceptance remains separate.
-- [x] Exercise 96/144/192 DPI, Light/Dark/RainbowLight/RainbowDark/high-contrast themes, standard/compact density,
-  RTL/LTR and Unicode content where relevant.
-- [x] Verify UIA navigation/events with the existing client helpers and provider disconnection on detach; synthetic
-  assertions alone do not qualify real assistive-technology, IME or touch behavior.
-- [x] Run Menu, NativeTextInput, MenuResources and MenuResourceScaling only through `test.ps1 -Interactive`, at a
-  time the person at the desktop has agreed to. Debug, Release and ASan Debug each pass all four with zero skips
-  and successful restoration. Three earlier ASan confirmations time out without a child; the third restoration
-  failure and unavailable-input-desktop check (error 5) remain separately retained.
-- [ ] Establish accepted paired non-regression and a qualified trusted policy; candidate-only Manual/Form costs
-  and unpaired complex-UI receipts do not close this gate.
+- [ ] Run `validate.ps1` and `format.ps1 -Check` on each accepted stage's candidate.
+- [ ] Run required x64 Debug, Release and ASan Debug suites and record exact sources, artifacts, scope and skips.
+- [ ] Build all three ARM64 configurations and obtain native ARM64 runtime evidence separately.
+- [ ] Record relevant WARP/device-generation and clean/dirty/hidden resources; keep physical device removal separate.
+- [ ] Exercise DPI, density, themes/high contrast, RTL/LTR and Unicode where relevant.
+- [ ] Verify actual UIA-client navigation/events and detach; keep real IME/AT/touch qualification explicit.
+- [ ] Run affected focus-taking suites through `test.ps1 -Interactive` only at the agreed time with the restoring lease.
+- [ ] Establish accepted paired resource evidence on fixture-matched, qualified controls; seek developer advice for
+  confirmed degradation without silent rebaselining.
+- [ ] Qualify each chosen consumer pilot through its own deterministic harness, exact pin and adoption plan.
 
-These are implementation gates for the S0/S1/S2 code in this branch. Record fresh native, platform, resource and
-paired-performance receipts before closing them; library qualification does not imply that a consumer pilot ran.
+Consumer-specific contracts, captured before/after provenance and existing platform/HOLD boundaries are preserved
+in [the qualification plan](ConsumerUiQualification_2026-10-11.md#4-consumer-adoption-gates). Later-stage adapters must
+also meet those boundaries; a library test cannot qualify an application change.
 
-[The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains all local results,
-initial Embedded and ASan Accessibility failures, isolated/repeated retests and two initial Debug lease timeouts.
-The later Debug/Release focus runs pass; three earlier ASan confirmations time out before Start, with no child
-executed. The third ASan attempt reports failed foreground/pointer restoration and the following native desktop
-check reports Windows error 5. A fourth locally confirmed ASan run passes all four suites with zero skips and
-successful restoration after desktop access is restored. The earlier failed attempts and refusal remain separate.
-The eight-field Manual/Form diagnostic has matching pre-timing
-pixels/geometry/metadata, zero unchanged/composition work, 7 KiB of extra warm retained plain C++ Form memory and
-zero tracked plain-live bytes after each fixture's destruction. These are bounded diagnostics, with no speedup,
-consumer, hardware or paired-policy acceptance claim. The ASan event failure's cause remains unproven.
+## 11. Deferred implementation and publication checklist
 
-### 10.3 Consumer adoption gates
+- [x] Retain the original consumer inventory, five workstreams, proposed APIs, sequencing and ownership boundaries.
+- [ ] Accept each later stage's scope and update its owning domain before changing behavior.
+- [ ] Implement accepted later library stages with their behavior/resource tests and required qualification.
+- [ ] For each new control, add catalog/factory support, a populated gallery tile, interaction tests, usage guidance
+  and committed design-system guideline/preview; publish through `gallery.ps1 -PublishDocs`.
+- [ ] Update affected usage/hosting/performance documentation and retain reviewed library-only receipts under Measurements.
+- [ ] Advertise only implemented support in `capabilities.json`, retaining consumer/native-platform/physical limits.
+- [ ] Record separately owned consumer pins/adapters and adoption outcomes; retain deferred product gates.
+- [ ] Reconcile final normative requirements and move only each completed accepted scope to Done with honest remaining gates.
 
-| Consumer | Separate acceptance before its pin is moved |
-| --- | --- |
-| RedSalamander | Explicit revision-2 migration review; Preferences draft/Apply/Cancel and page-focus/scroll parity; exact path inspection and background non-activation; conflict action wrapping; native alert lifetime; theme-expression/preview parity |
-| RedXe | Profile draft/device revision preservation; at most four profiles; density tiers and 48 DIP targets; confirmed backend state; immediate live AV controls; camera guide commands/content; hidden views keep no services/timers/providers |
-| RedPrism | Size/adjustment preview/commit/cancel; focus/card policy including canvas; child dropdown/IME priority; capture and document teardown; live theme settings; app-owned canvas and history/job limits |
-
-Generate before/after application captures only through each consumer's deterministic test harness, retaining
-scenario, source, build, DPI and theme provenance. Do not take desktop/manual screenshots. Any proposal mockup is
-labelled separately from an actual application capture. S0-S2's native library gallery was generated through
-`gallery.ps1 -PublishDocs` and reviewed in all five themes and the supplied-device example. Consumer application
-captures and before/after adoption evidence remain outstanding.
-
-Preserve existing RedSalamander ARM64/ASan handoff and RedXe hardware/real-IME/assistive-technology HOLD gates.
-Library validation cannot complete those product gates. Keep adoption measurements in the application repository.
-
-## 11. Documentation and completion checklist
-
-- [x] Inspect all three consumers and distinguish current support from candidate additions.
-- [x] Record the five workstreams, proposed APIs, sequencing, ownership and measurable acceptance.
-- [x] Accept S0 decisions and update the owning domain contracts before changing behavior.
-- [ ] Complete accepted library stages and required platform, interaction and paired performance evidence.
-- [x] For every new concrete control, add catalog/factory support, a populated gallery tile, interaction tests,
-  `docs/controls.md` usage and a design-system guideline/preview; regenerate the gallery with `gallery.ps1 -PublishDocs` and commit both.
-- [x] Update affected usage/hosting/performance documentation and link reviewed DxUi-only receipts under
-  `Measurements`. Generated temporary reports stay under tooling-owned `.build`.
-- [x] Update `capabilities.json` only for implemented support, with consumer/native-platform/physical-input limits explicit.
-- [ ] Record explicit consumer pins/adapters and independent adoption outcomes; retain deferred product gates.
-- [ ] Reconcile final normative contracts, move this completed library plan to Done and update the index.
-
-Documentation/gallery review for S0-S2: the control guide, layout usage, normative contracts, capability inventory,
-three component guidelines/previews and published 33-control gallery are updated. All six harness images were
-reviewed for clipping, overlap and missing content. Local functional/resource evidence is retained above. The remaining native-platform and paired-performance gates
-above still determine stage acceptance; completed implementation checkboxes do not qualify those gates. S3-S7 and
-consumer adoption remain deferred. This plan does not close existing menu, Grid, Tree, slider, consumer or platform
-plans.
+This WIP does not reopen S0-S2 implementation or close existing menu, Grid, Tree, slider, production-review,
+consumer or platform plans.

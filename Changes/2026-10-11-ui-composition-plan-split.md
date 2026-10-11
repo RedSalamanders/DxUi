@@ -1,0 +1,1 @@
+- Record completed S0-S2 intrinsic sizing and stable forms in Done, with deferred S3-S7 proposals and unfinished performance, platform and consumer qualification in separate WIP plans.

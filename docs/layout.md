@@ -104,4 +104,6 @@ qualification remain open as described in the packet.
 Native/embedded library tests, [gallery captures](gallery/README.md) and the
 [design system](../Specs/DesignSystem/README.md) describe library support. Actual consumer pin updates,
 Apply/Cancel parity, physical IME/touch and native ARM64 runtime qualification remain separately tracked in the
-[implementation plan](../Specs/Plans/WIP/ConsumerUiImprovements_2026-10-04.md).
+[qualification plan](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md). The completed S0-S2 library work is
+recorded in [Done](../Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md); deferred S3-S7 proposals have their
+own [WIP plan](../Specs/Plans/WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md).
