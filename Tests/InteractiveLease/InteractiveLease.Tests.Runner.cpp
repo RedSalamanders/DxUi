@@ -122,10 +122,16 @@ public:
         if (ready && hit == warning)
             return true;
         // Read-only failure evidence: no screenshot, pointer movement, or input. Fixed buffers avoid exception boundaries.
-        wchar_t hitClass[256]{}, foregroundClass[256]{};
-        DWORD hitProcess = 0u;
+        wchar_t hitClass[256]{}, foregroundClass[256]{}, aboveClass[256]{};
+        DWORD hitProcess = 0u, aboveProcess = 0u;
+        const HWND above = GetWindow(warning, GW_HWNDPREV);
+        const HWND top   = GetTopWindow(nullptr);
+        const LRESULT directHit =
+            ready ? SendMessageW(warning, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(point.x), static_cast<WORD>(point.y))) : HTNOWHERE;
         static_cast<void>(GetWindowThreadProcessId(hit, &hitProcess));
+        static_cast<void>(GetWindowThreadProcessId(above, &aboveProcess));
         static_cast<void>(GetClassNameW(hit, hitClass, static_cast<int>(std::size(hitClass))));
+        static_cast<void>(GetClassNameW(above, aboveClass, static_cast<int>(std::size(aboveClass))));
         static_cast<void>(GetClassNameW(GetForegroundWindow(), foregroundClass, static_cast<int>(std::size(foregroundClass))));
         RECT windowRect{}, clientRect{}, regionRect{};
         static_cast<void>(GetWindowRect(warning, &windowRect));
@@ -135,7 +141,8 @@ public:
         if (regionType != ERROR)
             static_cast<void>(GetRgnBox(region.get(), &regionRect));
         std::printf("[LEASE] warning target refused: ready=%d point=%ld,%ld hit=%p class=%ls process=%lu warning=%p visible=%d enabled=%d "
-                    "style=0x%llx dpi=%u window=%ld,%ld,%ld,%ld client=%ld,%ld,%ld,%ld region=%d/%ld,%ld,%ld,%ld foregroundClass=%ls\n",
+                    "style=0x%llx dpi=%u window=%ld,%ld,%ld,%ld client=%ld,%ld,%ld,%ld region=%d/%ld,%ld,%ld,%ld foregroundClass=%ls "
+                    "directHit=%lld hitStyle=0x%llx above=%p aboveClass=%ls aboveProcess=%lu top=%p\n",
                     ready ? 1 : 0,
                     point.x,
                     point.y,
@@ -160,7 +167,13 @@ public:
                     regionRect.top,
                     regionRect.right,
                     regionRect.bottom,
-                    foregroundClass);
+                    foregroundClass,
+                    static_cast<long long>(directHit),
+                    static_cast<unsigned long long>(GetWindowLongPtrW(hit, GWL_EXSTYLE)),
+                    static_cast<void*>(above),
+                    aboveClass,
+                    aboveProcess,
+                    static_cast<void*>(top));
         std::fflush(stdout);
         return false;
     }

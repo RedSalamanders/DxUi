@@ -2102,3 +2102,9 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   Debug self-test passes 74/74 on this candidate; fresh hosted ARM64 execution remains the decisive gate. The test
   guide and validation contract describe the behavior. The gallery/design-system review found no product visual
   change: this affects only the temporary test warning, so published control images remain current.
+- PR #75's first hosted run 38223243970 shows the topmost reassertion is insufficient on the ARM64 runner: Debug
+  and Release still resolve the point to WWAHost's CoreWindow and refuse Menu/NativeTextInput before child input;
+  the ASan Debug native step fails the same way; its independent consumer qualification passes. All x64 native
+  profiles and the Windows/Linux validators and formatter pass. A follow-up adds read-only direct `WM_NCHITTEST`,
+  hit-window style and Z-order-neighbor diagnostics before choosing any further activation mechanism. This first
+  hosted run is failure evidence, not ARM64 foreground acceptance.
