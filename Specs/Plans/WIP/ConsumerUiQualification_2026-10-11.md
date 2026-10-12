@@ -32,7 +32,7 @@ Original UIA extra-event and native-input setup cause investigations remain in
   stable controls; retain measured developer advice where degradation is confirmed.
 - [ ] Complete the required hosted paired gate when the PR changes what its benchmark measures. An enabled pending
   gate remains pending until its actual result is successful; a candidate-only diagnostic cannot qualify it.
-- [ ] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
+- [x] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
   allocation checks before policy qualification; independent integration review checks both on the retained raw reports.
 
 The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
@@ -58,14 +58,18 @@ non-regression. Earlier Grid/FPS flags remain open separately. Independent revie
 or qualify the policy. Hosted uploads omit compiler/SDK/dependency/executable inventories; declared full-v2 fields
 cannot substitute for independent rehashing of absent bytes.
 
-Integration review also identified two producer-check gaps: the diagnostic unchanged-library classification reads
+Integration review identified two producer-check gaps: the diagnostic unchanged-library classification read
 summary fingerprints without binding them to each scheduled role's raw receipts, and relative exact-budget
-comparisons do not alone enforce absolute clean/dirty allocation limits when both sides violate them equally.
-Current integration review binds every role, commit, fingerprint, executable/build identity and overlay state,
-pins the native workload/profile, and enforces zero clean allocations and the existing Release dirty ceiling of
-64 per frame on raw rounds. These independent checks preserve the current integration boundary; they do not
-qualify the production policy or close the follow-up above. A baseline made dirty by the supported current-harness
-overlay must retain that literal provenance rather than be mislabeled clean.
+comparisons did not enforce absolute clean/dirty allocation limits when both sides violated them equally. The
+production qualified gate now binds each scheduled role's commit/fingerprint, each run's source state and
+executable/harness hashes, and its build profile to the hashed raw receipt. Every raw round must meet the fixed
+zero-clean and Release 64-per-frame (Debug/ASan Debug 320-per-frame) dirty allocation limits. Synthetic forged
+summary and rehashed raw-receipt cases verify these refusals. This is a tooling qualification stage, not a passing
+paired measurement or policy qualification. Independent integration review still binds every role, commit,
+fingerprint, executable/build identity and overlay state on the retained packet. A baseline made dirty by the
+supported current-harness overlay must retain that literal provenance rather than be mislabeled clean. The change
+is nonvisual; `docs/performance.md` and the normative performance contract are updated, while gallery pixels need
+no regeneration.
 
 The later [bounded profiling/automatic-Start follow-up](../../../Measurements/Performance/2026-10-10-profiling/validation/auto-start/README.md)
 retains a comparison with ten timing/FPS flags and about 14% lower clean/dirty FPS, plus two declared candidate-only

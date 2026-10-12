@@ -115,7 +115,12 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   block are mandatory. The consumed set must equal the full replayed decision, including numeric and exact-budget
   evidence. Control comparisons must reproduce their scheduled raw pairs; drift is then consumed from that canonical
   replay, with absolute 5% timing and 2% memory investigation bands and unchanged exact budgets. Summary labels and
-  later comparison-file reads cannot substitute for this evidence.
+  later comparison-file reads cannot substitute for this evidence. Each scheduled role's summary commit and library
+  fingerprint, each run's source state and executable/harness hashes, and the declared build profile must match its
+  hashed raw receipt before the summary can classify an unchanged library. Qualification also checks every raw round
+  against the absolute whole-frame C++ allocation budget: zero in clean rounds, at most 64 per frame in Release dirty
+  rounds or 320 in Debug/ASan Debug dirty rounds. The receipt's declared ceiling must match that fixed profile; equal
+  over-budget baseline and candidate measurements do not qualify a pass.
 - `advice-required` remains a measured finding, not permission to merge or rebaseline. The retained summary records the
   block schedule, seed, receipt identities, the legacy and migrated decisions, the correction family and every metric.
   Historic Mann-Whitney summaries stay readable, but the migrated gate treats them as read-only and never as qualified passes.

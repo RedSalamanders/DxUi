@@ -131,6 +131,11 @@ independent sign-flip distribution. Old measurements remain diagnostic evidence;
 - The analysis uses blocks as the independent units; the two runs per side inside each block summarize that block and do
   not increase the inferential sample count. Exact surface/allocation budgets bypass p-values and keep both the
   any-candidate-run-median-above-baseline-median rule and the independent no-tolerance raw-peak rule.
+- Qualification binds each scheduled baseline/candidate run's summary provenance to its hash-verified raw receipt
+  before using the summary's unchanged-library classification. It also enforces the absolute whole-frame allocation
+  limits on every raw round: zero clean allocations, and at most 64 per frame in Release or 320 in Debug/ASan Debug
+  dirty rounds. The declared receipt ceiling must agree with the build profile. Equal over-budget sides remain
+  inconclusive; a relative no-growth finding cannot clear the absolute budget.
 - Identical source or executable fingerprints are provenance only and do not classify timing flags as chance. A/A
   calibration is a separate study that builds one explicit revision once and measures its exact executable under
   both randomized labels, retaining separate receipts for every invocation. Missing or mismatched full

@@ -1,0 +1,1 @@
+- Bind qualified paired verdicts to every scheduled role's raw provenance and enforce the fixed whole-frame allocation budgets on all retained rounds.
