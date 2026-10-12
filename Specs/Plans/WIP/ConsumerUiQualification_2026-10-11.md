@@ -148,6 +148,16 @@ passes in both. These are launched fixture failures, not capability skips. The h
 and pointer restoration but cannot fully verify pointer history. The successful PR run cannot be substituted
 for the failing post-merge run; ARM64 foreground acceptance remains open.
 
+The first [draft PR #78](https://github.com/RedSalamanders/DxUi/pull/78) fixture follow-up still failed Menu in
+ARM64 Debug and ASan Debug at [run 38298780317](https://github.com/RedSalamanders/DxUi/actions/runs/38298780317).
+Its revised test-only head `500f93d4` activates modal fixture owners before popup launch. The exact
+[run 38305728123](https://github.com/RedSalamanders/DxUi/actions/runs/38305728123) passes all six native jobs,
+the relocated/STL-annotation consumer checks that apply to each profile, and `ci-gate`. The uploaded ARM64
+Debug, Release and ASan Debug logs each contain 108/108 completed Menu cases and 165/165 completed NativeTextInput
+cases, with no skip, failure or timeout lines. This is passing candidate evidence; repeat and review the native
+foreground result on `main` after merge. Resource, physical-input, device-removal, paired-performance-policy and
+consumer-product acceptance remain separate gates.
+
 ## 4. Consumer adoption gates
 
 - [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.

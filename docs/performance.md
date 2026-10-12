@@ -396,9 +396,13 @@ uses the installed cross-compiler:
 
 These commands compile/link; they do not execute ARM64 code. `test.ps1 -Platform ARM64` rejects an x64 host.
 `performance.ps1` requires target/native architecture to match, including rejecting x64 emulation as native evidence.
-Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `windows-11-vs2026-arm`, in Debug and Release.
+Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `windows-11-vs2026-arm`, in Debug, Release
+and ASan Debug.
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
+The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) distinguishes the green
+PR #78 candidate from PR #77's failed post-merge `main` run and tracks the remaining foreground, resource and
+physical-input gates.
 
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
