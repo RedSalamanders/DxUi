@@ -1,0 +1,1 @@
+- Reassert the hosted foreground warning's topmost position when exposing its temporary activation patch, while retaining exact hit-test refusal and desktop restoration if another window still owns the point.

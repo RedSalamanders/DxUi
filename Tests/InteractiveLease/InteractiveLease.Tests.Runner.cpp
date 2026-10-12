@@ -864,6 +864,25 @@ private:
             ClientToScreen(window, &normalPoint);
             Check(SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(normalPoint.x), static_cast<WORD>(normalPoint.y))) == HTTRANSPARENT,
                   "the ordinary warning returns click-through hit-testing");
+            RECT warningRect{};
+            GetWindowRect(window, &warningRect);
+            // Model a hosted shell window that reaches the topmost band after the warning appears. The patch must
+            // reclaim its place before the guarded hit test; no foreground change or pointer input is needed here.
+            wil::unique_hwnd competingWindow(CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+                                                             L"BUTTON",
+                                                             L"hosted foreground fixture",
+                                                             WS_POPUP | WS_VISIBLE,
+                                                             warningRect.left,
+                                                             warningRect.top,
+                                                             warningRect.right - warningRect.left,
+                                                             warningRect.bottom - warningRect.top,
+                                                             nullptr,
+                                                             nullptr,
+                                                             GetModuleHandleW(nullptr),
+                                                             nullptr));
+            Check(competingWindow != nullptr && GetWindow(window, GW_HWNDPREV) == competingWindow.get() &&
+                      WindowFromPoint(normalPoint) == competingWindow.get(),
+                  "a later topmost window covers the warning before hosted recovery");
             POINT patchPoint{};
             const bool patchStarted = banner.BeginHostedActivationPatch();
             Check(patchStarted, "the hosted-only activation patch can be exposed on the private desktop");

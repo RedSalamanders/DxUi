@@ -87,5 +87,7 @@ If a verified hosted runner refuses ordinary warning activation, the lease can b
 input patch and click that owned point. It rechecks authorization/targeting, balances and observes the mouse release,
 rejects capture on the foreground or lease thread, uses an opaque nonlayered patch, and restores and verifies the full
 warning style, layered attributes and shape before launching any child. Refused targets retain read-only geometry
-and hit-window diagnostics. Failure remains a failed run. This fallback
-does not run on a person's ordinary local desktop; its private-desktop tests take no personal input or focus.
+and hit-window diagnostics. Exposing the patch also returns the warning to the top of the regular topmost band if
+another window entered it later; actual hit testing must still prove ownership before any input. Failure remains a
+failed run. This fallback does not run on a person's ordinary local desktop; its private-desktop tests take no personal
+input or focus.

@@ -651,6 +651,9 @@ held mouse buttons and active/unreadable mouse capture before pointer movement a
 and verify that the warning owns the point before and after moving the pointer. Capture checks MUST inspect the
 foreground thread as well as the lease thread: `GetCapture` alone cannot rule out another thread's capture. The warning
 MUST be temporarily clipped to an opaque, nonlayered patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+When a hosted shell window has entered the topmost band after the warning was shown, exposing that patch MAY reassert
+the warning's topmost position without activation. This never substitutes for the two actual `WindowFromPoint` ownership
+checks or authorizes input when another window still covers the patch.
 The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
 down/up messages and released button state, verify actual warning foreground, and restore/read back the original
 extended style, layered alpha/color-key attributes and full window region before starting a child. A refused target

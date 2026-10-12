@@ -2094,3 +2094,11 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   A read-only PE diagnostic finds equal mapped image and code sizes for the actual local paired binaries;
   static image growth does not explain the memory flags. Runtime page/graphics/process residency remains
   unmeasured, so retain the flags and controlled-host investigation. No approved tradeoff or release gate changes.
+- Main CI run 38180509511 at `81adc878` again builds all three native ARM64 profiles and passes their nineteen
+  noninteractive suites, but each hosted warning target resolves to WWAHost's CoreWindow; both foreground suites
+  refuse before input. The focused candidate reasserts the warning's regular topmost order only while exposing its
+  hosted activation patch, then keeps both actual hit-test gates and full restoration. A private-desktop regression
+  places a later hit-testable topmost window over the warning and proves the patch reclaims its target. Local x64
+  Debug self-test passes 74/74 on this candidate; fresh hosted ARM64 execution remains the decisive gate. The test
+  guide and validation contract describe the behavior. The gallery/design-system review found no product visual
+  change: this affects only the temporary test warning, so published control images remain current.
