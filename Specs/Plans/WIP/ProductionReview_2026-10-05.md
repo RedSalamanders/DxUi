@@ -2118,3 +2118,11 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   policy and minimizes the matching foreground `WWAHost` CoreWindow without terminating a process. The
   lease retains its exact ownership, activation, skip and restoration gates. Fresh three-profile ARM64
   execution remains required; this diagnostic run is not acceptance.
+- PR #75's third hosted run 38233292393 identifies the next obstruction in all three ARM64 profiles:
+  preparation recognizes and minimizes foreground `WWAHost` (title `Microsoft account`), but
+  `WindowFromPoint` then returns a separate topmost `UserOOBEWindowClass` from the first-sign-in broker.
+  The warning still reports `HTCLIENT`; Menu/NativeTextInput do not launch. All x64 profiles and both
+  validators pass. After the three ARM64 native failures were recorded, the run was cancelled during
+  independent consumer checks to retrieve logs sooner; that run supplies no CI acceptance. The next
+  candidate minimizes only that additional visible OOBE class on the verified hosted ARM64 session,
+  retaining the exact warning/lease refusal gates and leaving all OS processes alive.

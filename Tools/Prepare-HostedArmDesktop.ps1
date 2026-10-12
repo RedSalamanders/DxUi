@@ -21,7 +21,9 @@ public static class DxUiHostedArmDesktop
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string title);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
 }
@@ -62,3 +64,19 @@ if ([DxUiHostedArmDesktop]::IsWindow($foreground) -and -not [DxUiHostedArmDeskto
     throw 'Hosted ARM64 first-sign-in CoreWindow refused minimization; the foreground lease remains fail-closed.'
 }
 Write-Host 'Hosted ARM64 desktop: minimized the first-sign-in CoreWindow without terminating its process.'
+
+# The same first-sign-in flow also has a separate topmost UserOOBE broker window behind WWAHost. On the
+# hosted ARM image it becomes the next WindowFromPoint result after the CoreWindow is minimized.
+$oobe = [DxUiHostedArmDesktop]::FindWindowEx([IntPtr]::Zero, [IntPtr]::Zero, 'UserOOBEWindowClass', $null)
+if ($oobe -ne [IntPtr]::Zero -and [DxUiHostedArmDesktop]::IsWindowVisible($oobe) -and -not [DxUiHostedArmDesktop]::IsIconic($oobe)) {
+    $oobeProcessId = [uint32]0
+    [void][DxUiHostedArmDesktop]::GetWindowThreadProcessId($oobe, [ref]$oobeProcessId)
+    $oobeProcessName = try { (Get-Process -Id $oobeProcessId -ErrorAction Stop).ProcessName } catch { '<exited>' }
+    Write-Host ("Hosted ARM64 OOBE window: class=UserOOBEWindowClass process={0} pid={1}" -f $oobeProcessName, $oobeProcessId)
+    [void][DxUiHostedArmDesktop]::ShowWindow($oobe, 6) # SW_MINIMIZE
+    Start-Sleep -Milliseconds 250
+    if ([DxUiHostedArmDesktop]::IsWindow($oobe) -and -not [DxUiHostedArmDesktop]::IsIconic($oobe)) {
+        throw 'Hosted ARM64 UserOOBEWindowClass refused minimization; the foreground lease remains fail-closed.'
+    }
+    Write-Host 'Hosted ARM64 desktop: minimized the first-sign-in broker window without terminating its process.'
+}

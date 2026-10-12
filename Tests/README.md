@@ -94,7 +94,8 @@ input or focus.
 
 On a verified GitHub-hosted native ARM64 run, `test.ps1` checks for the image's first-sign-in
 `WWAHost` CoreWindow immediately before the foreground lease. If that exact window holds the
-foreground, it suppresses the current user's privacy setup prompt and minimizes the window
-without terminating its process. The lease still checks the desktop and exact warning input
+foreground, it suppresses the current user's privacy setup prompt and minimizes that window
+and a visible `UserOOBEWindowClass` broker window without terminating either process. The lease
+still checks the desktop and exact warning input
 target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
 local and self-hosted runs do not prepare or alter the desktop.

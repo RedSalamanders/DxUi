@@ -647,10 +647,12 @@ stale suite log with the current launch failure. Desktop availability alone supp
 
 Immediately before a hosted ARM64 foreground lease, `test.ps1` MAY prepare the disposable GitHub runner's
 first-sign-in desktop only when the exact hosted markers and native ARM64 architecture match. The preparation
-MUST inspect only the current foreground window and MAY minimize it only when its process is `WWAHost` and
-its class is `Windows.UI.Core.CoreWindow`; it MAY suppress that runner user's first-sign-in privacy prompt.
+MUST inspect the current foreground window and MAY minimize it only when its process is `WWAHost` and
+its class is `Windows.UI.Core.CoreWindow`. It MAY then minimize the visible top-level
+`UserOOBEWindowClass` broker window that the same first-sign-in flow leaves behind, and MAY suppress
+that runner user's first-sign-in privacy prompt.
 It MUST NOT terminate WWAHost, UserOOBEBroker or any other independently launched process. If the target is
-different or moves during inspection, it MUST leave it alone. Preparation does not replace the lease's
+different or moves during inspection, it MUST leave that window alone. Preparation does not replace the lease's
 warning ownership, foreground, child execution, capability-skip or restoration checks.
 
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
