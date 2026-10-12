@@ -6,6 +6,8 @@ The baseline, candidate and clean harness all declare commit `0bd0e99c482ccd230d
 
 The [reports-only audit](audit.receipt.txt) replays all 144 raw receipt hashes, both complete judges and all 72 controls from the uploaded bytes. Both judges return `within-noise-budget` with zero aggregate regression slots in all three scenes and agree on their verdicts. Nevertheless 71/72 same-binary controls are unstable and 39/78 timing/memory cells drift at least once: Default 24 unstable controls and 15 drifting cells, MultilineGrid 24 and 18, MultilineGridDistinct 23 and 6. Strict and required-policy replay both remain inconclusive. These observations do not certify a quiet host, attribute a regression or qualify a trusted policy.
 
+Across all 144 hosted raw receipts, the maximum clean C++ allocation count is zero, the maximum dirty count is 2,160 per 40-frame round against the Release ceiling of 2,560, and the maximum composition allocation count is zero. No raw round violates these fixed limits.
+
 The hosted upload contains the reports but no executable, library, symbols, build receipt or toolchain/dependency inventory for an independent byte rehash. The audit checks the declared full-v2 identities and their consistency across raw receipts; its `artifacts.verified: false` deliberately does not claim actual hosted binary rehashing. To replay the report-level evidence from a checkout with the frozen harness and judge bytes:
 
 ```powershell
