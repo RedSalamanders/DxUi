@@ -1,0 +1,1 @@
+- Stabilize Menu foreground fixtures by activating the modal-loop owner, keeping the cursor target visible, and retrying a Grid UIA event only when another application steals focus; report the foreground or covering window when the tests still cannot run.

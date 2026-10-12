@@ -3568,6 +3568,8 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
     DrainPendingMouseMessagesForMenuSuite();
+    // The lease warning may still own the foreground after child launch; this modal fixture starts from an active owner.
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "chain-change peek owner activates before its modal menu opens");
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"P1",
          .commandId = 3801,
@@ -3589,7 +3591,16 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
         const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"P1");
         if (! rootPopupHwnd)
         {
-            driverFailure = "menu popup window appears for the chain-change peek validation";
+            const HWND foreground = GetForegroundWindow();
+            wchar_t foregroundClass[128]{};
+            if (foreground)
+                static_cast<void>(GetClassNameW(foreground, foregroundClass, static_cast<int>(std::size(foregroundClass))));
+            const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0u;
+            driverFailure =
+                std::format("menu popup window appears for the chain-change peek validation: ownerVisible={}, foregroundClass='{}', foregroundHolder={}",
+                            IsWindowVisible(ownerWindow.Hwnd()) != FALSE,
+                            NarrowAsciiForFailureMessage(foregroundClass),
+                            DescribeThreadProcessForTest(foregroundThread));
             return;
         }
 
@@ -8179,14 +8190,35 @@ void TestWindowHostSingleGridArrowAnnouncesTheFocusedRow()
         SkipDxUiTest("DxUi single-control grid row UIA focus changes require an interactive desktop");
         return;
     }
-    window.Host().SetFocusControl(grid);
-    Require(window.Host().GetFocusControl() == grid && grid->RequestSelectRow(0u, 0u), "the grid has focus and its first row is selected");
+    std::string failure;
+    int attempts                  = 0;
+    const ForegroundRunResult run = RunWhileForegroundHeld(window,
+                                                           [&]
+    {
+        failure.clear();
+        window.Host().SetFocusControl(grid);
+        // A retried attempt starts at the first row even if the stolen run already moved selection.
+        if (attempts++ > 0)
+            static_cast<void>(grid->RequestSelectRow(2u, 0u));
+        if (window.Host().GetFocusControl() != grid || ! grid->RequestSelectRow(0u, 0u))
+        {
+            failure = "the grid has focus and its first row is selected";
+            return;
+        }
 
-    FocusEventClient client(window, window.Hwnd());
-    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_DOWN, 0);
-    Require(grid->GetPrimarySelectedRow() == std::optional<size_t>{1u}, "Down moves the grid to its second row");
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Row 01") >= 1u; }),
-            "a UIA client receives a focus change naming the row of a grid that fills its window");
+        FocusEventClient client(window, window.Hwnd());
+        SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_DOWN, 0);
+        if (grid->GetPrimarySelectedRow() != std::optional<size_t>{1u})
+        {
+            failure = "Down moves the grid to its second row";
+            return;
+        }
+        if (! client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Row 01") >= 1u; }))
+            failure = "a UIA client receives a focus change naming the row of a grid that fills its window";
+    });
+    if (! ForegroundHeldOrSkip(run, "single-grid row UIA focus change"))
+        return;
+    Require(failure.empty(), failure.c_str());
 }
 
 // An element's SetFocus in an inactive window focuses that element only: the host moves its logical focus before the
@@ -8686,8 +8718,19 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     textClass.hCursor       = LoadCursorW(nullptr, IDC_IBEAM);
     textClass.lpszClassName = kTextWindowClass;
     Require(RegisterClassExW(&textClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the text-cursor window class");
-    wil::unique_hwnd textWindow(CreateWindowExW(
-        WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kTextWindowClass, L"", WS_POPUP | WS_VISIBLE, 100, 520, 240, 120, nullptr, nullptr, textClass.hInstance, nullptr));
+    // Keep the same-thread cursor target visible when another application owns the foreground.
+    wil::unique_hwnd textWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                                                kTextWindowClass,
+                                                L"",
+                                                WS_POPUP | WS_VISIBLE,
+                                                100,
+                                                520,
+                                                240,
+                                                120,
+                                                nullptr,
+                                                nullptr,
+                                                textClass.hInstance,
+                                                nullptr));
     Require(textWindow != nullptr, "create the text-cursor window");
     owner.PumpMessages();
 
@@ -8707,9 +8750,21 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     Require(GetWindowRect(popup, &popupRect) != FALSE && GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the menu and text window rectangles");
     const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
     const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
-    if (WindowFromPoint(overMenu) != popup || WindowFromPoint(overText) != textWindow.get())
+    const HWND menuCovering = WindowFromPoint(overMenu);
+    const HWND textCovering = WindowFromPoint(overText);
+    if (menuCovering != popup || textCovering != textWindow.get())
     {
-        SkipDxUiTest("another window covers the menu cursor test windows");
+        const auto describeCovering = [](HWND window)
+        {
+            wchar_t className[128]{};
+            if (window)
+                static_cast<void>(GetClassNameW(window, className, static_cast<int>(std::size(className))));
+            const DWORD thread = window ? GetWindowThreadProcessId(window, nullptr) : 0u;
+            return std::format("class '{}' of {}", NarrowAsciiForFailureMessage(className), DescribeThreadProcessForTest(thread));
+        };
+        const std::string reason =
+            std::format("another window covers the menu cursor test windows: menu={}, text={}", describeCovering(menuCovering), describeCovering(textCovering));
+        SkipDxUiTest(reason.c_str());
         return;
     }
     SetCursor(resize); // The window's own cursor when the pointer reaches the menu.
