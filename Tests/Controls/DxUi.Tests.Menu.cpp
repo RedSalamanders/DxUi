@@ -3100,6 +3100,8 @@ void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "delivered owner mouse-move menu owner activates before its modal popup opens");
+
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36801}, {.text = L"View two", .commandId = 36802}},
         std::vector<MenuFlyoutItem>{{.text = L"Plugins one", .commandId = 36811}, {.text = L"Plugins two", .commandId = 36812}},
@@ -5459,6 +5461,8 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "explicit mnemonic menu owner activates before its modal popup opens");
 
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Save && Close\tCtrl+S", .commandId = 3001},
