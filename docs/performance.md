@@ -55,6 +55,14 @@ Both full judges reproduce zero aggregate flags, but all 72 controls remain unst
 cell drifts at least once. The agreed quiet window provides no continuous ambient-load trace. Initialization
 spread and large same-binary outliers justify a bounded attribution pilot before another full calibration;
 the original Grid flags, thresholds, unqualified-policy status and required-CI hold remain unchanged.
+The [12 October clean-harness A/A attempt](../Measurements/Performance/2026-10-12-aa-qualification/README.md)
+also completes all 144 receipts with a single executable and replayed judges. All 72 controls remain unstable;
+54/78 timing/memory cells drift at least once, and the legacy and migrated judges disagree on three timing slots.
+The absolute C++ allocation limits hold. This does not qualify the policy or attribute a regression.
+The [separate hosted A/A](../Measurements/Performance/2026-10-12-aa-qualification/hosted/README.md) replays both
+judges and 72 controls from its uploaded raw reports: 71 controls are unstable and 39/78 timing/memory cells drift.
+Its diagnostic benchmark job succeeded, but strict and required-policy conclusions remain inconclusive; the
+upload cannot independently rehash the hosted executable/build inventory.
 
 The [bounded profiling pilot](../Measurements/Performance/2026-10-10-profiling/README.md) retains six frozen baseline
 reports and separate startup/CPU/cache/heap diagnostics. Use

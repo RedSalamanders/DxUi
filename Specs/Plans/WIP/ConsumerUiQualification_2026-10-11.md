@@ -40,6 +40,17 @@ but all 72 controls remain unstable. It does not qualify the seed policy or esta
 S0-S2; trusted-base requirements and thresholds stay unchanged. The original retained baseline's drift remains a
 diagnostic and cannot be relabeled a policy qualification.
 
+The fresh [12 October clean-harness A/A attempt](../../../Measurements/Performance/2026-10-12-aa-qualification/README.md)
+at `0bd0e99c` uses one attested x64 Release/WARP executable for both labels, 12 blocks and all 144 receipts.
+Both judges replay from the retained bytes, but every same-binary control remains unstable (72/72), 54/78
+timing/memory cells drift, and the judges disagree on three timing slots. Absolute clean/dirty/composition
+allocation limits hold. The quiet-window agreement is not a continuous host-load trace. The base policy remains
+`policy-review-required`; stable-control attribution remains outstanding. The separate
+[hosted A/A packet](../../../Measurements/Performance/2026-10-12-aa-qualification/hosted/README.md) at the same
+commit has 71/72 unstable controls and 39/78 drifting timing/memory cells. Its paired diagnostic job succeeds,
+but strict/required-policy replay is inconclusive and the upload lacks executable/build bytes for independent
+rehashing. This is still no qualified trusted policy.
+
 S0-S2 implementation merged normally through [PR #73](https://github.com/RedSalamanders/DxUi/pull/73), remote merge
 `670207429d62ecc541769b5dd6c70b9607745e64`. The [final PR packet](../../../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md)
 retains the failed aggregate at candidate `4bd34801`, base `ec680e86`, actual tested merge `80d875a1` and tree
@@ -99,9 +110,10 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 ## 3. Remaining platform and physical qualification
 
-- [ ] Complete native ARM64 foreground/resource acceptance in Debug, Release and ASan Debug. Each native profile now
-  passes 19 ordinary suites at the final PR identities; the two refused foreground suites remain unlaunched failures.
-  Retain exact source/build/environment/scope identities and qualify remaining foreground/resource obligations natively.
+- [ ] Complete native ARM64 foreground/resource acceptance in Debug, Release and ASan Debug. PR #77's six-profile
+  candidate CI passed the foreground suites with zero native skips, but the post-merge `main` run at `c5485ab1`
+  failed Menu in ARM64 Debug and Release after it launched. Retain both exact source/build/environment/scope
+  identities; investigate these popup-opening failures and obtain stable native foreground/resource evidence.
 - [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
 - [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
@@ -125,6 +137,16 @@ identify which ownership guard refused first or establish continuous pointer his
 remain failed foreground qualification. They are the only native failures admitted by the dated implementation-only
 decision; no timeout/cancellation or correctness/resource/sanitizer failure is accepted. Hosted runs do not replace
 the separately agreed manual focus/resource, physical-input or product gates. Main/release acceptance stays separate.
+
+The later [PR #77](https://github.com/RedSalamanders/DxUi/pull/77) candidate run
+[38285724272](https://github.com/RedSalamanders/DxUi/actions/runs/38285724272) passes all six native profiles,
+including Menu and NativeTextInput in ARM64 Debug/Release/ASan Debug with zero native skips, and the aggregate gate.
+Its merge to `main` is `c5485ab1`. The subsequent `main` run
+[38291837960](https://github.com/RedSalamanders/DxUi/actions/runs/38291837960) instead fails the Menu popup-open
+assertion in ARM64 Debug's root-switch fixture and ARM64 Release's explicit-mnemonic fixture; NativeTextInput
+passes in both. These are launched fixture failures, not capability skips. The hosted lease reports foreground
+and pointer restoration but cannot fully verify pointer history. The successful PR run cannot be substituted
+for the failing post-merge run; ARM64 foreground acceptance remains open.
 
 ## 4. Consumer adoption gates
 
