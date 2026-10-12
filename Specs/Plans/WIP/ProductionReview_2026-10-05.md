@@ -2133,3 +2133,11 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   records no keyboard focus for a minimized foreground window, with a fake-desktop
   regression; visible-window focus restoration remains required. Fresh hosted execution is
   required before ARM64 foreground acceptance.
+- PR #75's fifth hosted run 38243559313 confirms the minimized-window focus correction in
+  native ARM64 Debug and ASan Debug; their full `test.ps1` steps pass. ARM64 Release restores
+  foreground and pointer with focus correctly unrecorded, and NativeTextInput passes, but Menu
+  fails `TestModalMenuDismissesOnSentCancellationAndDeactivation`: its modal popup never appears
+  during the five-second driver wait or eight-second cleanup guard. This fixture alone creates
+  an offscreen, hidden owner without activating it before asserting sent deactivation. The next
+  candidate puts that owner onscreen and verifies foreground focus before opening the modal
+  menu; it retains the popup, dismissal and zero-skip assertions. Release CI remains open.
