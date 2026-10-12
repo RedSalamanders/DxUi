@@ -91,3 +91,10 @@ and hit-window diagnostics. Exposing the patch also returns the warning to the t
 another window entered it later; actual hit testing must still prove ownership before any input. Failure remains a
 failed run. This fallback does not run on a person's ordinary local desktop; its private-desktop tests take no personal
 input or focus.
+
+On a verified GitHub-hosted native ARM64 run, `test.ps1` checks for the image's first-sign-in
+`WWAHost` CoreWindow immediately before the foreground lease. If that exact window holds the
+foreground, it suppresses the current user's privacy setup prompt and minimizes the window
+without terminating its process. The lease still checks the desktop and exact warning input
+target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
+local and self-hosted runs do not prepare or alter the desktop.

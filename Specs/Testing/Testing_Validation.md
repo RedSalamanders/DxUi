@@ -645,6 +645,14 @@ It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts
 lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
 stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
 
+Immediately before a hosted ARM64 foreground lease, `test.ps1` MAY prepare the disposable GitHub runner's
+first-sign-in desktop only when the exact hosted markers and native ARM64 architecture match. The preparation
+MUST inspect only the current foreground window and MAY minimize it only when its process is `WWAHost` and
+its class is `Windows.UI.Core.CoreWindow`; it MAY suppress that runner user's first-sign-in privacy prompt.
+It MUST NOT terminate WWAHost, UserOOBEBroker or any other independently launched process. If the target is
+different or moves during inspection, it MUST leave it alone. Preparation does not replace the lease's
+warning ownership, foreground, child execution, capability-skip or restoration checks.
+
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
 held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,

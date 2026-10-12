@@ -1,1 +1,1 @@
-- Reassert the hosted foreground warning's topmost position when exposing its temporary activation patch, while retaining exact hit-test refusal and desktop restoration if another window still owns the point.
+- Prepare the verified GitHub-hosted ARM64 desktop when its first-sign-in WWAHost window covers foreground tests, and reassert the warning's topmost patch position while retaining exact hit-test refusal and restoration.

@@ -2108,3 +2108,13 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   profiles and the Windows/Linux validators and formatter pass. A follow-up adds read-only direct `WM_NCHITTEST`,
   hit-window style and Z-order-neighbor diagnostics before choosing any further activation mechanism. This first
   hosted run is failure evidence, not ARM64 foreground acceptance.
+- PR #75's second hosted run 38228291467 (Debug native job) proves the warning's own `WM_NCHITTEST`
+  returns `HTCLIENT` (1) at the safe point, while `WindowFromPoint` still returns the foreground
+  CoreWindow with topmost style `0x200008`; the warning's style is `0x88` and its patch/region are valid.
+  The hosted image's foreground occlusion, rather than warning geometry or transparent hit testing, is the
+  immediate refusal. [Electron's independent Windows ARM CI workflow](https://github.com/electron/electron/blob/main/.github/workflows/pipeline-segment-electron-test.yml) reports the same first-sign-in
+  `WWAHost` privacy window above ordinary topmost test windows. A focused candidate prepares only a verified
+  native ARM64 GitHub-hosted session immediately before the lease: it sets the current-user privacy-prompt
+  policy and minimizes the matching foreground `WWAHost` CoreWindow without terminating a process. The
+  lease retains its exact ownership, activation, skip and restoration gates. Fresh three-profile ARM64
+  execution remains required; this diagnostic run is not acceptance.
