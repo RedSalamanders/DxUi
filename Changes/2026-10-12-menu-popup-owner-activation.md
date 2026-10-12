@@ -1,1 +1,1 @@
-- Activate the owner before two modal Menu foreground fixtures so a hosted runner's warning window cannot prevent their expected popups from opening.
+- Activate shown modal Menu test owners before opening popups so prior deactivation or hosted warning focus cannot make later fixtures close their initial popup.
