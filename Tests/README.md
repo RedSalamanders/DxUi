@@ -96,6 +96,8 @@ On a verified GitHub-hosted native ARM64 run, `test.ps1` checks for the image's 
 `WWAHost` CoreWindow immediately before the foreground lease. If that exact window holds the
 foreground, it suppresses the current user's privacy setup prompt and minimizes that window
 and a visible `UserOOBEWindowClass` broker window without terminating either process. The lease
-still checks the desktop and exact warning input
+does not treat a minimized window's stale thread focus HWND as active keyboard focus; it still
+restores and verifies the captured foreground window and pointer, and retains focus verification
+for a visible foreground window. The lease still checks the desktop and exact warning input
 target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
 local and self-hosted runs do not prepare or alter the desktop.

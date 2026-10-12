@@ -81,6 +81,14 @@ public:
         _focus[thread] = window;
     }
 
+    void SetMinimized(HWND window, bool minimized)
+    {
+        if (minimized)
+            _minimized.insert(window);
+        else
+            _minimized.erase(window);
+    }
+
     [[nodiscard]] HWND FocusOf(DWORD thread) const
     {
         const auto found = _focus.find(thread);
@@ -95,6 +103,11 @@ public:
     [[nodiscard]] bool IsWindowAlive(HWND window) override
     {
         return window != nullptr && _threads.contains(window);
+    }
+
+    [[nodiscard]] bool IsWindowMinimized(HWND window) override
+    {
+        return _minimized.contains(window);
     }
 
     [[nodiscard]] DWORD WindowThread(HWND window) override
@@ -177,6 +190,7 @@ private:
     HWND _foreground = nullptr;
     std::map<HWND, DWORD> _threads;
     std::map<DWORD, HWND> _focus;
+    std::set<HWND> _minimized;
 };
 
 // The person's desktop: their editor in front, the caret in a child window of it, the pointer somewhere over it.
@@ -247,6 +261,24 @@ void TestDesktopLeaseGivesBackTheForegroundWindowAndItsFocus()
     Require(report.RunMovedSomething(), "and that the run had moved something");
     Require(report.saved.foreground == person.editor && report.atExit.foreground == person.tests, "it keeps what the person had and what the run left");
     Require(IndexOf(events, "foreground") < IndexOf(events, "focus"), "the focus is set after the window that owns it is the foreground");
+}
+
+void TestDesktopLeaseDoesNotCaptureStaleFocusFromMinimizedForeground()
+{
+    Events events;
+    FakeDesktop desktop(events);
+    const Person person;
+    SeatThePerson(desktop, person);
+    desktop.SetMinimized(person.editor, true);
+    DesktopLease lease(desktop);
+    lease.Capture();
+    Require(lease.Saved().foreground == person.editor && lease.Saved().focus == nullptr,
+            "a minimized foreground window is recorded without its stale thread focus");
+    TakeOver(desktop, person);
+    const RestoreReport report = lease.Restore();
+    Require(Is(report, Restoration::Restored, Restoration::NotRecorded, Restoration::Restored) && report.Succeeded(),
+            "the foreground and pointer still restore, while no inaccessible focus is invented");
+    Require(Count(events, "focus") == 0, "the lease does not set focus to a stale child of a minimized window");
 }
 
 void TestDesktopLeaseGivesBackThePointerLast()
@@ -1111,6 +1143,7 @@ void RunInteractiveLeaseTests()
 {
     DXUI_RUN_TEST(TestDesktopLeaseLeavesAnUntouchedDesktopAlone);
     DXUI_RUN_TEST(TestDesktopLeaseGivesBackTheForegroundWindowAndItsFocus);
+    DXUI_RUN_TEST(TestDesktopLeaseDoesNotCaptureStaleFocusFromMinimizedForeground);
     DXUI_RUN_TEST(TestDesktopLeaseGivesBackThePointerLast);
     DXUI_RUN_TEST(TestDesktopLeaseRetriesAForegroundTheSystemRefusesOnce);
     DXUI_RUN_TEST(TestDesktopLeaseReportsAForegroundItCannotRestore);

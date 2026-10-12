@@ -1,1 +1,1 @@
-- Prepare the verified GitHub-hosted ARM64 desktop when first-sign-in WWAHost and UserOOBE windows cover foreground tests, and reassert the warning's topmost patch position while retaining exact hit-test refusal and restoration.
+- Prepare the verified GitHub-hosted ARM64 desktop when first-sign-in WWAHost and UserOOBE windows cover foreground tests, and reassert the warning's topmost patch position. Do not capture stale keyboard focus from a minimized foreground window; retain exact hit-test refusal and restoration of the recorded desktop state.

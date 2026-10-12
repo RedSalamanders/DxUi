@@ -2126,3 +2126,10 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   independent consumer checks to retrieve logs sooner; that run supplies no CI acceptance. The next
   candidate minimizes only that additional visible OOBE class on the verified hosted ARM64 session,
   retaining the exact warning/lease refusal gates and leaving all OS processes alive.
+- PR #75's fourth hosted run 38237311098 minimizes both first-sign-in windows in each ARM64
+  profile. Menu and NativeTextInput then execute and pass without capability skips in Debug,
+  Release and ASan Debug, while the lease fails restoration of a stale focus HWND from the
+  minimized WWAHost CoreWindow. The foreground and pointer restore. The next candidate
+  records no keyboard focus for a minimized foreground window, with a fake-desktop
+  regression; visible-window focus restoration remains required. Fresh hosted execution is
+  required before ARM64 foreground acceptance.

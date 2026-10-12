@@ -654,6 +654,10 @@ that runner user's first-sign-in privacy prompt.
 It MUST NOT terminate WWAHost, UserOOBEBroker or any other independently launched process. If the target is
 different or moves during inspection, it MUST leave that window alone. Preparation does not replace the lease's
 warning ownership, foreground, child execution, capability-skip or restoration checks.
+The lease still records and restores the foreground window and pointer. If that saved window is minimized,
+it MUST NOT record the thread's `GUITHREADINFO.hwndFocus` as active keyboard focus: Windows can retain a
+stale child HWND for a minimized window that cannot receive keyboard input. A visible foreground window's
+focus MUST continue to be recorded, restored and verified; failed restoration remains a failed lease.
 
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
