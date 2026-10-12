@@ -98,15 +98,16 @@ public:
     DesktopBackend& operator=(DesktopBackend&&)      = delete;
     virtual ~DesktopBackend()                        = default;
 
-    [[nodiscard]] virtual HWND Foreground()               = 0;
-    [[nodiscard]] virtual bool IsWindowAlive(HWND window) = 0;
-    [[nodiscard]] virtual DWORD WindowThread(HWND window) = 0; // 0 when the window is gone.
-    [[nodiscard]] virtual HWND ThreadFocus(DWORD thread)  = 0; // The focus window of the thread's input state.
-    [[nodiscard]] virtual bool Cursor(POINT& position)    = 0; // Physical coordinates.
-    virtual bool SetCursor(POINT position)                = 0; // Whether the call was accepted.
-    virtual bool BringToForeground(HWND window)           = 0; // Whether the call was accepted; the change itself is asynchronous.
-    virtual bool FocusWindow(HWND window, DWORD thread)   = 0; // Whether the call was accepted.
-    virtual void Wait(std::chrono::milliseconds duration) = 0; // Lets an asynchronous change settle.
+    [[nodiscard]] virtual HWND Foreground()                   = 0;
+    [[nodiscard]] virtual bool IsWindowAlive(HWND window)     = 0;
+    [[nodiscard]] virtual bool IsWindowMinimized(HWND window) = 0;
+    [[nodiscard]] virtual DWORD WindowThread(HWND window)     = 0; // 0 when the window is gone.
+    [[nodiscard]] virtual HWND ThreadFocus(DWORD thread)      = 0; // The focus window of the thread's input state.
+    [[nodiscard]] virtual bool Cursor(POINT& position)        = 0; // Physical coordinates.
+    virtual bool SetCursor(POINT position)                    = 0; // Whether the call was accepted.
+    virtual bool BringToForeground(HWND window)               = 0; // Whether the call was accepted; the change itself is asynchronous.
+    virtual bool FocusWindow(HWND window, DWORD thread)       = 0; // Whether the call was accepted.
+    virtual void Wait(std::chrono::milliseconds duration)     = 0; // Lets an asynchronous change settle.
     // For messages: the class and process of a window; empty where a backend has nothing to say.
     [[nodiscard]] virtual std::string Describe(HWND /*window*/)
     {
@@ -172,8 +173,10 @@ private:
         DesktopState state{};
         state.foreground       = _desktop.Foreground();
         state.foregroundThread = state.foreground != nullptr ? _desktop.WindowThread(state.foreground) : 0u;
-        state.focus            = state.foregroundThread != 0u ? _desktop.ThreadFocus(state.foregroundThread) : nullptr;
-        state.cursorKnown      = _desktop.Cursor(state.cursor);
+        // A minimized foreground window can retain a stale GUITHREADINFO focus HWND even though it cannot receive
+        // keyboard input. The hosted ARM64 first-sign-in CoreWindow is one such case after desktop preparation.
+        state.focus = state.foregroundThread != 0u && ! _desktop.IsWindowMinimized(state.foreground) ? _desktop.ThreadFocus(state.foregroundThread) : nullptr;
+        state.cursorKnown = _desktop.Cursor(state.cursor);
         return state;
     }
 
@@ -271,6 +274,11 @@ public:
     [[nodiscard]] bool IsWindowAlive(HWND window) override
     {
         return window != nullptr && IsWindow(window) != FALSE;
+    }
+
+    [[nodiscard]] bool IsWindowMinimized(HWND window) override
+    {
+        return IsWindowAlive(window) && IsIconic(window) != FALSE;
     }
 
     [[nodiscard]] DWORD WindowThread(HWND window) override

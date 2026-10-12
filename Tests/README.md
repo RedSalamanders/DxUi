@@ -87,5 +87,17 @@ If a verified hosted runner refuses ordinary warning activation, the lease can b
 input patch and click that owned point. It rechecks authorization/targeting, balances and observes the mouse release,
 rejects capture on the foreground or lease thread, uses an opaque nonlayered patch, and restores and verifies the full
 warning style, layered attributes and shape before launching any child. Refused targets retain read-only geometry
-and hit-window diagnostics. Failure remains a failed run. This fallback
-does not run on a person's ordinary local desktop; its private-desktop tests take no personal input or focus.
+and hit-window diagnostics. Exposing the patch also returns the warning to the top of the regular topmost band if
+another window entered it later; actual hit testing must still prove ownership before any input. Failure remains a
+failed run. This fallback does not run on a person's ordinary local desktop; its private-desktop tests take no personal
+input or focus.
+
+On a verified GitHub-hosted native ARM64 run, `test.ps1` checks for the image's first-sign-in
+`WWAHost` CoreWindow immediately before the foreground lease. If that exact window holds the
+foreground, it suppresses the current user's privacy setup prompt and minimizes that window
+and a visible `UserOOBEWindowClass` broker window without terminating either process. The lease
+does not treat a minimized window's stale thread focus HWND as active keyboard focus; it still
+restores and verifies the captured foreground window and pointer, and retains focus verification
+for a visible foreground window. The lease still checks the desktop and exact warning input
+target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
+local and self-hosted runs do not prepare or alter the desktop.

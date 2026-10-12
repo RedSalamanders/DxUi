@@ -249,6 +249,9 @@ menu that then comes up and the owner thread's `Show` to return, and a source sc
 requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
 a join does not pump.
+The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
+foreground and thread focus. This makes the explicitly sent deactivation or cancellation message the action
+under test; a hidden, inactive owner is not a valid setup for that assertion.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
 focus, alpha, hostile state, negative origins, device loss,
@@ -645,12 +648,29 @@ It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts
 lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
 stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
 
+Immediately before a hosted ARM64 foreground lease, `test.ps1` MAY prepare the disposable GitHub runner's
+first-sign-in desktop only when the exact hosted markers and native ARM64 architecture match. The preparation
+MUST inspect the current foreground window and MAY minimize it only when its process is `WWAHost` and
+its class is `Windows.UI.Core.CoreWindow`. It MAY then minimize the visible top-level
+`UserOOBEWindowClass` broker window that the same first-sign-in flow leaves behind, and MAY suppress
+that runner user's first-sign-in privacy prompt.
+It MUST NOT terminate WWAHost, UserOOBEBroker or any other independently launched process. If the target is
+different or moves during inspection, it MUST leave that window alone. Preparation does not replace the lease's
+warning ownership, foreground, child execution, capability-skip or restoration checks.
+The lease still records and restores the foreground window and pointer. If that saved window is minimized,
+it MUST NOT record the thread's `GUITHREADINFO.hwndFocus` as active keyboard focus: Windows can retain a
+stale child HWND for a minimized window that cannot receive keyboard input. A visible foreground window's
+focus MUST continue to be recorded, restored and verified; failed restoration remains a failed lease.
+
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
 held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
 and verify that the warning owns the point before and after moving the pointer. Capture checks MUST inspect the
 foreground thread as well as the lease thread: `GetCapture` alone cannot rule out another thread's capture. The warning
 MUST be temporarily clipped to an opaque, nonlayered patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+When a hosted shell window has entered the topmost band after the warning was shown, exposing that patch MAY reassert
+the warning's topmost position without activation. This never substitutes for the two actual `WindowFromPoint` ownership
+checks or authorizes input when another window still covers the patch.
 The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
 down/up messages and released button state, verify actual warning foreground, and restore/read back the original
 extended style, layered alpha/color-key attributes and full window region before starting a child. A refused target

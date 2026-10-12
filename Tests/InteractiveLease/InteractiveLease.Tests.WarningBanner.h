@@ -207,7 +207,9 @@ public:
             static_cast<void>(EndHostedActivationPatch());
             return false;
         }
-        if (SetWindowPos(_window.get(), nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
+        // A hosted shell window may have entered the topmost band after Show. Reassert this warning's position only
+        // while its owned patch is exposed; the caller still verifies WindowFromPoint before sending any input.
+        if (SetWindowPos(_window.get(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
         {
             static_cast<void>(EndHostedActivationPatch());
             return false;

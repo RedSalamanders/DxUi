@@ -643,4 +643,22 @@ Invoke-FixtureCase 'a missing lease child replaces an existing suite log with th
     Assert-True $childFailureBranch 'test.ps1 replaces the log in the child launch-failure branch'
     Assert-True (-not $logExistenceGuard) 'log replacement is unconditional and cannot preserve a previous suite log'
 }
+Invoke-TestCase 'hosted ARM desktop preparation refuses incomplete runner authorization before Windows changes' {
+    $preparation = Join-Path $repository 'Tools/Prepare-HostedArmDesktop.ps1'
+    $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }
+    $original = @{}
+    foreach ($name in $valid.Keys) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
+    try {
+        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $valid[$name]) }
+        foreach ($name in $valid.Keys) {
+            [Environment]::SetEnvironmentVariable($name, 'invalid')
+            $refused = $false
+            try { & $preparation } catch { $refused = $_.Exception.Message -like 'Hosted ARM64 desktop preparation requires*' }
+            Assert-True $refused "an invalid $name refuses before registry or desktop access"
+            [Environment]::SetEnvironmentVariable($name, $valid[$name])
+        }
+    } finally {
+        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $original[$name]) }
+    }
+}
 Complete-TestRun 'Interactive mode'

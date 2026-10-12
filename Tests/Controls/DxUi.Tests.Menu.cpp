@@ -1261,6 +1261,12 @@ void TestModalMenuDismissesOnSentCancellationAndDeactivation()
     for (const SentDismissal& test : cases)
     {
         AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+        const char* activationStage = nullptr;
+        const bool activated        = TryActivateDxUiTestWindow(ownerWindow.Hwnd(), 2000u, &activationStage);
+        if (! activated)
+            std::cerr << "Sent dismissal owner activation failed at " << activationStage << " for " << test.label << '\n';
+        Require(activated, "the sent-dismissal owner holds the foreground before opening its modal menu");
         const std::wstring label = std::format(L"Sent dismissal {}", test.message);
         const std::vector<MenuFlyoutItem> items{{.text = label, .commandId = 91603}};
         std::string driverFailure;
@@ -1270,7 +1276,7 @@ void TestModalMenuDismissesOnSentCancellationAndDeactivation()
             const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), label);
             if (! popup)
             {
-                driverFailure = "the modal popup appears before the sent dismissal";
+                driverFailure = std::format("the modal popup appears before the sent {} dismissal", test.label);
                 return;
             }
 

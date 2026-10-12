@@ -2094,3 +2094,50 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   A read-only PE diagnostic finds equal mapped image and code sizes for the actual local paired binaries;
   static image growth does not explain the memory flags. Runtime page/graphics/process residency remains
   unmeasured, so retain the flags and controlled-host investigation. No approved tradeoff or release gate changes.
+- Main CI run 38180509511 at `81adc878` again builds all three native ARM64 profiles and passes their nineteen
+  noninteractive suites, but each hosted warning target resolves to WWAHost's CoreWindow; both foreground suites
+  refuse before input. The focused candidate reasserts the warning's regular topmost order only while exposing its
+  hosted activation patch, then keeps both actual hit-test gates and full restoration. A private-desktop regression
+  places a later hit-testable topmost window over the warning and proves the patch reclaims its target. Local x64
+  Debug self-test passes 74/74 on this candidate; fresh hosted ARM64 execution remains the decisive gate. The test
+  guide and validation contract describe the behavior. The gallery/design-system review found no product visual
+  change: this affects only the temporary test warning, so published control images remain current.
+- PR #75's first hosted run 38223243970 shows the topmost reassertion is insufficient on the ARM64 runner: Debug
+  and Release still resolve the point to WWAHost's CoreWindow and refuse Menu/NativeTextInput before child input;
+  the ASan Debug native step fails the same way; its independent consumer qualification passes. All x64 native
+  profiles and the Windows/Linux validators and formatter pass. A follow-up adds read-only direct `WM_NCHITTEST`,
+  hit-window style and Z-order-neighbor diagnostics before choosing any further activation mechanism. This first
+  hosted run is failure evidence, not ARM64 foreground acceptance.
+- PR #75's second hosted run 38228291467 (Debug native job) proves the warning's own `WM_NCHITTEST`
+  returns `HTCLIENT` (1) at the safe point, while `WindowFromPoint` still returns the foreground
+  CoreWindow with topmost style `0x200008`; the warning's style is `0x88` and its patch/region are valid.
+  The hosted image's foreground occlusion, rather than warning geometry or transparent hit testing, is the
+  immediate refusal. [Electron's independent Windows ARM CI workflow](https://github.com/electron/electron/blob/main/.github/workflows/pipeline-segment-electron-test.yml) reports the same first-sign-in
+  `WWAHost` privacy window above ordinary topmost test windows. A focused candidate prepares only a verified
+  native ARM64 GitHub-hosted session immediately before the lease: it sets the current-user privacy-prompt
+  policy and minimizes the matching foreground `WWAHost` CoreWindow without terminating a process. The
+  lease retains its exact ownership, activation, skip and restoration gates. Fresh three-profile ARM64
+  execution remains required; this diagnostic run is not acceptance.
+- PR #75's third hosted run 38233292393 identifies the next obstruction in all three ARM64 profiles:
+  preparation recognizes and minimizes foreground `WWAHost` (title `Microsoft account`), but
+  `WindowFromPoint` then returns a separate topmost `UserOOBEWindowClass` from the first-sign-in broker.
+  The warning still reports `HTCLIENT`; Menu/NativeTextInput do not launch. All x64 profiles and both
+  validators pass. After the three ARM64 native failures were recorded, the run was cancelled during
+  independent consumer checks to retrieve logs sooner; that run supplies no CI acceptance. The next
+  candidate minimizes only that additional visible OOBE class on the verified hosted ARM64 session,
+  retaining the exact warning/lease refusal gates and leaving all OS processes alive.
+- PR #75's fourth hosted run 38237311098 minimizes both first-sign-in windows in each ARM64
+  profile. Menu and NativeTextInput then execute and pass without capability skips in Debug,
+  Release and ASan Debug, while the lease fails restoration of a stale focus HWND from the
+  minimized WWAHost CoreWindow. The foreground and pointer restore. The next candidate
+  records no keyboard focus for a minimized foreground window, with a fake-desktop
+  regression; visible-window focus restoration remains required. Fresh hosted execution is
+  required before ARM64 foreground acceptance.
+- PR #75's fifth hosted run 38243559313 confirms the minimized-window focus correction in
+  native ARM64 Debug and ASan Debug; their full `test.ps1` steps pass. ARM64 Release restores
+  foreground and pointer with focus correctly unrecorded, and NativeTextInput passes, but Menu
+  fails `TestModalMenuDismissesOnSentCancellationAndDeactivation`: its modal popup never appears
+  during the five-second driver wait or eight-second cleanup guard. This fixture alone creates
+  an offscreen, hidden owner without activating it before asserting sent deactivation. The next
+  candidate puts that owner onscreen and verifies foreground focus before opening the modal
+  menu; it retains the popup, dismissal and zero-skip assertions. Release CI remains open.
