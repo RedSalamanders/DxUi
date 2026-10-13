@@ -2091,7 +2091,6 @@ void TestContextMenuPopupScrollsOversizedContent()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the oversized context menu owner holds the foreground before its popup opens");
 
     std::vector<MenuFlyoutItem> items;
     for (size_t index = 0u; index < kOversizedMenuItemCount; ++index)
@@ -2102,6 +2101,8 @@ void TestContextMenuPopupScrollsOversizedContent()
             .commandId = static_cast<int>(1000u + index),
         });
     }
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the oversized context menu owner holds the foreground before its popup opens");
 
     std::string driverFailure;
     std::thread driver([&]
@@ -2127,10 +2128,11 @@ void TestContextMenuPopupScrollsOversizedContent()
         }, popupState))
         {
             driverFailure = std::format("oversized context menu exposes scrollbar state after its initial frame renders: window={} visible={} "
-                                        "foreground={} scrollbar={} contentHeight={} visibleHeight={} renderCount={}",
+                                        "foreground={} owner={} scrollbar={} contentHeight={} visibleHeight={} renderCount={}",
                                         IsWindow(popupHwnd),
                                         IsWindowVisible(popupHwnd),
                                         reinterpret_cast<uintptr_t>(GetForegroundWindow()),
+                                        reinterpret_cast<uintptr_t>(ownerWindow.Hwnd()),
                                         popupState.hasScrollbar,
                                         popupState.contentHeightDip,
                                         popupState.visibleHeightDip,
@@ -2194,6 +2196,11 @@ void TestContextMenuPopupScrollsOversizedContent()
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
+    if (! driverFailure.empty())
+        driverFailure += std::format(" ownerForeground={} foregroundLosses={} thiefThread={}",
+                                     GetForegroundWindow() == ownerWindow.Hwnd(),
+                                     ownerWindow.ForegroundLossCount(),
+                                     ownerWindow.LastForegroundThiefThreadId());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "dismissing the oversized context menu returns no invoked command");
 }
@@ -2208,7 +2215,6 @@ void TestContextMenuPopupHonorsSessionMaxRootHeight()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 160, 160, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the capped context menu owner holds the foreground before its popup opens");
 
     std::vector<MenuFlyoutItem> items;
     for (size_t index = 0u; index < kOversizedMenuItemCount; ++index)
@@ -2219,6 +2225,8 @@ void TestContextMenuPopupHonorsSessionMaxRootHeight()
             .commandId = static_cast<int>(2000u + index),
         });
     }
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the capped context menu owner holds the foreground before its popup opens");
 
     std::string driverFailure;
     std::thread driver([&]
