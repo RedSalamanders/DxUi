@@ -110,10 +110,11 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 ## 3. Remaining platform and physical qualification
 
-- [ ] Complete native ARM64 foreground/resource acceptance in Debug, Release and ASan Debug. PR #77's six-profile
-  candidate CI passed the foreground suites with zero native skips, but the post-merge `main` run at `c5485ab1`
-  failed Menu in ARM64 Debug and Release after it launched. Retain both exact source/build/environment/scope
-  identities; investigate these popup-opening failures and obtain stable native foreground/resource evidence.
+- [x] Complete hosted native ARM64 Menu and NativeTextInput foreground functional execution in Debug, Release and
+  ASan Debug at the PR #78 candidate and merged `main` identities, with zero skips and a successful aggregate gate.
+- [ ] Complete native ARM64 menu resource fixture acceptance and separately agreed local/manual focus and resource
+  work. The hosted Full runs above cover Menu and NativeTextInput, not the opt-in MenuResources and
+  MenuResourceScaling fixtures; they cannot close those resource or physical-input gates.
 - [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
 - [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
@@ -146,17 +147,22 @@ Its merge to `main` is `c5485ab1`. The subsequent `main` run
 assertion in ARM64 Debug's root-switch fixture and ARM64 Release's explicit-mnemonic fixture; NativeTextInput
 passes in both. These are launched fixture failures, not capability skips. The hosted lease reports foreground
 and pointer restoration but cannot fully verify pointer history. The successful PR run cannot be substituted
-for the failing post-merge run; ARM64 foreground acceptance remains open.
+for the failing post-merge run; ARM64 foreground acceptance was still open at that source identity.
 
-The first [draft PR #78](https://github.com/RedSalamanders/DxUi/pull/78) fixture follow-up still failed Menu in
+The first [PR #78](https://github.com/RedSalamanders/DxUi/pull/78) fixture follow-up still failed Menu in
 ARM64 Debug and ASan Debug at [run 38298780317](https://github.com/RedSalamanders/DxUi/actions/runs/38298780317).
 Its revised test-only head `500f93d4` activates modal fixture owners before popup launch. The exact
 [run 38305728123](https://github.com/RedSalamanders/DxUi/actions/runs/38305728123) passes all six native jobs,
 the relocated/STL-annotation consumer checks that apply to each profile, and `ci-gate`. The uploaded ARM64
 Debug, Release and ASan Debug logs each contain 108/108 completed Menu cases and 165/165 completed NativeTextInput
-cases, with no skip, failure or timeout lines. This is passing candidate evidence; repeat and review the native
-foreground result on `main` after merge. Resource, physical-input, device-removal, paired-performance-policy and
-consumer-product acceptance remain separate gates.
+cases, with no skip, failure or timeout lines. PR #78 merged to `main` as `fa4da2cb`. Its fresh
+[main run 38351048921](https://github.com/RedSalamanders/DxUi/actions/runs/38351048921) succeeds in all six native
+profiles and `ci-gate`. Downloaded logs for each profile again show 108/108 completed Menu cases and 165/165
+completed NativeTextInput cases, with no skip, failure or timeout lines. ARM64 Menu receipts report native Arm64,
+successful hosted lease completion and foreground/cursor restoration; the saved focus was unavailable, and a
+saved/exit cursor check does not establish continuous pointer history. This closes the hosted ARM64 core foreground
+functional gate at that exact merged source and CI identity. Opt-in resource fixtures, local/manual focus,
+physical-input, device-removal, paired-performance-policy and consumer-product acceptance remain separate gates.
 
 ## 4. Consumer adoption gates
 

@@ -400,9 +400,10 @@ Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `window
 and ASan Debug.
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
-The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) distinguishes the green
-PR #78 candidate from PR #77's failed post-merge `main` run and tracks the remaining foreground, resource and
-physical-input gates.
+The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
+post-merge `main` run separately from the green PR #78 candidate and its successful fresh merged-`main` six-profile
+run. The latter closes hosted ARM64 Menu and NativeTextInput foreground functional execution at that identity;
+opt-in menu resource fixtures, separately agreed manual focus work and physical-input gates remain open.
 
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
