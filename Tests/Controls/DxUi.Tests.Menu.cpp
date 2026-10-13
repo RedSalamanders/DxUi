@@ -1131,6 +1131,8 @@ void TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items{{.text = L"Late popup", .enabled = true, .commandId = 91601}};
     std::string driverFailure;
     bool closedByGuard = false;
@@ -2017,6 +2019,8 @@ void TestMenuKeyboardNavigationSkipsInfoRows()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.kind = MenuItemKind::Info, .text = L"Used Space:", .acceleratorText = L"561 GB"},
         {.kind = MenuItemKind::Standard, .text = L"Disk Properties...", .commandId = 3001},
@@ -2079,6 +2083,8 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     ownerWindow.PumpMessages();
     DrainPendingMouseMessagesForMenuSuite();
 
@@ -2212,6 +2218,8 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
         {
@@ -2420,6 +2428,8 @@ void TestMenuPointerOverSiblingRootSwitchesOpenMenu()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
         {
             {.text = L"View one", .commandId = 36701},
@@ -2543,6 +2553,8 @@ void TestMenuPopupMouseMoveUsesDeliveredPointForRootSwitch()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36761}, {.text = L"View two", .commandId = 36762}},
         std::vector<MenuFlyoutItem>{{.text = L"Plugins one", .commandId = 36771}, {.text = L"Plugins two", .commandId = 36772}},
@@ -2640,6 +2652,8 @@ void TestMenuOwnerMouseMoveRoutesRootSwitchImmediately()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36781}, {.text = L"View two", .commandId = 36782}},
@@ -2748,6 +2762,8 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36741}, {.text = L"View two", .commandId = 36742}},
         std::vector<MenuFlyoutItem>{{.text = L"Plugins one", .commandId = 36751}, {.text = L"Plugins two", .commandId = 36752}},
@@ -2843,6 +2859,8 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36721}, {.text = L"View two", .commandId = 36722}},
@@ -3011,6 +3029,8 @@ void TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)
     {
         if (message != kFormerRootHoverValue)
@@ -3099,6 +3119,8 @@ void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "delivered owner mouse-move menu owner activates before its modal popup opens");
 
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36801}, {.text = L"View two", .commandId = 36802}},
@@ -3242,6 +3264,8 @@ void TestMenuRootSwitchDoesNotPollCursorWhileIdle()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::array<std::vector<MenuFlyoutItem>, 2> rootMenus = {
         std::vector<MenuFlyoutItem>{{.text = L"View one", .commandId = 36901}, {.text = L"View two", .commandId = 36902}},
         std::vector<MenuFlyoutItem>{{.text = L"Plugins one", .commandId = 36911}, {.text = L"Plugins two", .commandId = 36912}},
@@ -3330,6 +3354,8 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     DrainPendingMouseMessagesForMenuSuite();
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"B1",
@@ -3421,6 +3447,8 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     DrainPendingMouseMessagesForMenuSuite();
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"B1",
@@ -3682,6 +3710,8 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     DrainPendingMouseMessagesForMenuSuite();
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"B1",
@@ -3844,6 +3874,8 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
         {
@@ -4136,6 +4168,8 @@ void TestMenuInfoRowsDoNotDismissOnClick()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.kind = MenuItemKind::Info, .text = L"Volume Label:", .acceleratorText = L"Home"},
         {.kind = MenuItemKind::Standard, .text = L"Disk Properties...", .commandId = 3001},
@@ -4310,6 +4344,8 @@ void TestMenuInfoRowsUseMeasuredValueColumnWidth()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.kind = MenuItemKind::Info, .text = L"Total Space:", .acceleratorText = L"1.82 TB (1999377526784 bytes)"},
         {.kind = MenuItemKind::Info, .text = L"Free Space:", .acceleratorText = L"1.27 TB"},
@@ -4382,6 +4418,8 @@ void TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.kind = MenuItemKind::Standard, .text = L"&Open\tCtrl+O", .commandId = 3001},
         {.kind = MenuItemKind::Standard, .text = L"E&xit\t  Alt+F4  ", .commandId = 3002},
@@ -4453,6 +4491,8 @@ void TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::vector<MenuFlyoutItem> items = {
         {.kind = MenuItemKind::Standard, .text = L"&More", .children = {{.kind = MenuItemKind::Standard, .text = L"Child", .commandId = 3101}}},
@@ -4527,6 +4567,8 @@ void TestMenuBitmapIconsReachPopupLayout()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     std::vector<MenuFlyoutItem> items;
     items.push_back(MenuFlyoutItem{.text = L"Downloads", .iconBitmap = CreateSyntheticMenuBitmapIcon(16u), .commandId = 3001});
@@ -4634,6 +4676,8 @@ void TestMenuRainbowHoverUsesSeededHighlightContrast()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     ContextMenuPopupDebugState popupState{};
     ContextMenuPopupItemPaintDebugState paintState{};
     D2D1_RECT_F firstRowRectDip = D2D1::RectF();
@@ -4724,6 +4768,8 @@ void TestMenuHoverContrastAppliesToGlyphsAcrossThemes()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     ContextMenuPopupDebugState popupState{};
     ContextMenuPopupItemPaintDebugState paintState{};
     D2D1_RECT_F firstRowRectDip = D2D1::RectF();
@@ -4806,6 +4852,8 @@ void TestMenuRainbowCheckedItemUsesAccentIndicator()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     WindowHostBitmapCapture capture{};
     ContextMenuPopupItemLayoutDebugState checkedLayout{};
@@ -4891,6 +4939,8 @@ void TestMenuCheckedRowsDoNotPaintSecondFullRowSelection()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const auto captureTrailingPixel = [&](const std::vector<MenuFlyoutItem>& items, uint32_t& trailingPixel, std::string& failure) noexcept
     {
@@ -4996,6 +5046,8 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const auto captureLeadingPixel = [&](const std::vector<MenuFlyoutItem>& items, uint32_t& leadingPixel, std::string& failure) noexcept
     {
         WindowHostBitmapCapture capture{};
@@ -5087,6 +5139,8 @@ void TestMenuPopupCompositionHostUsesTransparentShadowMargins()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Desktop", .commandId = 3001},
@@ -5231,6 +5285,8 @@ void TestMenuPopupWindowClassDoesNotUseNativeDropShadow()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Open", .commandId = 4101},
         {.text = L"Copy", .commandId = 4102},
@@ -5288,6 +5344,8 @@ void TestMenuPopupAcrylicLightVisualBaseline()
     ownerWindow.Host().SetRoot(std::make_unique<StripedBackdropControl>(10));
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     DrainPendingMouseMessagesForMenuSuite();
     WindowHostBitmapCapture ownerBackdropCapture{};
     Require(ownerWindow.Host().DebugCaptureBitmap(ownerBackdropCapture), "acrylic visual-baseline owner backdrop renders before popup capture");
@@ -5366,6 +5424,8 @@ void TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
     ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.overlayMaterial = OverlayMaterial::Acrylic;
@@ -5459,6 +5519,8 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "explicit mnemonic menu owner activates before its modal popup opens");
 
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Save && Close\tCtrl+S", .commandId = 3001},
@@ -5720,6 +5782,8 @@ void TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Ignore Release", .commandId = 3001},
         {.text = L"Close", .commandId = 3002},
@@ -5778,6 +5842,8 @@ void TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
     const std::vector<MenuFlyoutItem> items = {
         {.text = L"Shadow Desktop", .commandId = 3001},
         {.text = L"Documents", .commandId = 3002},
@@ -5830,6 +5896,8 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     UpdateWindow(ownerWindow.Hwnd());
     ownerWindow.PumpMessages();
+
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     WindowHostBitmapCapture ownerBackdropBeforePopup{};
     Require(ownerWindow.Host().DebugCaptureBitmap(ownerBackdropBeforePopup), "owner backdrop renders before acrylic metric capture");
     const POINT menuPoint = ClientScreenPointForTest(ownerWindow.Hwnd(), 96, 72, "acrylic metric popup anchor maps to screen coordinates");
