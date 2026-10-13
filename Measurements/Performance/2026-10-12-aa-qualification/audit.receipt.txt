@@ -1,0 +1,670 @@
+{
+  "classification": "read-only-v2-aa-audit",
+  "summaryPath": "Z:\\src\\DxUi\\Measurements\\Performance\\2026-10-12-aa-qualification\\summary.receipt.txt",
+  "summarySha256": "D6980895604AB6CBECCBE7D968CF2697EF27FDD9A3A4E85A2762E146474591F1",
+  "studyPurpose": "aa-calibration",
+  "baselineCommit": "0bd0e99c482ccd230dce949c65686791df682769",
+  "harnessCommit": "0bd0e99c482ccd230dce949c65686791df682769",
+  "declaredHarnessDirty": false,
+  "harnessPathsVerified": 17,
+  "samePhysicalTree": true,
+  "rawReceipts": 144,
+  "controlComparisons": 72.0,
+  "controlMetricComparisons": 1872.0,
+  "unstableControls": 72.0,
+  "driftedMetricCells": 54.0,
+  "judgeProvenance": {
+    "status": "available",
+    "reason": "Measured-base and candidate judges loaded from their attested sources in isolated module scopes.",
+    "baselineCommit": "0bd0e99c482ccd230dce949c65686791df682769",
+    "baseJudgeSha256": "EB1B3047ED8B031383AEBA4D9A72A37D3719B1320A46381EFF042897CCB72E33",
+    "candidateJudgeSha256": "EB1B3047ED8B031383AEBA4D9A72A37D3719B1320A46381EFF042897CCB72E33",
+    "baseJudgeVersion": "dxui-paired-block-sign-flip-holm-v2",
+    "candidateJudgeVersion": "dxui-paired-block-sign-flip-holm-v2"
+  },
+  "schedule": {
+    "seed": 20261012,
+    "blocks": 12,
+    "steps": 48,
+    "literalOrderMatches": true,
+    "blockRecordsMatch": true,
+    "stepRecordsMatch": true,
+    "abba": 7,
+    "baab": 5
+  },
+  "identity": [
+    {
+      "field": "sourceCommit",
+      "value": "0bd0e99c482ccd230dce949c65686791df682769"
+    },
+    {
+      "field": "sourceFingerprint",
+      "value": "D1C3380BFDDAA3A1BD37534C666FF24A29C5936A27185DBFA4D26EE8B0D11A46"
+    },
+    {
+      "field": "executableSha256",
+      "value": "419349DAFAAC1DB44026DA22ABB8A7C7E5748F7D7052E9447D8EAECD6E504037"
+    },
+    {
+      "field": "buildIdentityVersion",
+      "value": 2
+    },
+    {
+      "field": "resolvedBuildIdentity",
+      "value": "cc695e9c86f6035be7ad574b2b39d08a6b4edf7e91dcae7e4b29c715d8b26604"
+    },
+    {
+      "field": "buildInputIdentity",
+      "value": "633af9b387e6878778141920ae2a0a91416853ae420c00c837e28cc880766114"
+    },
+    {
+      "field": "buildArtifactIdentity",
+      "value": "8c0926e58b2894bfa8ecd0d63c1279d1db00642aebf16c817dfe23c5bca2a624"
+    },
+    {
+      "field": "buildAttestationIdentity",
+      "value": "68448430befbf3872317b2d6f57978cb2186b82d77cf55e1c7e92acc6fbc9467"
+    },
+    {
+      "field": "benchmarkSha256",
+      "value": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E"
+    },
+    {
+      "field": "harnessIdentity",
+      "value": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61"
+    },
+    {
+      "field": "toolchainIdentity",
+      "value": "FAFD349F9F59F848D3060907059173A94C0CEAAC77CF0CC26FA10A323EE3823C"
+    },
+    {
+      "field": "dependencyIdentity",
+      "value": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4"
+    },
+    {
+      "field": "environmentIdentity",
+      "value": "B4400980D018CC9680976FD0FAC7C566CBBA848D5BE8269AFB97AA9150671D08"
+    },
+    {
+      "field": "identityScope",
+      "value": "full"
+    },
+    {
+      "field": "identityStatus",
+      "value": "verifiable"
+    },
+    {
+      "field": "sourceDirty",
+      "value": false
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario": "Default",
+      "rawReceipts": 48,
+      "bothFullJudgeDecisionsMatch": true,
+      "consumedSetMatches": true,
+      "verdictsAgree": false,
+      "calibrationOnly": true,
+      "setStatus": "within-noise-budget",
+      "metricSlots": 26,
+      "regressed": 0,
+      "controls": 24,
+      "unstable": 24,
+      "controlMetricComparisons": 624,
+      "driftedMetricCells": 18,
+      "strictConclusion": "inconclusive",
+      "strictNotes": [
+        "Strict controls: 24 of 24 same-binary controls drifted beyond a band, so the runner was not held still."
+      ],
+      "drift": [
+        {
+          "slot": "clean/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 131.25000000000006
+        },
+        {
+          "slot": "clean/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 90.91424549508818
+        },
+        {
+          "slot": "clean/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 671.4376996805113
+        },
+        {
+          "slot": "clean/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 2163.5171944160707
+        },
+        {
+          "slot": "clean/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 424.9999999999999
+        },
+        {
+          "slot": "clean/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 13.414455358451837
+        },
+        {
+          "slot": "clean/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 13.398740664811836
+        },
+        {
+          "slot": "clean/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 7.222069471175874
+        },
+        {
+          "slot": "clean/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 7.0643210555250135
+        },
+        {
+          "slot": "dirty/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 56.10859728506787
+        },
+        {
+          "slot": "dirty/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 63.37753716888406
+        },
+        {
+          "slot": "dirty/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 65.05142857142856
+        },
+        {
+          "slot": "dirty/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 72.49095410398021
+        },
+        {
+          "slot": "dirty/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 55.67950606889778
+        },
+        {
+          "slot": "dirty/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 10.380622837370247
+        },
+        {
+          "slot": "dirty/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 11.478862644802156
+        },
+        {
+          "slot": "dirty/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 5.819266996176453
+        },
+        {
+          "slot": "dirty/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 6.0990394479156995
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGrid",
+      "rawReceipts": 48,
+      "bothFullJudgeDecisionsMatch": true,
+      "consumedSetMatches": true,
+      "verdictsAgree": true,
+      "calibrationOnly": true,
+      "setStatus": "within-noise-budget",
+      "metricSlots": 26,
+      "regressed": 0,
+      "controls": 24,
+      "unstable": 24,
+      "controlMetricComparisons": 624,
+      "driftedMetricCells": 18,
+      "strictConclusion": "inconclusive",
+      "strictNotes": [
+        "Strict controls: 24 of 24 same-binary controls drifted beyond a band, so the runner was not held still."
+      ],
+      "drift": [
+        {
+          "slot": "clean/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 61.68831168831168
+        },
+        {
+          "slot": "clean/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 252.8474526888461
+        },
+        {
+          "slot": "clean/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 63.97836392366598
+        },
+        {
+          "slot": "clean/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 82.95994568906994
+        },
+        {
+          "slot": "clean/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 175.0
+        },
+        {
+          "slot": "clean/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 17.644672796105997
+        },
+        {
+          "slot": "clean/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 17.327597795402603
+        },
+        {
+          "slot": "clean/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 5.3684301671140355
+        },
+        {
+          "slot": "clean/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 4.910983056678431
+        },
+        {
+          "slot": "dirty/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 67.40331491712706
+        },
+        {
+          "slot": "dirty/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 41.535427138887385
+        },
+        {
+          "slot": "dirty/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 63.269161688596796
+        },
+        {
+          "slot": "dirty/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 71.4327117075944
+        },
+        {
+          "slot": "dirty/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 70.91979396615157
+        },
+        {
+          "slot": "dirty/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 5.725370326828116
+        },
+        {
+          "slot": "dirty/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 7.905619070785708
+        },
+        {
+          "slot": "dirty/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 3.5133376707872532
+        },
+        {
+          "slot": "dirty/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 3.41074020319303
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridDistinct",
+      "rawReceipts": 48,
+      "bothFullJudgeDecisionsMatch": true,
+      "consumedSetMatches": true,
+      "verdictsAgree": true,
+      "calibrationOnly": true,
+      "setStatus": "within-noise-budget",
+      "metricSlots": 26,
+      "regressed": 0,
+      "controls": 24,
+      "unstable": 24,
+      "controlMetricComparisons": 624,
+      "driftedMetricCells": 18,
+      "strictConclusion": "inconclusive",
+      "strictNotes": [
+        "Strict controls: 24 of 24 same-binary controls drifted beyond a band, so the runner was not held still."
+      ],
+      "drift": [
+        {
+          "slot": "clean/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 178.06451612903226
+        },
+        {
+          "slot": "clean/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 4291.200531949973
+        },
+        {
+          "slot": "clean/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 448.03098773402195
+        },
+        {
+          "slot": "clean/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 1130.8823529411764
+        },
+        {
+          "slot": "clean/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 275.0
+        },
+        {
+          "slot": "clean/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 36.84606699284907
+        },
+        {
+          "slot": "clean/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 17.014781491002573
+        },
+        {
+          "slot": "clean/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "clean/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 18.09931149593156
+        },
+        {
+          "slot": "clean/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 8.025926985034793
+        },
+        {
+          "slot": "dirty/composeAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/composeCpuP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 52.398523985239855
+        },
+        {
+          "slot": "dirty/cppAllocations",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/fps",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 581.3189559151735
+        },
+        {
+          "slot": "dirty/frameP50Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 396.50946207718675
+        },
+        {
+          "slot": "dirty/frameP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 712.7457536445098
+        },
+        {
+          "slot": "dirty/prepareP95Ms",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 257.9805934467726
+        },
+        {
+          "slot": "dirty/privateBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 28.950050968399598
+        },
+        {
+          "slot": "dirty/privatePeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 26.191662514532467
+        },
+        {
+          "slot": "dirty/replacementPeakBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/surfaceBytes",
+          "observed": 24,
+          "drifted": false,
+          "maxAbsoluteChangePercent": 0.0
+        },
+        {
+          "slot": "dirty/workingSetBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 13.341181086913867
+        },
+        {
+          "slot": "dirty/workingSetPeakBytes",
+          "observed": 24,
+          "drifted": true,
+          "maxAbsoluteChangePercent": 13.25690770135215
+        }
+      ]
+    }
+  ],
+  "artifacts": {
+    "executable": "Z:\\src\\DxUi\\.build\\paired\\qualification-aa-20261012\\20261012T173810Z-0bd0e99c482c\\baseline\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+    "executableBytes": 3978752,
+    "executableSha256": "419349DAFAAC1DB44026DA22ABB8A7C7E5748F7D7052E9447D8EAECD6E504037",
+    "artifactIdentity": "8c0926e58b2894bfa8ecd0d63c1279d1db00642aebf16c817dfe23c5bca2a624",
+    "v2BuildAttestationIdentity": "68448430befbf3872317b2d6f57978cb2186b82d77cf55e1c7e92acc6fbc9467",
+    "buildEnvelopeVersion": 1,
+    "buildEnvelopeIdentity": "68448430befbf3872317b2d6f57978cb2186b82d77cf55e1c7e92acc6fbc9467",
+    "buildEnvelopeValid": true,
+    "buildReceiptSha256": "9EFF426C9EC29A1B18D7926FD035CCBBD14FD9231EF29227B54C1953CD8D1A05",
+    "incrementalEnvelopeVersion": 1,
+    "incrementalEnvelopeIdentity": "41c8deaca6a73c00181aaf7e9faf4b36b09bda11152aae6de84e180976a72947",
+    "incrementalEnvelopeValid": true,
+    "incrementalReceiptSha256": "6C5D4331A1CDAB128453053F8AB5B1ABD2B9727DFF14477EACAB4E2806A57959",
+    "buildLogSha256": "94304E628B0E2D99CF12252192DA99B31BE4ECE376DEE33A2388B9FAEA6C0AA8"
+  },
+  "strictControls": {
+    "conclusion": "inconclusive",
+    "policyStatus": "policy-review-required",
+    "notes": [
+      "Policy review required: The base policy is not independently qualified; its verdict cannot establish a candidate pass."
+    ]
+  },
+  "requireQualifiedPolicy": {
+    "conclusion": "inconclusive",
+    "policyStatus": "policy-review-required",
+    "notes": [
+      "Policy review required: A/A calibration evidence is separate from regression qualification and cannot pass this gate."
+    ]
+  },
+  "limits": [
+    "Calibration evidence cannot qualify an ordinary candidate or required CI; aggregate no-flags does not establish held controls.",
+    "Captured incremental envelope/digest checked; the full intermediate-file inventory is not recomputed.",
+    "Resolved compiler/build-input identities are verified as retained v2 attestation fields; no new MSBuild evaluation is performed after harness-overlay restoration.",
+    "No dedicated-host, hardware, consumer, ARM64, or new performance-measurement qualification is asserted."
+  ]
+}

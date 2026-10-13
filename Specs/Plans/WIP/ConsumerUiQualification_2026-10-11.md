@@ -32,13 +32,24 @@ Original UIA extra-event and native-input setup cause investigations remain in
   stable controls; retain measured developer advice where degradation is confirmed.
 - [ ] Complete the required hosted paired gate when the PR changes what its benchmark measures. An enabled pending
   gate remains pending until its actual result is successful; a candidate-only diagnostic cannot qualify it.
-- [ ] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
+- [x] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
   allocation checks before policy qualification; independent integration review checks both on the retained raw reports.
 
 The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
 but all 72 controls remain unstable. It does not qualify the seed policy or establish performance acceptance for
 S0-S2; trusted-base requirements and thresholds stay unchanged. The original retained baseline's drift remains a
 diagnostic and cannot be relabeled a policy qualification.
+
+The fresh [12 October clean-harness A/A attempt](../../../Measurements/Performance/2026-10-12-aa-qualification/README.md)
+at `0bd0e99c` uses one attested x64 Release/WARP executable for both labels, 12 blocks and all 144 receipts.
+Both judges replay from the retained bytes, but every same-binary control remains unstable (72/72), 54/78
+timing/memory cells drift, and the judges disagree on three timing slots. Absolute clean/dirty/composition
+allocation limits hold. The quiet-window agreement is not a continuous host-load trace. The base policy remains
+`policy-review-required`; stable-control attribution remains outstanding. The separate
+[hosted A/A packet](../../../Measurements/Performance/2026-10-12-aa-qualification/hosted/README.md) at the same
+commit has 71/72 unstable controls and 39/78 drifting timing/memory cells. Its paired diagnostic job succeeds,
+but strict/required-policy replay is inconclusive and the upload lacks executable/build bytes for independent
+rehashing. This is still no qualified trusted policy.
 
 S0-S2 implementation merged normally through [PR #73](https://github.com/RedSalamanders/DxUi/pull/73), remote merge
 `670207429d62ecc541769b5dd6c70b9607745e64`. The [final PR packet](../../../Measurements/CiBudget/2026-10-11-cold-build/final-ci.md)
@@ -58,14 +69,18 @@ non-regression. Earlier Grid/FPS flags remain open separately. Independent revie
 or qualify the policy. Hosted uploads omit compiler/SDK/dependency/executable inventories; declared full-v2 fields
 cannot substitute for independent rehashing of absent bytes.
 
-Integration review also identified two producer-check gaps: the diagnostic unchanged-library classification reads
+Integration review identified two producer-check gaps: the diagnostic unchanged-library classification read
 summary fingerprints without binding them to each scheduled role's raw receipts, and relative exact-budget
-comparisons do not alone enforce absolute clean/dirty allocation limits when both sides violate them equally.
-Current integration review binds every role, commit, fingerprint, executable/build identity and overlay state,
-pins the native workload/profile, and enforces zero clean allocations and the existing Release dirty ceiling of
-64 per frame on raw rounds. These independent checks preserve the current integration boundary; they do not
-qualify the production policy or close the follow-up above. A baseline made dirty by the supported current-harness
-overlay must retain that literal provenance rather than be mislabeled clean.
+comparisons did not enforce absolute clean/dirty allocation limits when both sides violated them equally. The
+production qualified gate now binds each scheduled role's commit/fingerprint, each run's source state and
+executable/harness hashes, and its build profile to the hashed raw receipt. Every raw round must meet the fixed
+zero-clean and Release 64-per-frame (Debug/ASan Debug 320-per-frame) dirty allocation limits. Synthetic forged
+summary and rehashed raw-receipt cases verify these refusals. This is a tooling qualification stage, not a passing
+paired measurement or policy qualification. Independent integration review still binds every role, commit,
+fingerprint, executable/build identity and overlay state on the retained packet. A baseline made dirty by the
+supported current-harness overlay must retain that literal provenance rather than be mislabeled clean. The change
+is nonvisual; `docs/performance.md` and the normative performance contract are updated, while gallery pixels need
+no regeneration.
 
 The later [bounded profiling/automatic-Start follow-up](../../../Measurements/Performance/2026-10-10-profiling/validation/auto-start/README.md)
 retains a comparison with ten timing/FPS flags and about 14% lower clean/dirty FPS, plus two declared candidate-only
@@ -95,9 +110,11 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 ## 3. Remaining platform and physical qualification
 
-- [ ] Complete native ARM64 foreground/resource acceptance in Debug, Release and ASan Debug. Each native profile now
-  passes 19 ordinary suites at the final PR identities; the two refused foreground suites remain unlaunched failures.
-  Retain exact source/build/environment/scope identities and qualify remaining foreground/resource obligations natively.
+- [x] Complete hosted native ARM64 Menu and NativeTextInput foreground functional execution in Debug, Release and
+  ASan Debug at the PR #78 candidate and merged `main` identities, with zero skips and a successful aggregate gate.
+- [ ] Complete native ARM64 menu resource fixture acceptance and separately agreed local/manual focus and resource
+  work. The hosted Full runs above cover Menu and NativeTextInput, not the opt-in MenuResources and
+  MenuResourceScaling fixtures; they cannot close those resource or physical-input gates.
 - [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
 - [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
@@ -121,6 +138,31 @@ identify which ownership guard refused first or establish continuous pointer his
 remain failed foreground qualification. They are the only native failures admitted by the dated implementation-only
 decision; no timeout/cancellation or correctness/resource/sanitizer failure is accepted. Hosted runs do not replace
 the separately agreed manual focus/resource, physical-input or product gates. Main/release acceptance stays separate.
+
+The later [PR #77](https://github.com/RedSalamanders/DxUi/pull/77) candidate run
+[38285724272](https://github.com/RedSalamanders/DxUi/actions/runs/38285724272) passes all six native profiles,
+including Menu and NativeTextInput in ARM64 Debug/Release/ASan Debug with zero native skips, and the aggregate gate.
+Its merge to `main` is `c5485ab1`. The subsequent `main` run
+[38291837960](https://github.com/RedSalamanders/DxUi/actions/runs/38291837960) instead fails the Menu popup-open
+assertion in ARM64 Debug's root-switch fixture and ARM64 Release's explicit-mnemonic fixture; NativeTextInput
+passes in both. These are launched fixture failures, not capability skips. The hosted lease reports foreground
+and pointer restoration but cannot fully verify pointer history. The successful PR run cannot be substituted
+for the failing post-merge run; ARM64 foreground acceptance was still open at that source identity.
+
+The first [PR #78](https://github.com/RedSalamanders/DxUi/pull/78) fixture follow-up still failed Menu in
+ARM64 Debug and ASan Debug at [run 38298780317](https://github.com/RedSalamanders/DxUi/actions/runs/38298780317).
+Its revised test-only head `500f93d4` activates modal fixture owners before popup launch. The exact
+[run 38305728123](https://github.com/RedSalamanders/DxUi/actions/runs/38305728123) passes all six native jobs,
+the relocated/STL-annotation consumer checks that apply to each profile, and `ci-gate`. The uploaded ARM64
+Debug, Release and ASan Debug logs each contain 108/108 completed Menu cases and 165/165 completed NativeTextInput
+cases, with no skip, failure or timeout lines. PR #78 merged to `main` as `fa4da2cb`. Its fresh
+[main run 38351048921](https://github.com/RedSalamanders/DxUi/actions/runs/38351048921) succeeds in all six native
+profiles and `ci-gate`. Downloaded logs for each profile again show 108/108 completed Menu cases and 165/165
+completed NativeTextInput cases, with no skip, failure or timeout lines. ARM64 Menu receipts report native Arm64,
+successful hosted lease completion and foreground/cursor restoration; the saved focus was unavailable, and a
+saved/exit cursor check does not establish continuous pointer history. This closes the hosted ARM64 core foreground
+functional gate at that exact merged source and CI identity. Opt-in resource fixtures, local/manual focus,
+physical-input, device-removal, paired-performance-policy and consumer-product acceptance remain separate gates.
 
 ## 4. Consumer adoption gates
 

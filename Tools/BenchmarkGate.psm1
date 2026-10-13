@@ -261,6 +261,51 @@ function Test-ReplayedControlEvidence {
     return [ordered]@{valid=$true;drift=[ordered]@{Total=$controls.Count;Unstable=$unstable;Missing=0;Metrics=$metrics}}
 }
 
+function Test-QualifiedReceiptContext {
+    param([System.Collections.IDictionary] $Summary, [System.Collections.IDictionary] $Scenario,
+        [System.Collections.IDictionary] $Step, [System.Collections.IDictionary] $Receipt)
+    $run = [string]$Step['Name']; $role = [string]$Step['Side']
+    $side = $Summary[$role]
+    $runSummary = if ($Scenario['runs'] -is [System.Collections.IDictionary]) { $Scenario['runs'][$run] } else { $null }
+    if ($side -isnot [System.Collections.IDictionary] -or $runSummary -isnot [System.Collections.IDictionary] -or
+        [string]$side['commit'] -notmatch '^[A-Fa-f0-9]{40}$' -or [string]::IsNullOrWhiteSpace([string]$side['sourceFingerprint']) -or
+        [string]$Receipt['sourceCommit'] -cne [string]$side['commit'] -or
+        [string]$Receipt['sourceFingerprint'] -cne [string]$side['sourceFingerprint'] -or
+        [string]$Receipt['platform'] -cne [string]$Summary['platform'] -or
+        [string]$Receipt['configuration'] -cne [string]$Summary['configuration']) {
+        return [ordered]@{valid=$false;reason="Scenario $($Scenario['scenario']) run $run does not bind its scheduled $role role, source or build profile to the raw receipt."}
+    }
+    foreach ($key in @('sourceCommit','sourceDirty','sourceFingerprint','executableSha256','benchmarkSha256')) {
+        if (-not $runSummary.Contains($key) -or -not $Receipt.Contains($key) -or
+            -not (Test-EquivalentGateDecision $runSummary[$key] $Receipt[$key])) {
+            return [ordered]@{valid=$false;reason="Scenario $($Scenario['scenario']) run $run summary $key differs from its scheduled $role raw receipt."}
+        }
+    }
+    $configuration = [string]$Receipt['configuration']
+    $ceiling = switch ($configuration) { 'Release' { 64 } 'Debug' { 320 } 'ASan Debug' { 320 } default { -1 } }
+    $ceilingMatches = $false
+    try { $ceilingMatches = Test-SameNumber $Receipt['dirtyAllocationCeilingPerFrame'] $ceiling } catch { }
+    if ($ceiling -lt 0 -or [string]$Receipt['platform'] -cnotin @('x64','ARM64') -or
+        -not $ceilingMatches -or
+        -not (Test-SameNumber $Receipt['framesPerRound'] 40)) {
+        return [ordered]@{valid=$false;reason="Scenario $($Scenario['scenario']) run $run has an unsupported or changed whole-frame allocation profile."}
+    }
+    foreach ($phase in @('clean','dirty')) {
+        $rounds = @($Receipt['scenarios'] | Where-Object { $_['name'] -ceq $phase } | ForEach-Object { $_['rounds'] })
+        foreach ($round in $rounds) {
+            $count = 0.0
+            if ($round['cppAllocations'] -isnot [ValueType] -or
+                -not [double]::TryParse([string]$round['cppAllocations'], [Globalization.NumberStyles]::Float, $script:Invariant, [ref]$count) -or
+                -not [double]::IsFinite($count) -or $count -lt 0 -or $count -ne [Math]::Truncate($count) -or
+                ($phase -ceq 'clean' -and $count -ne 0) -or
+                ($phase -ceq 'dirty' -and $count -gt $ceiling * 40)) {
+                return [ordered]@{valid=$false;reason="Scenario $($Scenario['scenario']) run $run $phase whole-frame C++ allocations exceed the absolute $configuration budget: $count."}
+            }
+        }
+    }
+    return [ordered]@{valid=$true}
+}
+
 function Test-DualJudgeReceiptEvidence {
     [CmdletBinding()]
     param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory,
@@ -336,6 +381,10 @@ function Test-DualJudgeReceiptEvidence {
     $scenarios = @($Summary['scenarios'])
     if ($scenarios.Count -eq 0) { return [ordered]@{ valid=$false; reason='The migrated summary has no judged scenario.' } }
     $controlsByScenario = @{}
+    if ([string]$Summary['configuration'] -cnotin @('Release','Debug','ASan Debug') -or
+        [string]$Summary['platform'] -cnotin @('x64','ARM64')) {
+        return [ordered]@{valid=$false;reason='The paired summary has no supported build profile for absolute resource budgets.'}
+    }
     foreach ($scenario in $scenarios) {
         if ($scenario -isnot [System.Collections.IDictionary] -or [string]$scenario['scenario'] -notmatch '^[A-Za-z0-9_-]+$') { return [ordered]@{ valid=$false; reason='A scenario name is missing or unsafe.' } }
         $comparison = $scenario['judgeComparison']
@@ -360,6 +409,9 @@ function Test-DualJudgeReceiptEvidence {
         }
         $hashRecords = @($comparison['sameReceiptsSha256'])
         if ($hashRecords.Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judge inputs are incomplete." } }
+        if ($scenario['runs'] -isnot [System.Collections.IDictionary] -or $scenario['runs'].Count -ne $expectedRuns.Count) {
+            return [ordered]@{valid=$false;reason="Scenario $($scenario['scenario']) run summaries do not name exactly the scheduled receipt set."}
+        }
         $byRun = @{}
         foreach ($record in $hashRecords) {
             if ($record -isnot [System.Collections.IDictionary] -or [string]$record['sha256'] -notmatch '^[A-Fa-f0-9]{64}$') { return [ordered]@{ valid=$false; reason='A judged receipt hash is malformed.' } }
@@ -384,6 +436,10 @@ function Test-DualJudgeReceiptEvidence {
             if (-not $identity.verifiable) {
                 return [ordered]@{valid=$false;reason="A judge input receipt lacks complete full v2 build/receipt identity: $($scenario['scenario'])-$run.json ($($identity.missing -join ', '))."}
             }
+            $step = @($steps | Where-Object { $_['Name'] -ceq $run })[0]
+            try { $context = Test-QualifiedReceiptContext -Summary $Summary -Scenario $scenario -Step $step -Receipt $receipt }
+            catch { return [ordered]@{valid=$false;reason="Scenario $($scenario['scenario']) run $run has unreadable role or absolute budget evidence: $($_.Exception.Message)"} }
+            if (-not $context.valid) { return $context }
             $byRun[$run] = $receipt
         }
         try {

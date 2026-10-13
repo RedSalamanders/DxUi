@@ -55,6 +55,14 @@ Both full judges reproduce zero aggregate flags, but all 72 controls remain unst
 cell drifts at least once. The agreed quiet window provides no continuous ambient-load trace. Initialization
 spread and large same-binary outliers justify a bounded attribution pilot before another full calibration;
 the original Grid flags, thresholds, unqualified-policy status and required-CI hold remain unchanged.
+The [12 October clean-harness A/A attempt](../Measurements/Performance/2026-10-12-aa-qualification/README.md)
+also completes all 144 receipts with a single executable and replayed judges. All 72 controls remain unstable;
+54/78 timing/memory cells drift at least once, and the legacy and migrated judges disagree on three timing slots.
+The absolute C++ allocation limits hold. This does not qualify the policy or attribute a regression.
+The [separate hosted A/A](../Measurements/Performance/2026-10-12-aa-qualification/hosted/README.md) replays both
+judges and 72 controls from its uploaded raw reports: 71 controls are unstable and 39/78 timing/memory cells drift.
+Its diagnostic benchmark job succeeded, but strict and required-policy conclusions remain inconclusive; the
+upload cannot independently rehash the hosted executable/build inventory.
 
 The [bounded profiling pilot](../Measurements/Performance/2026-10-10-profiling/README.md) retains six frozen baseline
 reports and separate startup/CPU/cache/heap diagnostics. Use
@@ -131,6 +139,11 @@ independent sign-flip distribution. Old measurements remain diagnostic evidence;
 - The analysis uses blocks as the independent units; the two runs per side inside each block summarize that block and do
   not increase the inferential sample count. Exact surface/allocation budgets bypass p-values and keep both the
   any-candidate-run-median-above-baseline-median rule and the independent no-tolerance raw-peak rule.
+- Qualification binds each scheduled baseline/candidate run's summary provenance to its hash-verified raw receipt
+  before using the summary's unchanged-library classification. It also enforces the absolute whole-frame allocation
+  limits on every raw round: zero clean allocations, and at most 64 per frame in Release or 320 in Debug/ASan Debug
+  dirty rounds. The declared receipt ceiling must agree with the build profile. Equal over-budget sides remain
+  inconclusive; a relative no-growth finding cannot clear the absolute budget.
 - Identical source or executable fingerprints are provenance only and do not classify timing flags as chance. A/A
   calibration is a separate study that builds one explicit revision once and measures its exact executable under
   both randomized labels, retaining separate receipts for every invocation. Missing or mismatched full
@@ -383,9 +396,14 @@ uses the installed cross-compiler:
 
 These commands compile/link; they do not execute ARM64 code. `test.ps1 -Platform ARM64` rejects an x64 host.
 `performance.ps1` requires target/native architecture to match, including rejecting x64 emulation as native evidence.
-Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `windows-11-vs2026-arm`, in Debug and Release.
+Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `windows-11-vs2026-arm`, in Debug, Release
+and ASan Debug.
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
+The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
+post-merge `main` run separately from the green PR #78 candidate and its successful fresh merged-`main` six-profile
+run. The latter closes hosted ARM64 Menu and NativeTextInput foreground functional execution at that identity;
+opt-in menu resource fixtures, separately agreed manual focus work and physical-input gates remain open.
 
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
