@@ -1,0 +1,1 @@
+- Record exact merged-main six-profile CI and approved x64 menu-resource qualification receipts, while retaining unstable performance-policy and remaining ARM64/physical-input gates.
