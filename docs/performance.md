@@ -404,6 +404,11 @@ The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_20
 post-merge `main` run separately from the green PR #78 candidate and its successful fresh merged-`main` six-profile
 run. The latter closes hosted ARM64 Menu and NativeTextInput foreground functional execution at that identity;
 opt-in menu resource fixtures, separately agreed manual focus work and physical-input gates remain open.
+The [13 October merged-main qualification packet](../Measurements/Performance/2026-10-13-main-qualification/README.md)
+records exact `e0260dde` six-profile CI results and all six approved local x64 opt-in resource passes.
+Its twelve-report profiling pilot retains a large same-source Default timing excursion. The main-push
+paired job was skipped and the trusted policy remains unqualified; ARM64 opt-in resources and physical-input
+gates remain open.
 
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure

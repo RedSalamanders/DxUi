@@ -112,9 +112,10 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 - [x] Complete hosted native ARM64 Menu and NativeTextInput foreground functional execution in Debug, Release and
   ASan Debug at the PR #78 candidate and merged `main` identities, with zero skips and a successful aggregate gate.
-- [ ] Complete native ARM64 menu resource fixture acceptance and separately agreed local/manual focus and resource
-  work. The hosted Full runs above cover Menu and NativeTextInput, not the opt-in MenuResources and
-  MenuResourceScaling fixtures; they cannot close those resource or physical-input gates.
+- [x] Complete the separately approved local x64 Debug, Release and ASan Debug MenuResources and
+  MenuResourceScaling suites at clean merged-main `e0260dde`, with zero skips and verified desktop restoration.
+- [ ] Complete native ARM64 MenuResources and MenuResourceScaling fixture execution. The hosted Full runs
+  cover Menu and NativeTextInput, not these opt-in resource fixtures.
 - [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
 - [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
@@ -163,6 +164,24 @@ successful hosted lease completion and foreground/cursor restoration; the saved 
 saved/exit cursor check does not establish continuous pointer history. This closes the hosted ARM64 core foreground
 functional gate at that exact merged source and CI identity. Opt-in resource fixtures, local/manual focus,
 physical-input, device-removal, paired-performance-policy and consumer-product acceptance remain separate gates.
+
+The merged [PR #76](https://github.com/RedSalamanders/DxUi/pull/76) source `e0260dde` has a separately
+[13 October main qualification summary](../../../Measurements/Performance/2026-10-13-main-qualification/README.md).
+[Main run 38428878942](https://github.com/RedSalamanders/DxUi/actions/runs/38428878942) passes all six
+native profiles and `ci-gate`, with 128 suite receipts, zero skips, 108/108 Menu and 165/165
+NativeTextInput cases in every profile, and three native Arm64 identities. After the user approved
+automatic Start, all six opt-in resource suite executions passed locally across the three clean-source
+x64 profiles, with recorded foreground/focus/pointer restoration. The prior ordinary Release Start
+timeout is retained separately and did not launch a child. This closes the local x64 resource execution
+slice only; ARM64 opt-in resource execution and physical input remain open.
+
+The locally retained, audited fixed twelve-report profiling pilot is exact-source and internally replayable, but
+its Default heap-on sixth report has a 699.49 ms clean probe against 19.66 and 18.78 ms in the other
+two such reports. It does not establish the cause. The PR #76 paired gate failed trusted-base policy
+with 69/72 unstable same-side controls; the successful main-push workflow skipped that paired job.
+The preceding 72/72 unstable A/A control study remains unresolved. No accepted paired non-regression
+or trusted policy is claimed. Documentation links to the new packet; this evidence-only change alters
+no visuals or controls, so gallery pixels need no regeneration.
 
 ## 4. Consumer adoption gates
 
