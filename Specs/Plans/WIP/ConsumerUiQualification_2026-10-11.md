@@ -84,6 +84,60 @@ Original UIA extra-event and native-input setup cause investigations remain in
 - [x] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
   allocation checks before policy qualification; independent integration review checks both on the retained raw reports.
 
+### PR #80 paired-control investigation (17 October 2026)
+
+The [reviewed evidence](../../../Measurements/Performance/2026-10-17-pr80-controls/README.md) binds base `99e8b313`,
+tested merge candidate `652c1ecb`, actual merge `02b59a61`, seed `425707354` and all 144 hash-verified receipts.
+Both frozen judges and all 72 controls replay. The paired measurement completes, but its publisher and the PR
+aggregate fail on the unqualified measured-base policy. The separate post-merge functional workflow passes all
+six native profiles, 128 suite receipts with zero skips and eight consumers; push skips paired measurement.
+
+The 71 unstable controls comprise 70 with timing/FPS drift and 19 with memory drift, overlapping in 18 controls.
+There is no exact-budget drift. Fifty of the 54 timing/memory scenario-phase slots drift at least once; these
+are investigation-band crossings, not 50 established regressions. All three migrated sets have zero regression
+flags. Clean preparation is quantized at 100 ns, but 67 controls also drift in non-preparation timing/FPS metrics.
+Retain Default B07's 584.4771 ms dirty frame-p95 round and 2,619.8089 ms individual frame; its cause is unproved.
+MultilineGrid A07/A08 has a separate memory-only control flag, already showing a 620 KiB private-byte difference
+after warm-up, before capture. Neither observation attributes the earlier local 1.28/1.31/1.54 MiB memory flags.
+
+The one judge disagreement is Distinct dirty frame-p95: legacy pooled-run improvement -6.07955%, p=0.0319363,
+versus paired-block effect -3.91524%, raw p=264/4096=0.064453125, Holm-adjusted p=1, within-noise. The different
+estimators and independent units explain the reproduced labels; Holm is not the only difference. Preserve the
+original `verdictAgreement=false`. Matching overall set labels cannot waive the full-metric migration check.
+
+This plan owns the following execution sequence; the benchmark/tooling owner supplies the diagnostics, and the
+developer/independent reviewer owns policy approval. No other feature plan co-owns or closes these gates.
+
+- [ ] Keep the current raw reports/seals privately and arrange independently rehashable retention before the next
+  fresh calibration/paired run: exact executables/library/symbols, build attestations and compiler/SDK/dependency
+  closure. Publish only the sanitized summary. Missing original binaries cannot be recovered from this upload;
+  a rebuild does not repair that original-evidence gap and must be recorded as a new build/run.
+- [ ] Diagnose timing on one frozen executable with bounded, separately labeled probes: empty clock-pair/loop
+  overhead and 1/64/256-call clean-Prepare batches, plus a trace covering model update, Prepare, Composite,
+  target binding and blocking completion. Correlate long frames with CPU scheduling, WARP/completion and
+  process-memory observations. Retain trace overhead and environment admission; elapsed remainder is not GPU time.
+  Preserve canonical 20-frame warm-up, capture, 40-frame rounds and every original outlier. A changed diagnostic
+  harness needs its own identity and cannot replace or pass the canonical acceptance workload.
+- [ ] Localize the memory-only witness with matched stage/heap/native-resource snapshots around scene creation,
+  warm-up, capture, dirty rounds, hidden state and teardown. Any capture/warm-up/sampling isolation is a separate
+  diagnostic fixture with original receipts retained. Establish allocator/component or lifetime attribution
+  before claiming a leak, dismissing variability or resolving the original local memory gate.
+- [ ] Run a fresh canonical same-binary A/A calibration after the bounded attribution pilot, with predeclared
+  independent orders, at least twelve blocks, all three scenarios, complete provenance and continuous host-load
+  evidence. Retain failures and all per-metric controls; do not select a passing seed/repeat or invent an A/A
+  numeric pass threshold. Independent review must assess the resulting controls under the owning contract.
+- [ ] Review the migration disagreement using the retained 24-run pooled calculation and twelve-block/4,096-order
+  calculation, all 26 Holm slots and the full-label equivalence refusal. Record the independent decision before
+  qualifying a versioned policy in the measured base. Keep original decisions unchanged; any approved future
+  judge/fixture change requires its own frozen identities, calibration and candidate-specific paired study.
+
+All remaining gates stay open: trusted policy/paired acceptance, the earlier memory uncertainty, ARM64 opt-in
+resources, physical input/device removal, real IME/AT/touch and consumer adoption. Investigation bands stay
+5% timing/FPS and 2% process memory; exact budgets and absolute allocation ceilings are unchanged. This
+documentation-only follow-up changes no runtime, tooling, public usage or visual behavior; gallery pixels need no update.
+
+### Earlier candidate evidence
+
 The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
 but all 72 controls remain unstable. It does not qualify the seed policy or establish performance acceptance for
 S0-S2; trusted-base requirements and thresholds stay unchanged. The original retained baseline's drift remains a
@@ -109,7 +163,7 @@ contain zero regression verdicts, but all three scenes disagree between legacy c
 migrated `within-noise`. All original agreement flags stay false; policy, frozen reviewer and aggregate remain
 unqualified/BLOCKED/failed. This explicit review closes implementation integration only.
 
-Current controls are unstable in 69/72 comparisons. Retain Distinct-Grid B06's four elevated composition rounds:
+That S0-S2 final PR study has unstable controls in 69/72 comparisons. Retain Distinct-Grid B06's four elevated composition rounds:
 paired clean composition +9.211%, Holm p=1, and same-side B05-to-B06 control +759.064%. Also retain Default dirty
 private peak +0.531666%, 11/12 positive blocks, Holm p=0.025391, median +92,160 bytes and its same-metric B17-to-B18
 control +3.964681%. All 28,800 clean preparation samples are exact 100 ns QPC multiples. These observations require
