@@ -216,8 +216,9 @@ void TestRichTextEditorNativeUnicodeRoutingAndNavigation()
     raw->SetViewMode(ViewMode::Source);
     window.Host().SetRoot(std::move(editor));
     RenderEditor(window);
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.Host().SetFocusControl(raw, false); // Logical focus only: no desktop takeover.
-    Require(! window.Host().HasActiveNativeTextInputSession(), "D2c does not claim an OS text-service session");
+    Require(window.Host().HasActiveNativeTextInputSession(), "D2d maintains a logical native text cache without taking desktop focus");
     raw->SetSelection({4, 4});
     Require(raw->OnKeyDown(window.Host(), VK_LEFT, 0) && raw->GetSelection().caret == 2, "left crosses complete supplementary scalar");
     Require(raw->OnKeyDown(window.Host(), VK_LEFT, 0) && raw->GetSelection().caret == 0, "left crosses combining cluster");

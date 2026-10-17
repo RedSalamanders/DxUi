@@ -108,12 +108,17 @@
     {
       "pattern": "src/Controls/DxUi.RichTextEditor.cpp",
       "scopes": ["EditorControls", "Embedded", "Rendering", "WindowHost", "Theme", "ReadOnly", "Animation", "Accessibility"],
-      "reason": "retained rich-text preview uses shared host raster/input/resource services; D2d remains pending"
+      "reason": "retained rich-text uses shared host raster, composition, text-store and provider services"
     },
     {
       "pattern": "Tests/Embedded/Scope.Tests.RichTextResources.h",
       "scopes": ["Embedded"],
       "reason": "supplied-device rich-text resources and callback retirement"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.RichTextAccessibility.*",
+      "scopes": ["Accessibility"],
+      "reason": "native and application-bridged embedded rich source provider/client contracts"
     },
     {
       "pattern": "Tests/Controls/Scope.Tests.Rich*",

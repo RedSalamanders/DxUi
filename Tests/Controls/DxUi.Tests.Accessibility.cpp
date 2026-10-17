@@ -6,6 +6,7 @@
 #include "Scope.Tests.FormAccessibility.h"
 #include "Scope.Tests.GridUiaPattern.h"
 #include "Scope.Tests.HostControlRegressions.h"
+#include "Scope.Tests.RichTextAccessibility.h"
 
 #include <array>
 #include <atomic>
@@ -10225,6 +10226,7 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 void RunAccessibilityTests()
 {
+    RunRichTextAccessibilityTests();
     DXUI_RUN_TEST(TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren);
     DXUI_RUN_TEST(TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren);
     DXUI_RUN_TEST(TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream);

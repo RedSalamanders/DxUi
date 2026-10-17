@@ -2,6 +2,7 @@
 #include <DxUi/RichMarkdown.h>
 #include <d2d1_1.h>
 #include <dwrite.h>
+#include <utility>
 #include <wil/com.h>
 namespace DxUi::RichText
 {
@@ -55,6 +56,9 @@ public:
     std::size_t PreviousCluster(std::size_t position) const;
     std::size_t NextCluster(std::size_t position) const;
     std::size_t LineBoundary(std::size_t position, bool end) const;
+    // Complete wrapped lines intersecting the vertical viewport, in display
+    // offsets. Includes partially visible lines and works in either bidi flow.
+    std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
     // Draw is raster preparation, not DxUi's allocation-free composition stage.
     // Caller supplies target/brush and BeginDraw/EndDraw/clip/transform policy.
     void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin) const;

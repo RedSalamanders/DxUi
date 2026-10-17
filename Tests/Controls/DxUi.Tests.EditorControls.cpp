@@ -3,6 +3,7 @@
 #include "Scope.Tests.RichDocument.h"
 #include "Scope.Tests.RichMarkdown.h"
 #include "Scope.Tests.RichTextEditor.h"
+#include "Scope.Tests.RichTextInput.h"
 #include "Scope.Tests.RichTextLayout.h"
 
 #include "../../include/DxUi/ControlCatalog.h"
@@ -1929,6 +1930,8 @@ void RunEditorControlTests()
     RunRichMarkdownTests();
     RunRichTextLayoutTests();
     RunRichTextEditorTests();
+    RunRichTextInputTests();
+    RunRichTextStoreTests();
 
     // Splitter
     DXUI_RUN_TEST(TestSplitterDefaultState);

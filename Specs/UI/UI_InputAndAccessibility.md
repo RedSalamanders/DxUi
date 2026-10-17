@@ -3,11 +3,46 @@
 Status: normative intended contract
 Last reviewed: 2026-10-17
 
-RichTextEditor v0 is a bounded retained preview with basic Unicode character/key/
-pointer routing through ControlHost in both hosting modes. It deliberately
-returns false from SupportsTextInput: OS composition, TSF/IME sessions and rich
-source/display UIA ranges are D2d and are not implied by generic host text support.
-ReadTextInput returns S_FALSE for this preview. UTF-16 character halves are
+RichTextEditor v0 is a bounded retained preview using ControlHost's shared native
+TSF/IMM and application-bridged embedded text services. SupportsTextInput is true;
+ReadTextInput publishes exact multiline Unicode Markdown source for its current
+focusId/revision. Source ACPs include hidden syntax and original CRLF. Geometry
+uses the same prepared source/display mapping, wrapping, scroll, flow and DPI as
+painting. Hidden delimiters yield an empty rectangle list, never the viewport.
+Composition previews and cancellation preserve both histories; hosts restore the
+entry state before one notifying committed transaction. Rejected text/ranges are
+atomic. New application edits supersede old previews. Lifetime/focus/rebinding
+guards stop stale writes and outgoing notifications after editor retirement.
+
+Native and embedded UIA expose the same Document, Text, Text2 and TextEdit
+semantics. Source text, selection, active composition/conversion targets and
+projected rectangles remain coherent with the published snapshot. Text2 uses the
+actual caret end of backward selection. Visible ranges include complete wrapped
+lines intersecting the viewport. Rich ranges retain bounded source offsets in
+the latest published text, clamped to scalar/CRLF boundaries after replacement;
+they do not track shifted text identity. Reacquire DocumentRange for the full
+grown source. Endpoint-to-range movement requires a common live owner and
+collapses crossing endpoints; bounded GetText preserves valid UTF-16.
+Read-only permits selection; disabled actions
+fail. IsReadOnly is a text attribute; unsupported attributes return UIA's reserved
+unsupported value. Multiline source has no duplicate ValuePattern. Retained
+providers disconnect on owner replacement. Rendered-only text, rich structural/
+font/style semantics and annotations remain future scope. Synthetic OS protocol,
+real in-process UIA client and WARP tests do not close real IME/Narrator/NVDA,
+physical/focus-taking or native ARM64 qualification. See the
+[guide](../../docs/rich-text.md) and [plan](../Plans/WIP/RichTextEditor_2026-10-17.md).
+
+Rich caret/visible/composition/conversion ranges retain bounded metadata rather
+than another full source string. The warm caret plus visible-range C++ allocation
+budget is at most 4 KiB at both 32 and 65,536 source units; prepared snapshot/layout
+costs and Windows/driver allocations are measured separately.
+
+This bounded source adapter does not establish complete UIA text-range command
+conformance. Legacy shared range scrolling and selection-add/remove actions,
+along with rich attributes/semantic range tracking, require separate engine/AT
+acceptance before full accessible-editor support is claimed.
+
+UTF-16 character halves are
 buffered outside the document and retired on selection, source, focus, host,
 visibility, disabled and read-only transitions. AltGr text remains accepted.
 

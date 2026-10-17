@@ -1,6 +1,88 @@
 #pragma once
 
 // Included by the supplied-device fixture after its Check/Hr and allocation counter.
+static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    const bool previousCounting      = countAllocations;
+    const size_t previousAllocations = allocations, previousBytes = allocationBytes;
+    // This metadata probe must not contaminate the suite's separate absolute
+    // warm-composition counter, which starts at zero and is checked later.
+    const auto restoreCounters = wil::scope_exit([=] noexcept
+    {
+        countAllocations = previousCounting;
+        allocations      = previousAllocations;
+        allocationBytes  = previousBytes;
+    });
+    countAllocations           = false;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "rich UIA allocation pool");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "rich UIA allocation view");
+    auto root    = std::make_unique<RichTextEditor>(L"initial");
+    auto* editor = root.get();
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(480, 240), "prepare rich allocation source");
+    view.Controls().SetFocusControl(editor, false);
+    Hr(view.Prepare(480, 240), "prepare focus before publishing rich allocation semantics");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    const EmbeddedAccessibilityPlacement placement{{0, 0, 480, 240}, true};
+    Check(view.AttachAccessibility(site, 0x5249434842554447ull, placement) == S_OK, "attach coherent rich allocation semantics");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    Check(view.GetAccessibilityProvider(provider.put()) == S_OK && provider, "coherent rich allocation root is present");
+    site->root        = provider.get();
+    const auto detach = wil::scope_exit([&]
+    {
+        site->root = nullptr;
+        view.Detach();
+    });
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    Hr(provider->ElementProviderFromPoint(16, 16, fragment.put()), "rich allocation document element");
+    Check(bool(fragment), "rich source is reachable in the allocation fixture");
+    wil::com_ptr_nothrow<ITextProvider2> text;
+    Hr(fragment.query_to(text.put()), "rich allocation TextPattern2");
+    for (const size_t units : {size_t(32), RichText::Document::MaximumUnits})
+    {
+        editor->SetText(std::wstring(units, L'a'));
+        Hr(view.Prepare(480, 240), "prepare small/maximum rich source outside range-query budget");
+        Check(view.UpdateAccessibility(placement) == S_OK, "publish small/maximum rich source");
+        wil::com_ptr_nothrow<ITextRangeProvider> document;
+        Hr(text->get_DocumentRange(document.put()), "read published source outside metadata budget");
+        Check(bool(document), "published source range exists");
+        wil::unique_bstr source;
+        Hr(document->GetText(-1, source.put()), "read actual published source length");
+        Check(SysStringLen(source.get()) == units, "allocation fixture really publishes the requested small/maximum source");
+        BOOL active = FALSE;
+        wil::com_ptr_nothrow<ITextRangeProvider> warm;
+        Hr(text->GetCaretRange(&active, warm.put()), "warm rich caret metadata");
+        warm.reset();
+        size_t largestRequest = 0;
+        for (size_t iteration = 0; iteration < 8; ++iteration)
+        {
+            wil::com_ptr_nothrow<ITextRangeProvider> caret;
+            SAFEARRAY* visible = nullptr;
+            allocationBytes = allocations = 0;
+            countAllocations              = true;
+            const HRESULT caretResult     = text->GetCaretRange(&active, caret.put());
+            const HRESULT visibleResult   = text->GetVisibleRanges(&visible);
+            countAllocations              = false;
+            largestRequest                = std::max(largestRequest, allocationBytes);
+            const auto destroy            = wil::scope_exit([&]
+            {
+                if (visible)
+                    SafeArrayDestroy(visible);
+            });
+            Hr(caretResult, "bounded caret metadata query");
+            Hr(visibleResult, "bounded visible-range metadata query");
+            Check(active && caret && visible, "queries retain current range identities");
+        }
+        // Range metadata may allocate provider objects. It must not duplicate
+        // a 128 KiB maximum document for each caret/visible-range request.
+        Check(largestRequest <= 4096, "rich range C++ allocation budget is independent of source size");
+        std::cout << "rich UIA ranges sourceUnits=" << units << " largestMetadataRequestBytes=" << largestRequest << '\n';
+    }
+}
+
 static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
 {
     using namespace DxUi;
@@ -73,7 +155,7 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     Hr(gpu.Read(after), "rich-text changed pixels");
     Check(before != after, "retained source edit changes actual WARP pixels");
     EmbeddedTextInputSnapshot unsupported;
-    Check(first.ReadTextInput(unsupported) == S_FALSE, "D2c does not advertise TSF/IME range integration");
+    Check(first.ReadTextInput(unsupported) == S_OK && unsupported.state.multiline, "D2d exposes source text through the shared embedded adapter");
     Check(first.DispatchPointer({PointerAction::Down, 12, 16}), "rich-text embedded pointer selection");
     Check(first.Controls().GetCapturedControl() == editor && editor->DebugGetState().dragging, "selection uses host capture");
     Check(first.DispatchPointer({PointerAction::Move, 110, 42}), "rich-text captured selection extends");

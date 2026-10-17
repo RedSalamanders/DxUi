@@ -613,9 +613,10 @@ process-global language. Each product/module provides its current translated str
 
 The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
 tracks the retained RichTextEditor v0 preview now implemented in the library and
-catalog. It is bounded to the existing 64 Ki UTF-16/128-history model and basic
-Unicode input. Full rich-text support, TSF/IME/UIA and Markdown conformance remain
-pending; prototype evidence alone never qualifies DxUi behavior.
+catalog. It is bounded to the existing 64 Ki UTF-16/128-history model, with D2d
+shared native/embedded source TSF/IME/UIA adapters. Full rich-text/Markdown and
+real OS/AT qualification remain pending; prototype evidence alone never
+qualifies DxUi behavior.
 
 The intended control owns source revisions, structured rich projections, edits,
 selection and history; its source/formatted/read-only views preserve unchanged
@@ -674,7 +675,8 @@ character pairs never enter the model. AltGr Unicode entry remains accepted.
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
 source/mode/width/typography/flow/DPI changes and releases on hiding/rebinding.
-Caret reveal and wheel scroll remain within the text viewport. Native WM_CHAR
-and embedded DispatchCharacter are basic entry only: SupportsTextInput remains
-false until D2d implements coherent OS composition and accessible rich ranges.
+Caret reveal and wheel scroll remain within the text viewport. D2d enables the
+shared native TSF/IMM and embedded source text adapter plus Document/Text/Text2/
+TextEdit UIA, mapped source geometry and single-transaction composition. Actual
+IME/AT/physical/platform qualification remains separate under the input contract.
 The capability is explicitly a preview, not complete rich-text/Markdown support.

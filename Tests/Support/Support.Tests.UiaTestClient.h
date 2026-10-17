@@ -772,6 +772,50 @@ public:
         return found != 0u ? std::optional<ElementId>(found) : std::nullopt;
     }
 
+    // Exact document text as a client reads it, across the actual UIA transport.
+    [[nodiscard]] std::wstring DocumentText(ElementId field)
+    {
+        return Ask<std::wstring>("a document's text",
+                                 [field](Session& session, std::wstring& result)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> range;
+            RETURN_IF_FAILED(pattern->get_DocumentRange(range.put()));
+            wil::unique_bstr text;
+            RETURN_IF_FAILED(range->GetText(-1, text.put()));
+            result.assign(text.get(), SysStringLen(text.get()));
+            return S_OK;
+        });
+    }
+
+    // Caret source offset through TextPattern2 and real cross-range endpoint
+    // movement. Counting the returned UTF-16 prefix matches the editor ACP API.
+    [[nodiscard]] size_t TextCaretPosition(ElementId field)
+    {
+        return Ask<size_t>("a document's caret position",
+                           [field](Session& session, size_t& position)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern2> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPattern2Id, IID_PPV_ARGS(pattern.put())));
+            BOOL active = FALSE;
+            wil::com_ptr_nothrow<IUIAutomationTextRange> caret, document;
+            RETURN_IF_FAILED(pattern->GetCaretRange(&active, caret.put()));
+            RETURN_IF_FAILED(pattern->get_DocumentRange(document.put()));
+            RETURN_IF_FAILED(document->MoveEndpointByRange(TextPatternRangeEndpoint_End, caret.get(), TextPatternRangeEndpoint_Start));
+            wil::unique_bstr prefix;
+            RETURN_IF_FAILED(document->GetText(-1, prefix.put()));
+            position = SysStringLen(prefix.get());
+            return S_OK;
+        });
+    }
+
     // What a Selection pattern reports as selected in `container`.
     [[nodiscard]] std::vector<ElementId> Selection(ElementId container)
     {

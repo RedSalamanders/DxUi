@@ -2760,8 +2760,8 @@ private:
     bool _pressed = false;
 };
 
-// Bounded retained preview. OS composition and rich-text UIA ranges are a
-// separate integration gate; this control deliberately does not opt into TSF.
+// Bounded retained preview with shared native/embedded source TSF/IME and UIA
+// adapters. Real IME/AT qualification and complete rich Markdown remain separate.
 struct RichTextEditorDebugState
 {
     bool layoutReady          = false;
@@ -2800,6 +2800,9 @@ public:
     // Standard callback exceptions are contained; the committed edit remains.
     void SetOnTextChanged(std::function<void()> callback);
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
+    // Accessible ranges use source offsets; geometry follows the current rich
+    // projection. Includes complete lines that are partially visible.
+    [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
 
     void Paint(ControlHost& host) const override;
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;
@@ -2814,6 +2817,13 @@ public:
     bool OnSelectAll(ControlHost& host) noexcept override;
 
 protected:
+    [[nodiscard]] bool SupportsTextInput() const noexcept override;
+    [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputViewportRect() const noexcept override;
+    [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputCaretRect(const ControlHost& host, size_t sourceIndex) const noexcept override;
+    [[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> GetTextInputRangeRects(const ControlHost& host, size_t sourceStart, size_t sourceEnd) const override;
+    [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
+    bool ExportTextInputState(TextInputState& state) const override;
+    bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
     void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
@@ -2828,10 +2838,10 @@ private:
     struct State;
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
-    void EnsureLayout(ControlHost& host) const;
+    void EnsureLayout(const ControlHost& host) const;
     void RetireLayout() const noexcept;
-    void Changed(bool sourceChanged);
-    void SelectionChanged();
+    void Changed(bool sourceChanged, bool synchronizeTextInput = true);
+    void SelectionChanged(bool synchronizeTextInput = true);
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards);
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;

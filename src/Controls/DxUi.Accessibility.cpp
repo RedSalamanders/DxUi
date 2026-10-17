@@ -556,6 +556,7 @@ struct AccessibilityControlNavigationSnapshot
     bool controlSupportsToggle     = false;
     bool controlSupportsValue      = false;
     bool controlSupportsText       = false;
+    bool controlSupportsText2      = false;
     bool controlSupportsRangeValue = false;
     bool controlSupportsSelection  = false;
     bool controlSupportsTable      = false;
@@ -564,6 +565,8 @@ struct AccessibilityControlNavigationSnapshot
     std::optional<bool> controlDisclosureExpanded;
     size_t controlTextSelectionStart = 0u;
     size_t controlTextSelectionEnd   = 0u;
+    size_t controlTextCaretIndex     = 0;
+    std::optional<std::pair<size_t, size_t>> controlTextVisibleRange;
     std::vector<D2D1_RECT_F> controlTextSelectionBoundsDip;
     std::optional<size_t> controlTextCompositionStart;
     std::optional<size_t> controlTextCompositionEnd;
@@ -1347,10 +1350,10 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept
 {
-    return (control && control->GetAccessibilityRole() != AccessibilityRole::Default) || dynamic_cast<const Label*>(control) != nullptr ||
-           dynamic_cast<const Button*>(control) != nullptr || dynamic_cast<const TextField*>(control) != nullptr ||
-           dynamic_cast<const ComboBox*>(control) != nullptr || dynamic_cast<const Tree*>(control) != nullptr ||
-           dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
+    return dynamic_cast<const RichTextEditor*>(control) != nullptr || (control && control->GetAccessibilityRole() != AccessibilityRole::Default) ||
+           dynamic_cast<const Label*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr ||
+           dynamic_cast<const TextField*>(control) != nullptr || dynamic_cast<const ComboBox*>(control) != nullptr ||
+           dynamic_cast<const Tree*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
            dynamic_cast<const ProgressBar*>(control) != nullptr || dynamic_cast<const ThroughputGraph*>(control) != nullptr ||
            dynamic_cast<const ColorSwatch*>(control) != nullptr || dynamic_cast<const Splitter*>(control) != nullptr;
 }
@@ -1439,10 +1442,10 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool ShouldExposeSingleSemanticRootControl(const Control* control) noexcept
 {
-    return dynamic_cast<const Checkbox*>(control) != nullptr || dynamic_cast<const Toggle*>(control) != nullptr ||
-           dynamic_cast<const Button*>(control) != nullptr || dynamic_cast<const TextField*>(control) != nullptr ||
-           dynamic_cast<const ComboBox*>(control) != nullptr || dynamic_cast<const Tree*>(control) != nullptr ||
-           dynamic_cast<const Slider*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr ||
+    return dynamic_cast<const RichTextEditor*>(control) != nullptr || dynamic_cast<const Checkbox*>(control) != nullptr ||
+           dynamic_cast<const Toggle*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr ||
+           dynamic_cast<const TextField*>(control) != nullptr || dynamic_cast<const ComboBox*>(control) != nullptr ||
+           dynamic_cast<const Tree*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr ||
            dynamic_cast<const ColorSwatch*>(control) != nullptr;
 }
 
@@ -2000,6 +2003,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         }
         record.controlSupportsValue      = SupportsValuePattern(current);
         record.controlSupportsText       = SupportsTextPattern(current);
+        record.controlSupportsText2      = dynamic_cast<const RichTextEditor*>(current) != nullptr;
         record.controlSupportsRangeValue = SupportsRangeValuePattern(current);
         record.controlValueReadOnly      = IsValueReadOnly(current);
         if (record.controlSupportsValue)
@@ -2014,6 +2018,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
             if (host.TryReadNativeTextInputState(current, nativeState))
             {
                 record.controlAccessibleText = nativeState.text;
+                record.controlTextCaretIndex = nativeState.caretIndex;
                 selectionRange    = GetTextRangeSpanFromState(nativeState.caretIndex, nativeState.selectionAnchorIndex, record.controlAccessibleText.size());
                 hasSelectionRange = true;
                 record.controlTextSelectionStart        = selectionRange.start;
@@ -2032,6 +2037,12 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                 record.controlTextSelectionEnd   = selectionRange.end;
             }
 
+            if (const auto* editor = dynamic_cast<const RichTextEditor*>(current))
+            {
+                record.controlTextCaretIndex   = editor->GetSelection().caret;
+                record.controlTextVisibleRange = editor->GetVisibleSourceRange(host);
+            }
+
             if (hasSelectionRange && selectionRange.start != selectionRange.end)
             {
                 if (std::optional<std::vector<D2D1_RECT_F>> bounds =
@@ -2040,7 +2051,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                 {
                     record.controlTextSelectionBoundsDip = std::move(bounds.value());
                 }
-                else
+                else if (! dynamic_cast<const RichTextEditor*>(current))
                 {
                     record.controlTextSelectionBoundsDip.push_back(ResolveTextPatternViewportRect(current));
                 }
@@ -2988,6 +2999,7 @@ enum class AccessibilityPatternKind
     Toggle,
     Value,
     Text,
+    Text2,
     TextEdit,
     RangeValue,
     Selection,
@@ -3027,6 +3039,8 @@ std::optional<AccessibilityPatternKind> PatternKindFromInterfaceId(REFIID riid) 
     {
         return AccessibilityPatternKind::TextEdit;
     }
+    if (riid == __uuidof(ITextProvider2))
+        return AccessibilityPatternKind::Text2;
     if (riid == __uuidof(IRangeValueProvider))
     {
         return AccessibilityPatternKind::RangeValue;
@@ -3070,6 +3084,7 @@ std::optional<AccessibilityPatternKind> PatternKindFromPatternId(PATTERNID patte
         case UIA_TogglePatternId: return AccessibilityPatternKind::Toggle;
         case UIA_ValuePatternId: return AccessibilityPatternKind::Value;
         case UIA_TextPatternId: return AccessibilityPatternKind::Text;
+        case UIA_TextPattern2Id: return AccessibilityPatternKind::Text2;
         case UIA_TextEditPatternId: return AccessibilityPatternKind::TextEdit;
         case UIA_RangeValuePatternId: return AccessibilityPatternKind::RangeValue;
         case UIA_SelectionPatternId: return AccessibilityPatternKind::Selection;
@@ -3450,6 +3465,8 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
 
 [[nodiscard]] bool SupportsTextPattern(const Control* control) noexcept
 {
+    if (dynamic_cast<const RichTextEditor*>(control))
+        return true;
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
         return ! textField->IsMasked();
@@ -3463,6 +3480,10 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
 
 [[nodiscard]] std::wstring GetControlAccessibleTextRangeText(const Control* control)
 {
+    // ACP, TextPattern and application selections share source UTF-16 offsets.
+    // The control maps them to its prepared rich projection for geometry.
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+        return editor->GetText();
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
         if (textField->IsMasked())
@@ -3588,6 +3609,22 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                                                                     std::wstring_view text,
                                                                                     const TextRangeSpan& range)
 {
+    if (dynamic_cast<const RichTextEditor*>(&control))
+    {
+        auto rectangles = control.TryGetTextInputRangeRects(host, range.start, range.end);
+        if (! rectangles)
+            return std::nullopt;
+        const auto viewport = ResolveTextPatternViewportRect(&control);
+        for (auto& rectangle : *rectangles)
+        {
+            rectangle.left   = std::clamp(rectangle.left, viewport.left, viewport.right);
+            rectangle.right  = std::clamp(rectangle.right, viewport.left, viewport.right);
+            rectangle.top    = std::clamp(rectangle.top, viewport.top, viewport.bottom);
+            rectangle.bottom = std::clamp(rectangle.bottom, viewport.top, viewport.bottom);
+        }
+        std::erase_if(*rectangles, [](const auto& rect) { return rect.right <= rect.left || rect.bottom <= rect.top; });
+        return rectangles;
+    }
     if (range.start == range.end)
     {
         return std::nullopt;
@@ -4264,6 +4301,11 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const ControlHost* host, const Control* control, size_t textLength) noexcept
 {
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+    {
+        const auto selection = editor->GetSelection();
+        return ClampTextRangeSpan(selection.anchor, selection.caret, textLength);
+    }
     if (host && control)
     {
         NativeTextInputState nativeState{};
@@ -4400,6 +4442,9 @@ struct TextRangeSpanMoveResult
         return UIA_StatusBarControlTypeId;
     }
 
+    if (dynamic_cast<const RichTextEditor*>(control))
+        return UIA_DocumentControlTypeId;
+
     if (dynamic_cast<const Checkbox*>(control) != nullptr)
     {
         return UIA_CheckBoxControlTypeId;
@@ -4476,6 +4521,8 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] bool IsValueReadOnly(const Control* control) noexcept
 {
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+        return editor->IsReadOnly();
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
         return textField->IsReadOnly();
@@ -5085,6 +5132,7 @@ private:
     [[nodiscard]] const Control* ResolveControl() const noexcept;
     [[nodiscard]] Control* ResolveMutableControl() const noexcept;
     [[nodiscard]] std::wstring ResolveText() const;
+    [[nodiscard]] std::wstring ResolveControlText(const Control* control) const;
     [[nodiscard]] TextRangeSpan ClampCurrentRange(size_t textLength) const noexcept;
     [[nodiscard]] ITextRangeProvider* CreateRange(size_t start, size_t end) const noexcept;
     HRESULT CommitDispatchedRange(size_t expectedStart, size_t expectedEnd, size_t resultStart, size_t resultEnd, std::wstring_view expectedText) noexcept;
@@ -5114,6 +5162,7 @@ class AccessibilityProvider final : public IRawElementProviderSimple,
                                     public IRawElementProviderFragmentRoot,
                                     public IInvokeProvider,
                                     public ITextEditProvider,
+                                    public ITextProvider2,
                                     public ITableProvider,
                                     public IToggleProvider,
                                     public IValueProvider,
@@ -5281,6 +5330,8 @@ public:
     HRESULT STDMETHODCALLTYPE get_SupportedTextSelection(SupportedTextSelection* outSupportedSelection) noexcept override;
     HRESULT STDMETHODCALLTYPE GetActiveComposition(ITextRangeProvider** outRange) noexcept override;
     HRESULT STDMETHODCALLTYPE GetConversionTarget(ITextRangeProvider** outRange) noexcept override;
+    HRESULT STDMETHODCALLTYPE GetCaretRange(BOOL* active, ITextRangeProvider** range) noexcept override;
+    HRESULT STDMETHODCALLTYPE RangeFromAnnotation(IRawElementProviderSimple* annotation, ITextRangeProvider** range) noexcept override;
     HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) noexcept override;
     HRESULT STDMETHODCALLTYPE SetValue(double value) noexcept override;
     HRESULT STDMETHODCALLTYPE get_Value(BSTR* outValue) noexcept override;
@@ -5755,12 +5806,13 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR /*text*/, BOOL /*backward*
     return S_OK;
 }
 
-HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID /*attributeId*/, VARIANT* outValue) noexcept
+HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attributeId, VARIANT* outValue) noexcept
 {
     if (outValue)
         *outValue = {};
 
-    if (! CaptureSnapshot())
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outValue)
     {
@@ -5768,7 +5820,16 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID /*attr
     }
 
     VariantInit(outValue);
-    return S_OK;
+    if (attributeId == UIA_IsReadOnlyAttributeId)
+    {
+        const auto* record = FindControlNavigationRecord(*snapshot, _path);
+        if (! record)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        *outValue = VariantFromBool(record->controlValueReadOnly || ! record->controlEnabled);
+        return S_OK;
+    }
+    outValue->vt = VT_UNKNOWN;
+    return UiaGetReservedNotSupportedValue(&outValue->punkVal);
 }
 
 HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRectangles) noexcept
@@ -5850,7 +5911,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
         return hr;
     }
 
-    const std::wstring text = _textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control);
+    const std::wstring text = ResolveControlText(control);
     range                   = ClampCurrentRange(text.size());
     if (range.start == range.end)
     {
@@ -5919,7 +5980,13 @@ HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) no
     std::wstring_view value(text.data() + range.start, range.end - range.start);
     if (maxLength >= 0)
     {
-        value = value.substr(0u, (std::min)(value.size(), static_cast<size_t>(maxLength)));
+        size_t count        = (std::min)(value.size(), static_cast<size_t>(maxLength));
+        const auto snapshot = CaptureSnapshot();
+        const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+        if (record && record->controlSupportsText2)
+            while (count && ! RichText::IsEditBoundary(text, range.start + count))
+                --count;
+        value = value.substr(0u, count);
     }
 
     *outText         = SysAllocStringLen(value.data(), static_cast<UINT>(value.size()));
@@ -6149,12 +6216,39 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     return S_OK;
 }
 
-HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint /*endpoint*/,
-                                                            ITextRangeProvider* /*targetRange*/,
-                                                            TextPatternRangeEndpoint /*targetEndpoint*/) noexcept
+HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint,
+                                                            ITextRangeProvider* targetRange,
+                                                            TextPatternRangeEndpoint targetEndpoint) noexcept
 {
-    if (! CaptureSnapshot())
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if ((endpoint != TextPatternRangeEndpoint_Start && endpoint != TextPatternRangeEndpoint_End) ||
+        (targetEndpoint != TextPatternRangeEndpoint_Start && targetEndpoint != TextPatternRangeEndpoint_End))
+        return E_INVALIDARG;
+    const auto* other = dynamic_cast<AccessibilityTextRangeProvider*>(targetRange);
+    if (! other || _target != other->_target || _hwnd != other->_hwnd || ! AreControlPathsEqual(_path, other->_path) ||
+        ! SameControlIdentity(_identity, other->_identity))
+        return E_INVALIDARG;
+    if (! other->CaptureSnapshot())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const std::scoped_lock lock(AccessibilitySnapshotMutex(_target));
+    const auto* record = FindControlNavigationRecord(*snapshot, _path);
+    const size_t textLength =
+        _textOverride && (! record || ! record->controlSupportsText2) ? _textOverride->size() : (record ? record->controlAccessibleText.size() : 0);
+    const auto current  = ClampCurrentRange(textLength);
+    const auto position = GetTextRangeEndpointPosition(other->ClampCurrentRange(textLength), targetEndpoint);
+    _boundsOverrideDip.reset();
+    if (endpoint == TextPatternRangeEndpoint_Start)
+    {
+        _rangeStart = position;
+        _rangeEnd   = std::max(position, current.end);
+    }
+    else
+    {
+        _rangeEnd   = position;
+        _rangeStart = std::min(position, current.start);
+    }
     return S_OK;
 }
 
@@ -6203,6 +6297,24 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
     }
     const auto stillCurrent = [&]() noexcept
     { return ! lifetime.expired() && _target && _target->ResolveHost() == host && ResolveMutableControl() == control; };
+    if (auto* editor = dynamic_cast<RichTextEditor*>(control))
+    {
+        try
+        {
+            editor->SetSelection({range.start, range.end});
+        }
+        catch (const std::exception&)
+        {
+            return E_INVALIDARG;
+        }
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        host->SyncTextInput(editor);
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        host->Invalidate();
+        return S_OK;
+    }
     if (auto* textField = dynamic_cast<TextField*>(control))
     {
         textField->SetSelectionRange(range.start, range.end);
@@ -6238,7 +6350,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
+    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
@@ -6259,7 +6371,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
+    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
@@ -6286,7 +6398,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowT
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
+    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range     = ClampTextRangeSpan(start, end, text.size());
@@ -6329,7 +6441,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
     }
 
     outDipToPixelScale        = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
-    const std::wstring text   = _textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control);
+    const std::wstring text   = ResolveControlText(control);
     const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
     if (range.start == range.end)
     {
@@ -6688,20 +6800,27 @@ Control* AccessibilityTextRangeProvider::ResolveMutableControl() const noexcept
 
 std::wstring AccessibilityTextRangeProvider::ResolveText() const
 {
-    if (_textOverride)
-    {
-        return _textOverride.value();
-    }
-
     const auto snapshot = CaptureSnapshot();
     const AccessibilityControlNavigationSnapshot* record =
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+    // Rich source ranges retain bounded offsets in the current published
+    // document. Never combine an old text copy with a new projection's pixels.
+    if (record && record->controlSupportsText2)
+        return record->controlAccessibleText;
+    if (_textOverride)
+        return _textOverride.value();
     if (! record || ! record->controlSupportsText)
     {
         return {};
     }
 
     return record->controlAccessibleText;
+}
+std::wstring AccessibilityTextRangeProvider::ResolveControlText(const Control* control) const
+{
+    if (dynamic_cast<const RichTextEditor*>(control))
+        return GetControlAccessibleTextRangeText(control);
+    return _textOverride ? *_textOverride : GetControlAccessibleTextRangeText(control);
 }
 
 HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
@@ -6715,7 +6834,8 @@ HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
     if (! record || ! record->controlSupportsText)
         return UIA_E_ELEMENTNOTAVAILABLE;
     // Dispatch must not hold the range lock while waiting for its owner. A concurrent range mutation wins.
-    const std::wstring_view text = _textOverride ? std::wstring_view(*_textOverride) : std::wstring_view(record->controlAccessibleText);
+    const std::wstring_view text =
+        _textOverride && ! record->controlSupportsText2 ? std::wstring_view(*_textOverride) : std::wstring_view(record->controlAccessibleText);
     if (_rangeStart != expectedStart || _rangeEnd != expectedEnd || text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const auto range = ClampTextRangeSpan(resultStart, resultEnd, text.size());
@@ -6727,7 +6847,22 @@ HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
 
 TextRangeSpan AccessibilityTextRangeProvider::ClampCurrentRange(size_t textLength) const noexcept
 {
-    return ClampTextRangeSpan(_rangeStart, _rangeEnd, textLength);
+    auto range          = ClampTextRangeSpan(_rangeStart, _rangeEnd, textLength);
+    const auto snapshot = CaptureSnapshot();
+    const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+    if (record && record->controlSupportsText2 && record->controlAccessibleText.size() == textLength)
+    {
+        const auto& text     = record->controlAccessibleText;
+        const bool collapsed = range.start == range.end;
+        while (range.start && ! RichText::IsEditBoundary(text, range.start))
+            --range.start;
+        if (collapsed)
+            range.end = range.start;
+        else
+            while (range.end < textLength && ! RichText::IsEditBoundary(text, range.end))
+                ++range.end;
+    }
+    return range;
 }
 
 ITextRangeProvider* AccessibilityTextRangeProvider::CreateRange(size_t start, size_t end) const noexcept
@@ -6878,6 +7013,8 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
                                                : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::TextEdit:
             return record->controlSupportsText ? makeResult(static_cast<ITextEditProvider*>(this)) : AccessibilityPatternQueryResult{};
+        case AccessibilityPatternKind::Text2:
+            return record->controlSupportsText2 ? makeResult(static_cast<ITextProvider2*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::RangeValue:
             return record->controlSupportsRangeValue ? makeResult(static_cast<IRangeValueProvider*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::Selection:
@@ -8075,7 +8212,15 @@ HRESULT AccessibilityProvider::GetVisibleRanges(SAFEARRAY** outRanges) noexcept
     }
 
     wil::com_ptr_nothrow<ITextRangeProvider> range;
-    range.attach(CreateTextDocumentRangeProvider(*record));
+    if (record->controlSupportsText2)
+    {
+        if (! record->controlTextVisibleRange)
+            return SetTextRangeProviderArray(outRanges, {});
+        const auto [first, last] = *record->controlTextVisibleRange;
+        range.attach(CreateTextRangeProvider(record->path, first, last, CaptureControlIdentity(*record)));
+    }
+    else
+        range.attach(CreateTextDocumentRangeProvider(*record));
     if (! range)
     {
         return E_OUTOFMEMORY;
@@ -8276,7 +8421,9 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
 
     const TextRangeSpan range =
         ClampTextRangeSpan(record->controlTextCompositionStart.value(), record->controlTextCompositionEnd.value(), record->controlAccessibleText.size());
-    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
+    *outRange        = record->controlSupportsText2
+                           ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
+                           : CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"active-composition", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -8313,11 +8460,42 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
 
     const TextRangeSpan range = ClampTextRangeSpan(
         record->controlTextConversionTargetStart.value(), record->controlTextConversionTargetEnd.value(), record->controlAccessibleText.size());
-    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
+    *outRange        = record->controlSupportsText2
+                           ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
+                           : CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"conversion-target", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
     return hr;
+}
+
+HRESULT AccessibilityProvider::GetCaretRange(BOOL* active, ITextRangeProvider** range) noexcept
+{
+    if (active)
+        *active = FALSE;
+    if (range)
+        *range = nullptr;
+    if (! active || ! range)
+        return E_POINTER;
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const auto* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+    if (! record || ! record->controlSupportsText2)
+        return UIA_E_NOTSUPPORTED;
+    *active          = record->controlHasFocus && record->controlEnabled;
+    const auto caret = std::min(record->controlTextCaretIndex, record->controlAccessibleText.size());
+    // Rich ranges retain offsets and identity; their source already belongs to
+    // the immutable published record. No full-document copy per caret query.
+    *range = CreateTextRangeProvider(record->path, caret, caret, CaptureControlIdentity(*record));
+    return *range ? S_OK : E_OUTOFMEMORY;
+}
+HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple*, ITextRangeProvider** range) noexcept
+{
+    if (! range)
+        return E_POINTER;
+    *range = nullptr;
+    return CaptureSnapshot() ? UIA_E_NOTSUPPORTED : UIA_E_ELEMENTNOTAVAILABLE;
 }
 
 HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
@@ -8707,7 +8885,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
     if (textRecord && textRecord->controlSupportsText)
     {
         wil::com_ptr_nothrow<ITextRangeProvider> range;
-        if (! textRecord->controlTextSelectionBoundsDip.empty())
+        if (! textRecord->controlSupportsText2 && ! textRecord->controlTextSelectionBoundsDip.empty())
         {
             range.attach(CreateTextRangeProvider(textRecord->path,
                                                  textRecord->controlTextSelectionStart,

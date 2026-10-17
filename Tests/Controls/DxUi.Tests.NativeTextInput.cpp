@@ -8913,6 +8913,61 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 } // namespace
 
+void TestRichTextNativeTsfCompositionAndDisconnection()
+{
+    using namespace DxUi;
+    ControlHost host;
+    auto editor = std::make_unique<RichTextEditor>(L"**a**");
+    auto* raw   = editor.get();
+    host.SetRoot(std::move(editor));
+    host.SetFocusControl(raw, false);
+    raw->SetSelection({3, 3});
+    size_t notices = 0;
+    raw->SetOnTextChanged([&] { ++notices; });
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "rich editor creates the shared native ACP store");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise rich ACP sink");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
+    RequireSucceeded(store.query_to(compositions.put()), "rich ACP store composition sink");
+    ClientComposition composition;
+    composition.range.start  = 3;
+    composition.range.length = 0;
+    BOOL accepted            = FALSE;
+    sink.onLockGranted       = [&](DWORD) noexcept
+    {
+        RETURN_IF_FAILED(compositions->OnStartComposition(&composition, &accepted));
+        TS_TEXTCHANGE change{};
+        return store->SetText(0, 3, 3, L"\u4eee", 1, &change);
+    };
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "rich ACP write lock");
+    RequireSucceeded(session, "rich ACP preview transaction");
+    Require(accepted && raw->GetText() == L"**a\u4eee**" && notices == 0 && ! raw->CanUndo(), "TSF preview is silent and history-free");
+    composition.range.length = 1;
+    sink.onLockGranted       = [&](DWORD) noexcept
+    {
+        RETURN_IF_FAILED(compositions->OnUpdateComposition(&composition, &composition.range));
+        return compositions->OnEndComposition(&composition);
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "rich ACP commit lock");
+    RequireSucceeded(session, "rich ACP composition commit");
+    Require(notices == 1 && raw->Undo() && raw->GetText() == L"**a**" && ! raw->CanUndo(), "TSF composition creates exactly one undo entry");
+    RequireSucceeded(store->UnadviseSink(&sink), "unadvise retained rich ACP sink");
+    host.SetRoot(std::make_unique<Label>(L"replacement"));
+    LONG first = 0, last = 0;
+    Require(FAILED(store->QueryInsert(0, 0, 1, &first, &last)), "retained rich ACP store disconnects after owner replacement");
+    static_cast<void>(compositions->OnEndComposition(&composition)); // An already-ended composition may acknowledge an idempotent end.
+    Require(dynamic_cast<Label*>(host.GetRoot()) && static_cast<Label*>(host.GetRoot())->GetText() == L"replacement",
+            "late composition end cannot edit replacement");
+}
+
+void RunRichTextStoreTests()
+{
+    DXUI_RUN_TEST(TestRichTextNativeTsfCompositionAndDisconnection);
+}
+
 void RunNativeTextInputTests()
 {
     DXUI_RUN_TEST(TestNativeClipboardTransportBenchmark);

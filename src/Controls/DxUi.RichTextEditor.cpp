@@ -129,7 +129,7 @@ void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 {
     _state->onTextChanged = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
 }
-void RichTextEditor::Changed(bool sourceChanged)
+void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
         RetireLayout();
@@ -138,7 +138,7 @@ void RichTextEditor::Changed(bool sourceChanged)
     const auto revision = Revision();
     const auto binding  = _state->bindingRevision;
     const auto* host    = GetHost();
-    SelectionChanged();
+    SelectionChanged(synchronizeTextInput);
     // An embedded scheduling callback may itself edit, detach or retire this
     // control. Never publish a superseded notification or touch a retired owner.
     if (lifetime.expired() || GetHost() != host || Revision() != revision || _state->bindingRevision != binding ||
@@ -155,7 +155,7 @@ void RichTextEditor::Changed(bool sourceChanged)
         }
     }
 }
-void RichTextEditor::SelectionChanged()
+void RichTextEditor::SelectionChanged(bool synchronizeTextInput)
 {
     _state->pendingLeadSurrogate = 0;
     _state->preferredCaretX.reset();
@@ -164,6 +164,12 @@ void RichTextEditor::SelectionChanged()
     _state->blinkEpoch.reset();
     const auto lifetime = GetLifetimeToken();
     auto* host          = GetHost();
+    // Imported previews are synchronized by the host after it publishes its
+    // composition ownership marker. Public changes supersede that preview.
+    if (synchronizeTextInput && host)
+        host->SyncTextInput(this);
+    if (lifetime.expired() || GetHost() != host)
+        return;
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && host && HasFocus() && Editable() && ! host->GetTheme().reducedMotion)
         host->RequestAnimation();
@@ -182,7 +188,7 @@ void RichTextEditor::RetireLayout() const noexcept
     _state->layout.Clear();
     _state->revealCaret = true;
 }
-void RichTextEditor::EnsureLayout(ControlHost& host) const
+void RichTextEditor::EnsureLayout(const ControlHost& host) const
 {
     auto& state         = *_state;
     const auto viewport = TextViewport();
@@ -228,6 +234,142 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
 {
     return {_state->layout.Ready(), _state->layout.Generation(), _state->layout.Height(), _state->scrollDip, _state->dragging};
 }
+bool RichTextEditor::SupportsTextInput() const noexcept
+{
+    return true;
+}
+std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(const ControlHost& host) const noexcept
+{
+    if (GetHost() != &host || ! GetTextInputViewportRect())
+        return std::nullopt;
+    try
+    {
+        EnsureLayout(host);
+        const auto viewport      = TextViewport();
+        const auto [first, last] = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+        const auto& projection   = _state->layout.Content();
+        return std::pair{projection.ToSource(first), projection.ToSource(last, true)};
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
+std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputViewportRect() const noexcept
+{
+    const auto viewport = TextViewport();
+    if (! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
+        return std::nullopt;
+    return viewport;
+}
+std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHost& host, size_t sourceIndex) const noexcept
+{
+    if (GetHost() != &host || ! GetTextInputViewportRect() || ! Snapshot().IsBoundary(sourceIndex))
+        return std::nullopt;
+    try
+    {
+        EnsureLayout(host);
+        const auto caret    = _state->layout.Caret(_state->layout.Content().ToDisplay(sourceIndex));
+        const auto viewport = TextViewport();
+        // Keep the un-clipped caret for TSF's clipped flag; painting and native
+        // screen transport clip it to the same prepared text viewport.
+        return D2D1::RectF(viewport.left + caret.x,
+                           viewport.top + caret.y - _state->scrollDip,
+                           viewport.left + caret.x + 1,
+                           viewport.top + caret.y + caret.height - _state->scrollDip);
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
+std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(const ControlHost& host, size_t sourceStart, size_t sourceEnd) const
+{
+    if (GetHost() != &host || ! GetTextInputViewportRect() || sourceStart > sourceEnd || ! Snapshot().IsBoundary(sourceStart) ||
+        ! Snapshot().IsBoundary(sourceEnd))
+        return std::nullopt;
+    try
+    {
+        EnsureLayout(host);
+        const auto& projection = _state->layout.Content();
+        const auto viewport    = TextViewport();
+        auto rectangles        = _state->layout.Range(projection.ToDisplay(sourceStart), projection.ToDisplay(sourceEnd));
+        for (auto& rectangle : rectangles)
+        {
+            rectangle.left += viewport.left;
+            rectangle.right += viewport.left;
+            rectangle.top += viewport.top - _state->scrollDip;
+            rectangle.bottom += viewport.top - _state->scrollDip;
+        }
+        // Service transport needs the raw extents to report clipping truthfully.
+        // UIA clips these separately and keeps hidden delimiters pixel-empty.
+        return rectangles;
+    }
+    catch (const std::exception&)
+    {
+        // Native text-store geometry is a noexcept COM boundary. A failed
+        // preparation/allocation reports unavailable layout, never termination.
+        return std::nullopt;
+    }
+}
+std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
+{
+    if (GetHost() != &host || ! GetTextInputViewportRect() || ! std::isfinite(point.x) || ! std::isfinite(point.y))
+        return std::nullopt;
+    try
+    {
+        EnsureLayout(host);
+        const auto viewport = TextViewport();
+        const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
+        return _state->layout.Content().ToSource(hit.position, hit.trailing);
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
+bool RichTextEditor::ExportTextInputState(TextInputState& state) const
+{
+    state                = {};
+    state.text           = GetText();
+    const auto selection = GetSelection();
+    state.caretIndex     = selection.caret;
+    if (selection.anchor != selection.caret)
+        state.selectionAnchorIndex = selection.anchor;
+    state.readOnly  = ! Editable();
+    state.multiline = true;
+    return true;
+}
+bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
+{
+    if (GetHost() != &host || state.masked || ! state.multiline || (notifyChange && ! Editable()))
+        return false;
+    const RichText::Selection selection{state.selectionAnchorIndex.value_or(state.caretIndex), state.caretIndex};
+    // Hosts restore entry source before a notifying commit. Preview updates,
+    // cancellation and selection-only imports preserve both undo and redo.
+    bool changed;
+    try
+    {
+        changed = notifyChange ? _state->document.Replace(0, _state->document.Length(), state.text, selection)
+                               : _state->document.ReplaceTransient(state.text, selection);
+    }
+    catch (const std::logic_error&)
+    {
+        // Malformed service text, oversized input and split scalar/CRLF ACPs
+        // are rejected atomically, without escaping a native noexcept handler.
+        return false;
+    }
+    _state->dragging = false;
+    if (notifyChange)
+        Changed(changed, false);
+    else
+    {
+        if (changed)
+            RetireLayout();
+        SelectionChanged(false);
+    }
+    return true;
+}
 void RichTextEditor::Paint(ControlHost& host) const
 {
     // Hosts can paint a concrete control directly as their root. A hidden root
@@ -269,6 +411,23 @@ void RichTextEditor::Paint(ControlHost& host) const
         context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
         state.layout.Draw(context, selectedTextBrush, origin);
+    }
+    NativeTextInputState input;
+    if (host.TryReadNativeTextInputState(this, input) && input.text == projection.source && input.compositionStartIndex && input.compositionEndIndex)
+    {
+        const auto underline = [&](size_t first, size_t last, float thickness)
+        {
+            if (first > last || last > projection.source.size())
+                return;
+            for (const auto& rect : state.layout.Range(projection.ToDisplay(first), projection.ToDisplay(last)))
+                context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
+                                  D2D1::Point2F(rect.right + origin.x, rect.bottom + origin.y - 1),
+                                  caretBrush,
+                                  thickness);
+        };
+        underline(*input.compositionStartIndex, *input.compositionEndIndex, 1.0f);
+        if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
+            underline(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex, 2.0f);
     }
     if (HasFocus() && IsEnabled() && state.caretVisible)
     {

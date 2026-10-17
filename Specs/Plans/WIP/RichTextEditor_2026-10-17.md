@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — D2c/D3 bounded retained preview qualified. D2a incremental, D2d OS input/accessibility and complete engine gates remain pending.
+Status: ACTIVE — D2c/D3 bounded retained preview and D2d source adapters qualified. D2a and complete engine, physical input/AT and performance acceptance gates remain pending.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -57,8 +57,9 @@ The additive core has its own explicit bounded support/qualification status.
 - [x] D2c: Implement retained RichTextEditor using ControlHost's existing shared
   DWrite/D2D/theme/DPI/input/clipboard/invalidation services. Embedded mode owns no
   HWND/device/swap chain/thread/timer; native mode uses existing host services.
-- [ ] D2d: Integrate native/embedded TSF/IME, accessible source/display ranges,
-  lifetime/rebinding and callback-retirement semantics before claiming support.
+- [x] D2d-v0: Integrate native/embedded source TSF/IME, mapped accessible ranges,
+  lifetime/rebinding and callback-retirement semantics. This bounded adapter gate
+  leaves full UIA command/structural semantics and physical IME/AT acceptance open.
 - [x] D3: Add public API/revision rationale, catalog/factory, populated gallery,
   docs/controls.md usage, design-system guideline/preview, current capability
   status, change fragment and scoped/native test inventory entries together.
@@ -280,3 +281,65 @@ this is not controlled paired or new-editor stress acceptance and does not close
 D4c or the historic D2b warnings. D4b-v0 qualifies this bounded source only and
 must be rerun when later engine/input behavior changes. D2a, D2d, D4a/D4c/D4d
 and D5 remain open. The plan stays in WIP; consumer adoption is separately owned.
+
+## D2d source input and accessibility execution
+
+Use the existing shared native/embedded text store and immutable UIA publication
+paths. Source ACPs include Markdown delimiters and original CRLF; rendered-only
+text and structural/style accessibility are separate future scope. Preserve the
+bounded preview and public API revision 4. Existing prototype Ghidra exports
+remain design evidence; D2d integrates DxUi host contracts rather than importing
+private Microsoft text-service implementations or introducing another engine.
+
+- [x] Retain a fresh pre-change Release Default measurement at clean 0c939579.
+- [x] Add atomic history-preserving Document transient replacements. Preview and
+  rollback preserve undo/redo; hosts restore entry text before one committed edit.
+- [x] Opt RichTextEditor into shared native TSF/IMM and embedded revision/focusId
+  text input, with exact source state and mapped caret/range/hit geometry.
+- [x] Draw clipped composition and conversion-target underlines during preparation.
+- [x] Extend shared native/embedded UIA to Document/Text/Text2/TextEdit, source
+  selections, actual backward-selection caret, mapped/visible ranges and read-only.
+- [x] Add tests for transient/history and invalid services, production IMM and ACP
+  protocols, embedded revisions/cancel/commit/retirement and application-bridged
+  client navigation/text events. Tests use non-activating windows or no HWND.
+- [x] Resolve exploratory build/test failures and freeze all compiled inputs.
+- [x] Fresh x64 Debug/Release/ASan normal suites plus actual ASan runtime diagnosis;
+  all ARM64 builds, with cross-build-only status explicit.
+- [x] Validate/format/tooling, review generated composition/gallery captures and
+  retain exact source/artifact/protocol/resource/performance receipts.
+- [x] Close D2d's bounded source-adapter gate after evidence and reconcile docs.
+
+Real IME/candidate-window/input-language, Narrator/NVDA, physical/focus-taking,
+native ARM64 and controlled rich-workload performance acceptance remain D4c/D4d.
+Unknown UIA text attributes and annotations remain unsupported. D2a incremental
+layout and D4a complete Markdown/extensions are not closed by this integration.
+Complete shared UIA text-range command conformance (including legacy scrolling
+and selection-add/remove actions) remains an engine/AT acceptance prerequisite;
+D2d's bounded source-adapter gate does not qualify those legacy operations.
+
+## D2d bounded source-adapter closeout
+
+The [D2d receipts](../../../Measurements/RichText/2026-10-17-input-d2d/README.md)
+bind six final builds and 57 ordinary x64 suite passes, with zero capability skips,
+to library fingerprint FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941.
+There are 31 named rich-text control scenarios per x64 configuration; the embedded
+suite passes 5,155 checks. Warm caret/visible-range metadata requests stay at
+432 bytes (Debug/ASan) or 400 bytes (Release) for both 32 and 65,536 source units,
+within the 4,096-byte budget. The actual ASan heap-use-after-free probe, pinned
+formatting and reviewed gallery/composition captures are retained. All five
+validators and tooling pass after an affected specification retry; the original
+full command's documentation-link failure is retained. ARM64 receipts establish
+three cross-builds only.
+
+Both serial Default candidate comparisons remain advice-required. The first
+flags private memory; its one quiet repeat flags dirty private bytes +7.6% and
+working set +2.5%. Preserve both reports and the original baseline. The unchanged
+83-control/1,000-row fixture does not instantiate RichTextEditor, and the baseline
+and candidate differ in their temporary-directory toolchain identity. These
+unpaired diagnostics establish neither source causality nor performance
+acceptance. D4c remains open; no regression is silently accepted or rebaselined.
+
+Native TSF/IMM protocol and real in-process UIA client tests qualify the source
+adapters, not physical input-language/candidate-window or assistive-technology
+behavior. D2a, D4a, D4c, D4d and D5 remain open; the plan stays in WIP and consumer
+pins remain unchanged.

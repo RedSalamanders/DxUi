@@ -7,7 +7,10 @@
   Add the retained RichTextEditor v0 preview using shared ControlHost services in
   native/embedded hosting, with source selection/history/formatting, Unicode
   clipboard/input, bounded scrolling, lifetime tests and catalog/gallery/design
-  guidance. Full Markdown/extensions, TSF/UIA and large-document/platform/
+  guidance. Add D2d native/embedded source TSF/IME and Document/Text/Text2/TextEdit
+  UIA adapters with history-preserving preview/rollback, mapped visible/range/
+  caret geometry, stale-service and callback-retirement guards, protocol and real
+  in-process client tests. Full Markdown/extensions and large-document/platform/
   performance qualification remain pending. Retain
   the unpaired existing-library pre-change baseline without calling it candidate
   acceptance or changing consumer pins in RedXe/RedSalamander.

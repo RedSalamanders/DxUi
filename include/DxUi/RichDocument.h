@@ -91,6 +91,10 @@ public:
     void SetSelection(Selection selection);
     void Reset(std::wstring text);
     bool Replace(std::size_t begin, std::size_t end, std::wstring text, Selection after);
+    // OS composition previews and their rollback change source/selection with a
+    // fresh revision, preserving both histories. Restore the entry text before
+    // recording the final committed replacement as one ordinary transaction.
+    bool ReplaceTransient(std::wstring text, Selection selection);
     bool ReplaceSelection(std::wstring text);
     bool Undo();
     bool Redo();
@@ -114,5 +118,6 @@ private:
     std::uint64_t revision_{};
     std::vector<History> undo_, redo_;
     static void Push(std::vector<History>& history, History entry);
+    bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring text, Selection after, bool recordHistory);
 };
 } // namespace DxUi::RichText

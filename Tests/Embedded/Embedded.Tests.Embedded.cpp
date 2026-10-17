@@ -1237,6 +1237,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);
+    TestRetainedRichTextUiaRangeAllocationBudget(gpu);
     TestPreparationCallbacksCanRetireRoot(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
     TestEmbeddedMultilineGridFrenchCells(gpu);

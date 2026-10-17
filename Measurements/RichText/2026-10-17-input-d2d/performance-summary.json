@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "receiptKind": "performance-diagnostic-summary",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "libraryFingerprint": "FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941",
+  "baseline": "before.json",
+  "baselineSha256": "0352D6E69EDFEFB0320D1A8882A0ABDEEC04E8EDB61A245F6676E930C321B24C",
+  "runs": [
+    {
+      "report": "after.json",
+      "reportSha256": "74C17DDBC96F310133B56025CED10528227015073D6833E375B2B9DCBC3E453D",
+      "comparison": "after.json.comparison.json",
+      "exitCode": 1,
+      "status": "advice-required",
+      "flags": [
+        {
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 26689536,
+          "after": 27815936,
+          "changePercent": 4.220380601596063,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 26734592,
+          "after": 28155904,
+          "changePercent": 5.316378121648535,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28065792,
+          "after": 29200384,
+          "changePercent": 4.04261529480443,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28065792,
+          "after": 29220864,
+          "changePercent": 4.115586690017503,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "report": "after-repeat.json",
+      "reportSha256": "8258914322D68B0900A14BFD6BFA780031E9B383BEF2F68FDABF8CC09C53D1B5",
+      "comparison": "after-repeat.json.comparison.json",
+      "exitCode": 1,
+      "status": "advice-required",
+      "flags": [
+        {
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28065792,
+          "after": 30199808,
+          "changePercent": 7.603619381202575,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28065792,
+          "after": 30236672,
+          "changePercent": 7.734967892586098,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 44961792,
+          "after": 46104576,
+          "changePercent": 2.541678054113139,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 44961792,
+          "after": 46104576,
+          "changePercent": 2.541678054113139,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    }
+  ],
+  "toolchainIdentities": {
+    "before": "3246F968B76D18621AE34F19F4FE4876C74F8B3CD5CD782968E456D3F5445508",
+    "after": "FEC0A025A2DDD923D8CFA98DC726CD25E3604D5BAFB8E77DF20489BDE23430F2",
+    "repeat": "FEC0A025A2DDD923D8CFA98DC726CD25E3604D5BAFB8E77DF20489BDE23430F2"
+  },
+  "logs": [
+    {
+      "file": "Raw/rich-d2d-after.log",
+      "sha256": "5BECACAE33364D69FE5D988B1B3C7AF59C6A88716E345114139E2505673D13A7"
+    },
+    {
+      "file": "Raw/rich-d2d-after.err",
+      "sha256": "5DFB0BFE98543A085D8A6AA3201EDA98F91BB11945083FBA5658A9303EAB330D"
+    },
+    {
+      "file": "Raw/rich-d2d-after-repeat.log",
+      "sha256": "15AC95A230D7F21E51E6F6062D2C9B62F3D1E12752294EFF50813D3486E0598F"
+    },
+    {
+      "file": "Raw/rich-d2d-after-repeat.err",
+      "sha256": "4C2C30D54ACA58FA5F3E214BCD9D4C84A6F3246F72431B727B5F940474D5EE82"
+    }
+  ],
+  "acceptance": "D4c remains open. Both runs are advice-required; no acceptance or rebaseline. Original baseline uses a different compiler temporary-directory toolchain identity. Unpaired Default fixture has 83 controls/1000 rows and no RichTextEditor. These diagnostics establish neither source causality nor rich-workload performance acceptance."
+}

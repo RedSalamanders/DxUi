@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "receiptKind": "functional-identity-diagnostic",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-rich-text-attestation-temp",
+  "benchmarkInputs": {
+    "Tools/PerformancePolicy.psm1": "A4A81214B7B9F62481C4DD4E83B6F37F1A43BEBC74378AE8928085F027F6EB5E",
+    "Tools/ScopedTesting.psm1": "FD728FACD01E19100B7B01234A4808C52E003628076AB0CDA7AB42E09AB43A5E"
+  },
+  "sourceFingerprint": "7DA054400FD81867938E32F74A89860FA5935B1405B40A045E1F1551844DFEDC",
+  "resolvedBuildIdentity": "ecb8c9d25db87c7eecb5f99eb23f14fa698d61a3971b288a9ad664d884a2a3ef",
+  "buildInputIdentity": "7469ea8820a6782d430a26770bd8ceea8ae6f6074e7fc3e9b6623a96badb612a",
+  "artifactIdentity": "d774b509af44101783d0d3f516a764eb93f656827be93934d6e6d83052d4a76f",
+  "attestedIdentity": "b11db7f7f00a59372b3d867f55b97c4e00559988ea9bd531de8b6b4403fd5eb1",
+  "variants": [
+    {
+      "temporaryLocation": "default C-volume temporary directory",
+      "toolchainIdentity": "5B6FF59829DE0B214A6082BD11E199B8EBB5A6B2E3E591B836B56CBF23532CE2",
+      "actualIdentity": "6cdd008526f6021243d8329db2b57f812156149a0c0eef6a1370abf9948e0df8",
+      "matches": false
+    },
+    {
+      "temporaryLocation": ".build/compiler-temp/d2d",
+      "toolchainIdentity": "83C1AA50AC3920E04E4BC335E890630511E9F8B757337F147BA2C4B7084DAADC",
+      "actualIdentity": "b11db7f7f00a59372b3d867f55b97c4e00559988ea9bd531de8b6b4403fd5eb1",
+      "matches": true
+    },
+    {
+      "temporaryLocation": ".build/runtime-temp/d2d",
+      "toolchainIdentity": "4E3E42323F09048F9FD479D89D518A7CC46DD15FEFA862585B325FBC7FF9FC3E",
+      "actualIdentity": "2ac591eef216bfff826d20a554c76cabfdd23e7a80b05636ec424d9309837b6b",
+      "matches": false
+    }
+  ],
+  "resolution": "Native and dedicated candidate measurement processes use the exact compiler TEMP/TMP. No attestation override or receipt restamp.",
+  "limitations": "The original pre-change measurement used default TEMP/TMP. Strict paired identity/acceptance remains D4c; retain this difference rather than silently rebaseline.",
+  "phase": "Historical first matrix before constant-space range refactor; not restamped as final-source qualification"
+}

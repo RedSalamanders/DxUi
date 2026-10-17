@@ -50,8 +50,10 @@ It borrows host fonts, brushes, DWrite/D2D and owner scheduling, creating no
 embedded HWND/device/worker/timer. Unicode source, selection and history survive
 surface suspension and device-generation replacement. Its layout retires when
 hidden and rebuilds on demand; clean composition does no rich-text work.
-Basic DispatchCharacter is available; D2d OS composition and rich UIA ranges
-remain pending. See [the rich-text guide](../../docs/rich-text.md).
+DispatchCharacter and the D2d source text-service/UIA adapters are available.
+Applications retain HWND/TSF client, focusId/revision and screen-placement ownership;
+prepare changed composition/scroll/DPI before publishing geometry or accessibility.
+Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
 
 `GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
 embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared

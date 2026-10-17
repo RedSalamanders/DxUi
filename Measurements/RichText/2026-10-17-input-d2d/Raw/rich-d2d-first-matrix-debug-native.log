@@ -1,0 +1,80 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 2489.64 completed offscreen FPS; p95 0.4985 ms; private 32051200 bytes
+Complex UI clean round 2: 2506.16 completed offscreen FPS; p95 0.465 ms; private 31580160 bytes
+Complex UI clean round 3: 2581.89 completed offscreen FPS; p95 0.4491 ms; private 31580160 bytes
+Complex UI clean round 4: 2469.78 completed offscreen FPS; p95 0.5232 ms; private 31563776 bytes
+Complex UI clean round 5: 2452.72 completed offscreen FPS; p95 0.5036 ms; private 31551488 bytes
+Complex UI dirty round 1: 474.563 completed offscreen FPS; p95 2.3856 ms; private 32858112 bytes
+Complex UI dirty round 2: 479.797 completed offscreen FPS; p95 2.4926 ms; private 33128448 bytes
+Complex UI dirty round 3: 487.099 completed offscreen FPS; p95 2.2792 ms; private 33325056 bytes
+Complex UI dirty round 4: 478.018 completed offscreen FPS; p95 2.3444 ms; private 33300480 bytes
+Complex UI dirty round 5: 463.171 completed offscreen FPS; p95 2.5634 ms; private 33255424 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Debug-cd767dd8c3dd45fab73b3c53d8b71253.json
+Running Foundation (x64 Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Debug)
+PASS Control (0 capability skips recorded)
+Running MenuExitLifetime (x64 Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running EditorControls (x64 Debug)
+PASS EditorControls (0 capability skips recorded)
+Running TextField (x64 Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+Running InteractiveLease (x64 Debug)
+PASS InteractiveLease (0 capability skips recorded)
+All 19 requested suites passed.

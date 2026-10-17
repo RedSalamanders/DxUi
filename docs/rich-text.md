@@ -3,8 +3,9 @@
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
-`DxUi::RichTextEditor` preview described below. Native/embedded OS text services,
-rich-text UIA and complete Markdown conformance remain separate
+`DxUi::RichTextEditor` preview described below. Its bounded source TSF/IME and
+UIA adapters are implemented in both hosts. Real IME/assistive-technology
+qualification and complete Markdown conformance remain separate
 integration gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 
 ## Retained editor preview (D2c)
@@ -57,13 +58,77 @@ Wheel movement never changes source/history. The caret uses host timestamps,
 including an embedded epoch of zero; read-only/reduced-motion/hidden controls
 request no caret animation.
 
-This is an explicit bounded v0 preview. It does **not** opt into OS text-input
-sessions: native WM_CHAR and embedded DispatchCharacter exercise basic Unicode
-entry, while TSF/IME composition, input-language services and rich UIA text/ranges
-are D2d. Do not choose it for production accessible or IME editing yet.
+This is an explicit bounded v0 preview. The D2d source adapters described below
+use the existing shared OS services; real IME/candidate-window, screen-reader and
+physical-input qualification is still required before production acceptance.
 There is no incremental large-document layout, complete CommonMark/GFM or
 math/Mermaid/footnote/front-matter rendering. Unsupported syntax remains source.
 No consumer pin is changed automatically.
+
+## Source text services and accessibility (D2d)
+
+Native ControlHost activates its existing text-input cache and TSF/IMM adapter
+for RichTextEditor. `SetFocusControl(editor, false)` establishes logical focus
+without taking HWND focus. The native host owns TSF activation, the system caret
+and IME candidate placement only while its HWND owns keyboard focus. No editor
+HWND or private OS service is introduced.
+
+Embedded applications use the same `ReadTextInput`, `ApplyTextInput`,
+`HitTestTextInput` and `GetTextInputRangeBounds` bridge as TextField. Keep one
+TextInputServices client for the immutable focusId, reject stale revisions,
+convert view DIPs to physical screen coordinates, and call NotifyLayoutChanged
+after coherent preparation/placement changes. Clear the application-side client
+on focus loss or view retirement. The view owns no HWND or TSF thread.
+
+ACP offsets, service snapshots and UIA text all refer to exact Unicode Markdown
+source, including hidden delimiters and original CRLF. Geometry maps source
+ranges through the current prepared projection, wrapping, scroll, flow and DPI.
+A hidden delimiter range has no pixel rectangles. Source mode displays its
+rectangles again. Hidden/retired controls and incoherent embedded preparation do
+not supply current geometry. `GetVisibleSourceRange(host)` includes complete
+wrapped lines intersecting the viewport, including partial lines.
+
+Composition Preview updates are silent and preserve undo and redo. Cancel
+restores entry source and selection; Commit restores entry source before recording
+one ordinary transaction and one callback, including when the result equals its
+last preview. Revisions remain monotonic. The reusable Document::ReplaceTransient
+performs the history-preserving update; callers must restore composition-entry
+source before recording the final replacement. Invalid UTF-16, NUL, oversized
+source and scalar/CRLF-splitting selections are rejected atomically. An application
+edit supersedes an older service preview. Retained services cannot write through
+replacement focus or a retired owner. Callback-driven removal stops old publication.
+Composition uses the shared caret ink for a 1 DIP underline and a 2 DIP conversion
+target underline inside the text viewport.
+
+Both UIA hosts publish Document semantics, Text, Text2 and TextEdit patterns through
+the same immutable snapshots and stable control identity. Text2 reports the actual
+caret of backward selections. TextEdit reports composition/conversion ranges;
+Text exposes exact source, selection, visible ranges, point hits and projected
+rectangles. Read-only documents permit selection and expose IsReadOnly; disabled
+controls reject actions. Multiline documents do not duplicate their content in
+ValuePattern. Endpoint-to-range movement validates a common live owner and
+collapses crossing endpoints. Retained rich ranges read current published source
+at bounded source offsets, clamping scalar/CRLF boundaries after replacement;
+they do not track the semantic identity of text shifted by an edit. Reacquire
+DocumentRange for the complete grown document. Bounded GetText never returns
+half a supplementary scalar. Retained providers/ranges disconnect on owner replacement. Unknown
+text attributes and annotations are unsupported; structured Markdown semantics,
+font/style attributes and rendered-only accessible text remain future scope.
+Full shared UIA text-range command conformance, including legacy range scrolling
+and selection-add/remove actions, is also a remaining engine/AT acceptance gate.
+The v0 support claim covers the source selection and geometry commands above.
+
+Caret, visible, composition and conversion ranges retain source offsets and
+identity while reading the published document. They do not copy the full source
+per query. The supplied-device regression bounds warm caret plus visible-range
+C++ allocation requests to 4 KiB for both 32-unit and maximum 65,536-unit sources;
+snapshot/layout preparation and Windows/driver allocations are outside that budget.
+
+The non-activating native IMM/TSF protocol tests, embedded preview/revision tests,
+actual application-bridged UIA client navigation/event tests and WARP captures
+qualify these bounded adapters. They do not substitute for real input languages,
+Narrator/NVDA or native ARM64 execution. See the [input contract](../Specs/UI/UI_InputAndAccessibility.md)
+and [active qualification plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 
 ## Reusable preparation core
 
@@ -157,3 +222,10 @@ The [D2c qualification](../Measurements/RichText/2026-10-17-retained-d2c/README.
 retains the native/embedded, sanitizer, build, gallery and timing evidence for
 this bounded preview. Full OS input/accessibility and conformance are separate
 from these passing v0 gates.
+
+The [D2d qualification](../Measurements/RichText/2026-10-17-input-d2d/README.md)
+retains the source-adapter protocol/client, history, retirement, geometry and
+constant-size UIA range allocation evidence. It includes 57 ordinary x64 suite
+passes and six builds. Physical IME/AT, complete UIA text-range commands, native
+ARM64 execution and controlled performance acceptance remain open; both diagnostic
+memory-warning reports are retained.

@@ -159,6 +159,14 @@ void Document::Push(std::vector<History>& history, History entry)
 }
 bool Document::Replace(std::size_t begin, std::size_t end, std::wstring text, Selection after)
 {
+    return ReplaceImpl(begin, end, std::move(text), after, true);
+}
+bool Document::ReplaceTransient(std::wstring text, Selection selection)
+{
+    return ReplaceImpl(0, Length(), std::move(text), selection, false);
+}
+bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring text, Selection after, bool recordHistory)
+{
     Validate(text);
     const auto length = source_.Length();
     if (begin > end || ! source_.IsBoundary(begin) || ! source_.IsBoundary(end))
@@ -232,11 +240,18 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring text, Se
         selection_ = after;
         return false;
     }
-    auto nextUndo = undo_;
-    Push(nextUndo, {source_, selection_});
+    std::vector<History> nextUndo;
+    if (recordHistory)
+    {
+        nextUndo = undo_;
+        Push(nextUndo, {source_, selection_});
+    }
     source_ = std::move(candidate);
-    undo_.swap(nextUndo);
-    redo_.clear();
+    if (recordHistory)
+    {
+        undo_.swap(nextUndo);
+        redo_.clear();
+    }
     selection_ = after;
     ++revision_;
     return true;

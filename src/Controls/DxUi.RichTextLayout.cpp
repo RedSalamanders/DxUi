@@ -1,6 +1,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <wil/result.h>
 namespace DxUi::RichText
@@ -182,6 +183,26 @@ std::size_t PreparedLayout::LineBoundary(std::size_t position, bool end) const
     if (result && projection_.text[result - 1] == L'\n')
         --result;
     return result;
+}
+std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, float bottom) const
+{
+    if (! layout_ || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
+        throw std::invalid_argument("Invalid visible text viewport");
+    std::optional<std::size_t> first;
+    std::size_t last = 0;
+    for (std::size_t index = 0; index < lines_.size(); ++index)
+    {
+        const auto caret = Caret(lines_[index]);
+        if (caret.y >= bottom)
+            break;
+        if (caret.y + caret.height > top)
+        {
+            if (! first)
+                first = lines_[index];
+            last = index + 1 < lines_.size() ? lines_[index + 1] : projection_.text.size();
+        }
+    }
+    return {first.value_or(0), last};
 }
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin) const
 {

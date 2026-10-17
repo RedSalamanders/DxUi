@@ -1,0 +1,1516 @@
+{
+  "schemaVersion": 1,
+  "receiptKind": "functional-qualification",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-rich-text-input-v0",
+  "benchmarkInputs": {
+    "Tests/Controls/Scope.Tests.RichDocument.cpp": "1A188E6733D86FE8E0B1FEF908BE7AE22D170E64415BAFF2A0FC2EF46A81EB96",
+    "Tests/Controls/Scope.Tests.RichMarkdown.cpp": "FD4C4DCDEDB2BC0D6BB875EFAF1FECB4F23A42ADC48F8A55C98509AD561F35FB",
+    "Tests/Controls/Scope.Tests.RichTextLayout.cpp": "36A50431FD232B86EB73E3E255DC07BC7F92997E4C39DB9D767FB9E42E2099C6",
+    "Tests/Controls/Scope.Tests.RichTextEditor.cpp": "C85AFEB2A872309D0C49C45E41FCF125DDCCD9324151604BCD8E905A8E6C40F7",
+    "Tests/Embedded/Scope.Tests.RichTextResources.h": "0F41FC6897CAE468BCDCC0E62B38CD107082B087C9022EFB1D83BCCF36BBF1D5",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "C23E76D12F79B453E0F30E8B1495EBCF70CE5DACE87127BF72D2E7146074FCE9",
+    "Tests/Controls/DxUi.Tests.EditorControls.cpp": "180C5FC49B2B499D8EFF3BBB92302964A0642761B88321ABFBC74EC6ABAFE781",
+    "Tests/Controls/Scope.Tests.Forms.cpp": "61BD827AD64038ED4169E2CC93FB720AD3B1E7B5833D04710FAD7A0FD0315AB3",
+    "Tests/Controls/DxUi.Tests.Gallery.cpp": "1B9E4B0706815C3572B75DB00B5765A14AA71F17BA60BA81A66F95F87296371E",
+    "src/Controls/DxUi.RichTextEditor.cpp": "99B4E2A2B4567DDE917E84E2962EA9520306AE177B40A0E7D708A030D21FC166",
+    "include/DxUi/DxUi.h": "7E25FB2E7872B0CDFA0268AAB4EBE379193FE90033DB999E70B81D57A3B30BC6",
+    "include/DxUi/RichDocument.h": "633F43BA63B7430D48A17CC73981A56A4F369E97E8704CCC4A253C2A033444D5",
+    "include/DxUi/RichTextLayout.h": "5909FD0291A96A92B22A299C1D4A946F18BDFEF17AE086E5B729D51B178668A4",
+    "src/Controls/DxUi.TextStoreACP.cpp": "5E9AFCC4C26BBE451051545CAC74289EDF51B89ECD44E424CA1340EA3B14C251",
+    "src/Controls/DxUi.Accessibility.cpp": "4D87867222EC32791F50A8DCC8DB015A469D217C3017B8D62B9DDA27DE70A8EA",
+    "Tests/Controls/Scope.Tests.RichTextInput.cpp": "47C4567C615FA2353A14930E12A349E43F10084DBFEAA6E9193E95294A9E4C6D",
+    "Tests/Controls/Scope.Tests.RichTextAccessibility.cpp": "F17390BDAA6BF8AD9BAC58F8097E3782FAC1524E5CC208688C63F92FB9D6DDE3",
+    "Tests/Support/Support.Tests.UiaTestClient.h": "B8F325E16A6F999BFFBFD6BE61CCCE364659F64A4549F58E93739D6B08E930EC",
+    "src/Controls/DxUi.RichDocument.cpp": "E2862B4E658A3138D48D210BE146E3D1C7D4145EC11F61889E9A23748B1DCE57",
+    "src/Controls/DxUi.RichTextLayout.cpp": "19DD92F62C8B2BE269E84F93196E633824AB7577C0648E31BC30C20B56BA413D",
+    "Tests/Controls/DxUi.Tests.NativeTextInput.cpp": "A110B4FA361FE99056165182AEC21E688E68B286D7796B815F0BFDF5B2054F8F",
+    "capabilities.json": "FCA39D5165D8DE0695E4ED85ADFA4BF0D2CEB00D85A9D8E5FDCAD57FF730984F",
+    "Specs/DesignSystem/tokens.json": "0A574EB60F9A007B7B258152B3CFC0070E0BAEF54A3907667879886C37866C31"
+  },
+  "completedUtc": "2026-10-17T19:46:44.7208186+00:00",
+  "source": {
+    "parentCommit": "0c939579a907568ade4809e007da730334257b4c",
+    "dirty": true,
+    "libraryFingerprint": "FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941",
+    "basis": "current frozen working files, exact build attestations and executable hashes; not a clean consumer pin"
+  },
+  "richTextNamedTests": [
+    "TestRichDocumentPrototypeContracts",
+    "TestRichDocumentSlicesAndJoinedBoundaries",
+    "TestRichDocumentCrossPieceUnicodeOracle",
+    "TestRichDocumentUnicodeCodecRejections",
+    "TestRichMarkdownPrototypeContracts",
+    "TestRichMarkdownSnapshotAndValidationContracts",
+    "TestRichMarkdownV0StylesCommandsAndMalformedMappings",
+    "TestRichTextLayoutPrototypeContracts",
+    "TestRichTextLayoutOptionsFailureAtomicityAndRetirement",
+    "TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement",
+    "TestRichTextLayoutHostLocaleAndReadingDirection",
+    "TestRichTextEditorTransactionsAndValidation",
+    "TestRichTextEditorUnicodeCharacterTransactions",
+    "TestRichTextEditorFormattingAndModePreserveSource",
+    "TestRichTextEditorCallbackRetirementAndFailure",
+    "TestRichTextEditorNativeHostAndLayoutReuse",
+    "TestRichTextEditorNativeUnicodeRoutingAndNavigation",
+    "TestRichTextEditorClipboardAtomicityAndSourceContract",
+    "TestRichTextEditorScrollAndHostClock",
+    "TestRichTextEditorCatalogAndRebinding",
+    "TestRichTextTransientSourcePreservesHistory",
+    "TestRichTextServiceValidationAndGeometry",
+    "TestRichTextNativeImeCommitCancelAndRetirement",
+    "TestRichTextEmbeddedCompositionRevisionsAndRebinding",
+    "TestRichTextEmbeddedMappedGeometry",
+    "TestRichTextEmbeddedPreviewRebinding",
+    "TestRichTextNativeTsfCompositionAndDisconnection",
+    "TestRichTextAccessibilityWindowSourceAndRanges",
+    "TestRichTextAccessibilityEmbeddedSourceAndRanges",
+    "TestRichTextAccessibilityWindowClientNavigationAndEvents",
+    "TestRichTextAccessibilityEmbeddedClientNavigationAndEvents"
+  ],
+  "builds": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "runtimeQualification": "native-tests-below",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "aefbe22f87cec17dec8b36a18ac56d3d5627e6f456de03dd18013094e3260276",
+        "completedUtc": "2026-10-17T19:15:08.0377241Z",
+        "digest": "17a155a52f6294f7fd4b206426ce9221476386ed007002f8bcb8af2f0c2e4efa"
+      },
+      "artifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 21667840,
+          "sha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 7890432,
+          "sha256": "EF06F9AA4E8ED77E525895DA0BBA564BE35D36ED2FAF442E8E0A201376FFD404"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 9574912,
+          "sha256": "FB5B3CFEAB3BB792CB97FE8ACB138E18EBDF9A30216370E3E026FDCD98AD62EC"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 7710720,
+          "sha256": "16E986D430E7F77BFE2B3D5A998EB4BF9ACE86815CDF8708A937006C21766F88"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 1944576,
+          "sha256": "322561C777AF5C6280C61052C288866323188DF2B37BA0628F69ED5F881774E6"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 91635240,
+          "sha256": "346947A319F93EBF399C7B89AAE0D3BFFC7B5B1C5BF3D28EF58C02340056228B"
+        }
+      ],
+      "log": {
+        "file": "Raw/x64-Debug-build.log",
+        "sha256": "78E12B93A9CED750756E64F85397A6668307BEC77E863345A1FD592321E3506D"
+      }
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "runtimeQualification": "native-tests-below",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "17e5f444b3517bba792fb842f9d137beca6407ff476eb278a672bb2f489e65af",
+        "completedUtc": "2026-10-17T19:21:04.177246Z",
+        "digest": "d35c8cc9e9d68d9114b904885878051eab2002d5301bba0be4fd877a74697c73"
+      },
+      "artifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 10933760,
+          "sha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 3210752,
+          "sha256": "2D46DD52B153775F9196F14BFF74395D76869E8C2763FCD3311604115E5AC06B"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 4093952,
+          "sha256": "01AD1D75BDEFFA7C1A5560C739B64F33AC93C63D258A8F8A7419D72DF84F539F"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 3116032,
+          "sha256": "2398E37EF8384DB94F8D1C7B816E3CD8750E1F97889A24799643108788F151F5"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 913920,
+          "sha256": "8AB52B7992989DFEB3DB080A5FC35C16D49F2A268445B4B4F731858B8F73DB1C"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 43038834,
+          "sha256": "694D02A09624B02263565DA55B65E26D552C5A804B9DE6A7EA7B0C7FC4FE559F"
+        }
+      ],
+      "log": {
+        "file": "Raw/x64-Release-build.log",
+        "sha256": "F0AC5D901EEC62401F3AD099FDE1A7CC018B83C48CEF318896AEF85C987AA919"
+      }
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "runtimeQualification": "native-tests-below",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "9a11b6fea6c8eb370410249cf060e2aaaa0c01ab154677f328330ea423ff610f",
+        "completedUtc": "2026-10-17T19:20:34.6994272Z",
+        "digest": "7d75623b1476df4c7a37e9d84eab680a6dd4b6574f6ce29e898b3f7f9ee6b972"
+      },
+      "artifacts": [
+        {
+          "name": "clang_rt.asan_dynamic-x86_64.dll",
+          "bytes": 1881912,
+          "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+        },
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 36056576,
+          "sha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 12295680,
+          "sha256": "87B318F56278D268F2BBE99677CB3B1990F1E189206F7F0F3E7406138C4DA94F"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 14931456,
+          "sha256": "7B46ECDFE1A91A3C000D035A00B798411A1E128FFACF73002620EF4F64DBA2D2"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 12063232,
+          "sha256": "423A6DFE3B4E7A2FA2A330F217EA657EA6AF0376832481166B039B19B97DC63E"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 2356736,
+          "sha256": "46B4B33B13601524D4D0E98AAD96A3A069BFE8D0D330B0940E3EF7B246E7785D"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 99450540,
+          "sha256": "582E98EF057C80FCD08B06E10269E6055246532F9EF3CAA0AAA12AF40E5B86F7"
+        }
+      ],
+      "log": {
+        "file": "Raw/x64-ASanDebug-build.log",
+        "sha256": "DCE8A3C7092E50730442D739EA717A3FEFD7B5DD160501060E07B1277978D5EF"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "runtimeQualification": "cross-build-only",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "3923f74228e01a34fcc2c210f060d11d810581d09c073b31018c3bfe447d4e13",
+        "completedUtc": "2026-10-17T19:20:40.2764365Z",
+        "digest": "a4fa23608f8f145f1aad19be1993beef5af6729352aec8c759936738c542df02"
+      },
+      "artifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 33367552,
+          "sha256": "33B82CF496A581A035C971DEDB48730789C19B778CEE237501CDDF62CB6F8F65"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 11885568,
+          "sha256": "983E9061C72F1C3AEA4B01143C570728C417BE26493C7801090673D214BFBF5B"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 14526464,
+          "sha256": "7775975E190EE06DE5D72983B80AC0CB74ECC2DAF17ADCA9171E6A400AF1CC59"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 11612160,
+          "sha256": "3380322831B53995B152382D3E262DC5D0A519E425EF02D0AEA54A9364F304B3"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 2471936,
+          "sha256": "2AD02ED8993E40901E2D0D7F0349DFD51E527F2B2E8CBAA02528E9396318E47C"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 101555076,
+          "sha256": "77D08CA7602904711804E9FA685F3F52176FAEF48D7A2BAC6135714A039E454D"
+        }
+      ],
+      "log": {
+        "file": "Raw/ARM64-Debug-build.log",
+        "sha256": "D1E125BE92E5CBB426070F4E8FB12E7ABD232B06960F2E44C025876F817F8879"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "runtimeQualification": "cross-build-only",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "44dd6e4952c801ca8f689c060e0222efae0c874d11bdf0fd9546aeefae91b69f",
+        "completedUtc": "2026-10-17T19:24:56.9660849Z",
+        "digest": "92df5a469286e2a5296abd665045010d2bc571694f8fbf5a421f1467b4c4a154"
+      },
+      "artifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 13967360,
+          "sha256": "B40708E8AD9343E5EA0371D114476F176631C31093D36ADAA0CC59C4CD4B9281"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 3745792,
+          "sha256": "788CF446C6644D156B8355179BB3CD827C8FBED7E72633D967138D93883A2EEF"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 4922880,
+          "sha256": "AD9B55BE5CD82705BF011E5AF0A81FAA6390452563A10E662788DDC2A42595CF"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 3615744,
+          "sha256": "A06E95CEA984791BB4D802D4CC8149D23AC4FB057F9AF3108DBBE298D5E6A01D"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 968704,
+          "sha256": "E0803B585A1B4A5B1921E60A5536B52327A8A7D2483B9717886E5C63ABD4DBF5"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 43117432,
+          "sha256": "77129071867913E5BFA5B4D4DC45533A900D4A5339B42A0DC16966376D6FE0A5"
+        }
+      ],
+      "log": {
+        "file": "Raw/ARM64-Release-build.log",
+        "sha256": "4FDA0C9544B6D3060445928CD33D460244A49D0D0D45B94B7CE635EA03F8AD5A"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "runtimeQualification": "cross-build-only",
+      "attestation": {
+        "version": 1,
+        "outcome": "PASSED",
+        "identity": "bd5e7e8f83a113e3c996b8899e1bc2a8393a2ec5e2d27561ff2aa9bcd78782f3",
+        "completedUtc": "2026-10-17T19:24:15.4247285Z",
+        "digest": "fb0d9f127bb37d819f70e97f033cf713c7c7d83b0493f54ffde5dfcde3fc4899"
+      },
+      "artifacts": [
+        {
+          "name": "clang_rt.asan_dynamic-aarch64.dll",
+          "bytes": 2294448,
+          "sha256": "46261E83388D240D6CA57B24772209881D446B5CBCD65300423506D9286F515C"
+        },
+        {
+          "name": "DxUi.ControlTests.exe",
+          "bytes": 29635584,
+          "sha256": "B7814BE3F20092487D23E397A1A5CA4625FBA9EAB11CE3A8A576E128095A87D8"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "bytes": 9365504,
+          "sha256": "A887B0FAB2D611A7B04D53785C0BB996ABD3ABEE4A0E00CF24FEAF24657AD0C8"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "bytes": 11660800,
+          "sha256": "66D69EA3D51DC06117ED8076CD0C61A661AF46DED2C54AB8338B7FA1E89AB515"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "bytes": 9158656,
+          "sha256": "3CEAFE45EF453A0CD7B034EC0DB545A4034921967481841C26F1D659D050857F"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "bytes": 1896960,
+          "sha256": "76E75F568372DD2573032CB384E21A65E7393727CEFA6C62B1CC7BBD27DB0F60"
+        },
+        {
+          "name": "DxUi.lib",
+          "bytes": 86751040,
+          "sha256": "2CA9356CAF8D9775DC4FDD906AF13938B93C47C085754748B0AC038EF6CB827D"
+        }
+      ],
+      "log": {
+        "file": "Raw/ARM64-ASanDebug-build.log",
+        "sha256": "2F4A08D279325B78F82BB371C8194841A5328C0E92D23F2C0E537C8AC4632EBA"
+      }
+    }
+  ],
+  "nativeProfiles": [
+    {
+      "configuration": "Debug",
+      "platform": "x64",
+      "suiteCount": 19,
+      "suites": [
+        {
+          "name": "Foundation",
+          "completedUtc": "2026-10-17T19:18:33.0759696Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "16E986D430E7F77BFE2B3D5A998EB4BF9ACE86815CDF8708A937006C21766F88",
+          "receipt": {
+            "file": "Raw/Debug-Foundation.json.txt",
+            "sha256": "A48DB4308F557BE7042416300A7316696062E38F4B9A6571BFF27F112AEBFD8E"
+          },
+          "log": {
+            "file": "Raw/Debug-Foundation.log",
+            "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+          }
+        },
+        {
+          "name": "Embedded",
+          "completedUtc": "2026-10-17T19:18:55.4613569Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "FB5B3CFEAB3BB792CB97FE8ACB138E18EBDF9A30216370E3E026FDCD98AD62EC",
+          "receipt": {
+            "file": "Raw/Debug-Embedded.json.txt",
+            "sha256": "7B85B2BE3F9E906E9FF885616E118DFB77C3B5D06E834ECFBA2B307D700D2DDA"
+          },
+          "log": {
+            "file": "Raw/Debug-Embedded.log",
+            "sha256": "B7B120C40C7A173F48F70D65398EDFBCF98AD3C7ED8AC722D3A59A2156780DA1"
+          }
+        },
+        {
+          "name": "Grid",
+          "completedUtc": "2026-10-17T19:18:58.8237878Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Grid.json.txt",
+            "sha256": "DEDC9832D64A176569EF6FCDD62B47736FD25AAA87FAE84CA22010612A8066B2"
+          },
+          "log": {
+            "file": "Raw/Debug-Grid.log",
+            "sha256": "742C3D9C9E3098ED3AFE36ABFC568B3A21611282386D9EED42C8C7CEE0B7E92D"
+          }
+        },
+        {
+          "name": "Theme",
+          "completedUtc": "2026-10-17T19:18:58.8750672Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Theme.json.txt",
+            "sha256": "F3C66490DA6BD292573B0F76A276B09BE04BB366E7DD0069D4C2A5681324F236"
+          },
+          "log": {
+            "file": "Raw/Debug-Theme.log",
+            "sha256": "F7484FD9226EC92E6E501BDB71E911B38852DF0331C1CEEC9DABBD97CFF809E6"
+          }
+        },
+        {
+          "name": "Control",
+          "completedUtc": "2026-10-17T19:19:00.7697729Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Control.json.txt",
+            "sha256": "98E55531CC480CB8BE5D1A4FAE7757125AACE24E2F7F37F7A8A4A17439142D40"
+          },
+          "log": {
+            "file": "Raw/Debug-Control.log",
+            "sha256": "BE93ED65A9A56E6813547F2C3E034067F53155003A879E333579314FACF8744C"
+          }
+        },
+        {
+          "name": "MenuExitLifetime",
+          "completedUtc": "2026-10-17T19:19:01.1487548Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-MenuExitLifetime.json.txt",
+            "sha256": "7CD51566364FDA07B6B57D2362B1BB5EBCE557C617BBFC98B8D6E281EEC2082D"
+          },
+          "log": {
+            "file": "Raw/Debug-MenuExitLifetime.log",
+            "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+          }
+        },
+        {
+          "name": "NewControls",
+          "completedUtc": "2026-10-17T19:19:01.7420258Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-NewControls.json.txt",
+            "sha256": "C8E2EF92606B8D48105E2E170F95BA3C5673332FE56F8474AC5AB6B7B3A044AC"
+          },
+          "log": {
+            "file": "Raw/Debug-NewControls.log",
+            "sha256": "FFFC2A29516D6B323C1930192E6CF8EDB2A954179B2368D483FD5F68462EDDD7"
+          }
+        },
+        {
+          "name": "EditorControls",
+          "completedUtc": "2026-10-17T19:19:08.0715066Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-EditorControls.json.txt",
+            "sha256": "64E460F9E3F3F7ACE1D2A9E4AA6A0DADA3115E102845462E900346F6A2C00A7E"
+          },
+          "log": {
+            "file": "Raw/Debug-EditorControls.log",
+            "sha256": "145DE4D741ECCB2045E69F56DBA8089422C18776040DFFC146FEE96A26D89CE7"
+          }
+        },
+        {
+          "name": "TextField",
+          "completedUtc": "2026-10-17T19:19:11.3555763Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-TextField.json.txt",
+            "sha256": "1FA9DDAC1234AEB1EA980C1227E41659AC252F202653AFDD88CFD96EEEB79992"
+          },
+          "log": {
+            "file": "Raw/Debug-TextField.log",
+            "sha256": "0267CDFCA28122FF9E438913CA36214D427FF5C05AAB418A2D5E116B998A12FE"
+          }
+        },
+        {
+          "name": "MultilineText",
+          "completedUtc": "2026-10-17T19:19:15.5385688Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-MultilineText.json.txt",
+            "sha256": "C6ADF51598E9F13B43FE33C09F4771B1E8C82A78281E7913115397C2D6E8830B"
+          },
+          "log": {
+            "file": "Raw/Debug-MultilineText.log",
+            "sha256": "CD3380B661E0BA560C32F727BE760F3D51380683F231D1FFB7A30695F4D27188"
+          }
+        },
+        {
+          "name": "ReadOnly",
+          "completedUtc": "2026-10-17T19:19:18.2767468Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-ReadOnly.json.txt",
+            "sha256": "023212190C2D82652B244FC8039D47614918F933D9EB184973D77A64E4C15F28"
+          },
+          "log": {
+            "file": "Raw/Debug-ReadOnly.log",
+            "sha256": "CEB5AFE806E2A8C3124C7EF69628256102E33534E1A21C67ADEF4A6E111F3AD8"
+          }
+        },
+        {
+          "name": "ComboBox",
+          "completedUtc": "2026-10-17T19:19:19.3755482Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-ComboBox.json.txt",
+            "sha256": "7970FFF8EB186A5E02D05A0E184E81D88370DA2DE0112DECAAD8AAF196B59D8B"
+          },
+          "log": {
+            "file": "Raw/Debug-ComboBox.log",
+            "sha256": "201A3F273E8C4A67B9D04147CA5B3207F785101D3C86EC82D8FFD2D976848304"
+          }
+        },
+        {
+          "name": "Tree",
+          "completedUtc": "2026-10-17T19:19:20.2664496Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Tree.json.txt",
+            "sha256": "A36FEEB154755A7785C523E1DD0F3F7E5CB2028658C3E39932BE6210FA333516"
+          },
+          "log": {
+            "file": "Raw/Debug-Tree.log",
+            "sha256": "110A382701ABA35BD57B668047C2B15FA4873B420D62E0D42C3751F3B7DDEDBE"
+          }
+        },
+        {
+          "name": "Tooltip",
+          "completedUtc": "2026-10-17T19:19:21.7008559Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Tooltip.json.txt",
+            "sha256": "BF00532AEFC6AB13770669C4FC7B3B83AF89CE32EFE93D8C9CE86A6FCA313CD7"
+          },
+          "log": {
+            "file": "Raw/Debug-Tooltip.log",
+            "sha256": "27995D71F1BEAAF9C986D406DE19628BE241310CF030F76395DB240AB39C560F"
+          }
+        },
+        {
+          "name": "Rendering",
+          "completedUtc": "2026-10-17T19:19:46.4937635Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Rendering.json.txt",
+            "sha256": "179225C837117A5F0328C6C8C30731094C8D23096BF028A9DD5538507CD3DE86"
+          },
+          "log": {
+            "file": "Raw/Debug-Rendering.log",
+            "sha256": "917D2D31F67BBDCA618985E7034600C861C13F6D0A9A4B5C4F174FA6DE403FBC"
+          }
+        },
+        {
+          "name": "Animation",
+          "completedUtc": "2026-10-17T19:19:47.8461645Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Animation.json.txt",
+            "sha256": "46BAAE69928451D7CC319F0672BDA84C30EB1B12D6EC7F31FBA9A1DD1B35ABAA"
+          },
+          "log": {
+            "file": "Raw/Debug-Animation.log",
+            "sha256": "E9975482509377CA96B7E41EF7E72D728591E048E2AFE80C237FBCAA3382D8E9"
+          }
+        },
+        {
+          "name": "Accessibility",
+          "completedUtc": "2026-10-17T19:21:35.7595689Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-Accessibility.json.txt",
+            "sha256": "814AAF6D0C4E769F46952540ED2478A68ED21D1A4EED48AA77341D2BAB456CF6"
+          },
+          "log": {
+            "file": "Raw/Debug-Accessibility.log",
+            "sha256": "DE2778ED1BF9B2ADC48A54E63D2B1B49EFB586D09EC3CFFA001EF0CD2B583F2F"
+          }
+        },
+        {
+          "name": "WindowHost",
+          "completedUtc": "2026-10-17T19:21:42.2325348Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-WindowHost.json.txt",
+            "sha256": "34471B7D9921370A5151672806914AB2C0D2B59B14E10DB1B6AD0E41660EF6AF"
+          },
+          "log": {
+            "file": "Raw/Debug-WindowHost.log",
+            "sha256": "DBAFAC7DAD2490D1FFB172C42821CFBC8CCEA167EAA9FDC68EF2B6988ADFC207"
+          }
+        },
+        {
+          "name": "InteractiveLease",
+          "completedUtc": "2026-10-17T19:21:42.3022771Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "8BB98EFE4EB65671D8F63EDBF9E27B05AE883FC70805A3208C8FBCA89AAAB17A",
+          "receipt": {
+            "file": "Raw/Debug-InteractiveLease.json.txt",
+            "sha256": "70DC55A05F8ACA833258CEDE4448BBB3AC87E04F6D28B0A25F22A9F808539089"
+          },
+          "log": {
+            "file": "Raw/Debug-InteractiveLease.log",
+            "sha256": "A4E74294CC49EAB7359E03DC73E2C9CD6DFB2FC14C35E51BB6B6F1B6B6C94969"
+          }
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "platform": "x64",
+      "suiteCount": 19,
+      "suites": [
+        {
+          "name": "Foundation",
+          "completedUtc": "2026-10-17T19:23:34.8742341Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "2398E37EF8384DB94F8D1C7B816E3CD8750E1F97889A24799643108788F151F5",
+          "receipt": {
+            "file": "Raw/Release-Foundation.json.txt",
+            "sha256": "9C63E8C5B5AB21A0FD3D47D3FFC5E7650E44F83272B88A860FFF98533AE340AD"
+          },
+          "log": {
+            "file": "Raw/Release-Foundation.log",
+            "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+          }
+        },
+        {
+          "name": "Embedded",
+          "completedUtc": "2026-10-17T19:23:56.6462143Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "01AD1D75BDEFFA7C1A5560C739B64F33AC93C63D258A8F8A7419D72DF84F539F",
+          "receipt": {
+            "file": "Raw/Release-Embedded.json.txt",
+            "sha256": "0E1A4742ED09A7EA0C5A0A23E0AD650283A0026D1E5207B0A9F209D45CB6B703"
+          },
+          "log": {
+            "file": "Raw/Release-Embedded.log",
+            "sha256": "366FC4A503BDB0BC6E1601F7455A21BD41BCD0022064781178E9A4D9CCCAE9FD"
+          }
+        },
+        {
+          "name": "Grid",
+          "completedUtc": "2026-10-17T19:23:57.707113Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Grid.json.txt",
+            "sha256": "D08E7558AC4FE0E80842BD931DF32DC9D4C12550178F3FB81E03C05520587162"
+          },
+          "log": {
+            "file": "Raw/Release-Grid.log",
+            "sha256": "454E062C0B3DF0BCD94CFF89F86DD518A7CEC79A008EC6C5C0FFB17420DACA5F"
+          }
+        },
+        {
+          "name": "Theme",
+          "completedUtc": "2026-10-17T19:23:57.7468968Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Theme.json.txt",
+            "sha256": "90535F81223CF7A84966FDC132BAA1EA69DDFB1D0F51C323112F522BD2C99565"
+          },
+          "log": {
+            "file": "Raw/Release-Theme.log",
+            "sha256": "F7DCB27504E592CF55F025AF3D6D2EFBC50E0AF94515A8C53A69535542AF7A73"
+          }
+        },
+        {
+          "name": "Control",
+          "completedUtc": "2026-10-17T19:23:59.1200637Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Control.json.txt",
+            "sha256": "A578E13D11B46FD2824D3BA376B02CA9AC0B72E067D119A59C1A9FF2A812153A"
+          },
+          "log": {
+            "file": "Raw/Release-Control.log",
+            "sha256": "3ACD8038CE889B122E8C56C9ED5C3D65DFD6E167DDF11BEEF363EB8F34A06471"
+          }
+        },
+        {
+          "name": "MenuExitLifetime",
+          "completedUtc": "2026-10-17T19:23:59.4789776Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-MenuExitLifetime.json.txt",
+            "sha256": "488A5CD252FE3F882995913A0D948CE784F0C96CDD6F9A5E6AAE48ED5B5CDA57"
+          },
+          "log": {
+            "file": "Raw/Release-MenuExitLifetime.log",
+            "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+          }
+        },
+        {
+          "name": "NewControls",
+          "completedUtc": "2026-10-17T19:24:00.0875156Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-NewControls.json.txt",
+            "sha256": "5EAC359072388CA720B117B8C36BD99B8A1A279B4BA59B71A03BADD1F8DF9332"
+          },
+          "log": {
+            "file": "Raw/Release-NewControls.log",
+            "sha256": "26D8255C838E89F132ABCCB3E3CE6BC79B31CBA95CAFCC3E08FA2DB3242C293E"
+          }
+        },
+        {
+          "name": "EditorControls",
+          "completedUtc": "2026-10-17T19:24:06.1707944Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-EditorControls.json.txt",
+            "sha256": "7F9267BBCCDDFCCFDCC1C6949E9BA0C0B9804DA4F03BE561796502F2D33801FC"
+          },
+          "log": {
+            "file": "Raw/Release-EditorControls.log",
+            "sha256": "189F9D0A3A9590FEDF9BE6069A277C4A8681904313D9DFCF9A0AAF42B1F05ECF"
+          }
+        },
+        {
+          "name": "TextField",
+          "completedUtc": "2026-10-17T19:24:09.3378869Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-TextField.json.txt",
+            "sha256": "76390CE3B0A2B8936165D4B02E459DA9648F21CCA0C8961722EF7D0C6E1B928A"
+          },
+          "log": {
+            "file": "Raw/Release-TextField.log",
+            "sha256": "D83A00BCA49A0D1BEF27BF3923C691842168365A3490C3707BCBF3920187A614"
+          }
+        },
+        {
+          "name": "MultilineText",
+          "completedUtc": "2026-10-17T19:24:13.4220439Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-MultilineText.json.txt",
+            "sha256": "7E7F3E4194FCA4CC74543D11745C9FFFA08819FB816C4B4D08555E8E92BC4303"
+          },
+          "log": {
+            "file": "Raw/Release-MultilineText.log",
+            "sha256": "3B3FA56FFA3A33E301EE7FF642559F2397DE6807938F612418C17DB8B89820C0"
+          }
+        },
+        {
+          "name": "ReadOnly",
+          "completedUtc": "2026-10-17T19:24:16.1542347Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-ReadOnly.json.txt",
+            "sha256": "060F6C44B6A66560C553319E2709A0203607EB214372974BA9B1A479826F4C1F"
+          },
+          "log": {
+            "file": "Raw/Release-ReadOnly.log",
+            "sha256": "7A9520B68A0EDFAB8A57402D28C512C261ED9686B88263C97443C05B05FACE29"
+          }
+        },
+        {
+          "name": "ComboBox",
+          "completedUtc": "2026-10-17T19:24:17.1762853Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-ComboBox.json.txt",
+            "sha256": "2003E326547B610472A46625C697C36B9E16A895634D48903F2A7F1272EE7929"
+          },
+          "log": {
+            "file": "Raw/Release-ComboBox.log",
+            "sha256": "917FED61037D281C0D992D58516B3F7B1BA1D2369BBDB0E46C68C0E21ACE4FD1"
+          }
+        },
+        {
+          "name": "Tree",
+          "completedUtc": "2026-10-17T19:24:17.9584024Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Tree.json.txt",
+            "sha256": "EC1B58F277CADA329CF091DFF7F7909352007C9442D9271D24E115CB38729893"
+          },
+          "log": {
+            "file": "Raw/Release-Tree.log",
+            "sha256": "89EE708EF6214FC35A87EF934AF0C968624EAA52E404ED77ACDEADDB749DD758"
+          }
+        },
+        {
+          "name": "Tooltip",
+          "completedUtc": "2026-10-17T19:24:19.3408288Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Tooltip.json.txt",
+            "sha256": "B0250D2B598B5D1760EE3614DB3B60801B9051D2ACA83B9CC8A986D177664147"
+          },
+          "log": {
+            "file": "Raw/Release-Tooltip.log",
+            "sha256": "CAB771815CCCEE26B1B8C33D26B3428A4B06685D5C560FADDED76D9F5EF6B144"
+          }
+        },
+        {
+          "name": "Rendering",
+          "completedUtc": "2026-10-17T19:24:41.1520683Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Rendering.json.txt",
+            "sha256": "6E8FE536F67A07307A7EDF75707B6A7555A0B4349207195738CEC415C72A5E81"
+          },
+          "log": {
+            "file": "Raw/Release-Rendering.log",
+            "sha256": "77A856D34DB105E17535B7B0A456E1F2D149356C90539C57C009590A4318E51A"
+          }
+        },
+        {
+          "name": "Animation",
+          "completedUtc": "2026-10-17T19:24:42.4289636Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Animation.json.txt",
+            "sha256": "9AD16E7D9370E025CBEC4A3060F5A8B02CC56B51A962129E6EB0DBC9320A1280"
+          },
+          "log": {
+            "file": "Raw/Release-Animation.log",
+            "sha256": "F5228E95B08F3570523F61529D25F136DE7CF8430627745690D4F54875FC6254"
+          }
+        },
+        {
+          "name": "Accessibility",
+          "completedUtc": "2026-10-17T19:26:29.180597Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-Accessibility.json.txt",
+            "sha256": "4246380FE070FEC49E4B4409C9FD3C22E6978234626B57B579840EDABBF5DBBF"
+          },
+          "log": {
+            "file": "Raw/Release-Accessibility.log",
+            "sha256": "78366776FA10645D77CE55E24422734EE33D972883ECCC920F9C867F447935CC"
+          }
+        },
+        {
+          "name": "WindowHost",
+          "completedUtc": "2026-10-17T19:26:35.313405Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-WindowHost.json.txt",
+            "sha256": "D7632E84CCF1D4794B3A7A88DC8FB5F3846B2D208B871578D13648A5146AF971"
+          },
+          "log": {
+            "file": "Raw/Release-WindowHost.log",
+            "sha256": "EEE5B5B135678667002491E60524E532EEA1B3A2BC1A80EA58EF15E30C37B097"
+          }
+        },
+        {
+          "name": "InteractiveLease",
+          "completedUtc": "2026-10-17T19:26:35.3713947Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "D725680718C1579E16CC3F35B3496B44DE391209FE3C5A60C7E7D3D741C0FE7A",
+          "receipt": {
+            "file": "Raw/Release-InteractiveLease.json.txt",
+            "sha256": "8865740AD6DD42E67CB99FBE4FD6E9E79840B6F9E16BADA4DF0C58B3A9D77E19"
+          },
+          "log": {
+            "file": "Raw/Release-InteractiveLease.log",
+            "sha256": "35ED0B19B2728EBB1E3839546A97CDF94E1A5B71008BA214A2840C89307FF1D8"
+          }
+        }
+      ]
+    },
+    {
+      "configuration": "ASan Debug",
+      "platform": "x64",
+      "suiteCount": 19,
+      "suites": [
+        {
+          "name": "Foundation",
+          "completedUtc": "2026-10-17T19:29:16.9090961Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "423A6DFE3B4E7A2FA2A330F217EA657EA6AF0376832481166B039B19B97DC63E",
+          "receipt": {
+            "file": "Raw/ASanDebug-Foundation.json.txt",
+            "sha256": "463890F550EC781B5608C3FC2AFAD670A8E58D00178D055975CF92B8142D9CE0"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Foundation.log",
+            "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372"
+          }
+        },
+        {
+          "name": "Embedded",
+          "completedUtc": "2026-10-17T19:29:42.1658305Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "7B46ECDFE1A91A3C000D035A00B798411A1E128FFACF73002620EF4F64DBA2D2",
+          "receipt": {
+            "file": "Raw/ASanDebug-Embedded.json.txt",
+            "sha256": "889F135C84D07E0137D3DA1AC5B13D7C66E94A601CEC0768CFF4BEDE08A7F0A3"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Embedded.log",
+            "sha256": "C6B3C6FD03AB03999B788EFEAC7BBE11CEDA66E73D16755305E9106704AC4F40"
+          }
+        },
+        {
+          "name": "Grid",
+          "completedUtc": "2026-10-17T19:29:50.9719922Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Grid.json.txt",
+            "sha256": "9B28480D3425646F881C81259D61ECB5AFF190F8B1291DB22987DFAB2659AEE5"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Grid.log",
+            "sha256": "6A9C5909C93C7D8096E4E92869ED47229B1905963B5733D8E64300FBEBA34B34"
+          }
+        },
+        {
+          "name": "Theme",
+          "completedUtc": "2026-10-17T19:29:51.0713649Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Theme.json.txt",
+            "sha256": "AA05DA14A23A49E7DD08B6D3AB585A7922A3CAF52D109AC3567BBF1FB15156FC"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Theme.log",
+            "sha256": "8B0B48910E605F6C0B05B7B177586FEFB0A1936B88EFA9B638DFAA2D989F1419"
+          }
+        },
+        {
+          "name": "Control",
+          "completedUtc": "2026-10-17T19:29:55.7058116Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Control.json.txt",
+            "sha256": "E178C3C3E0CD7DB70BB753DB4C8924540330083A160C78306AF835D2F3B42EB3"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Control.log",
+            "sha256": "764A1CD01B081AA66CCAEC9AD6BDE8C0F65694298EE9BADFA4435067365CE46B"
+          }
+        },
+        {
+          "name": "MenuExitLifetime",
+          "completedUtc": "2026-10-17T19:29:56.6922517Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-MenuExitLifetime.json.txt",
+            "sha256": "336E5CA26C82EEF7CEF0B4C71A3880482C72A4D9A2AFCB1B5722E636E9E838AF"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-MenuExitLifetime.log",
+            "sha256": "860706EAE4461F289CD787BCBD97C23E264023627B92A603436C104D75466FAC"
+          }
+        },
+        {
+          "name": "NewControls",
+          "completedUtc": "2026-10-17T19:29:58.250699Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-NewControls.json.txt",
+            "sha256": "321AD8EDBF8C5AD4AAD88F12B0ED5C0E151C8167B895F35F99FB599E49DE2661"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-NewControls.log",
+            "sha256": "E0E5828B883037AF50788C9B733334B1C502584DDE913A83D454994D74827698"
+          }
+        },
+        {
+          "name": "EditorControls",
+          "completedUtc": "2026-10-17T19:30:10.6228036Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-EditorControls.json.txt",
+            "sha256": "130E3B4A3CA94682C8B299DB4C8EE23030E5E661162BB3435CA6386937AF8B74"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-EditorControls.log",
+            "sha256": "029E0AF22BE4D703E30CBD7597F5D039D235D7A93542E31BCD33D765FD873EAA"
+          }
+        },
+        {
+          "name": "TextField",
+          "completedUtc": "2026-10-17T19:30:18.0499269Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-TextField.json.txt",
+            "sha256": "E4D13C57200CB486C84FB78CEF838FB5FA84EC08FDF66C84A0B61130B5C6237A"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-TextField.log",
+            "sha256": "E023A5904A9C2E8B0D0B6C3EC1FFC7B73614C9CD8E9418EA782462A0478ABB3D"
+          }
+        },
+        {
+          "name": "MultilineText",
+          "completedUtc": "2026-10-17T19:30:27.3798468Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-MultilineText.json.txt",
+            "sha256": "A86F5B02D1BC83F60D97588D276CC56F620DB2DAE31A1E20D249C751F9E20CAF"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-MultilineText.log",
+            "sha256": "D134B5505F05B907216C4C4B5EEB99601C325A6D6F6527E5E8722556DC34C2B3"
+          }
+        },
+        {
+          "name": "ReadOnly",
+          "completedUtc": "2026-10-17T19:30:33.829437Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-ReadOnly.json.txt",
+            "sha256": "A07C388A331EA77C21009CEAABFA418A48599D9DA27E088802BD510D2D222784"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-ReadOnly.log",
+            "sha256": "78615A8697B627DCA843DEB7C94A4C531E88319040A7132ED70A796956503B4A"
+          }
+        },
+        {
+          "name": "ComboBox",
+          "completedUtc": "2026-10-17T19:30:36.3300333Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-ComboBox.json.txt",
+            "sha256": "023FEB4F140234A66BD41138C65DF34D1E0C31C6E5EA8B411CA6997FB41CA72C"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-ComboBox.log",
+            "sha256": "2477DE63031D8F906801342F8C4001A99829B614E88FE70802016825E0D77FD7"
+          }
+        },
+        {
+          "name": "Tree",
+          "completedUtc": "2026-10-17T19:30:38.4149515Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Tree.json.txt",
+            "sha256": "4B1B02AD09C37725751783713CCC721A08B3E32584827378D5A9E57352A9B48A"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Tree.log",
+            "sha256": "5F93800A6BF6512C07870751563A9211C27DC9C4FF3FFCA0523A253A555B4108"
+          }
+        },
+        {
+          "name": "Tooltip",
+          "completedUtc": "2026-10-17T19:30:41.3104163Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Tooltip.json.txt",
+            "sha256": "A446D191EA749C00BC8964DABC7D088E67E7172B362A94077686FEE4AB4F0C9D"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Tooltip.log",
+            "sha256": "386FA6BBDBDE801A369A7F277CA73C10794CE9BF9CE7B020C2FF0EA8BB99935A"
+          }
+        },
+        {
+          "name": "Rendering",
+          "completedUtc": "2026-10-17T19:31:23.6653931Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Rendering.json.txt",
+            "sha256": "0F7946EE1D0DD25821DE91B9F065632236A41BF14C1FE7DFB3BF6B45BCF1F2AC"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Rendering.log",
+            "sha256": "7C9C4F38678856B11C848CB08F29C6D6650B050F3A3A7DC97731EEE7DDCDC153"
+          }
+        },
+        {
+          "name": "Animation",
+          "completedUtc": "2026-10-17T19:31:25.8002314Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Animation.json.txt",
+            "sha256": "F7D5ADFF4AF52DED2E37349D06E7645EB24DF4573AD0F80F95ED1E8484BD6E63"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Animation.log",
+            "sha256": "B49A256D732A35C2AD836532D85B6FFB83A91B555964B97EDEDAA82A2B479358"
+          }
+        },
+        {
+          "name": "Accessibility",
+          "completedUtc": "2026-10-17T19:33:26.2401882Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-Accessibility.json.txt",
+            "sha256": "C68ECE1EB27D743F708E2916EE1269252012C2FC6B752AE3A90131F9B768FE75"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-Accessibility.log",
+            "sha256": "5C420E26BDDA6FA722C588DC930688C63B628ACB1719D6ACFA48ED86412B163E"
+          }
+        },
+        {
+          "name": "WindowHost",
+          "completedUtc": "2026-10-17T19:33:49.0103193Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-WindowHost.json.txt",
+            "sha256": "6CAA62F24DB51CF77F983206A79B6EFDBF27B5B1B8CA6A309D44AE451E19C8D8"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-WindowHost.log",
+            "sha256": "6F6691AEDE651BC33FBCCEF788FA8CABAF806B1D6C13DBE8640FB5EA4AF7A072"
+          }
+        },
+        {
+          "name": "InteractiveLease",
+          "completedUtc": "2026-10-17T19:33:49.1225372Z",
+          "exitCode": 0,
+          "capabilitySkips": [],
+          "executableSha256": "66113EFAB97772DA4BD46B29C00728E61F2E9EEC6962BBE54583D44A94D22837",
+          "receipt": {
+            "file": "Raw/ASanDebug-InteractiveLease.json.txt",
+            "sha256": "8E37BCFC773262EE8D62AC888DC47DF6AC187D3831E7D1DCC4DADFED9C0940C3"
+          },
+          "log": {
+            "file": "Raw/ASanDebug-InteractiveLease.log",
+            "sha256": "D726FA347304DB16B640C1867A1C4CFB26503674E243DCC6DF713ECCB050AFCC"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceProfiles": [
+    {
+      "configuration": "Debug",
+      "checks": 5155,
+      "warmComposites": 1000,
+      "warmCppAllocations": 0,
+      "richWarmComposites": 12,
+      "rangeQueriesPerSourceSize": 8,
+      "allocationBudgetBytes": 4096,
+      "rangeMetadata": [
+        {
+          "sourceUnits": 32,
+          "requestedCppBytes": 432
+        },
+        {
+          "sourceUnits": 65536,
+          "requestedCppBytes": 432
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "checks": 5155,
+      "warmComposites": 1000,
+      "warmCppAllocations": 0,
+      "richWarmComposites": 12,
+      "rangeQueriesPerSourceSize": 8,
+      "allocationBudgetBytes": 4096,
+      "rangeMetadata": [
+        {
+          "sourceUnits": 32,
+          "requestedCppBytes": 400
+        },
+        {
+          "sourceUnits": 65536,
+          "requestedCppBytes": 400
+        }
+      ]
+    },
+    {
+      "configuration": "ASan Debug",
+      "checks": 5155,
+      "warmComposites": 1000,
+      "warmCppAllocations": 0,
+      "richWarmComposites": 12,
+      "rangeQueriesPerSourceSize": 8,
+      "allocationBudgetBytes": 4096,
+      "rangeMetadata": [
+        {
+          "sourceUnits": 32,
+          "requestedCppBytes": 432
+        },
+        {
+          "sourceUnits": 65536,
+          "requestedCppBytes": 432
+        }
+      ]
+    }
+  ],
+  "asan": {
+    "diagnosis": "heap-use-after-free",
+    "receipt": {
+      "file": "Raw/AddressSanitizer-x64.json.txt",
+      "sha256": "7F1E322D82C95782EA3504F600DBB84A378681D16671A824D5821C39FEC99B10"
+    },
+    "log": {
+      "file": "Raw/AddressSanitizer-x64.log",
+      "sha256": "07D368CEC58924C0DC4A0D2973E969420E3DFCE57B5D5EC5BC218B68E3097BBD"
+    }
+  },
+  "validation": {
+    "fullCommand": "validate.ps1",
+    "fullExitCode": 1,
+    "steps": [
+      {
+        "step": "validate-skills.ps1",
+        "initialPassed": true
+      },
+      {
+        "step": "validate-specs.ps1",
+        "initialPassed": false
+      },
+      {
+        "step": "validate-dependencies.ps1",
+        "initialPassed": true
+      },
+      {
+        "step": "validate-test-port.ps1",
+        "initialPassed": true
+      },
+      {
+        "step": "validate-build-matrix.ps1",
+        "initialPassed": true
+      },
+      {
+        "step": "Tools/tests/Invoke-ToolingTests.ps1",
+        "initialPassed": true
+      }
+    ],
+    "initialFailure": "specification README linked qualification.json before collection; removed premature link",
+    "stdout": {
+      "file": "Raw/validate-out.log",
+      "sha256": "732F39D35178DFE234A78184D711DA491A67F418ED3CC975F9BF0D9A2254B0CC"
+    },
+    "stderr": {
+      "file": "Raw/validate-err.log",
+      "sha256": "BA7E580CF213AD113C6421F764CC2A145657B9097A6EA60EC642F4ECF80D3424"
+    },
+    "affectedRetry": {
+      "command": "validate-specs.ps1",
+      "exitCode": 0,
+      "stdout": {
+        "file": "Raw/validate-specs-retry-out.log",
+        "sha256": "063DA2FAE952418E259B7F3E6D3A8B6F5581F75C505FFF938114B56B93C0D8B8"
+      },
+      "stderr": {
+        "file": "Raw/validate-specs-retry-err.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      }
+    },
+    "overallStatus": "all five validators and tooling passed after affected specification retry; initial failed command retained",
+    "formatter": "clang-format 22.1.3",
+    "formatLog": {
+      "file": "Raw/format.log",
+      "sha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812"
+    }
+  },
+  "gallery": {
+    "command": "gallery.ps1 -Configuration Release -Platform x64 -SkipBuild -PublishDocs",
+    "controlCount": 34,
+    "themesReviewed": [
+      "Light",
+      "Dark",
+      "High contrast",
+      "Rainbow light",
+      "Rainbow dark"
+    ],
+    "review": "all five full sheets and supplied-device example inspected; rich-text tile populated, no new clipping/overlap",
+    "generation": {
+      "command": "gallery.ps1 -PublishDocs",
+      "sourceCommit": "0c939579a907568ade4809e007da730334257b4c",
+      "sourceDirty": true,
+      "configuration": "Release",
+      "platform": "x64",
+      "nativeArchitecture": "X64",
+      "controlCount": 34,
+      "images": [
+        {
+          "file": "embedded-controls.png",
+          "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+        },
+        {
+          "file": "theme-controls-dark.png",
+          "sha256": "24504764B8A13998881B0C3445A39B1ADFB0617DC6E13CB1744EB3EFA1EF8ECE"
+        },
+        {
+          "file": "theme-controls-high-contrast.png",
+          "sha256": "4617053844E3443396FA351EE7A3825FCB124DF5DDF6E6C54065528FD729483A"
+        },
+        {
+          "file": "theme-controls-light.png",
+          "sha256": "4EAD86DD31715C75FE8E40F583AA94DC587B0374990941775BB18A357CD5DCA9"
+        },
+        {
+          "file": "theme-controls-rainbow-dark.png",
+          "sha256": "3477D0ACF169D91A6CD7537DFF1D940306062B1E78BEE984A8DF5FC6AA438FAC"
+        },
+        {
+          "file": "theme-controls-rainbow-light.png",
+          "sha256": "C72611B5E5A93DEC20699E5C90EDA9B85B0DC1834F4509B324768BC6D69B8044"
+        }
+      ]
+    }
+  },
+  "scopedTesting": {
+    "command": "Test-Changes.ps1 -Explain",
+    "log": {
+      "file": "Raw/scoped-plan.log",
+      "sha256": "5E02F4398D493C09A7CA0B48BBD0080E8245DD1585DF9D0F4155DC8D2DD98391"
+    },
+    "interactive": "NativeTextInput/Menu/MenuResources/MenuResourceScaling not run without agreed desktop time"
+  },
+  "exploratory": [
+    {
+      "file": "Raw/rich-d2d-exploratory-client-access-build.log",
+      "sha256": "1AFAB3161BB5908CD1F991F9D184D36A519A4D72E1A0334EB8F3E40F03056759",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-exploratory-compiler-temp-build.log",
+      "sha256": "2914B84E43B2A72D2414003FF4DC804D185AA7AC3605D94932DD1C41137DAFAC",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-editor-exploratory.log",
+      "sha256": "169A5F0D6364618617C53AD8A645EADD2A7DED7B303CD2A3EE74CC96BBD10213",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-editor-protocol-fix.log",
+      "sha256": "9E94DECBC9EFB20527CAEEBB984E10F33F83A7B617EDAC66571334C67292A647",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-tsf-protocol-recheck.log",
+      "sha256": "980F0924D009B068C546A400B0C03DD768CADC2285996C7CB55C1DD631AD199A",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-exploratory-native-temp-out.log",
+      "sha256": "3C310AEF4196506964174A7F54008D72BF9D7CFC7BE75050C461C29E983E06E8",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-exploratory-native-temp-err.log",
+      "sha256": "C3CD04FC3E4F6E1DADB7AE5DA5444AF499AAC81B968B164FBE8196501EFA7280",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-range-budget-fixture-failure.log",
+      "sha256": "752E2457737C55B7DEE325269B817D0DB6916DBA65F54FF135B1BF8E3F6F1835",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-range-budget-asan-diagnostic.log",
+      "sha256": "B37DE09358D78646BCED7B364E8C6DC15008AC15D7BB4D0E10F8E2DE166F2C4F",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-range-budget-counter-isolation-failure.log",
+      "sha256": "DF0A2951AB70A0A66FE1592F8F951BB94A5C73CCE61ABEB27C315AA9ED00B0D0",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-first-matrix-debug-native.log",
+      "sha256": "496A14630326F58B55B4E2299B3E98DF9449172A47FC8AF9E88A6C991120FA19",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-first-matrix-release-native.log",
+      "sha256": "329C86486217C677420D591B33ED9C47AD0500CBEB2EC61523000325869C02E9",
+      "qualification": false
+    },
+    {
+      "file": "Raw/rich-d2d-range-budget-final-smoke.log",
+      "sha256": "BF8E9A348FEA9E961D465D2709F162824FEAB223FD14C1ED31B9D5BBEABBD021",
+      "qualification": false
+    }
+  ],
+  "compositionCapture": {
+    "file": "Raw/rich-d2d-composition.png",
+    "sha256": "A6AEBA6CCBFCF416875526190E69BB579577864CB2ECF02E440BAC47C769A24B"
+  },
+  "compilerTemporaryRoot": ".build/compiler-temp/d2d on Z: after retained C1088 C-volume intermediate flush failure",
+  "performance": {
+    "summary": "performance-summary.json",
+    "sha256": "8C380E16DBD7265C549AFF42A34BCA4E726CD566C63B815BBE92D3E0639B4714",
+    "acceptance": "open; both legacy diagnostic comparisons advice-required, different baseline/candidate temporary-directory toolchain identities; no rebaseline"
+  },
+  "limitations": [
+    "bounded v0 grammar and whole-document layout; D2a and full syntax/extensions remain open",
+    "bounded source TSF/IME and UIA adapters; rich structural/style semantics, live semantic range tracking and complete shared range scrolling/selection-add/remove conformance remain future scope",
+    "ARM64 is cross-build only; no native ARM runtime claim",
+    "foreground suites and physical IME/AT qualification not run",
+    "normal test performance snapshots may overlap compilation; dedicated serial comparison retained separately; D4c acceptance remains separate",
+    "consumer pins and original concurrent checkout unchanged"
+  ]
+}

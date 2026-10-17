@@ -1,0 +1,65 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentPrototypeContracts
+  [DONE] TestRichDocumentPrototypeContracts (0.019 s)
+  [START] TestRichDocumentSlicesAndJoinedBoundaries
+  [DONE] TestRichDocumentSlicesAndJoinedBoundaries (0.000 s)
+  [START] TestRichDocumentCrossPieceUnicodeOracle
+  [DONE] TestRichDocumentCrossPieceUnicodeOracle (0.017 s)
+  [START] TestRichDocumentUnicodeCodecRejections
+  [DONE] TestRichDocumentUnicodeCodecRejections (0.000 s)
+  [START] TestRichMarkdownPrototypeContracts
+  [DONE] TestRichMarkdownPrototypeContracts (0.000 s)
+  [START] TestRichMarkdownSnapshotAndValidationContracts
+  [DONE] TestRichMarkdownSnapshotAndValidationContracts (0.000 s)
+  [START] TestRichMarkdownV0StylesCommandsAndMalformedMappings
+  [DONE] TestRichMarkdownV0StylesCommandsAndMalformedMappings (0.000 s)
+  [START] TestRichTextLayoutPrototypeContracts
+  [DONE] TestRichTextLayoutPrototypeContracts (0.004 s)
+  [START] TestRichTextLayoutOptionsFailureAtomicityAndRetirement
+  [DONE] TestRichTextLayoutOptionsFailureAtomicityAndRetirement (0.003 s)
+  [START] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement
+  [DONE] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement (0.041 s)
+  [START] TestRichTextLayoutHostLocaleAndReadingDirection
+  [DONE] TestRichTextLayoutHostLocaleAndReadingDirection (0.000 s)
+  [START] TestRichTextEditorTransactionsAndValidation
+  [DONE] TestRichTextEditorTransactionsAndValidation (0.001 s)
+  [START] TestRichTextEditorUnicodeCharacterTransactions
+  [DONE] TestRichTextEditorUnicodeCharacterTransactions (0.000 s)
+  [START] TestRichTextEditorFormattingAndModePreserveSource
+  [DONE] TestRichTextEditorFormattingAndModePreserveSource (0.000 s)
+  [START] TestRichTextEditorCallbackRetirementAndFailure
+  [DONE] TestRichTextEditorCallbackRetirementAndFailure (0.000 s)
+  [START] TestRichTextEditorNativeHostAndLayoutReuse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeHostAndLayoutReuse (0.365 s)
+  [START] TestRichTextEditorNativeUnicodeRoutingAndNavigation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeUnicodeRoutingAndNavigation (0.153 s)
+  [START] TestRichTextEditorClipboardAtomicityAndSourceContract
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorClipboardAtomicityAndSourceContract (0.007 s)
+  [START] TestRichTextEditorScrollAndHostClock
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorScrollAndHostClock (0.173 s)
+  [START] TestRichTextEditorCatalogAndRebinding
+  [DONE] TestRichTextEditorCatalogAndRebinding (0.000 s)
+  [START] TestRichTextTransientSourcePreservesHistory
+  [DONE] TestRichTextTransientSourcePreservesHistory (0.000 s)
+  [START] TestRichTextServiceValidationAndGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextServiceValidationAndGeometry (0.162 s)
+  [START] TestRichTextNativeImeCommitCancelAndRetirement
+  [DONE] TestRichTextNativeImeCommitCancelAndRetirement (0.000 s)
+  [START] TestRichTextEmbeddedCompositionRevisionsAndRebinding
+FAILED: capture composition through the non-activating WARP harness hr=0x800401f0
