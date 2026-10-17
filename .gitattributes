@@ -48,3 +48,6 @@ Measurements/UiComposition/2026-10-11-integration/** -text -whitespace
 Measurements/CiBudget/2026-10-11-arm64-asan/** -text -whitespace
 Measurements/Tooling/2026-10-11-linux-portability/** -text -whitespace
 Measurements/CiBudget/2026-10-11-cold-build/** -text -whitespace
+
+# Preserve hashed rich-text qualification/performance receipts byte for byte.
+Measurements/RichText/** -text -whitespace

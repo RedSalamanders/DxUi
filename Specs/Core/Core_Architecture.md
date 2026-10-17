@@ -20,6 +20,12 @@ Git history retains earlier bytes. No duplicate original source tree is retained
 application dependencies. The [archive explanation](../Done/SourceImport/README.md) describes why these records remain.
 The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
 
+The bounded Unicode rich-text model, Markdown projection and prepared DirectWrite
+layout are canonical in src/Controls with public RichDocument/RichMarkdown/
+RichTextLayout headers. The standalone prototype is a consumer of DxUi.lib; no
+second reusable implementation is maintained. These pure preparation services
+own no HWND/device/worker and do not publish a retained editor capability.
+
 ## Single library and hosting modes
 
 The single public target is `src/DxUi.vcxproj`, producing **DxUi.lib**. Foundation, controls, embedded rendering,
@@ -29,7 +35,7 @@ Consumers reference this project once. There is no DxUi runtime DLL and no consu
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
 exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 33 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
-attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
+attach; RichDocument/RichMarkdown/RichTextLayout expose the bounded preparation core; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 
 `ControlHost` supplies the shared tree, text, theme, focus and drawing services. Its native mode attaches to a
 caller-owned HWND (`WindowHost` is a source compatibility alias). `EmbeddedHost` contains a ControlHost configured

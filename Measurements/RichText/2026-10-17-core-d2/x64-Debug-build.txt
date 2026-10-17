@@ -1,0 +1,109 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  DEBUG  /  X64  /  REBUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichTextLayout.cpp
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  Generating Code...
+  Compiling...
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.lib
+  Foundation.Tests.Foundation.cpp
+  Main.cpp
+  Scope.Tests.RichDocument.cpp
+  InteractiveLease.Tests.Runner.cpp
+  Embedded.Tests.Embedded.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  Scope.Tests.RichMarkdown.cpp
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  Scope.Tests.RichTextLayout.cpp
+  DxUi.Tests.Accessibility.cpp
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  Scope.Tests.HostControlRegressions.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 03:05
+Output: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Debug-c6232320c6394c9cafac0491ce66f24e.log
+========================================

@@ -28,6 +28,8 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
+- [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
+  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained rich editor pending.
 - [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 33 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.

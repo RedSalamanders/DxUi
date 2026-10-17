@@ -106,6 +106,29 @@
   ],
   "rules": [
     {
+      "pattern": "Tests/Controls/Scope.Tests.Rich*",
+      "scopes": [
+        "EditorControls"
+      ],
+      "reason": "owned rich-text core contracts in the EditorControls suite"
+    },
+    {
+      "pattern": "include/DxUi/Rich*",
+      "scopes": [
+        "EditorControls",
+        "Embedded"
+      ],
+      "reason": "additive Unicode document, Markdown projection and borrowed layout core"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Rich*",
+      "scopes": [
+        "EditorControls",
+        "Embedded"
+      ],
+      "reason": "owned rich-text preparation core; shared archive and supplied target behavior"
+    },
+    {
       "pattern": "Tests/Controls/Scope.Tests.IntrinsicLayout.*",
       "scopes": ["Control"],
       "reason": "intrinsic leaf measurement and FlexPanel behavior in the owning Control suite"

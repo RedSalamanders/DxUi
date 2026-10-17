@@ -307,3 +307,10 @@ keeps the prior registration installed. Rebuild consumers with matching headers 
 snapshot valid throughout that call, including after replacement of the picker. Copy values you need afterward;
 the notification does not extend the sender's lifetime.
 If solid-brush creation and its fallback fail, painting omits the affected primitive and can recover on a later frame.
+
+## Rich-text core (supporting API)
+
+[Unicode document/projection/layout preparation](rich-text.md) is available in
+DxUi.lib. It is not a concrete retained RichTextEditor; the 33-control catalog
+and gallery are unchanged. It owns no HWND/device/worker and supplies no IME/UIA
+adapter. The active rich-text plan owns the remaining integration/conformance gates.

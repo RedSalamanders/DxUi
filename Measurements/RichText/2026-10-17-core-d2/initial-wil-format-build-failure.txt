@@ -1,0 +1,76 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  DEBUG  /  X64  /  REBUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichTextLayout.cpp
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(14,9): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\src\DxUi.vcxproj]
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(14,9): warning C4477: 'wprintf' : format string '%s' requires an argument of type 'wchar_t *', but variadic argument 1 has type 'const char *' [Z:\src\DxUi-worktrees\rich-text-core-d2\src\DxUi.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(14,9):
+      consider using '%hs' in the format string
+      Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(14,9):
+      consider using '%Ts' in the format string
+      Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(14,9):
+      this warning is based on non-standard semantics used by Visual C++
+  
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  Generating Code...
+  Compiling...
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+
+========================================
+DxUi build failed
+Exit code: 1
+Build time: 01:00
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Debug-1f8abd3dacc24adf821751bf357e492b.log
+========================================

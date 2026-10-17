@@ -79,6 +79,7 @@
     "reduced-motion",
     "injected-frame-diagnostics",
     "retained-controls",
+    "unicode-rich-text-core-v0",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",
@@ -111,6 +112,8 @@
     "consumer-api-revision-4-adoption",
     "intrinsic-form-consumer-adoption",
     "embedded-host-text-uia-bridge",
+    "rich-text-editor",
+    "rich-text-markdown-extension-conformance",
     "av-control"
   ]
 }

@@ -1,0 +1,68 @@
+#pragma once
+#include <DxUi/RichMarkdown.h>
+#include <d2d1_1.h>
+#include <dwrite.h>
+#include <wil/com.h>
+namespace DxUi::RichText
+{
+struct LayoutOptions
+{
+    float widthDip              = 1.0f;
+    float fontSizeDip           = 18.0f;
+    std::wstring fontFamily     = L"Segoe UI";
+    std::wstring codeFontFamily = L"Consolas";
+    std::wstring locale         = L"en-us";
+};
+struct CaretGeometry
+{
+    float x{}, y{}, height{};
+};
+struct Hit
+{
+    std::size_t position{};
+    bool trailing{};
+};
+// Prepared text state borrows the caller's factory. It owns no HWND, graphics
+// device, swap chain, timer or thread; the caller supplies preparation and scheduling services.
+class PreparedLayout
+{
+public:
+    void Prepare(IDWriteFactory* factory, Projection projection, float width, float fontSize = 18.0f);
+    void Prepare(IDWriteFactory* factory, Projection projection, const LayoutOptions& options);
+    // Retirement is explicit and invalidates every geometry operation. No host
+    // scheduling or rendering target is retained; there is no explicit factory field.
+    void Clear() noexcept;
+    const Projection& Content() const noexcept
+    {
+        return projection_;
+    }
+    bool Ready() const noexcept
+    {
+        return static_cast<bool>(layout_);
+    }
+    float Height() const noexcept
+    {
+        return height_;
+    }
+    std::uint64_t Generation() const noexcept
+    {
+        return generation_;
+    }
+    Hit HitTest(float x, float y) const;
+    CaretGeometry Caret(std::size_t position) const;
+    std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
+    std::size_t PreviousCluster(std::size_t position) const;
+    std::size_t NextCluster(std::size_t position) const;
+    std::size_t LineBoundary(std::size_t position, bool end) const;
+    // Draw is raster preparation, not DxUi's allocation-free composition stage.
+    // Caller supplies target/brush and BeginDraw/EndDraw/clip/transform policy.
+    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin) const;
+
+private:
+    Projection projection_;
+    wil::com_ptr<IDWriteTextLayout> layout_;
+    std::vector<std::size_t> clusters_, lines_;
+    float height_{};
+    std::uint64_t generation_{};
+};
+} // namespace DxUi::RichText

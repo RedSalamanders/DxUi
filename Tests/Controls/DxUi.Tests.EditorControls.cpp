@@ -1,5 +1,8 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
+#include "Scope.Tests.RichDocument.h"
+#include "Scope.Tests.RichMarkdown.h"
+#include "Scope.Tests.RichTextLayout.h"
 
 #include "../../include/DxUi/ControlCatalog.h"
 
@@ -1921,6 +1924,10 @@ void TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed()
 
 void RunEditorControlTests()
 {
+    RunRichDocumentTests();
+    RunRichMarkdownTests();
+    RunRichTextLayoutTests();
+
     // Splitter
     DXUI_RUN_TEST(TestSplitterDefaultState);
     DXUI_RUN_TEST(TestSplitterClampsToPaneMinimums);

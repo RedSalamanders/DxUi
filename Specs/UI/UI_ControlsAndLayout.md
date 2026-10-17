@@ -608,3 +608,46 @@ English defaults (No matches / No data). ComboBox remeasures an open empty-resul
 its string changes; Tree/Grid invalidate their empty view. String updates do not alter selection,
 query text, focus or callbacks. DxUi does not load consumer numeric resource IDs or cache a
 process-global language. Each product/module provides its current translated strings.
+
+## Intended rich-text editor contract
+
+The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
+tracks a new proposed control. No RichTextEditor is currently implemented in the
+library/catalog or advertised as supported. Its standalone prototype does not
+qualify DxUi behavior.
+
+The intended control owns source revisions, structured rich projections, edits,
+selection and history; its source/formatted/read-only views preserve unchanged
+Markdown bytes and unsupported content. It uses public DirectWrite/Direct2D and
+existing host services without a hidden Microsoft editing/layout engine. Native
+and embedded text/geometry/accessibility contracts, themes/DPI, cancellation,
+read-only/disabled state and control lifetime remain mandatory. Embedded hosting
+adds no private HWND/device/swap chain/worker/timer, and composition performs no
+layout/raster/allocation/I/O/wait. Application persistence and assets stay app-owned.
+
+Before support is published, migrate canonical source/tests once, pin parsing and
+extension conformance contracts, populate catalog/gallery/design-system/docs,
+and close the native/embedded/platform/resource/performance gates. Consumer pin
+and product adoption remain separate from library implementation.
+
+## Implemented bounded rich-text preparation core
+
+The reusable v0 source now belongs to DxUi: RichDocument.h, RichMarkdown.h and
+RichTextLayout.h in include/DxUi and DxUi.RichDocument/RichMarkdownProjection/
+RichTextLayout.cpp in src/Controls. The [core guide](../../docs/rich-text.md)
+records exact API/limits. This additive preparation API is distinct from the
+pending retained RichTextEditor above; catalog/gallery/control support is unchanged.
+
+The source model must preserve Unicode scalar/CRLF boundaries, immutable shared
+snapshots, transactional selection/history and failure atomicity. Piece-aware
+boundary/slice/edit operations must not flatten complete old/new source text.
+Current storage is bounded at 64 Ki UTF-16 units/128 history items; full-document
+projection/layout remains a v0 limitation, not incremental/large-file acceptance.
+
+Prepared DirectWrite state uses WIL ownership, caller font settings and borrowed
+factory/target services. Invalid projection/style/settings must leave the prior
+projection/geometry generation intact. Explicit retirement rejects geometry while
+preserving the separate document. Raster drawing is preparation; embedding must
+not call it from composition. No HWND/device/thread/timer/worker belongs to the
+core. The caller supplies scheduling and stale-result/lifetime checks until the
+retained/shared preparation integration is implemented.
