@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — D2c/D3 bounded retained preview and D2d source adapters qualified. D2a and complete engine, physical input/AT and performance acceptance gates remain pending.
+Status: ACTIVE — bounded retained preview, D2d source adapters and source UIA range commands functionally qualified. Performance acceptance is on HOLD after repeated clean-frame p95 warnings; D2a, complete engine and physical input/AT gates remain pending.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -59,7 +59,8 @@ The additive core has its own explicit bounded support/qualification status.
   HWND/device/swap chain/thread/timer; native mode uses existing host services.
 - [x] D2d-v0: Integrate native/embedded source TSF/IME, mapped accessible ranges,
   lifetime/rebinding and callback-retirement semantics. This bounded adapter gate
-  leaves full UIA command/structural semantics and physical IME/AT acceptance open.
+  now includes bounded source range commands. Rich structural/style semantics,
+  semantic edit anchors and physical IME/AT acceptance remain open.
 - [x] D3: Add public API/revision rationale, catalog/factory, populated gallery,
   docs/controls.md usage, design-system guideline/preview, current capability
   status, change fragment and scoped/native test inventory entries together.
@@ -313,9 +314,9 @@ Real IME/candidate-window/input-language, Narrator/NVDA, physical/focus-taking,
 native ARM64 and controlled rich-workload performance acceptance remain D4c/D4d.
 Unknown UIA text attributes and annotations remain unsupported. D2a incremental
 layout and D4a complete Markdown/extensions are not closed by this integration.
-Complete shared UIA text-range command conformance (including legacy scrolling
-and selection-add/remove actions) remains an engine/AT acceptance prerequisite;
-D2d's bounded source-adapter gate does not qualify those legacy operations.
+The initial D2d gate did not qualify the legacy range scrolling and selection
+add/remove operations. The source-command follow-through below now qualifies
+those operations; rich structural semantics and real AT remain separate gates.
 
 ## D2d bounded source-adapter closeout
 
@@ -343,3 +344,50 @@ Native TSF/IMM protocol and real in-process UIA client tests qualify the source
 adapters, not physical input-language/candidate-window or assistive-technology
 behavior. D2a, D4a, D4c, D4d and D5 remain open; the plan stays in WIP and consumer
 pins remain unchanged.
+
+## D2d UIA range-command follow-through
+
+- [x] Retain a pre-change Release Default baseline at 71059fb9. The first run's
+  output changed Git dirty state and was refused; preserve it separately.
+- [x] Implement owner-dispatched vertical range scrolling without selection or
+  document/history changes, including hidden markers, clamping and retirement.
+- [x] Implement contiguous selection union/subtraction and explicit rejection of
+  disjoint results. Preserve backward selection and read-only selection access.
+- [x] Replace text/attribute search stubs; exercise remaining range movement,
+  cloning/comparison, visible bounds and empty-child contracts in both hosts.
+- [x] Test native dispatch, embedded owner-thread actions, disabled/hidden/stale
+  controls, callback retirement and real-client selection notifications.
+- [x] Freeze inputs, run affected/full required profiles, validators and format;
+  retain performance/resource receipts and reconcile specs/docs.
+
+This slice completes the bounded source range-command contract, not semantic
+anchors, rich style/structure, full Unicode grapheme/bidi navigation or real AT.
+Gallery pixels need no regeneration: these nonvisual commands reuse the existing
+scroll/selection rendering; the gallery's fixture and appearance are unchanged.
+
+### Source-command qualification and performance hold
+
+The [source-command receipts](../../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+bind final library fingerprint
+E3437165FCDB1374DE2AA8A2AE0AA791CB4581AB9528180ACA91D90508ECFDCA
+to all six builds and 57 ordinary x64 suite passes with zero capability skips.
+Each x64 profile covers 41 named rich-text scenarios, including 14 accessibility
+cases. Ten new cases cover native/embedded selection, search, scrolling, remaining
+range commands and thread ownership. Real UIA clients also invoke add/remove/
+scroll and observe selection text/events. Embedded tests retain 5,155 checks,
+zero-allocation warm composition and constant bounded range-query metadata.
+ASan's actual heap-use-after-free probe, all validators/tooling and pinned format
+checks pass. ARM64 remains cross-build-only; focus-taking/physical AT is unrun.
+
+The serial Default comparison and its one repeat both flag clean-frame p95:
+approximately 0.430 ms before, then 0.452 ms (+5.02%) and 0.504 ms (+17.05%).
+Retain both failures and the original baseline. Fixture/toolchain/environment
+identities match, but these are unpaired diagnostics and the unchanged fixture
+contains no RichTextEditor; source causality is unestablished. Functional command
+qualification does not accept this timing change. D4c and acceptance/merge stay
+on HOLD pending developer advice under the owning performance contract.
+
+The next decision is whether to keep this reviewable implementation as WIP while
+deferring performance acceptance, or investigate with controlled interleaved
+baseline/candidate profiling. No performance budget/tradeoff has been approved,
+and no threshold, baseline, consumer pin or historical warning was changed.

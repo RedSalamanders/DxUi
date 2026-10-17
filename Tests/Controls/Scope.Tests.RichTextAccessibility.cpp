@@ -260,6 +260,346 @@ void ClientNavigationAndEvents(bool embedded)
     Require(source == fixture.editor->GetText(), "real client reads the committed Unicode Markdown source");
     Require(client.TextCaretPosition(editor) == fixture.editor->GetSelection().caret,
             "real TextPattern2 client reads the mapped source caret through endpoint movement");
+    const auto selectionChanged = [&](uint64_t since)
+    {
+        return client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                [&]
+        {
+            const auto events = client.DistinctSince(since);
+            return std::ranges::any_of(events,
+                                       [](const auto& event) { return event.id == UIA_Text_TextSelectionChangedEventId && event.automationId == EditorId; });
+        });
+    };
+    auto selectionMark = client.Mark();
+    RequireSucceeded(client.ExecuteTextRangeCommand(editor, L"beta", UiaTest::TextRangeCommand::AddToSelection), "client adds a source selection");
+    fixture.Publish();
+    Require(selectionChanged(selectionMark) && client.TextSelectionText(editor) == L"beta", "client reads added selection and hears its event");
+    selectionMark = client.Mark();
+    RequireSucceeded(client.ExecuteTextRangeCommand(editor, L"beta", UiaTest::TextRangeCommand::RemoveFromSelection), "client removes source selection");
+    fixture.Publish();
+    Require(selectionChanged(selectionMark) && client.TextSelectionText(editor).empty(), "client reads removed selection and hears its event");
+    RequireSucceeded(client.ExecuteTextRangeCommand(editor, L"beta", UiaTest::TextRangeCommand::ScrollToTop), "client scrolls source range through transport");
+    fixture.Publish();
+    Require(client.DocumentText(editor) == source, "client scrolling preserves source text");
+}
+
+wil::com_ptr_nothrow<ITextProvider> TextProvider(RichAccessibilityFixture& fixture)
+{
+    wil::com_ptr_nothrow<ITextProvider> text;
+    RequireSucceeded(fixture.Simple().query_to(text.put()), "rich command text provider");
+    return text;
+}
+wil::com_ptr_nothrow<ITextRangeProvider> AsciiRange(ITextProvider& text, size_t first, size_t last)
+{
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text.get_DocumentRange(range.put()), "command document range");
+    RequireSucceeded(range->MoveEndpointByRange(TextPatternRangeEndpoint_End, range.get(), TextPatternRangeEndpoint_Start), "collapse command range");
+    int moved = 0;
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, static_cast<int>(last), &moved), "command range end");
+    Require(moved == static_cast<int>(last), "ASCII range end moved exactly");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, static_cast<int>(first), &moved), "command range start");
+    Require(moved == static_cast<int>(first), "ASCII range start moved exactly");
+    return range;
+}
+wil::com_ptr_nothrow<ITextRangeProvider> FindRange(ITextRangeProvider& document, std::wstring_view needle, bool backward = false, bool ignoreCase = false)
+{
+    wil::unique_bstr value(SysAllocStringLen(needle.data(), static_cast<UINT>(needle.size())));
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    RequireSucceeded(document.FindText(value.get(), backward, ignoreCase, found.put()), "find source range");
+    return found;
+}
+size_t RectangleValues(ITextRangeProvider& range)
+{
+    SAFEARRAY* rectangles = nullptr;
+    RequireSucceeded(range.GetBoundingRectangles(&rectangles), "range rectangle array");
+    Require(rectangles != nullptr, "rectangle array is present even when empty");
+    const size_t count = rectangles->rgsabound[0].cElements;
+    SafeArrayDestroy(rectangles);
+    return count;
+}
+
+void SelectionCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    fixture.editor->SetText(L"0123456789ABCDEFG");
+    fixture.editor->ReplaceSelection(L"x");
+    Require(fixture.editor->Undo() && fixture.editor->CanRedo(), "selection fixture retains redo history");
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    SupportedTextSelection supported{};
+    RequireSucceeded(text->get_SupportedTextSelection(&supported), "single-selection capability");
+    Require(supported == SupportedTextSelection_Single, "range commands do not claim disjoint selection support");
+    auto left   = AsciiRange(*text.get(), 2, 4);
+    auto right  = AsciiRange(*text.get(), 6, 8);
+    auto middle = AsciiRange(*text.get(), 4, 6);
+    auto whole  = AsciiRange(*text.get(), 0, 12);
+    auto caret  = AsciiRange(*text.get(), 10, 10);
+    int changes = 0;
+    fixture.editor->SetOnTextChanged([&] { ++changes; });
+    const auto revision = fixture.editor->Revision();
+    fixture.editor->SetSelection({6, 4});
+    fixture.Publish();
+    RequireSucceeded(left->AddToSelection(), "add touching prefix to backward selection");
+    Require(fixture.editor->GetSelection() == RichText::Selection{6, 2}, "prefix union preserves backward caret");
+    fixture.Publish();
+    RequireSucceeded(right->AddToSelection(), "add touching suffix");
+    Require(fixture.editor->GetSelection() == RichText::Selection{8, 2}, "suffix union preserves backward caret");
+    fixture.Publish();
+    RequireSucceeded(left->AddToSelection(), "adding contained range is idempotent");
+    Require(caret->RemoveFromSelection() == S_OK, "removing empty range is a no-op");
+    Require(middle->RemoveFromSelection() == UIA_E_INVALIDOPERATION, "middle subtraction rejects two islands");
+    Require(fixture.editor->GetSelection() == RichText::Selection{8, 2}, "rejected subtraction leaves selection intact");
+    RequireSucceeded(left->RemoveFromSelection(), "remove selected prefix");
+    Require(fixture.editor->GetSelection() == RichText::Selection{8, 4}, "prefix subtraction preserves direction");
+    fixture.Publish();
+    RequireSucceeded(right->RemoveFromSelection(), "remove selected suffix");
+    Require(fixture.editor->GetSelection() == RichText::Selection{6, 4}, "suffix subtraction preserves direction");
+    fixture.Publish();
+    Require(caret->AddToSelection() == S_OK && fixture.editor->GetSelection() == RichText::Selection{10, 10}, "degenerate add moves insertion point");
+    fixture.Publish();
+    RequireSucceeded(left->AddToSelection(), "adding to insertion point creates a selection");
+    fixture.Publish();
+    Require(right->AddToSelection() == UIA_E_INVALIDOPERATION, "disjoint addition is rejected");
+    Require(right->RemoveFromSelection() == S_OK && fixture.editor->GetSelection() == RichText::Selection{2, 4}, "nonoverlap subtraction changes nothing");
+    RequireSucceeded(whole->RemoveFromSelection(), "remove entire selection");
+    Require(fixture.editor->GetSelection() == RichText::Selection{4, 4}, "whole subtraction keeps the active insertion point");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    RequireSucceeded(left->AddToSelection(), "read-only permits source selection");
+    fixture.Publish();
+    RequireSucceeded(left->RemoveFromSelection(), "read-only permits selection removal");
+    fixture.editor->SetEnabled(false);
+    fixture.Publish();
+    Require(left->AddToSelection() == UIA_E_ELEMENTNOTENABLED && left->RemoveFromSelection() == UIA_E_ELEMENTNOTENABLED,
+            "disabled rejects both selection commands");
+    fixture.editor->SetEnabled(true);
+    fixture.editor->SetSelection({3, 6});
+    fixture.Publish();
+    auto overlap = AsciiRange(*text.get(), 5, 9);
+    RequireSucceeded(overlap->AddToSelection(), "partially overlapping addition");
+    Require(fixture.editor->GetSelection() == RichText::Selection{3, 9}, "overlap extends the existing contiguous selection");
+    fixture.Publish();
+    RequireSucceeded(overlap->RemoveFromSelection(), "partially overlapping subtraction");
+    Require(fixture.editor->GetSelection() == RichText::Selection{3, 5}, "overlap truncates only the selected suffix");
+    fixture.editor->SetVisible(false);
+    fixture.Publish();
+    Require(left->AddToSelection() == UIA_E_ELEMENTNOTAVAILABLE && left->RemoveFromSelection() == UIA_E_ELEMENTNOTAVAILABLE,
+            "hidden editor has no actionable source range");
+    Require(fixture.editor->Revision() == revision && fixture.editor->CanRedo() && ! fixture.editor->CanUndo() && changes == 0,
+            "selection-only commands preserve source revision, redo and notifications");
+    fixture.controls->SetRoot(std::make_unique<RichTextEditor>(L"replacement"));
+    fixture.Publish();
+    Require(left->AddToSelection() == UIA_E_ELEMENTNOTAVAILABLE && left->RemoveFromSelection() == UIA_E_ELEMENTNOTAVAILABLE,
+            "retained selection commands cannot reach same-path replacement");
+}
+
+void SearchCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    fixture.editor->SetText(L"**Alpha** alpha ALPHA\r\n\u03a9mega \U0001f600");
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "search document");
+    auto first = FindRange(*document.get(), L"alpha", false, true);
+    auto last  = FindRange(*document.get(), L"alpha", true, true);
+    auto exact = FindRange(*document.get(), L"alpha");
+    Require(first && last && exact, "forward/backward/exact search finds source matches");
+    Require(ReadTextRangeText(*first.get(), -1, "first match") == L"Alpha" && ReadTextRangeText(*last.get(), -1, "last match") == L"ALPHA" &&
+                ReadTextRangeText(*exact.get(), -1, "case-sensitive match") == L"alpha",
+            "ordinal search respects direction and case");
+    Require(! FindRange(*exact.get(), L"Alpha") && ! FindRange(*document.get(), L"absent"), "search is confined to its range and no-match returns null");
+    Require(FindRange(*document.get(), L"**") != nullptr, "search includes hidden Markdown delimiters");
+    Require(FindRange(*document.get(), L"\u03c9MEGA", false, true) != nullptr, "case-insensitive search handles Unicode outside ASCII");
+    Require(FindRange(*document.get(), L"\U0001f600") != nullptr && ! FindRange(*document.get(), L"\r"), "search preserves scalar and CRLF boundaries");
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    Require(document->FindText(nullptr, FALSE, FALSE, found.put()) == E_INVALIDARG && ! found, "null/empty search is rejected");
+    wil::unique_bstr malformed(SysAllocStringLen(L"\xd800", 1));
+    Require(document->FindText(malformed.get(), FALSE, FALSE, found.put()) == E_INVALIDARG && ! found, "malformed Unicode search is rejected");
+    Require(document->FindText(nullptr, FALSE, FALSE, nullptr) == E_POINTER, "search validates output pointer");
+    VARIANT attribute{};
+    attribute.vt      = VT_BOOL;
+    attribute.boolVal = VARIANT_FALSE;
+    RequireSucceeded(exact->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, FALSE, found.put()), "uniform writable attribute search");
+    BOOL same = FALSE;
+    Require(found && SUCCEEDED(found->Compare(exact.get(), &same)) && same, "attribute match returns the entire bounded range");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    RequireSucceeded(document->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, TRUE, found.put()), "attribute mismatch");
+    Require(! found, "read-only mismatch returns no range");
+    attribute.boolVal = VARIANT_TRUE;
+    RequireSucceeded(document->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, TRUE, found.put()), "uniform read-only attribute search");
+    Require(found != nullptr, "attribute search reads the current publication");
+    Require(document->FindAttribute(UIA_FontNameAttributeId, attribute, FALSE, found.put()) == UIA_E_NOTSUPPORTED && ! found,
+            "unsupported rich attribute search is explicit");
+    attribute.vt = VT_I4;
+    Require(document->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, FALSE, found.put()) == E_INVALIDARG, "attribute type is validated");
+    fixture.editor->SetText(L"delta");
+    fixture.Publish();
+    Require(FindRange(*document.get(), L"delta") != nullptr, "retained search range uses bounded current source");
+    fixture.controls->SetRoot(std::make_unique<Label>(L"successor"));
+    fixture.Publish();
+    Require(document->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, FALSE, found.put()) == UIA_E_ELEMENTNOTAVAILABLE &&
+                document->FindText(nullptr, FALSE, FALSE, found.put()) == UIA_E_ELEMENTNOTAVAILABLE,
+            "search disconnects before accessing a retired owner");
+}
+
+void ScrollingCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    std::wstring source;
+    for (int index = 0; index < 80; ++index)
+        source += L"**line" + std::to_wstring(index) + L"** alpha beta gamma delta\r\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "scroll document");
+    auto target = FindRange(*document.get(), L"line40");
+    Require(target && RectangleValues(*target.get()) == 0, "offscreen target starts without visible rectangles");
+    const auto selection = fixture.editor->GetSelection();
+    const auto revision  = fixture.editor->Revision();
+    RequireSucceeded(target->ScrollIntoView(TRUE), "align source range to top");
+    fixture.Publish();
+    const float topOffset = fixture.editor->DebugGetState().scrollOffsetDip;
+    Require(topOffset > 0 && RectangleValues(*target.get()) >= 4, "top scroll reveals mapped source geometry");
+    RequireSucceeded(target->ScrollIntoView(FALSE), "align source range to bottom");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip < topOffset && RectangleValues(*target.get()) >= 4, "bottom alignment uses the lower range edge");
+    auto hidden       = FindRange(*document.get(), L"**");
+    const auto offset = fixture.editor->DebugGetState().scrollOffsetDip;
+    Require(hidden && SUCCEEDED(hidden->ScrollIntoView(TRUE)), "hidden-only range scroll succeeds without fabricated geometry");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip == offset && RectangleValues(*hidden.get()) == 0,
+            "offscreen hidden markers do not jump the viewport");
+    RequireSucceeded(document->ScrollIntoView(TRUE), "oversized range aligns first edge");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "document top is clamped");
+    RequireSucceeded(document->ScrollIntoView(FALSE), "oversized range aligns last edge");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip > topOffset, "oversized range bottom reveals end of document");
+    wil::com_ptr_nothrow<ITextProvider2> text2;
+    RequireSucceeded(text.query_to(text2.put()), "scroll caret provider");
+    wil::com_ptr_nothrow<ITextRangeProvider> caret;
+    BOOL active = FALSE;
+    RequireSucceeded(text2->GetCaretRange(&active, caret.put()), "source insertion point to reveal");
+    RequireSucceeded(caret->ScrollIntoView(TRUE), "scroll degenerate source range");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "caret scroll reveals first line without moving insertion point");
+    fixture.editor->SetViewMode(RichText::ViewMode::Source);
+    fixture.editor->SetFlowDirection(FlowDirection::RightToLeft);
+    fixture.Publish();
+    RequireSucceeded(target->ScrollIntoView(FALSE), "scroll source mode with RTL flow");
+    fixture.Publish();
+    Require(RectangleValues(*target.get()) >= 4, "RTL source range is visible after scrolling");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    RequireSucceeded(target->ScrollIntoView(TRUE), "read-only document remains scrollable");
+    fixture.Publish();
+    Require(fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision && fixture.editor->GetText() == source,
+            "scrolling changes neither source nor selection nor history");
+    Require(! fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, source.size() + 1, source.size() + 1, true),
+            "public scroll rejects invalid source bounds");
+    fixture.editor->SetText(L"");
+    fixture.Publish();
+    RequireSucceeded(text->get_DocumentRange(document.put()), "empty source range");
+    RequireSucceeded(document->ScrollIntoView(TRUE), "empty document scroll to top");
+    RequireSucceeded(document->ScrollIntoView(FALSE), "empty document scroll to bottom");
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "empty document remains clamped at origin");
+    fixture.editor->SetEnabled(false);
+    fixture.Publish();
+    Require(target->ScrollIntoView(TRUE) == UIA_E_ELEMENTNOTENABLED, "disabled editor rejects range scrolling");
+    fixture.controls->SetRoot(std::make_unique<RichTextEditor>(L"replacement"));
+    fixture.Publish();
+    Require(target->ScrollIntoView(TRUE) == UIA_E_ELEMENTNOTAVAILABLE, "retained scroll range never acts on replacement");
+}
+
+void RemainingRangeCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    fixture.editor->SetText(std::wstring(180, L'x') + L" tail\r\nlast\r\n");
+    fixture.Publish();
+    auto text  = TextProvider(fixture);
+    auto range = AsciiRange(*text.get(), 0, 1);
+    RequireSucceeded(range->ExpandToEnclosingUnit(TextUnit_Line), "expand prepared wrapped visual line");
+    const auto firstLine = ReadTextRangeText(*range.get(), -1, "first wrapped line");
+    Require(! firstLine.empty() && firstLine.size() < 180, "Line unit follows wrapping rather than the whole logical paragraph");
+    int moved = 0;
+    RequireSucceeded(range->Move(TextUnit_Line, 1, &moved), "move a wrapped visual line");
+    Require(moved == 1, "visual line move reports one unit");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Line, 1, &moved), "move endpoint by visual line");
+    Require(moved == 1, "visual endpoint move reports one unit");
+    wil::com_ptr_nothrow<ITextRangeProvider> clone;
+    RequireSucceeded(range->Clone(clone.put()), "clone moved source range");
+    BOOL same = FALSE;
+    RequireSucceeded(range->Compare(clone.get(), &same), "compare cloned range");
+    Require(same, "clone preserves endpoints");
+    RequireSucceeded(clone->MoveEndpointByRange(TextPatternRangeEndpoint_Start, range.get(), TextPatternRangeEndpoint_End), "collapse crossing start endpoint");
+    Require(ReadTextRangeText(*clone.get(), -1, "collapsed endpoint").empty(), "crossing endpoints collapse range");
+    SAFEARRAY* children = nullptr;
+    RequireSucceeded(range->GetChildren(&children), "source range children");
+    Require(children && children->rgsabound[0].cElements == 0, "source-only range has no invented embedded children");
+    SafeArrayDestroy(children);
+    BSTR invalid = nullptr;
+    Require(range->GetText(-2, &invalid) == E_INVALIDARG && ! invalid, "invalid text length rejected");
+    Require(range->ExpandToEnclosingUnit(static_cast<TextUnit>(99)) == E_INVALIDARG && range->Move(static_cast<TextUnit>(99), 1, &moved) == E_INVALIDARG &&
+                range->MoveEndpointByUnit(static_cast<TextPatternRangeEndpoint>(99), TextUnit_Word, 1, &moved) == E_INVALIDARG,
+            "unit and endpoint enums are validated");
+    fixture.editor->SetText(L"\U0001f600\r\nalpha beta");
+    fixture.Publish();
+    RequireSucceeded(text->get_DocumentRange(range.put()), "Unicode command range");
+    RequireSucceeded(range->MoveEndpointByRange(TextPatternRangeEndpoint_End, range.get(), TextPatternRangeEndpoint_Start), "Unicode caret start");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 2, &moved), "Unicode/CRLF character movement");
+    Require(moved == 2 && ReadTextRangeText(*range.get(), -1, "Unicode unit text") == L"\U0001f600\r\n", "character movement preserves scalar and CRLF units");
+    RequireSucceeded(range->ExpandToEnclosingUnit(TextUnit_Document), "expand document");
+    Require(ReadTextRangeText(*range.get(), -1, "whole document") == fixture.editor->GetText(), "document expansion uses current exact source");
+    RequireSucceeded(range->Move(TextUnit_Document, 1, &moved), "whole document cannot move beyond itself");
+    Require(moved == 0, "document movement reports actual bounded count");
+    auto word = FindRange(*range.get(), L"alpha");
+    Require(word != nullptr, "word movement fixture starts at alpha");
+    RequireSucceeded(word->ExpandToEnclosingUnit(TextUnit_Format), "unsupported format promotes to word");
+    Require(ReadTextRangeText(*word.get(), -1, "expanded word").starts_with(L"alpha"), "format fallback encloses the source word");
+    RequireSucceeded(word->Move(TextUnit_Word, 1, &moved), "move nondegenerate word range");
+    Require(moved == 1 && ReadTextRangeText(*word.get(), -1, "next word").starts_with(L"beta"), "word movement selects next word and reports count");
+    for (const auto unit : {TextUnit_Paragraph, TextUnit_Page})
+    {
+        RequireSucceeded(word->ExpandToEnclosingUnit(unit), "unsupported paragraph/page promotes to document");
+        Require(ReadTextRangeText(*word.get(), -1, "promoted unit") == fixture.editor->GetText(), "coarser unit fallback encloses exact source document");
+    }
+    Require(range->Compare(nullptr, &same) == E_INVALIDARG &&
+                range->CompareEndpoints(static_cast<TextPatternRangeEndpoint>(99), word.get(), TextPatternRangeEndpoint_Start, &moved) == E_INVALIDARG,
+            "comparison validates target and endpoint arguments");
+}
+
+void ThreadedRangeCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    fixture.editor->SetText(L"0123456789ABCDEFG");
+    fixture.Publish();
+    auto text              = TextProvider(fixture);
+    auto range             = AsciiRange(*text.get(), 2, 5);
+    std::atomic<bool> done = false;
+    std::array<HRESULT, 3> results{};
+    std::jthread worker([&]
+    {
+        results[0] = range->AddToSelection();
+        results[1] = range->RemoveFromSelection();
+        results[2] = range->ScrollIntoView(TRUE);
+        done.store(true, std::memory_order_release);
+    });
+    const auto deadline = GetTickCount64() + 12000;
+    while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    {
+        fixture.Pump();
+        Sleep(1);
+    }
+    Require(done.load(std::memory_order_acquire), "foreign-thread range commands finish within bounded dispatch");
+    worker.join();
+    for (const auto result : results)
+        Require(result == (embedded ? RPC_E_WRONG_THREAD : S_OK), "native dispatches to owner; embedded refuses foreign-thread mutation");
+    Require(fixture.editor->GetSelection() == (embedded ? RichText::Selection{0, 0} : RichText::Selection{5, 5}),
+            "thread ownership preserves expected selection");
 }
 
 void EmbeddedCase(void (*test)(bool))
@@ -289,6 +629,46 @@ void TestRichTextAccessibilityEmbeddedClientNavigationAndEvents()
 {
     EmbeddedCase(ClientNavigationAndEvents);
 }
+void TestRichTextAccessibilityWindowSelectionCommands()
+{
+    SelectionCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedSelectionCommands()
+{
+    EmbeddedCase(SelectionCommands);
+}
+void TestRichTextAccessibilityWindowSearchCommands()
+{
+    SearchCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedSearchCommands()
+{
+    EmbeddedCase(SearchCommands);
+}
+void TestRichTextAccessibilityWindowScrollingCommands()
+{
+    ScrollingCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedScrollingCommands()
+{
+    EmbeddedCase(ScrollingCommands);
+}
+void TestRichTextAccessibilityWindowRemainingRangeCommands()
+{
+    RemainingRangeCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedRemainingRangeCommands()
+{
+    EmbeddedCase(RemainingRangeCommands);
+}
+void TestRichTextAccessibilityWindowThreadedRangeCommands()
+{
+    ThreadedRangeCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedThreadedRangeCommands()
+{
+    EmbeddedCase(ThreadedRangeCommands);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -298,4 +678,14 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedClientNavigationAndEvents);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSearchCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSearchCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowScrollingCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedScrollingCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowRemainingRangeCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedRemainingRangeCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowThreadedRangeCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedThreadedRangeCommands);
 }

@@ -2803,6 +2803,10 @@ public:
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
+    // Owner-thread accessibility geometry/scrolling. Offsets include hidden
+    // syntax; scrolling preserves selection/history and never acquires focus.
+    [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> GetSourceVisualLineRanges(const ControlHost& host) const noexcept;
+    bool ScrollSourceRangeIntoView(ControlHost& host, size_t sourceStart, size_t sourceEnd, bool alignToTop) noexcept;
 
     void Paint(ControlHost& host) const override;
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;

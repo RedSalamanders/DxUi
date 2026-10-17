@@ -37,10 +37,34 @@ than another full source string. The warm caret plus visible-range C++ allocatio
 budget is at most 4 KiB at both 32 and 65,536 source units; prepared snapshot/layout
 costs and Windows/driver allocations are measured separately.
 
-This bounded source adapter does not establish complete UIA text-range command
-conformance. Legacy shared range scrolling and selection-add/remove actions,
-along with rich attributes/semantic range tracking, require separate engine/AT
-acceptance before full accessible-editor support is claimed.
+Rich source ranges implement ScrollIntoView with top/bottom painted-edge alignment
+clamped to document extent, including caret and oversized ranges. Hidden-only
+markers do not scroll to an offscreen anchor. Scrolling preserves selection,
+source/history and focus and uses existing host invalidation/preparation. Native
+foreign-thread mutations use bounded owner dispatch; embedded mutations require
+the owner thread. Both disconnect after hide/root replacement and reject disabled
+controls; read-only selection/scroll remains available.
+Text controls without these range actions return UIA_E_NOTSUPPORTED rather than
+success without an action.
+
+Single-selection AddToSelection unions touching/overlapping spans, or selects
+from an insertion point. A degenerate add moves the insertion point. Removal
+trims an edge, collapses a fully removed selection at its active caret, and ignores
+degenerate/nonoverlapping spans. Existing backward direction survives. Disjoint
+union or interior subtraction returns UIA_E_INVALIDOPERATION without mutation.
+These operations publish TextSelectionChanged, never source/history changes.
+
+FindText searches bounded exact source, including hidden syntax, with ordinal
+Unicode comparison and forward/backward/case options. Matches respect scalar/CRLF
+boundaries. Empty/malformed needles and invalid unit/endpoint/length arguments
+return E_INVALIDARG. FindAttribute supports the uniform IsReadOnly VT_BOOL value;
+unknown attributes return UIA_E_NOTSUPPORTED. No match returns S_OK with null.
+Line commands use prepared wrapped source ranges rather than logical-line guesses.
+Unsupported Format promotes to Word and Paragraph/Page to Document. Full Unicode
+grapheme/visual bidi, rich attributes/structure and semantic edit anchors remain
+engine/AT acceptance work. The source has no embedded UIA children to invent.
+The [source-command qualification](../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+records functional tests separately from the open performance and real AT gates.
 
 UTF-16 character halves are
 buffered outside the document and retired on selection, source, focus, host,

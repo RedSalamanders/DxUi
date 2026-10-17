@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Owned Unicode rich-text editor](RichTextEditor_2026-10-17.md). D2b/D2c/D3 core, pinned prototype consumption, retained v0 preview and D2d native/embedded source TSF/IME/UIA adapters are qualified. D2a incremental layout, complete Markdown/extensions, full UIA command semantics and real IME/AT/platform/performance acceptance remain pending.
+- **ACTIVE**: [Owned Unicode rich-text editor](RichTextEditor_2026-10-17.md). Core, retained preview, source TSF/IME/UIA adapters and source range commands are functionally qualified. Performance acceptance is on HOLD after repeated clean-frame p95 warnings. D2a incremental layout, complete Markdown/extensions, rich structural UIA semantics and real IME/AT/platform acceptance remain pending.
 
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
 

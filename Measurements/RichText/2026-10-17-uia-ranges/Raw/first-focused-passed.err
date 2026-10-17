@@ -1,0 +1,52 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestRichTextAccessibilityWindowSourceAndRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSourceAndRanges (0.389 s)
+  [START] TestRichTextAccessibilityEmbeddedSourceAndRanges
+  [DONE] TestRichTextAccessibilityEmbeddedSourceAndRanges (0.034 s)
+  [START] TestRichTextAccessibilityWindowClientNavigationAndEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowClientNavigationAndEvents (0.315 s)
+  [START] TestRichTextAccessibilityEmbeddedClientNavigationAndEvents
+  [DONE] TestRichTextAccessibilityEmbeddedClientNavigationAndEvents (0.139 s)
+  [START] TestRichTextAccessibilityWindowSelectionCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSelectionCommands (0.255 s)
+  [START] TestRichTextAccessibilityEmbeddedSelectionCommands
+  [DONE] TestRichTextAccessibilityEmbeddedSelectionCommands (0.024 s)
+  [START] TestRichTextAccessibilityWindowSearchCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSearchCommands (0.182 s)
+  [START] TestRichTextAccessibilityEmbeddedSearchCommands
+  [DONE] TestRichTextAccessibilityEmbeddedSearchCommands (0.025 s)
+  [START] TestRichTextAccessibilityWindowScrollingCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowScrollingCommands (0.256 s)
+  [START] TestRichTextAccessibilityEmbeddedScrollingCommands
+  [DONE] TestRichTextAccessibilityEmbeddedScrollingCommands (0.024 s)
+  [START] TestRichTextAccessibilityWindowRemainingRangeCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowRemainingRangeCommands (0.150 s)
+  [START] TestRichTextAccessibilityEmbeddedRemainingRangeCommands
+  [DONE] TestRichTextAccessibilityEmbeddedRemainingRangeCommands (0.020 s)
+  [START] TestRichTextAccessibilityWindowThreadedRangeCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowThreadedRangeCommands (0.167 s)
+  [START] TestRichTextAccessibilityEmbeddedThreadedRangeCommands
+  [DONE] TestRichTextAccessibilityEmbeddedThreadedRangeCommands (0.024 s)
+[DONE] Accessibility (2.016 s)

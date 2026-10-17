@@ -74,6 +74,13 @@ enum class EventKind
     Structure,  // A change of structure: `id` is its StructureChangeType.
     Focus,      // The keyboard focus moved to the sender.
 };
+enum class TextRangeCommand
+{
+    AddToSelection,
+    RemoveFromSelection,
+    ScrollToTop,
+    ScrollToBottom
+};
 
 // One event the client heard, with the name, control type and automation id UI Automation cached for its sender when it
 // delivered the event, so the handler never calls back into a provider.
@@ -788,6 +795,58 @@ public:
             wil::unique_bstr text;
             RETURN_IF_FAILED(range->GetText(-1, text.put()));
             result.assign(text.get(), SysStringLen(text.get()));
+            return S_OK;
+        });
+    }
+
+    [[nodiscard]] HRESULT ExecuteTextRangeCommand(ElementId field, std::wstring needle, TextRangeCommand command)
+    {
+        return Ask<HRESULT>("a text range command",
+                            [field, needle = std::move(needle), command](Session& session, HRESULT& result)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> document, range;
+            RETURN_IF_FAILED(pattern->get_DocumentRange(document.put()));
+            wil::unique_bstr value(SysAllocStringLen(needle.data(), static_cast<UINT>(needle.size())));
+            RETURN_IF_FAILED(document->FindText(value.get(), FALSE, FALSE, range.put()));
+            if (! range)
+                return E_INVALIDARG;
+            switch (command)
+            {
+                case TextRangeCommand::AddToSelection: result = range->AddToSelection(); break;
+                case TextRangeCommand::RemoveFromSelection: result = range->RemoveFromSelection(); break;
+                case TextRangeCommand::ScrollToTop: result = range->ScrollIntoView(TRUE); break;
+                case TextRangeCommand::ScrollToBottom: result = range->ScrollIntoView(FALSE); break;
+            }
+            return S_OK; // Preserve the command HRESULT for assertions by the caller.
+        });
+    }
+
+    [[nodiscard]] std::wstring TextSelectionText(ElementId field)
+    {
+        return Ask<std::wstring>("selected source text",
+                                 [field](Session& session, std::wstring& selected)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRangeArray> ranges;
+            RETURN_IF_FAILED(pattern->GetSelection(ranges.put()));
+            int length = 0;
+            RETURN_IF_FAILED(ranges->get_Length(&length));
+            if (! length)
+                return S_OK;
+            wil::com_ptr_nothrow<IUIAutomationTextRange> range;
+            RETURN_IF_FAILED(ranges->GetElement(0, range.put()));
+            wil::unique_bstr text;
+            RETURN_IF_FAILED(range->GetText(-1, text.put()));
+            selected.assign(text.get(), SysStringLen(text.get()));
             return S_OK;
         });
     }

@@ -1,0 +1,6 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\performance.ps1:80
+Line |
+  80 |  . DE -ne 0) { throw "The performance comparison requires advice or foun .
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The performance comparison requires advice or found invalid evidence:
+     | Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-uia-after.json.comparison.json

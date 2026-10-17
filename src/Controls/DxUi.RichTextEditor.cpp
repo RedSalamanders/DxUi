@@ -238,6 +238,99 @@ bool RichTextEditor::SupportsTextInput() const noexcept
 {
     return true;
 }
+std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceVisualLineRanges(const ControlHost& host) const noexcept
+{
+    try
+    {
+        EnsureLayout(host);
+        const auto& projection = _state->layout.Content();
+        std::vector<std::pair<size_t, size_t>> ranges;
+        size_t displayStart = 0;
+        size_t sourceStart  = 0;
+        do
+        {
+            size_t displayEnd = _state->layout.LineBoundary(displayStart, true);
+            if (displayEnd < projection.text.size() && projection.text[displayEnd] == L'\n')
+                ++displayEnd;
+            // Earliest source affinity makes adjacent lines partition exact
+            // source, including hidden markers and original CRLF pairs.
+            const size_t sourceEnd =
+                displayEnd == projection.text.size()
+                    ? projection.source.size()
+                    : static_cast<size_t>(std::lower_bound(projection.sourceToDisplay.begin(), projection.sourceToDisplay.end(), displayEnd) -
+                                          projection.sourceToDisplay.begin());
+            ranges.emplace_back(sourceStart, sourceEnd);
+            if (displayEnd >= projection.text.size() || displayEnd <= displayStart)
+            {
+                if (! projection.text.empty() && projection.text.back() == L'\n')
+                    ranges.emplace_back(projection.source.size(), projection.source.size());
+                break;
+            }
+            sourceStart  = sourceEnd;
+            displayStart = displayEnd;
+        } while (true);
+        return ranges;
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
+bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceStart, size_t sourceEnd, bool alignToTop) noexcept
+{
+    try
+    {
+        const auto source = Snapshot();
+        if (GetHost() != &host || ! IsEnabled() || sourceStart > sourceEnd || ! source.IsBoundary(sourceStart) || ! source.IsBoundary(sourceEnd))
+            return false;
+        EnsureLayout(host);
+        const auto& projection = _state->layout.Content();
+        const auto first       = projection.ToDisplay(sourceStart);
+        const auto last        = projection.ToDisplay(sourceEnd);
+        // Hidden-only syntax has no painted extent to reveal. Do not jump to
+        // an offscreen marker's anchor or fabricate a visible rectangle.
+        if (sourceStart != sourceEnd && first == last)
+            return true;
+        const auto caret = _state->layout.Caret(first);
+        float top        = caret.y;
+        float bottom     = caret.y + caret.height;
+        if (first != last)
+        {
+            const auto rectangles = _state->layout.Range(first, last);
+            if (! rectangles.empty())
+            {
+                top    = rectangles.front().top;
+                bottom = rectangles.front().bottom;
+                for (const auto& rectangle : rectangles)
+                {
+                    top    = std::min(top, rectangle.top);
+                    bottom = std::max(bottom, rectangle.bottom);
+                }
+            }
+        }
+        const auto viewport = TextViewport();
+        const float height  = std::max(0.0f, viewport.bottom - viewport.top);
+        const float offset  = std::clamp(alignToTop ? top : bottom - height, 0.0f, std::max(0.0f, _state->layout.Height() - height));
+        _state->revealCaret = false;
+        if (_state->scrollDip == offset)
+            return true;
+        _state->scrollDip = offset;
+        // Synchronization and invalidation can invoke application scheduling.
+        // Capture identity before crossing either boundary; never resume on a
+        // detached/replaced editor. Neither operation changes source/history.
+        const auto lifetime = GetLifetimeToken();
+        const auto binding  = _state->bindingRevision;
+        host.SyncTextInput(this);
+        if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding)
+            return false;
+        RequestInvalidate();
+        return ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding;
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+}
 std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(const ControlHost& host) const noexcept
 {
     if (GetHost() != &host || ! GetTextInputViewportRect())

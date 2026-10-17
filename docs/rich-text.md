@@ -114,9 +114,50 @@ DocumentRange for the complete grown document. Bounded GetText never returns
 half a supplementary scalar. Retained providers/ranges disconnect on owner replacement. Unknown
 text attributes and annotations are unsupported; structured Markdown semantics,
 font/style attributes and rendered-only accessible text remain future scope.
-Full shared UIA text-range command conformance, including legacy range scrolling
-and selection-add/remove actions, is also a remaining engine/AT acceptance gate.
-The v0 support claim covers the source selection and geometry commands above.
+The bounded source range commands include scrolling, selection union/subtraction,
+text search and uniform read-only attribute search. The rules below apply in both
+hosts; rich structural/style attributes and semantic text anchors remain separate.
+
+`ScrollIntoView(true)` aligns the range's first painted edge to the viewport top;
+`false` aligns its last edge to the bottom. Document extents clamp both offsets,
+and ranges taller than the viewport reveal the requested edge. A degenerate range
+reveals its caret. Hidden-only markers have no painted extent and do not jump to
+an offscreen anchor. Scrolling preserves source, selection and undo/redo, takes no
+keyboard focus, and uses existing preparation/invalidation services. The public
+owner-thread `ScrollSourceRangeIntoView` validates source boundaries; UIA clamps
+retained offsets to current source before calling it.
+
+The editor reports `SupportedTextSelection_Single`. `AddToSelection` selects a
+range when there is only an insertion point, or unions overlapping/touching
+ranges. `RemoveFromSelection` trims a selected prefix/suffix; removing the entire
+selection leaves its active insertion point. Both preserve backward direction.
+Disjoint addition or middle subtraction returns `UIA_E_INVALIDOPERATION` atomically.
+A degenerate add moves the insertion point; degenerate/nonoverlapping removal is
+a no-op. Selection commands preserve history/revision and emit selection events,
+without text-change callbacks. Read-only permits these operations and scrolling;
+disabled controls reject them. Retired/hidden providers cannot act on successors.
+Native foreign-thread actions use bounded owner dispatch. Embedded mutation is
+owner-thread-only (`RPC_E_WRONG_THREAD` otherwise); snapshot searches remain reads.
+Other text controls without these optional range actions report
+`UIA_E_NOTSUPPORTED` instead of a success-only no-op.
+The contiguous union/subtraction and rejection policy follows Microsoft's
+[single-selection TextRange contract](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-implementingtextandtextrange#selecting-text-in-a-text-range).
+
+`FindText` searches exact source within the range, forward or backward, with
+ordinal Unicode case-sensitive/insensitive comparison. Hidden syntax is searchable;
+matches cannot bisect a surrogate or CRLF pair. Empty/malformed search strings
+return `E_INVALIDARG`, and no match returns a null range with `S_OK`.
+`FindAttribute` supports `UIA_IsReadOnlyAttributeId` with `VT_BOOL`: a matching
+uniform attribute returns the bounded range, and a mismatch returns null.
+Unimplemented rich attributes return `UIA_E_NOTSUPPORTED` for searches.
+
+Clone, comparison, endpoint movement/collapse, word/character/document movement,
+source text, enclosing element, visible bounds and empty embedded children are
+covered in both hosts. `Line` movement uses the prepared wrapped rich projection
+through `GetSourceVisualLineRanges`, including exact source CRLF and hidden
+syntax. Unsupported Format units promote to Word; Paragraph/Page promote to
+Document. Invalid units/endpoints/lengths are rejected. This does not establish
+full Unicode grapheme/visual bidi or rich style/structure semantics.
 
 Caret, visible, composition and conversion ranges retain source offsets and
 identity while reading the published document. They do not copy the full source
@@ -226,6 +267,12 @@ from these passing v0 gates.
 The [D2d qualification](../Measurements/RichText/2026-10-17-input-d2d/README.md)
 retains the source-adapter protocol/client, history, retirement, geometry and
 constant-size UIA range allocation evidence. It includes 57 ordinary x64 suite
-passes and six builds. Physical IME/AT, complete UIA text-range commands, native
+passes and six builds. Physical IME/AT, rich structural UIA semantics, native
 ARM64 execution and controlled performance acceptance remain open; both diagnostic
 memory-warning reports are retained.
+
+The [source range-command qualification](../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+records 57 ordinary x64 suite passes, six builds and 41 named rich-text scenarios
+per x64 profile. Native/embedded command semantics and real-client actions/events
+pass. Performance acceptance is on hold after repeated Default clean-frame p95
+warnings; both failed comparisons and the original baseline are retained.
