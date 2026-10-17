@@ -4,7 +4,10 @@
   EditorControls/WARP tests. The standalone prototype consumes one exact clean
   DxUi pin through the normal props/targets; no reusable cpp copy is maintained.
   API revision stays 4 because these additions preserve existing declarations.
-  Retained RichTextEditor, full Markdown/extensions, TSF/UIA, gallery integration
-  and large-document/platform/performance qualification remain pending. Retain
+  Add the retained RichTextEditor v0 preview using shared ControlHost services in
+  native/embedded hosting, with source selection/history/formatting, Unicode
+  clipboard/input, bounded scrolling, lifetime tests and catalog/gallery/design
+  guidance. Full Markdown/extensions, TSF/UIA and large-document/platform/
+  performance qualification remain pending. Retain
   the unpaired existing-library pre-change baseline without calling it candidate
   acceptance or changing consumer pins in RedXe/RedSalamander.

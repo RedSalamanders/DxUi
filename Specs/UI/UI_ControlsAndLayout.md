@@ -612,9 +612,10 @@ process-global language. Each product/module provides its current translated str
 ## Intended rich-text editor contract
 
 The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
-tracks a new proposed control. No RichTextEditor is currently implemented in the
-library/catalog or advertised as supported. Its standalone prototype does not
-qualify DxUi behavior.
+tracks the retained RichTextEditor v0 preview now implemented in the library and
+catalog. It is bounded to the existing 64 Ki UTF-16/128-history model and basic
+Unicode input. Full rich-text support, TSF/IME/UIA and Markdown conformance remain
+pending; prototype evidence alone never qualifies DxUi behavior.
 
 The intended control owns source revisions, structured rich projections, edits,
 selection and history; its source/formatted/read-only views preserve unchanged
@@ -625,7 +626,7 @@ read-only/disabled state and control lifetime remain mandatory. Embedded hosting
 adds no private HWND/device/swap chain/worker/timer, and composition performs no
 layout/raster/allocation/I/O/wait. Application persistence and assets stay app-owned.
 
-Before support is published, migrate canonical source/tests once, pin parsing and
+Before full rich-text support is published, migrate canonical source/tests once, pin parsing and
 extension conformance contracts, populate catalog/gallery/design-system/docs,
 and close the native/embedded/platform/resource/performance gates. Consumer pin
 and product adoption remain separate from library implementation.
@@ -636,7 +637,7 @@ The reusable v0 source now belongs to DxUi: RichDocument.h, RichMarkdown.h and
 RichTextLayout.h in include/DxUi and DxUi.RichDocument/RichMarkdownProjection/
 RichTextLayout.cpp in src/Controls. The [core guide](../../docs/rich-text.md)
 records exact API/limits. This additive preparation API is distinct from the
-pending retained RichTextEditor above; catalog/gallery/control support is unchanged.
+retained RichTextEditor preview above; it remains independently usable without a host.
 
 The source model must preserve Unicode scalar/CRLF boundaries, immutable shared
 snapshots, transactional selection/history and failure atomicity. Piece-aware
@@ -651,3 +652,29 @@ preserving the separate document. Raster drawing is preparation; embedding must
 not call it from composition. No HWND/device/thread/timer/worker belongs to the
 core. The caller supplies scheduling and stale-result/lifetime checks until the
 retained/shared preparation integration is implemented.
+
+## Retained RichTextEditor v0 preview (D2c)
+
+The control on DxUi.h owns bounded source/selection/history, one cached
+PreparedLayout and a vertical scroll offset. It borrows ControlHost DWrite/D2D,
+Body/Monospace typography, brushes, theme/DPI, focus, capture, Unicode clipboard,
+invalidation and event-driven caret animation in both hosting modes. It creates
+no HWND, device, swap chain, thread or timer. All mutation/preparation is owner-
+thread work. Rasterization belongs to preparation, never composition.
+
+Source offsets include hidden markers and obey scalar/CRLF boundaries. View
+changes preserve bytes/history. SetText resets history without notification;
+source commands notify only after an actual committed change. Notifications and
+clipboard operations recheck lifetime/revision/selection where applicable; no
+callback may resume an old mutation after owner retirement/rebinding. Standard
+notification failures leave the committed edit intact. Read-only permits selection/
+copy while rejecting mutation; disabled controls reject input. Incomplete UTF-16
+character pairs never enter the model. AltGr Unicode entry remains accepted.
+
+The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
+commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
+source/mode/width/typography/flow/DPI changes and releases on hiding/rebinding.
+Caret reveal and wheel scroll remain within the text viewport. Native WM_CHAR
+and embedded DispatchCharacter are basic entry only: SupportsTextInput remains
+false until D2d implements coherent OS composition and accessible rich ranges.
+The capability is explicitly a preview, not complete rich-text/Markdown support.

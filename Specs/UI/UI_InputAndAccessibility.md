@@ -1,7 +1,15 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-17
+
+RichTextEditor v0 is a bounded retained preview with basic Unicode character/key/
+pointer routing through ControlHost in both hosting modes. It deliberately
+returns false from SupportsTextInput: OS composition, TSF/IME sessions and rich
+source/display UIA ranges are D2d and are not implied by generic host text support.
+ReadTextInput returns S_FALSE for this preview. UTF-16 character halves are
+buffered outside the document and retired on selection, source, focus, host,
+visibility, disabled and read-only transitions. AltGr text remains accepted.
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.

@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — D2b reusable core/consumer qualified; D2a incremental and D2c/D2d retained/input integration pending.
+Status: ACTIVE — D2c/D3 bounded retained preview qualified. D2a incremental, D2d OS input/accessibility and complete engine gates remain pending.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -27,8 +27,9 @@ conformance profiles. Normative library requirements are in
 
 The original checkout has concurrent unrelated work. This feature uses a
 separate worktree/branch; do not switch, clean, stage or overwrite that work.
-D2 adds the reusable model/projection/layout to the canonical archive. The
-retained control, catalog, public API revision and gallery pixels are unchanged.
+D2b added the reusable model/projection/layout to the canonical archive; that
+slice left the retained control/catalog/gallery unchanged. D2c now adds the
+retained preview while preserving public API revision 4.
 The additive core has its own explicit bounded support/qualification status.
 
 ## Execution gates
@@ -53,18 +54,18 @@ The additive core has its own explicit bounded support/qualification status.
   once. Replace WRL with WIL and follow stdcpplatest/SDL/WX/configuration rules.
   The standalone app then consumes the single pinned/development DxUi.lib;
   no sibling cpp lists or synchronized second source implementation.
-- [ ] D2c: Implement retained RichTextEditor using ControlHost's existing shared
+- [x] D2c: Implement retained RichTextEditor using ControlHost's existing shared
   DWrite/D2D/theme/DPI/input/clipboard/invalidation services. Embedded mode owns no
   HWND/device/swap chain/thread/timer; native mode uses existing host services.
 - [ ] D2d: Integrate native/embedded TSF/IME, accessible source/display ranges,
   lifetime/rebinding and callback-retirement semantics before claiming support.
-- [ ] D3: Add public API/revision rationale, catalog/factory, populated gallery,
+- [x] D3: Add public API/revision rationale, catalog/factory, populated gallery,
   docs/controls.md usage, design-system guideline/preview, current capability
   status, change fragment and scoped/native test inventory entries together.
 - [ ] D4a: Complete strict pinned CommonMark and GFM profiles, source-preserving
   rich transactions and full independent corpora. Add accepted extension display,
   editing, preservation, diagnostic and worker-staleness tests.
-- [ ] D4b: Native + embedded control tests in x64 Debug/Release/ASan Debug and all
+- [x] D4b-v0: Bounded preview native + embedded control tests in x64 Debug/Release/ASan Debug and all
   ARM64 builds; distinguish native ARM64 execution. Validate/format/tooling and
   exact local/CI obligations under the scoped-testing contract.
 - [ ] D4c: WARP/hostile state/two-view/shared resources, device-loss, clean/dirty/
@@ -72,7 +73,7 @@ The additive core has its own explicit bounded support/qualification status.
   serially on the same fixture with complete provenance and no silent rebaseline.
 - [ ] D4d: Actual IME/Narrator/NVDA/physical input and focus-taking suites at an
   agreed desktop time through the existing lease; synthetic QI is insufficient.
-- [ ] D4e: Generate/review all affected themed gallery sheets with the harness and
+- [x] D4e: Generate/review all affected themed gallery sheets with the harness and
   gallery.ps1 -PublishDocs; do not stage unrelated gallery edits.
 - [ ] D5: Reconcile implemented support and remaining gaps in domain contracts/
   capabilities/docs. Close and move this plan to Done only after its gates.
@@ -224,7 +225,58 @@ Core fixture source/project/C++ bytes match the pinned checkout; the two JSON
 test manifests are semantically identical after Git's LF normalization.
 
 These consumer receipts remain distinct from the canonical 57-suite/code matrix.
-D2b is complete for the bounded v0 core. D2a, D2c, D2d and D3-D5 remain active;
-no retained RichTextEditor, complete Markdown/extensions, TSF/UIA, native ARM64
-runtime or performance acceptance is claimed. The performance advice-required
+At D2b closeout the bounded v0 core was complete, while D2a/D2c/D2d and D3-D5
+remained active. Those receipts claim no retained RichTextEditor, complete
+Markdown/extensions, TSF/UIA, native ARM64 runtime or performance acceptance. The performance advice-required
 reports and original baseline remain unchanged.
+
+## D2c retained preview implementation
+
+RichTextEditor now uses the existing ControlHost services in both hosting modes.
+Its implementation is DxUi.RichTextEditor.cpp and its public surface is DxUi.h;
+it adds no private device/HWND/worker/timer or composition work. It uses the
+bounded canonical model/projection/layout, shared host typography/colors, logical
+focus/capture, clipboard and invalidation/animation. Unicode scalar buffering,
+source selection, v0 formatting/history, bounded scrolling, cancellation and
+notification retirement have named EditorControls and supplied-device tests.
+
+Catalog/factory, populated gallery tile, design-system guideline/preview, usage
+docs, capability and scoped/native inventories are included with this new concrete
+control rather than waiting for a separate publication change. API revision stays
+4: existing declarations and revision-4 consumer contracts remain compatible.
+The advertised addition is retained-rich-text-editor-v0-preview; rich-text-editor
+remains pending. SupportsTextInput is deliberately false for D2c; TSF/IME and rich
+UIA ranges remain D2d. Incremental layout and full syntax/extensions stay D2a/D4a.
+
+Before source changes, a fresh Release Default measurement at 1c6a660a was retained
+under Measurements/RichText/2026-10-17-retained-d2c. The first attempt refused stale
+SkipBuild attestation; a fresh build then hit MSB4166 worker exits. Its diagnostic
+retry completed. These failures are retained separately, not counted as passes.
+This existing-library workload does not instantiate the new control; dedicated
+WARP resource tests qualify its preparation/composition boundaries separately.
+Functional/build/gallery/performance closeout is recorded below after execution.
+
+## D2c closeout
+
+[The retained qualification](../../../Measurements/RichText/2026-10-17-retained-d2c/README.md)
+records six final successful builds, 57 ordinary x64 suite passes with zero skips,
+20 named rich-text scenarios per x64 configuration, 5,082 embedded checks and the
+real ASan heap-use-after-free runtime probe. The final library source fingerprint
+is C3C445AC41AF49947FA1B5144D214D8E3A6C9D7D07B44399CFFF54F7CD11219F.
+Native ARM64 execution is not established by its three cross-builds. Full
+validate.ps1/tooling and pinned formatting pass. All five themed 34-control gallery
+sheets and supplied-device example were regenerated and visually reviewed.
+
+Native/embedded hidden-root preparation now preserves layout retirement and hides
+text; showing restores identical WARP pixels without replacing the view surface.
+The host's empty default DirectWrite locale is accepted and regression-tested,
+including RTL placement and invalid-direction failure atomicity. Clipboard and
+notification callbacks recheck identity/revision/binding and may retire the owner.
+No ANSI path or per-control HWND/device/swap chain/thread/timer is added.
+
+The first serial existing-library comparison flags three timings; its one quiet
+repeat is within-noise-budget against the same retained baseline. Both are kept;
+this is not controlled paired or new-editor stress acceptance and does not close
+D4c or the historic D2b warnings. D4b-v0 qualifies this bounded source only and
+must be rerun when later engine/input behavior changes. D2a, D2d, D4a/D4c/D4d
+and D5 remain open. The plan stays in WIP; consumer adoption is separately owned.

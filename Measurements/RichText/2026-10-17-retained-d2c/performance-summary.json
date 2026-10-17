@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "receiptKind": "performance-diagnostic-summary",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "libraryFingerprint": "C3C445AC41AF49947FA1B5144D214D8E3A6C9D7D07B44399CFFF54F7CD11219F",
+  "baseline": "before.json",
+  "first": {
+    "report": "after.json",
+    "comparison": "after.json.comparison.json",
+    "status": "advice-required",
+    "flags": [
+      {
+        "scenario": "clean",
+        "metric": "prepareP95Ms",
+        "before": 0.0003,
+        "after": 0.0004,
+        "changePercent": 33.33333333333335,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.6533,
+        "after": 1.7528,
+        "changePercent": 6.018266497308411,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0251,
+        "after": 0.0265,
+        "changePercent": 5.5776892430278835,
+        "noisePercent": 5.0,
+        "regressed": true
+      }
+    ]
+  },
+  "repeat": {
+    "report": "after-repeat.json",
+    "comparison": "after-repeat.json.comparison.json",
+    "status": "within-noise-budget",
+    "flags": []
+  },
+  "acceptance": "D4c remains open: retained existing-library diagnostic; no controlled paired or rich-text stress acceptance; neither first warnings nor historic D2b warnings silently closed"
+}

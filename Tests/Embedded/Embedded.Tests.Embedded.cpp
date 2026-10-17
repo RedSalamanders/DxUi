@@ -123,6 +123,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
 #include "Scope.Tests.ComplexUiProfiling.h"
+#include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
 #endif
@@ -1233,6 +1234,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    TestRetainedRichTextSharedViewsAndResources(gpu);
+    TestRetainedRichTextSchedulingCanRetireOwner(gpu);
+    TestRetainedRichTextFailedPreparation(gpu);
     TestPreparationCallbacksCanRetireRoot(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
     TestEmbeddedMultilineGridFrenchCells(gpu);
@@ -1456,7 +1460,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 33, "catalog contains all 33 controls");
+    Check(DxUi::GetControlCatalog().size() == 34, "catalog contains all 34 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

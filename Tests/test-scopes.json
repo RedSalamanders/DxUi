@@ -106,6 +106,16 @@
   ],
   "rules": [
     {
+      "pattern": "src/Controls/DxUi.RichTextEditor.cpp",
+      "scopes": ["EditorControls", "Embedded", "Rendering", "WindowHost", "Theme", "ReadOnly", "Animation", "Accessibility"],
+      "reason": "retained rich-text preview uses shared host raster/input/resource services; D2d remains pending"
+    },
+    {
+      "pattern": "Tests/Embedded/Scope.Tests.RichTextResources.h",
+      "scopes": ["Embedded"],
+      "reason": "supplied-device rich-text resources and callback retirement"
+    },
+    {
       "pattern": "Tests/Controls/Scope.Tests.Rich*",
       "scopes": [
         "EditorControls"

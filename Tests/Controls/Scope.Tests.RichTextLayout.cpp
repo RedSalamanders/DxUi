@@ -189,9 +189,31 @@ void TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement()
 }
 } // namespace
 
+void TestRichTextLayoutHostLocaleAndReadingDirection()
+{
+    wil::com_ptr<IDWriteFactory> factory;
+    THROW_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())));
+    Document document(L"abc");
+    const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Source);
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip = 240;
+    options.locale.clear(); // ControlHost uses DirectWrite's valid default locale.
+    layout.Prepare(factory.get(), projection, options);
+    const auto leadingX      = layout.Caret(0).x;
+    options.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+    layout.Prepare(factory.get(), projection, options);
+    Require(layout.Caret(0).x > leadingX + 100, "host RTL direction changes real paragraph placement");
+    const auto generation    = layout.Generation();
+    options.readingDirection = static_cast<DWRITE_READING_DIRECTION>(99);
+    Reject([&] { layout.Prepare(factory.get(), projection, options); }, "invalid reading direction rejected");
+    Require(layout.Generation() == generation && layout.Ready(), "direction failure keeps prior prepared geometry");
+}
+
 void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
     DXUI_RUN_TEST(TestRichTextLayoutOptionsFailureAtomicityAndRetirement);
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);
+    DXUI_RUN_TEST(TestRichTextLayoutHostLocaleAndReadingDirection);
 }

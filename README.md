@@ -21,7 +21,7 @@ Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git 
 ```
 
 The last command opens a generic effect toggle and intensity slider. Add `--complex-ui` for the independent 83-control workload, or `--output image.png` for a headless PNG. See [samples](docs/samples.md) and [library measurements](Measurements/README.md).
-`gallery.ps1` generates all 33 public controls and variants in five themes plus an HTML index under `.build/gallery`.
+`gallery.ps1` generates all 34 public controls and variants in five themes plus an HTML index under `.build/gallery`.
 Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API construction and event handling.
 
 ## Public API and ownership
@@ -29,8 +29,8 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
 - [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
-  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained rich editor pending.
-- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 33 concrete controls.
+  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor v0 preview; OS text services and conformance pending.
+- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.
 

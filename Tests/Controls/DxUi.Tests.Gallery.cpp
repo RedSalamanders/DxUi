@@ -1080,6 +1080,12 @@ void AddComboItems(ComboBox& combo)
         field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / Unicode preview", 2u, 180.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"# Owned Unicode\r\n**Bold** and *italic*, `code` and ~~strike~~.\r\nGreek \u03b2 | Japanese "
+                                                               L"\u65e5\u672c\u8a9e | \U0001f600\r\nSource-preserving Markdown v0");
+        editor->SetBounds(tile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);

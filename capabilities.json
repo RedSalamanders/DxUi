@@ -80,6 +80,7 @@
     "injected-frame-diagnostics",
     "retained-controls",
     "unicode-rich-text-core-v0",
+    "retained-rich-text-editor-v0-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",

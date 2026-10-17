@@ -25,7 +25,8 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
     if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! validName(options.fontFamily) ||
-        ! validName(options.codeFontFamily) || ! validName(options.locale))
+        ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
+        (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
         throw std::invalid_argument("Invalid rich-text layout options");
     if (projection.text.size() > Document::MaximumUnits || ! IsValidUtf16(projection.text) || projection.source.size() > Document::MaximumUnits ||
         ! IsValidUtf16(projection.source) || projection.units.size() != projection.text.size() ||
@@ -65,6 +66,7 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
                                     format.put()),
           "CreateTextFormat");
     Check(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
+    Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     wil::com_ptr<IDWriteTextLayout> layout;
     Check(factory->CreateTextLayout(projection.text.data(), static_cast<UINT32>(projection.text.size()), format.get(), width, 1000000.0f, layout.put()),
           "CreateTextLayout");

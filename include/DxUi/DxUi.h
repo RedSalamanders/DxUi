@@ -1,6 +1,7 @@
 #pragma once
 #include "Configuration.h"
 #include "PreparedTreeAccessibility.h"
+#include "RichMarkdown.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -2757,6 +2758,84 @@ private:
     std::optional<uint32_t> _swatchArgb;
     std::shared_ptr<const std::function<void()>> _onClick;
     bool _pressed = false;
+};
+
+// Bounded retained preview. OS composition and rich-text UIA ranges are a
+// separate integration gate; this control deliberately does not opt into TSF.
+struct RichTextEditorDebugState
+{
+    bool layoutReady          = false;
+    uint64_t layoutGeneration = 0;
+    float contentHeightDip    = 0;
+    float scrollOffsetDip     = 0;
+    bool dragging             = false;
+};
+
+class RichTextEditor : public Control
+{
+public:
+    explicit RichTextEditor(std::wstring text = {});
+    ~RichTextEditor() noexcept override;
+    // Source UTF-16 offsets, including hidden Markdown delimiters. Invalid
+    // text/ranges throw without changing the document. SetText clears history.
+    void SetText(std::wstring text);
+    [[nodiscard]] std::wstring GetText() const;
+    [[nodiscard]] RichText::SourceSnapshot Snapshot() const noexcept;
+    [[nodiscard]] uint64_t Revision() const noexcept;
+    void SetSelection(RichText::Selection selection);
+    [[nodiscard]] RichText::Selection GetSelection() const noexcept;
+    void SetViewMode(RichText::ViewMode mode);
+    [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
+    void SetReadOnly(bool readOnly) noexcept;
+    [[nodiscard]] bool IsReadOnly() const noexcept;
+    // Programmatic edit commands obey read-only/disabled state. Only successful
+    // source changes notify; selection, mode and SetText updates are silent.
+    bool ReplaceSelection(std::wstring text);
+    bool ToggleFormatting(std::wstring_view marker);
+    bool Undo();
+    bool Redo();
+    [[nodiscard]] bool CanUndo() const noexcept;
+    [[nodiscard]] bool CanRedo() const noexcept;
+    // Called after publication/invalidation. May replace/destroy this control.
+    // Standard callback exceptions are contained; the committed edit remains.
+    void SetOnTextChanged(std::function<void()> callback);
+    [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
+
+    void Paint(ControlHost& host) const override;
+    bool Tick(ControlHost& host, uint64_t nowTickMs) override;
+    bool OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept override;
+    bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept override;
+    bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
+    bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
+    bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
+    bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
+    bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float delta, UINT modifiers) noexcept override;
+    bool OnCopy(ControlHost& host) noexcept override;
+    bool OnSelectAll(ControlHost& host) noexcept override;
+
+protected:
+    void PropagateHost(ControlHost* host) noexcept override;
+    void OnBoundsChanged() noexcept override;
+    void OnHostDpiChanged(ControlHost& host) noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
+    void OnDensityChanged() noexcept override;
+    void OnEnabledChanged(bool enabled) noexcept override;
+    void OnHidden() noexcept override;
+    void OnFocusChanged(ControlHost& host, bool focused) override;
+    void OnCaptureLost(ControlHost& host) override;
+
+private:
+    struct State;
+    std::unique_ptr<State> _state;
+    [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
+    void EnsureLayout(ControlHost& host) const;
+    void RetireLayout() const noexcept;
+    void Changed(bool sourceChanged);
+    void SelectionChanged();
+    void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
+    bool Erase(ControlHost& host, bool backwards);
+    [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] bool Editable() const noexcept;
 };
 
 class TextField : public Control

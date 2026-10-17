@@ -7,11 +7,12 @@ namespace DxUi::RichText
 {
 struct LayoutOptions
 {
-    float widthDip              = 1.0f;
-    float fontSizeDip           = 18.0f;
-    std::wstring fontFamily     = L"Segoe UI";
-    std::wstring codeFontFamily = L"Consolas";
-    std::wstring locale         = L"en-us";
+    float widthDip                            = 1.0f;
+    float fontSizeDip                         = 18.0f;
+    std::wstring fontFamily                   = L"Segoe UI";
+    std::wstring codeFontFamily               = L"Consolas";
+    std::wstring locale                       = L"en-us"; // Empty uses DirectWrite's default, as ControlHost does.
+    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
 };
 struct CaretGeometry
 {

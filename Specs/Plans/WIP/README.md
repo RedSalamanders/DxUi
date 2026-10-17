@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Owned Unicode rich-text editor](RichTextEditor_2026-10-17.md). The standalone RichEditD2D-informed prototype is tested; canonical DxUi migration, host/input/accessibility integration, complete Markdown/extensions and library qualification remain pending.
+- **ACTIVE**: [Owned Unicode rich-text editor](RichTextEditor_2026-10-17.md). D2b canonical core and pinned prototype consumption are qualified; D2c/D3 retained v0 preview is qualified across six builds and 57 ordinary x64 suite runs, with updated gallery/docs. D2a incremental layout, D2d OS input/accessibility and complete Markdown/extensions remain pending.
 
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
 

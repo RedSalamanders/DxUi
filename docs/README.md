@@ -6,7 +6,7 @@ The API uses namespace `DxUi`. It supports a supplied-device embedded view and a
 - [Getting started](getting-started.md): prerequisites, builds, exact-pin consumption and a minimal control tree.
 - [Unicode rich-text core](rich-text.md): bounded source transactions, projections and borrowed DirectWrite preparation.
 - [Hosting and lifetime](hosting.md): graphics, input, DPI, animation, native windows and recovery.
-- [Control guide](controls.md): all 33 controls, configuration, events and model ownership.
+- [Control guide](controls.md): all 34 controls, configuration, events and model ownership.
 - [Intrinsic layout and forms](layout.md): opt-in sizing, bounded preparation, stable editors and accessibility.
 - [Generated gallery](gallery/README.md): five themes and the runnable embedded example.
 - [Design system](../Specs/DesignSystem/README.md): versioned DxUi palette tokens per theme, type styles, metrics,

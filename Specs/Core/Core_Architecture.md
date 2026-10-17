@@ -24,7 +24,7 @@ The bounded Unicode rich-text model, Markdown projection and prepared DirectWrit
 layout are canonical in src/Controls with public RichDocument/RichMarkdown/
 RichTextLayout headers. The standalone prototype is a consumer of DxUi.lib; no
 second reusable implementation is maintained. These pure preparation services
-own no HWND/device/worker and do not publish a retained editor capability.
+own no HWND/device/worker. The retained RichTextEditor v0 preview uses ControlHost services; rich-text TSF/UIA remains pending.
 
 ## Single library and hosting modes
 
@@ -33,7 +33,7 @@ native text/accessibility and Win32 hosting are implementation areas of that tar
 Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
-exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 33 concrete controls;
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 34 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
 attach; RichDocument/RichMarkdown/RichTextLayout expose the bounded preparation core; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 

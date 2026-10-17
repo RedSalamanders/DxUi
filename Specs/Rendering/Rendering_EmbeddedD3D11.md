@@ -1,7 +1,7 @@
 # Embedded D3D11 hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-17
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -44,6 +44,14 @@ rerasterizing unchanged content. Consumers map input to the displayed view and a
 Their widget, overlay, plugin and host-service contracts belong in their own repositories, not this library spec.
 
 ### Implemented public contract
+
+RichTextEditor v0 uses this same ControlHost preparation/cache/composition path.
+It borrows host fonts, brushes, DWrite/D2D and owner scheduling, creating no
+embedded HWND/device/worker/timer. Unicode source, selection and history survive
+surface suspension and device-generation replacement. Its layout retires when
+hidden and rebuilds on demand; clean composition does no rich-text work.
+Basic DispatchCharacter is available; D2d OS composition and rich UIA ranges
+remain pending. See [the rich-text guide](../../docs/rich-text.md).
 
 `GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
 embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared

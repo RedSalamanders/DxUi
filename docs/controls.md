@@ -30,6 +30,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
+| RichTextEditor | Bounded Unicode Markdown v0 retained preview. Use `SetText`, source `SetSelection`, `SetViewMode`, `SetReadOnly`, `ReplaceSelection`, formatting and undo/redo. Borrow host rendering/input services in both hosting modes; TSF/IME and rich UIA are pending. See [rich text](rich-text.md). |
 | TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. A multiline field draws its caret only inside its text viewport: on a partly visible line it is cut at the viewport's edge, and scrolled out of view it is not drawn. |
 | ComboBox | Supply `Item` records with `SetItems`; use `SetOnSelectionChanged`, text/submission callbacks and popup requests for editable selection. For touch, call `SetMinimumPopupItemHeight(48.0f)`; the gallery Modern open variant uses it. |
 | TagPicker | Call `SetOptions(allLabel, values)`, `SetSelectedValues` and `SetOnSelectionChanged` for multiple named choices. |
@@ -311,6 +312,7 @@ If solid-brush creation and its fallback fail, painting omits the affected primi
 ## Rich-text core (supporting API)
 
 [Unicode document/projection/layout preparation](rich-text.md) is available in
-DxUi.lib. It is not a concrete retained RichTextEditor; the 33-control catalog
-and gallery are unchanged. It owns no HWND/device/worker and supplies no IME/UIA
-adapter. The active rich-text plan owns the remaining integration/conformance gates.
+DxUi.lib, together with the retained RichTextEditor v0 preview in the 34-control
+catalog/gallery. Both use caller/host services without a private HWND/device/worker.
+The preview supplies no IME/rich UIA adapter; the active plan owns D2d and the
+remaining conformance/platform/performance gates.

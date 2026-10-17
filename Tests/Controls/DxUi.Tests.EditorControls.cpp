@@ -2,6 +2,7 @@
 #include "Controls.Tests.DxUiTestMovedControls.h"
 #include "Scope.Tests.RichDocument.h"
 #include "Scope.Tests.RichMarkdown.h"
+#include "Scope.Tests.RichTextEditor.h"
 #include "Scope.Tests.RichTextLayout.h"
 
 #include "../../include/DxUi/ControlCatalog.h"
@@ -1879,7 +1880,7 @@ void TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren()
 
 void TestEditorControlsAreCatalogued()
 {
-    Require(GetControlCatalog().size() == 33u, "the catalog lists 33 controls");
+    Require(GetControlCatalog().size() == 34u, "the catalog lists 34 controls");
     for (const ControlKind kind : {ControlKind::Splitter, ControlKind::NumericStepper, ControlKind::ColorPicker})
     {
         std::unique_ptr<Control> control;
@@ -1927,6 +1928,7 @@ void RunEditorControlTests()
     RunRichDocumentTests();
     RunRichMarkdownTests();
     RunRichTextLayoutTests();
+    RunRichTextEditorTests();
 
     // Splitter
     DXUI_RUN_TEST(TestSplitterDefaultState);
