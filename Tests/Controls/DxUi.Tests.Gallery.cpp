@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Scope.Tests.MenuPopupReadiness.h"
 
 #include <algorithm>
 #include <array>
@@ -89,13 +90,10 @@ struct GalleryTheme
 
 [[nodiscard]] HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText)
 {
-    HWND popupHwnd               = nullptr;
-    const DWORD currentProcessId = GetCurrentProcessId();
+    HWND popupHwnd = nullptr;
     while ((popupHwnd = FindWindowExW(nullptr, popupHwnd, L"DxUi_ContextMenu", nullptr)) != nullptr)
     {
-        DWORD popupProcessId = 0u;
-        static_cast<void>(GetWindowThreadProcessId(popupHwnd, &popupProcessId));
-        if (popupProcessId != currentProcessId || GetWindow(popupHwnd, GW_OWNER) != ownerHwnd || ! IsWindowVisible(popupHwnd))
+        if (! IsReadyOwnedContextMenuPopupWindow(popupHwnd, ownerHwnd))
         {
             continue;
         }
@@ -128,7 +126,7 @@ struct GalleryTheme
     return nullptr;
 }
 
-void DismissOwnedContextMenuPopupChain(HWND ownerHwnd) noexcept
+void DismissGalleryPopupChain(HWND ownerHwnd) noexcept
 {
     for (int attempt = 0; attempt < 4; ++attempt)
     {
@@ -262,7 +260,7 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
             return;
         }
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissGalleryPopupChain(ownerWindow.Hwnd()); });
 
         if (submenuItemIndex.has_value())
         {

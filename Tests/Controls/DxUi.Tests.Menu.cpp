@@ -5,6 +5,7 @@
 #include "../../src/Support/PostedPayload.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Scope.Tests.MenuPopupReadiness.h"
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
@@ -741,140 +742,6 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
     return DxUi::BlendColor(theme.overlayBackground, theme.headerHovered, theme.dark ? 0.14f : 0.10f);
 }
 
-HWND FindOwnedContextMenuPopupWindow(HWND ownerHwnd)
-{
-    HWND popupHwnd               = nullptr;
-    const DWORD currentProcessId = GetCurrentProcessId();
-    while ((popupHwnd = FindWindowExW(nullptr, popupHwnd, L"DxUi_ContextMenu", nullptr)) != nullptr)
-    {
-        DWORD popupProcessId = 0;
-        static_cast<void>(GetWindowThreadProcessId(popupHwnd, &popupProcessId));
-        if (popupProcessId != currentProcessId)
-        {
-            continue;
-        }
-
-        // The menu creates a hidden 1x1 measurement HWND before its final layout,
-        // backdrop capture and initial frame. Drivers must not address that HWND yet.
-        if (GetWindow(popupHwnd, GW_OWNER) == ownerHwnd && IsWindowVisible(popupHwnd) != FALSE)
-        {
-            return popupHwnd;
-        }
-    }
-
-    return nullptr;
-}
-
-HWND WaitForOwnedContextMenuPopupWindow(HWND ownerHwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
-{
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    do
-    {
-        if (HWND popupHwnd = FindOwnedContextMenuPopupWindow(ownerHwnd))
-        {
-            return popupHwnd;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
-
-    return nullptr;
-}
-
-bool WaitForWindowDestroyed(HWND hwnd, std::chrono::milliseconds timeout);
-
-// Closes the popup the owner has open, if it has one; returns whether there was one.
-bool DismissOwnedContextMenuPopupOnce(HWND ownerHwnd) noexcept
-{
-    const HWND popupHwnd = FindOwnedContextMenuPopupWindow(ownerHwnd);
-    if (! popupHwnd)
-    {
-        return false;
-    }
-
-    DWORD_PTR unused = 0;
-    static_cast<void>(SendMessageTimeoutW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0, SMTO_ABORTIFHUNG, 1000u, &unused));
-    static_cast<void>(WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(120)));
-    return true;
-}
-
-void DismissOwnedContextMenuPopupChain(HWND ownerHwnd) noexcept
-{
-    for (int attempt = 0; attempt < 16; ++attempt)
-    {
-        if (! DismissOwnedContextMenuPopupOnce(ownerHwnd))
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
-        }
-    }
-}
-
-// Closes every popup the owner opens within `allowance`, and stops early once the popups it closed are gone for good. Returns
-// whether it closed any.
-bool DismissOwnedContextMenusForAtMost(HWND ownerHwnd, std::chrono::milliseconds allowance) noexcept
-{
-    const auto deadline = std::chrono::steady_clock::now() + allowance;
-    bool dismissedAny   = false;
-    int quietPolls      = 0;
-    while (std::chrono::steady_clock::now() < deadline)
-    {
-        if (DismissOwnedContextMenuPopupOnce(ownerHwnd))
-        {
-            dismissedAny = true;
-            quietPolls   = 0;
-            continue;
-        }
-
-        if (dismissedAny && ++quietPolls >= 5)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
-    }
-
-    return dismissedAny;
-}
-
-// ContextMenu::Show runs its modal loop on the owner thread and returns only when the menu closes, and the driver thread is what
-// closes it. A driver that fails before it has a popup to dismiss (the popup can come up later than the driver's wait on a slow
-// runner) would leave the owner thread in that loop for good: the test would hang where it should report the failure the driver
-// recorded. Declare it first in a driver, before its first wait: when the driver leaves with a failure it keeps closing what
-// comes up, for a few seconds. It does nothing when the driver succeeded, which has closed the menu itself. A test that wants to
-// know whether it closed a menu passes `dismissedAny`, which is written when the driver leaves.
-class DismissMenusIfDriverFails final
-{
-public:
-    DismissMenusIfDriverFails(HWND ownerHwnd, const std::string& driverFailure, bool* dismissedAny = nullptr) noexcept
-        : _ownerHwnd(ownerHwnd),
-          _driverFailure(driverFailure),
-          _dismissedAny(dismissedAny)
-    {
-    }
-    DismissMenusIfDriverFails(const DismissMenusIfDriverFails&)            = delete;
-    DismissMenusIfDriverFails& operator=(const DismissMenusIfDriverFails&) = delete;
-    DismissMenusIfDriverFails(DismissMenusIfDriverFails&&)                 = delete;
-    DismissMenusIfDriverFails& operator=(DismissMenusIfDriverFails&&)      = delete;
-
-    ~DismissMenusIfDriverFails()
-    {
-        if (_driverFailure.empty())
-        {
-            return;
-        }
-
-        const bool dismissed = DismissOwnedContextMenusForAtMost(_ownerHwnd, std::chrono::seconds(8));
-        if (_dismissedAny)
-        {
-            *_dismissedAny = dismissed;
-        }
-    }
-
-private:
-    HWND _ownerHwnd;
-    const std::string& _driverFailure;
-    bool* _dismissedAny;
-};
-
 [[nodiscard]] bool SendMenuKeyForMenuSuite(HWND popupHwnd, WPARAM virtualKey) noexcept
 {
     if (! popupHwnd || IsWindow(popupHwnd) == FALSE)
@@ -895,20 +762,10 @@ private:
 
 HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText)
 {
-    HWND popupHwnd               = nullptr;
-    const DWORD currentProcessId = GetCurrentProcessId();
+    HWND popupHwnd = nullptr;
     while ((popupHwnd = FindWindowExW(nullptr, popupHwnd, L"DxUi_ContextMenu", nullptr)) != nullptr)
     {
-        DWORD popupProcessId = 0;
-        static_cast<void>(GetWindowThreadProcessId(popupHwnd, &popupProcessId));
-        if (popupProcessId != currentProcessId)
-        {
-            continue;
-        }
-
-        // Visibility is published after final positioning and the initial frame.
-        // Reading item text alone can succeed on the temporary measurement HWND.
-        if (GetWindow(popupHwnd, GW_OWNER) != ownerHwnd || IsWindowVisible(popupHwnd) == FALSE)
+        if (! IsReadyOwnedContextMenuPopupWindow(popupHwnd, ownerHwnd))
         {
             continue;
         }
@@ -941,28 +798,105 @@ HWND WaitForOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd,
     return nullptr;
 }
 
-bool WaitForWindowDestroyed(HWND hwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
-{
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    do
-    {
-        if (IsWindow(hwnd) == FALSE)
-        {
-            return true;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
-
-    return IsWindow(hwnd) == FALSE;
-}
-
 bool WaitForFocusedWindow(HWND hwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
 {
     return WaitForDxUiThreadFocus(hwnd, static_cast<DWORD>(timeout.count()));
 }
 
-void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
+// Visibility and a sent text lookup do not establish that the posted-probe pump has started.
+// Keep initialization inside discovery's existing budget, separate from the probe's own timeout.
+class MenuModalDispatchReadinessForTest final
+{
+public:
+    explicit MenuModalDispatchReadinessForTest(HWND owner, bool holdVisibleInitialization = false)
+        : _owner(owner),
+          _holdVisibleInitialization(holdVisibleInitialization)
+    {
+        _ready.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        _discovered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(_ready && _discovered, "menu dispatch readiness creates its events");
+        DxUi::DebugSetContextMenuModalLoopPeekHookForTest(
+            [](void* context, HWND popup, UINT) noexcept
+        {
+            auto* self = static_cast<MenuModalDispatchReadinessForTest*>(context);
+            if (! self || self->_notified || GetWindow(popup, GW_OWNER) != self->_owner)
+                return;
+            self->_notified = true;
+            if (self->_holdVisibleInitialization)
+            {
+                // The existing reentrant peek hook models initialization/sent callbacks before
+                // the first queued dispatch. Sent text queries work; posted state probes cannot.
+                self->_heldVisible       = IsWindowVisible(popup) != FALSE;
+                self->_discoveryObserved = PumpSentUntil(self->_discovered.get(), GetTickCount64() + 3000u);
+                // Longer than the unchanged one-second probe, without changing any probe deadline.
+                static_cast<void>(PumpSentUntil(nullptr, GetTickCount64() + 1200u));
+            }
+            static_cast<void>(SetEvent(self->_ready.get()));
+        },
+            this);
+    }
+
+    ~MenuModalDispatchReadinessForTest() noexcept
+    {
+        // The modal loop and driver have ended before this UI-thread scope ends.
+        DxUi::DebugSetContextMenuModalLoopPeekHookForTest(nullptr, nullptr);
+    }
+
+    MenuModalDispatchReadinessForTest(const MenuModalDispatchReadinessForTest&)            = delete;
+    MenuModalDispatchReadinessForTest& operator=(const MenuModalDispatchReadinessForTest&) = delete;
+
+    void NoteDiscovery() const noexcept
+    {
+        static_cast<void>(SetEvent(_discovered.get()));
+    }
+
+    [[nodiscard]] bool WaitUntil(std::chrono::steady_clock::time_point deadline) const noexcept
+    {
+        const auto now = std::chrono::steady_clock::now();
+        if (now > deadline)
+            return false;
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+        return WaitForSingleObject(_ready.get(), static_cast<DWORD>(remaining)) == WAIT_OBJECT_0;
+    }
+
+    [[nodiscard]] bool HeldVisibleInitialization() const noexcept
+    {
+        return _heldVisible && _discoveryObserved;
+    }
+
+private:
+    // Service only sent messages; never remove queued input or posted probes. Waiting stays event-driven.
+    [[nodiscard]] static bool PumpSentUntil(HANDLE event, ULONGLONG deadline) noexcept
+    {
+        const DWORD count = event ? 1u : 0u;
+        for (;;)
+        {
+            if (event && WaitForSingleObject(event, 0u) == WAIT_OBJECT_0)
+                return true;
+            const ULONGLONG now = GetTickCount64();
+            if (now >= deadline)
+                return false;
+            const DWORD wake =
+                MsgWaitForMultipleObjectsEx(count, event ? &event : nullptr, static_cast<DWORD>(deadline - now), QS_SENDMESSAGE, MWMO_INPUTAVAILABLE);
+            if (event && wake == WAIT_OBJECT_0)
+                return true;
+            if (wake != WAIT_OBJECT_0 + count)
+                return false;
+            MSG pending{};
+            static_cast<void>(PeekMessageW(&pending, nullptr, WM_NULL, WM_NULL, PM_NOREMOVE));
+        }
+    }
+
+    HWND _owner;
+    bool _holdVisibleInitialization;
+    wil::unique_event_nothrow _ready;
+    wil::unique_event_nothrow _discovered;
+    // Only the menu's UI thread reads/writes these, including the final assertions after Show returns.
+    bool _notified          = false;
+    bool _heldVisible       = false;
+    bool _discoveryObserved = false;
+};
+void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleInitialization)
 {
     using namespace DxUi;
 
@@ -981,37 +915,56 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     Require(releaseHandler != nullptr, "menu debug-state timeout test creates the release event");
 
+    MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), holdVisibleInitialization);
+
     std::string driverFailure;
     bool unwedgedStateObserved = false;
     bool wedgedProbeFailed     = false;
     std::chrono::milliseconds wedgedElapsed{};
-    std::thread releaser([&]
-    {
-        if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1200));
-        }
-        static_cast<void>(SetEvent(releaseHandler.get()));
-    });
+    std::thread releaser;
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-        const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
+        const auto dismissPopup      = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        const HWND popupHwnd         = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
         if (! popupHwnd)
         {
             driverFailure = "menu debug-state timeout popup appears";
             return;
         }
-
-        ContextMenuPopupDebugState state{};
-        unwedgedStateObserved = DebugGetContextMenuPopupState(popupHwnd, state) && state.itemTexts.size() == 1u && state.itemTexts[0u] == L"State probe";
-        if (! unwedgedStateObserved)
+        dispatchReady.NoteDiscovery();
+        if (! dispatchReady.WaitUntil(discoveryDeadline))
         {
-            driverFailure = "unwedged menu debug-state probe returns the correct popup state";
+            driverFailure = "visible menu and modal dispatch become ready within the existing discovery deadline";
             return;
         }
 
+        ContextMenuPopupDebugState state{};
+        const auto healthyStarted = std::chrono::steady_clock::now();
+        const bool answered       = DebugGetContextMenuPopupState(popupHwnd, state);
+        const auto healthyElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - healthyStarted);
+        unwedgedStateObserved     = answered && state.itemTexts.size() == 1u && state.itemTexts[0u] == L"State probe";
+        if (! unwedgedStateObserved)
+        {
+            driverFailure = std::format(
+                "unwedged menu debug-state probe returns the correct popup state (answered={} elapsedMs={} itemCount={} alive={} visible={} ownerMatches={})",
+                answered,
+                healthyElapsed.count(),
+                state.itemTexts.size(),
+                IsWindow(popupHwnd) != FALSE,
+                IsWindowVisible(popupHwnd) != FALSE,
+                GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd());
+            return;
+        }
+
+        // Handler-entry timing starts at probe preparation, after popup initialization.
+        releaser = std::thread([&]
+        {
+            if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+            static_cast<void>(SetEvent(releaseHandler.get()));
+        });
         DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
         const auto started = std::chrono::steady_clock::now();
         ContextMenuPopupDebugState wedgedState{};
@@ -1023,15 +976,28 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     const POINT menuAnchor          = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-state timeout anchor converts to screen coordinates");
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
     driver.join();
-    releaser.join();
+    if (releaser.joinable())
+        releaser.join();
     DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
 
+    if (holdVisibleInitialization)
+        Require(dispatchReady.HeldVisibleInitialization(), "regression exposes a visible popup answering sent queries before modal dispatch");
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(unwedgedStateObserved, "unwedged menu debug-state probe returns the correct popup state");
     Require(wedgedProbeFailed, "wedged menu debug-state probe returns failure");
     Require(wedgedElapsed >= std::chrono::milliseconds(900) && wedgedElapsed < std::chrono::milliseconds(1800),
             "wedged menu debug-state probe returns within the bounded test timeout");
     Require(! result.has_value(), "dismissed menu debug-state timeout popup returns no command");
+}
+
+void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
+{
+    RunContextMenuDebugStateProbeBoundsWedgedWindowThread(false);
+}
+
+void TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization()
+{
+    RunContextMenuDebugStateProbeBoundsWedgedWindowThread(true);
 }
 
 // A probe sent to a popup whose thread has stopped answering (wedged here in the state probe's handler for four seconds) fails
@@ -1056,32 +1022,35 @@ void TestContextMenuDebugCaptureBoundsWedgedWindowThread()
     releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     Require(releaseHandler != nullptr, "menu debug-probe timeout test creates the release event");
 
+    MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd());
+
     std::string driverFailure;
     bool wedgedCaptureFailed      = false;
     bool unwedgedCaptureSucceeded = false;
     std::chrono::milliseconds wedgedElapsed{};
-    std::thread releaser([&]
-    {
-        if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-        }
-        static_cast<void>(SetEvent(releaseHandler.get()));
-    });
+    std::thread releaser;
     std::thread wedger;
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-        const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Capture probe");
+        const auto dismissPopup      = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        const HWND popupHwnd         = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Capture probe");
         WindowHostBitmapCapture capture{};
-        if (! popupHwnd || ! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
+        if (! popupHwnd || ! dispatchReady.WaitUntil(discoveryDeadline) || ! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
         {
             driverFailure = "menu debug-probe timeout popup appears and answers a capture";
             return;
         }
 
         // A state probe whose handler waits for the release wedges the popup thread; the capture is sent while it waits.
+        // Handler-entry timing starts at probe preparation, after popup initialization.
+        releaser = std::thread([&]
+        {
+            if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
+                std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+            static_cast<void>(SetEvent(releaseHandler.get()));
+        });
         DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
         wedger = std::thread([popupHwnd]
         {
@@ -1107,7 +1076,8 @@ void TestContextMenuDebugCaptureBoundsWedgedWindowThread()
     {
         wedger.join();
     }
-    releaser.join();
+    if (releaser.joinable())
+        releaser.join();
     DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -9723,6 +9693,8 @@ void RunMenuTests()
     runTest("TestPointerInputEventButtonUsesDeliveredPointAndFlags", TestPointerInputEventButtonUsesDeliveredPointAndFlags);
     runTest("TestPointerInputEventWheelUsesDeliveredScreenPoint", TestPointerInputEventWheelUsesDeliveredScreenPoint);
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
+    runTest("TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization",
+            TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization);
     runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
