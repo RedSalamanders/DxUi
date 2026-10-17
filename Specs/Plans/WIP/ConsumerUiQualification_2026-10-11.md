@@ -146,7 +146,8 @@ Full Menu passes 109/109 cases in each of x64 Debug, Release and ASan Debug, wit
 desktop restoration. A controlled visible-initialization regression fails the healthy probe after 1,009 ms
 when only the modal-readiness wait is removed; all original probe deadlines and assertion bands remain unchanged.
 The original untraced full Debug failure stays retained and unattributed; these passes do not identify its
-precise stalling operation. Fresh native CI and every shared qualification gate remain open.
+precise stalling operation. Fresh native CI was pending at that local snapshot; the later PR #83 observation
+and its focus-evidence limits are recorded below. Every shared qualification gate remains unchanged.
 
 The [pilot packet](../../../Measurements/Performance/2026-10-17-attribution-pilot/README.md) completes three
 unchanged canonical reference runs and a separately identified x64 Release diagnostic: 24/24 valid fresh processes,
@@ -333,6 +334,93 @@ with 69/72 unstable same-side controls; the successful main-push workflow skippe
 The preceding 72/72 unstable A/A control study remains unresolved. No accepted paired non-regression
 or trusted policy is claimed. Documentation links to the new packet; this evidence-only change alters
 no visuals or controls, so gallery pixels need no regeneration.
+
+### ARM64 lease focus investigation (17 October 2026)
+
+[PR #83](https://github.com/RedSalamanders/DxUi/pull/83) merged as `7f476777f0275dd778438e1b294dba14766cf3d7`.
+Its first-attempt [post-merge run 39064416921](https://github.com/RedSalamanders/DxUi/actions/runs/39064416921)
+passes all six native profiles, eight enabled public-consumer checks and `ci-gate`. The downloaded artifacts
+contain 128 passing suite receipts with zero capability skips; each profile completes 109/109 Menu and
+165/165 NativeTextInput cases. Push skips paired measurement, so this supplies no new paired-performance result.
+The original untraced Debug healthy-probe failure remains unattributed.
+
+**Accounting correction:** the six ARM64 Menu/NativeTextInput receipt entries represent **three shared leases**,
+one per configuration, rather than six independent focus snapshots or restoration attempts.
+[`test.ps1`](../../../test.ps1) constructs one foreground plan for both children and invokes one lease before
+writing either receipt. All shared lease fields agree between each pair; only `lease.seconds` differs because
+it records that child's duration. Each Full job log contains one native capture-description line and one native
+restoration line. Repeating the state in two child receipts does not add an independent observation.
+
+| Native ARM64 profile | Preparation and saved-foreground evidence | Shared restoration result | Child execution |
+| --- | --- | --- | --- |
+| [Debug](https://github.com/RedSalamanders/DxUi/actions/runs/39064416921/job/117488981967) | CoreWindow and broker minimized; saved description matches the prepared class/process | foreground `restored`, focus `none`, cursor `restored` | Menu 109/109; NativeTextInput 165/165; zero skips |
+| [Release](https://github.com/RedSalamanders/DxUi/actions/runs/39064416921/job/117488982080) | CoreWindow and broker minimized; saved description matches the prepared class/process | foreground `restored`, focus `none`, cursor `restored` | Menu 109/109; NativeTextInput 165/165; zero skips |
+| [ASan Debug](https://github.com/RedSalamanders/DxUi/actions/runs/39064416921/job/117488981979) | CoreWindow and broker minimized; saved description matches the prepared class/process | foreground `restored`, focus `none`, cursor `restored` | Menu 109/109; NativeTextInput 165/165; zero skips |
+
+The source establishes the meaning of `none`:
+
+- [`DesktopLease::Capture/Read/RestoreFocus`](../../../Tests/Support/Support.Tests.DesktopLease.h) saves the
+  pre-confirmation desktop. A missing foreground thread or a minimized foreground window yields a null saved
+  focus; otherwise `WindowsDesktop::ThreadFocus` returns `GUITHREADINFO.hwndFocus` on query success and null on
+  query failure. A successful query can itself return a null focus. `RestoreFocus` returns `NotRecorded`
+  (`none`) immediately when the saved focus is null. It does not attempt `FocusWindow` in that branch.
+- [`RunWithDesktop`](../../../Tests/Support/Support.Tests.InteractiveLease.h) captures before confirmation,
+  warning activation or either child. This status describes the lease's original desktop snapshot, not a
+  control's focus inside Menu or NativeTextInput and not a focus-restoration timeout after those children.
+- [`Prepare-HostedArmDesktop.ps1`](../../../Tools/Prepare-HostedArmDesktop.ps1) runs immediately before the native
+  lease, only under verified hosted/native-ARM64 conditions. It minimizes the selected first-sign-in WWAHost
+  `Windows.UI.Core.CoreWindow` and the visible `UserOOBEWindowClass` broker, checks minimization, and leaves
+  their processes alive. Each of the three job logs records both preparations, then a saved foreground description
+  for the same CoreWindow class and WWAHost process. Matching process identity was checked privately; it does
+  not establish that the HWND was identical or remained minimized at capture.
+- [`RestoreReport::Succeeded`](../../../Tests/Support/Support.Tests.DesktopLease.h) and
+  [`Get-DxUiLeaseProblems/Get-DxUiLeaseSummary`](../../../Tools/InteractiveRun.psm1) retain the existing distinction:
+  `none` is unrecorded rather than `failed`, so a completed child run can pass while its summary explicitly says
+  desktop restoration was not fully verified. A recorded focus that cannot be restored remains a failed lease.
+
+**Supported explanation, with a remaining observation gap:** runner preparation followed by the intentional
+minimized-foreground guard best explains these records. The capture and focus-restoration code is common to
+x64 and ARM64; the special preparation/environment is ARM64-specific. The three x64 Full jobs instead describe
+Windows Terminal as their saved foreground and report focus `unchanged`. This environment comparison is not a
+controlled architecture experiment and does not establish an ARM64 control-focus defect.
+
+The archived result omits the capture-time minimized flag, foreground-thread availability, whether a focus query
+ran, its success/error and whether its returned HWND was null. Source and logs therefore cannot distinguish the
+minimized guard from the other null-focus paths for that exact snapshot. A preparation log before capture is not
+a capture-time observation. Do not report the exact branch as proved or relabel `none` as verified restoration.
+Raw job logs, twelve child receipts, hashes and the comparison audit remain privately retained; this section is
+the sanitized result.
+
+Existing deterministic coverage supports the intended guard without filling that runtime gap:
+`TestDesktopLeaseDoesNotCaptureStaleFocusFromMinimizedForeground` completes once in the `InteractiveLease`
+log of every one of the six native profiles. Its fake desktop has a stale focus on a minimized foreground;
+the test requires a null saved focus, `NotRecorded`, successful foreground/pointer restoration and no focus-setting
+call. The fake-desktop result is not evidence of which branch the real hosted snapshot took.
+
+Concrete next steps, owned here by the qualification/test-harness owner:
+
+1. Add a bounded capture-reason diagnostic to the original `DesktopLease::Read` snapshot, before confirmation or
+   warning activation. Distinguish absent foreground/thread, minimized foreground, failed focus query, successful
+   query with null HWND and recorded live focus. Preserve query success and immediately captured error information
+   where meaningful; do not infer the original state from a second later query. Keep raw desktop identities private.
+   Copy the one shared snapshot/reason into both child receipts while retaining their independent durations.
+2. Extend the fake-backend/result/presentation checks for those distinct outcomes and for visible-focus restoration
+   and read-back failure. Retain the existing minimized-stale-focus regression, failed-restoration rejection,
+   hosted-marker/ownership guards and the difference between `none`, `unchanged`, `restored` and `failed`.
+3. Run one separately identified native ARM64 Debug hosted diagnostic of Menu plus NativeTextInput and inspect its
+   single capture reason and restoration. Bind source, executable and result hashes, retain the original records,
+   and keep all existing preparation, warning, child and restoration limits. This diagnostic is attribution work,
+   not a replacement for the original receipts or performance/physical-input qualification.
+4. If the minimized-window branch is confirmed, retain it as an intentional absence of restorable active focus.
+   Obtain separate native ARM64 evidence starting with a genuinely visible foreground and recorded live focus
+   before claiming a complete focus round trip. Any ordinary interactive run requires the person's time agreement.
+   Do not change the capture target, revive the privacy UI or invent a focus HWND to make the status appear verified.
+
+No remaining qualification checkbox is closed by this investigation. ARM64 opt-in resources, physical input and
+device removal, real IME/AT/touch, consumer adoption, trusted policy and paired acceptance remain open. Timing/FPS
+and process-memory bands remain 5% and 2%; exact budgets, allocation ceilings, probe deadlines and the
+`qualified=false` policy are unchanged. This update changes documentation only; runtime/test behavior and gallery
+pixels are unchanged, so no gallery regeneration is required.
 
 ## 4. Consumer adoption gates
 

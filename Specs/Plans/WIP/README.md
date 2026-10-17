@@ -8,7 +8,7 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [CI run scope](CiRunScope_2026-10-04.md). The validation workflow runs once per change (pushes validate main alone), and a documentation-only pull request skips the six native jobs; the hosted behavior remains to be observed.
 
-- **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single execution owner for shared performance-policy, native ARM64/resource and physical-input/IME/AT gates; source-specific feature/remediation evidence remains separate, and the API-4 register owns consumer actions. Exact merged-main `e0260dde` CI and recorded local x64 opt-in resources retain their original scope. Policy, native ARM64 opt-in resources and physical/product acceptance remain open.
+- **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single execution owner for shared performance-policy, native ARM64/resource and physical-input/IME/AT gates; source-specific feature/remediation evidence remains separate, and the API-4 register owns consumer actions. PR #83 post-merge CI passes; six ARM64 child receipt entries share three leases with unrecorded focus. Preparation/minimized-focus omission is the supported explanation, while capture-reason attribution and full focus restoration remain unverified. Existing policy, resource and physical/product gates and thresholds remain unchanged.
 
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.
 
