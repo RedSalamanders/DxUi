@@ -136,6 +136,44 @@ resources, physical input/device removal, real IME/AT/touch and consumer adoptio
 5% timing/FPS and 2% process memory; exact budgets and absolute allocation ceilings are unchanged. This
 documentation-only follow-up changes no runtime, tooling, public usage or visual behavior; gallery pixels need no update.
 
+### Bounded timing and memory attribution pilot (17 October 2026)
+
+The [pilot packet](../../../Measurements/Performance/2026-10-17-attribution-pilot/README.md) completes three
+unchanged canonical reference runs and a separately identified x64 Release diagnostic: 24/24 valid fresh processes,
+10,080 frames, all three scenarios and two fixed-order observations per timing/heap/capture mode, in 808.049 seconds
+of the 1,800-second budget. Every process passes before/after v2 identity and raw/diagnostic/controller hash checks.
+Fresh outputs, symbols, attestations, compiler/SDK/dependency bytes and source inputs remain privately retained.
+The original PR #80 binary gap remains; the new prototype is not a supported shipped workflow or old-binary replay.
+
+The pilot supplies partial attribution, not performance qualification:
+
+- Empty clock-pair and single-call batch p95 are both 100 ns in the six detailed/no-heap capture processes.
+  Repeated hot-call batches differ substantially from the 300-800 ns frame-Prepare p95 medians; disassembly and
+  linked bytes confirm the batch call loop remains. No batch mean replaces a canonical metric or changes a band.
+- Stage sampling itself costs 2.337-3.523 seconds/process, versus 9.35-13.98 ms for the separately timed optional
+  heap block. Detailed dirty-window overhead outside frame spans is 50.05-72.97 microseconds/frame, versus
+  1.15-2.46 in plain mode. Sampling outside timing can change later readiness; mode differences are not isolated
+  causal overhead estimates. Plain-mode dirty FPS still differs by +12.15%, +24.27% and +18.19% across repeats.
+- Complete stage telemetry and 3,530 host samples do not supply a kernel scheduling trace. WPR refuses system
+  performance policy with `0xc5585011`; its exact cause is unproved. Sampled CPU consumption beyond the owned child
+  is appreciable, without a competing-process or per-frame causal attribution. No quiet/dedicated-host pass is claimed.
+- Capture-on private deltas are 3,816-4,188 KiB; capture-off deltas are zero. A separate MultilineGrid pre-capture
+  pair differs by 1,256 KiB with different sampled heap usage/thread population, while view surface/Grid counters
+  hold. Released snapshots show substantial free/committed heap capacity alongside smaller busy totals. These
+  observations do not identify allocation owners or resolve either historical memory flag.
+- Detailed frames distinguish Prepare-heavy and blocking-Map-heavy cases. The longest measured frame is 12.9317 ms;
+  the historical 584.4771/2,619.8089 ms witnesses are not reproduced or explained. Map is not isolated GPU time.
+
+The existing unchecked timing and memory actions above remain open. Their next bounded work is to time/isolate
+the expensive non-heap stage observers with matched observer-off/on diagnostics; obtain a profiling-capable
+environment or diagnose the WPR refusal before attributing CPU-ready/worker/completion delays; and collect matched
+native allocation/worker ownership evidence at warm20 and teardown without purging caches. Keep capture in the
+canonical workload. Only after observer/environment admission and independent review should this owner schedule
+fresh canonical A/A with at least twelve independent blocks and all three scenarios. The two observations per
+pilot mode are not that calibration. Policy/migration review, every remaining platform/physical/product gate,
+original disagreement flags, thresholds and budgets stay unchanged. This repository update adds documentation
+only; public runtime/test behavior and gallery pixels are unchanged.
+
 ### Earlier candidate evidence
 
 The repaired [v2 A/A repeat](../../../Measurements/Performance/2026-10-10-aa-v2/README.md) completes all 144 reports,
