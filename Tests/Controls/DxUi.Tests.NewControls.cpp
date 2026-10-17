@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Scope.Tests.MenuPopupReadiness.h"
 
 #include <chrono>
 #include <cmath>
@@ -29,36 +30,6 @@ bool WaitForContextMenuPopupState(HWND popupHwnd,
     } while (std::chrono::steady_clock::now() < deadline);
 
     return false;
-}
-
-HWND FindOwnedContextMenuPopupWindow(HWND ownerHwnd)
-{
-    HWND popupHwnd = nullptr;
-    while ((popupHwnd = FindWindowExW(nullptr, popupHwnd, L"DxUi_ContextMenu", nullptr)) != nullptr)
-    {
-        if (GetWindow(popupHwnd, GW_OWNER) == ownerHwnd)
-        {
-            return popupHwnd;
-        }
-    }
-
-    return nullptr;
-}
-
-HWND WaitForOwnedContextMenuPopupWindow(HWND ownerHwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
-{
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    do
-    {
-        if (HWND popupHwnd = FindOwnedContextMenuPopupWindow(ownerHwnd))
-        {
-            return popupHwnd;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
-
-    return nullptr;
 }
 
 [[nodiscard]] D2D1_POINT_2F RectCenter(const D2D1_RECT_F& rect) noexcept
@@ -2107,6 +2078,7 @@ void TestContextMenuPopupScrollsOversizedContent()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -2231,6 +2203,7 @@ void TestContextMenuPopupHonorsSessionMaxRootHeight()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {

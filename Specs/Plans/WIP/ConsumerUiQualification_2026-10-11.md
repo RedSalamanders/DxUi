@@ -138,6 +138,16 @@ documentation-only follow-up changes no runtime, tooling, public usage or visual
 
 ### Bounded timing and memory attribution pilot (17 October 2026)
 
+PR #82's post-merge native run fails x64 Debug's first Menu case. The source-specific
+[popup-readiness repair](PopupReadiness_2026-10-17.md) owns its diagnosis, implementation and functional evidence;
+this ledger retains all existing shared qualification obligations and thresholds unchanged.
+Its final local repair passes 57 fresh noninteractive x64 suite executions and all three ARM64 cross-builds.
+Full Menu passes 109/109 cases in each of x64 Debug, Release and ASan Debug, with zero skips and verified
+desktop restoration. A controlled visible-initialization regression fails the healthy probe after 1,009 ms
+when only the modal-readiness wait is removed; all original probe deadlines and assertion bands remain unchanged.
+The original untraced full Debug failure stays retained and unattributed; these passes do not identify its
+precise stalling operation. Fresh native CI and every shared qualification gate remain open.
+
 The [pilot packet](../../../Measurements/Performance/2026-10-17-attribution-pilot/README.md) completes three
 unchanged canonical reference runs and a separately identified x64 Release diagnostic: 24/24 valid fresh processes,
 10,080 frames, all three scenarios and two fixed-order observations per timing/heap/capture mode, in 808.049 seconds

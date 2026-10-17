@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-17
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -303,6 +303,12 @@ names a native job; its merge to main runs all six.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
+Menu fixture discovery shares the process/owner/visibility rule in
+`Tests/Controls/Scope.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
+`Control` exercises hidden initialization, reveal, wrong owner/class and hidden-again/never-ready states on a
+private desktop that is never made the input desktop. This deterministic regression requires no foreground lease;
+the actual Menu fixtures still require their existing lease and retain their render/scroll assertions and cleanup.
+
 The Grid selection model is held to a copy of its original linear logic. Fixed-seed randomized runs apply thousands of mixed
 operations to both and require equal counts, order, anchors and answers after every one, over universes from one id to 5,200
 so that selections pass the two sizes at which the model changes how it works: 1,024 ids, up to which `IsSelected` scans the
@@ -455,8 +461,17 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
 - **The fixtures.** `TestContextMenuDebugStateProbeBoundsWedgedWindowThread` and
   `TestContextMenuDebugCaptureBoundsWedgedWindowThread` wedge the popup thread in a stalled handler. They require each probe
   to fail at its bound, before the release, and the next capture to succeed.
+  Before probing, both fixtures require the modal-loop peek acknowledgement within the remainder of the same
+  five-second popup-discovery budget. Visibility and a successful sent text lookup alone do not establish readiness
+  for a posted state query. `TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization` holds
+  a visible popup at its first modal-loop peek, services sent queries and withholds posted dispatch for 1,200 ms after
+  discovery. It retains the healthy-state and deliberate-wedge assertions. Removing only the acknowledgement wait
+  must fail the healthy-state assertion; the one-second state and three-second capture bounds stay unchanged.
+  Each fixture starts its three-second handler-entry wait at probe preparation after readiness, so slow
+  initialization cannot pre-release the deliberate stall. The 1,200/4,000 ms release delays and elapsed bands stay unchanged.
 - **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
-  stopped answering.
+  stopped answering. A failed initial healthy-state assertion also reports the answer flag, elapsed time, item count,
+  window validity/visibility and owner match, without publishing raw desktop identities.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
