@@ -5,6 +5,7 @@
   consumer API-revision-4 pin and `PointerEvent::device` adoption are tracked separately in
   [the handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 - **Owner**: Slider, input hosting, gallery and design system.
+- **Shared qualification execution**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026) owns the physical/native-platform/performance acceptance queue. This plan owns Slider implementation and source-specific clipping/overlap evidence; the API-4 register owns consumer actions.
 - **Scope**: Adopt the thumb geometry of `codex/slider-touch-review` (`2b4f7bf`) on current main, whose behavior fixes
   #25 already ported, and add touch feedback: a translucent halo of the 48 DIP grab area while a touch contact drags
   the slider. The library learns which device a pointer event came from, in the window host and in embedded hosts.

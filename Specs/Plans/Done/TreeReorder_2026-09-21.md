@@ -1,11 +1,15 @@
 # Tree multi-select and drag-reorder
 
-- **Status**: ACTIVE (DxUi library implementation is complete: drag-reorder and multi-select are both in `Tree`, merged in #35 as `8ea3201`; `docs/gallery` is
+- **Status**: DONE for the library implementation scope; reconciled 2026-10-16 (drag-reorder and multi-select are both in `Tree`, merged in #35 as `8ea3201`; `docs/gallery` is
   regenerated from `448e924` with the `Tree / Multi-select` tile and the design system republished as version 17 with
   the Tree guideline, preview and styles; RedPrism's pin bump remains, since its adoption pin `271bd54` predates #35)
 - **Owner**: DxUi `Tree` (`include/DxUi/DxUi.h`, `src/Controls`). Remaining RedPrism exact-pin adoption and product
-  verification are consumer-owned and tracked in [the API revision 4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
+  verification are consumer-owned and tracked in [the API revision 4 handoff register](../WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
   RedPrism must not grow a second tree widget.
+- **Qualification owner**: later/current-source platform, performance and physical-input/IME/AT acceptance remains
+  in the [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+  This archival move changes no receipt, approved cost, consumer pin or pending gate. All feature implementation
+  checklist items are complete; the historical evidence below retains its original scope and limitations.
 - **Why**: RedPrism's layers panel is a `Tree`. `ITreeDelegate` could select, invoke, expand, and show a context
   menu. It could not multi-select or drag a row. `TabControl` and `Grid` already drag-reorder. Group Selected
   Layers and Merge Layers in RedPrism already accept several layer ids; the panel could only select one, and
@@ -57,7 +61,11 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
 - Membership tests in the set are linear in its size (Grid's too); Ctrl+A on a very large tree costs an O(n) walk of the
   visible rows for every gesture that changes membership, as `NotifyDataChanged` already does per call.
 
-## Known limits (not caused by this change)
+## Historical limits and later corrections
+
+This section preserves the original measurement/validation scope. The current Tree paint clips rows to content
+(`src/Controls/DxUi.Tree.cpp`, PushAxisAlignedClip); the row-straddle limitation below was corrected after this feature.
+Current unavailable physical/assistive-technology acceptance belongs to the shared ledger above.
 
 - In a window whose only semantic control is the tree, the UI Automation parent chain of a tree item ended at a
   `Control` provider with no parent, so a client scoped to the window did not receive the events raised on the items

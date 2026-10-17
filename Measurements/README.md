@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [Host/control review fixes, 2026-10-17](HostControlReviewFixes/2026-10-17/README.md): candidate-specific local
+  functional, build and diagnostic evidence: 69 passing x64 suite executions including all twelve foreground runs,
+  six builds and verified desktop restoration. Earlier failures remain retained; native-platform, physical/product
+  and trusted performance qualification stay open, with no consumer pin change.
+
 - [S0-S2 final PR evidence and remote merge](CiBudget/2026-10-11-cold-build/final-ci.md): normal #73 merge `67020742`
   has the reviewed tree; 122 native passes, six unlaunched ARM foreground failures, eight synthetic consumers and two
   expected ASan detections. Both complete paired methods and all 72 controls reproduce; 69 controls remain unstable,

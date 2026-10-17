@@ -1,6 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
 #include "Scope.Tests.Forms.h"
+#include "Scope.Tests.HostControlRegressions.h"
 #include "Scope.Tests.IntrinsicLayout.h"
 
 #include <cctype>
@@ -2915,6 +2916,7 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
 
 void RunControlTests()
 {
+    DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
     RunIntrinsicLayoutTests();
     RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);

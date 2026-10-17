@@ -2067,7 +2067,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return true;
-    const POINT screenPoint = host.DipPointToScreenPoint(anchorDip);
+    const POINT screenPoint = Control::ResolveContextMenuAnchor(host, false, anchorDip);
 
     if (! keyboardInvocation)
     {

@@ -1,5 +1,17 @@
 # Completed plans
 
+- [Host and control review fixes](HostControlReviewFixes_2026-10-16.md) — completed 2026-10-17 for approved library repairs, ten behavior regressions, six builds and 69 passing x64 suite executions including all twelve foreground runs with zero skips and verified restoration. Shared performance-policy, native-platform, physical-input/IME/AT and consumer gates remain open; earlier failed/refused attempts remain retained.
+
+- [Tree drag-reorder and multi-select](TreeReorder_2026-09-21.md) — library implementation and original evidence complete; archival reconciliation 2026-10-16 leaves RedPrism adoption and shared current-source qualification open in their owning ledgers.
+
+- [Embedded interaction layout](EmbeddedInteractionLayout_2026-10-06.md) — completed library interaction-only preparation; preserves source-specific validation and separate consumer acceptance.
+- [Interactive Menu validation](InteractiveMenuValidation_2026-10-04.md) — completed lease-output isolation and UIA setup repairs with the recorded interactive validation.
+- [Menu description memory](MenuDescriptionMemory_2026-09-27.md) — completed row-layout memory work; recorded tradeoffs and consumer qualifications retain their original scope.
+- [Merge, toolchain and host-message hygiene](MergeAndHostHygiene_2026-10-01.md) — completed 2026-10-01 for the library scope; consumer follow-ups remain separately owned.
+- [Prepared Tree accessibility](PreparedTreeAccessibility_2026-10-06.md) — completed library scope in the current-library-finish record; RedPrism adoption remains a separate handoff.
+- [RedSalamander migration](RedSalamanderMigration.md) — Done for accepted local x64 Debug/Release scope on 2026-09-13; publication, consumer merge and deferred platform qualification remain separate.
+- [Shared-library readiness](SharedLibraryReadiness_2026-09-09.md) — completed accepted library scope on 2026-09-13, retaining the recorded resource decision and deferred consumer/platform obligations.
+
 - [UI composition S0-S2: intrinsic sizing and stable forms](ConsumerUiImprovements_S0_S2_2026-10-04.md) — completed 2026-10-11 and normally merged in [PR #73](https://github.com/RedSalamanders/DxUi/pull/73) at `67020742` (library implementation, tests, usage contracts, gallery/design-system publication and reviewed current-source evidence; the literal failed policy/ARM foreground qualification remains in the [qualification WIP](../WIP/ConsumerUiQualification_2026-10-11.md), and [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain deferred).
 
 - [Review and integration of the remaining branches](BranchIntegration_2026-10-10.md) — completed 2026-10-10 (PR #69 integrated with current snapshot/model guards and first full presentation; two assignment races reproduced and repaired; native and synthetic consumer results archived, with inconclusive performance and refused ARM64 foreground suites explicit; unfinished prepared-tree work retained).

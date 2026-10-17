@@ -1866,6 +1866,7 @@ private:
     {
         bool active                = false;
         bool hasConnectedAnimation = false;
+        bool clockAnchored         = false;
         uint64_t startTickMs       = 0u;
         uint64_t lastTickMs        = 0u;
         float linearProgress       = 1.0f;
@@ -2106,7 +2107,8 @@ private:
 
     std::shared_ptr<const std::function<void()>> _onSelected;
     RadioButtons* _group = nullptr;
-    bool _checked        = false;
+    std::weak_ptr<int> _groupLifetime;
+    bool _checked = false;
 };
 
 class RadioButtons final : public Panel
@@ -2416,6 +2418,7 @@ private:
         float target         = 0.0f;
         uint64_t startTickMs = 0u;
         bool active          = false;
+        bool clockAnchored   = false;
     };
 
     [[nodiscard]] double ClampValue(double value) const noexcept;
@@ -2453,6 +2456,7 @@ private:
     double _valueAnimationStart         = 0.0;
     double _valueAnimationTarget        = 0.0;
     uint64_t _valueAnimationStartTickMs = 0u;
+    bool _valueAnimationClockAnchored   = false;
     double _step                        = 1.0;
     double _largeStep                   = 10.0;
     SliderOrientation _orientation      = SliderOrientation::Horizontal;
@@ -5069,6 +5073,7 @@ private:
     friend class EmbeddedHost;
     friend struct ControlModelQueryAccess;
     friend class PageHost;
+    friend class Slider;
     friend class Control;
     friend class Panel;
     friend class TabControl;

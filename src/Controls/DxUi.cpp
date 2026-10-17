@@ -1002,15 +1002,21 @@ bool Control::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point
 
 POINT Control::ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept
 {
-    if (! keyboardInvocation)
+    // Pointer dispatch uses content coordinates. Walk the logical parents, including non-Panel owners such
+    // as PageHost, before the virtual hit-bounds query so no control state is read after that query.
+    float ancestorScrollDip = 0.0f;
+    for (const Control* ancestor = _parent; ancestor; ancestor = ancestor->_parent)
     {
-        return host.DipPointToScreenPoint(pointDip);
+        if (const auto* scroll = dynamic_cast<const ScrollPanel*>(ancestor))
+            ancestorScrollDip += scroll->GetScrollOffset();
     }
-
-    const D2D1_RECT_F bounds = GetHitBounds();
-    const float anchorX      = (std::min)(bounds.right, bounds.left + 16.0f);
-    const float anchorY      = bounds.top + ((bounds.bottom - bounds.top) * 0.5f);
-    return host.DipPointToScreenPoint(D2D1::Point2F(anchorX, anchorY));
+    if (keyboardInvocation)
+    {
+        const D2D1_RECT_F bounds = GetHitBounds();
+        pointDip                 = D2D1::Point2F((std::min)(bounds.right, bounds.left + 16.0f), bounds.top + ((bounds.bottom - bounds.top) * 0.5f));
+    }
+    pointDip.y -= ancestorScrollDip;
+    return host.DipPointToScreenPoint(pointDip);
 }
 
 WindowHostCursorKind Control::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2F /*pointDip*/) const noexcept

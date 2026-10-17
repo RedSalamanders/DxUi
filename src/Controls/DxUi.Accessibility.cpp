@@ -1296,20 +1296,18 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
     TControl* current = root;
     for (uint32_t depth = 0u; depth < path.depth; ++depth)
     {
-        const auto* panel = dynamic_cast<const Panel*>(current);
-        if (! panel)
+        if (! current)
         {
             return nullptr;
         }
 
-        const auto children = panel->GetChildren();
-        const size_t index  = path.indices[depth];
-        if (index >= children.size() || ! children[index])
+        const size_t index = path.indices[depth];
+        if (index >= current->GetLogicalChildCount())
         {
             return nullptr;
         }
 
-        current = children[index].get();
+        current = current->GetLogicalChild(index);
     }
 
     return current;
@@ -1326,21 +1324,19 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
     for (uint32_t depth = 0u; depth < path.depth; ++depth)
     {
-        const auto* panel = dynamic_cast<const Panel*>(current);
-        if (! panel)
+        if (! current)
         {
             return false;
         }
 
-        const auto children = panel->GetChildren();
-        const size_t index  = path.indices[depth];
-        if (index >= children.size() || ! children[index])
+        const size_t index = path.indices[depth];
+        if (index >= current->GetLogicalChildCount())
         {
             return false;
         }
 
-        current = children[index].get();
-        if (! current->IsVisible())
+        current = current->GetLogicalChild(index);
+        if (! current || ! current->IsVisible())
         {
             return false;
         }
@@ -1372,16 +1368,10 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
         return true;
     }
 
-    auto* panel = dynamic_cast<const Panel*>(current);
-    if (! panel)
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
     {
-        return false;
-    }
-
-    const auto children = panel->GetChildren();
-    for (size_t index = 0u; index < children.size(); ++index)
-    {
-        if (! children[index])
+        const Control* child = current->GetLogicalChild(index);
+        if (! child)
         {
             continue;
         }
@@ -1392,7 +1382,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
             continue;
         }
 
-        if (FindFirstSemanticControl(children[index].get(), childPath, outPath))
+        if (FindFirstSemanticControl(child, childPath, outPath))
         {
             return true;
         }
@@ -1415,17 +1405,16 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
         ControlPath parentPath     = cursor;
         parentPath.depth           = parentDepth;
         const Control* parent      = ResolveControlAtPath(const_cast<Control*>(root), parentPath);
-        const auto* panel          = dynamic_cast<const Panel*>(parent);
-        if (! panel)
+        if (! parent)
         {
             return false;
         }
 
-        const auto children       = panel->GetChildren();
         const size_t currentIndex = cursor.indices[parentDepth];
-        for (size_t siblingIndex = currentIndex + 1u; siblingIndex < children.size(); ++siblingIndex)
+        for (size_t siblingIndex = currentIndex + 1u; siblingIndex < parent->GetLogicalChildCount(); ++siblingIndex)
         {
-            if (! children[siblingIndex])
+            const Control* sibling = parent->GetLogicalChild(siblingIndex);
+            if (! sibling)
             {
                 continue;
             }
@@ -1436,7 +1425,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
                 continue;
             }
 
-            if (FindFirstSemanticControl(children[siblingIndex].get(), siblingPath, outPath))
+            if (FindFirstSemanticControl(sibling, siblingPath, outPath))
             {
                 return true;
             }
@@ -1724,25 +1713,18 @@ bool AppendAccessibilitySnapshotPointHits(ControlHost& host,
         childContext.translationDip.y -= scrollPanel->GetScrollOffset();
     }
 
-    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    for (size_t index = current->GetLogicalChildCount(); index-- > 0u;)
     {
-        const auto children = panel->GetChildren();
-        for (size_t index = children.size(); index-- > 0u;)
+        const Control* child = current->GetLogicalChild(index);
+        if (! child)
         {
-            if (! children[index])
-            {
-                continue;
-            }
-
-            ControlPath childPath{};
-            if (! TryAppendPathIndex(basePath, index, childPath))
-            {
-                continue;
-            }
-
-            if (! AppendAccessibilitySnapshotPointHits(host, children[index].get(), childPath, snapshot, childContext, build))
-                return false;
+            continue;
         }
+        ControlPath childPath{};
+        if (! TryAppendPathIndex(basePath, index, childPath))
+            continue;
+        if (! AppendAccessibilitySnapshotPointHits(host, child, childPath, snapshot, childContext, build))
+            return false;
     }
 
     if (! IsSemanticAccessibilityControl(current))
@@ -1954,16 +1936,13 @@ size_t CountAccessibilitySnapshotNavigation(const Control* current, const Contro
     }
 
     size_t count = IsSemanticAccessibilityControl(current) ? 1u : 0u;
-    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
     {
-        const auto children = panel->GetChildren();
-        for (size_t index = 0u; index < children.size(); ++index)
+        const Control* child = current->GetLogicalChild(index);
+        ControlPath childPath{};
+        if (child && TryAppendPathIndex(basePath, index, childPath))
         {
-            ControlPath childPath{};
-            if (children[index] && TryAppendPathIndex(basePath, index, childPath))
-            {
-                count += CountAccessibilitySnapshotNavigation(children[index].get(), childPath);
-            }
+            count += CountAccessibilitySnapshotNavigation(child, childPath);
         }
     }
     return count;
@@ -2342,25 +2321,18 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
     }
 
-    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
     {
-        const auto children = panel->GetChildren();
-        for (size_t index = 0u; index < children.size(); ++index)
+        const Control* child = current->GetLogicalChild(index);
+        if (! child)
         {
-            if (! children[index])
-            {
-                continue;
-            }
-
-            ControlPath childPath{};
-            if (! TryAppendPathIndex(basePath, index, childPath))
-            {
-                continue;
-            }
-
-            if (! AppendAccessibilitySnapshotNavigation(host, root, children[index].get(), childPath, snapshot, build, effectiveEnabled))
-                return false;
+            continue;
         }
+        ControlPath childPath{};
+        if (! TryAppendPathIndex(basePath, index, childPath))
+            continue;
+        if (! AppendAccessibilitySnapshotNavigation(host, root, child, childPath, snapshot, build, effectiveEnabled))
+            return false;
     }
     return true;
 }
@@ -3384,20 +3356,16 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         }
     }
 
-    if (const auto* panel = dynamic_cast<const Panel*>(root))
+    for (size_t index = 0u; index < root->GetLogicalChildCount(); ++index)
     {
-        const auto children = panel->GetChildren();
-        for (const auto& child : children)
+        const Control* child = root->GetLogicalChild(index);
+        if (! child)
         {
-            if (! child)
-            {
-                continue;
-            }
-
-            if (const std::wstring_view text = FindAssociatedLabelText(child.get(), target, depth + 1u); ! text.empty())
-            {
-                return text;
-            }
+            continue;
+        }
+        if (const std::wstring_view text = FindAssociatedLabelText(child, target, depth + 1u); ! text.empty())
+        {
+            return text;
         }
     }
 
@@ -10788,16 +10756,10 @@ ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const
         return true;
     }
 
-    const auto* panel = dynamic_cast<const Panel*>(current);
-    if (! panel)
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
     {
-        return false;
-    }
-
-    const auto children = panel->GetChildren();
-    for (size_t index = 0u; index < children.size(); ++index)
-    {
-        if (! children[index])
+        const Control* child = current->GetLogicalChild(index);
+        if (! child)
         {
             continue;
         }
@@ -10808,7 +10770,7 @@ ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const
             continue;
         }
 
-        if (SearchAccessibilityPathForTarget(children[index].get(), childPath, target, outPath, visited))
+        if (SearchAccessibilityPathForTarget(child, childPath, target, outPath, visited))
         {
             return true;
         }

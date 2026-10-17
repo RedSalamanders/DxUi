@@ -2072,7 +2072,11 @@ void TestTreeKeyboardGesturesThroughTheHostMessages()
     {
         bool handled = false;
         static_cast<void>(fixture.host.HandleMessage(nullptr, message, virtualKey, 0, handled));
-        Require(handled || message == WM_KEYUP, "the host handles the key message");
+        if (message == WM_KEYDOWN)
+        {
+            const bool modifier = virtualKey == VK_SHIFT || virtualKey == VK_CONTROL;
+            Require(handled != modifier, "navigation actions are consumed while modifier-only messages retain application fallback");
+        }
     };
     fixture.Click(1u);
     RequireTreeIds(fixture.Selected(), {2u}, "the click that starts the key messages");

@@ -1,7 +1,7 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-16
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -10,6 +10,10 @@ The WindowHost adapter owns HWND integration and its own swap-chain presentation
 It uses the same retained control implementation as embedded mode, with a separate scheduling/presentation adapter.
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
+
+A control Tick result requests continued scheduling, independently of pixel invalidation. The native animation
+dispatcher does not invalidate the window merely because a control needs another tick. Controls explicitly
+invalidate visual changes, including completion; focused editors repaint when the caret blink phase changes.
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before

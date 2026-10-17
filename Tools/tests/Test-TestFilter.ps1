@@ -55,12 +55,17 @@ Invoke-TestCase 'a fixture suite without named tests rejects the filter before i
     }
 }
 Invoke-TestCase 'no runner calls a test directly, so the filter can select every test' {
-    $direct = foreach ($file in Get-ChildItem -Path (Join-Path $repo 'Tests/Controls/DxUiTests*') -File) {
+    $files = @(Get-ChildItem -LiteralPath (Join-Path $repo 'Tests/Controls') -Filter '*.cpp' -File)
+    Assert-True ($files.Count -gt 0) 'the source check must inspect active control translation units'
+    $runnerCount = 0
+    $direct = foreach ($file in $files) {
         $source = [IO.File]::ReadAllText($file.FullName)
         foreach ($runner in [regex]::Matches($source, '(?ms)^void (Run\w+)\(\)\r?\n\{(.*?)^\}')) {
+            ++$runnerCount
             foreach ($call in [regex]::Matches($runner.Groups[2].Value, '(?m)^\s+(Test\w+)\(\);')) { "$($file.Name): $($runner.Groups[1].Value) calls $($call.Groups[1].Value)" }
         }
     }
+    Assert-True ($runnerCount -gt 0) 'the source check must actually discover suite runners'
     Assert-Equal 0 @($direct).Count "runners register tests as DXUI_RUN_TEST(TestName); ($(@($direct) -join '; '))"
 }
 Invoke-TestCase 'without the filter a suite runs every test its runner registers' {

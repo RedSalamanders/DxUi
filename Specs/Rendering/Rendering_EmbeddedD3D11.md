@@ -1,7 +1,7 @@
 # Embedded D3D11 hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-16
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -22,6 +22,11 @@ text antialiasing and D2D/D3D ordering. End preparation before composition and r
 Share an explicit GraphicsDevice pool among views using the same device generation. Each view owns its control tree,
 focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
 state. Graphics recovery must not execute unrelated application operations.
+
+Device replacement and detach release the view's owned targets, surfaces and graphics references without calling
+ClearState or Flush on the application's supplied immediate context. Native swap-chain retirement owns that
+cleanup separately. This preserves application bindings during retirement; Composite still binds its documented
+pipeline state and does not preserve the caller's state while drawing.
 
 ### Preparation and composition
 
@@ -51,6 +56,13 @@ callback is synchronous and must not re-enter the host. Dirty requests coalesce;
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+
+Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
+milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime
+from application time. Native hosting retains its dispatcher clock. Hiding/zero-sizing still suspends ticks under
+the existing retained-motion contract. These two controls' epoch regressions do not qualify every legacy clock
+consumer; the [qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md#remaining-legacy-clock-audit)
+tracks the remaining Button, editor, Tree/Grid and initial-tooltip clock audit.
 
 Preparation rechecks the root after DPI notification and between paint and overlay calls. Root retirement or
 interaction-geometry replacement during painting returns `E_ABORT`, retains pending preparation and leaves the

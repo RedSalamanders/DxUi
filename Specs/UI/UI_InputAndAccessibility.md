@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-16
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
@@ -23,6 +23,13 @@ After the association callback, a newer host transition or a different callback-
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+Keyboard traversal and UI Automation use the same indexed logical-child tree, including PageHost's current page.
+Outgoing transition pages are visual-only. Hidden/disabled ancestors exclude their focus subtree; UIA paths,
+navigation, point hits, label lookup and action resolution retain the same logical indices, including empty slots.
+Retained providers disconnect when their page/control identity leaves that tree rather than binding to a successor.
+Native key-down and system-key-down messages remain unhandled when neither a control nor a host action consumes
+them, so the application's window procedure and DefWindowProc retain their normal fallback behavior.
 
 Form editors expose `LabeledBy`, `IsRequiredForForm`, `IsDataValidForForm`, textual error `ItemStatus`, description
 `HelpText` and the stable field identity as `AutomationId`. A `NumericStepper` attaches these semantics to its

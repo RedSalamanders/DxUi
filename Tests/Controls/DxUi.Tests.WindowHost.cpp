@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Scope.Tests.HostControlRegressions.h"
 #include <DxUi/NativeMenuInterop.h>
 
 #include <array>
@@ -834,7 +835,7 @@ void TestWindowHostKeyboardInputMarksFocusVisible()
 
     bool handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, 'A', 0, handled));
-    Require(handled, "keyboard input handled at host level");
+    Require(! handled, "unconsumed keyboard input remains available to the application");
     Require(host.GetInputModality() == InputModality::Keyboard, "keyboard input switches modality to keyboard");
     Require(host.IsKeyboardFocusVisible(), "keyboard input enables keyboard focus visuals");
 }
@@ -1943,7 +1944,7 @@ void TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal()
 
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_SHIFT, 0, handled));
-    Require(handled, "shift key down is tracked before native focus loss");
+    Require(! handled && (host.DebugGetModifierState() & MK_SHIFT) != 0u, "shift is tracked before native focus loss without consuming the modifier message");
 
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KILLFOCUS, 0, 0, handled));
@@ -5370,6 +5371,11 @@ void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
 
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestPageHostTabTraversalUsesCurrentLogicalChildren);
+    DXUI_RUN_TEST(TestNativeCaretTicksInvalidateOnlyWhenPixelsChange);
+    DXUI_RUN_TEST(TestScrollPanelForwardsSecondaryPressInContentCoordinates);
+    DXUI_RUN_TEST(TestScrollPanelModelContextMenusUseScreenCoordinates);
+    DXUI_RUN_TEST(TestNativeUnhandledKeysReachApplicationFallback);
     DXUI_RUN_TEST(TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus);
     DXUI_RUN_TEST(TestWindowHostNewerCallbackFocusRequestWins);
     DXUI_RUN_TEST(TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus);

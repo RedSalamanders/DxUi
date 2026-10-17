@@ -932,12 +932,9 @@ void CollectFocusableControls(Control* control, std::vector<Control*>& out)
         out.push_back(control);
     }
 
-    if (auto* panel = dynamic_cast<Panel*>(control))
+    for (size_t index = 0u; index < control->GetLogicalChildCount(); ++index)
     {
-        for (const auto& child : panel->GetChildren())
-        {
-            CollectFocusableControls(child.get(), out);
-        }
+        CollectFocusableControls(control->GetLogicalChild(index), out);
     }
 }
 
@@ -3216,7 +3213,7 @@ try
                     }
                     return 0;
                 }
-                static_cast<void>(HandleTabNavigation(ModifiersContainShift(GetModifierState())));
+                handled = HandleTabNavigation(ModifiersContainShift(GetModifierState()));
                 return 0;
             }
             {
@@ -3281,6 +3278,7 @@ try
                     }
                 }
             }
+            handled = false;
             return 0;
         }
         case WM_KEYUP:
@@ -3843,7 +3841,9 @@ void ControlHost::PrepareForSwapChainResize() noexcept
     }
     _targetBitmap.reset();
     _brushCache.clear();
-    if (_d3dContext)
+    // Embedded hosts release only their own D2D targets/resources. The supplied immediate context can still
+    // contain the application's bindings and queued work; native swap-chain retirement alone clears/flushes it.
+    if (_d3dContext && ! _embedded)
     {
         _d3dContext->ClearState();
         _d3dContext->Flush();
@@ -4988,7 +4988,8 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
         _animationSubscriptionId = 0u;
         return false;
     }
-    Invalidate();
+    // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change,
+    // including their settling tick, just as they do in embedded hosting.
     return true;
 }
 } // namespace DxUi

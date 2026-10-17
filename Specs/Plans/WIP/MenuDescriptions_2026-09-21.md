@@ -1,6 +1,10 @@
 # Described native menu entries
 
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
+
+Shared qualification execution is owned by [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+This plan retains menu-specific correction/resource attribution and the historical receipts below; its final
+directed/resource/paired obligations must be reconciled there before closure. Consumer actions stay in the API-4 register.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
 ## October 2 menus without descriptions

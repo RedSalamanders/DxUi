@@ -1,0 +1,12 @@
+#pragma once
+
+void TestPageHostTabTraversalUsesCurrentLogicalChildren();
+void TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren();
+void TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren();
+void TestEmbeddedTransitionsUseApplicationClockIncludingZero();
+void TestNativeCaretTicksInvalidateOnlyWhenPixelsChange();
+void TestScrollPanelForwardsSecondaryPressInContentCoordinates();
+void TestScrollPanelModelContextMenusUseScreenCoordinates();
+void TestNativeUnhandledKeysReachApplicationFallback();
+void TestExtractedRadioDoesNotUseItsFormerGroup();
+void TestEmbeddedGraphicsRetirementPreservesApplicationBindings();
