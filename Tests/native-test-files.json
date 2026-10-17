@@ -70,6 +70,7 @@
   "Tests/Embedded/Embedded.Tests.PreparedTreeAccessibilitySemantics.h",
   "Tests/Embedded/Embedded.Tests.PreparedTreeEvents.h",
   "Tests/Embedded/Embedded.Tests.PreparedTreeRootLifetime.h",
+  "Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h",
   "Tests/Embedded/Scope.Tests.ComplexUiProfiling.h",
   "Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h",
   "Tests/Embedded/Scope.Tests.RichTextResources.h",

@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters and source UIA range commands functionally qualified. Controlled Default profiling is complete; unstable controls and the unqualified policy keep performance acceptance on HOLD. D2a, complete engine and physical input/AT gates remain pending.
+Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands and indexed snapshot reads functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Remaining D2a, complete engine and physical input/AT gates stay open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -447,3 +447,103 @@ The refused TEMP/TMP setup, original warnings and raw timing outliers remain
 retained. Library/harness/policy and consumer pins are unchanged. Further causal
 attribution needs a separate bounded boundary/stack/scheduler investigation;
 this diagnostic closes no D4c, full-scene or trusted-policy gate.
+
+### Clear/readback and scheduler follow-through, 2026-10-18
+
+The next slice uses a separate opt-in `dxui-complex-ui-boundaries-v1` diagnostic.
+The canonical benchmark, baseline, judges, bands and policy remain frozen. After
+200 fixed dirty warm frames and a populated capture, eight 40-frame clean probes
+run full, clear-only, composite-only, readback-only, then reverse order. All retain
+no-op preparation, target binding and blocking one-pixel completion. Interior QPC
+edges can be disabled to examine timer observer effects. Absolute QPC and main
+thread creation identity permit external trace alignment; CPU intervals and
+omitted-command controls are not independently measured GPU costs.
+
+- [x] Retain a fresh pre-change canonical Release Default baseline.
+- [x] Attempt a uniquely named bounded scheduler preflight without changing
+  machine policy or touching other recordings. Corrected profile selection is
+  refused with `0xc5585011`; preserve the initial selector error as well. No
+  scheduler trace or scheduler-delay conclusion is available.
+- [x] Implement bounded diagnostic schema/runner, validation and negative tests;
+  qualify native commands and unchanged resource invariants.
+- [x] Overlay the exact final diagnostic closure onto the pre-UIA-range baseline,
+  build both sides under common external TEMP/TMP and verify full identities.
+- [x] Predeclare eight fresh processes: timers-off ABBA, timers-on BAAB. Limit
+  the overall pilot to 900 seconds and each native child to 120 seconds. Preserve
+  all failures, outliers and unattempted slots; no builds/tests during probes.
+- [x] Analyze per-frame boundaries and omitted-command controls, independently
+  verify intervals/raw hashes, archive all evidence and reconcile these docs.
+- [ ] Continue D2a/D4a and remaining feature gates after this diagnostic slice;
+  no passing diagnostic closes the engine, trusted-policy or physical AT gates.
+
+The [boundary packet](../../../Measurements/RichText/2026-10-18-uia-boundaries/README.md)
+retains all eight processes (234.312 seconds), 2,560 native probe frames and
+byte-identical populated captures. Full-frame same-p95 blocking-Map shares center
+at 96.586% / 96.520%. Omitted-command and timers-off/on controls remain variable,
+including B Off composite-only tails of 2.0695 / 1.1337 ms. This locates an API
+wait boundary without identifying scheduler or GPU duration. Exact clean/surface/
+allocation/hidden invariants pass; both overlays restore the baseline clean.
+No production rendering change, regression waiver or acceptance verdict follows.
+
+### D2a indexed snapshot lookup follow-through
+
+- [x] Add independent fragmented-source, cross-piece UTF-16/CRLF, coalescing,
+  snapshot/history-retirement and concurrent-read oracles. Capture a Release
+  pre-change filtered run with fixed lookup trials under the root test runner.
+- [x] Replace per-offset piece scans with binary-search cumulative piece ends,
+  reusing the existing descriptor fields. Start slices and equal-range checks at
+  their first relevant piece. Preserve atomic edits, snapshots/history, capacity,
+  scalar/CRLF boundaries and no added descriptor storage.
+- [x] Run affected native suites across x64 Debug/Release/ASan Debug, all ARM64
+  builds, validators/tooling/formatting and retain before/after diagnostic trials.
+- [x] Reconcile normative contracts, guide, capabilities and measurements.
+
+This is a bounded D2a substep. Descriptor copying on edit, whole-document
+projection/layout, indexed large-document trees, shared preparation scheduling,
+full Markdown/extensions and physical input/AT qualification remain active work.
+No visual/control/gallery state changes are intended by lookup indexing.
+
+The [indexed-source packet](../../../Measurements/RichText/2026-10-18-indexed-source/README.md)
+retains 57 passing ordinary x64 suite/log pairs with zero skips, all six builds,
+the specific sanitizer heap-use-after-free probe, four unpaired canonical reports,
+six post-change timer/profile branch diagnostics, the complete tooling/validator
+run and formatting. The library fingerprint is 4EDDEF355659895319D81501089066D93E8F6885C2701A0C19C149C17C2EC014.
+The unchanged 4,096-fragment oracle's Release lookup-trial median changes from
+6.5310 to 0.7234 ms; this one-process-per-revision observation is descriptive,
+without same-binary controls or acceptance. All 1,920 post-change diagnostic
+probe frames pass clean/allocation/surface/hidden checks and six populated captures
+match the earlier study. ARM64 remains cross-build-only. Existing bounded-v0
+capability flags and gallery content are unchanged; consumer pins are untouched.
+
+### Remaining Unicode and bounded-admission implementation
+
+The next Unicode step reuses the existing shared text-element helper in
+DxUi.SingleLineTextEditing.cpp, which approximates combining marks/ZWJ chains.
+Do not create a parallel rich-editor grapheme implementation. Separate the pure
+UTF-16 decoder/boundary service from host drawing dependencies, then let the rich
+layout and existing controls/UIA use the same pinned rule set.
+
+- [x] Collect and hash-pin Unicode 17.0.0 GraphemeBreakProperty, emoji-data,
+  DerivedCoreProperties/InCB, the complete GraphemeBreakTest and license. An
+  [reference PowerShell prototype](../../../Measurements/RichText/2026-10-18-unicode-preparation/README.md)
+  generates 833 disjoint property intervals and
+  all 766 original conformance vectors; its rule state machine matches all 766.
+  This is reference/prototype evidence, not implemented native capability.
+- [ ] Integrate deterministic generated data and source/license provenance with
+  generator verification tests. No floating upstream inputs or corpus exclusions.
+- [ ] Upgrade the shared allocation-free boundary walker and rich layout's
+  navigation/hit stops; retain explicit source ACP/IME geometry semantics.
+- [ ] Add complete native conformance, malformed/bounds, shared editor/UIA,
+  native/embedded rich navigation/deletion and prepared-resource tests.
+- [ ] Qualify code, tests, specs/docs and affected configuration/platform gates;
+  distinguish logical grapheme support from full visual bidi/word navigation.
+- [ ] Bound DecodeUtf8 before result allocation. Current code queries decoded
+  size, allocates the full result, then enforces MaximumUnits. Reject impossible
+  byte lengths and decoded sizes first; test admission and exact limits with an
+  Embedded C++ allocation-byte budget. This does not raise capacity.
+
+The Markdown parser/helper dependency policy remains an explicit active decision:
+the owned control/rendering/editing services stay C++, while a pinned Unicode
+grammar helper inside the single archive is being clarified with the owner.
+Foreground Menu/NativeTextInput timing agreement is also pending. Neither pending
+question blocks the independent Unicode/storage work or authorizes desktop use.

@@ -1,0 +1,37 @@
+[
+  {
+    "file": "GraphemeBreakProperty.txt",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakProperty.txt",
+    "sha256": "D6B51D1D2AE5C33B451B7ED994B48F1F4DC62B2272A5831E7FD418514A6BAE89",
+    "bytes": 99377,
+    "collectedUtc": "2026-10-17T22:42:34.6806533Z"
+  },
+  {
+    "file": "GraphemeBreakTest.txt",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt",
+    "sha256": "E2D134D2C52919BACE503EBB6A551C1855FE1A1FAEC18478C78FFF254A1793EC",
+    "bytes": 126570,
+    "collectedUtc": "2026-10-17T22:42:34.9391554Z"
+  },
+  {
+    "file": "DerivedCoreProperties.txt",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt",
+    "sha256": "24C7FED1195C482FAAEFD5C1E7EB821C5EE1FB6DE07ECDBAA64B56A99DA22C08",
+    "bytes": 1134783,
+    "collectedUtc": "2026-10-17T22:42:35.5242488Z"
+  },
+  {
+    "file": "emoji-data.txt",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt",
+    "sha256": "2CB2BB9455CDA83E8481541ECF5B6DFDA66A3BB89EFA3FA7C5297ECCF607B72B",
+    "bytes": 107324,
+    "collectedUtc": "2026-10-17T22:42:35.8752118Z"
+  },
+  {
+    "file": "LICENSE.txt",
+    "uri": "https://www.unicode.org/license.txt",
+    "sha256": "E7A93B009565CFCE55919A381437AC4DB883E9DA2126FA28B91D12732BC53D96",
+    "bytes": 1995,
+    "collectedUtc": "2026-10-17T22:42:36.1163927Z"
+  }
+]

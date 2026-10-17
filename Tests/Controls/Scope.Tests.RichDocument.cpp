@@ -1,7 +1,9 @@
 #include "Scope.Tests.RichDocument.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichDocument.h>
+#include <atomic>
 #include <random>
+#include <thread>
 namespace
 {
 using namespace DxUi::RichText;
@@ -149,6 +151,94 @@ void TestRichDocumentUnicodeCodecRejections()
     const std::wstring source = L"\ufeff\u03b2\U0001f600\r\nx\ry\n";
     Require(DecodeUtf8(EncodeUtf8(source)) == source, "BOM supplementary scalar and mixed-newline codec identity");
 }
+void TestRichDocumentFragmentedSnapshotOracle()
+{
+    Document document(L"A\rB");
+    document.Replace(2, 2, L"\n", {3, 3});
+    std::wstring oracle = L"A\r\nB";
+    document.SetSelection({document.Length(), document.Length()});
+    constexpr std::size_t insertions = 4096u;
+    const std::wstring token         = L"u\U0001f600\r\nv";
+    for (std::size_t index = 0u; index < insertions; ++index)
+    {
+        Require(document.ReplaceSelection(token), "fragmented source appends one independent Unicode transaction");
+        oracle += token;
+    }
+    const auto snapshot = document.Snapshot();
+    Require(snapshot.Text() == oracle && snapshot.Length() == oracle.size(), "fragmented source matches an independent flat string");
+    std::array<std::size_t, 8192> queries{};
+    std::mt19937 random(638221u);
+    std::size_t expected = 0u;
+    for (auto& offset : queries)
+    {
+        offset = random() % (oracle.size() + 1u);
+        expected += IsEditBoundary(oracle, offset) ? 1u : 0u;
+    }
+    std::array<double, 5> elapsed{};
+    for (auto& trial : elapsed)
+    {
+        std::size_t actual = 0u;
+        const auto started = std::chrono::steady_clock::now();
+        for (const auto offset : queries)
+            actual += snapshot.IsBoundary(offset) ? 1u : 0u;
+        trial = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        Require(actual == expected, "fragmented random-access boundary checksum matches flat UTF-16/CRLF oracle");
+    }
+    // Descriptive diagnostics only: no elapsed-time assertion on an uncontrolled host.
+    // The root runner separately binds the test/source/artifact profile and default benchmark.
+    std::cout << "RichDocument fragmented lookup diagnostic: insertions=" << insertions << " units=" << oracle.size() << " queries=" << queries.size()
+              << " expected=" << expected << " documentBytes=" << sizeof(Document) << " snapshotBytes=" << sizeof(SourceSnapshot) << " trialMs=";
+    for (const auto trial : elapsed)
+        std::cout << trial << ',';
+    std::cout << '\n';
+    std::vector<std::size_t> boundaries;
+    for (std::size_t offset = 0u; offset <= oracle.size(); ++offset)
+        if (IsEditBoundary(oracle, offset))
+            boundaries.push_back(offset);
+    for (std::size_t probe = 0u; probe < 512u; ++probe)
+    {
+        const auto firstIndex = random() % boundaries.size();
+        const auto lastIndex  = std::min(firstIndex + random() % 32u, boundaries.size() - 1u);
+        const auto first = boundaries[firstIndex], last = boundaries[lastIndex];
+        Require(snapshot.Slice(first, last) == oracle.substr(first, last - first), "fragmented slice skips unrelated pieces and preserves exact Unicode");
+    }
+    Require(snapshot.Slice(oracle.size(), oracle.size()).empty() && ! snapshot.IsBoundary(oracle.size() + 1u), "fragmented end and outside bounds");
+    document.Reset(L"replacement");
+    Require(snapshot.Slice(0u, oracle.size()) == oracle, "fragmented snapshot survives complete document/history retirement");
+    Document coalesced(L"a\U0001f600\r\nb");
+    coalesced.Replace(1u, 1u, L"Q", {2u, 2u});
+    coalesced.Replace(1u, 2u, L"", {1u, 1u});
+    Require(coalesced.Snapshot().Slice(1u, 5u) == L"\U0001f600\r\n", "removing an inserted piece rejoins the original buffer at correct offsets");
+    Require(coalesced.Undo() && coalesced.Redo() && coalesced.Text() == L"a\U0001f600\r\nb", "coalesced offsets survive undo and redo");
+}
+void TestRichDocumentConcurrentSnapshotReads()
+{
+    Document document(L"A\rB");
+    document.Replace(2u, 2u, L"\n", {3u, 3u});
+    document.SetSelection({document.Length(), document.Length()});
+    for (std::size_t index = 0u; index < 256u; ++index)
+        document.ReplaceSelection(L"\U0001f600z");
+    const auto snapshot = document.Snapshot();
+    const auto expected = snapshot.Text();
+    std::atomic<bool> valid{true};
+    std::thread reader([snapshot, &valid, &expected]
+    {
+        for (std::size_t round = 0u; round < 512u; ++round)
+            if (snapshot.Slice(1u, 3u) != L"\r\n" || snapshot.Slice(4u, snapshot.Length()) != std::wstring_view(expected).substr(4u) ||
+                snapshot.IsBoundary(2u) || snapshot.IsBoundary(5u))
+                valid.store(false, std::memory_order_relaxed);
+    });
+    for (std::size_t round = 0u; round < 256u; ++round)
+    {
+        document.Reset(L"new revision");
+        document.ReplaceSelection(L"x");
+        document.Undo();
+        document.Redo();
+    }
+    reader.join();
+    Require(valid.load(std::memory_order_relaxed) && snapshot.Text() == expected,
+            "background snapshot reads remain immutable while the owner edits/resets history");
+}
 } // namespace
 
 void RunRichDocumentTests()
@@ -157,4 +247,6 @@ void RunRichDocumentTests()
     DXUI_RUN_TEST(TestRichDocumentSlicesAndJoinedBoundaries);
     DXUI_RUN_TEST(TestRichDocumentCrossPieceUnicodeOracle);
     DXUI_RUN_TEST(TestRichDocumentUnicodeCodecRejections);
+    DXUI_RUN_TEST(TestRichDocumentFragmentedSnapshotOracle);
+    DXUI_RUN_TEST(TestRichDocumentConcurrentSnapshotReads);
 }

@@ -3,6 +3,7 @@
 .DESCRIPTION Fixed 20/100/200 dirty warm checkpoints and 40-frame clean/dirty probes. Diagnostic only; no acceptance or policy verdict.
 .PARAMETER Heap Include bounded process-local heap accounting outside frame windows. Run paired fresh heap-off/on processes to identify observer effects.
 .PARAMETER SkipBuild Reuse only an exact successful current v2 build. Both before/after identities and the diagnostic helper closure are verified.
+.PARAMETER BoundaryTimers Select the separate Default-only clear/composition/readback diagnostic, with interior QPC timers Off or On. Cannot combine with Heap.
 #>
 [CmdletBinding()]
 param(
@@ -10,16 +11,21 @@ param(
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [ValidateSet('Default','MultilineGrid')][string] $Scenario = 'Default',
     [switch] $Heap,
+    [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
     [string] $OutputPath = '',
     [switch] $SkipBuild
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
 $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Profiling diagnostics require native execution matching the requested architecture.'
 }
-if (-not $OutputPath) { $OutputPath = Join-Path $PSScriptRoot ".build/reports/Profiling-$Scenario-$Platform-$Configuration-$(if ($Heap) { 'Heap' } else { 'NoHeap' }).json" }
+if (-not $OutputPath) {
+    $kind = if ($BoundaryTimers) { "Boundaries-$BoundaryTimers" } elseif ($Heap) { 'Heap' } else { 'NoHeap' }
+    $OutputPath = Join-Path $PSScriptRoot ".build/reports/Profiling-$Scenario-$Platform-$Configuration-$kind.json"
+}
 $OutputPath = [IO.Path]::GetFullPath($OutputPath)
 if ([IO.Path]::GetExtension($OutputPath) -ine '.json') { throw 'Profiling output must name a JSON report.' }
 $rootPrefix = [IO.Path]::GetFullPath($PSScriptRoot) + [IO.Path]::DirectorySeparatorChar
@@ -37,7 +43,7 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1') -Platform $Platform -Configuration $Configuration
     if ($LASTEXITCODE -ne 0) { throw "Profiling build failed with exit code $LASTEXITCODE." }
 }
-Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -OutputPath $OutputPath
+Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -BoundaryTimers $BoundaryTimers -OutputPath $OutputPath
 Write-Host "Diagnostic report: $OutputPath"
 Write-Host "Exact native bytes: $OutputPath.raw.json"
 Write-Host 'Diagnostic only; no acceptance or policy verdict.'

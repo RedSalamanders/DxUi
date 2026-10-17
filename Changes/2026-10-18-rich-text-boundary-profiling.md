@@ -1,0 +1,1 @@
+- Add a bounded opt-in clear/composition/readback diagnostic with switchable QPC boundaries, provenance guards and schema/failure tests for the RichTextEditor performance investigation; preserve the canonical benchmark and pending acceptance gates.

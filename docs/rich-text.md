@@ -212,10 +212,14 @@ Accepted BOM and mixed line endings round-trip unchanged.
 
 `SourceSnapshot::IsBoundary` and `Slice(first,last)` inspect shared pieces without
 flattening a revision. Slices and edits preserve scalar and CRLF boundaries,
-including CR/LF split across two pieces. Edits copy descriptors and the inserted
-buffer, not the complete old/new source text. This is a bounded piece vector,
-not a large-document indexed tree; snapshot text materialization, projection
-and layout still prepare the complete bounded document.
+including CR/LF split across two pieces. Cumulative source ends reuse the existing
+piece descriptors for binary-search offset lookup; a slice starts at its first
+intersecting piece. This adds no separate prefix array or per-piece field.
+Captured snapshots support concurrent immutable reads while the owner changes
+its document. The Document itself remains owner-thread mutable. Edits copy
+descriptors and the inserted buffer; snapshot text materialization, projection
+and layout still prepare the complete bounded document. The capacity is unchanged;
+incremental layout and large-document storage remain pending.
 
 The v0 grammar handles ATX headings, paired strong/emphasis/strike/code, nesting
 and paragraphs. Unknown/incomplete syntax remains editable source. Source and
@@ -284,3 +288,18 @@ the clean-p95 band and all 24 flag some drift. A consistent slowdown and
 non-regression acceptance are both unestablished. Policy qualification,
 rich-editor workload performance and the original historical gates remain open;
 no library source, threshold, baseline or consumer pin changed.
+
+The [clear/readback follow-up](../Measurements/RichText/2026-10-18-uia-boundaries/README.md)
+retains eight fixed processes with timers-off/on and omitted-command controls.
+Blocking Map accounts for about 96.5% of each side's same-p95 full-frame tail;
+controls remain variable and Windows refused scheduler tracing. This identifies
+a wait boundary, without proving GPU duration, scheduler delay or non-regression.
+The canonical workload and all original acceptance gates remain unchanged.
+
+The [indexed-source qualification](../Measurements/RichText/2026-10-18-indexed-source/README.md)
+retains all 57 current ordinary x64 suite runs, six builds and both boundary-timer
+modes in each x64 profile. The fragmented Unicode oracle and concurrent snapshot
+reads pass; the fixed lookup-trial median moves from 6.5310 to 0.7234 ms in Release.
+That observation is descriptive, with no paired performance acceptance. ARM64
+runtime, full Markdown/extensions, incremental preparation and physical IME/AT
+remain open. No consumer pin or gallery content changed.

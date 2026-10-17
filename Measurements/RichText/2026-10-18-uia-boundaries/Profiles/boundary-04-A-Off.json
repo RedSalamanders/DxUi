@@ -1,0 +1,4958 @@
+{
+  "schema": 1,
+  "fixture": "dxui-complex-ui-boundaries-v1",
+  "classification": "diagnostic-only",
+  "renderer": "WARP",
+  "scenario": "Default",
+  "heapSampling": false,
+  "width": 1280,
+  "height": 720,
+  "dpi": 96,
+  "controls": 83,
+  "modelRows": 1000,
+  "warmFrames": 200,
+  "probeFrames": 320,
+  "hiddenPreparations": 0,
+  "hiddenComposites": 0,
+  "hiddenSurfaceBytes": 0,
+  "compiler": 195136260,
+  "iteratorDebugLevel": 0,
+  "pointerBits": 64,
+  "processId": 66808,
+  "mainThreadId": 33356,
+  "mainThreadCreation100ns": 134367488255666730,
+  "boundaryTimers": false,
+  "telemetryCompleteness": "complete",
+  "fixedDiagnosticStorageBytes": 27072,
+  "clock": {
+    "implementation": "QueryPerformanceCounter",
+    "ticksPerSecond": 10000000,
+    "tickNanoseconds": 100
+  },
+  "timingScope": "Absolute QPC edges: frame start, prepare end, bind end, clear end, composite end, copy end, blocking Map end, Unmap end, frame end. Interior edges are zero when timers are off. Controls omit clear and/or composition; preparation, binding and one-pixel completion remain.",
+  "schedulingScope": "Per-window main/process cumulative counters are sampled outside frames. QPC edges permit external ETW alignment; no scheduler-delay, GPU-duration or dedicated-host attribution.",
+  "windows": [
+    {
+      "clear": true,
+      "composite": true,
+      "startedQpc": 1443614555990,
+      "endedQpc": 1443614732563,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2812500,
+          "cycles": 1632108970
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 5781250,
+          "cycles": 9261738485
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1639934146
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 10228981035
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614555991,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614563160
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614563162,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614568358
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614568360,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614572679
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614572680,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614576882
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614576888,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614580997
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614580998,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614585103
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614585104,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614589308
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614589308,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614593414
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614593415,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614597728
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614597729,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614602023
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614602024,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614606059
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614606060,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614610373
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614610374,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614614725
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614614726,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614619418
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614619418,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614623712
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614623713,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614628206
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614628206,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614632247
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614632247,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614636149
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614636150,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614640770
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614640770,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614645083
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614645084,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614649334
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614649335,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614653497
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614653498,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614657601
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614657601,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614662158
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614662158,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614666515
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614666516,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614670847
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614670848,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614674863
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614674864,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614678942
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614678943,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614682890
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614682890,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614687188
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614687190,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614692679
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614692679,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614697198
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614697200,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614702264
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614702265,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614706508
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614706508,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614710521
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614710521,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614715639
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614715640,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614719659
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614719659,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614723620
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614723621,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614728283
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614728283,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614732563
+          ]
+        }
+      ]
+    },
+    {
+      "clear": true,
+      "composite": false,
+      "startedQpc": 1443614733103,
+      "endedQpc": 1443614757723,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1640053892
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 10229088335
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1643280618
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 10255194001
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614733105,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614734346
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614734346,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614735613
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614735613,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614736801
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614736802,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614737574
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614737574,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614738383
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614738384,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614739178
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614739179,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614739877
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614739878,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614740513
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614740513,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614741055
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614741056,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614741634
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614741634,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614742170
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614742171,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614742682
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614742683,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614743168
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614743169,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614743692
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614743693,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614744182
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614744182,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614744697
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614744698,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614745193
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614745193,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614745903
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614745903,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614746507
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614746508,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614747193
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614747194,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614747707
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614747710,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614748172
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614748172,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614748656
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614748656,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614749287
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614749287,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614749995
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614749995,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614750560
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614750560,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614751105
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614751106,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614751564
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614751564,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614752070
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614752071,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614752606
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614752607,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614753283
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614753283,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614753855
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614753855,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614754377
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614754378,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614754834
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614754834,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614755400
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614755400,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614755887
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614755887,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614756370
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614756370,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614756840
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614756840,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614757289
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614757289,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614757722
+          ]
+        }
+      ]
+    },
+    {
+      "clear": false,
+      "composite": true,
+      "startedQpc": 1443614758303,
+      "endedQpc": 1443614918245,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1643388777
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 10255332203
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1648534886
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11166000602
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614758304,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614762996
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614762996,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614767284
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614767284,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614770954
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614770955,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614774680
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614774681,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614778903
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614778903,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614783047
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614783048,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614786913
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614786913,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614790912
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614790913,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614794748
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614794748,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614798401
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614798401,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614802188
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614802189,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614806260
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614806261,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614811335
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614811338,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614816267
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614816269,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614820532
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614820534,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614824992
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614824993,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614829149
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614829150,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614832882
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614832883,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614836443
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614836443,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614839981
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614839982,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614845265
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614845265,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614849947
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614849949,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614854242
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614854243,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614858207
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614858207,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614862078
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614862078,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614865734
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614865734,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614869330
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614869331,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614872996
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614872996,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614876576
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614876576,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614880017
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614880018,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614883573
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614883574,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614887114
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614887115,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614892162
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614892163,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614896211
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614896211,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614899889
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614899890,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614903549
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614903549,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614907360
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614907360,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614910999
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614910999,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614914597
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614914597,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614918244
+          ]
+        }
+      ]
+    },
+    {
+      "clear": false,
+      "composite": false,
+      "startedQpc": 1443614918932,
+      "endedQpc": 1443614932072,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1648652917
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11166171853
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1651634568
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11170440675
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614918933,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614919328
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614919328,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614919747
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614919748,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614920064
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614920064,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614920482
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614920482,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614920759
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614920759,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614921007
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614921007,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614921264
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614921264,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614921706
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614921707,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614922092
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614922093,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614922541
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614922541,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614922885
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614922885,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614923156
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614923156,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614923373
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614923373,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614923593
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614923593,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614923806
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614923806,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614924163
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614924163,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614924404
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614924404,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614924652
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614924652,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614924888
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614924888,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614925150
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614925151,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614925468
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614925468,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614925717
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614925717,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614926124
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614926125,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614926652
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614926652,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614927000
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614927000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614927273
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614927274,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614927557
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614927558,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614927834
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614927834,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614928131
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614928131,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614928351
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614928351,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614928604
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614928604,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614928993
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614928993,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614929271
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614929271,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614929488
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614929489,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614929823
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614929823,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614930091
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614930091,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614930372
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614930372,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614930830
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614930831,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614931413
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614931414,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614932071
+          ]
+        }
+      ]
+    },
+    {
+      "clear": false,
+      "composite": false,
+      "startedQpc": 1443614932621,
+      "endedQpc": 1443614944944,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1651734572
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11170575873
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1654673732
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11174730952
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614932621,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614933097
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614933097,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614933446
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614933447,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614933857
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614933858,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614934350
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614934350,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614934803
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614934804,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614935323
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614935325,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614935749
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614935749,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614936083
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614936084,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614936394
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614936395,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614936732
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614936732,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614936982
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614936982,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614937197
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614937197,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614937408
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614937408,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614937612
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614937613,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614937820
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614937821,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614938152
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614938152,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614938391
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614938391,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614938620
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614938621,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614938842
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614938842,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614939108
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614939109,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614939341
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614939341,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614939565
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614939565,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614939787
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614939788,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614940104
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614940104,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614940420
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614940420,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614940701
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614940702,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614940936
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614940937,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614941163
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614941163,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614941388
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614941388,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614941732
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614941733,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614941994
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614941994,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614942387
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614942387,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614942715
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614942715,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614943099
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614943099,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614943381
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614943381,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614943669
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614943669,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614943971
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614943971,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614944244
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614944244,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614944505
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614944505,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614944944
+          ]
+        }
+      ]
+    },
+    {
+      "clear": false,
+      "composite": true,
+      "startedQpc": 1443614945451,
+      "endedQpc": 1443615116544,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1654774164
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 5781250,
+          "user100ns": 6093750,
+          "cycles": 11174846836
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1660619873
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 6406250,
+          "user100ns": 7500000,
+          "cycles": 12103687999
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614945452,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614950356
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614950357,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614955312
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614955313,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614959297
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614959297,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614963115
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614963115,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614966730
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614966731,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614970295
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614970295,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614973927
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614973928,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614978646
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614978646,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614982998
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614982998,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614988154
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614988155,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614992294
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614992294,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443614996410
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443614996411,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615001047
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615001048,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615005567
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615005569,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615009941
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615009942,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615014406
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615014407,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615023293
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615023294,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615027395
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615027396,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615031352
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615031353,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615035340
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615035341,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615039536
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615039536,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615043375
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615043375,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615047131
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615047131,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615050841
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615050841,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615057863
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615057864,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615062565
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615062566,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615066887
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615066887,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615071120
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615071121,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615074731
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615074732,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615078244
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615078245,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615082232
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615082232,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615086322
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615086322,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615089928
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615089929,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615093828
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615093828,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615097814
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615097815,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615101691
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615101691,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615105439
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615105440,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615109158
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615109158,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615112716
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615112716,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615116544
+          ]
+        }
+      ]
+    },
+    {
+      "clear": true,
+      "composite": false,
+      "startedQpc": 1443615117115,
+      "endedQpc": 1443615138605,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1660758075
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 6406250,
+          "user100ns": 7500000,
+          "cycles": 12103789290
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1663685654
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 6406250,
+          "user100ns": 7500000,
+          "cycles": 12126510280
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615117116,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615118200
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615118201,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615118810
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615118810,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615119339
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615119340,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615119899
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615119899,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615120477
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615120478,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615121007
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615121007,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615121578
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615121579,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615122218
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615122218,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615122817
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615122818,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615123321
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615123322,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615123764
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615123764,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615124222
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615124223,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615124714
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615124714,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615125207
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615125208,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615125709
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615125710,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615126226
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615126226,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615126751
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615126751,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615127256
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615127257,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615127691
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615127692,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615128414
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615128415,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615129175
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615129175,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615129763
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615129763,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615130245
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615130246,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615130794
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615130795,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615131280
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615131280,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615131861
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615131862,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615132342
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615132342,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615132802
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615132803,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615133380
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615133380,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615133839
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615133840,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615134324
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615134324,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615134808
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615134809,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615135283
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615135284,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615135751
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615135751,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615136211
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615136211,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615136667
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615136667,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615137167
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615137168,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615137630
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615137631,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615138114
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615138114,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615138604
+          ]
+        }
+      ]
+    },
+    {
+      "clear": true,
+      "composite": true,
+      "startedQpc": 1443615139179,
+      "endedQpc": 1443615300045,
+      "cpuBefore": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1663826860
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 6406250,
+          "user100ns": 7500000,
+          "cycles": 12126612000
+        }
+      },
+      "cpuAfter": {
+        "main": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 1562500,
+          "user100ns": 2968750,
+          "cycles": 1669533937
+        },
+        "process": {
+          "timesAvailable": true,
+          "timesError": 0,
+          "cyclesAvailable": true,
+          "cyclesError": 0,
+          "kernel100ns": 7812500,
+          "user100ns": 8437500,
+          "cycles": 13067350564
+        }
+      },
+      "frames": [
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615139179,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615144237
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615144237,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615148750
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615148751,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615154634
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615154635,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615158736
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615158736,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615162673
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615162674,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615166771
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615166772,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615170991
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615170992,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615175671
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615175672,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615179442
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615179442,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615183048
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615183048,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615186812
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615186812,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615190764
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615190765,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615194989
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615194989,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615199128
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615199129,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615202925
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615202925,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615206836
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615206836,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615210584
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615210584,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615214267
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615214268,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615217844
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615217844,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615224553
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615224553,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615228848
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615228848,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615232923
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615232923,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615236702
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615236703,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615240390
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615240391,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615244299
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615244300,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615248085
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615248085,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615251798
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615251799,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615255561
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615255561,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615259449
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615259449,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615263258
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615263259,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615266910
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615266910,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615270821
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615270822,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615274567
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615274567,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615278624
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615278624,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615282245
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615282245,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615285767
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615285768,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615289357
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615289358,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615292933
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615292933,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615296529
+          ]
+        },
+        {
+          "cppAllocations": 0,
+          "qpc": [
+            1443615296529,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1443615300045
+          ]
+        }
+      ]
+    }
+  ],
+  "platform": "x64",
+  "configuration": "Release",
+  "nativeArchitecture": "X64",
+  "machine": "SINON",
+  "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+  "os": "Microsoft Windows 10.0.26300",
+  "warpVersion": "10.0.26100.9549 (WinBuild.160101.0800)",
+  "warpSha256": "DCADF8372FC553A9A6021D5F54965D529EBC0A943D5CD5E160BD4484D3276D4C",
+  "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "sourceCommit": "71059fb94c12c8966056e3afe626d1548ab1030b",
+  "sourceDirty": true,
+  "sourceFingerprint": "FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941",
+  "executableSha256": "6C5AAA5A664F16E2D74A685398A773BDA26356266554156AD6ADEC7949172327",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "benchmarkSha256": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+  "buildInputIdentity": "881256e8f7ff5a94e81b8cc6cfd3dfa9b428499d525d8e594492872c33c479c0",
+  "buildArtifactIdentity": "2c3ee4d5cca8d7cf968b7db1800eaee6c47b4812130ae6e46e0599eb17f5cf7a",
+  "buildIdentityVersion": 2,
+  "resolvedBuildIdentity": "2ed39d35295b75f15d7e49d267f3bdc7e4cbfc101f689821703e25bcc3725b7a",
+  "identityStatus": "verifiable",
+  "identityScope": "full",
+  "harnessIdentity": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61",
+  "toolchainIdentity": "FBE23BB94440AC02BE667851F1F1DFD3E5B0C2234B7795DFC5D03221D9C61689",
+  "dependencyIdentity": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4",
+  "environmentIdentity": "051E6879DE05A1EF7BEA4549F3D9D834EED7D81DD2BAC6475BFFBE1DA42CF0C5",
+  "buildAttestationIdentity": "658e0df800a9a594a65e1ca573a7fd93328711d07899ce279e0293eb5b7d66b2",
+  "profilingInputs": {
+    "Tests/Embedded/Scope.Tests.ComplexUiProfiling.h": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+    "Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h": "5BD861A9FBCCB3399D02F9BDD88F7306E8A566BFA890109E156B0B23729E2116",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "243E75A8FE209EB6FD8AC6576FBDA49B2D13C2357C08DD39174D5B54BEFD874A",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "performance-profile.ps1": "01A5D6727B8986CDA2DB23C11D3C0483FC47FC1149AE42A812CEE79F922B80F7",
+    "Tools/PerformanceProfiling.psm1": "EF842F4A69F54E2499C26E2022D688B19E57CE7DF35D73F2CC323DA85E182296",
+    "Tools/PerformancePolicy.psm1": "A4A81214B7B9F62481C4DD4E83B6F37F1A43BEBC74378AE8928085F027F6EB5E",
+    "Tools/ScopedTesting.psm1": "FD728FACD01E19100B7B01234A4808C52E003628076AB0CDA7AB42E09AB43A5E"
+  },
+  "completedUtc": "2026-10-17T22:13:58.5072528Z",
+  "workloadOwner": "DxUi",
+  "childTimeoutSeconds": 120,
+  "childMetadataPath": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\uia-boundaries-20261017\\Pilot\\boundary-04-A-Off.json.child.json",
+  "childMetadataSha256": "08C1D4FA3C0C502993F01B18157E5848499CC72FCE929C49650F582B4C13DBD4",
+  "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+  "capturePath": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\uia-boundaries-20261017\\Pilot\\boundary-04-A-Off.json.png",
+  "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+  "captureValidationScope": "PNG structure, CRC, bounded chunks, IHDR 1280x720, IDAT and final IEND only; decoding and populated-scene visual proof belong to the native capture gate.",
+  "rawReportPath": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\uia-boundaries-20261017\\Pilot\\boundary-04-A-Off.json.raw.json",
+  "rawReportSha256": "ECBE7160BF3C32F7D5CF8300ED9BEBD43B1F407A0AB80D1D086255DF950963E5",
+  "benchmarkInputsScope": "benchmarkInputs/benchmarkSha256 retain the canonical ComplexUi closure; profilingInputs binds this diagnostic fixture, shared helpers, dispatcher and runner.",
+  "measurement": "Diagnostic only. Fixed extra warmup and sampling are not canonical acceptance; no regression, trusted-policy, actual scheduling, heap-owner or dedicated-host verdict."
+}

@@ -264,8 +264,63 @@ foreach ($mode in @('signature-only','wrong-width','truncated','no-IDAT','traili
 
 # Shims are deliberately synthetic unit evidence; real v2 receipt/build correctness is covered by
 # PerformancePolicy tests and subsequent coordinated native runs, never established by this fixture.
+function New-BoundaryReport([bool] $Timers = $true) {
+    return [ordered]@{ schema=1; fixture='dxui-complex-ui-boundaries-v1'; classification='diagnostic-only'; renderer='WARP';
+        scenario='Default'; heapSampling=$false; boundaryTimers=$Timers; width=1280; height=720; dpi=96; controls=83; modelRows=1000;
+        warmFrames=200; probeFrames=320; hiddenPreparations=0; hiddenComposites=0; hiddenSurfaceBytes=0; pointerBits=64; iteratorDebugLevel=0;
+        compiler=194435217; processId=42; mainThreadId=17; mainThreadCreation100ns=12345; fixedDiagnosticStorageBytes=32000;
+        timingScope='Synthetic absolute QPC boundaries.'; schedulingScope='No scheduler trace.'; telemetryCompleteness='complete';
+        clock=@{implementation='QueryPerformanceCounter'; ticksPerSecond=10000000; tickNanoseconds=100.0};
+        windows=@(for ($window=0; $window -lt 8; $window++) {
+            $kind=if ($window -lt 4) { $window } else { 7-$window }; $start=10000 * ($window+1)
+            [ordered]@{ clear=($kind -in @(0,1)); composite=($kind -in @(0,2)); startedQpc=$start; endedQpc=($start+5000);
+                cpuBefore=(New-ProfilingCounters (1000 + $window*100)); cpuAfter=(New-ProfilingCounters (1050 + $window*100));
+                frames=@(for ($frame=0; $frame -lt 40; $frame++) {
+                    $frameStart=$start+$frame*100
+                    @{cppAllocations=0; qpc=@($frameStart; for ($edge=1; $edge -lt 8; $edge++) { if ($Timers) { $frameStart+$edge } else { 0 } }; $frameStart+9)}
+                }) }
+        }) }
+}
+Import-Module $modulePath -Force
+foreach ($timers in @($false,$true)) {
+    Invoke-TestCase "boundary schema accepts complete fixed controls, timers=$timers" {
+        Assert-Equal 'complete' (Assert-BoundaryReport (New-BoundaryReport $timers) -Timers $timers -ProcessId 42) 'bounded control inventory'
+    }
+}
+foreach ($case in @(
+    @{Name='missing window'; Change={param($r) $r.windows=$r.windows[0..6]}},
+    @{Name='missing frame'; Change={param($r) $r.windows[0].frames=$r.windows[0].frames[0..38]}},
+    @{Name='wrong clear control'; Change={param($r) $r.windows[3].clear=$true}},
+    @{Name='wrong composition control'; Change={param($r) $r.windows[1].composite=$true}},
+    @{Name='descending interior QPC'; Change={param($r) $r.windows[0].frames[0].qpc[3]=1}},
+    @{Name='overlapping frames'; Change={param($r) $r.windows[0].frames[1].qpc[0]=$r.windows[0].frames[0].qpc[0]}},
+    @{Name='frame exceeds window'; Change={param($r) $r.windows[0].frames[39].qpc[8]=$r.windows[0].endedQpc+1}},
+    @{Name='noninteger QPC'; Change={param($r) $r.windows[0].frames[0].qpc[2]=10001.5}},
+    @{Name='allocating clean frame'; Change={param($r) $r.windows[0].frames[0].cppAllocations=1}},
+    @{Name='clock mismatch'; Change={param($r) $r.clock.tickNanoseconds=1}},
+    @{Name='storage budget'; Change={param($r) $r.fixedDiagnosticStorageBytes=2MB}},
+    @{Name='CPU counter reversal'; Change={param($r) $r.windows[0].cpuAfter.main.cycles=1}},
+    @{Name='hidden work'; Change={param($r) $r.hiddenPreparations=1}},
+    @{Name='missing thread creation identity'; Change={param($r) $r.mainThreadCreation100ns=0}}
+)) {
+    Invoke-TestCase ("boundary schema rejects " + $case.Name) {
+        $report=New-BoundaryReport; & $case.Change $report
+        Assert-Throws { Assert-BoundaryReport $report -Timers $true -ProcessId 42 } $case.Name
+    }
+}
+Invoke-TestCase 'boundary unavailable CPU telemetry is explicit and cannot masquerade as complete' {
+    $report=New-BoundaryReport; Set-UnavailableCpu $report.windows[0].cpuBefore.main
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true } 'availability completeness'
+    $report.telemetryCompleteness='partial'
+    Assert-Equal 'partial' (Assert-BoundaryReport $report -Timers $true) 'preserved unavailable counter'
+}
+Invoke-TestCase 'boundary disabled timers must remain zero' {
+    $report=New-BoundaryReport $false; $report.windows[0].frames[0].qpc[1]=1
+    Assert-Throws { Assert-BoundaryReport $report -Timers $false } 'disabled observer'
+}
+
 function New-ProfilingRunnerFixture([string] $Root, [string] $Mode = 'valid', [bool] $Heap = $false) {
-    foreach ($name in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+    foreach ($name in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
             'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
             'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h','Tools/ScopedTesting.psm1',
             'src/native.cpp','deps/header.h','.build/x64/Release/DxUi.EmbeddedTests.exe')) { Set-FixtureFile $Root $name "synthetic $name" }
@@ -321,7 +376,7 @@ function Invoke-OwnedProfilingProcess {
         }
     }
     $mutations=@{ 'source-drift'='src/native.cpp'; 'dependency-drift'='deps/header.h'; 'artifact-drift'='.build/x64/Release/DxUi.EmbeddedTests.exe';
-        'fixture-drift'='Tests/Embedded/Scope.Tests.ComplexUiProfiling.h'; 'dispatcher-drift'='Tests/Embedded/Embedded.Tests.Embedded.cpp';
+        'fixture-drift'='Tests/Embedded/Scope.Tests.ComplexUiProfiling.h'; 'boundary-drift'='Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h'; 'dispatcher-drift'='Tests/Embedded/Embedded.Tests.Embedded.cpp';
         'runner-drift'='performance-profile.ps1'; 'helper-drift'='Tests/Support/Support.Tests.HeapDiagnostic.h' }
     if ($mutations.ContainsKey($mode)) { Add-Content (Join-Path $WorkingDirectory $mutations[$mode]) 'mutated during child' }
     return [ordered]@{ processId=42; executable=$Executable; arguments=@($Arguments); workingDirectory=$WorkingDirectory;
@@ -341,7 +396,7 @@ Invoke-FixtureCase 'guarded valid run binds closure and retains exact raw bytes 
     $receipt=[IO.File]::ReadAllText($output) | ConvertFrom-Json -AsHashtable -Depth 32
     Assert-Equal 'diagnostic-only' $receipt.classification 'no acceptance verdict'
     Assert-Equal 'complete' $receipt.telemetryCompleteness 'complete unit telemetry'
-    Assert-Equal 10 $receipt.profilingInputs.Count 'fixture/helper/dispatcher/runner closure'
+    Assert-Equal 11 $receipt.profilingInputs.Count 'fixture/helper/dispatcher/runner closure'
     Assert-Equal ([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root 'native.json')))) ([Convert]::ToBase64String([IO.File]::ReadAllBytes(($output+'.raw.json')))) 'exact raw bytes'
     Assert-Equal (Get-FileHash ($output+'.raw.json')).Hash $receipt.rawReportSha256 'raw hash'
     Assert-Equal (Get-FileHash ($output+'.child.json')).Hash $receipt.childMetadataSha256 'owned child metadata hash'
@@ -364,7 +419,7 @@ Invoke-FixtureCase 'direct stale-build refusal revokes report/raw and all previo
     Assert-True (-not ((Get-Content (Join-Path $root 'calls.txt')) -contains 'child')) 'no child on stale build'
     Assert-Equal 5 @(Get-ChildItem (Split-Path $output) -Filter '*.stale').Count 'old artifacts preserved quarantined'
 }
-foreach ($mode in @('source-drift','dependency-drift','artifact-drift','fixture-drift','dispatcher-drift','runner-drift','helper-drift','raw-drift','capture-drift','after-attestation-failure','exit-failure','timeout','drain-failure','missing-output','missing-capture','malformed-output','partial-report','wrong-native-pid')) {
+foreach ($mode in @('source-drift','dependency-drift','artifact-drift','fixture-drift','boundary-drift','dispatcher-drift','runner-drift','helper-drift','raw-drift','capture-drift','after-attestation-failure','exit-failure','timeout','drain-failure','missing-output','missing-capture','malformed-output','partial-report','wrong-native-pid')) {
     Invoke-FixtureCase ("guard refuses $mode and retains child metadata/log while revoking native/raw/capture") {
         param($root)
         $output=New-ProfilingRunnerFixture $root $mode
@@ -394,6 +449,26 @@ Invoke-FixtureCase 'direct runner refuses output overwriting an owned source pat
     $null=New-ProfilingRunnerFixture $root
     Assert-Throws { Invoke-ProfilingMeasurement -Root $root -Platform x64 -Configuration Release -Scenario Default -Heap $false -OutputPath (Join-Path $root 'src/owned.json') } 'output boundary'
     Assert-True (-not (Test-Path (Join-Path $root 'calls.txt'))) 'refusal precedes identity/process work'
+}
+foreach ($timers in @('Off','On')) {
+    Invoke-FixtureCase "public boundary runner binds native bytes and maps timers=$timers" {
+        param($root)
+        $output=New-ProfilingRunnerFixture $root
+        Set-FixtureJson $root 'native.json' (New-BoundaryReport ($timers -eq 'On'))
+        & (Join-Path $root 'performance-profile.ps1') -Configuration Release -SkipBuild -BoundaryTimers $timers -OutputPath $output
+        $receipt=Get-FixtureJson $root '.build/reports/profile.json'
+        Assert-Equal 'dxui-complex-ui-boundaries-v1' $receipt.fixture 'separate fixture identity'
+        $child=Get-FixtureJson $root '.build/reports/profile.json.child.json'
+        Assert-Equal '--benchmark-complex-ui-boundaries' $child.arguments[0] 'separate native dispatch'
+        Assert-Equal $timers $child.arguments[2] 'interior timing switch'
+    }
+}
+Invoke-FixtureCase 'boundary runner rejects heap and foreign scenarios before touching source or stale reports' {
+    param($root)
+    $output=New-ProfilingRunnerFixture $root
+    Assert-Throws { Invoke-ProfilingMeasurement -Root $root -Platform x64 -Configuration Release -Scenario Default -Heap $true -BoundaryTimers On -OutputPath $output } 'heap conflict'
+    Assert-Throws { & (Join-Path $root 'performance-profile.ps1') -SkipBuild -BoundaryTimers On -Scenario MultilineGrid -OutputPath $output } 'scenario conflict'
+    Assert-True (-not (Test-Path (Join-Path $root 'calls.txt'))) 'refusal before any build/child work'
 }
 
 # Real bounded PowerShell children exercise only process control; they are not native performance runs.

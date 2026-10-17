@@ -1,0 +1,194 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+?������������������������������������������������������������������������?
+�                                                                        �
+�                      �����ۻ �ۻ  �ۻ�ۻ   �ۻ�ۻ                      �
+�                      ������ۻ��ۻ��ɼ�ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ɼ �ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ۻ �ۺ   �ۺ�ۺ                      �
+�                      ������ɼ��ɼ �ۻ�������ɼ�ۺ                      �
+�                      �����ͼ �ͼ  �ͼ �����ͼ �ͼ                      �
+�                                                                        �
+�      ?  PIXELS PRIMED    CONTROLS READY    COMPILE MODE: GO!  ?      �
+�                 ?  ASAN DEBUG  /  X64  /  REBUILD  ?                 �
+�                                                                        �
+?������������������������������������������������������������������������?
+
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichTextLayout.cpp
+  DxUi.RichTextEditor.cpp
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  Generating Code...
+  Compiling...
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.lib
+  Embedded.Tests.Embedded.cpp
+  Main.cpp
+  InteractiveLease.Tests.Runner.cpp
+  Foundation.Tests.Foundation.cpp
+  Scope.Tests.RichDocument.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  Scope.Tests.RichMarkdown.cpp
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  Scope.Tests.RichTextLayout.cpp
+  Scope.Tests.RichTextEditor.cpp
+  Scope.Tests.RichTextInput.cpp
+  Scope.Tests.RichTextAccessibility.cpp
+  DxUi.Tests.Accessibility.cpp
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  Scope.Tests.HostControlRegressions.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:31
+Output: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-ASan Debug-4ba528059c88495bbbd64ace57254307.log
+========================================
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 1623.87 completed offscreen FPS; p95 2.0795 ms; private 189698048 bytes
+Complex UI clean round 2: 2125.81 completed offscreen FPS; p95 0.6095 ms; private 194486272 bytes
+Complex UI clean round 3: 2381.05 completed offscreen FPS; p95 0.4953 ms; private 197033984 bytes
+Complex UI clean round 4: 2417.21 completed offscreen FPS; p95 0.5305 ms; private 199864320 bytes
+Complex UI clean round 5: 2357.42 completed offscreen FPS; p95 0.6373 ms; private 202694656 bytes
+Complex UI dirty round 1: 127.188 completed offscreen FPS; p95 8.2517 ms; private 300400640 bytes
+Complex UI dirty round 2: 125.636 completed offscreen FPS; p95 10.1523 ms; private 395558912 bytes
+Complex UI dirty round 3: 126.568 completed offscreen FPS; p95 8.9962 ms; private 490721280 bytes
+Complex UI dirty round 4: 123.503 completed offscreen FPS; p95 10.3944 ms; private 526675968 bytes
+Complex UI dirty round 5: 128.529 completed offscreen FPS; p95 9.9663 ms; private 537440256 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-ASan Debug-fce7a4060af14506954bf912d819d5a1.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Foundation (x64 ASan Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 ASan Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 ASan Debug)
+PASS Control (0 capability skips recorded)
+Running MenuExitLifetime (x64 ASan Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 ASan Debug)
+PASS NewControls (0 capability skips recorded)
+Running EditorControls (x64 ASan Debug)
+PASS EditorControls (0 capability skips recorded)
+Running TextField (x64 ASan Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 ASan Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 ASan Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 ASan Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 ASan Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 ASan Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 ASan Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 ASan Debug)
+PASS WindowHost (0 capability skips recorded)
+Running InteractiveLease (x64 ASan Debug)
+PASS InteractiveLease (0 capability skips recorded)
+All 19 requested suites passed.

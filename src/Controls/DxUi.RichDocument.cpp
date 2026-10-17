@@ -84,19 +84,30 @@ std::wstring SourceSnapshot::Text() const
 {
     std::wstring text;
     text.reserve(state_->length);
+    std::size_t sourceStart = 0;
     for (const auto& piece : state_->pieces)
-        text.append(*piece.buffer, piece.start, piece.length);
+    {
+        text.append(*piece.buffer, piece.bufferStart, piece.sourceEnd - sourceStart);
+        sourceStart = piece.sourceEnd;
+    }
     return text;
+}
+std::size_t SourceSnapshot::FindPieceIndex(std::size_t offset) const noexcept
+{
+    // Ends are strictly increasing, including after splitting/coalescing. An
+    // offset equal to a piece's exclusive end belongs to the following piece.
+    const auto found = std::upper_bound(
+        state_->pieces.begin(), state_->pieces.end(), offset, [](std::size_t position, const Piece& piece) noexcept { return position < piece.sourceEnd; });
+    return static_cast<std::size_t>(found - state_->pieces.begin());
 }
 wchar_t SourceSnapshot::CharacterAt(std::size_t offset) const noexcept
 {
-    for (const auto& piece : state_->pieces)
-    {
-        if (offset < piece.length)
-            return (*piece.buffer)[piece.start + offset];
-        offset -= piece.length;
-    }
-    return L'\0'; // Only valid offsets are queried by IsBoundary.
+    const auto index = FindPieceIndex(offset);
+    if (index == state_->pieces.size())
+        return L'\0'; // Only valid offsets are queried by IsBoundary.
+    const auto& piece      = state_->pieces[index];
+    const auto sourceStart = index ? state_->pieces[index - 1].sourceEnd : 0;
+    return (*piece.buffer)[piece.bufferStart + offset - sourceStart];
 }
 bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
 {
@@ -113,14 +124,16 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
         throw std::out_of_range("Invalid snapshot slice");
     std::wstring result;
     result.reserve(last - first);
-    std::size_t offset = 0;
-    for (const auto& piece : state_->pieces)
+    if (first == last)
+        return result;
+    for (auto index = FindPieceIndex(first); index < state_->pieces.size(); ++index)
     {
-        const auto left = std::max(first, offset), right = std::min(last, offset + piece.length);
+        const auto& piece      = state_->pieces[index];
+        const auto sourceStart = index ? state_->pieces[index - 1].sourceEnd : 0;
+        const auto left = std::max(first, sourceStart), right = std::min(last, piece.sourceEnd);
         if (left < right)
-            result.append(*piece.buffer, piece.start + left - offset, right - left);
-        offset += piece.length;
-        if (offset >= last)
+            result.append(*piece.buffer, piece.bufferStart + left - sourceStart, right - left);
+        if (piece.sourceEnd >= last)
             break;
     }
     return result;
@@ -176,58 +189,64 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring text
 
     // Share immutable buffers; only descriptors and the inserted buffer are new.
     // Boundary validation reads adjacent pieces instead of flattening old/new
-    // source strings on every keystroke. This remains a bounded piece vector,
+    // source strings on every keystroke. Cumulative ends index reads without an
+    // extra prefix array. Edits still copy descriptors in this bounded vector,
     // not the future large-document tree or incremental layout implementation.
     auto next        = std::make_shared<SourceSnapshot::State>();
     next->length     = length - (end - begin) + text.size();
-    auto appendPiece = [&](SourceSnapshot::Piece piece)
+    auto appendPiece = [&](const std::shared_ptr<const std::wstring>& buffer, std::size_t bufferStart, std::size_t count)
     {
+        const auto sourceStart = next->pieces.empty() ? 0 : next->pieces.back().sourceEnd;
         if (! next->pieces.empty())
         {
-            auto& previous = next->pieces.back();
-            if (previous.buffer == piece.buffer && previous.start + previous.length == piece.start)
+            auto& previous           = next->pieces.back();
+            const auto previousStart = next->pieces.size() > 1 ? next->pieces[next->pieces.size() - 2].sourceEnd : 0;
+            if (previous.buffer == buffer && previous.bufferStart + (sourceStart - previousStart) == bufferStart)
             {
-                previous.length += piece.length;
+                previous.sourceEnd += count;
                 return;
             }
         }
-        next->pieces.push_back(std::move(piece));
+        next->pieces.push_back({buffer, bufferStart, sourceStart + count});
     };
     auto appendSlice = [&](std::size_t first, std::size_t last)
     {
-        std::size_t offset = 0;
-        for (const auto& piece : source_.state_->pieces)
+        if (first == last)
+            return;
+        for (auto index = source_.FindPieceIndex(first); index < source_.state_->pieces.size(); ++index)
         {
-            const auto left = std::max(first, offset), right = std::min(last, offset + piece.length);
+            const auto& piece      = source_.state_->pieces[index];
+            const auto sourceStart = index ? source_.state_->pieces[index - 1].sourceEnd : 0;
+            const auto left = std::max(first, sourceStart), right = std::min(last, piece.sourceEnd);
             if (left < right)
-                appendPiece({piece.buffer, piece.start + left - offset, right - left});
-            offset += piece.length;
-            if (offset >= last)
+                appendPiece(piece.buffer, piece.bufferStart + left - sourceStart, right - left);
+            if (piece.sourceEnd >= last)
                 break;
         }
     };
 
     // A same-content edit updates selection but creates no history/revision.
-    bool equal         = end - begin == text.size();
-    std::size_t offset = 0, compared = 0;
-    for (const auto& piece : source_.state_->pieces)
+    bool equal           = end - begin == text.size();
+    std::size_t compared = 0;
+    for (auto index = source_.FindPieceIndex(begin); equal && compared < text.size() && index < source_.state_->pieces.size(); ++index)
     {
-        if (! equal || offset >= end)
+        const auto& piece      = source_.state_->pieces[index];
+        const auto sourceStart = index ? source_.state_->pieces[index - 1].sourceEnd : 0;
+        if (sourceStart >= end)
             break;
-        const auto left = std::max(begin, offset), right = std::min(end, offset + piece.length);
+        const auto left = std::max(begin, sourceStart), right = std::min(end, piece.sourceEnd);
         if (left < right)
         {
             const auto count = right - left;
-            equal            = std::wstring_view(*piece.buffer).substr(piece.start + left - offset, count) == std::wstring_view(text).substr(compared, count);
+            equal = std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - sourceStart, count) == std::wstring_view(text).substr(compared, count);
             compared += count;
         }
-        offset += piece.length;
     }
     appendSlice(0, begin);
     if (! text.empty())
     {
         auto buffer = std::make_shared<const std::wstring>(std::move(text));
-        appendPiece({buffer, 0, buffer->size()});
+        appendPiece(buffer, 0, buffer->size());
     }
     appendSlice(end, length);
     SourceSnapshot candidate(std::move(next));

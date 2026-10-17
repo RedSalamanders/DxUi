@@ -1,0 +1,21 @@
+{
+  "processId": 105620,
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+  "arguments": [
+    "--benchmark-complex-ui-boundaries",
+    "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-indexed-20261018\\Diagnostics\\ASan-Debug-Off.json",
+    "Off"
+  ],
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2",
+  "startedUtc": "2026-10-17T23:01:04.5785001Z",
+  "completedUtc": "2026-10-17T23:01:06.9322324Z",
+  "timeoutSeconds": 120.0,
+  "drainTimeoutSeconds": 5.0,
+  "exitCode": 0,
+  "timedOut": false,
+  "terminationError": "",
+  "drainError": "",
+  "pipeCharacterLimit": 1048576,
+  "stdoutTruncated": false,
+  "stderrTruncated": false
+}

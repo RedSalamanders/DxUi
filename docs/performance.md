@@ -494,6 +494,15 @@ three Grid retention/heap diagnostics, the six build logs and 57 passing noninte
 It records the form's bounded additional residency, the original failures and their retests, and the focus
 confirmations that timed out. These descriptive results leave policy calibration and consumer qualification open.
 
+For clear/readback attribution, use the separate Default-only
+`performance-profile.ps1 -BoundaryTimers Off|On -SkipBuild` diagnostic after an
+attested build. It records forward/reverse full, clear-only, composite-only and
+readback-only controls, absolute QPC edges and main/process counters. Declare a
+finite fresh-process schedule and retain all sidecars, failures and outliers.
+Interior timers can alter readiness; omitted-command controls change backend
+dependencies and cannot be subtracted into GPU durations. Scheduler attribution
+requires an actual aligned trace. This adds no acceptance metric or verdict.
+
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual

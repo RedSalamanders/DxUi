@@ -27,6 +27,14 @@ diagnostic; repeat with `-Scenario MultilineGrid` and optional `-Heap` in a decl
 phase query failures, bounded worker-thread inventories, raw frame samples and sampling cost. The guarded runner limits
 only its owned child to 120 seconds and requires exact v2 build/source/tool/dependency/artifact identity. Its 20/100/200
 warm-up checkpoints and heap-off/on observations do not change canonical performance acceptance or qualify the CI policy.
+Use `-BoundaryTimers Off` and `-BoundaryTimers On` for the separate Default-only
+clear/composition/readback diagnostic. It records absolute QPC boundaries in fixed
+forward/reverse controls after 200 warm frames, without the phase/heap sampler.
+Declare a finite interleaved fresh-process schedule before measuring. Timers can
+perturb execution, and omitting a command changes the workload; CPU call intervals
+are not GPU duration or scheduler delay. Heap and MultilineGrid options cannot be
+combined with this diagnostic. Exact source/build/raw-byte and child-timeout guards
+still apply; no trace permission or non-regression acceptance is implied.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 The shared UIA client's owner waits wake for incoming COM messages with a bounded message wait. Sender caching and

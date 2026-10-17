@@ -24,7 +24,10 @@ The bounded Unicode rich-text model, Markdown projection and prepared DirectWrit
 layout are canonical in src/Controls with public RichDocument/RichMarkdown/
 RichTextLayout headers. The standalone prototype is a consumer of DxUi.lib; no
 second reusable implementation is maintained. These pure preparation services
-own no HWND/device/worker. The retained RichTextEditor v0 preview uses ControlHost
+own no HWND/device/worker. Immutable source snapshots index piece offsets with
+cumulative ends in their existing descriptor storage. Bounded edits still copy
+descriptors, and projection/layout remain whole-document preparation.
+The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.
 

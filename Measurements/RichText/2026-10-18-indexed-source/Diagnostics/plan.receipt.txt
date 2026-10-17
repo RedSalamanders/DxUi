@@ -1,0 +1,32 @@
+{
+  "nativeChildBudgetSeconds": 120,
+  "schedule": [
+    {
+      "configuration": "Release",
+      "timers": "Off"
+    },
+    {
+      "configuration": "Release",
+      "timers": "On"
+    },
+    {
+      "configuration": "Debug",
+      "timers": "Off"
+    },
+    {
+      "configuration": "Debug",
+      "timers": "On"
+    },
+    {
+      "configuration": "ASan Debug",
+      "timers": "Off"
+    },
+    {
+      "configuration": "ASan Debug",
+      "timers": "On"
+    }
+  ],
+  "scope": "All current x64 build profiles, both timer branches and all four controls. These are separate functional diagnostics after indexed-source implementation, not a paired timing comparison with the earlier library versions.",
+  "overallBudgetSeconds": 900,
+  "classification": "native-diagnostic-protocol-and-resource-invariants"
+}

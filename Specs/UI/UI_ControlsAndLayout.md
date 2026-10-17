@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -643,6 +643,14 @@ retained RichTextEditor preview above; it remains independently usable without a
 The source model must preserve Unicode scalar/CRLF boundaries, immutable shared
 snapshots, transactional selection/history and failure atomicity. Piece-aware
 boundary/slice/edit operations must not flatten complete old/new source text.
+Immutable pieces store exclusive cumulative source ends in the descriptor field
+previously used for length. Offset lookup is O(log P) for P pieces; a slice of K
+intersecting pieces starts with that lookup and visits those K pieces. No second
+prefix array, additional descriptor field, per-read cache or mutable shared index
+is retained. Coalescing contiguous spans updates the last cumulative end before
+publication. Rejected edits publish neither a partial index nor source/history.
+Worker reads use a captured immutable snapshot, not a concurrent call into a
+mutating Document. Edits still copy descriptor vectors in O(P).
 Current storage is bounded at 64 Ki UTF-16 units/128 history items; full-document
 projection/layout remains a v0 limitation, not incremental/large-file acceptance.
 

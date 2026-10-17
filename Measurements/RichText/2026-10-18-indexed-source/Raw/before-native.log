@@ -1,0 +1,9 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentFragmentedSnapshotOracle
+RichDocument fragmented lookup diagnostic: insertions=4096 units=24580 queries=8192 expected=5431 documentBytes=88 snapshotBytes=16 trialMs=6.4627,6.531,6.5765,6.5239,6.5993,
+  [DONE] TestRichDocumentFragmentedSnapshotOracle (0.160 s)
+  [START] TestRichDocumentConcurrentSnapshotReads
+  [DONE] TestRichDocumentConcurrentSnapshotReads (0.002 s)
+[DONE] EditorControls (0.164 s)
+All DxUi tests passed.

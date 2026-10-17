@@ -1,0 +1,58 @@
+[
+  {
+    "file": "boundary-05-B-On.json.raw.json",
+    "totalTicks": 5286,
+    "mapTicks": 5080,
+    "mapShare": 96.1029133560348,
+    "edgeSumTicks": 5286
+  },
+  {
+    "file": "boundary-05-B-On.json.raw.json",
+    "totalTicks": 6297,
+    "mapTicks": 6082,
+    "mapShare": 96.58567571859615,
+    "edgeSumTicks": 6297
+  },
+  {
+    "file": "boundary-06-A-On.json.raw.json",
+    "totalTicks": 6366,
+    "mapTicks": 6108,
+    "mapShare": 95.94721960414704,
+    "edgeSumTicks": 6366
+  },
+  {
+    "file": "boundary-06-A-On.json.raw.json",
+    "totalTicks": 4767,
+    "mapTicks": 4513,
+    "mapShare": 94.6717012796308,
+    "edgeSumTicks": 4767
+  },
+  {
+    "file": "boundary-07-A-On.json.raw.json",
+    "totalTicks": 4703,
+    "mapTicks": 4593,
+    "mapShare": 97.66106740378481,
+    "edgeSumTicks": 4703
+  },
+  {
+    "file": "boundary-07-A-On.json.raw.json",
+    "totalTicks": 4359,
+    "mapTicks": 4238,
+    "mapShare": 97.22413397568249,
+    "edgeSumTicks": 4359
+  },
+  {
+    "file": "boundary-08-B-On.json.raw.json",
+    "totalTicks": 5047,
+    "mapTicks": 4868,
+    "mapShare": 96.4533386170002,
+    "edgeSumTicks": 5047
+  },
+  {
+    "file": "boundary-08-B-On.json.raw.json",
+    "totalTicks": 5362,
+    "mapTicks": 5228,
+    "mapShare": 97.50093248787766,
+    "edgeSumTicks": 5362
+  }
+]

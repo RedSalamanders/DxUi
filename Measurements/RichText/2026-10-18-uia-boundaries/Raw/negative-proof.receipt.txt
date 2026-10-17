@@ -1,0 +1,8 @@
+{
+  "expectedRejection": true,
+  "error": "Byte binding differs: Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\uia-boundaries-20261017\\negative-packet\\Profiles\\boundary-08-B-On.json.raw.receipt.txt",
+  "mutatedPrivateCopy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\uia-boundaries-20261017\\negative-packet\\Profiles\\boundary-08-B-On.json.raw.receipt.txt",
+  "originalRawSha256": "DE5BAF1C975DD895897B017749D629D1296AE812B64A0275DE4F550E3B067DD7",
+  "analyzerSha256": "A95059CAEEB3C944337349877AE396AA81976A510860768D6136CD43608BF560",
+  "scope": "One whitespace byte added only to a private copy; original packet unchanged."
+}

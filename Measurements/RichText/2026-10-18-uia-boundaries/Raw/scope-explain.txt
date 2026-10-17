@@ -1,0 +1,12 @@
+Native test naming: 92 files checked.
+Test plan: Affected (x64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Changes/2026-10-18-rich-text-boundary-profiling.md: documentation/skill validation; no native test input => Tooling
+  performance-profile.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/Core/Core_PerformanceAndResources.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/RichTextEditor_2026-10-17.md: documentation/skill validation; no native test input => Tooling
+  Tests/Embedded/Embedded.Tests.Embedded.cpp: embedded scenarios and benchmark => Embedded
+  Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h: embedded scenarios and benchmark => Embedded
+  Tests/native-test-files.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/README.md: documentation/skill validation; no native test input => Tooling
+  Tools/PerformanceProfiling.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/tests/Test-PerformanceProfiling.ps1: tooling regression tests => Tooling

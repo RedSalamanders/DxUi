@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-18
 
 The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
 the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
@@ -403,6 +403,32 @@ acceptance. The measured tail's combined bind/clear/copy/readback/other-overhead
 remainder is an attribution boundary, not a separately measured scheduler or
 GPU interval. Original warning/refusal receipts and the full-scene gates remain
 unchanged; this focused record changes no metric, threshold, judge or policy.
+
+`dxui-complex-ui-boundaries-v1` is a separate Default-only diagnostic, selected
+by `performance-profile.ps1 -BoundaryTimers Off|On`. It uses 200 dirty warm frames,
+a populated capture, and eight 40-frame clean windows: full, clear-only,
+composite-only, readback-only, then reverse order. All windows prepare a clean
+view, bind the target and complete a one-pixel copy/Map/Unmap. Interior timers
+record absolute QPC edges after preparation, binding, clear, composition, copy,
+blocking Map and Unmap; Off retains only frame start/end. Fixed frame storage,
+zero C++ allocations, surface reuse and hidden zero-work are checked natively.
+The guarded runner validates complete ordered windows/frames/edges, CPU query
+availability, clock units, PID/thread creation identity and the diagnostic source
+closure, retaining the original bytes and owned-child bounds. Compare fresh
+timers-off/on processes to expose observer effects. Removing commands changes
+backend scheduling and dependencies: neither subtraction across controls nor a
+blocking Map interval is a GPU-duration or scheduler-delay measurement. Scheduler
+attribution requires an actual aligned trace and its loss/completeness checks;
+a permission refusal leaves that gate open. This diagnostic changes no acceptance
+workload, judge, policy, threshold or historical receipt.
+
+RichDocument's bounded immutable snapshots use cumulative piece ends for O(log P)
+offset lookup and O(log P + K) traversal of K intersecting pieces. Cumulative ends
+reuse the previous length field, without additional per-piece storage or a
+separate index allocation. Reads retain no mutable lookup cache. Edits still copy
+descriptors; Text/projection/layout still materialize the complete bounded source.
+The fixed fragmented-lookup trials are descriptive test diagnostics, separate from
+the canonical completed-frame fixture and its unresolved acceptance policy.
 
 The opt-in
 `MenuResources` control suite records 96 open/render/capture/close cycles for twelve

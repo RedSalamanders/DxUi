@@ -36,8 +36,9 @@ public:
     SourceSnapshot();
     std::wstring Text() const;
     std::size_t Length() const noexcept;
-    // Inspect UTF-16 offsets without materializing a whole revision. Slice keeps
-    // scalar/CRLF boundaries; snapshots are safe to read on another thread.
+    // Inspect UTF-16 offsets without materializing a whole revision. Piece lookup
+    // is logarithmic; Slice visits only intersecting pieces after that lookup.
+    // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.
     bool IsBoundary(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
 
@@ -45,7 +46,9 @@ private:
     struct Piece
     {
         std::shared_ptr<const std::wstring> buffer;
-        std::size_t start{}, length{};
+        // Exclusive cumulative source end doubles as the offset index. Keeping
+        // it instead of a piece length needs no additional descriptor storage.
+        std::size_t bufferStart{}, sourceEnd{};
     };
     struct State
     {
@@ -57,6 +60,7 @@ private:
     {
     }
     wchar_t CharacterAt(std::size_t offset) const noexcept;
+    std::size_t FindPieceIndex(std::size_t offset) const noexcept;
     friend class Document;
 };
 

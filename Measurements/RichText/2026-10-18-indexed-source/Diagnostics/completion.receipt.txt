@@ -1,0 +1,56 @@
+{
+  "acceptance": "not-established",
+  "attempted": 6,
+  "elapsedSeconds": 158.3644208,
+  "results": [
+    {
+      "processId": 80972,
+      "exitCode": 0,
+      "configuration": "Release",
+      "timers": "Off",
+      "drained": true,
+      "timedOut": false
+    },
+    {
+      "processId": 45536,
+      "exitCode": 0,
+      "configuration": "Release",
+      "timers": "On",
+      "drained": true,
+      "timedOut": false
+    },
+    {
+      "processId": 44504,
+      "exitCode": 0,
+      "configuration": "Debug",
+      "timers": "Off",
+      "drained": true,
+      "timedOut": false
+    },
+    {
+      "processId": 102352,
+      "exitCode": 0,
+      "configuration": "Debug",
+      "timers": "On",
+      "drained": true,
+      "timedOut": false
+    },
+    {
+      "processId": 106332,
+      "exitCode": 0,
+      "configuration": "ASan Debug",
+      "timers": "Off",
+      "drained": true,
+      "timedOut": false
+    },
+    {
+      "processId": 95884,
+      "exitCode": 0,
+      "configuration": "ASan Debug",
+      "timers": "On",
+      "drained": true,
+      "timedOut": false
+    }
+  ],
+  "scheduled": 6
+}
