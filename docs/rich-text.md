@@ -276,3 +276,11 @@ records 57 ordinary x64 suite passes, six builds and 41 named rich-text scenario
 per x64 profile. Native/embedded command semantics and real-client actions/events
 pass. Performance acceptance is on hold after repeated Default clean-frame p95
 warnings; both failed comparisons and the original baseline are retained.
+
+The [controlled Default investigation](../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+retains 48 interleaved reports and eight CPU/cache profiles. Its paired clean-p95
+effect is -1.31%, with no judged regression; 13 of 24 same-binary controls cross
+the clean-p95 band and all 24 flag some drift. A consistent slowdown and
+non-regression acceptance are both unestablished. Policy qualification,
+rich-editor workload performance and the original historical gates remain open;
+no library source, threshold, baseline or consumer pin changed.

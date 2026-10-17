@@ -1,0 +1,22 @@
+{
+  "processId": 71032,
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\rich-uia-controlled\\20261017T204937Z-71059fb94c12\\baseline\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+  "arguments": [
+    "--benchmark-complex-ui-profile",
+    "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-uia-controlled-profiles\\profile-06-A-Heap.json",
+    "Default",
+    "On"
+  ],
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\rich-uia-controlled\\20261017T204937Z-71059fb94c12\\baseline",
+  "startedUtc": "2026-10-17T21:32:17.8653398Z",
+  "completedUtc": "2026-10-17T21:32:20.0968041Z",
+  "timeoutSeconds": 120.0,
+  "drainTimeoutSeconds": 5.0,
+  "exitCode": 0,
+  "timedOut": false,
+  "terminationError": "",
+  "drainError": "",
+  "pipeCharacterLimit": 1048576,
+  "stdoutTruncated": false,
+  "stderrTruncated": false
+}

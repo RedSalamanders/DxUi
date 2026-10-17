@@ -1,0 +1,8 @@
+{
+  "test": "One valid JSON whitespace byte appended to a private report copy",
+  "originalUntouched": true,
+  "exitCode": 1,
+  "expectedReasonMatched": true,
+  "analyzerSha256": "3CF400871211EF325F1659906FF12BA434AE863A6601271B1F2F9B925ED7D4CE",
+  "completedUtc": "2026-10-17T21:44:31.3480514Z"
+}

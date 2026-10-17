@@ -1,0 +1,21 @@
+{
+  "runtimeTemp": "Z:\\DxUiPerfTemp\\uia-ranges",
+  "startedUtc": "2026-10-17T20:58:02.7288845Z",
+  "budgetSeconds": 1200,
+  "results": [
+    {
+      "role": "A",
+      "root": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\rich-uia-controlled\\20261017T204937Z-71059fb94c12\\baseline",
+      "processId": 18188,
+      "exitCode": 0,
+      "completedUtc": "2026-10-17T21:01:39.0207811Z"
+    },
+    {
+      "role": "B",
+      "root": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2",
+      "processId": 104392,
+      "exitCode": 0,
+      "completedUtc": "2026-10-17T21:05:42.9171095Z"
+    }
+  ]
+}

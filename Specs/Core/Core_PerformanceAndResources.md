@@ -394,6 +394,16 @@ and JSON construction/parsing. A subtraction is a derived non-heap residual, not
 effect. Differing profiles MUST NOT imply convergence or isolate a heap observer effect. Coarse cumulative CPU times may yield zero deltas during real work; available
 cycle deltas MUST remain raw consumption counters rather than fabricated time or scheduler-delay estimates.
 
+The [source-command Default investigation](../../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+retains 48 matching-profile interleaved reports and eight diagnostic profiles.
+Its paired clean-p95 effect is -1.31%, with no judged regression, but all 24
+controls flag drift somewhere and 13 cross the clean-p95 band. A within-noise
+judgment under the unqualified policy does not establish non-regression or close
+acceptance. The measured tail's combined bind/clear/copy/readback/other-overhead
+remainder is an attribution boundary, not a separately measured scheduler or
+GPU interval. Original warning/refusal receipts and the full-scene gates remain
+unchanged; this focused record changes no metric, threshold, judge or policy.
+
 The opt-in
 `MenuResources` control suite records 96 open/render/capture/close cycles for twelve
 plain or described entries at matched 456-by-300-DIP viewport constraints, including

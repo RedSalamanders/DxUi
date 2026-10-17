@@ -80,6 +80,16 @@ so its own effect needs measurement before attributing
 the variability. CPU-time quantization also makes some clean-window deltas zero; raw cycle counts are consumption
 observations rather than elapsed durations. See the retained packet for exact ranges and validation limits.
 
+The [RichTextEditor source-command investigation](../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+retains a corrected matching-profile 48-process Default study and eight CPU/cache
+profiles. Its clean-frame p95 paired effect is -1.31%, with both judges agreeing
+on all 26 within-noise verdicts. All 24 controls flag some drift; 13 cross the
+clean-p95 band. About 98% of the same-frame tail remains in the combined target
+bind/clear, copy/readback and other-overhead remainder. This is a boundary for
+further attribution, not scheduler-delay proof. The refused TEMP/TMP setup and
+all historical warnings remain retained. Source causality, full-scene/policy
+qualification and performance acceptance remain open.
+
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)

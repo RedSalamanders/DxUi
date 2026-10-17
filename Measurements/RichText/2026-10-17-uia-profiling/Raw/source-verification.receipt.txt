@@ -1,0 +1,19 @@
+{
+  "historicalReports": [
+    {
+      "path": "../2026-10-17-uia-ranges/before.json",
+      "sha256": "D97B913F9961787653A3142BB2321DFD69BCA23AFE18949DF9A7B1E02C778E7E"
+    },
+    {
+      "path": "../2026-10-17-uia-ranges/after.json",
+      "sha256": "65C1DBBD42A3ED0B0461673E7E87554B3CA81A99C1236707EEF160BCBE12211C"
+    },
+    {
+      "path": "../2026-10-17-uia-ranges/after-repeat.json",
+      "sha256": "9A0859B8D8DB5E53DEFF6C4DD21DB25CA53E8DC94F3C420BD360311DC012D927"
+    }
+  ],
+  "compiledOrHarnessChanges": [],
+  "sourceCommit": "8c21a634c5abd55f14e384673e7d710de572bdcb",
+  "sourceScope": "Library and measured harness unchanged; fresh Release profiling builds use corrected TEMP/TMP. Earlier six-profile functional receipts retain their own exact artifacts/profile."
+}

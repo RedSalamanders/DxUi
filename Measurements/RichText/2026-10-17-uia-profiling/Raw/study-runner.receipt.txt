@@ -1,0 +1,506 @@
+{
+  "classification": "focused-Default-diagnostic",
+  "baselineRoot": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\rich-uia-controlled\\20261017T204937Z-71059fb94c12\\baseline",
+  "candidateRoot": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2",
+  "startedUtc": "2026-10-17T21:06:36.7956817Z",
+  "budgetSeconds": 2400,
+  "seed": 623802705,
+  "schedule": {
+    "SchemaVersion": 3,
+    "Seed": 623802705,
+    "BlockCount": 12,
+    "Allocation": "independent-ABBA-BAAB-v1",
+    "Blocks": [
+      {
+        "Name": "block-01",
+        "Order": "BAAB",
+        "BaselineRuns": [
+          "A01",
+          "A02"
+        ],
+        "CandidateRuns": [
+          "B01",
+          "B02"
+        ]
+      },
+      {
+        "Name": "block-02",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A03",
+          "A04"
+        ],
+        "CandidateRuns": [
+          "B03",
+          "B04"
+        ]
+      },
+      {
+        "Name": "block-03",
+        "Order": "BAAB",
+        "BaselineRuns": [
+          "A05",
+          "A06"
+        ],
+        "CandidateRuns": [
+          "B05",
+          "B06"
+        ]
+      },
+      {
+        "Name": "block-04",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A07",
+          "A08"
+        ],
+        "CandidateRuns": [
+          "B07",
+          "B08"
+        ]
+      },
+      {
+        "Name": "block-05",
+        "Order": "BAAB",
+        "BaselineRuns": [
+          "A09",
+          "A10"
+        ],
+        "CandidateRuns": [
+          "B09",
+          "B10"
+        ]
+      },
+      {
+        "Name": "block-06",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A11",
+          "A12"
+        ],
+        "CandidateRuns": [
+          "B11",
+          "B12"
+        ]
+      },
+      {
+        "Name": "block-07",
+        "Order": "BAAB",
+        "BaselineRuns": [
+          "A13",
+          "A14"
+        ],
+        "CandidateRuns": [
+          "B13",
+          "B14"
+        ]
+      },
+      {
+        "Name": "block-08",
+        "Order": "BAAB",
+        "BaselineRuns": [
+          "A15",
+          "A16"
+        ],
+        "CandidateRuns": [
+          "B15",
+          "B16"
+        ]
+      },
+      {
+        "Name": "block-09",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A17",
+          "A18"
+        ],
+        "CandidateRuns": [
+          "B17",
+          "B18"
+        ]
+      },
+      {
+        "Name": "block-10",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A19",
+          "A20"
+        ],
+        "CandidateRuns": [
+          "B19",
+          "B20"
+        ]
+      },
+      {
+        "Name": "block-11",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A21",
+          "A22"
+        ],
+        "CandidateRuns": [
+          "B21",
+          "B22"
+        ]
+      },
+      {
+        "Name": "block-12",
+        "Order": "ABBA",
+        "BaselineRuns": [
+          "A23",
+          "A24"
+        ],
+        "CandidateRuns": [
+          "B23",
+          "B24"
+        ]
+      }
+    ],
+    "Steps": [
+      {
+        "Name": "B01",
+        "Side": "candidate",
+        "Block": "block-01",
+        "Position": 1,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A01",
+        "Side": "baseline",
+        "Block": "block-01",
+        "Position": 2,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A02",
+        "Side": "baseline",
+        "Block": "block-01",
+        "Position": 3,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B02",
+        "Side": "candidate",
+        "Block": "block-01",
+        "Position": 4,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A03",
+        "Side": "baseline",
+        "Block": "block-02",
+        "Position": 5,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B03",
+        "Side": "candidate",
+        "Block": "block-02",
+        "Position": 6,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B04",
+        "Side": "candidate",
+        "Block": "block-02",
+        "Position": 7,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A04",
+        "Side": "baseline",
+        "Block": "block-02",
+        "Position": 8,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B05",
+        "Side": "candidate",
+        "Block": "block-03",
+        "Position": 9,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A05",
+        "Side": "baseline",
+        "Block": "block-03",
+        "Position": 10,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A06",
+        "Side": "baseline",
+        "Block": "block-03",
+        "Position": 11,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B06",
+        "Side": "candidate",
+        "Block": "block-03",
+        "Position": 12,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A07",
+        "Side": "baseline",
+        "Block": "block-04",
+        "Position": 13,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B07",
+        "Side": "candidate",
+        "Block": "block-04",
+        "Position": 14,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B08",
+        "Side": "candidate",
+        "Block": "block-04",
+        "Position": 15,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A08",
+        "Side": "baseline",
+        "Block": "block-04",
+        "Position": 16,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B09",
+        "Side": "candidate",
+        "Block": "block-05",
+        "Position": 17,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A09",
+        "Side": "baseline",
+        "Block": "block-05",
+        "Position": 18,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A10",
+        "Side": "baseline",
+        "Block": "block-05",
+        "Position": 19,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B10",
+        "Side": "candidate",
+        "Block": "block-05",
+        "Position": 20,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A11",
+        "Side": "baseline",
+        "Block": "block-06",
+        "Position": 21,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B11",
+        "Side": "candidate",
+        "Block": "block-06",
+        "Position": 22,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B12",
+        "Side": "candidate",
+        "Block": "block-06",
+        "Position": 23,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A12",
+        "Side": "baseline",
+        "Block": "block-06",
+        "Position": 24,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B13",
+        "Side": "candidate",
+        "Block": "block-07",
+        "Position": 25,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A13",
+        "Side": "baseline",
+        "Block": "block-07",
+        "Position": 26,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A14",
+        "Side": "baseline",
+        "Block": "block-07",
+        "Position": 27,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B14",
+        "Side": "candidate",
+        "Block": "block-07",
+        "Position": 28,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B15",
+        "Side": "candidate",
+        "Block": "block-08",
+        "Position": 29,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A15",
+        "Side": "baseline",
+        "Block": "block-08",
+        "Position": 30,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A16",
+        "Side": "baseline",
+        "Block": "block-08",
+        "Position": 31,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "B16",
+        "Side": "candidate",
+        "Block": "block-08",
+        "Position": 32,
+        "Order": "BAAB"
+      },
+      {
+        "Name": "A17",
+        "Side": "baseline",
+        "Block": "block-09",
+        "Position": 33,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B17",
+        "Side": "candidate",
+        "Block": "block-09",
+        "Position": 34,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B18",
+        "Side": "candidate",
+        "Block": "block-09",
+        "Position": 35,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A18",
+        "Side": "baseline",
+        "Block": "block-09",
+        "Position": 36,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A19",
+        "Side": "baseline",
+        "Block": "block-10",
+        "Position": 37,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B19",
+        "Side": "candidate",
+        "Block": "block-10",
+        "Position": 38,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B20",
+        "Side": "candidate",
+        "Block": "block-10",
+        "Position": 39,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A20",
+        "Side": "baseline",
+        "Block": "block-10",
+        "Position": 40,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A21",
+        "Side": "baseline",
+        "Block": "block-11",
+        "Position": 41,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B21",
+        "Side": "candidate",
+        "Block": "block-11",
+        "Position": 42,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B22",
+        "Side": "candidate",
+        "Block": "block-11",
+        "Position": 43,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A22",
+        "Side": "baseline",
+        "Block": "block-11",
+        "Position": 44,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A23",
+        "Side": "baseline",
+        "Block": "block-12",
+        "Position": 45,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B23",
+        "Side": "candidate",
+        "Block": "block-12",
+        "Position": 46,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "B24",
+        "Side": "candidate",
+        "Block": "block-12",
+        "Position": 47,
+        "Order": "ABBA"
+      },
+      {
+        "Name": "A24",
+        "Side": "baseline",
+        "Block": "block-12",
+        "Position": 48,
+        "Order": "ABBA"
+      }
+    ],
+    "Order": "B01, A01, A02, B02, A03, B03, B04, A04, B05, A05, A06, B06, A07, B07, B08, A08, B09, A09, A10, B10, A11, B11, B12, A12, B13, A13, A14, B14, B15, A15, A16, B16, A17, B17, B18, A18, A19, B19, B20, A20, A21, B21, B22, A22, A23, B23, B24, A24"
+  },
+  "runtimeTemp": "Z:\\DxUiPerfTemp\\uia-ranges",
+  "runtimeTmp": "Z:\\DxUiPerfTemp\\uia-ranges",
+  "timedOut": false,
+  "acceptance": "not-established",
+  "processId": 92524,
+  "exitCode": 0,
+  "completedUtc": "2026-10-17T21:28:10.3609064Z"
+}

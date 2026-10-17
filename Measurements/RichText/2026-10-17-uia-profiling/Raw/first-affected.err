@@ -1,0 +1,172 @@
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\analysis.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\analysis.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\preflight-refusal.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\preflight-refusal.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\preflight-refusal.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-controlled-runner.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-controlled-runner.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-controlled-runner.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-A.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-A.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-A.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-B.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-B.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\rich-uia-profile-B.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\temp-normalization.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\temp-normalization.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\temp-normalization.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\reports\Default-A01.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\reports\Default-B01.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Refused\reports\Default-B02.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Refused\reports\Default-B02.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Refused\reports\Default-B02.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-build.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-build.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-build.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-incremental.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-incremental.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\A-incremental.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-build.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-build.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-build.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-incremental.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-incremental.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\B-incremental.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\hash-negative.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\hash-negative.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\hash-negative.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\independent-checks.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\independent-checks.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\independent-checks.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-preflight.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-preflight.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-preflight.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-setup.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-setup.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\rich-uia-controlled-setup.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\source-verification.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\source-verification.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\source-verification.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Raw\study-runner.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Raw\study-runner.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Raw\study-runner.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\completion.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\completion.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\completion.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\plan.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\plan.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\plan.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-01-A-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-02-B-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-03-B-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-04-A-NoHeap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-05-B-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-06-A-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-07-A-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.child.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.child.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.child.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.raw.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Profiles\profile-08-B-Heap.json.raw.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A01.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A02.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A03.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A04.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A05.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A06.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A07.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A08.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A09.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A10.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A11.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A12.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A13.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A14.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A15.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A16.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A17.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A18.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A19.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A20.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A21.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A22.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A23.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-A24.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B01.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B02.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B03.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B04.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B05.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B06.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B07.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B08.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B09.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B10.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B11.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B12.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B13.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B14.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B15.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B16.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B17.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B18.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B19.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B20.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B21.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B22.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B23.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\Default-B24.json
+Non-library measurement: Measurements\RichText\2026-10-17-uia-profiling\Paired\summary.json
+Missing fixture input hashes: Measurements\RichText\2026-10-17-uia-profiling\Paired\summary.json
+Missing measurement explanation: Measurements\RichText\2026-10-17-uia-profiling\Paired\summary.json
+Exception: Specification validation failed with 165 finding(s).
+warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\validate.ps1:18
+Line |
+  18 |  . ed.Count) { throw "Validation failed: $(($failed | ForEach-Object { $ .
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Validation failed: validate-specs.ps1

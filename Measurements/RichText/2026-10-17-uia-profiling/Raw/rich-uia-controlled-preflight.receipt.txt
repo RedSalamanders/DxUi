@@ -1,0 +1,111 @@
+{
+  "states": {
+    "A": {
+      "platform": "x64",
+      "configuration": "Release",
+      "nativeArchitecture": "X64",
+      "machine": "SINON",
+      "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+      "os": "Microsoft Windows 10.0.26300",
+      "warpVersion": "10.0.26100.9549 (WinBuild.160101.0800)",
+      "warpSha256": "DCADF8372FC553A9A6021D5F54965D529EBC0A943D5CD5E160BD4484D3276D4C",
+      "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+      "sourceCommit": "71059fb94c12c8966056e3afe626d1548ab1030b",
+      "sourceDirty": false,
+      "sourceFingerprint": "FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941",
+      "executableSha256": "C22142D60808DB1ED07E4CA02DE5C64A27EE07E82991DB26775C1EB01C0E4B9E",
+      "benchmarkInputs": {
+        "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+        "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+        "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+        "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+        "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+      },
+      "benchmarkSha256": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+      "buildInputIdentity": "b7852aab99a981b64105997ce3d3a489a39738ec1c03b9543b96c1f68531d531",
+      "buildArtifactIdentity": "92f94c8ac01e50f57c8d5987519f8e7a321cbd34e652a1448ff31d3609214f2a",
+      "buildIdentityVersion": 2,
+      "resolvedBuildIdentity": "ae4c849647ae5b73b402e9ea5e3a493bc0d015279b8f8f70632847bdc4fb2528",
+      "identityStatus": "verifiable",
+      "identityScope": "full",
+      "harnessIdentity": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61",
+      "toolchainIdentity": "FBE23BB94440AC02BE667851F1F1DFD3E5B0C2234B7795DFC5D03221D9C61689",
+      "dependencyIdentity": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4",
+      "environmentIdentity": "051E6879DE05A1EF7BEA4549F3D9D834EED7D81DD2BAC6475BFFBE1DA42CF0C5",
+      "buildAttestationIdentity": "2757d67f5828e5e25124fa6dbc7ca6c4faf07e0d7ac289b7c963d6230f1a7774"
+    },
+    "B": {
+      "platform": "x64",
+      "configuration": "Release",
+      "nativeArchitecture": "X64",
+      "machine": "SINON",
+      "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+      "os": "Microsoft Windows 10.0.26300",
+      "warpVersion": "10.0.26100.9549 (WinBuild.160101.0800)",
+      "warpSha256": "DCADF8372FC553A9A6021D5F54965D529EBC0A943D5CD5E160BD4484D3276D4C",
+      "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+      "sourceCommit": "8c21a634c5abd55f14e384673e7d710de572bdcb",
+      "sourceDirty": true,
+      "sourceFingerprint": "E3437165FCDB1374DE2AA8A2AE0AA791CB4581AB9528180ACA91D90508ECFDCA",
+      "executableSha256": "777B83639F7DB374C587A23BBB8A29DF187E2666DC47FD0B9FAFDE46E8BD1B34",
+      "benchmarkInputs": {
+        "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+        "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+        "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+        "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+        "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+      },
+      "benchmarkSha256": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+      "buildInputIdentity": "3dc0d0e501973fcae225e8783be2636418b87815657421d0200edd7c8d370ea7",
+      "buildArtifactIdentity": "267501d0f679db46b1bc122ebdbfdfe996c4c30aeb4a532a361927b0f4459a41",
+      "buildIdentityVersion": 2,
+      "resolvedBuildIdentity": "179670f8a78409322f1bb8dc5afd349e2445ef55a66d8a9d2b2d0340f71924b5",
+      "identityStatus": "verifiable",
+      "identityScope": "full",
+      "harnessIdentity": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61",
+      "toolchainIdentity": "FBE23BB94440AC02BE667851F1F1DFD3E5B0C2234B7795DFC5D03221D9C61689",
+      "dependencyIdentity": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4",
+      "environmentIdentity": "051E6879DE05A1EF7BEA4549F3D9D834EED7D81DD2BAC6475BFFBE1DA42CF0C5",
+      "buildAttestationIdentity": "5ffd861391915ee9c728267beb47aa929265d95d77b9b4bdab7ba86816ec9430"
+    }
+  },
+  "checks": [
+    {
+      "key": "benchmarkSha256",
+      "baseline": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+      "candidate": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+      "same": true
+    },
+    {
+      "key": "harnessIdentity",
+      "baseline": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61",
+      "candidate": "4ACB901C9507B0203156F302793C3C4588F3A4B0A19176F881B87C75FA107E61",
+      "same": true
+    },
+    {
+      "key": "toolchainIdentity",
+      "baseline": "FBE23BB94440AC02BE667851F1F1DFD3E5B0C2234B7795DFC5D03221D9C61689",
+      "candidate": "FBE23BB94440AC02BE667851F1F1DFD3E5B0C2234B7795DFC5D03221D9C61689",
+      "same": true
+    },
+    {
+      "key": "dependencyIdentity",
+      "baseline": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4",
+      "candidate": "FF249766C1A9A65CFD845C5D68F772F3AE279C351140FAD5DD8F2A9B96CB73B4",
+      "same": true
+    },
+    {
+      "key": "environmentIdentity",
+      "baseline": "051E6879DE05A1EF7BEA4549F3D9D834EED7D81DD2BAC6475BFFBE1DA42CF0C5",
+      "candidate": "051E6879DE05A1EF7BEA4549F3D9D834EED7D81DD2BAC6475BFFBE1DA42CF0C5",
+      "same": true
+    },
+    {
+      "key": "warpSha256",
+      "baseline": "DCADF8372FC553A9A6021D5F54965D529EBC0A943D5CD5E160BD4484D3276D4C",
+      "candidate": "DCADF8372FC553A9A6021D5F54965D529EBC0A943D5CD5E160BD4484D3276D4C",
+      "same": true
+    }
+  ],
+  "completedUtc": "2026-10-17T21:06:09.7549151Z"
+}

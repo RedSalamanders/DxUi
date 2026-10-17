@@ -1,0 +1,8 @@
+{
+  "test": "append one valid JSON whitespace byte to a private copy of the original report",
+  "originalUntouched": true,
+  "exitCode": 1,
+  "expectedReasonMatched": true,
+  "expectedReason": "Packet hash mismatch: Paired/Default-A01.json",
+  "completedUtc": "2026-10-17T21:38:50.3783647Z"
+}

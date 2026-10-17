@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters and source UIA range commands functionally qualified. Performance acceptance is on HOLD after repeated clean-frame p95 warnings; D2a, complete engine and physical input/AT gates remain pending.
+Status: ACTIVE — bounded retained preview, D2d source adapters and source UIA range commands functionally qualified. Controlled Default profiling is complete; unstable controls and the unqualified policy keep performance acceptance on HOLD. D2a, complete engine and physical input/AT gates remain pending.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -387,7 +387,63 @@ contains no RichTextEditor; source causality is unestablished. Functional comman
 qualification does not accept this timing change. D4c and acceptance/merge stay
 on HOLD pending developer advice under the owning performance contract.
 
-The next decision is whether to keep this reviewable implementation as WIP while
-deferring performance acceptance, or investigate with controlled interleaved
-baseline/candidate profiling. No performance budget/tradeoff has been approved,
-and no threshold, baseline, consumer pin or historical warning was changed.
+The owner selected controlled baseline/candidate profiling. No performance
+budget/tradeoff has been approved, and no threshold, baseline, consumer pin or
+historical warning was changed.
+
+### Controlled Default investigation
+
+This is a focused diagnostic of the flagged Default workload, not full three-scene
+qualification or approval of the unqualified paired policy. Freeze the existing
+benchmark, judge, assignment generator and library sources throughout the study.
+Baseline is 71059fb94c12c8966056e3afe626d1548ab1030b; candidate is
+8c21a634c5abd55f14e384673e7d710de572bdcb. Reuse the candidate's attested Release/x64
+build and let the existing paired runner create/restore/build its isolated baseline.
+Use matching evaluated compiler profiles on the Z drive. The initial attempt
+reused the original candidate-local TEMP/TMP path. Its first A/B pair exposed
+different normalized TEMP/TMP properties across checkouts, so that partial attempt
+is ineligible and retained. Correct the setup with one TEMP/TMP path outside both
+trees, rebuild both Release/x64 outputs, and preflight full cross-side identities
+before starting the replacement fixed study. This changes measurement setup,
+not library source, harness, comparator, thresholds or the historical reports.
+
+- [x] Inspect the owning performance/profiling contracts and preserve all original
+  reports, including both p95 warnings. Confirm the Default fixture is unchanged.
+- [x] Execute one predeclared 12-block Default study (48 serial fresh processes),
+  independently randomized ABBA/BAAB with the generated seed and literal schedule
+  retained. Keep both within-binary controls per block and every original report.
+- [x] Follow with eight fixed diagnostic processes: heap-off ABBA, then heap-on
+  BAAB, using the same two built executables. Keep raw CPU/thread/cache/heap
+  telemetry, sampling costs, query failures and captures; no retries for outliers.
+- [x] Compare run/block and per-frame tails, preparation/composition intervals,
+  deterministic resource invariants and same-binary drift. Profile consumption
+  without inferring actual scheduling delay, thread placement or heap ownership.
+- [x] Retain the full evidence inventory and exact hashes, reconcile docs/plan,
+  run affected documentation/tooling validation and record remaining decisions.
+
+The first canonical attempt had a 2,400-second owned-runner budget including
+isolated restore/build and was stopped on the cross-side identity mismatch.
+Corrective Release builds have a separate 1,200-second setup budget. The fresh
+canonical study has a 2,400-second owned-runner budget after setup/preflight;
+the subsequent eight-process pilot has a 900-second overall
+budget and the existing 120-second per-native-child limit. Retain partial failures
+and unattempted slots if a budget or provenance check stops either sequence.
+Do not run builds/tests concurrently with measured processes, change machine
+power/priority/affinity policy, kill independent applications or silently replace
+any scheduled process. These bounds and the two-scene qualification omission are
+explicit diagnostic scope; acceptance/merge and D4c remain on HOLD.
+
+The [controlled investigation](../../../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+completed all 48 canonical and eight diagnostic reports. Corrected preflight and
+every measured identity agree. The paired clean-frame p95 effect is -1.31%
+(Holm-adjusted p=1); both frozen judges agree on all 26 within-noise verdicts.
+All 24 controls flag some drift, including 13 clean-p95 band crossings from
+-14.33% to +14.41%. The original slowdown is not established consistently;
+non-regression acceptance is also unestablished. About 98% of the same-frame tail
+interval remains outside preparation/CPU composition in the combined bind/clear,
+copy/readback/other-overhead remainder. Extra warm-up and heap profiles do not
+isolate its cause. Exact resource budgets hold and all eight captures match.
+The refused TEMP/TMP setup, original warnings and raw timing outliers remain
+retained. Library/harness/policy and consumer pins are unchanged. Further causal
+attribution needs a separate bounded boundary/stack/scheduler investigation;
+this diagnostic closes no D4c, full-scene or trusted-policy gate.

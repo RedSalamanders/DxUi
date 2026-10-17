@@ -1,0 +1,27 @@
+{
+  "classification": "ineligible-partial-study",
+  "reason": "Cross-side toolchainIdentity mismatch discovered after first baseline/candidate receipts. Stopped owned runner; no timing inference.",
+  "stoppedUtc": "2026-10-17T20:56:20.6518514Z",
+  "files": [
+    {
+      "Name": "Default-A01.json",
+      "Length": 38463
+    },
+    {
+      "Name": "Default-A01.json.comparison.json",
+      "Length": 48
+    },
+    {
+      "Name": "Default-B01.json",
+      "Length": 38441
+    },
+    {
+      "Name": "Default-B01.json.comparison.json",
+      "Length": 48
+    },
+    {
+      "Name": "Default-B02.json",
+      "Length": 13109
+    }
+  ]
+}
