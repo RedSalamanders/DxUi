@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [Bounded timing/memory attribution pilot, 2026-10-17](Performance/2026-10-17-attribution-pilot/README.md):
+  24 retained diagnostic processes, clock/batch and frame-stage traces, capture/heap/teardown observations,
+  measured observer cost and the unavailable kernel trace. All qualification gates and thresholds are unchanged.
+
 - [PR #80 paired controls, 2026-10-17](Performance/2026-10-17-pr80-controls/README.md): sanitized replay and
   attribution evidence for 71/72 unstable controls, quantized preparation, retained long-frame/memory witnesses
   and the single legacy/migrated improvement disagreement. Remaining performance, platform and consumer gates stay open.
