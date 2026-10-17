@@ -19,6 +19,11 @@
 - **Evidence**: [reviewer findings and verifier verdicts](ProductionReview_2026-10-05/findings.md). The identifiers in
   parentheses below (for example `host-core-1`) are its entries, each with the failure scenario, a fix and a failing test.
 
+Shared performance-policy, native ARM64/resource, physical-input/IME/AT and consumer acceptance execution has one
+owner: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+This remediation plan owns code/tooling corrections and attribution. Historical procedures and checkboxes below
+remain source-specific records, not a second current qualification queue.
+
 ## How the review was made
 
 ### Performance qualification execution (10 October)
@@ -189,14 +194,14 @@ establish no product-wide production approval; the approved accessibility schedu
 - [ ] Q17/Q18: committed-composition undo, masked-field text-service/disclosure policy and diagnosed bounded transport.
 - [ ] Q20/Q21/Q23/Q24/Q27-Q31: required aggregate workflow, explicit skips/interactive obligations, six-profile
   PrePush accounting, consumer signature/version fixtures and instrumentation identity.
-- [ ] Q22: versioned trusted benchmark acceptance, randomized independent blocks/A-A calibration, protected policy
-  migration and separate median/peak errata; no weakened threshold or silent rebaseline.
+- [ ] Q22 implementation/attribution: benchmark provenance, assignment and median/peak corrections. Calibration,
+  seed-policy approval and acceptance execute only in the [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 - [ ] Q25/Q26: reconcile plans/capabilities, actual touch provenance, bounded feedback overlap and adoption trackers.
 - [ ] Qualify the final source with relevant native x64 Debug/Release/ASan, all ARM64 builds, consumer fixture,
   WARP/device-loss/resource evidence, gallery, validators/format and an exact-source CI candidate.
 - [ ] Apply the approved required CI rule only after its workflow and concrete candidate are verified.
-- [ ] Finish separately recorded real desktop/IME/AT/touch/native-ARM64 and publication/adoption obligations using
-  available environments. Agreement to desktop timing remains explicit; hardware absence is not a pass.
+- Shared desktop/IME/AT/touch/native-ARM64 and publication/adoption obligations are tracked in the
+  [qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026), not closed by this checklist.
 
 ### Current iteration evidence (9 October)
 
@@ -1167,7 +1172,7 @@ Tooling:
 
 - [ ] **Stale WIP plans and indexes**:
   - [SliderTouchHalo](SliderTouchHalo_2026-10-04.md) still lists the merge as open.
-  - [TreeReorder](TreeReorder_2026-09-21.md) and the Tree contract keep a row-straddle limit #38 removed.
+  - [TreeReorder](../Done/TreeReorder_2026-09-21.md) historically retained a row-straddle limit #38 removed; its current archival note identifies the correction.
   - [GridTextOverflow](GridTextOverflow_2026-09-21.md) describes the replaced V11 cache.
   - [CiRunScope](CiRunScope_2026-10-04.md)'s validation figure does not reproduce.
   - The Done index omits three plans.

@@ -1,10 +1,17 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-16
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+RadioButton's optional group is a lifetime-checked observer of its direct owning RadioButtons. An extracted or
+reparented choice selects independently until added/configured in its new group; it cannot change or dereference
+its former group. ScrollPanel forwards primary and secondary child presses/releases in content coordinates,
+including nonzero scroll offsets and captured release; its scrollbar responds only to the primary button.
+Pointer and keyboard context anchors map back through every ancestor ScrollPanel before screen conversion,
+including ancestors separated by PageHost. Tree/Grid delegate anchors use that same mapping.
 
 Controls retain state independently of GPU resources. Buttons, toggles, sliders, selectors and text fields are shared
 implementations, not application-local clones. An active gesture has a defined preview, commit and cancel lifecycle.

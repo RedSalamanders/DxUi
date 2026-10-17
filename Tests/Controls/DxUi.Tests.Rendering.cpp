@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Scope.Tests.HostControlRegressions.h"
 
 namespace
 {
@@ -2774,6 +2775,7 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
+    DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);
     DXUI_RUN_TEST(TestGridMultilineTrailingSeparatorsMatchTrimmedTwin);

@@ -1,5 +1,15 @@
 # Hosting, input and lifetime
 
+PageHost's current page participates in Tab traversal and UI Automation, including child patterns, labels and
+point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
+procedure; host animation ticks request further scheduling independently of repainting changed control pixels.
+
+Call `EmbeddedHost::AdvanceAnimation` with consistent monotonic milliseconds while `NeedsAnimation()` is true.
+Slider/PageHost transitions anchor on their first supplied tick, including zero; this correction does not qualify
+every legacy control's clock path (see the [remaining audit](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#remaining-legacy-clock-audit)).
+Device replacement and detach release owned graphics without clearing or flushing the application's immediate
+context; composition retains its documented pipeline-binding behavior.
+
 ## Embedded view
 
 The application creates a D3D11 device with `D3D11_CREATE_DEVICE_BGRA_SUPPORT`. Call

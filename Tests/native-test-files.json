@@ -32,6 +32,8 @@
   "Tests/Controls/DxUi.Tests.Tree.cpp",
   "Tests/Controls/DxUi.Tests.WindowHost.cpp",
   "Tests/Controls/Scope.Tests.FormAccessibility.cpp",
+  "Tests/Controls/Scope.Tests.HostControlRegressions.cpp",
+  "Tests/Controls/Scope.Tests.HostControlRegressions.h",
   "Tests/Controls/Scope.Tests.FormAccessibility.h",
   "Tests/Controls/Scope.Tests.Forms.cpp",
   "Tests/Controls/Scope.Tests.Forms.h",

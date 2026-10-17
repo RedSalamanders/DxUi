@@ -1640,7 +1640,8 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     _outgoingPage                     = std::move(_currentPage);
     _currentPage                      = std::move(page);
     _transition.active                = true;
-    _transition.startTickMs           = GetTickCount64();
+    _transition.clockAnchored         = ! host->_embedded;
+    _transition.startTickMs           = _transition.clockAnchored ? GetTickCount64() : 0u;
     _transition.lastTickMs            = _transition.startTickMs;
     _transition.linearProgress        = 0.0f;
     _transition.hasConnectedAnimation = false;
@@ -1711,7 +1712,7 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     page->Paint(host);
 }
 
-PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64_t nowTickMs) const noexcept
+PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64_t /*nowTickMs*/) const noexcept
 {
     PageHostDebugState state{};
     state.active                 = _transition.active;
@@ -1733,19 +1734,6 @@ PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64
     state.outgoingOffsetXDip     = _transition.active ? Lerp(0.0f, kOutgoingOffsetXDip, state.easedPageProgress) : 0.0f;
     state.currentConnectedRectDip =
         _transition.hasConnectedAnimation ? LerpRect(_transition.sourceRectDip, _transition.targetRectDip, state.easedConnectedProgress) : D2D1::RectF();
-
-    if (_transition.active && _transition.lastTickMs == 0u && nowTickMs != 0u)
-    {
-        state.linearProgress         = ClampUnit(static_cast<float>(nowTickMs - _transition.startTickMs) / static_cast<float>(kPageTransitionDurationMs));
-        state.easedPageProgress      = theme.reducedMotion ? 1.0f : EvaluateEasing(EasingCurve::FastDecelerate, state.linearProgress);
-        state.easedConnectedProgress = theme.reducedMotion ? 1.0f : EvaluateEasing(EasingCurve::PointToPoint, state.linearProgress);
-        state.incomingOpacity        = state.easedPageProgress;
-        state.outgoingOpacity        = 1.0f - state.easedPageProgress;
-        state.incomingOffsetXDip     = Lerp(kIncomingOffsetXDip, 0.0f, state.easedPageProgress);
-        state.outgoingOffsetXDip     = Lerp(0.0f, kOutgoingOffsetXDip, state.easedPageProgress);
-        state.currentConnectedRectDip =
-            _transition.hasConnectedAnimation ? LerpRect(_transition.sourceRectDip, _transition.targetRectDip, state.easedConnectedProgress) : D2D1::RectF();
-    }
 
     return state;
 }
@@ -1941,8 +1929,14 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     }
 #endif
 
+    if (! _transition.clockAnchored)
+    {
+        _transition.startTickMs   = nowTickMs;
+        _transition.clockAnchored = true;
+    }
     _transition.lastTickMs     = nowTickMs;
-    _transition.linearProgress = ClampUnit(static_cast<float>(nowTickMs - _transition.startTickMs) / static_cast<float>(kPageTransitionDurationMs));
+    const uint64_t elapsedMs   = nowTickMs >= _transition.startTickMs ? nowTickMs - _transition.startTickMs : 0u;
+    _transition.linearProgress = ClampUnit(static_cast<float>(elapsedMs) / static_cast<float>(kPageTransitionDurationMs));
     if (_transition.linearProgress >= 1.0f)
     {
         if (! FinishTransition())
@@ -3582,7 +3576,8 @@ void RadioButton::SetOnSelected(std::function<void()> onSelected)
 
 void RadioButton::SetGroup(RadioButtons* group) noexcept
 {
-    _group = group;
+    _group         = group;
+    _groupLifetime = group ? GetControlLifetimeToken(*group) : std::weak_ptr<int>{};
 }
 
 void RadioButton::Paint(ControlHost& host) const
@@ -3691,12 +3686,14 @@ void RadioButton::SelectSelf(ControlHost& host)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         const auto onSelected                 = _onSelected;
-        if (_group)
+        if (_group && ! _groupLifetime.expired() && GetParent() == _group)
         {
             _group->SelectItem(this);
         }
         else
         {
+            _group = nullptr;
+            _groupLifetime.reset();
             _checked = true;
             Invalidate(host);
         }
@@ -5168,11 +5165,12 @@ double Slider::GetDisplayedNormalizedValue() const noexcept
 
 void Slider::SnapDisplayedValue() noexcept
 {
-    _displayedValue            = _value;
-    _valueAnimationStart       = _value;
-    _valueAnimationTarget      = _value;
-    _valueAnimationStartTickMs = 0u;
-    _valueAnimationActive      = false;
+    _displayedValue              = _value;
+    _valueAnimationStart         = _value;
+    _valueAnimationTarget        = _value;
+    _valueAnimationStartTickMs   = 0u;
+    _valueAnimationClockAnchored = false;
+    _valueAnimationActive        = false;
 }
 
 void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toValue) noexcept
@@ -5184,11 +5182,12 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
         return;
     }
 
-    _displayedValue            = fromValue;
-    _valueAnimationStart       = fromValue;
-    _valueAnimationTarget      = toValue;
-    _valueAnimationStartTickMs = ::GetTickCount64();
-    _valueAnimationActive      = true;
+    _displayedValue              = fromValue;
+    _valueAnimationStart         = fromValue;
+    _valueAnimationTarget        = toValue;
+    _valueAnimationClockAnchored = ! host._embedded;
+    _valueAnimationStartTickMs   = _valueAnimationClockAnchored ? ::GetTickCount64() : 0u;
+    _valueAnimationActive        = true;
     host.RequestAnimation();
     Invalidate(host);
 }
@@ -5206,6 +5205,11 @@ bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexce
         return false;
     }
 
+    if (! _valueAnimationClockAnchored)
+    {
+        _valueAnimationStartTickMs   = nowTickMs;
+        _valueAnimationClockAnchored = true;
+    }
     const uint64_t elapsedMs   = nowTickMs > _valueAnimationStartTickMs ? nowTickMs - _valueAnimationStartTickMs : 0u;
     const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_valueAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress  = EvaluateEasing(EasingCurve::PointToPoint, linearProgress);
@@ -5239,7 +5243,8 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
 
     transition.startProgress = transition.progress;
     transition.target        = clampedTarget;
-    transition.startTickMs   = ::GetTickCount64();
+    transition.clockAnchored = ! host._embedded;
+    transition.startTickMs   = transition.clockAnchored ? ::GetTickCount64() : 0u;
     transition.active        = true;
     host.RequestAnimation();
     Invalidate(host);
@@ -5252,6 +5257,11 @@ bool Slider::AdvanceVisualTransition(VisualTransitionState& transition, uint64_t
         return false;
     }
 
+    if (! transition.clockAnchored)
+    {
+        transition.startTickMs   = nowTickMs;
+        transition.clockAnchored = true;
+    }
     const uint64_t elapsedMs   = nowTickMs > transition.startTickMs ? nowTickMs - transition.startTickMs : 0u;
     const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_interactionAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress  = EvaluateEasing(curve, linearProgress);
@@ -9762,11 +9772,6 @@ bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F p
 
 bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    if (rightButton)
-    {
-        return false;
-    }
-
     const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
     const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
     Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
@@ -9795,8 +9800,8 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    // Scrollbar interaction
-    if (UsesInternalScrollbar())
+    // Scrollbars respond only to the primary button; secondary presses continue to content-space children.
+    if (! rightButton && UsesInternalScrollbar())
     {
         const D2D1_RECT_F track = GetScrollbarTrackRect();
         if (PointInRect(track, point))

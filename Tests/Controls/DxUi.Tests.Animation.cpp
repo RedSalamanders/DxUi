@@ -2,6 +2,7 @@
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "DxUi/FrameRuntime.h"
+#include "Scope.Tests.HostControlRegressions.h"
 
 #include <array>
 #include <fstream>
@@ -1516,6 +1517,7 @@ void TestPageHostReducedMotionSnapsTransition()
 
 void RunAnimationTests()
 {
+    DXUI_RUN_TEST(TestEmbeddedTransitionsUseApplicationClockIncludingZero);
     DXUI_RUN_TEST(TestFrameRuntimeClockIsMonotonic);
     DXUI_RUN_TEST(TestFrameRuntimeClampsLargeDelta);
     DXUI_RUN_TEST(TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches);

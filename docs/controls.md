@@ -1,5 +1,11 @@
 # Control guide
 
+ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
+uses the primary button. Pointer and keyboard menu anchors account for nested scroll offsets, including through
+PageHost and for Tree/Grid delegates. Extracting a RadioButton with `TakeChild` removes its effective association with the
+former group, so it remains safely selectable if that group is retained or destroyed. Configure its new group
+after adoption when mutual exclusion is required.
+
 All controls below are declared in [DxUi.h](../include/DxUi/DxUi.h), available through
 [ControlCatalog.h](../include/DxUi/ControlCatalog.h), and shown in the [gallery](gallery/README.md).
 Use `Panel::AddChild<T>(...)` for typed construction or `CreateControl` for catalog-driven construction.

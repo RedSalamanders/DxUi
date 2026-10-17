@@ -1,13 +1,62 @@
-# UI composition qualification and consumer adoption
+# Library qualification and consumer adoption
 
 - **Status**: ACTIVE; unfinished acceptance split from the original 4 October plan on 11 October 2026.
-- **Scope**: accepted S0-S2 performance/policy, native-platform and physical-input qualification, plus separately owned
+- **Scope**: shared library performance/policy, native-platform and physical-input qualification execution, including
+  ProductionReview and accepted S0-S2 candidates, plus separately owned
   consumer pilots and pins. S0-S2 library implementation and recorded local x64 validation are complete in
   [Done](../Done/ConsumerUiImprovements_S0_S2_2026-10-04.md).
 - **Deferred implementation**: [S3-S7 proposals](ConsumerUiImprovements_S3_S7_2026-10-11.md) are unimplemented and
   require separate scope acceptance. This qualification plan does not authorize those subsystems.
 - **Ownership**: DxUi retains library measurements/platform qualification; consumer product behavior and adoption
   measurements remain in each application repository. No consumer is changed implicitly.
+
+## Shared qualification ownership (16 October 2026)
+
+This is the single execution ledger for cross-plan qualification. Feature/remediation plans own implementation,
+defect attribution and their source-specific functional evidence, and link here for shared acceptance rather than
+copying its procedures or independently closing the same gate. Domain contracts remain normative.
+
+| Obligation | Execution owner and remaining evidence |
+| --- | --- |
+| Paired policy and non-regression | This plan: stable matched controls, independent seed-policy review, a trusted measured base and candidate-specific paired/hosted results under the owning performance contract. Policy remains unqualified. |
+| Native ARM64 and opt-in resources | This plan: exact-source native profiles and separate MenuResources/MenuResourceScaling evidence; cross-builds or ordinary hosted foreground passes do not substitute. |
+| Physical input, real IME and assistive technology | This plan tracks unresolved library scenarios and environment admission; each application owns its product/device/service execution and acceptance. Synthetic UIA/input is a separate fact. |
+| Consumer publication, pins and rollback | The [API-4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md) owns consumer actions. This plan references their evidence without changing pins or declaring product acceptance. |
+
+Keep receipt identities separate for each candidate. Existing S0-S2 and ProductionReview receipts cannot qualify
+the later [host/control fixes](../Done/HostControlReviewFixes_2026-10-16.md) merely because a shared gate has one owner.
+Historical failures and approved tradeoffs retain their original scope; no threshold or baseline is changed here.
+
+### Host/control candidate acceptance
+
+- [x] Obtain current-candidate x64 Menu, NativeTextInput, MenuResources and MenuResourceScaling receipts in
+  Debug, Release and ASan Debug under the automatic Start policy approved on 17 October. This ledger owns this foreground
+  acceptance; the [host/control plan](../Done/HostControlReviewFixes_2026-10-16.md) closes its local dependency.
+  Its [local packet](../../../Measurements/HostControlReviewFixes/2026-10-17/README.md) identifies the frozen inputs,
+  57 noninteractive suite passes, six builds and four relocated synthetic consumers. Older foreground receipts
+  cannot qualify this candidate. Native ARM64 and physical-input/IME/AT acceptance remain separate.
+  All twelve current-candidate foreground suite executions pass with zero skips and verified restoration across
+  four successful leases: one each for Debug and Release, and two for ASan. All 831 named cases complete, and each
+  receipt matches its executable hash and the requested/native 30-second automatic Start policy.
+  The first ASan attempt records a native-focused-host skip, fails to grant the next child foreground and fails
+  foreground/pointer restoration. Its next lease is refused before any child starts because the warning cannot
+  take foreground, with all desktop states verified unchanged. A third attempt fails the hidden-host initial-focus
+  assertion and cannot launch the resource child; its desktop states are restored or unchanged. All three private
+  failures/refusals remain retained. The later ASan passes at identical compiled inputs do not establish their causes.
+
+- [ ] Resolve the host/control candidate's diagnostic memory uncertainty through stable controls and exact-source
+  paired qualification. Its first MultilineGrid comparison flags clean private/peak and dirty peak by about
+  1.28/1.31/1.54 MiB; the unchanged candidate's repeat is within budget. Keep the first flag and both receipts:
+  a passing repeat is not attribution, and none of these ordinary comparisons qualify the trusted policy.
+
+### Remaining legacy clock audit
+
+- [ ] Independently reproduce and reconcile remaining system-uptime/frame-timestamp interactions in Button
+  interaction starts, TextField/ComboBox caret resets, Tree expansion, Grid sort glyphs and first-tooltip deadlines.
+  Exercise zero and large application epochs, intermediate pixels, completion and idle cleanliness before claiming
+  a library-wide epoch-independent clock contract. The reviewed host/control fix explicitly qualifies only the
+  requested PageHost/Slider transition starts. These additional source leads have not been runtime-falsified or
+  silently recorded as corrected.
 
 ## 1. Authority and evidence boundaries
 

@@ -104,6 +104,8 @@ public:
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;
     [[nodiscard]] bool NeedsAnimation() const noexcept;
+    // Monotonic application milliseconds. PageHost/Slider transitions anchor on their first supplied tick,
+    // including zero. Keep the clock consistent for this attachment; advance only while requested.
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // S_FALSE means hidden, zero-sized or already prepared; failure disables interaction until preparation succeeds.

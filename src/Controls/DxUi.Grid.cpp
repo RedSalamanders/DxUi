@@ -6003,7 +6003,8 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         rowIndex = hit.rowIndex;
     }
 
-    static_cast<void>(TryControlCallback([&] { _delegate->OnGridContextMenu(*this, rowIndex, host.DipPointToScreenPoint(anchorDip)); }));
+    const POINT screenPoint = Control::ResolveContextMenuAnchor(host, false, anchorDip);
+    static_cast<void>(TryControlCallback([&] { _delegate->OnGridContextMenu(*this, rowIndex, screenPoint); }));
     return true;
 }
 

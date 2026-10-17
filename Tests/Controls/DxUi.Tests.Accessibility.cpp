@@ -5,6 +5,7 @@
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Scope.Tests.FormAccessibility.h"
 #include "Scope.Tests.GridUiaPattern.h"
+#include "Scope.Tests.HostControlRegressions.h"
 
 #include <array>
 #include <atomic>
@@ -10224,6 +10225,8 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren);
+    DXUI_RUN_TEST(TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren);
     DXUI_RUN_TEST(TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream);
     DXUI_RUN_TEST(TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary);
     DXUI_RUN_TEST(TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep);
