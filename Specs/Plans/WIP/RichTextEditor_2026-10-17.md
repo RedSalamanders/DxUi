@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — D2 reusable-core migration and exact-pin consumer qualification in progress.
+Status: ACTIVE — D2b reusable core/consumer qualified; D2a incremental and D2c/D2d retained/input integration pending.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -49,7 +49,7 @@ The additive core has its own explicit bounded support/qualification status.
   incremental/shared scheduling and prepared-resource contracts.
 - [x] D2b-core: Canonical bounded model/projection/layout and migrated behavior
   tests pass all 19 normal suites in x64 Debug/Release/ASan and all ARM64 builds.
-- [ ] D2b: Move reusable model/projection/layout into include/DxUi and src/Controls
+- [x] D2b: Move reusable model/projection/layout into include/DxUi and src/Controls
   once. Replace WRL with WIL and follow stdcpplatest/SDL/WX/configuration rules.
   The standalone app then consumes the single pinned/development DxUi.lib;
   no sibling cpp lists or synchronized second source implementation.
@@ -195,3 +195,36 @@ performance or full integration acceptance.
 D2b's exact-pin prototype/public consumer gate follows the first source commit.
 D2a's incremental model/layout/shared scheduler and D2c/D2d's retained/input/AT
 work remain open. Ordinary focus-taking suites are explicitly unrun.
+
+## D2b consumer closeout
+
+Code commit 302f3783a5d2ef60f201ca3abf508c1158fde039 is the prototype's exact
+qualified dependency pin. Its clean immutable checkout is consumer-owned under
+Dependencies/DxUi/source/<commit>; later documentation/evidence commits on this
+feature branch do not move the pin or break its next build. Normal consumer
+props/targets build one archive with isolated toolchain/CRT/architecture outputs.
+The old reusable cpp files and copied behavior tests are removed from the app;
+only forwarding headers and application-owned worker/file/native host remain.
+
+The relocated public consumer passes its frozen revision-4 API, standalone new
+public headers, actual rendering, EXE/two-DLL ownership fixture and ten rejected
+pin/build mismatches. Prototype x64 Debug/Release each pass nine tests, including
+reference/parity and generated-project ownership; ASan passes four native app
+suites and the specific deliberate heap-use-after-free diagnosis. All three
+ARM64 consumer profiles cross-build. Cross-host runtime and wrong ASan Release
+configuration are rejected. Direct canonical cpp enumeration is rejected even
+when the pinned source lives inside the consumer tree. Restoring an existing pin
+validates it without consulting or modifying another repository.
+
+The application probe initially produced a different ASan access-violation after
+/sdl was added; that failure is retained. It now uses the canonical DxUi
+ownership-reset/borrowed-alias pattern and still rejects an arbitrary crash. The
+actual linked-core renderer capture is byte-identical to the prior prototype.
+Core fixture source/project/C++ bytes match the pinned checkout; the two JSON
+test manifests are semantically identical after Git's LF normalization.
+
+These consumer receipts remain distinct from the canonical 57-suite/code matrix.
+D2b is complete for the bounded v0 core. D2a, D2c, D2d and D3-D5 remain active;
+no retained RichTextEditor, complete Markdown/extensions, TSF/UIA, native ARM64
+runtime or performance acceptance is claimed. The performance advice-required
+reports and original baseline remain unchanged.

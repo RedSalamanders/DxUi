@@ -85,3 +85,10 @@ The migration is source-coordinated within one module; no C++ ownership crosses
 plugin ABIs. It adds headers/functions without changing existing declarations,
 so API revision stays 4. Consume an exact clean pin via the normal
 [props/targets](../Build/DxUi.Consumer.targets); no sibling cpp enumeration.
+
+The standalone prototype consumes exact code pin
+302f3783a5d2ef60f201ca3abf508c1158fde039 through an immutable consumer checkout.
+[Core and broader qualification](../Measurements/RichText/2026-10-17-core-d2/README.md)
+records 57 normal suite runs and all six builds. Consumer linkage/ownership and
+application smoke are separate receipts. Performance comparisons remain
+advice-required; the original baseline and both warning reports are retained.

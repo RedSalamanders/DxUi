@@ -32,9 +32,31 @@ No baseline was replaced and no further repeat was used to fish for a pass.
 D4c's controlled paired study, attribution and owner advice remain open before
 accepting a confirmed regression. The fixture does not instantiate rich text.
 
-The exact-pin prototype relink/public consumer gate follows the first source
-commit. Its actual archive/executable identity and independent application smoke
-receipts are recorded separately; these core-suite receipts do not pretend to
+The exact-pin prototype relink/public consumer gate passed for code commit
+302f3783a5d2ef60f201ca3abf508c1158fde039.
+[Consumer receipts](consumer-qualification.json) bind actual archive/executable
+identities and independent application smoke; these core-suite receipts do not pretend to
 be executions against a different consumer archive. Focus-taking Menu,
 NativeTextInput and menu resource fixtures remain explicitly unrun, as do physical
 IME/AT and complete retained-editor resource/device-loss gates.
+
+The [actual standalone consumer capture](prototype-consumer.png) was produced by
+the pinned Release app's offscreen Direct2D/WIC harness, visually inspected and
+has the same SHA256 as the pre-migration prototype. It is a consumer-host image,
+not a screenshot of a retained DxUi RichTextEditor or a gallery support claim.
+
+Prototype Debug/Release each pass 9/9; ASan passes 4/4 native application suites
+and the specific intentional-fault diagnosis. ARM64 Debug/Release/ASan builds
+pass without a native execution claim. The public consumer/revision-4/helper
+headers pass, including ten mismatch rejections. Ownership, cross-runtime and
+unsupported ASan configuration rejections are retained. The first SDL-poisoned
+application probe failure is separate from its corrected successful receipt.
+The consumer's clean code pin remains fixed while feature-branch documentation
+and evidence advance; restore never resets an existing developer checkout.
+
+[Final validation closeout](closeout-validation.json) retains the complete
+stdout/stderr from the later full run. That run caught a missing ownership/hash
+envelope on the functional source-identity record. The metadata was corrected;
+all five validators were rerun successfully, and the full tooling run passed.
+The earlier failed full-run status is retained, not relabeled as exit 0. Native
+code/build inputs and the qualified source fingerprint stayed unchanged.
