@@ -1,0 +1,10 @@
+Qualification: x64-Release
+Qualification: x64-Debug
+Qualification: x64-ASan-Debug
+Qualification: ARM64-Debug
+Qualification: ARM64-Release
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-unicode-20261018\Invoke-Qualification.ps1:46
+Line |
+  46 |  … r -not $drained -or $code -ne 0){throw "Qualification failed: $stem"}
+     |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Qualification failed: ARM64-Release

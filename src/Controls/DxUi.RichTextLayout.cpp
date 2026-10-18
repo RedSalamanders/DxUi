@@ -1,3 +1,4 @@
+#include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
@@ -90,15 +91,10 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
     }
     DWRITE_TEXT_METRICS metrics{};
     Check(layout->GetMetrics(&metrics), "GetMetrics");
-    UINT32 count = 0;
-    layout->GetClusterMetrics(nullptr, 0, &count);
-    std::vector<DWRITE_CLUSTER_METRICS> clusterMetrics(count);
-    if (count)
-        Check(layout->GetClusterMetrics(clusterMetrics.data(), count, &count), "GetClusterMetrics");
     std::vector<std::size_t> clusters{0};
-    for (const auto& cluster : clusterMetrics)
-        clusters.push_back(clusters.back() + cluster.length);
-    count = 0;
+    while (clusters.back() < projection.text.size())
+        clusters.push_back(::DxUi::FindNextTextElementBoundary(projection.text, clusters.back()));
+    UINT32 count = 0;
     layout->GetLineMetrics(nullptr, 0, &count);
     std::vector<DWRITE_LINE_METRICS> lineMetrics(count);
     if (count)
@@ -129,7 +125,14 @@ Hit PreparedLayout::HitTest(float x, float y) const
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
     Check(layout_->HitTestPoint(x, y, &trailing, &inside, &metrics), "HitTestPoint");
-    return {std::min<std::size_t>(metrics.textPosition + (trailing ? metrics.length : 0), projection_.text.size()), trailing != FALSE};
+    auto position = std::min<std::size_t>(metrics.textPosition + (trailing ? metrics.length : 0), projection_.text.size());
+    // A font/OS can shape one Unicode grapheme into several glyph clusters.
+    // Mouse navigation uses the same logical stops as deletion and arrows;
+    // explicit ACP caret/range geometry still goes directly to DirectWrite.
+    const auto stop = std::lower_bound(clusters_.begin(), clusters_.end(), position);
+    if (stop != clusters_.end() && *stop != position)
+        position = trailing ? *stop : (stop == clusters_.begin() ? 0u : *std::prev(stop));
+    return {position, trailing != FALSE};
 }
 CaretGeometry PreparedLayout::Caret(std::size_t position) const
 {

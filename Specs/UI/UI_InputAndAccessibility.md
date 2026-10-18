@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-18
 
 RichTextEditor v0 is a bounded retained preview using ControlHost's shared native
 TSF/IMM and application-bridged embedded text services. SupportsTextInput is true;
@@ -60,11 +60,25 @@ boundaries. Empty/malformed needles and invalid unit/endpoint/length arguments
 return E_INVALIDARG. FindAttribute supports the uniform IsReadOnly VT_BOOL value;
 unknown attributes return UIA_E_NOTSUPPORTED. No match returns S_OK with null.
 Line commands use prepared wrapped source ranges rather than logical-line guesses.
-Unsupported Format promotes to Word and Paragraph/Page to Document. Full Unicode
-grapheme/visual bidi, rich attributes/structure and semantic edit anchors remain
-engine/AT acceptance work. The source has no embedded UIA children to invent.
+Unsupported Format promotes to Word and Paragraph/Page to Document. Character
+commands use the shared Unicode 17.0.0 default extended grapheme rules, including
+Hangul, Indic conjuncts, pictographic ZWJ context and regional-indicator parity.
+Keyboard deletion/movement and rich mouse hit stops use the same logical
+boundaries. Explicit source selections and text-service ACP geometry preserve
+valid scalar/CRLF offsets inside a grapheme; this is separate from character
+navigation. Full visual bidi/word navigation, rich attributes/structure and
+semantic edit anchors remain engine/AT acceptance work. The source has no
+embedded UIA children to invent.
 The [source-command qualification](../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
 records functional tests separately from the open performance and real AT gates.
+
+Shared text-element segmentation uses a pure allocation-free forward walker,
+with pinned generated property data and all original Unicode 17 GraphemeBreakTest
+vectors, without exclusions. Arbitrary-caret wrappers recover context from the
+beginning; callers already walking established boundaries use the forward service
+instead of rescanning each prefix. Password masking and source/display mapping
+follow these same elements. Legacy malformed UTF-16 still makes bounded progress;
+the rich model rejects malformed source. See the [data provenance and generator](../../ThirdParty/Unicode/README.md).
 
 UTF-16 character halves are
 buffered outside the document and retired on selection, source, focus, host,

@@ -49,11 +49,15 @@ std::wstring DecodeUtf8(std::string_view bytes)
 {
     if (bytes.empty())
         return {};
-    if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+    if (bytes.size() > Document::MaximumUnits * 3u || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
         throw std::length_error("UTF-8 input too large");
     const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
     if (! length)
         throw std::invalid_argument("Invalid UTF-8 input");
+    // A UTF-16 unit needs at most three UTF-8 bytes; paired supplementary
+    // scalars need four bytes for two units. Reject both bounds before allocation.
+    if (static_cast<std::size_t>(length) > Document::MaximumUnits)
+        throw std::length_error("Decoded UTF-8 source exceeds capacity");
     std::wstring text(static_cast<std::size_t>(length), L'\0');
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), text.data(), length) != length)
         throw std::runtime_error("UTF-8 conversion failed");

@@ -1,7 +1,7 @@
 # Architecture and ownership
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -30,6 +30,14 @@ descriptors, and projection/layout remain whole-document preparation.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.
+
+DxUi.TextElements is the single pure UTF-16 decoder and Unicode 17 default
+extended-grapheme implementation used by the existing text controls, rich
+preparation and UIA character commands. It has no host/font/device, heap storage,
+worker or timer. Its generated table is pinned to licensed Unicode data in
+ThirdParty/Unicode; the generator and complete independent conformance corpus
+belong here. Do not add a parallel rich-only segmentation utility or depend on
+the installed font/OS glyph-cluster rules for logical character navigation.
 
 ## Single library and hosting modes
 

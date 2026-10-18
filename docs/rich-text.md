@@ -156,8 +156,9 @@ source text, enclosing element, visible bounds and empty embedded children are
 covered in both hosts. `Line` movement uses the prepared wrapped rich projection
 through `GetSourceVisualLineRanges`, including exact source CRLF and hidden
 syntax. Unsupported Format units promote to Word; Paragraph/Page promote to
-Document. Invalid units/endpoints/lengths are rejected. This does not establish
-full Unicode grapheme/visual bidi or rich style/structure semantics.
+Document. Invalid units/endpoints/lengths are rejected. Character commands now
+use shared Unicode 17 default extended grapheme rules. Visual bidi/word
+navigation and rich style/structure semantics remain separate work.
 
 Caret, visible, composition and conversion ranges retain source offsets and
 identity while reading the published document. They do not copy the full source
@@ -208,7 +209,9 @@ selection and preserves history/revision. Invalid source, ranges or resulting
 selection leave source, selection, revision and history unchanged. Reset clears
 history and selection. The v0 bounds are 64 Ki UTF-16 units and 128 history items.
 There is no ANSI API; UTF-8 conversion rejects malformed input and embedded NUL.
-Accepted BOM and mixed line endings round-trip unchanged.
+It rejects impossible byte lengths and decoded lengths above capacity before
+allocating the UTF-16 result. Exact three-byte BMP and supplementary-scalar
+capacity limits remain accepted. Accepted BOM and mixed line endings round-trip unchanged.
 
 `SourceSnapshot::IsBoundary` and `Slice(first,last)` inspect shared pieces without
 flattening a revision. Slices and edits preserve scalar and CRLF boundaries,
@@ -239,8 +242,15 @@ caller-owned target without retaining it. Draw performs raster work: never call
 it from allocation-free embedded composition. The retained preview uses the
 host cached-surface preparation/composition boundary.
 
-Geometry uses DirectWrite UTF-16/logical clusters; full Unicode grapheme and
-visual bidi navigation are not qualified. This core supplies no TSF/IME/UIA,
+Rich arrows, deletion, UIA character commands and mouse hit stops use the shared
+Unicode 17.0.0 default extended grapheme rules. Hangul, Indic conjuncts, contextual
+emoji ZWJ and regional-indicator sequences are covered by all 766 original
+conformance vectors at every UTF-16 offset. Prepared stops and password mask
+indices use a forward walker with no C++ heap requests. Font glyph clusters
+still belong to DirectWrite; explicit ACP caret/range geometry remains available
+inside an element for text services. [Pinned data and regeneration](../ThirdParty/Unicode/README.md)
+are kept in the repository. Logical grapheme support does not establish visual
+bidi/word navigation or physical IME/AT behavior. This core supplies no TSF/IME/UIA,
 clipboard, file persistence, retained theme/DPI invalidation or viewport scheduler.
 The standalone prototype still owns those demonstration-host responsibilities.
 
@@ -297,9 +307,19 @@ a wait boundary, without proving GPU duration, scheduler delay or non-regression
 The canonical workload and all original acceptance gates remain unchanged.
 
 The [indexed-source qualification](../Measurements/RichText/2026-10-18-indexed-source/README.md)
-retains all 57 current ordinary x64 suite runs, six builds and both boundary-timer
+retains its 57 ordinary x64 suite runs, six builds and both boundary-timer
 modes in each x64 profile. The fragmented Unicode oracle and concurrent snapshot
 reads pass; the fixed lookup-trial median moves from 6.5310 to 0.7234 ms in Release.
 That observation is descriptive, with no paired performance acceptance. ARM64
 runtime, full Markdown/extensions, incremental preparation and physical IME/AT
 remain open. No consumer pin or gallery content changed.
+
+The [Unicode 17 qualification](../Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
+retains the original corpus/allocation failures, 57 passing ordinary x64 suite
+runs, six attested builds and all pinned generation inputs. Every profile passes
+the 766-vector corpus and native/embedded behavior cases. The 49,152-unit forward
+walk requests no C++ heap storage; oversized UTF-8 rejection also requests zero
+C++ bytes in both tested cases. The refused ARM64 build-input mutation and its
+two successful recovery builds remain separately recorded. Collapsed deletion
+from an explicit interior ACP, bulk movement, the remaining engine and manual
+acceptance gates continue under the plan.

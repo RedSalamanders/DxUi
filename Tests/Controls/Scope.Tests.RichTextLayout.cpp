@@ -210,10 +210,33 @@ void TestRichTextLayoutHostLocaleAndReadingDirection()
     Require(layout.Generation() == generation && layout.Ready(), "direction failure keeps prior prepared geometry");
 }
 
+void TestRichTextLayoutUnicode17NavigationAndHitStops()
+{
+    const auto factory = CreateRichTextTestFactory();
+    for (const std::wstring cluster : {L"\u1100\u1161\u11a8", L"\u0915\u094d\u0915", L"\U0001f469\u200d\U0001f469\u200d\U0001f467", L"a\u200d"})
+    {
+        Document document(L"A" + cluster + L"B");
+        PreparedLayout layout;
+        layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), 600);
+        const auto end = 1u + cluster.size();
+        Require(layout.NextCluster(1) == end && layout.PreviousCluster(end) == 1,
+                "prepared navigation uses complete Unicode graphemes independently of font glyph clusters");
+        const auto first = layout.Caret(1), last = layout.Caret(end);
+        for (size_t part = 0; part <= 12; ++part)
+        {
+            const auto hit = layout.HitTest(first.x + (last.x - first.x) * static_cast<float>(part) / 12.0f, first.y + first.height * 0.5f);
+            Require(hit.position <= 1u || hit.position >= end, "mouse hit never stops inside a Unicode grapheme");
+        }
+        const auto scalarAcp = DxUi::StepToNextCodePoint(layout.Content().text, 1u);
+        Require(layout.Caret(scalarAcp).height > 0 && ! layout.Range(1, end).empty(), "explicit scalar ACP geometry remains available to text services");
+    }
+}
+
 void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
     DXUI_RUN_TEST(TestRichTextLayoutOptionsFailureAtomicityAndRetirement);
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);
     DXUI_RUN_TEST(TestRichTextLayoutHostLocaleAndReadingDirection);
+    DXUI_RUN_TEST(TestRichTextLayoutUnicode17NavigationAndHitStops);
 }

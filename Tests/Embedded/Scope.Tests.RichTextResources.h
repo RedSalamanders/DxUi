@@ -1,6 +1,84 @@
 #pragma once
 
 // Included by the supplied-device fixture after its Check/Hr and allocation counter.
+static void TestUnicodeGraphemeForwardWalkAllocationBudget()
+{
+    // Four independent elements per pattern: Hangul, Indic, pictographic ZWJ,
+    // ASCII. The caller prepares the source before the measured forward walk.
+    std::wstring source;
+    constexpr size_t repetitions = 4096u;
+    for (size_t index = 0; index < repetitions; ++index)
+        source += L"\u1100\u1161\u11a8\u0915\u094d\u0915\U0001f469\u200d\U0001f4bbx";
+    const bool previousCounting    = countAllocations;
+    const auto previousAllocations = allocations, previousBytes = allocationBytes;
+    size_t elements = 0u, cursor = 0u, calls = 0u, bytes = 0u;
+    bool progress = true;
+    {
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = previousCounting;
+            allocations      = previousAllocations;
+            allocationBytes  = previousBytes;
+        });
+        allocationBytes = allocations = 0u;
+        countAllocations              = true;
+        while (cursor < source.size() && elements <= source.size())
+        {
+            const auto next = DxUi::FindNextTextElementBoundary(source, cursor);
+            if (next <= cursor || next > source.size())
+            {
+                progress = false;
+                break;
+            }
+            cursor = next;
+            ++elements;
+        }
+        countAllocations = false;
+        calls            = allocations;
+        bytes            = allocationBytes;
+    }
+    std::cout << "Unicode17 forward walk units=" << source.size() << " elements=" << elements << " CppAllocations=" << calls << " CppRequestedBytes=" << bytes
+              << '\n';
+    Check(progress && cursor == source.size() && elements == repetitions * 4u,
+          "forward Unicode traversal makes bounded progress through independent mixed-script elements");
+    Check(calls == 0u && bytes == 0u, "forward grapheme traversal owns no C++ heap storage");
+}
+
+static void TestRichTextUtf8RejectionAllocationBudget()
+{
+    for (const auto inputBytes : {DxUi::RichText::Document::MaximumUnits + 1u, DxUi::RichText::Document::MaximumUnits * 3u + 1u})
+    {
+        const std::string input(inputBytes, 'a'); // Caller-owned input is outside the decoder's allocation budget.
+        const bool previousCounting    = countAllocations;
+        const auto previousAllocations = allocations, previousBytes = allocationBytes;
+        bool lengthRejected   = false;
+        size_t requestedBytes = 0u;
+        {
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = previousCounting;
+                allocations      = previousAllocations;
+                allocationBytes  = previousBytes;
+            });
+            allocationBytes = allocations = 0u;
+            countAllocations              = true;
+            try
+            {
+                static_cast<void>(DxUi::RichText::DecodeUtf8(input));
+            }
+            catch (const std::length_error&)
+            {
+                lengthRejected = true;
+            }
+            countAllocations = false;
+            requestedBytes   = allocationBytes;
+        }
+        std::cout << "rich UTF8 rejection inputBytes=" << inputBytes << " decoderCppRequestedBytes=" << requestedBytes << '\n';
+        Check(lengthRejected, "oversized UTF8 source returns a length error");
+        Check(requestedBytes <= 4096u, "oversized UTF8 rejection never materializes the oversized UTF16 result");
+    }
+}
+
 static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
 {
     using namespace DxUi;

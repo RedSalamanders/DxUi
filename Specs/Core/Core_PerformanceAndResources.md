@@ -422,6 +422,21 @@ attribution requires an actual aligned trace and its loss/completeness checks;
 a permission refusal leaves that gate open. This diagnostic changes no acceptance
 workload, judge, policy, threshold or historical receipt.
 
+The shared Unicode 17 grapheme walker retains constant numeric state and requests
+no C++ heap storage. Prepared rich navigation and password mask indexing walk
+established boundaries forward once; arbitrary-caret queries may recover context
+from the beginning. The 49,152-unit mixed-script resource fixture requires exactly
+16,384 elements and zero C++ allocation calls/bytes. This is a deterministic
+resource bound, not a latency or visual bidi qualification.
+
+DecodeUtf8 rejects byte lengths above three times the 65,536 UTF-16-unit capacity
+before conversion, and checks the decoded length before allocating its result.
+Every admitted Unicode scalar needs at most three UTF-8 bytes per UTF-16 unit.
+The 65,537-byte ASCII and 196,609-byte impossible-input rejection fixtures permit
+at most 4 KiB of C++ allocation requests, excluding caller-owned input. Exact
+three-byte BMP and supplementary-scalar limits must still decode. These bounds
+do not raise capacity or claim to measure Windows/CRT-internal allocations.
+
 RichDocument's bounded immutable snapshots use cumulative piece ends for O(log P)
 offset lookup and O(log P + K) traversal of K intersecting pieces. Cumulative ends
 reuse the previous length field, without additional per-piece storage or a

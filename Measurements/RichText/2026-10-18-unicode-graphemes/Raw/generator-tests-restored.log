@@ -1,0 +1,10 @@
+Generated 833 disjoint property ranges and all 766 conformance vectors.
+Generated 833 disjoint property ranges and all 766 conformance vectors.
+Generated 833 disjoint property ranges and all 766 conformance vectors.
+Generated 833 disjoint property ranges and all 766 conformance vectors.
+Generated 833 disjoint property ranges and all 766 conformance vectors.
+ok   the pinned inputs regenerate both checked-in headers byte for byte without network access
+ok   check mode accepts generated data and does not rewrite either file
+ok   check mode rejects missing and stale outputs without repairing or creating them
+ok   every data and license pin is mandatory and checked before any output is written
+Unicode grapheme generation: 4 of 4 passed

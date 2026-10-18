@@ -16,6 +16,17 @@ manifest, while foreground, consumer, gallery and native-platform qualification 
 
 Native test files use `Scope.Tests.Something.h/.cpp`; register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
+`EditorControls` runs `TestUnicode17DefaultGraphemeCorpus`: all 766 pinned original
+vectors, every UTF-16 offset, next/previous movement, nearest snapping and counts.
+`TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
+`Accessibility` checks rich character range commands, arrows, deletion and undo
+in native and embedded hosts. `Embedded` measures a 49,152-unit mixed-script
+forward walk (16,384 elements, zero C++ allocation calls/bytes) and oversized
+UTF-8 rejection (at most 4 KiB of C++ requests). `EditorControls` also covers exact
+UTF-8 admission limits. These deterministic oracles do not qualify latency,
+physical IME/AT or visual bidi navigation. Offline generator/pin negative tests
+run in the ordinary tooling suite; see [Unicode provenance](../ThirdParty/Unicode/README.md).
+
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification

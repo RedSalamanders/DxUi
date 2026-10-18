@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands and indexed snapshot reads functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Remaining D2a, complete engine and physical input/AT gates stay open.
+Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, indexed snapshot reads and shared Unicode 17 segmentation functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Remaining D2a, complete engine and physical input/AT gates stay open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -517,11 +517,10 @@ capability flags and gallery content are unchanged; consumer pins are untouched.
 
 ### Remaining Unicode and bounded-admission implementation
 
-The next Unicode step reuses the existing shared text-element helper in
-DxUi.SingleLineTextEditing.cpp, which approximates combining marks/ZWJ chains.
-Do not create a parallel rich-editor grapheme implementation. Separate the pure
-UTF-16 decoder/boundary service from host drawing dependencies, then let the rich
-layout and existing controls/UIA use the same pinned rule set.
+The Unicode step replaces the former approximate shared helper in
+DxUi.SingleLineTextEditing.cpp with one pure DxUi.TextElements service. The rich
+layout, existing text controls and UIA use the same pinned rule set; no parallel
+rich-only segmentation implementation or OS/font-dependent navigation is added.
 
 - [x] Collect and hash-pin Unicode 17.0.0 GraphemeBreakProperty, emoji-data,
   DerivedCoreProperties/InCB, the complete GraphemeBreakTest and license. An
@@ -529,21 +528,88 @@ layout and existing controls/UIA use the same pinned rule set.
   generates 833 disjoint property intervals and
   all 766 original conformance vectors; its rule state machine matches all 766.
   This is reference/prototype evidence, not implemented native capability.
-- [ ] Integrate deterministic generated data and source/license provenance with
+- [x] Integrate deterministic generated data and source/license provenance with
   generator verification tests. No floating upstream inputs or corpus exclusions.
-- [ ] Upgrade the shared allocation-free boundary walker and rich layout's
+- [x] Upgrade the shared allocation-free boundary walker and rich layout's
   navigation/hit stops; retain explicit source ACP/IME geometry semantics.
-- [ ] Add complete native conformance, malformed/bounds, shared editor/UIA,
+- [x] Add complete native conformance, malformed/bounds, shared editor/UIA,
   native/embedded rich navigation/deletion and prepared-resource tests.
-- [ ] Qualify code, tests, specs/docs and affected configuration/platform gates;
+- [x] Qualify code, tests, specs/docs and affected configuration/platform gates;
   distinguish logical grapheme support from full visual bidi/word navigation.
-- [ ] Bound DecodeUtf8 before result allocation. Current code queries decoded
-  size, allocates the full result, then enforces MaximumUnits. Reject impossible
-  byte lengths and decoded sizes first; test admission and exact limits with an
-  Embedded C++ allocation-byte budget. This does not raise capacity.
+- [x] Bound DecodeUtf8 before result allocation. Reject impossible byte lengths
+  and decoded sizes first; test admission and exact limits with an Embedded C++
+  allocation-byte budget. This does not raise capacity.
+
+Before changing the implementation, native Release tests failed on the original
+corpus vector 1, offset 0 (old helper incorrectly joins an extender after a
+control), and rejection of 65,537 ASCII bytes requested 131,127 C++ heap bytes.
+Both failures are retained. After the fix all 766 vectors and both rich UIA host
+cases pass; oversized rejection requests zero C++ bytes in both tested cases.
+The [Unicode qualification](../../../Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
+retains 57 passing ordinary x64 suites with zero skips, six attested builds,
+47 named rich-text cases per profile, complete native corpus checks and the
+specific ASan diagnosis. Each embedded profile passes 5,161 checks and 1,000 warm
+composites with zero C++ allocation. The forward 49,152-unit mixed-script walk
+has 16,384 elements and zero C++ allocation calls/bytes; both oversized UTF-8
+rejections request zero C++ bytes. The library fingerprint is
+55DE3A71D32382F2DE7DC23D3A7E4EED6A3CDE40F93684C45FF83880F47E9C85.
+The original ARM64 Release compilation succeeded but its attestation refused a
+generator-message input change. Exact bytes were restored and the full compiled
+input identity matches the successful native runs; two separate recovery builds
+pass. Original attempts/refusal/unattempted slot and recovery are retained.
+Validators/full tooling/formatting pass. ARM64 remains cross-build only.
+
+The docs/gallery review found no changed gallery source, style, glyph shaping,
+theme token or populated example. Only logical navigation, hit stops and mask
+source indexing change; the existing gallery inputs retain their displayed
+elements. No gallery pixel regeneration or consumer repin is part of this slice.
 
 The Markdown parser/helper dependency policy remains an explicit active decision:
 the owned control/rendering/editing services stay C++, while a pinned Unicode
 grammar helper inside the single archive is being clarified with the owner.
 Foreground Menu/NativeTextInput timing agreement is also pending. Neither pending
 question blocks the independent Unicode/storage work or authorizes desktop use.
+
+### Bulk logical character movement follow-through
+
+Inspection of MoveTextRangePositionByUnit found that a multi-character command
+calls the arbitrary-caret prefix-scanning helper for every step. This repeats
+the same prefixes for both forward and backward movement. Fix this independently
+of the Default readback hold; it does not identify that hold's cause.
+
+- [ ] Retain bounded, fixed-count Release baseline trials with an independent
+  boundary/count oracle before changing the bulk command implementation.
+- [ ] Preserve nearest-boundary snapping, zero-count behavior, endpoint crossing,
+  actual signed moved counts and INT_MIN/INT_MAX safety. Traverse established
+  boundaries forward; backward movement may count a prefix then visit its target
+  in a second pass, without a new allocation/index/cache.
+- [ ] Test the original Unicode corpus at every offset/count boundary, large
+  native/embedded provider commands, source/selection/history preservation and
+  a deterministic C++ allocation budget. Retain descriptive before/after trials.
+- [ ] Reproduce collapsed keyboard deletion from a valid explicit ACP inside a
+  grapheme. Preserve interior ACP geometry/explicit source selections, while
+  collapsed Backspace/Delete remove the containing element. Cover both hosts,
+  source/selection restoration and existing shared text-control callers.
+- [ ] Update contracts/docs and qualify affected suites and final platform matrix.
+
+### Remaining D2a storage sequence
+
+After bulk command qualification, retain the fragmented-edit memory baseline
+before replacing the descriptor vector. Immutable snapshots must keep sharing
+unchanged tree paths and source buffers; no cache, worker or view-owned resource
+is added. The 64-Ki/128-history bounds stay fixed until incremental preparation is
+qualified separately.
+
+- [ ] Measure retained C++ bytes for fragmented source plus capped history,
+  no-op replacement allocation and edit/read trials with independent text/history
+  oracles. Keep raw failures and descriptive timings.
+- [ ] Move private snapshot representation behind its existing shared ownership
+  boundary. Use a balanced persistent piece tree with bounded fanout, path copying,
+  exact subtree lengths and boundary-local rebalance/coalescing. Reuse subtrees
+  outside the edit; retain transactional failure behavior and concurrent reads.
+- [ ] Reject invalid selections and acknowledge same-content edits before
+  cloning storage/history. Cover empty, cross-node UTF-16/CRLF, split/merge,
+  deletion/undo/redo/reset, retained snapshots and hostile fragmentation.
+- [ ] Qualify deterministic retained-byte bounds, native/embedded behavior,
+  all required configurations and specs/docs; keep incremental layout/shared
+  scheduling and full large-document support explicitly open until implemented.

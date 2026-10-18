@@ -314,5 +314,7 @@ If solid-brush creation and its fallback fail, painting omits the affected primi
 [Unicode document/projection/layout preparation](rich-text.md) is available in
 DxUi.lib, together with the retained RichTextEditor v0 preview in the 34-control
 catalog/gallery. Both use caller/host services without a private HWND/device/worker.
-The preview supplies no IME/rich UIA adapter; the active plan owns D2d and the
-remaining conformance/platform/performance gates.
+The preview supplies shared native/embedded source TSF/IME and UIA range
+adapters, with Unicode 17 logical character boundaries. Rich structural/style
+semantics and real IME/AT, conformance, platform and performance acceptance
+remain under the active plan.

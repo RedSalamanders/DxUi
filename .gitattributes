@@ -51,3 +51,5 @@ Measurements/CiBudget/2026-10-11-cold-build/** -text -whitespace
 
 # Preserve hashed rich-text qualification/performance receipts byte for byte.
 Measurements/RichText/** -text -whitespace
+# Unicode conformance/property inputs are pinned by exact upstream bytes.
+ThirdParty/Unicode/** -text

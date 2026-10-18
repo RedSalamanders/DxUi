@@ -669,6 +669,51 @@ void TestRichTextAccessibilityEmbeddedThreadedRangeCommands()
 {
     EmbeddedCase(ThreadedRangeCommands);
 }
+void UnicodeGraphemeCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    for (const std::wstring cluster : {L"\u1100\u1161\u11a8", L"\u0915\u094d\u0915", L"\U0001f469\u200d\U0001f469\u200d\U0001f467", L"a\u200d", L"\u0600x"})
+    {
+        const std::wstring source = L"A" + cluster + L"B";
+        fixture.editor->SetViewMode(RichText::ViewMode::Source);
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        wil::com_ptr_nothrow<ITextProvider> text;
+        RequireSucceeded(simple.query_to(text.put()), "Unicode17 rich TextPattern");
+        wil::com_ptr_nothrow<ITextRangeProvider> range;
+        RequireSucceeded(text->get_DocumentRange(range.put()), "Unicode17 exact source range");
+        RequireSucceeded(range->MoveEndpointByRange(TextPatternRangeEndpoint_End, range.get(), TextPatternRangeEndpoint_Start),
+                         "collapse source range before Unicode characters");
+        int moved = 0;
+        RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, 1, &moved), "move source start past ASCII prefix");
+        Require(moved == 1, "one prefix grapheme moved");
+        RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 1, &moved), "extend one complete Unicode grapheme");
+        wil::unique_bstr selected;
+        RequireSucceeded(range->GetText(-1, selected.put()), "read Unicode source unit");
+        Require(moved == 1 && std::wstring_view(selected.get(), SysStringLen(selected.get())) == cluster,
+                "UIA Character uses the shared Unicode17 boundary policy");
+        RequireSucceeded(range->Select(), "select complete source grapheme");
+        const auto end = 1u + cluster.size();
+        Require(fixture.editor->GetSelection() == RichText::Selection{1u, end}, "UIA selection preserves complete grapheme source offsets");
+        fixture.editor->SetSelection({end, end});
+        fixture.Publish();
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_LEFT, 0) && fixture.editor->GetSelection().caret == 1u,
+                "native/embedded rich left crosses the whole grapheme");
+        fixture.editor->SetSelection({end, end});
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_BACK, 0) && fixture.editor->GetText() == L"AB",
+                "native/embedded backspace deletes exactly one grapheme");
+        Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "Unicode deletion is one reversible source transaction");
+    }
+}
+void TestRichTextAccessibilityWindowUnicode17Commands()
+{
+    UnicodeGraphemeCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedUnicode17Commands()
+{
+    EmbeddedCase(UnicodeGraphemeCommands);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -688,4 +733,6 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedRemainingRangeCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowThreadedRangeCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedThreadedRangeCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowUnicode17Commands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedUnicode17Commands);
 }

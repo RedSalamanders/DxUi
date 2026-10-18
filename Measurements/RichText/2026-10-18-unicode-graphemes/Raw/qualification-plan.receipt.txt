@@ -1,0 +1,45 @@
+{
+  "classification": "native-functional-and-build-qualification",
+  "profiles": [
+    {
+      "configuration": "Release",
+      "skipBuild": false,
+      "test": true,
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "skipBuild": false,
+      "test": true,
+      "platform": "x64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "skipBuild": false,
+      "test": true,
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "skipBuild": false,
+      "test": false,
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "Release",
+      "skipBuild": false,
+      "test": false,
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "skipBuild": false,
+      "test": false,
+      "platform": "ARM64"
+    }
+  ],
+  "overallBudgetSeconds": 3600,
+  "startedUtc": "2026-10-17T23:30:04.0634240Z",
+  "notes": "Serial ordinary x64 suites, no desktop takeover. All three x64 profiles run all 19 ordinary scopes after shared Unicode changes. ARM64 builds are cross-compilation only. Every test.ps1 includes the canonical benchmark; unpaired timings do not qualify regression acceptance.",
+  "ownedChildBudgetSeconds": 900
+}

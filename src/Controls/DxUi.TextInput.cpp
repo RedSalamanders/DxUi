@@ -3279,7 +3279,7 @@ const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() con
     size_t sourceIndex = 0u;
     while (sourceIndex < _text.size())
     {
-        const size_t nextIndex = StepToNextTextElement(_text, sourceIndex);
+        const size_t nextIndex = FindNextTextElementBoundary(_text, sourceIndex);
         if (nextIndex <= sourceIndex)
         {
             _maskedSourceTextElementBoundaries.push_back(_text.size());

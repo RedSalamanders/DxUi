@@ -3,6 +3,7 @@
 
 #include "../../Samples/EmbeddedControls/EmbeddedScene.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
 #include "../Support/Support.Tests.FailureReports.h"
 #include <DxUi/ControlCatalog.h>
@@ -1242,6 +1243,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    TestUnicodeGraphemeForwardWalkAllocationBudget();
+    TestRichTextUtf8RejectionAllocationBudget();
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

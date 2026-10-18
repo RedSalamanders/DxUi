@@ -50,7 +50,11 @@ public:
     {
         return generation_;
     }
+    // Mouse and Previous/NextCluster use Unicode 17 default extended graphemes,
+    // independent of the font's glyph clusters. Movement is in logical order.
     Hit HitTest(float x, float y) const;
+    // Explicit source/display ACP geometry remains available inside an element
+    // for text services; it is not silently snapped to a navigation stop.
     CaretGeometry Caret(std::size_t position) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     std::size_t PreviousCluster(std::size_t position) const;

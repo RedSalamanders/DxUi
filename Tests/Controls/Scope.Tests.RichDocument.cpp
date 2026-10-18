@@ -239,6 +239,30 @@ void TestRichDocumentConcurrentSnapshotReads()
     Require(valid.load(std::memory_order_relaxed) && snapshot.Text() == expected,
             "background snapshot reads remain immutable while the owner edits/resets history");
 }
+void TestRichDocumentUtf8ExactAdmissionLimits()
+{
+    const std::wstring maximumBmp(Document::MaximumUnits, L'\u4e00');
+    const auto maximumBytes = EncodeUtf8(maximumBmp);
+    Require(maximumBytes.size() == Document::MaximumUnits * 3u && DecodeUtf8(maximumBytes) == maximumBmp,
+            "exact maximum three-byte BMP UTF8 source is admitted");
+    std::wstring supplementary;
+    for (size_t index = 0; index < Document::MaximumUnits / 2u; ++index)
+        supplementary += L"\U0001f600";
+    Require(DecodeUtf8(EncodeUtf8(supplementary)) == supplementary, "exact maximum supplementary UTF16 source is admitted");
+    for (const auto bytes : {Document::MaximumUnits + 1u, Document::MaximumUnits * 3u + 1u})
+    {
+        bool rejected = false;
+        try
+        {
+            static_cast<void>(DecodeUtf8(std::string(bytes, 'a')));
+        }
+        catch (const std::length_error&)
+        {
+            rejected = true;
+        }
+        Require(rejected, "both impossible byte size and excessive decoded size have explicit length errors");
+    }
+}
 } // namespace
 
 void RunRichDocumentTests()
@@ -249,4 +273,5 @@ void RunRichDocumentTests()
     DXUI_RUN_TEST(TestRichDocumentUnicodeCodecRejections);
     DXUI_RUN_TEST(TestRichDocumentFragmentedSnapshotOracle);
     DXUI_RUN_TEST(TestRichDocumentConcurrentSnapshotReads);
+    DXUI_RUN_TEST(TestRichDocumentUtf8ExactAdmissionLimits);
 }

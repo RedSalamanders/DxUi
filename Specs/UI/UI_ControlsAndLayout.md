@@ -643,6 +643,14 @@ retained RichTextEditor preview above; it remains independently usable without a
 The source model must preserve Unicode scalar/CRLF boundaries, immutable shared
 snapshots, transactional selection/history and failure atomicity. Piece-aware
 boundary/slice/edit operations must not flatten complete old/new source text.
+
+Logical rich navigation and mouse hit stops use the shared Unicode 17.0.0 default
+extended grapheme service. Prepared layout computes those stops in one forward
+pass; glyph shaping and explicit ACP caret/range geometry remain DirectWrite
+operations. Source edits and text services may retain valid scalar/CRLF offsets
+inside an element. This does not qualify visual bidi/word navigation or physical
+IME/assistive-technology behavior. Password mask indexing uses the same forward
+walker rather than repeatedly recovering the entire preceding context.
 Immutable pieces store exclusive cumulative source ends in the descriptor field
 previously used for length. Offset lookup is O(log P) for P pieces; a slice of K
 intersecting pieces starts with that lookup and visits those K pieces. No second
