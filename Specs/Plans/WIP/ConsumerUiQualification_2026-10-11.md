@@ -422,6 +422,46 @@ and process-memory bands remain 5% and 2%; exact budgets, allocation ceilings, p
 `qualified=false` policy are unchanged. This update changes documentation only; runtime/test behavior and gallery
 pixels are unchanged, so no gallery regeneration is required.
 
+### PR #84 hover-switch follow-up (18 October 2026)
+
+PR #84's post-merge [run 39072493730](https://github.com/RedSalamanders/DxUi/actions/runs/39072493730),
+attempt 1 at `51ef9f292418d7c11fa1058b897ee84d52674106`, fails native ARM64 Debug Menu at
+`TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar`: 72 cases complete, and the 73rd fails the
+explicit-hover root-switch assertion. The other five native profiles, all six NativeTextInput executions
+(165 cases each) and all eight enabled consumers pass. Of 128 native suite receipts, 127 pass and one fails,
+with zero capability skips; the aggregate correctly fails. Push skips paired measurement. Keep this failed
+receipt separately from the earlier successful PR #83 observation and any later repaired-source result.
+
+The [popup-readiness plan](PopupReadiness_2026-10-17.md) owns this source-specific diagnosis and repair. Its bounded
+controlled Release test reproduces the exact assertion with the unchanged library: hover posting succeeds,
+the trace records 136 paint injections and the hover callback never enters; the old visible popup continues answering text
+queries, longest 9 ms. Registered hover input was fetched only through the general queue after popup paint.
+Prioritizing its exact registered message after mouse/key input repairs that source-reachable starvation path.
+The deterministic pending-paint case uses the existing test hook; its regression/trace source is frozen across
+the controlled library comparison. The original untraced ARM64 occurrence does not establish that it took
+this path, and `focus=none` is still not causal evidence. Raw traces and desktop identities remain private.
+
+The repaired candidate passes 57 noninteractive x64 suite executions and all 110 full Menu cases in each of
+Debug, Release and ASan Debug: 330 full Menu case completions, zero capability skips, hash-bound receipts and
+verified restoration in all three approved leases. Its unchanged-source regression fails against the old
+library and passes against the priority fix. These source-specific functional results do not establish
+performance acceptance: the new unpaired Release comparison retains clean frame-p95 and clean/dirty composition
+CPU-p95 flags under the existing bands. The first raw baseline receipt lacks separately archived original
+benchmark binary bytes; rebuilding cannot repair that original-evidence gap. Keep the flags and retention limit.
+Two predeclared repeats on the same candidate binary yield another timing-flagged `advice-required` comparison
+and then `within-noise-budget`. All three observations remain retained; the last does not waive or explain the
+earlier flags. They lack stable paired controls and continuous host-load admission and do not qualify policy.
+
+All three ARM64 configurations cross-build successfully; output PE architecture checks match all six requested
+configurations. Next is fresh exact-source native ARM64 Debug observation with the bounded failure trace retained
+if the assertion recurs. Cross-builds and local x64 passes cannot substitute for that native
+observation or resolve the original untraced occurrence. The separate focus-capture reason and verified live-focus
+round trip remain open under the preceding investigation. MenuResources/MenuResourceScaling, physical input,
+real IME/AT/touch, consumer adoption, memory attribution and trusted-policy/paired acceptance remain open.
+The 900 ms hover guard, 180 ms pointer guard, all other deadlines, 5% timing/FPS and 2% memory bands, exact
+budgets, allocation ceilings and `qualified=false` are unchanged. Queue priority and diagnostic tests change
+no gallery pixels or usage API; no visual regeneration or consumer pin change is required.
+
 ## 4. Consumer adoption gates
 
 - [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.

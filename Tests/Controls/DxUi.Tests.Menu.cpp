@@ -496,7 +496,8 @@ void DrainPendingMouseMessagesForMenuSuite() noexcept
     return DxUi::DebugFireContextMenuPopupHoverTimer(popupHwnd);
 }
 
-HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText);
+class MenuHoverTraceForTest;
+HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText, MenuHoverTraceForTest* trace = nullptr);
 
 [[nodiscard]] bool WaitForSubmenuOpenAfterHoverForMenuSuite(HWND ownerHwnd,
                                                             HWND popupHwnd,
@@ -760,34 +761,167 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
     return PostMessageW(popupHwnd, systemCharacter ? WM_SYSCHAR : WM_CHAR, static_cast<WPARAM>(character), 0) != FALSE;
 }
 
-HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText)
+// Each channel has one writer (UI or driver). Read only after Show returns and the driver joins.
+// Retain phase names and relative times, never borrowed diagnostic text or desktop/window identities.
+class MenuHoverTraceForTest final
 {
-    HWND popupHwnd = nullptr;
+public:
+    MenuHoverTraceForTest() noexcept : _previousSink(DxUi::Diagnostics::sink), _previousTrace(_active)
+    {
+        _active                 = this;
+        DxUi::Diagnostics::sink = [](std::wstring_view, std::wstring_view message) noexcept
+        {
+            if (! _active)
+                return;
+            constexpr std::array phases{
+                std::pair{L"menu.popup-create-begin", "popup.create.begin"},
+                std::pair{L"menu.popup-create-end", "popup.create.end"},
+                std::pair{L"menu.popup-create-failed", "popup.create.failed"},
+                std::pair{L"Popup loop-start", "modal.start"},
+                std::pair{L"Popup switch-begin", "root.switch.begin"},
+                std::pair{L"Popup switch-create-failed", "root.switch.failed"},
+                std::pair{L"Popup switch-capture", "root.switch.capture"},
+                std::pair{L"root-switch-menu-bar-hover-accepted", "hover.accepted"},
+                std::pair{L"menu.loop-dismiss-activation", "dismiss.activation"},
+                std::pair{L"menu.loop-dismiss-missing-root", "dismiss.missing-root"},
+                std::pair{L"menu.loop-message-stale", "dispatch.stale-window"},
+                std::pair{L"menu.dismiss", "dismiss"},
+            };
+            for (const auto& [marker, phase] : phases)
+            {
+                if (message.find(marker) != std::wstring_view::npos)
+                {
+                    _active->Ui(phase);
+                    break;
+                }
+            }
+        };
+    }
+
+    ~MenuHoverTraceForTest() noexcept
+    {
+        DxUi::Diagnostics::sink = _previousSink;
+        _active                 = _previousTrace;
+    }
+
+    MenuHoverTraceForTest(const MenuHoverTraceForTest&)            = delete;
+    MenuHoverTraceForTest& operator=(const MenuHoverTraceForTest&) = delete;
+
+    void Ui(const char* phase, size_t value0 = 0u, size_t value1 = 0u) noexcept
+    {
+        Add(_ui, phase, value0, value1);
+    }
+    void Driver(const char* phase, size_t value0 = 0u, size_t value1 = 0u) noexcept
+    {
+        Add(_driver, phase, value0, value1);
+    }
+
+    void Discovery(unsigned flags, std::chrono::steady_clock::duration probeTime = {}) noexcept
+    {
+        ++_discoveryCalls;
+        const auto elapsed  = std::chrono::duration_cast<std::chrono::milliseconds>(probeTime).count();
+        _longestTextProbeMs = (std::max)(_longestTextProbeMs, elapsed);
+        if (flags != _lastDiscoveryFlags)
+        {
+            Driver("discovery.flags", flags, static_cast<size_t>(elapsed));
+            _lastDiscoveryFlags = flags;
+        }
+    }
+
+    void Dump(bool failed) const
+    {
+        std::cout << "Menu hover trace: failed=" << failed << " ui=" << _ui.count << " driver=" << _driver.count << " dropped=" << _ui.dropped + _driver.dropped
+                  << " discoveryCalls=" << _discoveryCalls << " longestTextProbeMs=" << _longestTextProbeMs << '\n';
+        if (! failed)
+            return;
+        const auto print = [](const char* channel, const Channel& entries)
+        {
+            for (size_t index = 0u; index < entries.count; ++index)
+            {
+                const auto& entry = entries.rows[index];
+                std::cout << "  [HOVER " << channel << " +" << entry.elapsedUs << " us] " << entry.phase << ' ' << entry.value0 << ' ' << entry.value1 << '\n';
+            }
+        };
+        print("UI", _ui);
+        print("driver", _driver);
+    }
+
+private:
+    struct Entry
+    {
+        int64_t elapsedUs = 0;
+        const char* phase = nullptr; // All phase names are static literals.
+        size_t value0     = 0u;
+        size_t value1     = 0u;
+    };
+    struct Channel
+    {
+        std::array<Entry, 64> rows{};
+        size_t count   = 0u;
+        size_t dropped = 0u;
+    };
+    void Add(Channel& channel, const char* phase, size_t value0, size_t value1) noexcept
+    {
+        if (channel.count == channel.rows.size())
+        {
+            ++channel.dropped;
+            return;
+        }
+        channel.rows[channel.count++] = {
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - _started).count(), phase, value0, value1};
+    }
+    inline static thread_local MenuHoverTraceForTest* _active = nullptr;
+    const std::chrono::steady_clock::time_point _started      = std::chrono::steady_clock::now();
+    DxUi::Diagnostics::Sink _previousSink;
+    MenuHoverTraceForTest* _previousTrace;
+    Channel _ui;
+    Channel _driver;
+    size_t _discoveryCalls       = 0u;
+    int64_t _longestTextProbeMs  = 0;
+    unsigned _lastDiscoveryFlags = ~0u;
+};
+
+HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText, MenuHoverTraceForTest* trace)
+{
+    HWND popupHwnd      = nullptr;
+    bool ownedCandidate = false;
     while ((popupHwnd = FindWindowExW(nullptr, popupHwnd, L"DxUi_ContextMenu", nullptr)) != nullptr)
     {
+        if (trace && GetWindow(popupHwnd, GW_OWNER) == ownerHwnd)
+            ownedCandidate = true;
         if (! IsReadyOwnedContextMenuPopupWindow(popupHwnd, ownerHwnd))
         {
+            if (trace && GetWindow(popupHwnd, GW_OWNER) == ownerHwnd)
+                trace->Discovery(1u | (IsWindowVisible(popupHwnd) ? 2u : 0u));
             continue;
         }
 
         std::wstring popupFirstItemText;
-        if (DxUi::DebugGetContextMenuPopupItemText(popupHwnd, 0u, popupFirstItemText) && popupFirstItemText == firstItemText)
+        const auto started  = trace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        const bool answered = DxUi::DebugGetContextMenuPopupItemText(popupHwnd, 0u, popupFirstItemText);
+        const bool matched  = answered && popupFirstItemText == firstItemText;
+        if (trace)
+            trace->Discovery(1u | 2u | 4u | (answered ? 8u : 0u) | (matched ? 16u : 0u), std::chrono::steady_clock::now() - started);
+        if (matched)
         {
             return popupHwnd;
         }
     }
 
+    if (trace && ! ownedCandidate)
+        trace->Discovery(0u);
     return nullptr;
 }
 
 HWND WaitForOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd,
                                                        std::wstring_view firstItemText,
-                                                       std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
+                                                       std::chrono::milliseconds timeout = std::chrono::milliseconds(5000),
+                                                       MenuHoverTraceForTest* trace      = nullptr)
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do
     {
-        if (HWND popupHwnd = FindOwnedContextMenuPopupWindowByFirstItemText(ownerHwnd, firstItemText))
+        if (HWND popupHwnd = FindOwnedContextMenuPopupWindowByFirstItemText(ownerHwnd, firstItemText, trace))
         {
             return popupHwnd;
         }
@@ -2821,10 +2955,12 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
     Require(! result.has_value(), "closing the direct synthetic menu-bar hover popup with Escape returns no invoked command");
 }
 
-void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
+void RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(bool keepPaintPending)
 {
     using namespace DxUi;
 
+    // Allocate bounded diagnostic storage once, before opening the menu. Only print phase data on failure.
+    const auto trace = std::make_unique<MenuHoverTraceForTest>();
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
@@ -2862,38 +2998,95 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
             return std::nullopt;
         }
 
+        trace->Ui("pointer.callback");
         POINT clientPoint = screenPoint;
         if (ScreenToClient(ownerWindow.Hwnd(), &clientPoint) == FALSE || clientPoint.y < 0 || clientPoint.y >= kMainMenuStripHeightPx)
         {
+            trace->Ui("pointer.outside-strip");
             return std::nullopt;
         }
         if (activeRootIndex == 1u)
         {
+            trace->Ui("pointer.already-selected");
             return std::nullopt;
         }
 
+        trace->Ui("pointer.accepted");
         activeRootIndex = 1u;
         return buildRequest(activeRootIndex);
     };
     sessionCallbacks.switchRootFromMenuBarHover = [&](size_t hoverIndex, std::uintptr_t sequence) -> std::optional<ContextMenuRootSwitchRequest>
     {
+        trace->Ui("hover.callback", hoverIndex, sequence);
         const int expectedHoverIndex          = pendingMenuBarHoverRootSwitch.load(std::memory_order_acquire);
         const std::uintptr_t expectedSequence = pendingMenuBarHoverSequence.load(std::memory_order_acquire);
+        trace->Ui("hover.expected", static_cast<size_t>(expectedHoverIndex + 1), expectedSequence);
         if (expectedHoverIndex < 0 || static_cast<size_t>(expectedHoverIndex) != hoverIndex || expectedSequence != sequence)
         {
+            trace->Ui("hover.rejected");
             return std::nullopt;
         }
 
+        trace->Ui("hover.callback-accepted");
         pendingMenuBarHoverRootSwitch.store(-1, std::memory_order_release);
         activeRootIndex = hoverIndex;
         return buildRequest(activeRootIndex);
     };
 
+    struct PendingPaint
+    {
+        HWND owner                   = nullptr;
+        MenuHoverTraceForTest* trace = nullptr;
+        std::atomic_bool armed{false};
+        std::optional<std::chrono::steady_clock::time_point> started; // UI thread only.
+        size_t injections = 0u;
+        bool stopped      = false;
+    } pendingPaint;
+    pendingPaint.owner = ownerWindow.Hwnd();
+    pendingPaint.trace = trace.get();
+    if (keepPaintPending)
+    {
+        DebugSetContextMenuModalLoopPeekHookForTest(
+            [](void* context, HWND popup, UINT message) noexcept
+        {
+            auto& state = *static_cast<PendingPaint*>(context);
+            if (message != WM_PAINT || ! state.armed.load(std::memory_order_acquire) || GetWindow(popup, GW_OWNER) != state.owner)
+                return;
+            const auto now = std::chrono::steady_clock::now();
+            if (! state.started)
+            {
+                state.started = now;
+                state.trace->Ui("paint.backlog.begin");
+            }
+            // A bounded stream, longer than the unchanged 900 ms guard. The driver still
+            // performs its ordinary Escape cleanup, and no other test/desktop is involved.
+            if (now - *state.started < std::chrono::milliseconds(1500))
+            {
+                ++state.injections;
+                static_cast<void>(InvalidateRect(popup, nullptr, FALSE));
+            }
+            else if (! state.stopped)
+            {
+                state.stopped = true;
+                state.trace->Ui("paint.backlog.end", state.injections);
+            }
+        },
+            &pendingPaint);
+    }
+    const auto resetPeekHook = wil::scope_exit([&]() noexcept
+    {
+        if (keepPaintPending)
+            DebugSetContextMenuModalLoopPeekHookForTest(nullptr, nullptr);
+    });
+
     std::string driverFailure;
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
+        trace->Driver("view.discovery.begin");
+        const HWND viewPopupHwnd =
+            WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one", std::chrono::milliseconds(5000), trace.get());
+        trace->Driver("view.discovery.end", viewPopupHwnd != nullptr);
         if (! viewPopupHwnd)
         {
             driverFailure = "View root popup opens before overlapping-popup validation";
@@ -2943,9 +3136,15 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
         }
 
         pointerRootSwitchArmed.store(true, std::memory_order_release);
+        trace->Driver("pointer.armed");
+        if (keepPaintPending)
+            pendingPaint.armed.store(true, std::memory_order_release);
         PostMessageW(viewPopupHwnd, WM_MOUSEMOVE, 0, MAKELPARAM(popupItemScreenPoint.x - popupWindowRect.left, popupItemScreenPoint.y - popupWindowRect.top));
 
-        const HWND pluginsPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Plugins one", std::chrono::milliseconds(180));
+        trace->Driver("pointer-only.guard.begin");
+        const HWND pluginsPopupHwnd =
+            WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Plugins one", std::chrono::milliseconds(180), trace.get());
+        trace->Driver("pointer-only.guard.end", pluginsPopupHwnd != nullptr);
         if (pluginsPopupHwnd)
         {
             driverFailure = "moving inside a frontmost popup must not switch the root menu underneath it";
@@ -2954,13 +3153,18 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (! ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 1u))
+        const bool hoverPosted = ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 1u);
+        const DWORD postError  = hoverPosted ? ERROR_SUCCESS : GetLastError();
+        trace->Driver("hover.post", hoverPosted, postError);
+        if (! hoverPosted)
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
         }
+        trace->Driver("hover.guard.begin");
         const HWND pluginsPopupFromHoverHwnd =
-            WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Plugins one", std::chrono::milliseconds(900));
+            WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Plugins one", std::chrono::milliseconds(900), trace.get());
+        trace->Driver("hover.guard.end", pluginsPopupFromHoverHwnd != nullptr, IsWindow(viewPopupHwnd) != FALSE);
         if (! pluginsPopupFromHoverHwnd)
         {
             driverFailure = "an explicit menu-bar hover message must switch root while a frontmost popup overlaps the menu strip";
@@ -2974,12 +3178,27 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
     });
 
     const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+    trace->Ui("show.begin");
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
+    trace->Ui("show.end", activeRootIndex, result.has_value());
     driver.join();
 
+    trace->Ui("paint.backlog.observed", pendingPaint.injections);
+    trace->Dump(! driverFailure.empty());
     Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! keepPaintPending || pendingPaint.injections != 0u, "hover-switch regression actually holds popup paint pending");
     Require(! result.has_value(), "closing the overlapping popup validation with Escape returns no invoked command");
+}
+
+void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
+{
+    RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(false);
+}
+
+void TestMenuBarHoverMessageSwitchesRootWithPopupPaintPending()
+{
+    RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(true);
 }
 
 // DxUi's menu-bar hover message used to be WM_APP + 0x539, and a modal menu's loop took that value from any window of its
@@ -9718,6 +9937,7 @@ void RunMenuTests()
     runTest("TestMenuOwnerMouseMoveRoutesRootSwitchImmediately", TestMenuOwnerMouseMoveRoutesRootSwitchImmediately);
     runTest("TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup", TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup);
     runTest("TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar", TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar);
+    runTest("TestMenuBarHoverMessageSwitchesRootWithPopupPaintPending", TestMenuBarHoverMessageSwitchesRootWithPopupPaintPending);
     runTest("TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow", TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow);
     runTest("TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch", TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch);
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
