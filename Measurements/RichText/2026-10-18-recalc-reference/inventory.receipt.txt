@@ -229,12 +229,6 @@
       "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\inventory.receipt.txt"
     },
     {
-      "path": "Raw/__pycache__/McpSession.cpython-314.pyc",
-      "sha256": "8BE22EC0BE91E77EED207FC5AA38E604EE80485EDA91395EB6E6468BA9623D61",
-      "bytes": 2487,
-      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\__pycache__\\McpSession.cpython-314.pyc"
-    },
-    {
       "path": "OriginalReference/dll-versions.receipt.txt",
       "sha256": "BE42F94904EA670BA4955B473CF05113250D510DADF8F314F09FB4B84624BA51",
       "bytes": 1069,
