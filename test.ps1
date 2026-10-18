@@ -184,7 +184,8 @@ try {
         $leaseResult = if ($null -ne $lease.Result) { $lease.Result } else {
             [pscustomobject]@{ State='missing'; Exit=$lease.ExitCode; Reason='the native lease wrote no result'; Confirmation='none';
                 AutoStart=$false; ConfirmationSeconds=$null;
-                SavedForeground=''; Foreground='none'; Focus='none'; Cursor='none'; CursorSaved=''; CursorAtExit=''; RunMovedSomething=$false; Children=@() }
+                SavedForeground=''; Foreground='none'; Focus='none'; FocusCapture=$null; FocusCaptureProblems=@()
+                Cursor='none'; CursorSaved=''; CursorAtExit=''; RunMovedSomething=$false; Children=@() }
         }
     }
     foreach ($suite in $Suites) {
@@ -238,6 +239,7 @@ try {
                 autoStart=$leaseResult.AutoStart; confirmationSeconds=$leaseResult.ConfirmationSeconds
                 requestedAutoStart=$lease.RequestedAutoStart; requestedConfirmationSeconds=$lease.RequestedConfirmationSeconds
                 state=$leaseResult.State; exitCode=$lease.ExitCode; confirmation=$leaseResult.Confirmation; foreground=$leaseResult.Foreground; focus=$leaseResult.Focus
+                focusCapture=$leaseResult.FocusCapture; focusCaptureProblems=$leaseResult.FocusCaptureProblems
                 cursor=$leaseResult.Cursor; cursorSaved=$leaseResult.CursorSaved; cursorAtExit=$leaseResult.CursorAtExit
                 runMovedSomething=$leaseResult.RunMovedSomething; savedForeground=$leaseResult.SavedForeground; seconds=$(if ($child) { $child.Seconds } else { $null })
                 executable=$leaseExecutable; sha256=(Get-FileHash -LiteralPath $leaseExecutable -Algorithm SHA256).Hash
@@ -260,6 +262,7 @@ try {
 if ($foregroundLeaseRequired) {
     $leaseSummary = Get-DxUiLeaseSummary -Result $leaseResult
     Write-Host $leaseSummary.Message
+    Write-Host $leaseSummary.CaptureNotice
     if ($leaseSummary.PointerNotice) { Write-Host $leaseSummary.PointerNotice }
 }
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }

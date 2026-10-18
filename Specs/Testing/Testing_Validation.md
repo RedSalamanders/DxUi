@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -391,12 +391,26 @@ foreground failed on a takeover it says nothing about. Such a fixture runs its f
 `RunWhileForegroundHeld` (`Tests/Controls/Controls.Tests.DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
 deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
 at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
-thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
+thief. An activation-confirmed run in which no application took the foreground is never repeated, so a regression still fails, and each
 repeat is logged as `[FOREGROUND] <executable> (process <id>) took the foreground in run <n> of <max>`. When another
 application takes the foreground in every run, the fixture records a capability skip naming its executable and process
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
 can activate: the sequence repeats once, and stops after the maximum with the application named.
+The IMM eligibility and composition-undo setup fixtures MUST report whether activation succeeded independently
+of foreground-loss events. A refused acquisition consumes one of the same five attempts; it MUST NOT count as a
+held sequence merely because Windows delivered no loss event. Exhausted activation refusal MUST fail setup,
+not produce a capability skip. The existing 800 ms activation limit and attempt count MUST NOT be extended.
+Other fixtures retain their existing setup predicates; adding explicit acquisition retries is not permission to
+repeat a held sequence whose correctness assertion failed.
+The IMM eligibility-transition fixture MUST guard activation, composition START, preview delivery and the policy
+transition as one sequence, then assert the original preview/cancellation/notification/session predicates on the
+held attempt. A discarded attempt MUST NOT leave read-only/masked state or composition/history in its successor.
+Deterministic tests MUST inject loss before and after preview, initial activation refusal without a loss event,
+persistent refusal at the existing bound, and a ready sequence whose failed correctness predicate is never retried.
+Passive IMM diagnostics are bounded to five attempts and four stages each, with scalar state, lengths/equality
+and existing loss counts; no text or new desktop identities, activation, pumping or deadline extension is added
+by observation. Setup failure remains distinct from an editor or sanitizer defect.
 Foreground-loss counting does not establish initial acquisition. The zero-size NativeTextInput fixture MUST reset
 its setup-success observation at the start of each attempt and fail an unmet setup condition when no foreground
 loss was observed; an earlier successful attempt cannot authorize a later failed acquisition. This fixture records
@@ -684,6 +698,26 @@ it MUST NOT record the thread's `GUITHREADINFO.hwndFocus` as active keyboard foc
 stale child HWND for a minimized window that cannot receive keyboard input. A visible foreground window's
 focus MUST continue to be recorded, restored and verified; failed restoration remains a failed lease.
 
+The original pre-confirmation snapshot MUST retain one bounded focus capture reason: `no-foreground`,
+`no-foreground-thread`, `foreground-minimized`, `query-failed`, `query-returned-null` or `recorded`.
+The first three mean the focus query was skipped; the last three distinguish query failure, successful null
+focus and successful recorded focus. A failed query MUST retain its immediately read Windows error code;
+success and skipped queries MUST record zero, without copying stale last-error state. These facts MUST come
+from that snapshot, without a second diagnostic query or a change to the saved restoration target.
+The native log and result MUST retain this reason; result keys are `focus.capture.reason` and
+`focus.capture.error` (an unsigned 32-bit code, meaningful only for `query-failed`). The diagnostic adds no
+window, process or thread identities. Existing raw desktop descriptions remain private evidence.
+`test.ps1` MUST copy the shared diagnostic to each child's `lease.focusCapture` (`Reason`, `QueryError`),
+while retaining each child's own duration. Repeated, incomplete, unknown or contradictory diagnostic fields
+MUST fail result validation. Historical receipts with neither field remain readable but establish no capture
+reason. A reason for `none` MUST NOT promote it to verified focus restoration or close qualification.
+If the native result is missing, the runner's fallback MUST keep capture metadata absent and still write
+the failed child receipt under strict mode; it MUST NOT invent a capture reason or throw on missing fields.
+Deterministic fake-backend, serialization, parser, presentation and child-receipt tests MUST cover these
+branches, immutable capture across confirmation, visible-focus restoration and failed restoration read-back.
+Native ARM64 attribution still requires a separately identified hosted observation with those fields;
+a complete focus round trip requires an initially visible foreground with recorded focus.
+
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
 held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
@@ -754,6 +788,18 @@ HGLOBAL allocations: native Grid copy and TextField paste/cut at 65,535/65,536/6
 allocation arithmetic, allocation/ownership/publication failure, and one open attempt under contention. Large
 valid native payloads must still be rejected by the embedded service without changing the document. The control runner and
 its clipboard setup/read helpers share that private backend; system clipboard acceptance is a separate manual check.
+
+Foreground fixtures that create a witness on another thread MUST publish creation readiness or its immediate
+registration/creation error before requesting activation. Their readiness wait services synchronous sent messages
+without draining queued probes or input, under its original absolute deadline; readiness published after that
+deadline fails. Reacquire the owner after pumping client/witness preparation, before authorizing the transfer.
+Keep deliberate witness transfers separate from unexpected foreground losses without erasing total loss history.
+A held attempt whose behavior predicate fails MUST fail immediately; only setup refusal or observed external
+interference uses the existing bounded-attempt policy. These witnesses and their shared focus-event client wait
+for actual kernel thread termination while servicing required callbacks; a worker-body completion flag does not
+establish completed COM cleanup.
+Bounded setup diagnostics retain the failing stage and HRESULT or documented Windows error; they do not add
+requests, retries or deadline extensions. A passing repeat does not establish the cause of an earlier failure.
 
 The public text-service sample is also copied into the relocated exact-pin consumer fixture and executed with
 --text-input --output. It checks Unicode paste using an injected private clipboard, a real TSF document attachment

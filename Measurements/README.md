@@ -1,5 +1,20 @@
 # Independent DxUi measurements
 
+- [ASan foreground setup, 2026-10-18](TextInput/2026-10-18-asan-setup/README.md):
+  creation-before-activation, strict sent-callback readiness, actual thread-exit cleanup and bounded diagnostics;
+  six builds, 57 noninteractive and six full foreground suite passes with zero skips and verified restoration.
+  Historical failures remain unattributed; five new unpaired timing/memory flags and all qualification HOLDs remain.
+
+- [Native-input fixture readiness, 2026-10-18](TextInput/2026-10-18-fixture-readiness/README.md):
+  complete IMM eligibility sequences, explicit activation outcomes and deterministic loss/refusal regressions;
+  original and repaired-source failures, source/artifact identities and remaining qualification limits stay explicit.
+  Full ASan foreground acceptance and unpaired timing flags remain open.
+
+- [Bounded focus capture reasons, 2026-10-18](InteractiveLease/2026-10-18-capture-reasons/README.md):
+  deterministic snapshot/query/restoration and receipt checks, source/executable hashes and separate native/cross-build
+  evidence. Historical ARM64 `focus=none`, foreground/platform qualification and timing flags remain open;
+  no threshold or trusted-policy change.
+
 - [Bounded timing/memory attribution pilot, 2026-10-17](Performance/2026-10-17-attribution-pilot/README.md):
   24 retained diagnostic processes, clock/batch and frame-stage traces, capture/heap/teardown observations,
   measured observer cost and the unavailable kernel trace. All qualification gates and thresholds are unchanged.

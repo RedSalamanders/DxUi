@@ -1,0 +1,1 @@
+- Separate Menu witness creation from activation, reacquire the owner after setup, service sent callbacks under the existing absolute deadlines and wait for actual thread exit. Add bounded native/UIA setup diagnostics and deterministic readiness, loss-accounting and teardown regressions; retain unresolved failures, qualification gates and unchanged thresholds.

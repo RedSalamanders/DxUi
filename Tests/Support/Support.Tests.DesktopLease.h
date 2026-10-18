@@ -19,14 +19,51 @@
 
 namespace DxUi::TestSupport
 {
+// Fixed capture facts, read before confirmation. No window/thread identities are needed to distinguish a skipped query,
+// a failed query and a successful query with no focus. Restoration status remains a separate observation.
+enum class FocusCaptureReason
+{
+    NotCaptured,
+    NoForeground,
+    NoForegroundThread,
+    ForegroundMinimized,
+    QueryFailed,
+    QueryReturnedNull,
+    Recorded,
+};
+
+[[nodiscard]] constexpr std::string_view FocusCaptureReasonName(FocusCaptureReason reason) noexcept
+{
+    switch (reason)
+    {
+        case FocusCaptureReason::NotCaptured: return "not-captured";
+        case FocusCaptureReason::NoForeground: return "no-foreground";
+        case FocusCaptureReason::NoForegroundThread: return "no-foreground-thread";
+        case FocusCaptureReason::ForegroundMinimized: return "foreground-minimized";
+        case FocusCaptureReason::QueryFailed: return "query-failed";
+        case FocusCaptureReason::QueryReturnedNull: return "query-returned-null";
+        case FocusCaptureReason::Recorded: return "recorded";
+    }
+    return "not-captured";
+}
+
+struct FocusQuery
+{
+    HWND window    = nullptr;
+    bool succeeded = false;
+    DWORD error    = ERROR_SUCCESS; // Captured immediately on query failure; zero for success.
+};
+
 // What a person has on the desktop at one moment: the foreground window, the keyboard focus inside the thread that owns it, and
 // the physical pointer position. An interactive test run takes all three, so a run that ends, fails or is ended must hand all
 // three back. `DesktopLease` records them before the run and restores them after it.
 struct DesktopState
 {
-    HWND foreground        = nullptr;
-    DWORD foregroundThread = 0u;
-    HWND focus             = nullptr; // The focus window of foregroundThread's input state; null when it has none.
+    HWND foreground                       = nullptr;
+    DWORD foregroundThread                = 0u;
+    HWND focus                            = nullptr; // The focus window of foregroundThread's input state; null when it has none.
+    FocusCaptureReason focusCaptureReason = FocusCaptureReason::NotCaptured;
+    DWORD focusQueryError                 = ERROR_SUCCESS; // Meaningful only for QueryFailed; never a stale last-error on success/skip.
     POINT cursor{};
     bool cursorKnown = false;
 };
@@ -98,16 +135,16 @@ public:
     DesktopBackend& operator=(DesktopBackend&&)      = delete;
     virtual ~DesktopBackend()                        = default;
 
-    [[nodiscard]] virtual HWND Foreground()                   = 0;
-    [[nodiscard]] virtual bool IsWindowAlive(HWND window)     = 0;
-    [[nodiscard]] virtual bool IsWindowMinimized(HWND window) = 0;
-    [[nodiscard]] virtual DWORD WindowThread(HWND window)     = 0; // 0 when the window is gone.
-    [[nodiscard]] virtual HWND ThreadFocus(DWORD thread)      = 0; // The focus window of the thread's input state.
-    [[nodiscard]] virtual bool Cursor(POINT& position)        = 0; // Physical coordinates.
-    virtual bool SetCursor(POINT position)                    = 0; // Whether the call was accepted.
-    virtual bool BringToForeground(HWND window)               = 0; // Whether the call was accepted; the change itself is asynchronous.
-    virtual bool FocusWindow(HWND window, DWORD thread)       = 0; // Whether the call was accepted.
-    virtual void Wait(std::chrono::milliseconds duration)     = 0; // Lets an asynchronous change settle.
+    [[nodiscard]] virtual HWND Foreground()                    = 0;
+    [[nodiscard]] virtual bool IsWindowAlive(HWND window)      = 0;
+    [[nodiscard]] virtual bool IsWindowMinimized(HWND window)  = 0;
+    [[nodiscard]] virtual DWORD WindowThread(HWND window)      = 0; // 0 when the window is gone.
+    [[nodiscard]] virtual FocusQuery ThreadFocus(DWORD thread) = 0; // One query of the thread's input state, including failure.
+    [[nodiscard]] virtual bool Cursor(POINT& position)         = 0; // Physical coordinates.
+    virtual bool SetCursor(POINT position)                     = 0; // Whether the call was accepted.
+    virtual bool BringToForeground(HWND window)                = 0; // Whether the call was accepted; the change itself is asynchronous.
+    virtual bool FocusWindow(HWND window, DWORD thread)        = 0; // Whether the call was accepted.
+    virtual void Wait(std::chrono::milliseconds duration)      = 0; // Lets an asynchronous change settle.
     // For messages: the class and process of a window; empty where a backend has nothing to say.
     [[nodiscard]] virtual std::string Describe(HWND /*window*/)
     {
@@ -175,7 +212,26 @@ private:
         state.foregroundThread = state.foreground != nullptr ? _desktop.WindowThread(state.foreground) : 0u;
         // A minimized foreground window can retain a stale GUITHREADINFO focus HWND even though it cannot receive
         // keyboard input. The hosted ARM64 first-sign-in CoreWindow is one such case after desktop preparation.
-        state.focus = state.foregroundThread != 0u && ! _desktop.IsWindowMinimized(state.foreground) ? _desktop.ThreadFocus(state.foregroundThread) : nullptr;
+        if (state.foreground == nullptr)
+            state.focusCaptureReason = FocusCaptureReason::NoForeground;
+        else if (state.foregroundThread == 0u)
+            state.focusCaptureReason = FocusCaptureReason::NoForegroundThread;
+        else if (_desktop.IsWindowMinimized(state.foreground))
+            state.focusCaptureReason = FocusCaptureReason::ForegroundMinimized;
+        else
+        {
+            const FocusQuery query = _desktop.ThreadFocus(state.foregroundThread);
+            if (! query.succeeded)
+            {
+                state.focusCaptureReason = FocusCaptureReason::QueryFailed;
+                state.focusQueryError    = query.error;
+            }
+            else
+            {
+                state.focus              = query.window;
+                state.focusCaptureReason = query.window != nullptr ? FocusCaptureReason::Recorded : FocusCaptureReason::QueryReturnedNull;
+            }
+        }
         state.cursorKnown = _desktop.Cursor(state.cursor);
         return state;
     }
@@ -218,10 +274,15 @@ private:
             return Restoration::Gone;
         if (foreground != Restoration::Unchanged && foreground != Restoration::Restored)
             return Restoration::NotAttempted; // The window that held the focus is not the foreground, so its focus cannot be given back.
-        if (_desktop.ThreadFocus(_saved.foregroundThread) == _saved.focus)
+        const auto hasSavedFocus = [&]
+        {
+            const FocusQuery query = _desktop.ThreadFocus(_saved.foregroundThread);
+            return query.succeeded && query.window == _saved.focus;
+        };
+        if (hasSavedFocus())
             return Restoration::Unchanged;
         static_cast<void>(_desktop.FocusWindow(_saved.focus, _saved.foregroundThread));
-        return Settles([&] { return _desktop.ThreadFocus(_saved.foregroundThread) == _saved.focus; }) ? Restoration::Restored : Restoration::Failed;
+        return Settles(hasSavedFocus) ? Restoration::Restored : Restoration::Failed;
     }
 
     [[nodiscard]] Restoration RestoreCursor() const
@@ -253,6 +314,22 @@ private:
 // its own, the anchor, and makes that the foreground first: it attaches this thread's input to the current foreground thread for
 // the call (the thread then counts as part of the foreground queue), activates the anchor, and as the foreground process hands the
 // foreground to the person's window. The same attachment lets it set the keyboard focus inside a thread it does not own.
+struct ForegroundTransferObservation
+{
+    bool targetAlive       = false;
+    bool foregroundPresent = false;
+    bool foregroundThread  = false;
+    bool attachmentNeeded  = false;
+    bool attachmentCalled  = false;
+    bool attached          = false;
+    DWORD attachmentError  = ERROR_SUCCESS;
+    bool requestCalled     = false;
+    bool requestAccepted   = false;
+    bool detachCalled      = false;
+    bool detached          = false;
+    DWORD detachError      = ERROR_SUCCESS;
+};
+
 class Win32DesktopBackend final : public DesktopBackend
 {
 public:
@@ -286,10 +363,17 @@ public:
         return IsWindowAlive(window) ? GetWindowThreadProcessId(window, nullptr) : 0u;
     }
 
-    [[nodiscard]] HWND ThreadFocus(DWORD thread) override
+    [[nodiscard]] FocusQuery ThreadFocus(DWORD thread) override
     {
+        if (thread == 0u)
+            return {nullptr, false, ERROR_INVALID_PARAMETER};
         GUITHREADINFO info{sizeof(GUITHREADINFO)};
-        return thread != 0u && GetGUIThreadInfo(thread, &info) != FALSE ? info.hwndFocus : nullptr;
+        if (GetGUIThreadInfo(thread, &info) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            return {nullptr, false, error};
+        }
+        return {info.hwndFocus, true, ERROR_SUCCESS};
     }
 
     [[nodiscard]] bool Cursor(POINT& position) override
@@ -329,22 +413,67 @@ public:
 
     bool BringToForeground(HWND window) override
     {
-        if (! IsWindowAlive(window))
+        return BringToForeground(window, nullptr);
+    }
+
+    // Optional scalar observations of the existing operations. SetForegroundWindow has no documented last-error
+    // contract; record its BOOL, while attachment/detachment retain immediately captured errors only on failure.
+    bool BringToForeground(HWND window, ForegroundTransferObservation* observation)
+    {
+        if (observation)
+            *observation = {};
+        const bool alive = IsWindowAlive(window);
+        if (observation)
+            observation->targetAlive = alive;
+        if (! alive)
             return false;
         if (_anchor != nullptr && GetForegroundWindow() != _anchor)
             static_cast<void>(ActivateAnchor());
         const DWORD ownThread        = GetCurrentThreadId();
         const HWND foreground        = GetForegroundWindow();
         const DWORD foregroundThread = foreground != nullptr ? GetWindowThreadProcessId(foreground, nullptr) : 0u;
-        const bool attached          = foregroundThread != 0u && foregroundThread != ownThread && AttachThreadInput(ownThread, foregroundThread, TRUE) != FALSE;
-        const auto detach            = wil::scope_exit([&]() noexcept
+        const bool needsAttachment   = foregroundThread != 0u && foregroundThread != ownThread;
+        bool attached                = false;
+        if (observation)
+        {
+            observation->foregroundPresent = foreground != nullptr;
+            observation->foregroundThread  = foregroundThread != 0u;
+            observation->attachmentNeeded  = needsAttachment;
+            observation->attachmentCalled  = needsAttachment;
+        }
+        if (needsAttachment)
+        {
+            attached          = AttachThreadInput(ownThread, foregroundThread, TRUE) != FALSE;
+            const DWORD error = attached ? ERROR_SUCCESS : GetLastError();
+            if (observation)
+            {
+                observation->attached        = attached;
+                observation->attachmentError = error;
+            }
+        }
+        const auto detach = wil::scope_exit([&]() noexcept
         {
             if (attached)
-                AttachThreadInput(ownThread, foregroundThread, FALSE);
+            {
+                const bool detached = AttachThreadInput(ownThread, foregroundThread, FALSE) != FALSE;
+                const DWORD error   = detached ? ERROR_SUCCESS : GetLastError();
+                if (observation)
+                {
+                    observation->detachCalled = true;
+                    observation->detached     = detached;
+                    observation->detachError  = error;
+                }
+            }
         });
         if (IsIconic(window) != FALSE)
             ShowWindow(window, SW_RESTORE);
-        return SetForegroundWindow(window) != FALSE;
+        const bool accepted = SetForegroundWindow(window) != FALSE;
+        if (observation)
+        {
+            observation->requestCalled   = true;
+            observation->requestAccepted = accepted;
+        }
+        return accepted;
     }
 
     bool FocusWindow(HWND window, DWORD thread) override

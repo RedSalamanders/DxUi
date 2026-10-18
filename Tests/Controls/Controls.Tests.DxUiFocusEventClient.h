@@ -13,16 +13,31 @@
 
 // Focus subscriptions inspect the desktop, including unrelated providers. Keep each provider request shorter than
 // the client's setup allowance; the test still requires its own focus events within the notification deadline.
-[[nodiscard]] inline HRESULT CreateFocusAutomationClient(IUIAutomation** result) noexcept
+[[nodiscard]] inline HRESULT CreateFocusAutomationClient(IUIAutomation** result, std::atomic<const char*>* stage = nullptr) noexcept
 {
+    const auto note = [stage](const char* value) noexcept
+    {
+        if (stage)
+            stage->store(value);
+    };
     wil::com_ptr_nothrow<IUIAutomation2> automation;
+    note("create-automation");
     HRESULT hr = CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
     if (SUCCEEDED(hr))
+    {
+        note("connection-timeout");
         hr = automation->put_ConnectionTimeout(2000);
+    }
     if (SUCCEEDED(hr))
+    {
+        note("transaction-timeout");
         hr = automation->put_TransactionTimeout(3000);
+    }
     if (SUCCEEDED(hr))
+    {
+        note("automation-interface");
         hr = automation.query_to(result);
+    }
     return hr;
 }
 
@@ -88,8 +103,12 @@ public:
     {
         _recorder.attach(Microsoft::WRL::Make<FocusNameRecorder>().Detach());
         Require(_recorder != nullptr && _stop && _request, "allocate the UIA focus client");
-        _thread = std::jthread([this] { Run(); });
-        Require(WaitUntil(kSetupAllowanceMs, [this] { return _ready.load(); }) && SUCCEEDED(_setup.load()), "subscribe UIA focus changes");
+        _thread             = std::jthread([this] { Run(); });
+        const bool ready    = WaitUntil(kSetupAllowanceMs, [this] { return _ready.load(); });
+        const HRESULT setup = _setup.load();
+        if (! ready || FAILED(setup))
+            std::cerr << std::format("    [UIA-FOCUS-SETUP] ready={} stage={} hr=0x{:08x}\n", ready, _setupStage.load(), static_cast<uint32_t>(setup));
+        Require(ready && SUCCEEDED(setup), "subscribe UIA focus changes");
     }
 
     FocusEventClient(const FocusEventClient&)            = delete;
@@ -100,7 +119,8 @@ public:
         SetEvent(_stop.get());
         // The thread member joins after this without pumping, and the client's teardown may need this thread's providers to
         // answer: wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
-        Require(WaitUntil(kSetupAllowanceMs, [this] { return _finished.load(); }), "the UIA focus client thread ends");
+        Require(WaitUntil(kSetupAllowanceMs, [this] { return WaitForSingleObject(_thread.native_handle(), 0u) == WAIT_OBJECT_0; }),
+                "the UIA focus client thread ends");
     }
 
     template <typename Predicate> [[nodiscard]] bool WaitUntil(ULONGLONG timeoutMs, const Predicate& predicate) const
@@ -157,6 +177,7 @@ public:
 private:
     void Run() noexcept
     {
+        _setupStage.store("initialize-com");
         const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         const auto uninitialize   = wil::scope_exit([&]
         {
@@ -167,15 +188,27 @@ private:
         wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
-            hr = CreateFocusAutomationClient(automation.put());
+            hr = CreateFocusAutomationClient(automation.put(), &_setupStage);
         if (SUCCEEDED(hr))
+        {
+            _setupStage.store("create-cache");
             hr = automation->CreateCacheRequest(cache.put());
+        }
         if (SUCCEEDED(hr))
+        {
+            _setupStage.store("cache-name");
             hr = cache->AddProperty(UIA_NamePropertyId);
+        }
         if (SUCCEEDED(hr))
+        {
+            _setupStage.store("cache-process");
             hr = cache->AddProperty(UIA_ProcessIdPropertyId);
+        }
         if (SUCCEEDED(hr))
+        {
+            _setupStage.store("subscribe-focus");
             hr = automation->AddFocusChangedEventHandler(cache.get(), _recorder.get());
+        }
         _setup.store(hr);
         _ready.store(true);
         if (SUCCEEDED(hr))
@@ -185,7 +218,6 @@ private:
                 _requestResult.store(FocusNamed(*automation.get()));
             static_cast<void>(automation->RemoveFocusChangedEventHandler(_recorder.get()));
         }
-        _finished.store(true);
     }
 
     [[nodiscard]] HRESULT FocusNamed(IUIAutomation& automation) const noexcept
@@ -220,7 +252,7 @@ private:
     std::wstring _requestName;
     std::atomic<HRESULT> _requestResult{S_OK};
     std::atomic<HRESULT> _setup{E_PENDING};
+    std::atomic<const char*> _setupStage{"not-started"};
     std::atomic<bool> _ready{false};
-    std::atomic<bool> _finished{false};
     std::jthread _thread; // Last: it joins before the state it uses is destroyed.
 };
