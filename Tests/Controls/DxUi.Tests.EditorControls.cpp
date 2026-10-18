@@ -5,6 +5,7 @@
 #include "Scope.Tests.RichTextEditor.h"
 #include "Scope.Tests.RichTextInput.h"
 #include "Scope.Tests.RichTextLayout.h"
+#include "Scope.Tests.TextElementMovement.h"
 #include "Scope.Tests.TextElements.h"
 
 #include "../../include/DxUi/ControlCatalog.h"
@@ -1929,6 +1930,7 @@ void RunEditorControlTests()
 {
     RunRichDocumentTests();
     RunTextElementTests();
+    RunTextElementMovementTests();
     RunRichMarkdownTests();
     RunRichTextLayoutTests();
     RunRichTextEditorTests();

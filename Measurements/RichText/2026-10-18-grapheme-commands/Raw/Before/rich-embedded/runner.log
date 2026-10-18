@@ -1,0 +1,41 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2493.19 completed offscreen FPS; p95 0.5082 ms; private 28557312 bytes
+Complex UI clean round 2: 2486.71 completed offscreen FPS; p95 0.4949 ms; private 28934144 bytes
+Complex UI clean round 3: 2462.02 completed offscreen FPS; p95 0.4618 ms; private 28725248 bytes
+Complex UI clean round 4: 2505.03 completed offscreen FPS; p95 0.4585 ms; private 28934144 bytes
+Complex UI clean round 5: 2459.31 completed offscreen FPS; p95 0.5108 ms; private 28737536 bytes
+Complex UI dirty round 1: 625.961 completed offscreen FPS; p95 1.8977 ms; private 29962240 bytes
+Complex UI dirty round 2: 562.5 completed offscreen FPS; p95 2.6839 ms; private 29958144 bytes
+Complex UI dirty round 3: 631.798 completed offscreen FPS; p95 1.769 ms; private 29925376 bytes
+Complex UI dirty round 4: 655.483 completed offscreen FPS; p95 1.8043 ms; private 29941760 bytes
+Complex UI dirty round 5: 645.283 completed offscreen FPS; p95 1.6862 ms; private 29896704 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Release-39ebe6c5fc51452b897b9643dd6a63b8.json
+Running Accessibility (x64 Release), tests: TestRichTextAccessibilityEmbeddedInteriorAcpDeletion
+FAIL Accessibility exited with code 1
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestRichTextAccessibilityEmbeddedInteriorAcpDeletion
+rich interior embedded=1 key=8 resultUnits=3
+FAILED: collapsed rich deletion removes the complete containing grapheme

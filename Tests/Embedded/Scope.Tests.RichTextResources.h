@@ -44,6 +44,51 @@ static void TestUnicodeGraphemeForwardWalkAllocationBudget()
     Check(calls == 0u && bytes == 0u, "forward grapheme traversal owns no C++ heap storage");
 }
 
+static void TestUnicodeBulkMovementAndDeletionAllocationBudget()
+{
+    std::wstring source;
+    std::vector<size_t> boundaries{0u};
+    constexpr int repetitions = 4096, expectedElements = repetitions * 4;
+    for (int index = 0; index < repetitions; ++index)
+    {
+        const auto first = source.size();
+        source += L"\u1100\u1161\u11a8\u0915\u094d\u0915\U0001f469\u200d\U0001f4bbx";
+        for (const auto end : {3u, 6u, 11u, 12u})
+            boundaries.push_back(first + end);
+    }
+    const bool previousCounting    = countAllocations;
+    const auto previousAllocations = allocations, previousBytes = allocationBytes;
+    DxUi::TextRangeUnitMoveResult forward, backward;
+    std::array<DxUi::TextElementRange, 4> deletions;
+    size_t calls = 0u, bytes = 0u;
+    {
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = previousCounting;
+            allocations      = previousAllocations;
+            allocationBytes  = previousBytes;
+        });
+        allocationBytes = allocations = 0u;
+        countAllocations              = true;
+        forward                       = DxUi::MoveAccessibilityTextPositionByUnit(source, 0u, TextUnit_Character, INT_MAX);
+        backward                      = DxUi::MoveAccessibilityTextPositionByUnit(source, source.size(), TextUnit_Character, INT_MIN);
+        deletions[0]                  = DxUi::GetTextElementDeletionRange(source, 1u, false);
+        deletions[1]                  = DxUi::GetTextElementDeletionRange(source, 1u, true);
+        deletions[2]                  = DxUi::GetTextElementDeletionRange(source, 1u, false, boundaries);
+        deletions[3]                  = DxUi::GetTextElementDeletionRange(source, 1u, true, boundaries);
+        countAllocations              = false;
+        calls                         = allocations;
+        bytes                         = allocationBytes;
+    }
+    std::cout << "Unicode17 bulk commands units=" << source.size() << " elements=" << expectedElements << " CppAllocations=" << calls
+              << " CppRequestedBytes=" << bytes << '\n';
+    Check(forward.position == source.size() && forward.moved == expectedElements && backward.position == 0u && backward.moved == -expectedElements,
+          "extreme bulk commands return independent endpoints and exact signed counts");
+    for (const auto range : deletions)
+        Check(range.first == 0u && range.last == 3u, "indexed and streaming deletion enclose the complete first Hangul element");
+    Check(calls == 0u && bytes == 0u, "bulk character movement and collapsed deletion request no C++ heap storage");
+}
+
 static void TestRichTextUtf8RejectionAllocationBudget()
 {
     for (const auto inputBytes : {DxUi::RichText::Document::MaximumUnits + 1u, DxUi::RichText::Document::MaximumUnits * 3u + 1u})

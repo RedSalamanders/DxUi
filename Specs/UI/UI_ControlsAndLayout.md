@@ -651,6 +651,13 @@ operations. Source edits and text services may retain valid scalar/CRLF offsets
 inside an element. This does not qualify visual bidi/word navigation or physical
 IME/assistive-technology behavior. Password mask indexing uses the same forward
 walker rather than repeatedly recovering the entire preceding context.
+
+PreparedLayout::DeletionRange validates its display offset and readiness, returns
+the complete containing grapheme for an interior ACP, and uses the existing
+prepared stops without allocation. Clear retires this query along with geometry.
+At exact boundaries, backwards/forwards deletion chooses the ordinary neighbor;
+an empty edge yields an empty range. Explicit source-range replacement remains
+independent of this collapsed keyboard policy.
 Immutable pieces store exclusive cumulative source ends in the descriptor field
 previously used for length. Offset lookup is O(log P) for P pieces; a slice of K
 intersecting pieces starts with that lookup and visits those K pieces. No second

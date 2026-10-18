@@ -1463,10 +1463,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (_caretIndex > 0u && ! _text.empty())
             {
-                const size_t eraseFrom = StepToPreviousTextElement(_text, _caretIndex);
+                const auto range = GetTextElementDeletionRange(_text, _caretIndex, true);
                 RecordUndoStateForEditableEdit();
-                _text.erase(eraseFrom, _caretIndex - eraseFrom);
-                _caretIndex = eraseFrom;
+                _text.erase(range.first, range.last - range.first);
+                _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
             }
@@ -1483,9 +1483,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (_caretIndex < _text.size())
             {
-                const size_t eraseTo = StepToNextTextElement(_text, _caretIndex);
+                const auto range = GetTextElementDeletionRange(_text, _caretIndex, false);
                 RecordUndoStateForEditableEdit();
-                _text.erase(_caretIndex, eraseTo - _caretIndex);
+                _text.erase(range.first, range.last - range.first);
+                _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
             }

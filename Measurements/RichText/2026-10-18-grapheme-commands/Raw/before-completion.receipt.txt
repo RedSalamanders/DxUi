@@ -1,0 +1,31 @@
+{
+  "elapsedSeconds": 342.901299,
+  "results": [
+    {
+      "drained": true,
+      "completedUtc": "2026-10-18T00:26:34.6474159Z",
+      "timedOut": false,
+      "exitCode": 1,
+      "name": "oracle-trials-legacy",
+      "processId": 92916
+    },
+    {
+      "drained": true,
+      "completedUtc": "2026-10-18T00:27:19.8643615Z",
+      "timedOut": false,
+      "exitCode": 1,
+      "name": "rich-native",
+      "processId": 70332
+    },
+    {
+      "drained": true,
+      "completedUtc": "2026-10-18T00:28:04.6404167Z",
+      "timedOut": false,
+      "exitCode": 1,
+      "name": "rich-embedded",
+      "processId": 27812
+    }
+  ],
+  "scheduled": 3,
+  "attempted": 3
+}

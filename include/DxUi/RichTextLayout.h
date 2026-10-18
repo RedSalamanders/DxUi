@@ -59,6 +59,9 @@ public:
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     std::size_t PreviousCluster(std::size_t position) const;
     std::size_t NextCluster(std::size_t position) const;
+    // A collapsed delete at an interior ACP removes the containing grapheme;
+    // an exact boundary deletes its preceding/following neighbor as requested.
+    std::pair<std::size_t, std::size_t> DeletionRange(std::size_t position, bool backwards) const;
     std::size_t LineBoundary(std::size_t position, bool end) const;
     // Complete wrapped lines intersecting the vertical viewport, in display
     // offsets. Includes partially visible lines and works in either bidi flow.

@@ -27,6 +27,18 @@ UTF-8 admission limits. These deterministic oracles do not qualify latency,
 physical IME/AT or visual bidi navigation. Offline generator/pin negative tests
 run in the ordinary tooling suite; see [Unicode provenance](../ThirdParty/Unicode/README.md).
 
+The text-element movement cases add a second independent 766-vector oracle for
+signed bulk commands (all offsets, zero counts, +/-3 and INT_MIN/INT_MAX), plus
+indexed/streaming deletion at every interior ACP and boundary. Fixed five-trial
+Release traversal observations retain identical oracle/method bytes before and
+after the change; they have no performance acceptance verdict. Maximum-size
+native and embedded rich providers verify exact moved counts, endpoint collapse,
+explicit selection and unchanged source/history. Interior deletion cases cover
+legacy single/multiline fields, editable ComboBox and both rich hosts, including
+undo/redo and preservation of explicit noncollapsed source intervals. Embedded
+also requires zero C++ allocation calls/bytes for 49,152-unit bulk queries and
+both deletion-query paths. These cases remain ordinary non-activating tests.
+
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification

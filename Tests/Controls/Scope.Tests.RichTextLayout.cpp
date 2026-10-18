@@ -232,6 +232,22 @@ void TestRichTextLayoutUnicode17NavigationAndHitStops()
     }
 }
 
+void TestRichTextLayoutDeletionRangesAndRetirement()
+{
+    const auto factory = CreateRichTextTestFactory();
+    PreparedLayout layout;
+    Document document(L"Aa\u0301B");
+    layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), 240);
+    for (const bool backwards : {false, true})
+        Require(layout.DeletionRange(2u, backwards) == std::pair<size_t, size_t>{1u, 3u},
+                "prepared deletion encloses an interior ACP independent of direction");
+    Require(layout.DeletionRange(1u, true) == std::pair<size_t, size_t>{0u, 1u} && layout.DeletionRange(3u, false) == std::pair<size_t, size_t>{3u, 4u},
+            "exact boundary deletion uses its preceding or following complete element");
+    Reject([&] { static_cast<void>(layout.DeletionRange(5u, true)); }, "prepared deletion validates its display offset");
+    layout.Clear();
+    Reject([&] { static_cast<void>(layout.DeletionRange(0u, false)); }, "retirement invalidates prepared deletion queries");
+}
+
 void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
@@ -239,4 +255,5 @@ void RunRichTextLayoutTests()
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);
     DXUI_RUN_TEST(TestRichTextLayoutHostLocaleAndReadingDirection);
     DXUI_RUN_TEST(TestRichTextLayoutUnicode17NavigationAndHitStops);
+    DXUI_RUN_TEST(TestRichTextLayoutDeletionRangesAndRetirement);
 }

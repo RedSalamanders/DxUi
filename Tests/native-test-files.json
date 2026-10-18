@@ -54,6 +54,8 @@
   "Tests/Controls/Scope.Tests.RichTextAccessibility.h",
   "Tests/Controls/Scope.Tests.RichTextLayout.cpp",
   "Tests/Controls/Scope.Tests.RichTextLayout.h",
+  "Tests/Controls/Scope.Tests.TextElementMovement.cpp",
+  "Tests/Controls/Scope.Tests.TextElementMovement.h",
   "Tests/Controls/Scope.Tests.TextElements.cpp",
   "Tests/Controls/Scope.Tests.TextElements.h",
   "Tests/Controls/Scope.Tests.UnicodeGraphemeCorpus.h",

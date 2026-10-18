@@ -577,20 +577,44 @@ calls the arbitrary-caret prefix-scanning helper for every step. This repeats
 the same prefixes for both forward and backward movement. Fix this independently
 of the Default readback hold; it does not identify that hold's cause.
 
-- [ ] Retain bounded, fixed-count Release baseline trials with an independent
+- [x] Retain bounded, fixed-count Release baseline trials with an independent
   boundary/count oracle before changing the bulk command implementation.
-- [ ] Preserve nearest-boundary snapping, zero-count behavior, endpoint crossing,
+- [x] Preserve nearest-boundary snapping, zero-count behavior, endpoint crossing,
   actual signed moved counts and INT_MIN/INT_MAX safety. Traverse established
   boundaries forward; backward movement may count a prefix then visit its target
   in a second pass, without a new allocation/index/cache.
-- [ ] Test the original Unicode corpus at every offset/count boundary, large
+- [x] Test the original Unicode corpus at every offset/count boundary, large
   native/embedded provider commands, source/selection/history preservation and
   a deterministic C++ allocation budget. Retain descriptive before/after trials.
-- [ ] Reproduce collapsed keyboard deletion from a valid explicit ACP inside a
+- [x] Reproduce collapsed keyboard deletion from a valid explicit ACP inside a
   grapheme. Preserve interior ACP geometry/explicit source selections, while
   collapsed Backspace/Delete remove the containing element. Cover both hosts,
   source/selection restoration and existing shared text-control callers.
-- [ ] Update contracts/docs and qualify affected suites and final platform matrix.
+- [x] Update contracts/docs and qualify affected suites and final platform matrix.
+
+The fixed before schedule completed three fresh root-runner slots in 342.901
+seconds. The unchanged bulk oracle passes; five 6,144-unit / 3,072-element trials
+take roughly 82-90 ms per direction. These are descriptive timings, with no
+same-binary controls or non-regression claim. A legacy surrogate-interior caret
+reproduces invalid UTF-16 after Backspace. Both native and embedded rich fixtures
+also fail complete-grapheme deletion from an interior scalar ACP. Every original
+filtered failure receipt, native/root log, benchmark binding and slot outcome is
+copied before the next invocation reuses its output path.
+
+The implementation uses shared deletion-range policy, existing prepared stops for
+rich queries, overflow-safe signed movement and at most three forward passes for
+bulk movement. Official-corpus deletion/command oracles, maximal provider actions,
+legacy/rich undo and C++ allocation budgets pass. The
+[command qualification](../../../Measurements/RichText/2026-10-18-grapheme-commands/README.md)
+retains three original failing runs, 57 passing ordinary x64 suite runs with zero
+native skips, six attested builds, full tooling/validators and formatting.
+Embedded records 5,167 checks and 1,000 allocation-free warm composites in each
+profile. Maximal movement/deletion queries request zero C++ bytes. Five fixed
+within-process trials have median forward/backward times 83.0029/82.7482 ms before
+and 0.0579/0.0553 ms after. These are descriptive one-process-per-revision
+observations, without same-binary controls or Default performance acceptance.
+Gallery sample inputs, shaping and styles are unchanged; no gallery regeneration
+or consumer pin update follows. The remaining engine and physical gates stay open.
 
 ### Remaining D2a storage sequence
 
@@ -613,3 +637,9 @@ qualified separately.
 - [ ] Qualify deterministic retained-byte bounds, native/embedded behavior,
   all required configurations and specs/docs; keep incremental layout/shared
   scheduling and full large-document support explicitly open until implemented.
+
+The next source slice also preserves the common single-backward-character path:
+bulk negative movement currently counts a prefix and visits its target. A single
+step can use the existing predecessor walk without that second traversal. Retain
+the corpus/count oracle and a large-source single-step observation when changing
+this path; the qualified bulk packet makes no single-step speedup claim.

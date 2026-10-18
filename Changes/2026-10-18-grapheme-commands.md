@@ -1,0 +1,1 @@
+- Make bulk Unicode character movement linear and allocation-free, and delete complete graphemes from interior ACP carets across rich editors, TextField and editable ComboBox. Preserve explicit source selections, exact moved counts and undo state, with corpus, native/embedded and allocation coverage.

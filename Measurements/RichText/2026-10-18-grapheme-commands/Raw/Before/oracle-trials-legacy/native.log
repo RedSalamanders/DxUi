@@ -1,0 +1,14 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestUnicode17BulkCharacterMovementOracle
+  [DONE] TestUnicode17BulkCharacterMovementOracle (0.001 s)
+  [START] TestTextElementBulkMovementFixedTrials
+UIA bulk trial=0 sourceUnits=6144 elements=3072 forwardMs=86.6578 backwardMs=85.5453
+  [DONE] TestTextElementBulkMovementFixedTrials (0.841 s)
+UIA bulk trial=1 sourceUnits=6144 elements=3072 forwardMs=81.6559 backwardMs=82.4447
+UIA bulk trial=2 sourceUnits=6144 elements=3072 forwardMs=82.8043 backwardMs=82.0241
+UIA bulk trial=3 sourceUnits=6144 elements=3072 forwardMs=83.1844 backwardMs=90.4064
+UIA bulk trial=4 sourceUnits=6144 elements=3072 forwardMs=83.0029 backwardMs=82.7482
+  [START] TestTextFieldInteriorAcpDeletion
+interior field multiline=0 key=8 resultUnits=3 validUtf16=0
+FAILED: collapsed legacy deletion removes the containing grapheme without leaving a surrogate half or mark

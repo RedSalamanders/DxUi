@@ -1,0 +1,61 @@
+{
+  "scheduled": 6,
+  "elapsedSeconds": 1653.6152122,
+  "attempted": 6,
+  "results": [
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T00:40:23.6587638Z",
+      "exitCode": 0,
+      "processId": 83524,
+      "configuration": "Release",
+      "platform": "x64"
+    },
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T00:47:45.1927179Z",
+      "exitCode": 0,
+      "processId": 89068,
+      "configuration": "Debug",
+      "platform": "x64"
+    },
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T00:56:26.5545194Z",
+      "exitCode": 0,
+      "processId": 29608,
+      "configuration": "ASan Debug",
+      "platform": "x64"
+    },
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T00:59:33.4230303Z",
+      "exitCode": 0,
+      "processId": 97892,
+      "configuration": "Debug",
+      "platform": "ARM64"
+    },
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T01:03:14.6922687Z",
+      "exitCode": 0,
+      "processId": 93324,
+      "configuration": "Release",
+      "platform": "ARM64"
+    },
+    {
+      "drained": true,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T01:06:09.7335820Z",
+      "exitCode": 0,
+      "processId": 95452,
+      "configuration": "ASan Debug",
+      "platform": "ARM64"
+    }
+  ]
+}

@@ -69,6 +69,22 @@ valid scalar/CRLF offsets inside a grapheme; this is separate from character
 navigation. Full visual bidi/word navigation, rich attributes/structure and
 semantic edit anchors remain engine/AT acceptance work. The source has no
 embedded UIA children to invent.
+
+Collapsed Backspace/Delete at an interior ACP remove the complete containing
+grapheme. An exact boundary still removes its preceding/following neighbor.
+TextField (single/multiline), editable ComboBox and RichTextEditor share this
+policy, including a legacy ACP between surrogate halves. Undo retains the entry
+source and ACP. Explicit noncollapsed source intervals keep their original
+meaning; rich ranges still require valid scalar/CRLF endpoints. Text-service
+geometry and explicit selection setters do not silently snap to navigation stops.
+
+Bulk Character movement snaps once using the existing nearest/forward-tie
+policy, then walks established boundaries. Negative movement counts the bounded
+prefix and visits its target ordinal. INT_MIN/INT_MAX requests return actual
+signed movement without negation overflow or repeated prefix scans. Zero-count
+pure helper calls preserve the clamped input offset. The command adds no index,
+cache, retained text or C++ allocation; prepared layout supplies its existing
+boundary index for collapsed deletion.
 The [source-command qualification](../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
 records functional tests separately from the open performance and real AT gates.
 

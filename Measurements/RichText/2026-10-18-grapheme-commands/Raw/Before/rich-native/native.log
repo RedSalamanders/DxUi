@@ -1,0 +1,5 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestRichTextAccessibilityWindowInteriorAcpDeletion
+rich interior embedded=0 key=8 resultUnits=3
+FAILED: collapsed rich deletion removes the complete containing grapheme

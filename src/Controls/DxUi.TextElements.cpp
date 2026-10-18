@@ -146,4 +146,33 @@ std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t elem
     }
     return text.size();
 }
+TextElementRange GetTextElementDeletionRange(std::wstring_view text,
+                                             std::size_t position,
+                                             bool backwards,
+                                             std::span<const std::size_t> preparedBoundaries) noexcept
+{
+    const auto caret = std::min(position, text.size());
+    if ((backwards && ! caret) || (! backwards && caret == text.size()))
+        return {caret, caret};
+    if (! preparedBoundaries.empty())
+    {
+        const auto next = std::lower_bound(preparedBoundaries.begin(), preparedBoundaries.end(), caret);
+        // The owned index's complete endpoints and the edge checks above make
+        // both neighbors valid. An interior caret encloses the same span for
+        // Backspace and Delete, including an ACP between surrogate halves.
+        if (*next == caret)
+            return backwards ? TextElementRange{*std::prev(next), caret} : TextElementRange{caret, *std::next(next)};
+        return {*std::prev(next), *next};
+    }
+    for (std::size_t first = 0u; first < text.size();)
+    {
+        const auto last = FindNextTextElementBoundary(text, first);
+        if (caret < last)
+            return {first, last};
+        if (caret == last)
+            return backwards ? TextElementRange{first, last} : TextElementRange{last, FindNextTextElementBoundary(text, last)};
+        first = last;
+    }
+    return {caret, caret};
+}
 } // namespace DxUi

@@ -429,6 +429,17 @@ from the beginning. The 49,152-unit mixed-script resource fixture requires exact
 16,384 elements and zero C++ allocation calls/bytes. This is a deterministic
 resource bound, not a latency or visual bidi qualification.
 
+Bulk UIA Character movement is linear in source length, including extreme signed
+counts: one nearest-boundary recovery, forward traversal or a prefix count plus
+target traversal, with at most three forward passes and constant numeric state.
+Collapsed deletion uses a single forward pass without a prepared index, or
+O(log G) lookup in the prepared layout's G grapheme stops. Neither operation
+requests C++ heap storage. The 49,152-unit mixed-script fixture requires actual
+movement of +/-16,384 elements and zero allocation calls/bytes, including both
+indexed and streaming deletion queries. Input/index construction is outside the
+measured query budget. Fixed Release before/after traversal trials are descriptive
+observations; they do not resolve the independent Default readback HOLD.
+
 DecodeUtf8 rejects byte lengths above three times the 65,536 UTF-16-unit capacity
 before conversion, and checks the decoded length before allocating its result.
 Every admitted Unicode scalar needs at most three UTF-8 bytes per UTF-16 unit.

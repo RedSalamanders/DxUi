@@ -175,6 +175,13 @@ std::size_t PreparedLayout::NextCluster(std::size_t position) const
     const auto found = std::upper_bound(clusters_.begin(), clusters_.end(), position);
     return found == clusters_.end() ? projection_.text.size() : *found;
 }
+std::pair<std::size_t, std::size_t> PreparedLayout::DeletionRange(std::size_t position, bool backwards) const
+{
+    if (! layout_ || position > projection_.text.size())
+        throw std::out_of_range("Deletion position");
+    const auto range = ::DxUi::GetTextElementDeletionRange(projection_.text, position, backwards, clusters_);
+    return {range.first, range.last};
+}
 std::size_t PreparedLayout::LineBoundary(std::size_t position, bool end) const
 {
     if (! layout_ || position > projection_.text.size())

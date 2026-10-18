@@ -1,0 +1,84 @@
+{
+  "classification": "descriptive-one-native-process-per-revision-with-five-within-process-trials",
+  "sourceBefore": "55DE3A71D32382F2DE7DC23D3A7E4EED6A3CDE40F93684C45FF83880F47E9C85",
+  "sourceAfter": "6B5ED058F3E2B3E5C2EB479A7EEDE48D615CBAAB3B98DEDE229F41B355DF1B71",
+  "before": [
+    {
+      "trial": 0,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 86.6578,
+      "backwardMs": 85.5453
+    },
+    {
+      "trial": 1,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 81.6559,
+      "backwardMs": 82.4447
+    },
+    {
+      "trial": 2,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 82.8043,
+      "backwardMs": 82.0241
+    },
+    {
+      "trial": 3,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 83.1844,
+      "backwardMs": 90.4064
+    },
+    {
+      "trial": 4,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 83.0029,
+      "backwardMs": 82.7482
+    }
+  ],
+  "after": [
+    {
+      "trial": 0,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 0.0579,
+      "backwardMs": 0.0551
+    },
+    {
+      "trial": 1,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 0.0586,
+      "backwardMs": 0.0561
+    },
+    {
+      "trial": 2,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 0.0577,
+      "backwardMs": 0.0551
+    },
+    {
+      "trial": 3,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 0.0576,
+      "backwardMs": 0.0553
+    },
+    {
+      "trial": 4,
+      "units": 6144,
+      "elements": 3072,
+      "forwardMs": 0.0588,
+      "backwardMs": 0.0564
+    }
+  ],
+  "beforeForwardMedianMs": 83.0029,
+  "afterForwardMedianMs": 0.0579,
+  "beforeBackwardMedianMs": 82.7482,
+  "afterBackwardMedianMs": 0.0553,
+  "acceptance": "No same-binary controls, quiet-host claim, paired inference or Default performance acceptance."
+}

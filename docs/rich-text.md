@@ -254,6 +254,19 @@ bidi/word navigation or physical IME/AT behavior. This core supplies no TSF/IME/
 clipboard, file persistence, retained theme/DPI invalidation or viewport scheduler.
 The standalone prototype still owns those demonstration-host responsibilities.
 
+`PreparedLayout::DeletionRange(position, backwards)` uses the prepared grapheme
+stops to return a display interval. Both deletion directions enclose a complete
+grapheme when an explicit ACP lies inside it. Exact-boundary deletion keeps the
+usual preceding/following behavior; empty edges yield empty intervals. Invalid
+positions or retired layout throw. Rich keyboard deletion maps this interval
+back to source. Explicit noncollapsed source selections retain their exact
+scalar/CRLF meaning, and undo restores the original source and caret ACP.
+
+Bulk UIA character movement uses bounded forward traversal, with overflow-safe
+INT_MIN/INT_MAX handling and actual signed counts. It adds no C++ heap work or
+mutable index. This command improvement is separate from Default frame timing
+and does not clear the performance hold.
+
 Tests live in Scope.Tests.RichDocument, RichMarkdown and RichTextLayout under
 [Tests/Controls](../Tests/Controls), registered in EditorControls. They retain the
 prototype's randomized/history/codec/projection/real-DirectWrite scenarios and
@@ -320,6 +333,14 @@ runs, six attested builds and all pinned generation inputs. Every profile passes
 the 766-vector corpus and native/embedded behavior cases. The 49,152-unit forward
 walk requests no C++ heap storage; oversized UTF-8 rejection also requests zero
 C++ bytes in both tested cases. The refused ARM64 build-input mutation and its
-two successful recovery builds remain separately recorded. Collapsed deletion
-from an explicit interior ACP, bulk movement, the remaining engine and manual
-acceptance gates continue under the plan.
+two successful recovery builds remain separately recorded.
+
+The [character-command qualification](../Measurements/RichText/2026-10-18-grapheme-commands/README.md)
+adds linear, allocation-free bulk movement and complete-grapheme deletion from
+collapsed interior ACP carets. Explicit noncollapsed source selections retain
+their exact semantics. All 57 ordinary x64 suite runs and six builds pass,
+including native/embedded maximal commands, undo/redo and the original Unicode
+corpus at every offset. Embedded records 5,167 checks per profile; maximal command
+queries request zero C++ bytes. Original failures and descriptive timing trials
+are retained. The performance hold, persistent storage/incremental preparation,
+remaining engine and manual acceptance gates continue under the plan.

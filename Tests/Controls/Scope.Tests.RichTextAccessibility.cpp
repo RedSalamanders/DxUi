@@ -714,6 +714,86 @@ void TestRichTextAccessibilityEmbeddedUnicode17Commands()
 {
     EmbeddedCase(UnicodeGraphemeCommands);
 }
+void InteriorAcpDeletion(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    fixture.editor->SetViewMode(RichText::ViewMode::Source);
+    for (const std::wstring element : {L"a\u0301", L"\u1100\u1161\u11a8", L"\u0915\u094d\u0915", L"\U0001f469\u200d\U0001f4bb", L"\U0001f1e6\U0001f1e7"})
+    {
+        const auto source   = L"A" + element + L"B";
+        const auto interior = 1u + StepToNextCodePoint(element, 0u);
+        Require(interior < 1u + element.size(), "fixture contains a valid scalar ACP inside a complete grapheme");
+        for (const auto key : {VK_BACK, VK_DELETE})
+        {
+            fixture.editor->SetText(source);
+            fixture.editor->SetSelection({interior, interior});
+            fixture.Publish();
+            Require(fixture.editor->GetSelection() == RichText::Selection{interior, interior},
+                    "explicit source ACP remains unsnapped before keyboard deletion");
+            Require(fixture.editor->OnKeyDown(*fixture.controls, key, 0), "rich keyboard handles interior ACP deletion");
+            std::cout << "rich interior embedded=" << embedded << " key=" << key << " resultUnits=" << fixture.editor->GetText().size() << '\n';
+            Require(fixture.editor->GetText() == L"AB" && fixture.editor->GetSelection() == RichText::Selection{1u, 1u},
+                    "collapsed rich deletion removes the complete containing grapheme");
+            Require(fixture.editor->Undo() && fixture.editor->GetText() == source && fixture.editor->GetSelection() == RichText::Selection{interior, interior},
+                    "rich undo restores both source and the original interior ACP");
+            Require(fixture.editor->Redo() && fixture.editor->GetText() == L"AB", "rich redo repeats the one grapheme transaction");
+        }
+    }
+    // Explicit noncollapsed source intervals keep their exact scalar meaning.
+    fixture.editor->SetText(L"Aa\u0301B");
+    fixture.editor->SetSelection({2u, 3u});
+    fixture.Publish();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_DELETE, 0) && fixture.editor->GetText() == L"AaB",
+            "explicit noncollapsed source selection may remove a combining mark without expanding");
+}
+void TestRichTextAccessibilityWindowInteriorAcpDeletion()
+{
+    InteriorAcpDeletion(false);
+}
+void TestRichTextAccessibilityEmbeddedInteriorAcpDeletion()
+{
+    EmbeddedCase(InteriorAcpDeletion);
+}
+void BulkCharacterCommands(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    std::wstring source;
+    constexpr int elements = 32768;
+    for (int index = 0; index < elements; ++index)
+        source += L"a\u0301";
+    fixture.editor->SetText(source);
+    fixture.editor->SetViewMode(RichText::ViewMode::Source);
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text->get_DocumentRange(range.put()), "maximum-source character range");
+    RequireSucceeded(range->MoveEndpointByRange(TextPatternRangeEndpoint_End, range.get(), TextPatternRangeEndpoint_Start), "collapse maximum-source range");
+    int moved = 0;
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, INT_MAX, &moved), "bulk character end reaches source limit");
+    Require(moved == elements && ReadTextRangeText(*range.get(), -1, "maximum character range text") == source,
+            "provider reports actual complete graphemes rather than requested count or UTF16 units");
+    Require(fixture.editor->GetSelection() == RichText::Selection{0, 0} && ! fixture.editor->CanUndo(),
+            "moving range endpoints changes neither editor selection nor history");
+    RequireSucceeded(range->Select(), "select maximum character range");
+    Require(fixture.editor->GetSelection() == RichText::Selection{0, source.size()}, "explicit selection applies the full source range");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, INT_MAX, &moved), "bulk start collapses at end");
+    Require(moved == elements && ReadTextRangeText(*range.get(), -1, "collapsed end").empty(), "crossing start collapses the provider range at end");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, INT_MIN, &moved), "bulk end returns to source start");
+    Require(moved == -elements && ReadTextRangeText(*range.get(), -1, "collapsed start").empty(),
+            "INT_MIN movement preserves the exact negative count and collapse");
+    RequireSucceeded(range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, INT_MIN, &moved), "bulk start stays bounded at start");
+    Require(moved == 0, "a boundary endpoint reports zero actual movement");
+    Require(fixture.editor->GetText() == source && fixture.editor->GetSelection() == RichText::Selection{0, source.size()} && ! fixture.editor->CanUndo(),
+            "bulk range commands preserve exact source, explicit selection and empty history in either host");
+}
+void TestRichTextAccessibilityWindowBulkCharacterCommands()
+{
+    BulkCharacterCommands(false);
+}
+void TestRichTextAccessibilityEmbeddedBulkCharacterCommands()
+{
+    EmbeddedCase(BulkCharacterCommands);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -735,4 +815,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedThreadedRangeCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowUnicode17Commands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedUnicode17Commands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowInteriorAcpDeletion);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedInteriorAcpDeletion);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowBulkCharacterCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedBulkCharacterCommands);
 }

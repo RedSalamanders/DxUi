@@ -6,6 +6,7 @@
 #include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
 #include "../Support/Support.Tests.FailureReports.h"
+#include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
 #include <algorithm>
@@ -1244,6 +1245,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
+    TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);

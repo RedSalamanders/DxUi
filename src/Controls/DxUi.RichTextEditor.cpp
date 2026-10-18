@@ -618,11 +618,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     if (selection.Start() != selection.End())
         return ReplaceSelection({});
     EnsureLayout(host);
-    auto& state            = *_state;
-    const auto& projection = state.layout.Content();
-    const auto position    = projection.ToDisplay(selection.caret);
-    const auto first       = backwards ? state.layout.PreviousCluster(position) : position;
-    const auto last        = backwards ? position : state.layout.NextCluster(position);
+    auto& state              = *_state;
+    const auto& projection   = state.layout.Content();
+    const auto position      = projection.ToDisplay(selection.caret);
+    const auto [first, last] = state.layout.DeletionRange(position, backwards);
     if (first == last)
         return false;
     const auto begin   = projection.ToSource(first);

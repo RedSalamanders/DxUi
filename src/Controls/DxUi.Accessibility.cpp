@@ -3724,31 +3724,27 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         int moved     = 0;
         if (count > 0)
         {
-            while (moved < count)
+            // Snapping established a complete grapheme boundary. Walk forward
+            // from there rather than rescanning the same prefix for each unit.
+            while (moved < count && cursor < text.size())
             {
-                const size_t next = StepToNextTextElement(text, cursor);
-                if (next == cursor)
-                {
-                    break;
-                }
-
-                cursor = next;
+                cursor = FindNextTextElementBoundary(text, cursor);
                 ++moved;
             }
         }
         else
         {
-            while (moved > count)
-            {
-                const size_t previous = StepToPreviousTextElement(text, cursor);
-                if (previous == cursor)
-                {
-                    break;
-                }
-
-                cursor = previous;
-                --moved;
-            }
+            // Backward bulk movement counts the bounded prefix once, then
+            // visits its target ordinal in a second forward pass. Negating
+            // after widening preserves INT_MIN without overflow or allocation.
+            const auto availableElements = CountTextElements(text.substr(0, cursor));
+            const auto requestedSteps    = static_cast<size_t>(-static_cast<std::int64_t>(count));
+            const auto actualSteps       = std::min(availableElements, requestedSteps);
+            const auto targetOrdinal     = availableElements - actualSteps;
+            cursor                       = 0u;
+            for (size_t ordinal = 0u; ordinal < targetOrdinal; ++ordinal)
+                cursor = FindNextTextElementBoundary(text, cursor);
+            moved = static_cast<int>(-static_cast<std::int64_t>(actualSteps));
         }
 
         return TextRangeUnitMoveResult{cursor, moved};
