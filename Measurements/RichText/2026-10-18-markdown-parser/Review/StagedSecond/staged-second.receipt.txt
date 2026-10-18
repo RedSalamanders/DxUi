@@ -1,0 +1,7 @@
+{
+  "expectedFailure": "SHA-256 differs: Raw/Final/QualifiedSource/capabilities.receipt.txt",
+  "tree": "64438f5773bf0dca1fb2ec6ea99204c0a5c4e24f",
+  "archiveSha256": "511D68BFD3EC231BBFA13DA96BBDFBA8334232AE64F1579303B1B732D7858C02",
+  "classification": "Original second staged replay rejection retained: index kept previously normalized blobs until explicit raw renormalization",
+  "recordedUtc": "2026-10-18T17:06:55.2413185Z"
+}

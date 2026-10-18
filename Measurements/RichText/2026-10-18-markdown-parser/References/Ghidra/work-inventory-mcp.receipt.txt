@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"program\":\"user32.dll\",\"success\":true,\"console_output\":\"=== GHIDRA SCRIPT EXECUTION ===\\nScript: C:\\\\Users\\\\eric\\\\ghidra_scripts\\\\ListRichEditRecalcWork.java\\nProgram: user32.dll\\nTime: Sun Oct 18 13:36:50 CEST 2026\\n\\nFound script: C:\\\\Users\\\\eric\\\\ghidra_scripts\\\\ListRichEditRecalcWork.java\\nSize: 3707 bytes\\n\\nScript provider: JavaScriptProvider\\n\\n--- SCRIPT OUTPUT ---\\nRead-only saved Office work inventory complete: 19 matches; active program unchanged\\r\\n\\n\\n=== SCRIPT COMPLETED SUCCESSFULLY ===\\n\"}"
+    }
+  ],
+  "isError": false
+}

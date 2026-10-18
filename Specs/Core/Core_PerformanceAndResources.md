@@ -1,5 +1,21 @@
 # Performance and resources
 
+The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
+units), one staged result and one published result per parser. Advance has an
+operation budget; source validation/copy/comparison and allocator work are not
+hard wall-clock bounds. Physical-line recognition stores metadata rather than
+rescanning long marker lines. Lexical reference recognition examines at most
+33 source units per candidate and uses a fixed sorted standard-data table.
+Native tests bound total scanner operations by 2 * source units + 3. A maximum
+all-newline source exercises every physical-line/block/lexeme allocation; owned
+C++ retained storage must stay within 24 MiB and release completely. Replacing
+that maximum result while retaining its previous publication is bounded to
+32 MiB peak C++ storage. This is not
+a process/SDK/GPU or large-document capacity claim. Same completed requests,
+read-only publication access and retirement allocate no C++ storage. Parser
+allocation-failure sweeps must retain the previous publication and allow explicit
+retry. No parser result changes the existing frame performance HOLD.
+
 Status: normative current contract
 Last reviewed: 2026-10-18
 

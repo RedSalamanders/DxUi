@@ -1,0 +1,17 @@
+{
+  "collectedUtc": "2026-10-18T15:22:32.0790592Z",
+  "files": [
+    {
+      "url": "https://html.spec.whatwg.org/entities.json",
+      "sha256": "D741D877AC77C4194C4AD526B5B4A19AEF8DFE411AB840A466891CDBB9F362E6",
+      "bytes": 145897,
+      "name": "entities.json"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/whatwg/html/de953a7cf0523f5873a1904ba2ce010c689dfb66/LICENSE",
+      "sha256": "85DC6F5CCB57A6FE8C33D158F9FC8FC7EE5655A5D3DB2CDD131C6A3D0F48A864",
+      "bytes": 16315,
+      "name": "LICENSE.txt"
+    }
+  ]
+}

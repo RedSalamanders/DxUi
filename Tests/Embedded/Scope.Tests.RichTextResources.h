@@ -1,5 +1,270 @@
 #pragma once
 
+static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    const std::wstring source = L"# staged\r\n" + std::wstring(512u, L'\n') + L"&NotEqualTilde; &#x1f600;";
+    const auto finish         = [](MarkdownParser& parser)
+    {
+        while (parser.HasPendingPreparation())
+            parser.Advance(17u);
+    };
+    size_t requests = 0u;
+    {
+        MarkdownParser parser;
+        parser.Begin(L"previous", 1u);
+        finish(parser);
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        parser.Begin(source, 2u);
+        finish(parser);
+        countAllocations = false;
+        requests         = allocations;
+    }
+    Check(requests > 0u && requests < 128u, "lossless parser has a finite observed allocation schedule");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        if (trace)
+        {
+            std::fprintf(stderr, "lossless Markdown failure-point=%zu\n", failure);
+            std::fflush(stderr);
+        }
+        MarkdownParser parser;
+        parser.Begin(L"previous", 1u);
+        finish(parser);
+        const auto previous = parser.Published();
+        bool rejected       = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                parser.Begin(source, 2u);
+                finish(parser);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && parser.Published() == previous && previous->Source() == L"previous" && ! parser.HasPendingPreparation(),
+              "failure at every Begin/Advance allocation preserves published source and retires staged work");
+        parser.Begin(source, 2u);
+        finish(parser);
+        Check(parser.Published()->Source() == source, "explicit retry after allocation failure succeeds");
+    }
+    size_t beginRequests = 0u;
+    {
+        MarkdownParser parser;
+        parser.Begin(L"old pending", 1u);
+        parser.Advance(1u);
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        parser.Begin(source, 2u);
+        countAllocations = false;
+        beginRequests    = allocations;
+    }
+    Check(beginRequests > 0u && beginRequests < requests, "Begin allocation schedule is independently observed");
+    for (size_t failure = 0u; failure < beginRequests; ++failure)
+    {
+        if (trace)
+        {
+            std::fprintf(stderr, "lossless Markdown pending-begin-failure-point=%zu\n", failure);
+            std::fflush(stderr);
+        }
+        MarkdownParser parser;
+        parser.Begin(L"published", 1u);
+        finish(parser);
+        const auto published = parser.Published();
+        parser.Begin(L"old pending", 2u);
+        parser.Advance(1u);
+        bool rejected = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                parser.Begin(source, 3u);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && parser.HasPendingPreparation() && parser.Published() == published,
+              "failed Begin preserves both an existing pending request and the previous published identity");
+        finish(parser);
+        Check(parser.Published()->Revision() == 2u && parser.Published()->Source() == L"old pending",
+              "the original pending cursor can finish after replacement admission fails");
+    }
+    const std::wstring maximum(Document::MaximumUnits, L'\n');
+    ptrdiff_t retained = 0, released = 0, peak = 0;
+    {
+        const auto oldCounting = countLiveBytes;
+        const auto oldLive     = liveBytes;
+        auto* const oldPeak    = liveBytesPeak;
+        const auto restore     = wil::scope_exit([=] noexcept
+        {
+            countLiveBytes = oldCounting;
+            liveBytes      = oldLive;
+            liveBytesPeak  = oldPeak;
+        });
+        liveBytes              = 0;
+        countLiveBytes         = true;
+        liveBytesPeak          = &peak;
+        {
+            MarkdownParser parser;
+            parser.Begin(maximum, 1u);
+            finish(parser);
+            Check(parser.Published()->Blocks().size() == maximum.size() && parser.Published()->Lexemes().size() == maximum.size(),
+                  "maximum physical-line fixture publishes all partitions without truncation");
+            retained = liveBytes;
+            for (std::uint64_t revision = 2u; revision <= 4u; ++revision)
+            {
+                parser.Begin(maximum, revision);
+                parser.Advance(17u);
+                Check(parser.Published()->Revision() == revision - 1u, "maximum replacement keeps its previous publication until complete");
+                finish(parser);
+                Check(parser.Published()->Revision() == revision, "maximum replacement publishes its own completed revision");
+            }
+        }
+        released       = liveBytes;
+        countLiveBytes = false;
+    }
+    Check(retained >= 0 && retained <= 24 * 1024 * 1024 && released == 0, "maximum bounded syntax storage releases completely within 24 MiB C++ budget");
+    Check(peak >= retained && peak <= 32 * 1024 * 1024, "old/staged maximum syntax replacement stays within 32 MiB peak C++ storage");
+    MarkdownParser parser;
+    parser.Begin(source, 1u);
+    finish(parser);
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    size_t idleCalls = 0u;
+    {
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        for (size_t repeat = 0u; repeat < 100u; ++repeat)
+        {
+            parser.Begin(source, 1u);
+            static_cast<void>(parser.Published());
+            parser.Advance(0u);
+            parser.Cancel();
+        }
+        parser.Clear();
+        countAllocations = false;
+        idleCalls        = allocations;
+    }
+    Check(idleCalls == 0u, "same-content preparation, completed reads and retirement allocate no C++ storage");
+    std::cout << "lossless Markdown sweptRequests=" << requests << " pendingBeginRequests=" << beginRequests << " maximumRetainedCppBytes=" << retained
+              << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released << " unchangedAndRetireAllocations=" << idleCalls << '\n';
+}
+
+static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "Markdown shared WARP pool");
+    EmbeddedHost view, other;
+    size_t requests = 0u;
+    Hr(view.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "Markdown embedded view");
+    Hr(other.Attach(graphics), "Markdown independent embedded view");
+    const std::wstring source = L"# Unicode \U0001f600\r\n\n~~~lang\r\n# kept &NotEqualTilde;\n~~~\n[^unknown]: $x$\n";
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor, false);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare unchanged v0 pixels before optional analysis");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose unchanged v0 pixels before analysis");
+    std::vector<uint8_t> originalPixels;
+    Hr(gpu.Read(originalPixels), "read unchanged v0 pixel oracle");
+    auto independent        = std::make_unique<RichTextEditor>(source);
+    auto* independentEditor = independent.get();
+    independentEditor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    other.Controls().SetRoot(std::move(independent));
+    Hr(PrepareRichEmbeddedContent(other, 320u, 160u, 144.0f), "prepare independent Markdown view");
+    const auto independentSyntax = independentEditor->GetMarkdownSyntax();
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        editor->SetMarkdownAnalysisProfile(profile);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded lossless Markdown");
+        const auto syntax = editor->GetMarkdownSyntax();
+        Check(syntax && syntax->Source() == source && syntax->Profile() == profile && syntax->Blocks()[2].kind == MarkdownBlockKind::FencedCode &&
+                  independentEditor->GetMarkdownSyntax() == independentSyntax && view.Controls().GetHwnd() == nullptr,
+              "each supplied-device view owns independent keyed syntax without a renderer HWND");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose analysis-enabled unchanged preview");
+        std::vector<uint8_t> pixels;
+        Hr(gpu.Read(pixels), "read analysis-enabled preview pixels");
+        Check(pixels == originalPixels, "lossless analysis does not silently replace or change the v0 formatted renderer");
+    }
+    const auto held = editor->GetMarkdownSyntax();
+    editor->SetText(std::wstring(32000u, L'&'));
+    Check(view.Prepare(480u, 240u) == S_FALSE && editor->DebugGetState().markdownPreparationPending && ! editor->GetMarkdownSyntax(),
+          "embedded parser yields before geometry and never presents stale syntax as current");
+    const auto advances    = editor->DebugGetState().markdownPreparationAdvances;
+    const auto outstanding = requests;
+    EmbeddedTextInputSnapshot input;
+    Hr(view.ReadTextInput(input), "pending Markdown source text store");
+    Check(input.state.text == editor->GetText() && ! input.caretBoundsDip, "parser pending source ACPs and unavailable geometry remain coherent");
+    for (size_t key = 0u; key < 16u; ++key)
+        Check(view.DispatchCharacter(L'\u03b2'), "pending Markdown Unicode edit");
+    Check(requests == outstanding && editor->DebugGetState().markdownPreparationAdvances == advances && held->Source() == source,
+          "input coalesces callbacks and never advances cancelled parse work or mutates held syntax");
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "publish latest embedded Markdown");
+    auto syntax = editor->GetMarkdownSyntax();
+    Hr(PrepareRichEmbeddedContent(view, 360u, 180u, 144.0f), "reshape embedded Markdown without reparsing pure source");
+    Check(editor->GetMarkdownSyntax() == syntax, "width and DPI do not invalidate completed source-only analysis");
+    editor->SetText(std::wstring(32000u, L'x'));
+    Check(view.Prepare(480u, 240u) == S_FALSE && editor->DebugGetState().markdownPreparationPending, "pending parser visibility fixture");
+    view.SetVisible(false);
+    const auto hiddenRequests = requests;
+    Check(! editor->DebugGetState().markdownPreparationPending && view.Prepare(480u, 240u) == S_FALSE && requests == hiddenRequests,
+          "hidden embedded view cancels staged parsing without periodic work");
+    view.SetVisible(true);
+    Check(view.Prepare(480u, 240u) == S_FALSE && editor->DebugGetState().markdownPreparationPending, "parser resumes after showing");
+    Check(view.Prepare(480u, 0u) == S_FALSE && ! editor->DebugGetState().markdownPreparationPending, "zero-height extent cancels parser staging");
+    Check(view.Prepare(480u, 240u) == S_FALSE, "parser resumes after positive extent");
+    Hr(view.ReplaceDevice(graphics), "retire pending parser on embedded resource replacement");
+    Check(! editor->DebugGetState().markdownPreparationPending, "resource replacement retires the pending owner job");
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "resume visible source-only analysis");
+    syntax = editor->GetMarkdownSyntax();
+    editor->SetSelection({2u, 2u});
+    Check(editor->ReplaceSelection(L"x") && editor->Undo() && editor->GetText() == source, "embedded analysis preserves source history");
+    editor->SetMarkdownAnalysisProfile(std::nullopt);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "disable optional parser");
+    Check(! editor->GetMarkdownSyntax() && editor->CanRedo() && syntax->Source() == source, "opt-out preserves held source and redo");
+    view.Detach();
+    Check(held->Source() == source && independentEditor->GetMarkdownSyntax() == independentSyntax,
+          "held syntax survives detach without affecting another view");
+}
+
 static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
 {
     using namespace DxUi;

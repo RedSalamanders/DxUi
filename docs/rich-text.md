@@ -547,3 +547,57 @@ extensions and full corpus qualification. An HTML output renderer or private
 Microsoft engine does not replace the owned Unicode control.
 
 The [cooperative preparation record](../Measurements/RichText/2026-10-18-cooperative/README.md) retains native/build/pixel/fault/resource evidence, all original failed/interrupted attempts and pinned Ghidra/parser references. This closes the scheduling component; the full engine and original frame-performance HOLD remain open.
+
+## Owned lossless Markdown preparation
+
+`DxUi/MarkdownSyntax.h` starts the owned parser independently of the v0 renderer.
+It retains exact Unicode source, root block ranges and a second complete lexical
+partition. Current root recognition covers ATX/setext headings, thematic breaks,
+paragraphs, blank lines and fenced code, including unterminated input. Original
+delimiters, trivia, unknown constructs, mixed line endings and entity spellings
+are preserved. The parser accepts raw NUL and supplies a replacement lexical
+value; the existing editor Document/codecs/text services still reject NUL.
+
+The three grammar targets are CommonMark0312, Gfm029 and RichMarkdown. They are
+keys for continued implementation, not complete conformance profiles yet. Lexical
+candidates include all 2,125 semicolon-terminated named references, bounded numeric
+references and ASCII punctuation escapes. A candidate inside code/HTML cannot be
+rendered by decoding it in isolation; full inline/container precedence remains
+pending. `LexemeSourceAnchor` expresses leading/trailing source affinity when one
+reference expands to several UTF-16 units. It does not replace model edit-boundary
+checks or provide generated-object/footnote semantic anchors.
+
+Use opt-in analysis in either retained host:
+
+```cpp
+editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::CommonMark0312);
+// Continue the host's ordinary preparation turns. This query never drains them.
+if (auto syntax = editor->GetMarkdownSyntax())
+{
+    auto exactSource = syntax->Source(); // Borrow while retaining syntax.
+    const auto& rootBlocks = syntax->Blocks();
+}
+// Optional analysis can be disabled without editing source or history.
+editor->SetMarkdownAnalysisProfile(std::nullopt);
+```
+
+`MarkdownParser` is also usable without a control. Begin owns/validates bounded
+source; Advance resumes stored scanning cursors with an operation budget (default
+4,096). Zero budget does nothing. Cancellation and failed staging retain a prior
+published result; a current control getter rejects obsolete revision/profile
+results immediately. Held revisions remain immutable after edits or detachment.
+No worker, timer, graphics resource or additional HWND is created. Begin's copy,
+validation and same-source comparisons remain indivisible, and operation budgets
+do not guarantee a wall-clock deadline. The 65,536-unit limit remains.
+
+The native tests preserve all 652 CommonMark and 672 GFM original example inputs
+and check all named entity values against independently transcribed standard data.
+Those are source/lexical tests, not full HTML conformance. Further work includes
+container/dependency reconciliation, inline precedence, semantic rendering/editing,
+GFM extensions, math, Mermaid, footnotes/front matter and end-to-end NUL admission.
+Pinned inputs, attribution and offline generators are described in
+[ThirdParty/Markdown](../ThirdParty/Markdown/README.md). The control catalog,
+styles and existing gallery example remain unchanged; embedded exact-pixel tests
+compare the same preview with optional analysis disabled and enabled.
+
+The [parser-stage qualification](../Measurements/RichText/2026-10-18-markdown-parser/README.md) retains all 57 ordinary x64 suite receipts, six root builds, 324 exact rendering pairs, complete parser failure traces/storage measurements and the original failed fixture. Full grammar/HTML conformance, semantic rendering/editing, extensions and the original platform/performance gates remain open.

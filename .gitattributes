@@ -53,3 +53,5 @@ Measurements/CiBudget/2026-10-11-cold-build/** -text -whitespace
 Measurements/RichText/** -text -whitespace
 # Unicode conformance/property inputs are pinned by exact upstream bytes.
 ThirdParty/Unicode/** -text
+ThirdParty/Markdown/** -text
+ThirdParty/Markdown/corpora/** -whitespace

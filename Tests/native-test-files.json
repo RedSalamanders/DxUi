@@ -41,6 +41,7 @@
   "Tests/Controls/Scope.Tests.HostControlRegressions.h",
   "Tests/Controls/Scope.Tests.IntrinsicLayout.cpp",
   "Tests/Controls/Scope.Tests.IntrinsicLayout.h",
+  "Tests/Controls/Scope.Tests.MarkdownCorpus.h",
   "Tests/Controls/Scope.Tests.PreparedTreeAccessibilityEvents.h",
   "Tests/Controls/Scope.Tests.RichDocument.cpp",
   "Tests/Controls/Scope.Tests.RichDocument.h",

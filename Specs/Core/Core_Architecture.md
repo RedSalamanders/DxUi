@@ -28,10 +28,25 @@ own no HWND/device/worker. Immutable source snapshots use a persistent piece tre
 with cumulative subtree/piece ends. Edits copy boundary paths and share untouched
 subtrees and source buffers; snapshot reads retain no mutable cache. Node layout
 is private behind the snapshot's existing shared ownership boundary.
-Projection/layout remain whole-document preparation.
+The v0 projection reuses physical-line blocks; retained geometry stages bounded
+chunks through shared owner preparation. Projection/index construction remains
+indivisible, and geometry has explicit whole SDK fallbacks.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.
+
+MarkdownSyntax is a separate owned Unicode preparation service. Its immutable
+source and exact root-block/lexeme partitions retain original spelling independently
+of the v0 Projection. MarkdownParser stages resumable scanning and atomically
+publishes a complete revision/profile; callers may retain older immutable results.
+It owns no graphics, host, thread or timer. Parser/control calls are serialized on
+their owner; retained immutable syntax can be read on other threads. Atomic
+publication denotes failure-atomic replacement, not concurrent mutation of one
+parser. Optional retained-control analysis uses
+the same native/embedded owner preparation traversal before geometry. Completed
+source-only analysis survives width/DPI changes; pending work is cancelled when
+its control preparation is retired. This first stage does not replace the v0
+renderer or expose structured Markdown through source TSF/UIA offsets.
 
 DxUi.TextElements is the single pure UTF-16 decoder and Unicode 17 default
 extended-grapheme implementation used by the existing text controls, rich

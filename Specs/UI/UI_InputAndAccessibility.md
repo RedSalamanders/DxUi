@@ -1,5 +1,15 @@
 # Input and accessibility
 
+Lossless Markdown analysis is preparation metadata. Enabling or changing its
+grammar target must preserve the existing RichTextEditor source ACP contract,
+Unicode source transactions, history, composition and source UIA text. Parser
+queries and UIA/TSF geometry queries never advance parsing. While source analysis
+or geometry is pending, current glyph bounds remain unavailable; a previous
+acknowledged embedded text snapshot must never acquire unrelated current glyph
+bounds. Structured Markdown accessibility/semantic anchors require their separate
+implementation and qualification. The raw parser accepting NUL does not change
+the editor/text-store admission contract.
+
 Status: normative intended contract
 Last reviewed: 2026-10-18
 

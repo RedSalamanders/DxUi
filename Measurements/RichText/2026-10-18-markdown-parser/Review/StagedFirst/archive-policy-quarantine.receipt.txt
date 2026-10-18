@@ -1,0 +1,28 @@
+{
+  "classification": "Quarantine saved Git policy files under inert receipt names; original bytes and original work paths preserved. No canonical source or data input changed.",
+  "renames": [
+    {
+      "path": "Raw/Final/QualifiedSource/.gitattributes.receipt.txt",
+      "originalArchivePath": "Raw/Final/QualifiedSource/.gitattributes",
+      "sha256": "BF9999AE0F23A3D47012FA9ABB8CD2F57646F2E7AE665F53684796B539EDC3D3"
+    },
+    {
+      "path": "Raw/First/Source/.gitattributes.receipt.txt",
+      "originalArchivePath": "Raw/First/Source/.gitattributes",
+      "sha256": "607D563B5103AE8C1B7A27E58C7D9838C15725F64B150DCF5FE7A434F54C77BA"
+    },
+    {
+      "path": "Raw/Second/Source/.gitattributes.receipt.txt",
+      "originalArchivePath": "Raw/Second/Source/.gitattributes",
+      "sha256": "607D563B5103AE8C1B7A27E58C7D9838C15725F64B150DCF5FE7A434F54C77BA"
+    },
+    {
+      "path": "Raw/Third/Source/.gitattributes.receipt.txt",
+      "originalArchivePath": "Raw/Third/Source/.gitattributes",
+      "sha256": "BF9999AE0F23A3D47012FA9ABB8CD2F57646F2E7AE665F53684796B539EDC3D3"
+    }
+  ],
+  "originalFailure": "SHA-256 differs: Raw/Final/QualifiedSource/Changes/2026-10-18-lossless-markdown-parser.md.receipt.txt",
+  "failedStagedTree": "3ec2d51db856b00eb332bc16c06502e24a267ccd",
+  "verifiedUtc": "2026-10-18T17:04:26.4237519Z"
+}

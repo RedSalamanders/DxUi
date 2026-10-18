@@ -1,0 +1,1 @@
+Verified sealed source/data, 57 ordinary x64 suites, six profile builds, 324 exact WARP pairs, all parser/corpus/affinity cases, native/embedded UIA, complete allocation traces and storage predicates. Full grammar/semantic rendering, hard latency, ARM64 runtime, physical IME/AT and frame acceptance remain open.

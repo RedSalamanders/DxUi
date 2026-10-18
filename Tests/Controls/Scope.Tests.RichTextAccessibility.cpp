@@ -12,7 +12,7 @@ constexpr std::wstring_view EditorId = L"rich.source";
 
 struct RichAccessibilityFixture
 {
-    explicit RichAccessibilityFixture(bool embedded) : embedded(embedded)
+    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false) : embedded(embedded)
     {
         if (embedded)
         {
@@ -29,6 +29,8 @@ struct RichAccessibilityFixture
         }
         auto root = std::make_unique<RichTextEditor>(L"**alpha**\r\nbeta");
         editor    = root.get();
+        if (markdownAnalysis)
+            editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::CommonMark0312);
         editor->SetAccessibleName(L"Markdown editor");
         editor->SetAccessibleAutomationId(std::wstring(EditorId));
         controls->SetRoot(std::move(root));
@@ -100,9 +102,9 @@ struct RichAccessibilityFixture
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
 };
 
-void SourceAndRanges(bool embedded)
+void SourceAndRanges(bool embedded, bool markdownAnalysis = false)
 {
-    RichAccessibilityFixture fixture(embedded);
+    RichAccessibilityFixture fixture(embedded, markdownAnalysis);
     auto simple = fixture.Simple();
     Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "rich UIA role") == UIA_DocumentControlTypeId,
             "rich editor has Document semantics");
@@ -624,7 +626,7 @@ void TestRichTextAccessibilityWindowSourceAndRanges()
 }
 void TestRichTextAccessibilityEmbeddedSourceAndRanges()
 {
-    EmbeddedCase(SourceAndRanges);
+    EmbeddedCase([](bool embedded) { SourceAndRanges(embedded); });
 }
 void TestRichTextAccessibilityWindowClientNavigationAndEvents()
 {
@@ -799,9 +801,9 @@ void TestRichTextAccessibilityEmbeddedBulkCharacterCommands()
 {
     EmbeddedCase(BulkCharacterCommands);
 }
-void PendingPreparationGeometry(bool embedded)
+void PendingPreparationGeometry(bool embedded, bool markdownAnalysis = false)
 {
-    RichAccessibilityFixture fixture(embedded);
+    RichAccessibilityFixture fixture(embedded, markdownAnalysis);
     auto text = TextProvider(fixture);
     wil::com_ptr_nothrow<ITextRangeProvider> range;
     RequireSucceeded(text->get_DocumentRange(range.put()), "retain document range before cooperative source change");
@@ -813,7 +815,11 @@ void PendingPreparationGeometry(bool embedded)
         Require(fixture.view.Prepare(480, 240) == S_FALSE, "embedded UIA fixture yields pending source");
     else
         Require(fixture.controls->RenderInitialFrameForShow(), "native UIA fixture advances once");
-    const auto advances = fixture.editor->DebugGetState().preparationAdvances;
+    const auto advances       = fixture.editor->DebugGetState().preparationAdvances;
+    const auto parserAdvances = fixture.editor->DebugGetState().markdownPreparationAdvances;
+    if (markdownAnalysis)
+        Require(fixture.editor->DebugGetState().markdownPreparationPending && ! fixture.editor->GetMarkdownSyntax(),
+                "analysis-enabled UIA fixture actually awaits parser completion");
     Require(fixture.editor->DebugGetState().preparationPending, "UIA fixture really has uncompleted glyph work");
     using UniqueArray = wil::unique_any<SAFEARRAY*, decltype(&::SafeArrayDestroy), ::SafeArrayDestroy>;
     UniqueArray bounds;
@@ -852,6 +858,7 @@ void PendingPreparationGeometry(bool embedded)
     }
     Require(fixture.editor->DebugGetState().preparationAdvances == advances && fixture.editor->GetText() == source,
             "UIA owner/foreign-thread queries neither advance staging nor rewrite source");
+    Require(fixture.editor->DebugGetState().markdownPreparationAdvances == parserAdvances, "UIA commands do not drain the independent lossless parser");
     fixture.Publish();
     RequireSucceeded(text->get_DocumentRange(range.put()), "read document range after current source publication");
     Require(ReadTextRangeText(*range.get(), -1, "current cooperative UIA source") == source, "published UIA text is the latest exact source");
@@ -865,7 +872,20 @@ void TestRichTextAccessibilityWindowPendingPreparationGeometry()
 }
 void TestRichTextAccessibilityEmbeddedPendingPreparationGeometry()
 {
-    EmbeddedCase(PendingPreparationGeometry);
+    EmbeddedCase([](bool embedded) { PendingPreparationGeometry(embedded); });
+}
+void TestRichTextAccessibilityWindowMarkdownSourceAndRanges()
+{
+    SourceAndRanges(false, true);
+    PendingPreparationGeometry(false, true);
+}
+void TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges()
+{
+    EmbeddedCase([](bool embedded)
+    {
+        SourceAndRanges(embedded, true);
+        PendingPreparationGeometry(embedded, true);
+    });
 }
 } // namespace
 
@@ -894,4 +914,6 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedBulkCharacterCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowPendingPreparationGeometry);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPendingPreparationGeometry);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowMarkdownSourceAndRanges);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
 }

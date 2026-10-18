@@ -106,6 +106,26 @@
   ],
   "rules": [
     {
+      "pattern": "src/Controls/DxUi.Markdown*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "owned lossless parser and opt-in native/embedded source preparation"
+    },
+    {
+      "pattern": "include/DxUi/Markdown*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "public lossless syntax and source-anchor contracts"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.Markdown*",
+      "scopes": ["EditorControls"],
+      "reason": "original lossless corpus vectors used by the owned parser tests"
+    },
+    {
+      "pattern": "ThirdParty/Markdown/*",
+      "scopes": ["EditorControls", "Embedded", "Tooling"],
+      "reason": "pinned parser standard data, original corpus inputs and license validation"
+    },
+    {
       "pattern": "src/Controls/DxUi.RichTextEditor.cpp",
       "scopes": ["EditorControls", "Embedded", "Rendering", "WindowHost", "Theme", "ReadOnly", "Animation", "Accessibility"],
       "reason": "retained rich-text uses shared host raster, composition, text-store and provider services"

@@ -622,6 +622,74 @@ void TestRichTextEditorNativePreparationCanReplaceRoot()
 }
 } // namespace
 
+namespace
+{
+void TestRichTextEditorNativeLosslessMarkdownPreparation()
+{
+    class SourceAdapterEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::RichTextEditor;
+    };
+    const std::wstring source = L"# Unicode \U0001f600\r\n\n~~~lang\r\n# kept &NotEqualTilde;\n~~~\n[^unknown]: $x$\n";
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<SourceAdapterEditor>(source);
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    Require(! editor->GetMarkdownAnalysisProfile() && ! editor->GetMarkdownSyntax(), "analysis is additive and opt-in");
+    editor->SetSelection({source.size(), source.size()});
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const auto revision = editor->Revision();
+        editor->SetMarkdownAnalysisProfile(profile);
+        Require(! editor->GetMarkdownSyntax() && editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
+                "profile selection preserves exact source/selection/history without fabricating a current result");
+        RenderEditor(window);
+        const auto syntax = editor->GetMarkdownSyntax();
+        Require(syntax && syntax->Source() == source && syntax->Profile() == profile && syntax->Blocks()[2].kind == MarkdownBlockKind::FencedCode,
+                "native ControlHost publishes keyed root syntax on ordinary owner turns");
+        const auto advances = editor->DebugGetState().markdownPreparationAdvances;
+        editor->SetMarkdownAnalysisProfile(profile);
+        RenderEditor(window);
+        Require(editor->GetMarkdownSyntax() == syntax && editor->DebugGetState().markdownPreparationAdvances == advances,
+                "unchanged source/profile and geometry-only work retain completed pure analysis");
+    }
+    const auto held = editor->GetMarkdownSyntax();
+    editor->SetText(std::wstring(32000u, L'&'));
+    Require(window.Host().RenderInitialFrameForShow(), "native parser owner turn starts");
+    const auto pending = editor->DebugGetState();
+    Require(pending.markdownPreparationPending && pending.lastAdvanceMarkdownWork <= 4096u && ! editor->GetMarkdownSyntax(),
+            "native parser yields with no stale current-source result");
+    TextInputState input;
+    Require(editor->ExportTextInputState(input) && input.text == editor->GetText(), "pending analysis preserves exact source adapter state without OS focus");
+    Require(editor->OnChar(window.Host(), L'\u03b2', 0u) && editor->Undo(), "pending analysis does not block Unicode source transactions");
+    Require(editor->DebugGetState().markdownPreparationAdvances == pending.markdownPreparationAdvances && held->Source() == source,
+            "source input and reads never drain or mutate retained syntax");
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().markdownPreparationPending, "resume only latest native parser request");
+    editor->SetVisible(false);
+    Require(! editor->DebugGetState().markdownPreparationPending, "hidden native control cancels staged parsing");
+    editor->SetVisible(true);
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().markdownPreparationPending, "shown native control resumes staged parsing");
+    window.Host().DebugSimulateDeviceLoss();
+    Require(! editor->DebugGetState().markdownPreparationPending, "native resource loss retires the pending owner job");
+    editor->SetText(source);
+    RenderEditor(window);
+    const auto fresh = editor->GetMarkdownSyntax();
+    Require(fresh && fresh->Revision() == editor->Revision() && fresh->Source() == source && fresh != held, "only final revision can become current");
+    editor->SetSelection({2u, 2u});
+    Require(editor->ReplaceSelection(L"x") && editor->Undo(), "analysis-enabled edit undo retains source");
+    const auto selection = editor->GetSelection();
+    const auto revision  = editor->Revision();
+    RejectEditor([&] { editor->SetMarkdownAnalysisProfile(static_cast<MarkdownProfile>(99)); });
+    Require(editor->GetSelection() == selection && editor->Revision() == revision && editor->CanRedo(), "invalid profile is atomic");
+    editor->SetMarkdownAnalysisProfile(std::nullopt);
+    RenderEditor(window);
+    Require(! editor->GetMarkdownSyntax() && editor->CanRedo() && fresh->Source() == source, "opt-out releases owner analysis while held revisions survive");
+}
+} // namespace
+
 void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
@@ -644,4 +712,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeMessageSchedulingAndFailure);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);
     DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
+    DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);
 }

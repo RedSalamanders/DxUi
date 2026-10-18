@@ -1,0 +1,5 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-markdown-integrity-20261018\tamper-97f9fe274c264936b7d93299c48249a0\Verify.ps1:12
+Line |
+  12 |  . lPath $path).Hash -cne $Expected){throw "SHA-256 differs: $Relative"}
+     |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | SHA-256 differs: Source/src/Controls/DxUi.MarkdownSyntax.cpp

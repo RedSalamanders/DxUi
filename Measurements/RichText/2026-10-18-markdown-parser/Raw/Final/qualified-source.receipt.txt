@@ -1,0 +1,167 @@
+{
+  "files": [
+    {
+      "sha256": "BF9999AE0F23A3D47012FA9ABB8CD2F57646F2E7AE665F53684796B539EDC3D3",
+      "path": ".gitattributes"
+    },
+    {
+      "sha256": "123A6EEA851D89801DAE2F64CAADC267C59CB971FC633307D3EE223D6D63FFAD",
+      "path": "capabilities.json"
+    },
+    {
+      "sha256": "238176CB005ECD5332EE6071FB7ECEFAB0F01CE2A23732C5FC2C60227EEC3306",
+      "path": "Changes/2026-10-18-lossless-markdown-parser.md"
+    },
+    {
+      "sha256": "5B43F14B1C52C7DF03066C21A51C8B6D100808336CA896F6950B404D20621236",
+      "path": "docs/rich-text.md"
+    },
+    {
+      "sha256": "CE2340A2A3484CED1240891EDFBA2A056400CD150DD9CB4B72AE8AE1BD1F2569",
+      "path": "include/DxUi/DxUi.h"
+    },
+    {
+      "sha256": "E1390ADE98F3E97726E49B4890C9FB75D0BD0F18A6D318F030EE192B122D79B4",
+      "path": "include/DxUi/MarkdownSyntax.h"
+    },
+    {
+      "sha256": "6B090DF874BFC138E9C6ED19740585476369FA8E22054B8014FE83B828A19C98",
+      "path": "README.md"
+    },
+    {
+      "sha256": "79CED3E294C666364BAEEEFCF746668A0D54598CCA9F9F327BF446C397A2344D",
+      "path": "Specs/Core/Core_Architecture.md"
+    },
+    {
+      "sha256": "C01C3A5E0FF8DBC9AD0FDC9C777A57DD5C11488034681499B4DC94C35D4E9F58",
+      "path": "Specs/Core/Core_PerformanceAndResources.md"
+    },
+    {
+      "sha256": "189BBBD698C53426C05811278F58C03A46A5A4B83B99628419A09722A356E013",
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md"
+    },
+    {
+      "sha256": "905FB2979620DC3C8D9AFCE115606AC4E88487828AACA9ED62A230988A25A271",
+      "path": "Specs/Rendering/Rendering_EmbeddedD3D11.md"
+    },
+    {
+      "sha256": "DD460AD0C677B3E7D2E8ECC3884D1EFAEEC8487C70A33D318F422919A538FF21",
+      "path": "Specs/UI/UI_ControlsAndLayout.md"
+    },
+    {
+      "sha256": "760FBD4F1C5BAE4EB7A0A56A68451B7D7B91517E6D84C2CFF72EDC77A7D2248B",
+      "path": "Specs/UI/UI_InputAndAccessibility.md"
+    },
+    {
+      "sha256": "FE27D6F6FD7BDB89DD252729524AA835A0EA798087E409A81BCAA4E255ECAF33",
+      "path": "src/Controls/DxUi.MarkdownEntityData.h"
+    },
+    {
+      "sha256": "FD26124F85DDA4F1F4183619CD6FEB4757B3EA17E590E73F227075D97555C7EA",
+      "path": "src/Controls/DxUi.MarkdownSyntax.cpp"
+    },
+    {
+      "sha256": "139098ABB9AD7F591DB6D5354CF833742A36D549743345D2359FCEE69EC7EB80",
+      "path": "src/Controls/DxUi.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "50D432A3A308CBB7573EDC3D403ED3247E89697625678130191D4B2B0F8F6730",
+      "path": "src/DxUi.vcxproj"
+    },
+    {
+      "sha256": "A03913599E2CA8AA44B9C9927C469D1E8E505051213668D7B0CFDBD5B0FAA6C5",
+      "path": "Tests/Controls/Scope.Tests.MarkdownCorpus.h"
+    },
+    {
+      "sha256": "D9A90565E939F2D26CBE746C8426128BAB5E264DCA5DC9588E9EF16F83C3CA4E",
+      "path": "Tests/Controls/Scope.Tests.RichMarkdown.cpp"
+    },
+    {
+      "sha256": "E3DD44F71BCCF628FB9FF4C5C5F706142044CE98B02343CD8A2123C1AF67ED4F",
+      "path": "Tests/Controls/Scope.Tests.RichTextAccessibility.cpp"
+    },
+    {
+      "sha256": "0AF15D277BF49603701735706B5057A85ACB41919040E286649EC8CA18E84D9E",
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "640CDDAF22036BBCA0EEBE1815ADA48D22592511F478BB986DB2B5504650A183",
+      "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+    },
+    {
+      "sha256": "323E1A4668000C90D501838156B4CF5CCF8B5BEC6894BAD7022811249F488AC0",
+      "path": "Tests/Embedded/Scope.Tests.RichTextResources.h"
+    },
+    {
+      "sha256": "08496B1FEA179375E8064AA0851886F6ADA140783A5670873129CA0BE97EEF8F",
+      "path": "Tests/native-test-files.json"
+    },
+    {
+      "sha256": "C90B64D560E207766385458C9389F7D949C628E8FA20D7E44FEB4E13AB2014BA",
+      "path": "Tests/test-scopes.json"
+    },
+    {
+      "sha256": "14B63D97DDC2EB2F9E16B06A0FCB68843F74588B3C2AC9F3A2D984A94426FA4F",
+      "path": "ThirdParty/Markdown/corpora/collection.receipt.txt"
+    },
+    {
+      "sha256": "3E4806BA6F20073E8CE40DA5A0C4B59F7F44287965F538E195A4D734D833557B",
+      "path": "ThirdParty/Markdown/corpora/CommonMark-0.31.2-LICENSE.txt"
+    },
+    {
+      "sha256": "D431B29D97B6F73E69D547109CF5081578FAC931E72AFE95639EBE766C1B2A20",
+      "path": "ThirdParty/Markdown/corpora/CommonMark-0.31.2-spec.json"
+    },
+    {
+      "sha256": "C22E885F33B821BDDB24CF007145E5540655B6C0F403E49E6C76A93C28E6D9A9",
+      "path": "ThirdParty/Markdown/corpora/GFM-0.29.0.gfm.13-COPYING.txt"
+    },
+    {
+      "sha256": "7D8E5814BEFEC287AC116786D81FF14E0ADC9B13295B4494649E995408FD871C",
+      "path": "ThirdParty/Markdown/corpora/GFM-0.29.0.gfm.13-spec.txt"
+    },
+    {
+      "sha256": "13A93B131B96485817F3218FB9A03582EE8C8823426C452116DF90219D6EC377",
+      "path": "ThirdParty/Markdown/README.md"
+    },
+    {
+      "sha256": "FD03DF26A8A54BF425716695E5C73FEC2F498BD100F685AB55D30E637CB93A4F",
+      "path": "ThirdParty/Markdown/whatwg-2026-10-18/collection.receipt.txt"
+    },
+    {
+      "sha256": "D741D877AC77C4194C4AD526B5B4A19AEF8DFE411AB840A466891CDBB9F362E6",
+      "path": "ThirdParty/Markdown/whatwg-2026-10-18/entities.json"
+    },
+    {
+      "sha256": "85DC6F5CCB57A6FE8C33D158F9FC8FC7EE5655A5D3DB2CDD131C6A3D0F48A864",
+      "path": "ThirdParty/Markdown/whatwg-2026-10-18/LICENSE.txt"
+    },
+    {
+      "sha256": "B90264E64C3B9F19B4A364A759B1530AD6E07C5F4EAC2055CC9AB3886F959B01",
+      "path": "Tools/Generate-MarkdownEntityData.ps1"
+    },
+    {
+      "sha256": "BEFE71E77625BB1E41DCF78315A6F59BA7A87335F50D3DD825B3A70F68BFE1B2",
+      "path": "Tools/Generate-MarkdownTestData.ps1"
+    },
+    {
+      "sha256": "844CB1AF3BDB41D426DADADA2523B18EE60FC4F598D57FB99D790D9B7B4CB5D5",
+      "path": "Tools/tests/Invoke-ToolingTests.ps1"
+    },
+    {
+      "sha256": "858F17E4BF4ABEEE3E84DED867BF0369A328FAD3B17886BA3A154D3FEB845137",
+      "path": "Tools/tests/Test-MarkdownData.ps1"
+    }
+  ],
+  "notes": "All changed source/test/prose inputs frozen across the complete six-profile functional/resource qualification. Default benchmark methods and thresholds are unchanged. New parser fixtures measure source/lexical behavior, not complete grammar or accepted frame performance. No frame acceptance or quiet-host claim.",
+  "baseCommit": "ba6c999976ea632e9c8dcd8b783cdfbb2d53ff71",
+  "unchangedCanonicalBenchmarkSha256": "E9DE41251A9186D4EC25F8178C4398E6E80C14E80FF948251067B1465549047E",
+  "unchangedCanonicalInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "startedUtc": "2026-10-18T16:04:53.0339889Z"
+}

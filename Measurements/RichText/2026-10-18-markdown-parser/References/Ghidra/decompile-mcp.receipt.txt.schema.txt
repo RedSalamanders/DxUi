@@ -1,0 +1,40 @@
+{
+  "name": "run_script_inline",
+  "description": "Execute inline Ghidra script code. Pass the full Java source as the 'code' body parameter. Gated by GHIDRA_MCP_ALLOW_SCRIPTS=1 (v5.4.1+).",
+  "inputSchema": {
+    "properties": {
+      "code": {
+        "description": "Complete Java source for a GhidraScript, as one string — not a bare statement. If it declares `public class X` that name is used for the file; otherwise a unique McpInline_<hex> class name is generated. The source is written into ~/ghidra_scripts and compiled by Ghidra, so a compile error surfaces as script output rather than as a request error.",
+        "title": "Code",
+        "type": "string"
+      },
+      "args": {
+        "default": "",
+        "description": "Arguments handed to the script, split on WHITESPACE into a String[]. There is no quoting, so an argument containing a space arrives as two arguments.",
+        "title": "Args",
+        "type": "string"
+      },
+      "program": {
+        "default": "",
+        "description": "Target program name",
+        "title": "Program",
+        "type": "string"
+      },
+      "dry_run": {
+        "default": false,
+        "description": "Preview the change without applying it. When true the server validates the request and reports what would happen, leaving the program unmodified. Defaults to false.",
+        "title": "Dry Run",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "code"
+    ],
+    "title": "run_script_inlineArguments",
+    "type": "object"
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false
+  }
+}

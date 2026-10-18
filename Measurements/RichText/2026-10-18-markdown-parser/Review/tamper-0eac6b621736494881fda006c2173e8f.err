@@ -1,0 +1,5 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-markdown-integrity-20261018\tamper-0eac6b621736494881fda006c2173e8f\Verify.ps1:12
+Line |
+  12 |  . lPath $path).Hash -cne $Expected){throw "SHA-256 differs: $Relative"}
+     |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | SHA-256 differs: Native/Embedded-x64-Release.receipt.txt

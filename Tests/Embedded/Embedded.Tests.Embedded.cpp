@@ -31,7 +31,7 @@ static thread_local size_t allocations     = 0;
 static thread_local size_t allocationBytes = 0;
 static thread_local bool countLiveBytes    = false;
 static thread_local ptrdiff_t liveBytes    = 0;
-// Opt-in replacement-peak observation for geometry resource fixtures. Dormant
+// Opt-in replacement-peak observation for geometry/parser resource fixtures. Dormant
 // for canonical benchmarks and all earlier live-storage measurements.
 static thread_local ptrdiff_t* liveBytesPeak = nullptr;
 // Test-only fault injection is dormant outside an explicit operation sweep.
@@ -1171,7 +1171,7 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1196,6 +1196,8 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichFlatProjectionFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
+            TestRichMarkdownParserFailureAndStorageBudgets(true);
         else
             TestRichProjectionPreparationAllocationFailureAtomicity(true);
         return 0;
@@ -1363,6 +1365,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
+    TestEmbeddedLosslessMarkdownPreparation(gpu);
+    TestRichMarkdownParserFailureAndStorageBudgets();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRichPreparedLayoutClearAllocationBudget();

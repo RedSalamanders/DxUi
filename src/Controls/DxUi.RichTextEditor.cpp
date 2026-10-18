@@ -13,6 +13,11 @@ struct RichTextEditor::State
     }
     RichText::Document document;
     RichText::PreparedDocumentLayout layout;
+    RichText::MarkdownParser markdown;
+    std::optional<RichText::MarkdownProfile> markdownProfile;
+    uint64_t markdownRequestRevision = 0;
+    bool markdownRequestActive       = false;
+    size_t markdownAdvances = 0, lastAdvanceMarkdownWork = 0;
     RichText::ViewMode mode = RichText::ViewMode::Rich;
     std::shared_ptr<const std::function<void()>> onTextChanged;
     uint64_t typographyRevision = 0;
@@ -83,6 +88,27 @@ RichText::ViewMode RichTextEditor::GetViewMode() const noexcept
 {
     return _state->mode;
 }
+void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile)
+{
+    if (profile && *profile != RichText::MarkdownProfile::CommonMark0312 && *profile != RichText::MarkdownProfile::Gfm029 &&
+        *profile != RichText::MarkdownProfile::RichMarkdown)
+        throw std::invalid_argument("Invalid Markdown analysis profile");
+    if (_state->markdownProfile == profile)
+        return;
+    _state->markdown.Clear();
+    _state->markdownProfile = profile;
+    RetireLayout();
+    SelectionChanged();
+}
+std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProfile() const noexcept
+{
+    return _state->markdownProfile;
+}
+std::shared_ptr<const RichText::MarkdownSyntax> RichTextEditor::GetMarkdownSyntax() const noexcept
+{
+    const auto syntax = _state->markdown.Published();
+    return syntax && _state->markdownProfile && syntax->Revision() == Revision() && syntax->Profile() == *_state->markdownProfile ? syntax : nullptr;
+}
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
     _state->readOnly = readOnly;
@@ -148,7 +174,9 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         if (_state->layout.HasPendingPreparation())
             ++_state->cancelledPreparations;
         _state->layout.Invalidate();
-        _state->requestActive = false;
+        _state->markdown.Cancel();
+        _state->markdownRequestActive = false;
+        _state->requestActive         = false;
         RequestContentPreparation(false);
         _state->revealCaret = true;
     }
@@ -207,8 +235,10 @@ void RichTextEditor::RetireLayout() const noexcept
     if (_state->layout.HasPendingPreparation())
         ++_state->cancelledPreparations;
     _state->layout.Clear();
-    _state->requestActive = false;
-    _state->revealCaret   = true;
+    _state->markdown.Cancel();
+    _state->markdownRequestActive = false;
+    _state->requestActive         = false;
+    _state->revealCaret           = true;
     RequestContentPreparation(false);
 }
 bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
@@ -217,7 +247,7 @@ bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
     const auto viewport = TextViewport();
     return GetHost() == &host && state.layout.Ready() && state.layout.Revision() == state.document.Revision() &&
            state.layoutWidth == std::max(1.0f, viewport.right - viewport.left) && state.typographyRevision == host.GetTypographyRevision() &&
-           state.resourceGeneration == host.GetResourceGeneration();
+           state.resourceGeneration == host.GetResourceGeneration() && (! state.markdownProfile || GetMarkdownSyntax());
 }
 bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 {
@@ -231,6 +261,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     auto& state              = *_state;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
+    state.lastAdvanceMarkdownWork                          = 0u;
     try
     {
         const auto viewport = TextViewport();
@@ -239,13 +270,34 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             if (state.layout.HasPendingPreparation())
                 ++state.cancelledPreparations;
             state.layout.Clear();
-            state.requestActive = false;
+            state.markdown.Cancel();
+            state.markdownRequestActive = false;
+            state.requestActive         = false;
             return S_OK;
         }
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
             return S_OK;
+        }
+        if (state.markdownProfile && ! GetMarkdownSyntax())
+        {
+            if (! state.markdownRequestActive || state.markdownRequestRevision != Revision() || ! state.markdown.HasPendingPreparation())
+            {
+                // Exact bounded source admission/copy is still indivisible.
+                // Parsing resumes its own cursors, without DirectWrite or a
+                // per-control worker. Future semantic rendering consumes this
+                // tree only after inline/container precedence is implemented.
+                state.markdown.Begin(Snapshot().Text(), Revision(), *state.markdownProfile);
+                state.markdownRequestRevision = Revision();
+                state.markdownRequestActive   = true;
+            }
+            ++state.markdownAdvances;
+            const auto advance            = state.markdown.Advance();
+            state.lastAdvanceMarkdownWork = advance.workUnits;
+            if (advance.status == RichText::MarkdownPreparationStatus::Pending)
+                return S_FALSE;
+            state.markdownRequestActive = false;
         }
         const auto width      = std::max(1.0f, viewport.right - viewport.left);
         auto* factory         = host.GetWriteFactory();
@@ -316,13 +368,17 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     catch (const std::bad_alloc&)
     {
         state.layout.Invalidate();
-        state.requestActive = false;
+        state.markdown.Cancel();
+        state.markdownRequestActive = false;
+        state.requestActive         = false;
         return E_OUTOFMEMORY;
     }
     catch (const std::exception&)
     {
         state.layout.Invalidate();
-        state.requestActive = false;
+        state.markdown.Cancel();
+        state.markdownRequestActive = false;
+        state.requestActive         = false;
         return E_FAIL;
     }
 }
@@ -365,11 +421,14 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->layout.UsesWholeRaster(),
             preparation.wholeLayoutsPrepared,
             preparation.wholeLayoutSourceUnits,
-            _state->layout.HasPendingPreparation(),
+            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation(),
             _state->preparationAdvances,
             _state->cancelledPreparations,
             _state->lastAdvanceLayouts,
-            _state->lastAdvanceBlockSteps};
+            _state->lastAdvanceBlockSteps,
+            _state->markdown.HasPendingPreparation(),
+            _state->markdownAdvances,
+            _state->lastAdvanceMarkdownWork};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {

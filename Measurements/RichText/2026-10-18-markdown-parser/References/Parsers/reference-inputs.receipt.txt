@@ -1,0 +1,87 @@
+{
+  "observedUtc": "2026-10-18T12:16:33.0558596Z",
+  "classification": "User-requested parser inspiration only. Exact upstream README/API/license snapshots, no parser dependency or copied implementation adopted.",
+  "files": [
+    {
+      "file": "README.md",
+      "bytes": 17875,
+      "commit": "60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9",
+      "url": "https://raw.githubusercontent.com/mity/md4c/60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9/README.md",
+      "ref": "refs/heads/master",
+      "project": "md4c",
+      "sha256": "565EC9EE7EAFF0D6D92D29A062B2D626F36DF6034413303CABCF8F70ED25CABA"
+    },
+    {
+      "file": "src/md4c.h",
+      "bytes": 19366,
+      "commit": "60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9",
+      "url": "https://raw.githubusercontent.com/mity/md4c/60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9/src/md4c.h",
+      "ref": "refs/heads/master",
+      "project": "md4c",
+      "sha256": "D0C14762F1EAC3CD9D1C08C3A287B61D93EE2382E5A22EE48F5A6F3AD2C2349D"
+    },
+    {
+      "file": "LICENSE.md",
+      "bytes": 1096,
+      "commit": "60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9",
+      "url": "https://raw.githubusercontent.com/mity/md4c/60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9/LICENSE.md",
+      "ref": "refs/heads/master",
+      "project": "md4c",
+      "sha256": "E547C9A66C120B19F9838A1F7C2F51137F5C71BA27B70C3611B673F2CDB4E02E"
+    },
+    {
+      "file": "README",
+      "bytes": 715,
+      "commit": "0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b",
+      "url": "https://raw.githubusercontent.com/Orc/discount/0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b/README",
+      "ref": "refs/heads/main",
+      "project": "discount",
+      "sha256": "962FAE9063852FB788F4164FB5A682CACF4BEDA6DFB1093FDFC62876AA141AA3"
+    },
+    {
+      "file": "mkdio.h.in",
+      "bytes": 5102,
+      "commit": "0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b",
+      "url": "https://raw.githubusercontent.com/Orc/discount/0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b/mkdio.h.in",
+      "ref": "refs/heads/main",
+      "project": "discount",
+      "sha256": "669BB47E0DFAC396132375F59BD57933B7AF6414E43E871EE09DB71EFBCD480E"
+    },
+    {
+      "file": "COPYRIGHT",
+      "bytes": 1525,
+      "commit": "0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b",
+      "url": "https://raw.githubusercontent.com/Orc/discount/0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b/COPYRIGHT",
+      "ref": "refs/heads/main",
+      "project": "discount",
+      "sha256": "01B9641354FB296BBF7F67216A65313426B487BDAED3C34DE8525B9FD2F5B89A"
+    },
+    {
+      "file": "README.md",
+      "bytes": 7337,
+      "commit": "27d942c8b0a62d192f616e5bf3578f4b6a89e180",
+      "url": "https://raw.githubusercontent.com/github/cmark-gfm/27d942c8b0a62d192f616e5bf3578f4b6a89e180/README.md",
+      "ref": "refs/heads/master",
+      "project": "cmark-gfm",
+      "sha256": "7BEB500A5A7E9A996FCC91DB8D5C2AA2A1B211BE5531C9D7B64C09DDE663C17B"
+    },
+    {
+      "file": "src/cmark-gfm.h",
+      "bytes": 26571,
+      "commit": "27d942c8b0a62d192f616e5bf3578f4b6a89e180",
+      "url": "https://raw.githubusercontent.com/github/cmark-gfm/27d942c8b0a62d192f616e5bf3578f4b6a89e180/src/cmark-gfm.h",
+      "ref": "refs/heads/master",
+      "project": "cmark-gfm",
+      "sha256": "6502E5B58A822AF20E2540819FB2C05CFCD8446C1C837881892DA57F29D3CD88"
+    },
+    {
+      "file": "COPYING",
+      "bytes": 7567,
+      "commit": "27d942c8b0a62d192f616e5bf3578f4b6a89e180",
+      "url": "https://raw.githubusercontent.com/github/cmark-gfm/27d942c8b0a62d192f616e5bf3578f4b6a89e180/COPYING",
+      "ref": "refs/heads/master",
+      "project": "cmark-gfm",
+      "sha256": "C22E885F33B821BDDB24CF007145E5540655B6C0F403E49E6C76A93C28E6D9A9"
+    }
+  ]
+}

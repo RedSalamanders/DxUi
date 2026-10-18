@@ -1,0 +1,15 @@
+Complex UI clean round 1: 1939.42 completed offscreen FPS; p95 0.6388 ms; private 27959296 bytes
+Complex UI clean round 2: 2040.71 completed offscreen FPS; p95 0.6422 ms; private 27987968 bytes
+Complex UI clean round 3: 2060.05 completed offscreen FPS; p95 0.5862 ms; private 27754496 bytes
+Complex UI clean round 4: 2024.98 completed offscreen FPS; p95 0.6233 ms; private 27721728 bytes
+Complex UI clean round 5: 2152.46 completed offscreen FPS; p95 0.5292 ms; private 27693056 bytes
+Complex UI dirty round 1: 467.865 completed offscreen FPS; p95 2.8022 ms; private 28196864 bytes
+Complex UI dirty round 2: 549.435 completed offscreen FPS; p95 2.0214 ms; private 28344320 bytes
+Complex UI dirty round 3: 521.378 completed offscreen FPS; p95 2.36 ms; private 28340224 bytes
+Complex UI dirty round 4: 556.506 completed offscreen FPS; p95 2.1186 ms; private 28393472 bytes
+Complex UI dirty round 5: 548.435 completed offscreen FPS; p95 2.1053 ms; private 29970432 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Release-e75e1b3a81ec45aa8599c1238644a8e9.json
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+All 1 requested suites passed.

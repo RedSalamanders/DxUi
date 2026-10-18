@@ -30,6 +30,9 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
 - [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
   [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor v0 preview with shared Unicode 17 grapheme navigation and native/embedded source TSF/IME and UIA adapters. Real IME/AT and complete Markdown conformance remain pending.
+- [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless root-block and
+  lexical analysis with cooperative preparation and opt-in RichTextEditor hosting;
+  complete CommonMark/GFM parsing and rendering remain in progress.
 - [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.

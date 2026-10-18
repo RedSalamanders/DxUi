@@ -1,0 +1,34 @@
+{
+  "attempted": 2,
+  "elapsedSeconds": 4.2984635,
+  "classification": "Post-qualification prose/evidence checks; compiled inputs unchanged, complete tooling already passed on the frozen run",
+  "results": [
+    {
+      "processId": 2240,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-skills.ps1"
+      ],
+      "exitCode": 0,
+      "drained": true,
+      "name": "skills",
+      "timedOut": false
+    },
+    {
+      "processId": 104260,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-specs.ps1"
+      ],
+      "exitCode": 1,
+      "drained": true,
+      "name": "specs",
+      "timedOut": false
+    }
+  ],
+  "scheduled": 7
+}

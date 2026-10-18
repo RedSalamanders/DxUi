@@ -82,6 +82,7 @@
     "unicode-rich-text-core-v0",
     "retained-rich-text-editor-v0-preview",
     "retained-rich-text-source-tsf-uia-v0",
+    "bounded-markdown-root-lexical-analysis-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",

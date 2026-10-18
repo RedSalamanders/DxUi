@@ -1,5 +1,6 @@
 #pragma once
 #include "Configuration.h"
+#include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
 #include "RichMarkdown.h"
 
@@ -2773,24 +2774,27 @@ private:
 // adapters. Real IME/AT qualification and complete rich Markdown remain separate.
 struct RichTextEditorDebugState
 {
-    bool layoutReady              = false;
-    uint64_t layoutGeneration     = 0;
-    float contentHeightDip        = 0;
-    float scrollOffsetDip         = 0;
-    bool dragging                 = false;
-    size_t retainedGeometryChunks = 0;
-    size_t preparedGeometryChunks = 0;
-    size_t reusedGeometryChunks   = 0;
-    size_t preparedSourceUnits    = 0;
-    bool wholeGeometryFallback    = false;
-    bool wholeRasterFallback      = false;
-    size_t wholeLayoutsPrepared   = 0;
-    size_t wholeLayoutSourceUnits = 0;
-    bool preparationPending       = false;
-    size_t preparationAdvances    = 0;
-    size_t cancelledPreparations  = 0;
-    size_t lastAdvanceLayouts     = 0;
-    size_t lastAdvanceBlockSteps  = 0;
+    bool layoutReady                   = false;
+    uint64_t layoutGeneration          = 0;
+    float contentHeightDip             = 0;
+    float scrollOffsetDip              = 0;
+    bool dragging                      = false;
+    size_t retainedGeometryChunks      = 0;
+    size_t preparedGeometryChunks      = 0;
+    size_t reusedGeometryChunks        = 0;
+    size_t preparedSourceUnits         = 0;
+    bool wholeGeometryFallback         = false;
+    bool wholeRasterFallback           = false;
+    size_t wholeLayoutsPrepared        = 0;
+    size_t wholeLayoutSourceUnits      = 0;
+    bool preparationPending            = false;
+    size_t preparationAdvances         = 0;
+    size_t cancelledPreparations       = 0;
+    size_t lastAdvanceLayouts          = 0;
+    size_t lastAdvanceBlockSteps       = 0;
+    bool markdownPreparationPending    = false;
+    size_t markdownPreparationAdvances = 0;
+    size_t lastAdvanceMarkdownWork     = 0;
 };
 
 class RichTextEditor : public Control
@@ -2808,6 +2812,14 @@ public:
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
     void SetViewMode(RichText::ViewMode mode);
     [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
+    // Opt-in lossless block/lexical analysis on the host's preparation turns.
+    // This does not replace the v0 formatted renderer or text-store ACPs. Null
+    // disables analysis; changing profile preserves source, history and selection.
+    void SetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile);
+    [[nodiscard]] std::optional<RichText::MarkdownProfile> GetMarkdownAnalysisProfile() const noexcept;
+    // Returns only a completed analysis of current source/profile, never drains
+    // pending work. Held results remain immutable after editing or detachment.
+    [[nodiscard]] std::shared_ptr<const RichText::MarkdownSyntax> GetMarkdownSyntax() const noexcept;
     void SetReadOnly(bool readOnly) noexcept;
     [[nodiscard]] bool IsReadOnly() const noexcept;
     // Programmatic edit commands obey read-only/disabled state. Only successful

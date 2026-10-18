@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services and guarded retained geometry are functionally qualified. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. Exact incremental rendering/shared preparation, the complete engine and physical/platform gates remain open.
+Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Markdown root/lexical analysis is qualified as an opt-in bounded preview. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -33,6 +33,39 @@ retained preview while preserving public API revision 4.
 The additive core has its own explicit bounded support/qualification status.
 
 ## Execution gates
+
+Current parser sequence (D4a; each stage requires code, independent native/embedded
+tests and owning contract/docs updates before completion):
+
+- [x] M0: Pin reference APIs and separate CommonMark 0.31.2, strict GFM 0.29-gfm
+  and RichMarkdown grammar targets. Preserve original corpora/licenses; use own
+  Unicode C++ implementation, with no foreign parser runtime or copied parser.
+- [x] M1: Lossless source/block/lexeme partitions, explicit transformed-value
+  affinity, bounded resumable root/lexical scans and opt-in host analysis.
+  Code/tests/docs pass all 57 ordinary x64 suites, six profile builds and full
+  tooling/format checks. See the [sealed parser-stage evidence](../../../Measurements/RichText/2026-10-18-markdown-parser/README.md).
+  This qualifies root/lexical analysis, not complete CommonMark/GFM rendering.
+- [ ] M2: Complete dependency-aware container/leaf blocks (nested lists/quotes,
+  indentation/lazy continuation, reference definitions, HTML blocks, interruption
+  rules), stable document/node identities and reconciliation after structural edits.
+- [ ] M3: Complete inline precedence and delimiters, code spans, links/images,
+  autolinks, safe raw HTML, line breaks and profile-specific GFM extensions.
+  Lexical values are candidates until their context is resolved, never ready-made
+  formatted text. Run independent semantic/HTML expectations for every original
+  pinned example, retaining every failure and version difference.
+- [ ] M4: Semantic projection with source-backed/transformed/generated/object and
+  repeated/reordered ranges, explicit primary editing affinity, atomic source
+  transactions, structural commands and structured accessibility. Integrate the
+  parser tree into the renderer only after independent coordinate/editing oracles.
+- [ ] M5: Explicit front matter, footnote, math and Mermaid profiles, native
+  editable source-bearing objects/alternatives, isolated offline diagram helper
+  deployment and pending/error source presentation. Helper choice remains an
+  active owner recommendation; unknown syntax remains exact source throughout.
+- [ ] M6: Reconcile raw NUL admission with Document/codecs/clipboard/TSF/UIA;
+  qualify cancellation/storage/pathological work and real capacity targets before
+  raising the current 65,536-unit limit. Worker out-of-order tests are required if
+  caller-shared execution is introduced. Physical/platform/performance gates stay
+  independently open.
 
 - [x] P0: Own Unicode C++ prototype, actual Ghidra MCP exports, meaningful model/
   projection/layout/worker/file/native/app tests and real offscreen capture.
@@ -82,6 +115,14 @@ The additive core has its own explicit bounded support/qualification status.
   Consumer pins/adapters/product qualification remain separately owned.
 
 ## Proposed source and test map
+
+The owned parser stage adds public `MarkdownSyntax.h` and canonical
+`DxUi.MarkdownSyntax.cpp`, with no second projection implementation. The existing
+RichMarkdown, RichTextEditor, RichTextAccessibility and supplied-device resource
+tests own its core/native/embedded behavior; the generated original-corpus header
+is in the native inventory. Standard entity data and original corpus bytes/notices
+live under ThirdParty/Markdown and regenerate offline through the two owning
+PowerShell generators. The ordinary preview remains the v0 renderer by default.
 
 Public core headers: `include/DxUi/RichDocument.h`, `RichMarkdown.h` and
 `RichTextLayout.h`; retained controls remain on the existing DxUi control surface. Owned implementation: `src/Controls/DxUi.RichDocument.cpp`,

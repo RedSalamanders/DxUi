@@ -1,0 +1,116 @@
+Locating Visual Studio and MSBuild...
+?������������������������������������������������������������������������?
+�                                                                        �
+�                      �����ۻ �ۻ  �ۻ�ۻ   �ۻ�ۻ                      �
+�                      ������ۻ��ۻ��ɼ�ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ɼ �ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ۻ �ۺ   �ۺ�ۺ                      �
+�                      ������ɼ��ɼ �ۻ�������ɼ�ۺ                      �
+�                      �����ͼ �ͼ  �ͼ �����ͼ �ͼ                      �
+�                                                                        �
+�      ?  PIXELS PRIMED    CONTROLS READY    COMPILE MODE: GO!  ?      �
+�                   ?  RELEASE  /  X64  /  BUILD  ?                    �
+�                                                                        �
+?������������������������������������������������������������������������?
+
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.InteractiveLease.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:00
+Output: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Release-6555f441346b464b97a6f4390a67f5a1.log
+========================================
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   --run-hosted refuses every unverified runner marker before desktop access or result writes
+ok   ordinary confirmation defaults to Cancel; an explicitly approved countdown defaults to Start
+ok   the lease ends only the processes it started
+Interactive lease: 6 of 6 passed
+Complex UI clean round 1: 2259.61 completed offscreen FPS; p95 0.5584 ms; private 27353088 bytes
+Complex UI clean round 2: 2373.96 completed offscreen FPS; p95 0.4828 ms; private 28348416 bytes
+Complex UI clean round 3: 2425.45 completed offscreen FPS; p95 0.5052 ms; private 27881472 bytes
+Complex UI clean round 4: 2526.24 completed offscreen FPS; p95 0.4723 ms; private 27852800 bytes
+Complex UI clean round 5: 2510.4 completed offscreen FPS; p95 0.4837 ms; private 27852800 bytes
+Complex UI dirty round 1: 604.025 completed offscreen FPS; p95 1.8538 ms; private 28332032 bytes
+Complex UI dirty round 2: 611.819 completed offscreen FPS; p95 1.7907 ms; private 28332032 bytes
+Complex UI dirty round 3: 582.648 completed offscreen FPS; p95 1.8966 ms; private 29016064 bytes
+Complex UI dirty round 4: 591.698 completed offscreen FPS; p95 1.9244 ms; private 29167616 bytes
+Complex UI dirty round 5: 557.545 completed offscreen FPS; p95 2.101 ms; private 29138944 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Release-63b767519d904a5a98f7c468c12b975b.json
+Running Foundation (x64 Release)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Release)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running MenuExitLifetime (x64 Release)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Release)
+PASS NewControls (0 capability skips recorded)
+Running EditorControls (x64 Release)
+PASS EditorControls (0 capability skips recorded)
+Running TextField (x64 Release)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Release)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Release)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Release)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Release)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Release)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Release)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Release)
+PASS WindowHost (0 capability skips recorded)
+Running InteractiveLease (x64 Release)
+PASS InteractiveLease (0 capability skips recorded)
+All 19 requested suites passed.

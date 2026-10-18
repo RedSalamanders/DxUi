@@ -813,3 +813,50 @@ BeginPreparation still constructs the bounded v0 projection/indexes at once.
 Logical pending edits may project bounded source without DirectWrite; neither
 path is a resumable complete Markdown parser. These limits and indivisible
 long-paragraph/whole SDK calls remain pending performance work.
+
+### Lossless Markdown analysis preview
+
+`MarkdownSyntax.h` supplies independent immutable source, root leaf-block ranges
+and context-free lexical candidates. Block ranges and, separately, lexical ranges
+partition the entire original source, including delimiters, unknown constructs,
+mixed line endings and NUL. Content/info ranges point into that source. Implemented
+root recognition covers paragraphs, blank lines, ATX/setext headings, thematic
+breaks and fenced code, including unfinished code through EOF. It does not parse
+containers, references, HTML blocks or indented code yet. Lexical candidates cover
+ASCII punctuation escapes, semicolon-terminated named/numeric references, line
+endings and NUL replacement. Candidate decoding does not establish inline
+precedence: code spans, raw HTML, links and delimiter resolution remain necessary
+before using those values as rendered rich text.
+
+Every result carries the requested CommonMark0312, Gfm029 or RichMarkdown profile
+and source revision. These are separate grammar targets, not conformance claims.
+`MarkdownParser::Begin` validates and owns at most 65,536 UTF-16 units, accepting
+NUL and rejecting unpaired surrogates before publication. Begin/copy/comparison
+are bounded but indivisible. `Advance` resumes at its stored cursors and consumes
+no more than the requested operation budget. One operation scans one scalar/CRLF
+or source unit, finalizes one line or recognizes a bounded <=33-unit lexical
+candidate. Classification uses accumulated line metadata, never another full-line
+scan. It owns at most one staged and one published revision. Zero budget does no
+work. Equal pending/completed source/revision/profile coalesces; equal revision
+with different text/profile does not. Invalid/failed Begin preserves the old
+request; failed Advance cancels staging and retains the published revision.
+
+`LexemeSourceAnchor` keeps transformed-value leading/trailing affinity explicit,
+including a named reference producing two Unicode scalars. Original spelling
+always remains available. Text lexical ACPs are not automatically legal editing
+boundaries; callers retain the model's scalar/CRLF checks. Generated/reordered
+semantic objects and rich transaction anchors remain a later stage.
+
+RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
+disables it. The default and formatted pixels retain their v0 behavior. Analysis
+uses ControlHost turns before geometry, with a 4,096-operation default per turn.
+`GetMarkdownSyntax` never advances preparation and returns only a completed current
+source/revision/profile, or null. Source edits invalidate current-result access
+immediately, cancel pending analysis and preserve held immutable revisions.
+Profile changes preserve source, selection and undo/redo. Hiding, zero extent,
+rebinding and resource retirement cancel pending work. No extra worker/HWND/timer
+is permitted in either host. Completed pure analysis is independent of geometry.
+
+The raw parser's NUL admission deliberately does not change the existing Document,
+codec, clipboard or source text-store admission contract. End-to-end NUL editing,
+complete pinned grammar/HTML output, extensions and semantic commands remain open.

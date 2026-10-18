@@ -1,0 +1,9 @@
+{
+  "sha256": "DD37F30948303DEF55A48B8CAA3C5016A73A34CD1B259F2D265BE089868C6824",
+  "argument": "--test-rich-layout-clear",
+  "classification": "isolated diagnostic allocation sweep",
+  "buildAttestationIdentity": "b4e78d9017118d2eb12e4119f169519ee6f7e52fdf184c9b46e18c8f98d18fd2",
+  "configuration": "Debug",
+  "exitCode": 0,
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe"
+}

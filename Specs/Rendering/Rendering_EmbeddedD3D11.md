@@ -1,5 +1,14 @@
 # Embedded D3D11 hosting
 
+Opt-in RichTextEditor Markdown analysis uses this host's existing preparation
+traversal and continuation coalescing. Pending parsing returns S_FALSE before
+geometry/raster publication and never advances during Composite, source reads
+or UIA queries. Hiding, either zero dimension, detach/root retirement or resource
+replacement cancels the pending owner job. Immutable published source-only
+analysis may survive geometry changes and retained readers may outlive a view.
+Analysis adds no HWND, worker, timer, device or swap chain. The current stage
+does not change v0 formatted pixels or implement a semantic Markdown renderer.
+
 Status: normative intended contract
 Last reviewed: 2026-10-17
 
