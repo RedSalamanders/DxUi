@@ -1,0 +1,78 @@
+# Next D2a slice: immutable change ranges before incremental preparation
+
+Inactive design; no implemented capability is claimed by this draft.
+
+Keep SourceSnapshot at one shared pointer and Document's existing object layout.
+Put the tree root in a private immutable revision wrapper. Record raw UTF-16
+replacement deltas with per-lineage monotonic identities. Numeric identities
+avoid retaining old source buffers merely to recognize ancestry. IDs can have
+gaps after a failed transaction and must never be assumed consecutive.
+
+Keep metadata in a current fixed 32-record page and at most three sealed pages.
+A sealed page contains numeric edits only, no source root or parent-page chain.
+Copy the active page on a new immutable revision; seal it only on rollover.
+The window retains 97..128 edits depending on page occupancy. Ordinary history
+and transient replacements both carry this metadata; a weak-parent-only chain
+would lose intermediate IME previews before the next frame. No-op edits create
+neither metadata nor source/history. Reset starts an unrelated lineage.
+
+Expose a conservative changed source interval between snapshots: unchanged,
+tracked edits, or a full replacement fallback. Follow numeric links within the
+bounded window; handle undo/redo and sibling branches through a bounded common
+ancestor search. Missing history falls back correctly. Combine raw deltas then
+expand both source intervals across newly joined CRLF boundaries. Intervals must
+be safe for Snapshot::Slice; a tracked interval is not necessarily minimal.
+
+Qualify independent prefix/insertion/suffix reconstruction, every scalar/CRLF
+edge, transient bursts, undo/redo/branching, page rollover/history expiry/reset,
+concurrent reads, moved/empty values, zero-allocation queries and all existing
+allocation-failure sweeps. Retain the current fragmented edit/read baseline and
+measure metadata overhead explicitly. Keep the 4 MiB fixture budget; do not
+silently widen it. No worker/cache/device/timer is added by this source service.
+
+Next use those intervals to reuse unchanged projection/paragraph geometry. Keep
+source and geometry publication atomic, cancellation/staleness bounded, and owner
+or host scheduling explicit. Whole-document layout and the full Markdown engine
+remain open until their own implementation and qualification.
+
+## Projection-first continuation (inactive drafts)
+
+Factor the canonical v0 builder once; full Project and block preparation must
+invoke the same grammar. Physical source lines include their CR/LF/CRLF ending.
+Reuse immutable block projections outside the changed interval widened to whole
+lines plus one neighbor on either side. This widening is valid only for v0's
+line-local grammar, not a future CommonMark semantic-block parser. Initial and
+fallback preparation remain bounded by 65,536 source units, not a large-file claim.
+
+Keep only one input snapshot and immutable projection blocks in the prepared
+state. Parse/copy only the widened replacement slice, then rebuild the bounded
+source/display prefix index. Prefix-index update is linear in line count; do not
+claim logarithmic document preparation. Local block revisions are zero; the
+published state's revision/mode identify the complete preparation. Publication
+is one nonthrowing state swap after every allocation succeeds. Retirement releases
+the complete state, including index capacity. Default/moved services are unprepared.
+
+Every source ACP and both display affinities must match canonical full Project,
+including hidden-only final blocks and trailing delimiters. Styles must match
+after coalescing adjacent equivalent runs. Compare source units exactly, not only
+display strings. Add random Unicode edits, line joins/splits, undo/redo, mode and
+reset, missing ancestry, maximum source/line count and externally held immutable
+block tests. Measure initial and 128-edit preparation separately with five fixed
+trials, unchanged before/after. Mapping/unchanged preparation must allocate zero
+C++ bytes. Sweep every observed changed-preparation allocation failure and prove
+the old complete state/identities remain published before a successful retry.
+
+MSVC Debug string/vector default and move constructors can allocate proxies
+inside noexcept paths. Build block payloads with throwing size/copy construction,
+never forward a Projection rvalue into make_shared during fault-injection paths.
+Builder's aggregate can initialize each string with (0, L'\0') and each vector
+with size 0, all as prvalues with guaranteed member initialization elision. Return
+the builder's referenced result by copy. Copy a staged local Projection into its
+immutable shared allocation. State's block vector uses its throwing size ctor.
+Qualify this on Debug/ASan, rather than assuming Release-only behavior is enough.
+
+This service does not yet change the retained editor's single DirectWrite layout.
+The next slice must adapt cached paragraph geometry and the control's source
+mapping/navigation without flattening the document, golden-compare full geometry
+and pixels, and integrate bounded host scheduling/cancellation. Composition and
+source/geometry publication contracts stay unchanged until those tests pass.

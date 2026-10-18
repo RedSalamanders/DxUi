@@ -1,0 +1,9 @@
+{
+  "scope": "MCP run_script_inline; saved Office program opened read-only, no analysis/import/save/current-program change.",
+  "processId": 90360,
+  "elapsedSeconds": 7.6341416,
+  "exitCode": 0,
+  "ownedBudgetSeconds": 180,
+  "timedOut": false,
+  "drained": true
+}

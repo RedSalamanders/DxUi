@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"program_name\":\"user32.dll\",\"executable_path\":\"/C:/Windows/System32/user32.dll\",\"architecture\":\"x86\",\"compiler\":\"windows\",\"language\":\"x86:LE:64:default\",\"endian\":\"little\",\"address_size_bits\":64,\"base_address\":\"180000000\",\"memory_blocks\":11,\"total_memory_size\":1935472,\"function_count\":4324,\"symbol_count\":33207}"
+    }
+  ],
+  "isError": false
+}

@@ -1,0 +1,5 @@
+{
+  "alteration": "One byte of the copied StepBackgroundRecalc pseudocode XOR 1.",
+  "target": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\tamper-33680c2b9dd940279f37e958068f476a",
+  "exitCode": 1
+}

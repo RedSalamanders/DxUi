@@ -11,8 +11,10 @@
 #include <DxUi/Diagnostics.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -140,6 +142,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "Scope.Tests.ComplexUiBoundaries.h"
 #include "Scope.Tests.ComplexUiProfiling.h"
 #include "Scope.Tests.RichDocumentStorageResources.h"
+#include "Scope.Tests.RichProjectionResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
@@ -1145,6 +1148,26 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 2 &&
+        (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures"))
+    {
+        // Isolate unexpected noexcept termination without a CRT dialog. This
+        // handler belongs only to the explicit diagnostic child, never a suite
+        // or canonical benchmark. Ordinary allocation failures must be caught
+        // by the same atomicity sweep that the complete suite executes below.
+        const auto previous = std::set_terminate([]
+        {
+            std::fputs("rich preparation probe: unexpected noexcept termination\n", stderr);
+            std::fflush(stderr);
+            std::_Exit(197);
+        });
+        const auto restore  = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
+        if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
+            TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else
+            TestRichProjectionPreparationAllocationFailureAtomicity(true);
+        return 0;
+    }
     // Isolated resource cases retain their individual failing baseline logs;
     // the ordinary suite below still executes both behavior budgets.
     if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-document-storage")
@@ -1279,6 +1302,11 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichSourceChangeAllocationBudget();
     TestRichSourceChangeTransientStorageBudget();
     TestRichSourceChangeRolloverFailureAtomicity();
+    TestRichProjectionMappingAndUnchangedAllocationBudget();
+    TestRichSnapshotSliceAllocationFailureAtomicity();
+    TestRichProjectionPreparationAllocationFailureAtomicity();
+    TestRichProjectionRetainedStorageBudget();
+    TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

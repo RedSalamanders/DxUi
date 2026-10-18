@@ -1,0 +1,10 @@
+{
+  "notes": "Root x64 Debug build, then one isolated owned CPU-only native diagnostic. Its terminate handler exits 197 without a CRT dialog. This is not a suite success or a canonical frame measurement. Source remains frozen; original build/stream/source/artifact records are retained.",
+  "probe": "--test-rich-snapshot-slice-failures",
+  "expectedProbeExit": 197,
+  "overallBudgetSeconds": 900,
+  "buildChildBudgetSeconds": 600,
+  "startedUtc": "2026-10-18T03:59:40.9518477Z",
+  "scheduled": 2,
+  "probeChildBudgetSeconds": 60
+}

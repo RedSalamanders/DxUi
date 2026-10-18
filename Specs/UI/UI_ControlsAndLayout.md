@@ -694,8 +694,31 @@ Same-content previews acknowledge selection without allocating source/history or
 advancing source revision. No caller view is retained after the call.
 Stage source, revision metadata and history before publication; failed metadata
 allocation or page rollover preserves all state and reports no phantom change.
-Current storage is bounded at 64 Ki UTF-16 units/128 history items; full-document
-projection/layout remains a v0 limitation, not incremental/large-file acceptance.
+Current storage is bounded at 64 Ki UTF-16 units/128 history items. The retained
+editor still uses full projection/layout; the supporting block projection below
+does not establish incremental geometry, host scheduling or large-file acceptance.
+
+PreparedProjection prepares the same v0 grammar as Project in immutable physical
+source-line blocks, including CR/LF/CRLF endings. Source/display prefixes index
+local coordinates; every source ACP, display unit and both source affinities must
+match the canonical flat projection exactly. Adjacent equivalent styles coalesce
+to the same flat runs. Local block revisions are zero; the service's revision and
+mode identify the complete preparation. Source identity matters independently of
+the caller's numeric revision, including copied-document sibling branches.
+Tracked changes widen to complete old physical lines plus a neighbor on each side;
+unchanged outer payloads remain shared. Reset/missing ancestry/mode changes rebuild
+the complete bounded source. Two empty sources may remain semantically unchanged
+across unrelated identities. Adjacent equal physical lines may share one immutable
+payload. Preparation statistics count processed/reused block slots and the widened
+source slice, not individual parser calls or timing acceptance.
+Stage every new payload and prefix index before nonthrowing publication. Failure
+must preserve the entire prior state, revision, statistics and block identities.
+Clear releases all owned prepared state; default/moved/retired services reject
+content/mapping queries. Valid mapping and unchanged preparation allocate nothing.
+DisplayText is explicit materialization; ordinary updates slice only changed
+context. Prefix-index rebuilding remains linear in physical line count. This
+line-local widening is not valid for an unimplemented CommonMark block parser.
+Preparation is owner-thread work; the service owns no worker/device/window/timer.
 
 Prepared DirectWrite state uses WIL ownership, caller font settings and borrowed
 factory/target services. Invalid projection/style/settings must leave the prior

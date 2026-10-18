@@ -390,3 +390,27 @@ allocate zero C++ bytes; localized transient previews retain about 23 KB in the
 fixed 4,096-preview fixture. Numeric metadata has an explicit 188,664-byte history
 fixture cost. These are functional/resource observations. Incremental geometry,
 shared preparation and frame-performance acceptance remain open in the plan.
+`PreparedProjection` is the supporting v0 line-block preparation service. Call
+`Prepare(snapshot, revision, mode)` on the preparation owner, then use `ToDisplay`,
+`ToSource` or immutable `Blocks()` with document-wide source/display prefixes.
+Block `content` uses local offsets and revision zero; the service's `Revision()`
+and `Mode()` describe the published document. Unchanged outer blocks stay shared;
+adjacent equal physical lines may share one local payload. `DisplayText()` is an
+explicit flat copy. `LastPreparation()` counts rebuilt/reused block slots and
+widened source units, not parser calls or elapsed-time acceptance.
+
+Updates use tracked source intervals widened to physical lines and neighbors.
+Mode/reset/missing ancestry falls back to complete bounded preparation. The
+prefix index remains linear in line count. All new state is staged before one
+publication; failure leaves the prior revision, payload identities and mapping
+intact. `Clear()` releases its state and rejects content/mapping queries until
+prepared again. This helper still uses v0 syntax. It does not yet replace the
+retained editor's full layout or provide shared host scheduling. Its current
+qualification is recorded in the active plan; no complete Markdown claim follows.
+The [projection-block qualification](../Measurements/RichText/2026-10-18-projection-blocks/README.md)
+retains the original reuse and Debug noexcept failures, 57 final native suite
+successes, six builds, allocation/retention observations and unchanged operation
+methods. Snapshot slicing now propagates allocation failure. Valid block mapping
+and unchanged preparation allocate zero C++ bytes. The retained editor's geometry,
+shared scheduling and complete syntax profiles remain separate plan gates; the
+descriptive operation improvements do not resolve frame-performance acceptance.

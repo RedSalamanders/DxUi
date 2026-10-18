@@ -708,7 +708,9 @@ privileges change and no scheduler trace is claimed.
   transient bursts, undo/redo/branches, reset and expired history. Preserve the
   existing object sizes, no-op admission and 4 MiB fixture budget. Return safe
   conservative scalar/CRLF source intervals without allocation or mutable caches.
-- [ ] Use those intervals to reuse unchanged projection/paragraph geometry.
+- [x] Add the bounded v0 line-block projection service with exact mapping, reuse,
+  retirement, failure and retention qualification.
+- [ ] Integrate retained paragraph geometry with the qualified projection service.
   Measure initial preparation and edits independently; preserve source/geometry
   publication, caret/range/scroll behavior, cancellation and stale-result checks.
 - [ ] Integrate bounded host/shared preparation scheduling and resource ownership
@@ -784,3 +786,87 @@ Then integrate those geometry/scheduling contracts with native/embedded caret,
 scroll, input and UIA tests before completing D2a. Gallery fixtures, typography,
 rendering behavior and consumer pins are unchanged by the source-only slice.
 The six-slot schedule completes in 1696.316 seconds within its declared 3,600-second overall / 900-second child limits.
+
+### D2a line-block projection in progress
+
+Implement PreparedProjection with one canonical v0 grammar, immutable local block
+payloads and source/display prefix indexes. The first complete-source draft fails
+the reuse oracle as expected after five fixed trials. Review removes an avoidable
+whole-Projection copy before enabling reuse; a refined baseline adds actual flat
+Project initial/edit comparisons. Both original expected failures, exact source,
+compiler/build bindings and supervised process outcomes remain preserved. The
+refined baseline completes in 259.765 seconds under its 600-second child bound.
+
+The candidate widens tracked intervals to physical lines plus neighbors, reuses
+outer payloads, shares adjacent equal source lines and publishes a staged state.
+Source identity is checked independently of external revision. New coverage
+compares exact display/source units/styles/ACP affinities, randomized Unicode
+edits, branches, modes/reset/expiry, lifetime/retirement, zero-allocation mapping,
+all preparation failures and fixed retained-memory limits. Initial affected
+Release qualification is pending. The retained editor, DirectWrite paragraph
+geometry and shared/cooperative host scheduling are unchanged; D2a stays open.
+Gallery inputs and consumer pins remain unchanged by this supporting-core slice.
+All three initial affected Release suites pass. Embedded observes 47 changed-
+preparation allocation points, zero mapping/no-op allocations, 1,582,261 retained
+C++ bytes for the 1,024-line editing fixture, and 3,083,454 / 9,571,134 for maximum
+newline/unique-line inputs. All released deltas are zero; these precede the
+snapshot slicing fix and are retained as preliminary evidence.
+
+An isolated Debug probe then reproduces noexcept termination at snapshot slicing
+allocation point 0. The original root build succeeds and the diagnostic child
+exits its explicit 197 handler without a CRT dialog; both operations finish in
+189.544 seconds. Preserve its exact source, streams, build binding and executable
+hash. Replace the empty string's noexcept default constructor with its throwing
+size constructor. A direct slice failure sweep and the complete projection sweep
+must now pass before ordinary Debug/ASan suites are launched. Final qualification
+uses all19 scopes in each x64 profile and all ARM64 configurations; no preliminary
+Release receipt is relabeled as current after this source change.
+### Fresh read-only Ghidra recalculation evidence
+
+The [Office recalculation packet](../../../Measurements/RichText/2026-10-18-recalc-reference/README.md)
+contains six actual MCP decompilations from the saved Office 16.0.20430.20032
+reference, SHA-256 7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41.
+An owned stdio MCP client sees the registered tools without raw plugin HTTP or
+policy changes. The saved program opens read-only; its changed flag stays false
+and the active /windows-edit/user32.dll program is unchanged. The Java script's
+successful completion and actual nonempty pseudocode are independently checked.
+
+InvalidateRecalc, background stepping, required recalculation, line recalculation
+and viewport paths inform the next geometry/scheduling component. Treat private
+fields/indirect calls as uncertain. The owned design distinguishes reusable dirty
+preparation from full retirement and guards revision/binding/reentrancy. Do not
+copy Office's per-control timer into DxUi; reuse existing host scheduling. These
+new exports are evidence for the next implementation, not proof that it exists.
+### Qualified v0 projection blocks
+
+The [projection-block packet](../../../Measurements/RichText/2026-10-18-projection-blocks/README.md)
+seals library fingerprint 574862352141C18EDBC27BEB54037E53B2566E8D8663891511F087872965B9F0.
+All 57 ordinary x64 suites pass with zero native skips, all six build profiles
+pass, and all four final isolated Debug/ASan allocation diagnostics return zero.
+Full tooling, five validators and pinned formatting pass. Eight new behavior
+cases preserve exact text, source units, styles and every ACP/affinity across
+edits, line joins/splits, equal-revision branches, reset/expiry and retirement.
+
+Snapshot slicing now propagates Debug allocation failure instead of terminating
+inside its empty string default constructor. The original point-zero exit 197
+is retained independently; the final slice sweeps cover one Release / two Debug
+and ASan allocations. Complete projection sweeps cover 47 / 95 / 95 points and
+prove prior-state preservation followed by successful retry. Four mapping/no-op
+sweeps allocate zero C++ bytes. Each editing/maximum-source fixture releases its
+tracked delta to zero and remains under its unchanged 4 MiB / 16 MiB limits.
+
+Both refined-before/final operation methods remain byte-identical. Descriptive
+block initial/edit medians are 1.1589/114.419 ms before and 1.2675/1.9308 after;
+initial preparation is slower in this sample. Rebuilt source units across 128
+edits fall from 3,921,152 to 11,520, with 130,688 outer slots reused. Flat Project
+comparisons and the original unrefined draft are also retained. There are no
+same-binary controls, quiet-host proof or frame/timing acceptance claims.
+
+This completes only the supporting projection component. Retained geometry,
+shared/cooperative host preparation, the full pinned Markdown/extension engine,
+physical input/AT and native ARM64 execution remain open. Keep this plan WIP.
+Review the current shared GraphicsDevice and owner preparation callback before
+adding host services. DirectWrite formats may not be thread-safe; no assumption
+of arbitrary-thread geometry follows merely from a shared factory. The control
+still prepares full layout and no consumer pin or gallery input changes here.
+The six-profile/twelve-operation schedule completes in 2088.375 seconds under its declared limits.

@@ -148,3 +148,18 @@ restores and verifies the captured foreground window and pointer, and retains fo
 for a visible foreground window. The lease still checks the desktop and exact warning input
 target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
 local and self-hosted runs do not prepare or alter the desktop.
+
+Rich projection-block coverage lives in Scope.Tests.RichProjectionBlocks under
+EditorControls, with mapping/no-op allocations, every changed-preparation failure
+point, 1,024-line retained-history and maximum-source memory cases in
+Scope.Tests.RichProjectionResources under Embedded. Full text/style/source-unit
+and every ACP/affinity comparisons include Unicode edits, line joins/splits,
+branches with equal external revisions, mode/reset/expiry, held immutable payloads,
+moved/retired services and maximum line count. Fixed whole-source/block initial
+and 128-edit trials remain descriptive; they do not qualify retained geometry,
+host scheduling or the completed-frame performance hold.
+The isolated Embedded diagnostic flags `--test-rich-snapshot-slice-failures` and
+`--test-rich-projection-failures` trace the same sweeps as the ordinary suite.
+Only those explicit child modes install a terminate handler (exit 197) to record
+an unexpected noexcept failure without a CRT dialog. Correct code returns zero;
+the original Debug failure is a preserved negative diagnostic, never a suite pass.

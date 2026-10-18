@@ -1,0 +1,9 @@
+{
+  "buildAttestationIdentity": "c29cce013e02edcb9034d3692493e3464aaa58bbf04e6c707cf6f805f5b0cce7",
+  "sha256": "9475D92017AF00A250595768F17088EEC404D78DAB07A92DA12E428611492BE1",
+  "argument": "--test-rich-snapshot-slice-failures",
+  "configuration": "Debug",
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+  "exitCode": 0,
+  "classification": "isolated-successful-allocation-sweep"
+}

@@ -1,0 +1,316 @@
+[
+  {
+    "name": "force_decompile",
+    "description": "Force decompiler cache refresh for function. On programs with multiple address spaces (e.g., embedded targets), prefix addresses with the space name (mem:1000) to avoid ambiguous resolution.",
+    "inputSchema": {
+      "properties": {
+        "function": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Address in the program. Accepts 0x<hex> (default space) or <space>:<hex> (e.g., mem:1000, code:ff00). Note: some programs — particularly embedded/microcontroller targets — are not address-space-agnostic; use get_address_spaces to discover spaces before assuming a plain hex address is unambiguous.",
+          "title": "Function"
+        },
+        "program": {
+          "default": "",
+          "description": "Target program name (omit to use the active program — always specify when multiple programs are open)",
+          "title": "Program",
+          "type": "string"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "function_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Function Address"
+        },
+        "function_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Function Name"
+        }
+      },
+      "title": "force_decompileArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "get_functions",
+    "description": "Everything about one or many functions in a single call. Pass functions= as a comma-separated list of names or addresses for bulk mode (up to 20); omit it and pass function=/name=/address= for one. Pass fields= as a comma-separated subset to skip work you do not need — omitted or empty returns everything. When the requested fields need no decompiled text (e.g. fields=callers,callees,signature,labels,entry_point), the target function is NOT decompiled (238 ms cold / 5–10 ms warm per function); only decompiled_code (and call_context when enabled) pays that cost. Decompiled text renders EOL comments (// style), so comments written with set_comment are visible in the code. Replaces get_function_by_address, get_function_variables, get_function_xrefs, decompile_function, and the former get_function_callers/callees/labels/signature tools. Completeness scoring is NOT included — call analyze_function_completeness for that.",
+    "inputSchema": {
+      "properties": {
+        "function": {
+          "default": "",
+          "description": "Single mode: function name or address (0x<hex> or <space>:<hex>). Ignored when functions= is set.",
+          "title": "Function",
+          "type": "string"
+        },
+        "functions": {
+          "default": "",
+          "description": "Bulk mode: comma-separated function references (names or addresses). When set, function= is ignored. Returns a map keyed by the reference asked for.",
+          "title": "Functions",
+          "type": "string"
+        },
+        "fields": {
+          "default": "",
+          "description": "Comma-separated subset: signature, classification, return_type, entry_point, body_start, body_end, decompiled_code, plate_comment, comments, labels, tags, parameters, locals, callers, call_context, callees, xrefs, disassembly, jump_targets, refs (the absolute addresses the function uses: data references, the values of literal-pool words, and the memory the decompiled code reads and writes, so a register reached as base + offset is listed by its own address; a pool value is written value<word; asking for refs decompiles). Omit or leave empty for the full bundle.",
+          "title": "Fields",
+          "type": "string"
+        },
+        "include_call_context": {
+          "default": "true",
+          "description": "Include each caller's decompiled call-site line. Costs one decompilation per unique caller (~43ms); set false for the cheapest possible bundle. Ignored unless call_context is requested (explicitly or via an empty fields=).",
+          "title": "Include Call Context",
+          "type": "boolean"
+        },
+        "call_context_limit": {
+          "default": "6",
+          "description": "Maximum number of UNIQUE callers to decompile for call context.",
+          "title": "Call Context Limit",
+          "type": "integer"
+        },
+        "call_context_lines": {
+          "default": "3",
+          "description": "Lines of the caller's decompilation to return per call site, centred on the call. 1 is the call line alone; the default 3 adds the line above and below, which is usually where the guard and the use of the result live. Clamped to 1-21; costs no extra decompilation.",
+          "title": "Call Context Lines",
+          "type": "integer"
+        },
+        "include_disasm": {
+          "default": "false",
+          "description": "Include the raw instruction listing. Off by default: it roughly doubles the payload and agents rarely read it.",
+          "title": "Include Disasm",
+          "type": "boolean"
+        },
+        "program": {
+          "default": "",
+          "description": "Target program name (omit to use the active program — always specify when multiple programs are open)",
+          "title": "Program",
+          "type": "string"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "function_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Function Address"
+        },
+        "function_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Function Name"
+        },
+        "call_context_window": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Context Window"
+        }
+      },
+      "title": "get_functionsArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "get_metadata",
+    "description": "Get program metadata",
+    "inputSchema": {
+      "properties": {
+        "program": {
+          "default": "",
+          "description": "Target program name (omit to use the active program — always specify when multiple programs are open)",
+          "title": "Program",
+          "type": "string"
+        }
+      },
+      "title": "get_metadataArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_open_programs",
+    "description": "List all open programs. If more than one is listed, pass program= on subsequent tool calls — omitting it returns an error naming every open program (guessing is never acceptable with multiple candidates).",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_open_programsArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "list_project_files",
+    "description": "List files in the current project, with each one's version-control state: whether it is versioned, checked out, and (when checked out) whether the checkout holds uncommitted work.",
+    "inputSchema": {
+      "properties": {
+        "folder": {
+          "description": "Project folder path",
+          "title": "Folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder"
+      ],
+      "title": "list_project_filesArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "open_program",
+    "description": "Open a program from the open project (by project path, or by filename when unique) and keep it open. On the GUI it is also shown in a CodeBrowser. Any endpoint's program= opens on demand too; this is for opening deliberately, analysing on open, or getting diagnostics when a file cannot be opened (the paths the project does contain, and whether it is bound to a Ghidra Server).",
+    "inputSchema": {
+      "properties": {
+        "path": {
+          "description": "Program path in the project, or a unique filename",
+          "title": "Path",
+          "type": "string"
+        },
+        "auto_analyze": {
+          "default": "false",
+          "description": "Run auto-analysis after opening",
+          "title": "Auto Analyze",
+          "type": "boolean"
+        },
+        "dry_run": {
+          "default": false,
+          "description": "Preview the change without applying it. When true the server validates the request and reports what would happen, leaving the program unmodified. Defaults to false.",
+          "title": "Dry Run",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "open_programArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "switch_program",
+    "description": "Switch MCP context to a different program",
+    "inputSchema": {
+      "properties": {
+        "program": {
+          "description": "Program name to switch to",
+          "title": "Program",
+          "type": "string"
+        }
+      },
+      "required": [
+        "program"
+      ],
+      "title": "switch_programArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  }
+]

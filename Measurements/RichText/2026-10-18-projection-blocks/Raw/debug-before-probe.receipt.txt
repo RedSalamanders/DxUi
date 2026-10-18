@@ -1,0 +1,7 @@
+{
+  "buildAttestationIdentity": "df2eca643b17cd9aab7e7fc8f7539f5a47846dc22959e967cc10e5221748bdae",
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+  "classification": "isolated-expected-noexcept-failure",
+  "exitCode": 197,
+  "sha256": "3251C459ADD4606CD982BE07D28FFE280A6043AA97999995637833D7F6096038"
+}

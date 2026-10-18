@@ -1,0 +1,289 @@
+{
+  "bindings": {
+    "before": {
+      "nativeSha256": "79FD25C5EC1B79292CEF32AE7AC770133464A37C489AABBD2B6021A9A332AF64",
+      "sourceFingerprint": "1367502BA9E4CA2E4F3CD47DD18A2DD1DA0D95EEB5E94B00099B64E932020ACD",
+      "performanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Release-0e6cbfe4cdda4b36ada08b7e32cf550d.json"
+    },
+    "after": {
+      "nativeSha256": "17099C0A75984F8479B48A583F64B4359DB6B5B9AD67969906180853D2D2B79F",
+      "sourceFingerprint": "574862352141C18EDBC27BEB54037E53B2566E8D8663891511F087872965B9F0",
+      "performanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Release-8a5f6da0065847f2934fa4fef59f23b3.json"
+    },
+    "firstDraft": {
+      "nativeSha256": "56213D919AC1554C53691A20D51644CE086CEF6D50620DBD2F912E542E23ECDD",
+      "sourceFingerprint": "C988499564EDE702B5A357BCB4483648B8B68E5618032ED751195AAFB6AF8075",
+      "performanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Release-eb325ff4688843c2afea90b3c818ceb5.json"
+    }
+  },
+  "firstDraft": {
+    "wholeInitial": [],
+    "blockInitial": [
+      {
+        "trial": 0,
+        "elapsedMs": 1.7007
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 1.3549
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 1.5819
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 1.4038
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 1.3328
+      }
+    ],
+    "blockEditsMedianMs": 158.617,
+    "blockInitialMedianMs": 1.4038,
+    "blockEdits": [
+      {
+        "trial": 0,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 162.814
+      },
+      {
+        "trial": 1,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 170.762
+      },
+      {
+        "trial": 2,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 158.321
+      },
+      {
+        "trial": 3,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 158.617
+      },
+      {
+        "trial": 4,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 158.606
+      }
+    ],
+    "wholeEdits": []
+  },
+  "after": {
+    "wholeInitial": [
+      {
+        "trial": 0,
+        "elapsedMs": 0.3893
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 0.4031
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 0.3845
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 0.394
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 0.3788
+      }
+    ],
+    "blockInitial": [
+      {
+        "trial": 0,
+        "elapsedMs": 1.2253
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 1.2302
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 1.2675
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 1.2835
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 1.3821
+      }
+    ],
+    "blockEditsMedianMs": 1.9308,
+    "wholeEditsMedianMs": 35.7581,
+    "wholeInitialMedianMs": 0.3893,
+    "blockInitialMedianMs": 1.2675,
+    "blockEdits": [
+      {
+        "trial": 0,
+        "reusedBlocks": 130688,
+        "rebuiltSourceUnits": 11520,
+        "elapsedMs": 1.9466
+      },
+      {
+        "trial": 1,
+        "reusedBlocks": 130688,
+        "rebuiltSourceUnits": 11520,
+        "elapsedMs": 1.9308
+      },
+      {
+        "trial": 2,
+        "reusedBlocks": 130688,
+        "rebuiltSourceUnits": 11520,
+        "elapsedMs": 1.8957
+      },
+      {
+        "trial": 3,
+        "reusedBlocks": 130688,
+        "rebuiltSourceUnits": 11520,
+        "elapsedMs": 1.942
+      },
+      {
+        "trial": 4,
+        "reusedBlocks": 130688,
+        "rebuiltSourceUnits": 11520,
+        "elapsedMs": 1.8871
+      }
+    ],
+    "wholeEdits": [
+      {
+        "trial": 0,
+        "elapsedMs": 56.5613
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 55.4716
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 35.7581
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 34.8732
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 33.4533
+      }
+    ]
+  },
+  "limitations": "One fresh native process per source with five trials within it. Initial draft copy overhead was removed and the before baseline recollected before reuse activation. Source slicing construction and adjacent payload sharing also change in the final candidate. No same-binary controls, quiet-host proof, sole-cause or completed-frame acceptance.",
+  "classification": "descriptive-fixed-projection-operation-trials",
+  "before": {
+    "wholeInitial": [
+      {
+        "trial": 0,
+        "elapsedMs": 0.6457
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 0.4196
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 0.4103
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 0.4198
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 0.4033
+      }
+    ],
+    "blockInitial": [
+      {
+        "trial": 0,
+        "elapsedMs": 1.3027
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 1.1322
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 1.1632
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 1.1589
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 1.1283
+      }
+    ],
+    "blockEditsMedianMs": 114.419,
+    "wholeEditsMedianMs": 43.8677,
+    "wholeInitialMedianMs": 0.4196,
+    "blockInitialMedianMs": 1.1589,
+    "blockEdits": [
+      {
+        "trial": 0,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 114.419
+      },
+      {
+        "trial": 1,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 114.309
+      },
+      {
+        "trial": 2,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 115.717
+      },
+      {
+        "trial": 3,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 114.241
+      },
+      {
+        "trial": 4,
+        "reusedBlocks": 0,
+        "rebuiltSourceUnits": 3921152,
+        "elapsedMs": 116.612
+      }
+    ],
+    "wholeEdits": [
+      {
+        "trial": 0,
+        "elapsedMs": 62.7582
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 60.0946
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 43.8677
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 35.5839
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 37.4596
+      }
+    ]
+  }
+}

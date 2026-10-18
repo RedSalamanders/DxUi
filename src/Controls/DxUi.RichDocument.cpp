@@ -464,7 +464,9 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
 {
     if (first > last || ! IsBoundary(first) || ! IsBoundary(last))
         throw std::out_of_range("Invalid snapshot slice");
-    std::wstring result;
+    // The size constructor can propagate Debug STL proxy allocation failure;
+    // the default constructor allocates that proxy inside a noexcept path.
+    std::wstring result(0u, L'\0');
     result.reserve(last - first);
     PieceTreeNode::VisitRange(RootNode(),
                               first,

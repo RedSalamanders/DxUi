@@ -1,0 +1,16 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichProjectionBlockFixedTrials
+RichProjection initial trial=0 sourceUnits=30634 blocks=1024 elapsedMs=1.7007
+  [DONE] TestRichProjectionBlockFixedTrials (0.826 s)
+RichProjection edits trial=0 edits=128 rebuiltSourceUnits=3921152 reusedBlocks=0 elapsedMs=162.814
+RichProjection initial trial=1 sourceUnits=30634 blocks=1024 elapsedMs=1.3549
+RichProjection edits trial=1 edits=128 rebuiltSourceUnits=3921152 reusedBlocks=0 elapsedMs=170.762
+RichProjection initial trial=2 sourceUnits=30634 blocks=1024 elapsedMs=1.5819
+RichProjection edits trial=2 edits=128 rebuiltSourceUnits=3921152 reusedBlocks=0 elapsedMs=158.321
+RichProjection initial trial=3 sourceUnits=30634 blocks=1024 elapsedMs=1.4038
+RichProjection edits trial=3 edits=128 rebuiltSourceUnits=3921152 reusedBlocks=0 elapsedMs=158.617
+RichProjection initial trial=4 sourceUnits=30634 blocks=1024 elapsedMs=1.3328
+RichProjection edits trial=4 edits=128 rebuiltSourceUnits=3921152 reusedBlocks=0 elapsedMs=158.606
+  [START] TestRichProjectionBlockReuseAndLineJoins
+FAILED: single-line edit rebuilds its line and two neighbors rather than the complete source

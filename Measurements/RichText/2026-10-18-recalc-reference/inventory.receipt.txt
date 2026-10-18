@@ -1,0 +1,263 @@
+{
+  "copies": [
+    {
+      "path": "Raw/bridge-stderr.receipt.txt",
+      "sha256": "0F01F44705B5900509C8476AAEF42A99AA202C49D825D562A5A216FD0763CD79",
+      "bytes": 1147,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\bridge-stderr.receipt.txt"
+    },
+    {
+      "path": "Raw/Call-Mcp.py",
+      "sha256": "367D46F0D0817996A80FBC1CC05AB23876BAE2FBC4444359A8CA1EDB7F6B0B80",
+      "bytes": 2016,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\Call-Mcp.py"
+    },
+    {
+      "path": "Raw/connect.receipt.txt",
+      "sha256": "11C1518C43BA5C01596AAF47ACB0D96F02AE64A0675DE6C5DC44B6DAB4A5D2A9",
+      "bytes": 376,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\connect.receipt.txt"
+    },
+    {
+      "path": "Raw/get_metadata.receipt.txt",
+      "sha256": "BB6196CE2CB1A0B005A246384635AB8ED0AE63037A7B62217888C0F3278552E9",
+      "bytes": 451,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\get_metadata.receipt.txt"
+    },
+    {
+      "path": "Raw/initial-tools.receipt.txt",
+      "sha256": "28CAD33EE4AF8BB3A4F42C2934E960C5C43E1ABDC2AA452B5798F30D1C0A4B20",
+      "bytes": 136121,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\initial-tools.receipt.txt"
+    },
+    {
+      "path": "Raw/initialize.receipt.txt",
+      "sha256": "E42F8705574CBBCC7D07EC263C75BB0235288BE14CCFD538BBE1A736B96A048E",
+      "bytes": 218,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\initialize.receipt.txt"
+    },
+    {
+      "path": "Raw/Inspect-Mcp.py",
+      "sha256": "905D6D09B17D7325D3BFAC1A6E6383B565F1798D4087534F4DA6D29C4DC4DA76",
+      "bytes": 3058,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\Inspect-Mcp.py"
+    },
+    {
+      "path": "Raw/inspection-process.receipt.txt",
+      "sha256": "4DE10EEB6A836AAD036CDEA0DFDB95FE62114DB079912FE65F3C7C52E6626EA6",
+      "bytes": 240,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\inspection-process.receipt.txt"
+    },
+    {
+      "path": "Raw/inspection.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\inspection.err"
+    },
+    {
+      "path": "Raw/inspection.log",
+      "sha256": "C4D2E358BA6A65FBD33C2121AB29C5AF27140F76CCD6BB8ADC0F47566FBE41C1",
+      "bytes": 91,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\inspection.log"
+    },
+    {
+      "path": "Raw/list_open_programs.receipt.txt",
+      "sha256": "40C6AA4C76F173FA6040004965F3E79A79EDC8695A3CCD5E572E615D0F076BAA",
+      "bytes": 534,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\list_open_programs.receipt.txt"
+    },
+    {
+      "path": "Raw/McpSession.py",
+      "sha256": "B9BBE0E2E67D8120282F716AB9E47CEA658D77C327FC606A5CE715839C2B5A87",
+      "bytes": 1220,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\McpSession.py"
+    },
+    {
+      "path": "Raw/office-recalc-client.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-client.err"
+    },
+    {
+      "path": "Raw/office-recalc-client.log",
+      "sha256": "0192998EEC6108D38F6896B850E1275127D49F45A0C1A345195E780B9EF85B43",
+      "bytes": 91,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-client.log"
+    },
+    {
+      "path": "Raw/office-recalc-mcp.receipt.txt",
+      "sha256": "54AF7DB8E8F1CD5CEFCFBC11676D5ED47E27D702953FF36B202D8C4038AEBF9B",
+      "bytes": 702,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-mcp.receipt.txt"
+    },
+    {
+      "path": "Raw/office-recalc-mcp.receipt.txt.connect.txt",
+      "sha256": "11C1518C43BA5C01596AAF47ACB0D96F02AE64A0675DE6C5DC44B6DAB4A5D2A9",
+      "bytes": 376,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-mcp.receipt.txt.connect.txt"
+    },
+    {
+      "path": "Raw/office-recalc-mcp.receipt.txt.initialize.txt",
+      "sha256": "E42F8705574CBBCC7D07EC263C75BB0235288BE14CCFD538BBE1A736B96A048E",
+      "bytes": 218,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-mcp.receipt.txt.initialize.txt"
+    },
+    {
+      "path": "Raw/office-recalc-mcp.receipt.txt.schema.txt",
+      "sha256": "BAB23054D96BE9AE9447A4CF3820CF4F026E12BCF8F43A7A258F0AB27BF4D099",
+      "bytes": 1636,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-mcp.receipt.txt.schema.txt"
+    },
+    {
+      "path": "Raw/office-recalc-mcp.receipt.txt.stderr.txt",
+      "sha256": "A701A06D021B5CBB648B7B5DBC6F0FBB85536BA44AEA3DB165B2C40997368256",
+      "bytes": 924,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-mcp.receipt.txt.stderr.txt"
+    },
+    {
+      "path": "Raw/office-recalc-process.receipt.txt",
+      "sha256": "04BB86C626F8D2095B818CBFA408B3004AB3EE0A8100975D20C986BA14C0F389",
+      "bytes": 275,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc-process.receipt.txt"
+    },
+    {
+      "path": "Raw/office-recalc.arguments.txt",
+      "sha256": "B7491A8190DD46DB3FBC22434E62393178E71A04E0EB844F029B843D628D35F3",
+      "bytes": 5164,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc.arguments.txt"
+    },
+    {
+      "path": "Raw/project-root.arguments.txt",
+      "sha256": "DCF06D0FF762A8F7E14DE6A776D3733CEEB0283223251A2CB24954CE08695DAA",
+      "bytes": 16,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.arguments.txt"
+    },
+    {
+      "path": "Raw/project-root.receipt.txt",
+      "sha256": "EC07C8FAF1D3EF3C1EF2C0CFCE7099B135BC1F397F2F903AB24083A7DD81B51D",
+      "bytes": 422,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.receipt.txt"
+    },
+    {
+      "path": "Raw/project-root.receipt.txt.connect.txt",
+      "sha256": "11C1518C43BA5C01596AAF47ACB0D96F02AE64A0675DE6C5DC44B6DAB4A5D2A9",
+      "bytes": 376,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.receipt.txt.connect.txt"
+    },
+    {
+      "path": "Raw/project-root.receipt.txt.initialize.txt",
+      "sha256": "E42F8705574CBBCC7D07EC263C75BB0235288BE14CCFD538BBE1A736B96A048E",
+      "bytes": 218,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.receipt.txt.initialize.txt"
+    },
+    {
+      "path": "Raw/project-root.receipt.txt.schema.txt",
+      "sha256": "54BDF090A24C12A8DDB53F722C9BF1267DE797F555A7C98DB30D8C66A185DA67",
+      "bytes": 614,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.receipt.txt.schema.txt"
+    },
+    {
+      "path": "Raw/project-root.receipt.txt.stderr.txt",
+      "sha256": "7FDEDF35F58E0B73C300829ECDF083B86CAEA608CE13FB7A7B7F8C10C3ABAD1A",
+      "bytes": 924,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\project-root.receipt.txt.stderr.txt"
+    },
+    {
+      "path": "Raw/ReadRichEditRecalcEvidence.java",
+      "sha256": "87496D3FBE04279BCB54C0B812F2DBCDB9DE1B7BEA5D80CC32E1CB314E320AAD",
+      "bytes": 4951,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\ReadRichEditRecalcEvidence.java"
+    },
+    {
+      "path": "Raw/RecalcEvidenceNotes.md.receipt.txt",
+      "sha256": "28285881B165E41344CC28F0EE649A8496BB0A5CA97C5E02F456981B8D8AC21D",
+      "bytes": 2791,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\RecalcEvidenceNotes.md"
+    },
+    {
+      "path": "Raw/registered-tools.receipt.txt",
+      "sha256": "28CAD33EE4AF8BB3A4F42C2934E960C5C43E1ABDC2AA452B5798F30D1C0A4B20",
+      "bytes": 136121,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\registered-tools.receipt.txt"
+    },
+    {
+      "path": "Raw/selected-schemas.receipt.txt",
+      "sha256": "147D78687FBFAF12B875A0F1640DEF2A451D2ED8C9DBE083D64C3CA48DF14714",
+      "bytes": 11350,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\selected-schemas.receipt.txt"
+    },
+    {
+      "path": "Raw/office-recalc/1800040b0.c",
+      "sha256": "C3AB395855665C202D57B2E6DD4EB8D8C9C25587E202DEBFD6EC9AA7A0E3F314",
+      "bytes": 1056,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\1800040b0.c"
+    },
+    {
+      "path": "Raw/office-recalc/18003df50.c",
+      "sha256": "05EA3B3D6D7B660EE449E46546B8E593C7258283D1B263A9ECACB34F183EBA91",
+      "bytes": 13252,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\18003df50.c"
+    },
+    {
+      "path": "Raw/office-recalc/180040810.c",
+      "sha256": "47CD891F096623954FED60A93EBFAFF4AE0BC3DD5B8B1AD2C0FA2144BAF74413",
+      "bytes": 2577,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\180040810.c"
+    },
+    {
+      "path": "Raw/office-recalc/180040990.c",
+      "sha256": "E81877BC33F3A0807EFA895D8C4186FB638866C57456CC777CAB69EBF21BE171",
+      "bytes": 3494,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\180040990.c"
+    },
+    {
+      "path": "Raw/office-recalc/180041280.c",
+      "sha256": "D4CE73666C084304286859F5B2EF763C07712ADA78D7715715CC0BCA557C05EE",
+      "bytes": 13330,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\180041280.c"
+    },
+    {
+      "path": "Raw/office-recalc/180045170.c",
+      "sha256": "1B2CD0F89066F59735E821A8F36BF82782F369730B4B2AAEB6EDAEF6D29C13FC",
+      "bytes": 1600,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\180045170.c"
+    },
+    {
+      "path": "Raw/office-recalc/inventory.receipt.txt",
+      "sha256": "C6ED12E7F68D77608A156D23E6B9FCE9D474B7D26D8DE9DF42D7E39D0BC569D6",
+      "bytes": 1991,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\office-recalc\\inventory.receipt.txt"
+    },
+    {
+      "path": "Raw/__pycache__/McpSession.cpython-314.pyc",
+      "sha256": "8BE22EC0BE91E77EED207FC5AA38E604EE80485EDA91395EB6E6468BA9623D61",
+      "bytes": 2487,
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\__pycache__\\McpSession.cpython-314.pyc"
+    },
+    {
+      "path": "OriginalReference/dll-versions.receipt.txt",
+      "sha256": "BE42F94904EA670BA4955B473CF05113250D510DADF8F314F09FB4B84624BA51",
+      "bytes": 1069,
+      "source": "Z:\\src\\richedit\\reference\\dll-versions.json"
+    },
+    {
+      "path": "OriginalReference/saved-project-verification.tsv",
+      "sha256": "849B7F0B947FB819CA35DAB65087D891C4A979D16C2F658AE88070F033A32249",
+      "bytes": 491,
+      "source": "Z:\\src\\richedit\\reference\\saved-project-verification.tsv"
+    },
+    {
+      "path": "Closeout/negative-seal.log",
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\negative-seal.log",
+      "bytes": 356,
+      "sha256": "8859C62DCFC850032AA626EEAC461BF62A75C959119925E0A873D1F5D4852903"
+    },
+    {
+      "path": "Closeout/negative-seal.receipt.txt",
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-ghidra-mcp-session-20261018\\negative-seal.receipt.txt",
+      "bytes": 256,
+      "sha256": "24E31DEB53B3855885D6497A27B1C3DFAE474EB8A5B95782B95880F48C63E7F3"
+    }
+  ],
+  "classification": "actual-ghidra-mcp-read-only-office-recalculation-evidence"
+}

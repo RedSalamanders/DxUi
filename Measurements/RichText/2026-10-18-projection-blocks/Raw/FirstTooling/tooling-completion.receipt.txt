@@ -1,0 +1,14 @@
+{
+  "elapsedSeconds": 269.0895612,
+  "attempted": 1,
+  "results": [
+    {
+      "exitCode": 1,
+      "step": "validation-full",
+      "drained": true,
+      "processId": 68888,
+      "timedOut": false
+    }
+  ],
+  "scheduled": 2
+}

@@ -30,7 +30,10 @@ namespace
 class Builder
 {
 public:
-    Projection result;
+    explicit Builder(Projection& projection) noexcept : result(projection)
+    {
+    }
+    Projection& result;
     void Hide(std::size_t first, std::size_t last)
     {
         for (auto i = first; i <= last; ++i)
@@ -102,14 +105,12 @@ public:
         }
     }
 };
-} // namespace
-Projection Project(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
+void FillProjection(Projection& result, std::wstring&& text, std::uint64_t revision, ViewMode mode)
 {
     if (mode != ViewMode::Source && mode != ViewMode::Rich)
         throw std::invalid_argument("Unknown rich-text view mode");
-    Builder builder;
-    auto& result  = builder.result;
-    result.source = source.Text();
+    Builder builder(result);
+    result.source = std::move(text);
     result.sourceToDisplay.resize(result.source.size() + 1);
     result.revision = revision;
     result.mode     = mode;
@@ -152,8 +153,218 @@ Projection Project(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
             first = end;
         }
     }
-    return std::move(result);
 }
+// Use throwing size constructors for Debug STL proxy failures. Block preparation
+// copies this empty value into owned staging, then fills it directly: no complete
+// source/display/mapping payload is moved or copied into another Projection.
+Projection MakeEmptyProjection()
+{
+    return {std::wstring(0u, L'\0'),
+            std::wstring(0u, L'\0'),
+            std::vector<std::size_t>(0u),
+            std::vector<SourceUnit>(0u),
+            std::vector<StyleRun>(0u),
+            0u,
+            ViewMode::Source};
+}
+std::shared_ptr<const Projection> ProjectBlock(std::wstring&& text, ViewMode mode)
+{
+    const auto empty = MakeEmptyProjection();
+    auto staged      = std::make_shared<Projection>(empty);
+    FillProjection(*staged, std::move(text), 0u, mode);
+    return staged;
+}
+} // namespace
+Projection Project(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
+{
+    auto result = MakeEmptyProjection();
+    FillProjection(result, source.Text(), revision, mode);
+    return result;
+}
+struct PreparedProjection::State
+{
+    State() : blocks(0u)
+    {
+    }
+    SourceSnapshot source;
+    std::vector<ProjectionBlock> blocks;
+    std::size_t displayLength{};
+    std::uint64_t revision{};
+    ViewMode mode = ViewMode::Source;
+    ProjectionPreparation last{};
+};
+PreparedProjection::PreparedProjection() noexcept                                = default;
+PreparedProjection::~PreparedProjection() noexcept                               = default;
+PreparedProjection::PreparedProjection(PreparedProjection&&) noexcept            = default;
+PreparedProjection& PreparedProjection::operator=(PreparedProjection&&) noexcept = default;
+bool PreparedProjection::Ready() const noexcept
+{
+    return static_cast<bool>(state_);
+}
+std::uint64_t PreparedProjection::Revision() const noexcept
+{
+    return state_ ? state_->revision : 0u;
+}
+ViewMode PreparedProjection::Mode() const noexcept
+{
+    return state_ ? state_->mode : ViewMode::Source;
+}
+std::size_t PreparedProjection::SourceLength() const noexcept
+{
+    return state_ ? state_->source.Length() : 0u;
+}
+std::size_t PreparedProjection::DisplayLength() const noexcept
+{
+    return state_ ? state_->displayLength : 0u;
+}
+ProjectionPreparation PreparedProjection::LastPreparation() const noexcept
+{
+    return state_ ? state_->last : ProjectionPreparation{};
+}
+const std::vector<ProjectionBlock>& PreparedProjection::Blocks() const
+{
+    if (! state_)
+        throw std::logic_error("Projection has not been prepared");
+    return state_->blocks;
+}
+void PreparedProjection::Clear() noexcept
+{
+    state_.reset();
+}
+void PreparedProjection::Prepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
+{
+    if (mode != ViewMode::Source && mode != ViewMode::Rich)
+        throw std::invalid_argument("Unknown rich-text view mode");
+    const auto change = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
+    if (state_ && state_->mode == mode && change.kind == SourceChangeKind::Unchanged)
+    {
+        state_->source   = std::move(source);
+        state_->revision = revision;
+        state_->last     = {0u, state_->blocks.size(), 0u};
+        return;
+    }
+    auto next         = std::make_unique<State>();
+    next->source      = source;
+    next->revision    = revision;
+    next->mode        = mode;
+    std::size_t first = 0u, last = state_ ? state_->blocks.size() : 0u;
+    std::size_t sourceBegin = 0u, sourceEnd = source.Length();
+    if (state_ && state_->mode == mode && change.kind == SourceChangeKind::TrackedEdits)
+    {
+        const auto containing = [&](std::size_t offset)
+        {
+            const auto found = std::upper_bound(state_->blocks.begin(), state_->blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) {
+                return position < block.sourceStart;
+            });
+            return found == state_->blocks.begin() ? 0u : static_cast<std::size_t>(found - state_->blocks.begin() - 1);
+        };
+        first = containing(change.begin);
+        if (first)
+            --first;
+        last              = std::min(state_->blocks.size(), containing(change.previousEnd) + 2u);
+        sourceBegin       = state_->blocks[first].sourceStart;
+        const auto oldEnd = last < state_->blocks.size() ? state_->blocks[last].sourceStart : state_->source.Length();
+        sourceEnd         = source.Length() - (state_->source.Length() - oldEnd);
+        // The context consists of whole physical lines and one neighbor on
+        // either side. A future grammar with spanning blocks needs its own
+        // semantic widening rule; it cannot reuse this v0 rule unchanged.
+        if (! source.IsBoundary(sourceBegin) || ! source.IsBoundary(sourceEnd))
+        {
+            first       = 0u;
+            last        = state_->blocks.size();
+            sourceBegin = 0u;
+            sourceEnd   = source.Length();
+        }
+    }
+    if (state_)
+        next->blocks.insert(next->blocks.end(), state_->blocks.begin(), state_->blocks.begin() + static_cast<std::ptrdiff_t>(first));
+    next->last.reusedBlocks       = first;
+    next->last.rebuiltSourceUnits = sourceEnd - sourceBegin;
+    const auto changedText        = source.Slice(sourceBegin, sourceEnd);
+    std::size_t begin             = 0u;
+    while (begin < changedText.size())
+    {
+        auto end = changedText.find_first_of(L"\r\n", begin);
+        if (end == std::wstring::npos)
+            end = changedText.size();
+        else
+        {
+            ++end;
+            if (changedText[end - 1u] == L'\r' && end < changedText.size() && changedText[end] == L'\n')
+                ++end;
+        }
+        const auto line = std::wstring_view(changedText).substr(begin, end - begin);
+        std::shared_ptr<const Projection> content;
+        // Repeated adjacent physical lines have identical v0 context. Share the
+        // immutable local payload, especially for the maximum all-newline case.
+        // Statistics count rebuilt block slots/source units, not parser calls.
+        if (! next->blocks.empty() && next->blocks.back().content->source == line)
+            content = next->blocks.back().content;
+        else
+            content = ProjectBlock(std::wstring(line), mode);
+        next->blocks.push_back({0u, 0u, std::move(content)});
+        ++next->last.rebuiltBlocks;
+        begin = end;
+    }
+    if (state_)
+    {
+        next->blocks.insert(next->blocks.end(), state_->blocks.begin() + static_cast<std::ptrdiff_t>(last), state_->blocks.end());
+        next->last.reusedBlocks += state_->blocks.size() - last;
+    }
+    if (next->blocks.empty())
+    {
+        next->blocks.push_back({0u, 0u, ProjectBlock(std::wstring(0u, L'\0'), mode)});
+        ++next->last.rebuiltBlocks;
+    }
+    std::size_t sourceOffset = 0u;
+    for (auto& block : next->blocks)
+    {
+        block.sourceStart  = sourceOffset;
+        block.displayStart = next->displayLength;
+        sourceOffset += block.content->source.size();
+        next->displayLength += block.content->text.size();
+    }
+    if (sourceOffset != source.Length())
+        throw std::logic_error("Projection block coverage differs from source");
+    state_.swap(next);
+}
+std::size_t PreparedProjection::ToDisplay(std::size_t offset) const
+{
+    const auto& blocks = Blocks();
+    if (offset > SourceLength())
+        throw std::out_of_range("Source offset");
+    const auto end =
+        std::upper_bound(blocks.begin(), blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) { return position < block.sourceStart; });
+    const auto& block = end == blocks.begin() ? blocks.front() : *std::prev(end);
+    return block.displayStart + block.content->ToDisplay(offset - block.sourceStart);
+}
+std::size_t PreparedProjection::ToSource(std::size_t offset, bool trailing) const
+{
+    const auto& blocks = Blocks();
+    if (offset > DisplayLength())
+        throw std::out_of_range("Display offset");
+    if (! DisplayLength())
+        return SourceLength();
+    const bool useEnd    = offset == DisplayLength() || (trailing && offset > 0u);
+    const auto unitIndex = useEnd ? offset - 1u : offset;
+    const auto found     = std::upper_bound(blocks.begin(), blocks.end(), unitIndex, [](std::size_t position, const ProjectionBlock& block) {
+        return position < block.displayStart + block.content->text.size();
+    });
+    if (found == blocks.end())
+        throw std::logic_error("Projection block does not cover display unit");
+    const auto& unit = found->content->units.at(unitIndex - found->displayStart);
+    return found->sourceStart + (useEnd ? unit.end : unit.start);
+}
+std::wstring PreparedProjection::DisplayText() const
+{
+    const auto& blocks = Blocks();
+    std::wstring result;
+    result.reserve(DisplayLength());
+    for (const auto& block : blocks)
+        result += block.content->text;
+    return result;
+}
+
 bool ToggleMarker(Document& document, std::wstring_view marker)
 {
     if (marker != L"**" && marker != L"*" && marker != L"`" && marker != L"~~")

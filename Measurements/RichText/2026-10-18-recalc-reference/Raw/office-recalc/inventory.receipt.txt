@@ -1,0 +1,66 @@
+{
+  "classification": "read-only-pinned-office-recalculation-decompilation",
+  "sha256": "7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41",
+  "programPath": "/office-modern/RICHED20.DLL",
+  "imageBase": "180000000",
+  "language": "x86:LE:64:default",
+  "functions": [
+    {
+      "name": "CDisplayML::StepBackgroundRecalc",
+      "entry": "1800040b0",
+      "rva": "0x40b0",
+      "bodyBytes": 203,
+      "signature": "void __thiscall StepBackgroundRecalc(void)",
+      "warning": "",
+      "file": "1800040b0.c"
+    },
+    {
+      "name": "CDisplayML::WaitForRecalc",
+      "entry": "180040810",
+      "rva": "0x40810",
+      "bodyBytes": 380,
+      "signature": "bool __thiscall WaitForRecalc(long param_1, long param_2)",
+      "warning": "",
+      "file": "180040810.c"
+    },
+    {
+      "name": "CDisplayEngineML::WaitForRecalc",
+      "entry": "180040990",
+      "rva": "0x40990",
+      "bodyBytes": 650,
+      "signature": "bool __thiscall WaitForRecalc(long param_1, long param_2)",
+      "warning": "",
+      "file": "180040990.c"
+    },
+    {
+      "name": "CDisplayEngineML::RecalcLines",
+      "entry": "18003df50",
+      "rva": "0x3df50",
+      "bodyBytes": 2185,
+      "signature": "bool __thiscall RecalcLines(CRchTxtPtr * param_1, bool param_2)",
+      "warning": "",
+      "file": "18003df50.c"
+    },
+    {
+      "name": "CDisplayML::RecalcView",
+      "entry": "180041280",
+      "rva": "0x41280",
+      "bodyBytes": 2418,
+      "signature": "bool __thiscall RecalcView(bool param_1, CViewRect * param_2, RECTUV * param_3)",
+      "warning": "",
+      "file": "180041280.c"
+    },
+    {
+      "name": "CDisplay::InvalidateRecalc",
+      "entry": "180045170",
+      "rva": "0x45170",
+      "bodyBytes": 217,
+      "signature": "void __thiscall InvalidateRecalc(bool param_1)",
+      "warning": "",
+      "file": "180045170.c"
+    }
+  ],
+  "programChanged": false,
+  "activeBefore": "/windows-edit/user32.dll",
+  "activeAfter": "/windows-edit/user32.dll"
+}

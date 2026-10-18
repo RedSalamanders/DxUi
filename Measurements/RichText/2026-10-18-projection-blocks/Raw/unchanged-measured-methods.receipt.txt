@@ -1,0 +1,12 @@
+[
+  {
+    "method": "TestRichProjectionBlockFixedTrials",
+    "sha256": "D191088D5DD6962320F376221580817EE1B0FCDDA4083CC31D3BF3B6E5BBDC09",
+    "file": "Tests/Controls/Scope.Tests.RichProjectionBlocks.cpp"
+  },
+  {
+    "method": "TestRichProjectionWholeSourceFixedTrials",
+    "sha256": "AA643287154189CD28334D6E60ABB3BBD648022E0158517B7F7104F4EC014C8F",
+    "file": "Tests/Controls/Scope.Tests.RichProjectionBlocks.cpp"
+  }
+]

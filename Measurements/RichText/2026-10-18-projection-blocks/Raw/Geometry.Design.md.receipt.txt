@@ -1,0 +1,96 @@
+# Next geometry investigation (inactive)
+
+PreparedProjection is a physical-line v0 support service, not the complete D2a
+control/scheduler change. First qualify exact source/display units and affinities,
+all styles, failure atomicity and original whole/block timing methods. Avoid
+repeated six-profile matrices for every internal microstep when a coherent D2a
+slice can be qualified together; affected Release checks still precede changes.
+Do not reuse old receipts under changed source/dependency/artifact identities.
+
+Review PreparedLayout::Content/Clear before adapting it. A shared immutable
+Projection overload can avoid copying block payloads; default/retired Content
+must preserve its existing noexcept behavior without first-use static allocation.
+An explicitly fallible constructor can initialize an always-empty fallback via
+throwing size construction. Keep new fault-injection paths out of Debug STL
+noexcept default/move constructors. Existing LayoutOptions validation, atomic
+publication, source affinity and Unicode cluster/deletion behavior stay canonical.
+
+One DirectWrite layout per physical block has a phantom final empty line when
+the block ends in LF. Cache exact line metrics and subtract only that terminal
+line for nonfinal blocks. The actual last block includes the terminal line. A
+hidden-only final source block (e.g. '# ') has empty display text and supplies the
+same final empty-line geometry as the whole projection. Caret at global display
+end must choose that final block; trailing/leading source affinities still follow
+the projected display units, not an arbitrary block source endpoint.
+
+Compare against the existing full layout before control integration: caret/range,
+hit tests, wrapped lines, visible ranges, Unicode, mixed heading sizes, bidi,
+CR/LF/CRLF, U+2028/U+2029, trailing newline and hidden final content. Check long
+documents for cumulative floating point baseline drift, not only short samples.
+Raster comparisons must retain source/options/artifacts and explain any accepted
+difference; never loosen an existing golden merely to match new output.
+
+Maximum source is 65,536 units/physical blocks. A separate DWrite layout per
+identical newline would waste enormous storage. Plan bounded host-owned immutable
+projection/geometry interning and reuse common empty/newline layouts, with exact
+content/style/font/width/direction/locale/factory keys. Reuse existing internal
+cache helpers where applicable (Grid's FindTextLayoutEntry is a candidate to
+inspect, not an already shared host service). Bound entries, bytes and replacement
+peaks; released/hidden control references and device/host/font changes have clear
+ownership. No generic mutable global source cache or per-control worker/timer.
+
+The prefix source/display/height index is initially linear in physical line
+count. Do not claim logarithmic or large-file preparation. Shared/cooperative host
+jobs need latest source revision AND snapshot identity, binding/lifetime tokens,
+cancellation and atomic source/geometry publication. Equal numeric revisions can
+belong to sibling sources. Input/UIA/scroll must reject stale geometry while a
+replacement is pending; keep current TSF no-layout conventions. Raster remains
+owner-thread preparation; composition performs no layout/allocation/I/O/wait.
+Read primary DirectWrite threading contracts before choosing worker ownership.
+
+Primary documentation checked 2026-10-18: [IDWriteTextFormat](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nn-dwrite-idwritetextformat)
+states "This object may not be thread-safe". [IDWriteTextLayout](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nn-dwrite-idwritetextlayout)
+inherits that interface. Do not infer mutable layout/format thread safety merely
+from DWRITE_FACTORY_TYPE_SHARED. Keep graphics/text geometry on the existing
+owner path until a more specific threading contract is proved; pure immutable
+projection jobs are a separate scheduling choice.
+
+Current GraphicsDevice::State records its owner thread and creates a
+single-threaded D2D factory plus shared DWrite factory. Embedded views borrow
+those exact pooled resources; Attach/Prepare enforce the owner. EmbeddedCallbacks
+already supplies requestPreparation; do not introduce per-control workers/timers.
+Source files: include/DxUi/Embedded.h, src/Rendering/Embedded.cpp, and ControlHost
+in include/DxUi/DxUi.h. A future shared paragraph pool can live with the existing
+GraphicsDevice for two embedded views; native ControlHost needs explicit ownership.
+
+Actual retained-control integration needs native/embedded behavior and resource
+tests, a before/candidate control preparation study and all required final native,
+cross-build, tooling and formatting gates. Shared preparation, full Markdown and
+physical IME/AT are not closed by a passing pure projection helper.
+
+## Concrete hazards for the next code slice
+
+- PreparedProjection currently deletes copying. Joint source+geometry staging
+  needs a fork/copy of the prior immutable block state (a fallible copy of the
+  prefix vector can share every payload). Never update the published projection
+  first and then attempt fallible DWrite creation against old geometry.
+- PreparedLayout::Clear currently assigns projection_ = {} inside noexcept; Debug
+  STL default proxies can allocate there. Add a Clear-under-failure-zero/no-C++-
+  allocation test when refactoring layout. Keep Content() noexcept after retirement
+  without a first-use allocating static. A safely constructed empty fallback plus
+  shared immutable active projection can preserve that contract; initialize any
+  string/vector fallback through throwing size construction. Avoid moving a
+  Projection rvalue into make_shared under fault injection. Empty-copy construction
+  followed by nonallocating move assignment is another staging option to verify.
+- A bounded LRU alone does not bound geometry if each prepared document holds
+  all 32,768 unique paragraph COM layouts. Explicitly budget live per-view refs,
+  offscreen metrics and replacement peaks; measure the complete retained graph.
+- The block support service's initial sample is slower than flat Project despite
+  greatly reduced edited work. Keep an actual retained-control baseline before
+  integration; do not credit a helper microbenchmark with overall UI improvement.
+
+Fresh actual MCP evidence now exists in the separate read-only Office recalculation
+collection (RVA 0x45170 invalidation/cache clearing, 0x40b0 stepping, 0x40810 and
+0x40990 required recalculation, 0x3df50 lines, 0x41280 viewport). See the reviewed
+recalc-reference packet and its uncertainties. Adapt ownership/host scheduling;
+Office's TxKillTimer(0x1af) is not permission to create per-control timers here.

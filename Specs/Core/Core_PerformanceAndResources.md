@@ -470,6 +470,18 @@ bounded queries use stack storage and request zero C++ bytes. The 512-query /
 storage, with no undo/redo and zero tracked delta after destruction. The existing
 4 MiB fragmented-source/history limit remains fixed. Sweep page-rollover failures
 and retain metadata overhead/timing observations without changing acceptance policy.
+PreparedProjection must reuse immutable unchanged outer line blocks and avoid
+whole-source flattening during tracked edits. Its source/display prefix rebuild
+is linear in bounded physical-line count. Four complete mapping sweeps over the
+512-line fixture, including unchanged preparation, must request zero C++ bytes.
+The 1,024-line / 512-edit projection+source/history fixture retains at most 4 MiB;
+the 65,536-newline and 32,768-unique-line maximum-source fixtures each retain at
+most 16 MiB. Every fixture releases its tracked delta to zero. Share adjacent
+equal line payloads. Sweep each observed changed-preparation allocation failure
+and prove complete prior-state preservation and a successful retry. Measure
+initial and edit preparation separately, retain full-projection comparisons and
+original failures; these supporting-core checks do not qualify retained geometry,
+shared scheduling, composition or completed-frame performance acceptance.
 The fixed fragmented-lookup trials are descriptive test diagnostics, separate from
 the canonical completed-frame fixture and its unresolved acceptance policy.
 
@@ -592,3 +604,10 @@ smaller selection more slowly than the scan would, a model that keeps the room o
 `PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
 budget. The
 [paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.
+
+Rich snapshot slicing must propagate allocation failure rather than terminate in
+Debug STL proxy construction. Sweep every observed long-slice allocation and
+preserve the captured source, document revision and histories. The isolated
+allocation diagnostics install a terminate handler only in their explicit child;
+normal suites and canonical benchmark dispatch never install it. Retain the
+original failure separately from successful final sweeps and build qualification.

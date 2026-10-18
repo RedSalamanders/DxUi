@@ -1,0 +1,5 @@
+label	sha256	all_functions	listed_functions	external_functions	CreateTextServices_decompiled
+windows-modern	490d872e894935df2df5f7f2b9b9bc6b00b91e74412be2af55714b301ef3e3ef	9850	9424	426	true
+office-modern	7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41	10237	9706	531	true
+windows-legacy	fcd26c6b952a08ea613738be36bb16dc2b5907e47af1b5fe2c0d3323c67f3ac6	1797	1797	0	true
+notepad-private	e7babd9942e133c690b4144657956af890912d130f81a81650f3a5597b5e5dbc	8826	8826	0	true
