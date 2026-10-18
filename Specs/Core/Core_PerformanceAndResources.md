@@ -448,11 +448,20 @@ at most 4 KiB of C++ allocation requests, excluding caller-owned input. Exact
 three-byte BMP and supplementary-scalar limits must still decode. These bounds
 do not raise capacity or claim to measure Windows/CRT-internal allocations.
 
-RichDocument's bounded immutable snapshots use cumulative piece ends for O(log P)
-offset lookup and O(log P + K) traversal of K intersecting pieces. Cumulative ends
-reuse the previous length field, without additional per-piece storage or a
-separate index allocation. Reads retain no mutable lookup cache. Edits still copy
-descriptors; Text/projection/layout still materialize the complete bounded source.
+RichDocument's bounded immutable snapshots use a persistent balanced piece tree
+for O(log P) offset lookup and O(log P + K) traversal of K intersecting pieces.
+Immutable nodes use cumulative piece/child ends, fanout at most 32 and at least
+16 entries outside the root. Edits copy boundary paths and retain untouched
+subtrees/buffers; fixed staging arrays handle split/merge without temporary heap
+containers. Reads retain no mutable lookup cache. Text/projection/layout still
+materialize the complete bounded source.
+A fixed 8,192-unit seed plus 4,096 interleaved single-unit edits, including the
+capped 128-entry history, must retain at most 4 MiB of tracked C++ storage and
+release that tracked delta on destruction. A caller-prepared same-content
+replacement must request zero C++ allocations/bytes and preserve both histories.
+These measure the C++ override, not Windows/CRT-internal storage. Sweep every
+observed allocation point of changed source/history operations to verify failure
+atomicity. Retain before failures and fixed edit/read/single-step timings.
 The fixed fragmented-lookup trials are descriptive test diagnostics, separate from
 the canonical completed-frame fixture and its unresolved acceptance policy.
 

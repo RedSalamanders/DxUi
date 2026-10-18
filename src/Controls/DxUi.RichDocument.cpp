@@ -1,19 +1,20 @@
+#include "DxUi.TextElements.h"
 #include <DxUi/RichDocument.h>
+#include <array>
 #include <limits>
+#include <optional>
+#include <span>
 #include <stdexcept>
+#include <variant>
 #include <windows.h>
 
 namespace DxUi::RichText
 {
 namespace
 {
-bool High(wchar_t c) noexcept
+bool IsEditJoinAllowed(wchar_t before, wchar_t after) noexcept
 {
-    return c >= 0xd800 && c <= 0xdbff;
-}
-bool Low(wchar_t c) noexcept
-{
-    return c >= 0xdc00 && c <= 0xdfff;
+    return ! (IsUtf16LeadSurrogate(before) && IsUtf16TrailSurrogate(after)) && ! (before == L'\r' && after == L'\n');
 }
 void Validate(std::wstring_view text)
 {
@@ -27,12 +28,12 @@ bool IsValidUtf16(std::wstring_view text) noexcept
 {
     for (std::size_t i = 0; i < text.size(); ++i)
     {
-        if (High(text[i]))
+        if (IsUtf16LeadSurrogate(text[i]))
         {
-            if (++i == text.size() || ! Low(text[i]))
+            if (++i == text.size() || ! IsUtf16TrailSurrogate(text[i]))
                 return false;
         }
-        else if (Low(text[i]) || text[i] == L'\0')
+        else if (IsUtf16TrailSurrogate(text[i]) || text[i] == L'\0')
             return false;
     }
     return true;
@@ -43,7 +44,7 @@ bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
         return false;
     if (offset == 0 || offset == text.size())
         return true;
-    return ! (High(text[offset - 1]) && Low(text[offset])) && ! (text[offset - 1] == L'\r' && text[offset] == L'\n');
+    return IsEditJoinAllowed(text[offset - 1], text[offset]);
 }
 std::wstring DecodeUtf8(std::string_view bytes)
 {
@@ -77,41 +78,274 @@ std::string EncodeUtf8(std::wstring_view text)
         throw std::runtime_error("UTF-16 conversion failed");
     return bytes;
 }
-SourceSnapshot::SourceSnapshot() : state_(std::make_shared<State>())
+struct SourceSnapshot::PieceTreeNode
 {
-}
+    // Immutable B+ tree. Every non-root node has 16..32 entries; only the root
+    // may be smaller. Exclusive cumulative ends index either pieces or children.
+    // A splice copies the two boundary paths and reuses unaffected subtrees.
+    using Pointer                          = std::shared_ptr<const PieceTreeNode>;
+    static constexpr size_t MaximumEntries = 32u, MinimumEntries = MaximumEntries / 2u;
+    struct Fragment
+    {
+        std::shared_ptr<const std::wstring> buffer;
+        size_t bufferStart{}, length{};
+    };
+    struct Piece
+    {
+        std::shared_ptr<const std::wstring> buffer;
+        size_t bufferStart{}, sourceEnd{};
+    };
+    struct Child
+    {
+        Pointer node;
+        size_t sourceEnd{};
+    };
+    using Leaves   = std::array<Piece, MaximumEntries>;
+    using Branches = std::array<Child, MaximumEntries>;
+    struct SpliceResult
+    {
+        Pointer first, second;
+    };
+    std::variant<Leaves, Branches> entries;
+    size_t length{}, count{}, height{};
+
+    explicit PieceTreeNode(std::span<const Fragment> fragments) : entries(Leaves{}), count(fragments.size())
+    {
+        auto& pieces = std::get<Leaves>(entries);
+        for (size_t index = 0u; index < count; ++index)
+        {
+            length += fragments[index].length;
+            pieces[index] = {fragments[index].buffer, fragments[index].bufferStart, length};
+        }
+    }
+    explicit PieceTreeNode(std::span<const Pointer> children) : entries(Branches{}), count(children.size()), height(children.front()->height + 1u)
+    {
+        auto& branches = std::get<Branches>(entries);
+        for (size_t index = 0u; index < count; ++index)
+        {
+            length += children[index]->length;
+            branches[index] = {children[index], length};
+        }
+    }
+    size_t EntryEnd(size_t index) const noexcept
+    {
+        return height ? std::get<Branches>(entries)[index].sourceEnd : std::get<Leaves>(entries)[index].sourceEnd;
+    }
+    size_t EntryStart(size_t index) const noexcept
+    {
+        return index ? EntryEnd(index - 1u) : 0u;
+    }
+    size_t FindEntry(size_t offset) const noexcept
+    {
+        size_t first = 0u, last = count;
+        while (first < last)
+        {
+            const auto middle = first + (last - first) / 2u;
+            if (EntryEnd(middle) <= offset)
+                first = middle + 1u;
+            else
+                last = middle;
+        }
+        return first;
+    }
+    Fragment GetFragment(size_t index) const noexcept
+    {
+        const auto& piece = std::get<Leaves>(entries)[index];
+        return {piece.buffer, piece.bufferStart, piece.sourceEnd - EntryStart(index)};
+    }
+    static void AppendCoalesced(std::array<Fragment, MaximumEntries * 2u + 2u>& fragments, size_t& used, Fragment fragment)
+    {
+        if (! fragment.length)
+            return;
+        if (used && fragments[used - 1u].buffer == fragment.buffer && fragments[used - 1u].bufferStart + fragments[used - 1u].length == fragment.bufferStart)
+            fragments[used - 1u].length += fragment.length;
+        else
+            fragments[used++] = std::move(fragment);
+    }
+    static SpliceResult BuildLeaves(std::span<const Fragment> fragments)
+    {
+        if (fragments.empty())
+            return {};
+        if (fragments.size() <= MaximumEntries)
+            return {std::make_shared<const PieceTreeNode>(fragments), {}};
+        const auto split = fragments.size() / 2u;
+        return {std::make_shared<const PieceTreeNode>(fragments.first(split)), std::make_shared<const PieceTreeNode>(fragments.subspan(split))};
+    }
+    static SpliceResult RebalanceSiblings(const Pointer& left, const Pointer& right)
+    {
+        if (! left->height)
+        {
+            std::array<Fragment, MaximumEntries * 2u + 2u> fragments;
+            size_t used = 0u;
+            for (const auto* node : {left.get(), right.get()})
+                for (size_t index = 0u; index < node->count; ++index)
+                    AppendCoalesced(fragments, used, node->GetFragment(index));
+            return BuildLeaves({fragments.data(), used});
+        }
+        std::array<Pointer, MaximumEntries * 2u + 2u> children;
+        size_t used = 0u;
+        for (const auto* node : {left.get(), right.get()})
+            for (size_t index = 0u; index < node->count; ++index)
+                children[used++] = std::get<Branches>(node->entries)[index].node;
+        // A boundary split can leave a one-child chain. Normalize the lower
+        // level while merging its parents, rather than retaining an underfull
+        // descendant inside an otherwise full new branch.
+        return BuildBranches(children, used);
+    }
+    static SpliceResult BuildBranches(std::array<Pointer, MaximumEntries * 2u + 2u>& children, size_t used)
+    {
+        // Deletion may thin either boundary path. Merge/redistribute adjacent
+        // siblings before publishing their parent, including lower-level chains.
+        for (size_t index = 0u; used > 1u && index < used;)
+        {
+            if (children[index]->count >= MinimumEntries)
+            {
+                ++index;
+                continue;
+            }
+            const auto left   = index ? index - 1u : 0u;
+            const auto merged = RebalanceSiblings(children[left], children[left + 1u]);
+            children[left]    = merged.first;
+            if (merged.second)
+                children[left + 1u] = merged.second;
+            else
+            {
+                for (size_t move = left + 1u; move + 1u < used; ++move)
+                    children[move] = std::move(children[move + 1u]);
+                children[--used].reset();
+            }
+            index = left;
+        }
+        if (! used)
+            return {};
+        if (used <= MaximumEntries)
+            return {std::make_shared<const PieceTreeNode>(std::span<const Pointer>(children.data(), used)), {}};
+        const auto split = used / 2u;
+        return {std::make_shared<const PieceTreeNode>(std::span<const Pointer>(children.data(), split)),
+                std::make_shared<const PieceTreeNode>(std::span<const Pointer>(children.data() + split, used - split))};
+    }
+    static SpliceResult Splice(const Pointer& node, size_t first, size_t last, const Fragment& insertion)
+    {
+        if (! node)
+            return insertion.length ? BuildLeaves(std::span<const Fragment>(&insertion, 1u)) : SpliceResult{};
+        if (! node->height)
+        {
+            // One split piece plus an insertion needs at most 34 entries.
+            // Sibling joins can stage 64; fixed arrays cover both without a heap.
+            std::array<Fragment, MaximumEntries * 2u + 2u> fragments;
+            size_t used = 0u;
+            for (size_t index = 0u; index < node->count; ++index)
+            {
+                const auto begin = node->EntryStart(index), end = node->EntryEnd(index);
+                if (begin >= first)
+                    break;
+                auto piece   = node->GetFragment(index);
+                piece.length = std::min(first, end) - begin;
+                AppendCoalesced(fragments, used, std::move(piece));
+            }
+            AppendCoalesced(fragments, used, insertion);
+            for (auto index = node->FindEntry(last); index < node->count; ++index)
+            {
+                const auto begin = node->EntryStart(index), end = node->EntryEnd(index);
+                const auto offset = std::max(last, begin) - begin;
+                auto piece        = node->GetFragment(index);
+                piece.bufferStart += offset;
+                piece.length = end - begin - offset;
+                AppendCoalesced(fragments, used, std::move(piece));
+            }
+            return BuildLeaves({fragments.data(), used});
+        }
+        std::array<Pointer, MaximumEntries * 2u + 2u> children;
+        size_t used          = 0u;
+        const auto anchor    = first == node->length ? node->count - 1u : node->FindEntry(first);
+        const auto& branches = std::get<Branches>(node->entries);
+        for (size_t index = 0u; index < node->count; ++index)
+        {
+            const auto begin = node->EntryStart(index), end = node->EntryEnd(index);
+            if (index != anchor && (end <= first || begin >= last))
+                children[used++] = branches[index].node;
+            else if (index == anchor || first > begin || last < end)
+            {
+                const auto relativeFirst = first > begin ? std::min(first - begin, end - begin) : 0u;
+                const auto relativeLast  = last > begin ? std::min(last - begin, end - begin) : 0u;
+                const auto replacement   = Splice(branches[index].node, relativeFirst, relativeLast, index == anchor ? insertion : Fragment{});
+                if (replacement.first)
+                    children[used++] = replacement.first;
+                if (replacement.second)
+                    children[used++] = replacement.second;
+            }
+            // Fully removed middle subtrees need no traversal or new nodes.
+        }
+        return BuildBranches(children, used);
+    }
+    static Pointer ReplaceRange(const Pointer& root, size_t first, size_t last, const Fragment& insertion)
+    {
+        // Replacing the entire revision needs no surviving boundary paths.
+        // Avoid creating a temporary chain that would immediately collapse.
+        if (! root || (first == 0u && last == root->length))
+            return insertion.length ? BuildLeaves(std::span<const Fragment>(&insertion, 1u)).first : Pointer{};
+        auto result  = Splice(root, first, last, insertion);
+        Pointer next = result.first;
+        if (result.second)
+        {
+            const std::array<Pointer, 2u> children{result.first, result.second};
+            next = std::make_shared<const PieceTreeNode>(std::span<const Pointer>(children));
+        }
+        // Preserve equal heights during recursion; collapse root-only chains
+        // after the complete splice so repeated cuts cannot grow tree height.
+        while (next && next->height && next->count == 1u)
+            next = std::get<Branches>(next->entries)[0].node;
+        return next;
+    }
+    template <typename Visitor> static bool VisitRange(const PieceTreeNode* node, size_t first, size_t last, Visitor&& visitor)
+    {
+        if (first == last)
+            return true;
+        for (auto index = node->FindEntry(first); index < node->count; ++index)
+        {
+            const auto begin = node->EntryStart(index), end = node->EntryEnd(index);
+            const auto left = std::max(first, begin), right = std::min(last, end);
+            if (node->height)
+            {
+                if (! VisitRange(std::get<Branches>(node->entries)[index].node.get(), left - begin, right - begin, visitor))
+                    return false;
+            }
+            else
+            {
+                const auto& piece = std::get<Leaves>(node->entries)[index];
+                if (! visitor(std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - begin, right - left)))
+                    return false;
+            }
+            if (end >= last)
+                break;
+        }
+        return true;
+    }
+};
+
+SourceSnapshot::SourceSnapshot() = default;
 std::size_t SourceSnapshot::Length() const noexcept
 {
-    return state_->length;
+    return state_ ? state_->length : 0u;
 }
 std::wstring SourceSnapshot::Text() const
 {
-    std::wstring text;
-    text.reserve(state_->length);
-    std::size_t sourceStart = 0;
-    for (const auto& piece : state_->pieces)
-    {
-        text.append(*piece.buffer, piece.bufferStart, piece.sourceEnd - sourceStart);
-        sourceStart = piece.sourceEnd;
-    }
-    return text;
-}
-std::size_t SourceSnapshot::FindPieceIndex(std::size_t offset) const noexcept
-{
-    // Ends are strictly increasing, including after splitting/coalescing. An
-    // offset equal to a piece's exclusive end belongs to the following piece.
-    const auto found = std::upper_bound(
-        state_->pieces.begin(), state_->pieces.end(), offset, [](std::size_t position, const Piece& piece) noexcept { return position < piece.sourceEnd; });
-    return static_cast<std::size_t>(found - state_->pieces.begin());
+    return Slice(0u, Length());
 }
 wchar_t SourceSnapshot::CharacterAt(std::size_t offset) const noexcept
 {
-    const auto index = FindPieceIndex(offset);
-    if (index == state_->pieces.size())
-        return L'\0'; // Only valid offsets are queried by IsBoundary.
-    const auto& piece      = state_->pieces[index];
-    const auto sourceStart = index ? state_->pieces[index - 1].sourceEnd : 0;
-    return (*piece.buffer)[piece.bufferStart + offset - sourceStart];
+    auto* node = state_.get();
+    if (! node || offset >= node->length)
+        return L'\0';
+    while (node->height)
+    {
+        const auto index = node->FindEntry(offset);
+        offset -= node->EntryStart(index);
+        node = std::get<PieceTreeNode::Branches>(node->entries)[index].node.get();
+    }
+    const auto index  = node->FindEntry(offset);
+    const auto& piece = std::get<PieceTreeNode::Leaves>(node->entries)[index];
+    return (*piece.buffer)[piece.bufferStart + offset - node->EntryStart(index)];
 }
 bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
 {
@@ -119,8 +353,7 @@ bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
         return false;
     if (! offset || offset == Length())
         return true;
-    const auto before = CharacterAt(offset - 1), after = CharacterAt(offset);
-    return ! (High(before) && Low(after)) && ! (before == L'\r' && after == L'\n');
+    return IsEditJoinAllowed(CharacterAt(offset - 1u), CharacterAt(offset));
 }
 std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
 {
@@ -128,32 +361,31 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
         throw std::out_of_range("Invalid snapshot slice");
     std::wstring result;
     result.reserve(last - first);
-    if (first == last)
-        return result;
-    for (auto index = FindPieceIndex(first); index < state_->pieces.size(); ++index)
+    PieceTreeNode::VisitRange(state_.get(),
+                              first,
+                              last,
+                              [&](std::wstring_view fragment)
     {
-        const auto& piece      = state_->pieces[index];
-        const auto sourceStart = index ? state_->pieces[index - 1].sourceEnd : 0;
-        const auto left = std::max(first, sourceStart), right = std::min(last, piece.sourceEnd);
-        if (left < right)
-            result.append(*piece.buffer, piece.bufferStart + left - sourceStart, right - left);
-        if (piece.sourceEnd >= last)
-            break;
-    }
+        result.append(fragment);
+        return true;
+    });
     return result;
 }
-Document::Document(std::wstring text)
+Document::Document(std::wstring_view text)
 {
-    Reset(std::move(text));
+    Reset(text);
 }
-void Document::Reset(std::wstring text)
+void Document::Reset(std::wstring_view text)
 {
     Validate(text);
-    auto next    = std::make_shared<SourceSnapshot::State>();
-    next->length = text.size();
+    SourceSnapshot next;
     if (! text.empty())
-        next->pieces.push_back({std::make_shared<const std::wstring>(std::move(text)), 0, next->length});
-    source_    = SourceSnapshot(std::move(next));
+    {
+        auto buffer = std::make_shared<const std::wstring>(text);
+        const SourceSnapshot::PieceTreeNode::Fragment fragment{buffer, 0u, buffer->size()};
+        next.state_ = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
+    }
+    source_    = std::move(next);
     selection_ = {};
     undo_.clear();
     redo_.clear();
@@ -174,15 +406,15 @@ void Document::Push(std::vector<History>& history, History entry)
         history.erase(history.begin());
     history.push_back(std::move(entry));
 }
-bool Document::Replace(std::size_t begin, std::size_t end, std::wstring text, Selection after)
+bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after)
 {
-    return ReplaceImpl(begin, end, std::move(text), after, true);
+    return ReplaceImpl(begin, end, text, after, true);
 }
-bool Document::ReplaceTransient(std::wstring text, Selection selection)
+bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
-    return ReplaceImpl(0, Length(), std::move(text), selection, false);
+    return ReplaceImpl(0, Length(), text, selection, false);
 }
-bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring text, Selection after, bool recordHistory)
+bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory)
 {
     Validate(text);
     const auto length = source_.Length();
@@ -190,99 +422,73 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring text
         throw std::out_of_range("Invalid replacement range");
     if (text.size() > MaximumUnits - (length - (end - begin)))
         throw std::length_error("Bounded rich-text source limit");
-
-    // Share immutable buffers; only descriptors and the inserted buffer are new.
-    // Boundary validation reads adjacent pieces instead of flattening old/new
-    // source strings on every keystroke. Cumulative ends index reads without an
-    // extra prefix array. Edits still copy descriptors in this bounded vector,
-    // not the future large-document tree or incremental layout implementation.
-    auto next        = std::make_shared<SourceSnapshot::State>();
-    next->length     = length - (end - begin) + text.size();
-    auto appendPiece = [&](const std::shared_ptr<const std::wstring>& buffer, std::size_t bufferStart, std::size_t count)
+    const auto resultingLength = length - (end - begin) + text.size();
+    const auto insertedEnd     = begin + text.size();
+    const auto futureCharacter = [&](size_t offset) noexcept
     {
-        const auto sourceStart = next->pieces.empty() ? 0 : next->pieces.back().sourceEnd;
-        if (! next->pieces.empty())
-        {
-            auto& previous           = next->pieces.back();
-            const auto previousStart = next->pieces.size() > 1 ? next->pieces[next->pieces.size() - 2].sourceEnd : 0;
-            if (previous.buffer == buffer && previous.bufferStart + (sourceStart - previousStart) == bufferStart)
-            {
-                previous.sourceEnd += count;
-                return;
-            }
-        }
-        next->pieces.push_back({buffer, bufferStart, sourceStart + count});
+        if (offset < begin)
+            return source_.CharacterAt(offset);
+        if (offset < insertedEnd)
+            return text[offset - begin];
+        return source_.CharacterAt(end + offset - insertedEnd);
     };
-    auto appendSlice = [&](std::size_t first, std::size_t last)
+    const auto validFutureBoundary = [&](size_t offset) noexcept
     {
-        if (first == last)
-            return;
-        for (auto index = source_.FindPieceIndex(first); index < source_.state_->pieces.size(); ++index)
-        {
-            const auto& piece      = source_.state_->pieces[index];
-            const auto sourceStart = index ? source_.state_->pieces[index - 1].sourceEnd : 0;
-            const auto left = std::max(first, sourceStart), right = std::min(last, piece.sourceEnd);
-            if (left < right)
-                appendPiece(piece.buffer, piece.bufferStart + left - sourceStart, right - left);
-            if (piece.sourceEnd >= last)
-                break;
-        }
+        if (offset > resultingLength)
+            return false;
+        return ! offset || offset == resultingLength || IsEditJoinAllowed(futureCharacter(offset - 1u), futureCharacter(offset));
     };
-
-    // A same-content edit updates selection but creates no history/revision.
-    bool equal           = end - begin == text.size();
-    std::size_t compared = 0;
-    for (auto index = source_.FindPieceIndex(begin); equal && compared < text.size() && index < source_.state_->pieces.size(); ++index)
-    {
-        const auto& piece      = source_.state_->pieces[index];
-        const auto sourceStart = index ? source_.state_->pieces[index - 1].sourceEnd : 0;
-        if (sourceStart >= end)
-            break;
-        const auto left = std::max(begin, sourceStart), right = std::min(end, piece.sourceEnd);
-        if (left < right)
-        {
-            const auto count = right - left;
-            equal = std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - sourceStart, count) == std::wstring_view(text).substr(compared, count);
-            compared += count;
-        }
-    }
-    appendSlice(0, begin);
-    if (! text.empty())
-    {
-        auto buffer = std::make_shared<const std::wstring>(std::move(text));
-        appendPiece(buffer, 0, buffer->size());
-    }
-    appendSlice(end, length);
-    SourceSnapshot candidate(std::move(next));
-    // Future boundaries can cross piece joins, e.g. an inserted LF after CR.
-    // Validate before publishing source, selection, revision or either history.
-    if (! candidate.IsBoundary(after.anchor) || ! candidate.IsBoundary(after.caret))
+    // Inspect the virtual prefix/insertion/suffix join before any storage or
+    // history allocation. These checks include newly formed cross-piece CRLF.
+    if (! validFutureBoundary(after.anchor) || ! validFutureBoundary(after.caret))
         throw std::out_of_range("Invalid resulting selection");
+    bool equal      = end - begin == text.size();
+    size_t compared = 0u;
+    if (equal)
+        SourceSnapshot::PieceTreeNode::VisitRange(source_.state_.get(),
+                                                  begin,
+                                                  end,
+                                                  [&](std::wstring_view fragment)
+        {
+            equal = fragment == std::wstring_view(text).substr(compared, fragment.size());
+            compared += fragment.size();
+            return equal;
+        });
     if (equal)
     {
         selection_ = after;
         return false;
     }
-    std::vector<History> nextUndo;
+    SourceSnapshot::PieceTreeNode::Fragment insertion;
+    if (! text.empty())
+    {
+        insertion.buffer = std::make_shared<const std::wstring>(text);
+        insertion.length = insertion.buffer->size();
+    }
+    SourceSnapshot candidate(SourceSnapshot::PieceTreeNode::ReplaceRange(source_.state_, begin, end, insertion));
+    // Construct history only for a recorded edit. Copy construction can report
+    // allocation failure; an unused default Debug STL container would also
+    // allocate an iterator proxy inside its noexcept constructor.
+    std::optional<std::vector<History>> nextUndo;
     if (recordHistory)
     {
-        nextUndo = undo_;
-        Push(nextUndo, {source_, selection_});
+        nextUndo.emplace(undo_);
+        Push(*nextUndo, {source_, selection_});
     }
     source_ = std::move(candidate);
     if (recordHistory)
     {
-        undo_.swap(nextUndo);
+        undo_.swap(*nextUndo);
         redo_.clear();
     }
     selection_ = after;
     ++revision_;
     return true;
 }
-bool Document::ReplaceSelection(std::wstring text)
+bool Document::ReplaceSelection(std::wstring_view text)
 {
     const auto end = selection_.Start() + text.size();
-    return Replace(selection_.Start(), selection_.End(), std::move(text), {end, end});
+    return Replace(selection_.Start(), selection_.End(), text, {end, end});
 }
 bool Document::Undo()
 {

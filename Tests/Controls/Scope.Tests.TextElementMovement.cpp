@@ -167,6 +167,25 @@ void TestTextElementBulkMovementMaximumSourceAndMalformedBounds()
     Require(first.position == 0u && first.moved == -3 && last.position == malformed.size() && last.moved == 3,
             "legacy malformed code units and out-of-range positions make bounded progress in both directions");
 }
+void TestTextElementSingleBackwardFixedTrials()
+{
+    std::wstring source;
+    for (size_t index = 0u; index < 10240u; ++index)
+        source += L"a\u0301\u1100\u1161\u11a8x";
+    for (size_t trial = 0u; trial < 5u; ++trial)
+    {
+        bool valid         = true;
+        const auto started = std::chrono::steady_clock::now();
+        for (size_t query = 0u; query < 32u; ++query)
+        {
+            const auto result = DxUi::MoveAccessibilityTextPositionByUnit(source, source.size(), TextUnit_Character, -1);
+            valid             = valid && result.position == source.size() - 1u && result.moved == -1;
+        }
+        const auto milliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        Require(valid && source.size() == 61440u, "single backward commands retain the independent final ASCII boundary");
+        std::cout << "UIA single-backward trial=" << trial << " sourceUnits=" << source.size() << " queries=32 elapsedMs=" << milliseconds << '\n';
+    }
+}
 } // namespace
 void RunTextElementMovementTests()
 {
@@ -177,4 +196,5 @@ void RunTextElementMovementTests()
     DXUI_RUN_TEST(TestMultilineFieldInteriorAcpDeletion);
     DXUI_RUN_TEST(TestComboBoxInteriorAcpDeletion);
     DXUI_RUN_TEST(TestUnicode17CollapsedDeletionCorpus);
+    DXUI_RUN_TEST(TestTextElementSingleBackwardFixedTrials);
 }

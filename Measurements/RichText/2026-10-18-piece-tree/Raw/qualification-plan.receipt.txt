@@ -1,0 +1,45 @@
+{
+  "startedUtc": "2026-10-18T01:26:23.4386178Z",
+  "ownedChildBudgetSeconds": 900,
+  "profiles": [
+    {
+      "test": true,
+      "configuration": "Release",
+      "platform": "x64",
+      "skipBuild": false
+    },
+    {
+      "test": true,
+      "configuration": "Debug",
+      "platform": "x64",
+      "skipBuild": false
+    },
+    {
+      "test": true,
+      "configuration": "ASan Debug",
+      "platform": "x64",
+      "skipBuild": false
+    },
+    {
+      "test": false,
+      "configuration": "Debug",
+      "platform": "ARM64",
+      "skipBuild": false
+    },
+    {
+      "test": false,
+      "configuration": "Release",
+      "platform": "ARM64",
+      "skipBuild": false
+    },
+    {
+      "test": false,
+      "configuration": "ASan Debug",
+      "platform": "ARM64",
+      "skipBuild": false
+    }
+  ],
+  "notes": "Serial ordinary x64 suites, no desktop takeover. All three final x64 profiles run all19 ordinary suites; preliminary affected successes are retained separately. ARM64 builds are cross-compilation only. Every test.ps1 includes the canonical benchmark; unpaired timings do not qualify regression acceptance.",
+  "overallBudgetSeconds": 3600,
+  "classification": "native-functional-and-build-qualification"
+}

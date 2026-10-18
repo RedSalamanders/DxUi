@@ -658,14 +658,26 @@ prepared stops without allocation. Clear retires this query along with geometry.
 At exact boundaries, backwards/forwards deletion chooses the ordinary neighbor;
 an empty edge yields an empty range. Explicit source-range replacement remains
 independent of this collapsed keyboard policy.
-Immutable pieces store exclusive cumulative source ends in the descriptor field
-previously used for length. Offset lookup is O(log P) for P pieces; a slice of K
-intersecting pieces starts with that lookup and visits those K pieces. No second
-prefix array, additional descriptor field, per-read cache or mutable shared index
-is retained. Coalescing contiguous spans updates the last cumulative end before
-publication. Rejected edits publish neither a partial index nor source/history.
-Worker reads use a captured immutable snapshot, not a concurrent call into a
-mutating Document. Edits still copy descriptor vectors in O(P).
+Immutable storage is a persistent B+ piece tree with maximum fanout 32 and at
+least 16 entries per non-root node. Exclusive cumulative ends index pieces and
+subtrees. Offset lookup is O(log P) for P pieces; a slice of K intersecting pieces
+visits O(log P + K) entries. Edits copy boundary paths, share untouched subtrees,
+skip fully removed middle subtrees, coalesce rewritten contiguous buffer slices
+and rebalance before publication. Only the final root may collapse height.
+No per-read cache or mutable shared index is retained. Worker reads use a captured
+immutable snapshot, not a concurrent call into a mutating Document.
+Validate future selections against the virtual old-prefix/insertion/old-suffix
+before allocating source storage/history, including a newly joined CRLF. A
+same-content replacement only acknowledges its exact valid selection; it allocates
+no source/history, advances no revision and preserves undo/redo. Stage every
+changed tree and required history copy before publishing. Allocation failure in
+replacement, transient replacement, reset, undo or redo preserves all state.
+Document source-taking operations borrow std::wstring_view synchronously and
+copy changed source into immutable owned buffers before returning. Recognize
+valid no-ops before creating owning strings or staging history. This avoids
+Debug iterator-proxy allocations from string moves and unnecessary default
+history containers. Never retain the caller's view.
+Default, moved-from and fully deleted snapshots behave as empty queryable values.
 Current storage is bounded at 64 Ki UTF-16 units/128 history items; full-document
 projection/layout remains a v0 limitation, not incremental/large-file acceptance.
 

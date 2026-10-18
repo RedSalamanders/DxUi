@@ -3732,6 +3732,14 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                 ++moved;
             }
         }
+        else if (count == -1)
+        {
+            // The common single-step command needs one predecessor walk, not
+            // a count followed by a second visit through nearly the same prefix.
+            const auto previous = StepToPreviousTextElement(text, cursor);
+            moved               = previous == cursor ? 0 : -1;
+            cursor              = previous;
+        }
         else
         {
             // Backward bulk movement counts the bounded prefix once, then

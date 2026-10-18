@@ -1,0 +1,25 @@
+{
+  "attempted": 2,
+  "results": [
+    {
+      "processId": 100016,
+      "configuration": "Release",
+      "timedOut": false,
+      "exitCode": 0,
+      "completedUtc": "2026-10-18T01:34:03.8908574Z",
+      "drained": true,
+      "platform": "x64"
+    },
+    {
+      "processId": 56844,
+      "configuration": "Debug",
+      "timedOut": false,
+      "exitCode": 1,
+      "completedUtc": "2026-10-18T01:41:30.0652640Z",
+      "drained": true,
+      "platform": "x64"
+    }
+  ],
+  "elapsedSeconds": 906.6318392,
+  "scheduled": 6
+}

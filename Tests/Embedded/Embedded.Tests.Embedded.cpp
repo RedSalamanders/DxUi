@@ -29,8 +29,20 @@ static thread_local size_t allocations     = 0;
 static thread_local size_t allocationBytes = 0;
 static thread_local bool countLiveBytes    = false;
 static thread_local ptrdiff_t liveBytes    = 0;
+// Test-only fault injection is dormant outside an explicit operation sweep.
+static thread_local size_t failAllocationAfter = std::numeric_limits<size_t>::max();
+static void FailAllocationIfRequested()
+{
+    if (failAllocationAfter != std::numeric_limits<size_t>::max())
+    {
+        if (! failAllocationAfter)
+            throw std::bad_alloc();
+        --failAllocationAfter;
+    }
+}
 void* operator new(size_t bytes)
 {
+    FailAllocationIfRequested();
     if (countAllocations)
     {
         ++allocations;
@@ -72,6 +84,7 @@ void operator delete[](void* p, size_t) noexcept
 }
 void* operator new(size_t bytes, std::align_val_t alignment)
 {
+    FailAllocationIfRequested();
     if (countAllocations)
     {
         ++allocations;
@@ -126,6 +139,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.LocalizedLayout.h"
 #include "Scope.Tests.ComplexUiBoundaries.h"
 #include "Scope.Tests.ComplexUiProfiling.h"
+#include "Scope.Tests.RichDocumentStorageResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
@@ -1131,6 +1145,18 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    // Isolated resource cases retain their individual failing baseline logs;
+    // the ordinary suite below still executes both behavior budgets.
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-document-storage")
+    {
+        const std::wstring_view test(__wargv[2]);
+        Check(test == L"Retained" || test == L"SameContent", "known rich source storage case");
+        if (test == L"Retained")
+            TestRichDocumentFragmentedHistoryStorageBudget();
+        else
+            TestRichDocumentSameContentAllocationBudget();
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
     {
         const std::wstring_view timers(__wargv[3]);
@@ -1247,6 +1273,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
+    TestRichDocumentFragmentedHistoryStorageBudget();
+    TestRichDocumentSameContentAllocationBudget();
+    TestRichDocumentAllocationFailureAtomicity();
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

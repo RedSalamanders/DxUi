@@ -1,0 +1,27 @@
+[
+  {
+    "sha256": "2872BDF966081284D2F1BD10E094B2F30B385B621A8390CA1378AB65D267CC6D",
+    "file": "Tests/Controls/Scope.Tests.RichDocument.cpp",
+    "method": "TestRichDocumentFragmentedSnapshotOracle"
+  },
+  {
+    "sha256": "EFBE2BA4D1C0621F3AFAF5E7B18A86AFEAF449ED36680AAD1E8FEAE1DA5B12D9",
+    "file": "Tests/Controls/Scope.Tests.RichDocument.cpp",
+    "method": "TestRichDocumentFragmentedEditFixedTrials"
+  },
+  {
+    "sha256": "E78CB0815A44C645D9B701C5D999AD7A330AAB9109058A565F39CC49EDD10263",
+    "file": "Tests/Controls/Scope.Tests.TextElementMovement.cpp",
+    "method": "TestTextElementSingleBackwardFixedTrials"
+  },
+  {
+    "sha256": "E324FA941AD70BA4E32EFC001865395E02262E30E17FFFFAB5DACB8BDBB7DA49",
+    "file": "Tests/Embedded/Scope.Tests.RichDocumentStorageResources.h",
+    "method": "TestRichDocumentFragmentedHistoryStorageBudget"
+  },
+  {
+    "sha256": "B11D4D37B0BBABCABB55F51AEB94D5D0441DC815E08E0028C1945475921E2D4B",
+    "file": "Tests/Embedded/Scope.Tests.RichDocumentStorageResources.h",
+    "method": "TestRichDocumentSameContentAllocationBudget"
+  }
+]

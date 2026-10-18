@@ -39,6 +39,18 @@ undo/redo and preservation of explicit noncollapsed source intervals. Embedded
 also requires zero C++ allocation calls/bytes for 49,152-unit bulk queries and
 both deletion-query paths. These cases remain ordinary non-activating tests.
 
+RichDocument storage cases retain the same fragmented edit/read oracles across
+the vector/tree change. Split/merge stress uses an independent flat Unicode
+model, captured snapshots, cross-node CRLF joins and undo/redo. Maximum-fragment
+coverage builds 65,536 source pieces and repeatedly grows/collapses the tree.
+Embedded requires
+at most 4 MiB retained C++ bytes after 4,096 interleaved edits with capped history,
+zero tracked delta after destruction and zero C++ allocations for same-content
+replacement. It sweeps every observed allocation point in replace, transient
+replace, reset, undo and redo, comparing complete histories after failure.
+Single-backward movement has a fixed large-source observation and retains the
+complete corpus/count oracle; elapsed times have no acceptance assertion.
+
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification

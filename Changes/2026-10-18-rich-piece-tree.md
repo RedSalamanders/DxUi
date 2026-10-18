@@ -1,0 +1,1 @@
+- Share immutable rich-text piece-tree paths across edits and history, acknowledge same-content edits before allocation, and preserve full transaction state on allocation failure. Add fragmented storage budgets, independent Unicode split/merge oracles and failure sweeps; keep bounded source/layout limits explicit.

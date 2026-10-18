@@ -1,0 +1,11 @@
+{
+  "completedUtc": "2026-10-18T01:16:59.5496576Z",
+  "timedOut": false,
+  "processId": 33040,
+  "sha256": "C375B23B6D5AB4E51F962DC27E8B4D93714D7FEB3BD1D175C5A06C0991864ACB",
+  "buildAttestationIdentity": "affbfd2a9e0ce047193c32578c93be3b4f829002edf3849fbea7b0bad9563087",
+  "drained": true,
+  "name": "same-content",
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+  "exitCode": 1
+}

@@ -194,8 +194,14 @@ prepared.Draw(borrowedD2DTarget, borrowedBrush, D2D1::Point2F(8, 8));
 ```
 
 `Document` is mutable on its owner's thread. `SourceSnapshot` shares immutable
-buffers and can be handed to an application/shared preparation worker. The core
-creates no worker, queue, HWND, graphics device, swap chain, timer or file. The
+buffers and can be handed to an application/shared preparation worker. Document's
+source-taking methods borrow `std::wstring_view` only for the call and copy changed
+source into immutable owned storage before returning. No-op admission precedes
+owning-string/history construction, including Debug iterator proxies. Caller
+buffers and temporary strings need no lifetime beyond the call. The WIP core's
+source signatures changed from owning strings to views; rebuild against matching
+headers and DxUi.lib. This does not provide compatibility with an older archive.
+The core creates no worker, queue, HWND, graphics device, swap chain, timer or file. The
 caller owns cancellation, request/revision keys, scheduling, stale publication
 checks and view lifetime. `PreparedLayout` is also owner-thread mutable; do not
 prepare or query it concurrently. Public operations can throw standard argument,
@@ -205,7 +211,8 @@ failures. Catch at the caller's Windows/COM/callback boundary.
 `Selection` stores anchor/caret UTF-16 offsets and preserves backwards direction.
 Replacements are one source/selection transaction. Undo/redo restores snapshots
 and selections while revisions increase. A same-content replacement only changes
-selection and preserves history/revision. Invalid source, ranges or resulting
+selection without allocating source/history and preserves history/revision.
+Invalid source, ranges or resulting
 selection leave source, selection, revision and history unchanged. Reset clears
 history and selection. The v0 bounds are 64 Ki UTF-16 units and 128 history items.
 There is no ANSI API; UTF-8 conversion rejects malformed input and embedded NUL.
@@ -215,14 +222,20 @@ capacity limits remain accepted. Accepted BOM and mixed line endings round-trip 
 
 `SourceSnapshot::IsBoundary` and `Slice(first,last)` inspect shared pieces without
 flattening a revision. Slices and edits preserve scalar and CRLF boundaries,
-including CR/LF split across two pieces. Cumulative source ends reuse the existing
-piece descriptors for binary-search offset lookup; a slice starts at its first
-intersecting piece. This adds no separate prefix array or per-piece field.
+including CR/LF split across two pieces. A persistent B+ tree stores cumulative
+piece/subtree ends, with 16..32 entries in each non-root node. Reads descend by
+binary search and slices visit only intersecting entries. Edits copy boundary
+paths, reuse untouched subtrees and rebalance split/merged nodes before publication.
 Captured snapshots support concurrent immutable reads while the owner changes
-its document. The Document itself remains owner-thread mutable. Edits copy
-descriptors and the inserted buffer; snapshot text materialization, projection
+its document. The Document itself remains owner-thread mutable. Changed edits
+allocate the inserted buffer and copied paths; snapshot text materialization, projection
 and layout still prepare the complete bounded document. The capacity is unchanged;
-incremental layout and large-document storage remain pending.
+incremental layout and qualification beyond the bounded source remain pending.
+Future selection checks run against the virtual replacement before storage/history
+allocation. Reset, replacement, transient replacement, undo and redo stage all
+required allocations before publishing; allocation failure preserves the full
+transaction state. Default, moved-from and fully deleted snapshots are empty
+queryable values. The node representation stays private behind shared ownership.
 
 The v0 grammar handles ATX headings, paired strong/emphasis/strike/code, nesting
 and paragraphs. Unknown/incomplete syntax remains editable source. Source and
@@ -342,5 +355,17 @@ their exact semantics. All 57 ordinary x64 suite runs and six builds pass,
 including native/embedded maximal commands, undo/redo and the original Unicode
 corpus at every offset. Embedded records 5,167 checks per profile; maximal command
 queries request zero C++ bytes. Original failures and descriptive timing trials
-are retained. The performance hold, persistent storage/incremental preparation,
+are retained. The performance hold, incremental preparation,
 remaining engine and manual acceptance gates continue under the plan.
+
+The [persistent-storage qualification](../Measurements/RichText/2026-10-18-piece-tree/README.md)
+retains all original resource failures, the intermediate Debug proxy failure and
+the successful six-profile rerun. All 57 ordinary x64 suite runs pass, with zero
+native skips. The fragmented source and capped history retain about 1.21 MB of
+C++ storage in Release and 1.31 MB in Debug/ASan, below the fixed 4 MiB fixture
+budget; the original vector implementation retained 40.2 MB. Same-content edits
+request zero C++ allocations in every profile. All five failure sweeps preserve
+complete source/selection/revision/history. Borrowed-input tests destroy or mutate
+caller buffers after return and verify that document content survives. Exact observations and descriptive
+edit/read/backward-query timings are in the packet. Incremental/shared
+preparation, full Markdown/extensions and the performance/manual gates stay open.

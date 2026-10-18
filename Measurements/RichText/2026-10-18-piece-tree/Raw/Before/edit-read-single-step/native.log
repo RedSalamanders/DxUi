@@ -1,0 +1,21 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentFragmentedSnapshotOracle
+RichDocument fragmented lookup diagnostic: insertions=4096 units=24580 queries=8192 expected=5431 documentBytes=88 snapshotBytes=16 trialMs=0.7673,0.7769,0.7445,0.7442,0.7401,
+  [DONE] TestRichDocumentFragmentedSnapshotOracle (0.115 s)
+  [START] TestRichDocumentFragmentedEditFixedTrials
+RichDocument edit trial=0 edits=4096 sourceUnits=12288 elapsedMs=198.222
+  [DONE] TestRichDocumentFragmentedEditFixedTrials (1.052 s)
+RichDocument edit trial=1 edits=4096 sourceUnits=12288 elapsedMs=204.511
+RichDocument edit trial=2 edits=4096 sourceUnits=12288 elapsedMs=202.858
+RichDocument edit trial=3 edits=4096 sourceUnits=12288 elapsedMs=200.168
+RichDocument edit trial=4 edits=4096 sourceUnits=12288 elapsedMs=209.911
+  [START] TestTextElementSingleBackwardFixedTrials
+UIA single-backward trial=0 sourceUnits=61440 queries=32 elapsedMs=34.4142
+  [DONE] TestTextElementSingleBackwardFixedTrials (0.165 s)
+UIA single-backward trial=1 sourceUnits=61440 queries=32 elapsedMs=32.8319
+UIA single-backward trial=2 sourceUnits=61440 queries=32 elapsedMs=32.5871
+UIA single-backward trial=3 sourceUnits=61440 queries=32 elapsedMs=32.1983
+UIA single-backward trial=4 sourceUnits=61440 queries=32 elapsedMs=32.275
+[DONE] EditorControls (1.334 s)
+All DxUi tests passed.

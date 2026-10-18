@@ -58,7 +58,7 @@ static void TestUnicodeBulkMovementAndDeletionAllocationBudget()
     }
     const bool previousCounting    = countAllocations;
     const auto previousAllocations = allocations, previousBytes = allocationBytes;
-    DxUi::TextRangeUnitMoveResult forward, backward;
+    DxUi::TextRangeUnitMoveResult forward, backward, singleBackward;
     std::array<DxUi::TextElementRange, 4> deletions;
     size_t calls = 0u, bytes = 0u;
     {
@@ -72,6 +72,7 @@ static void TestUnicodeBulkMovementAndDeletionAllocationBudget()
         countAllocations              = true;
         forward                       = DxUi::MoveAccessibilityTextPositionByUnit(source, 0u, TextUnit_Character, INT_MAX);
         backward                      = DxUi::MoveAccessibilityTextPositionByUnit(source, source.size(), TextUnit_Character, INT_MIN);
+        singleBackward                = DxUi::MoveAccessibilityTextPositionByUnit(source, source.size(), TextUnit_Character, -1);
         deletions[0]                  = DxUi::GetTextElementDeletionRange(source, 1u, false);
         deletions[1]                  = DxUi::GetTextElementDeletionRange(source, 1u, true);
         deletions[2]                  = DxUi::GetTextElementDeletionRange(source, 1u, false, boundaries);
@@ -86,6 +87,7 @@ static void TestUnicodeBulkMovementAndDeletionAllocationBudget()
           "extreme bulk commands return independent endpoints and exact signed counts");
     for (const auto range : deletions)
         Check(range.first == 0u && range.last == 3u, "indexed and streaming deletion enclose the complete first Hangul element");
+    Check(singleBackward.position == source.size() - 1u && singleBackward.moved == -1, "single backward command keeps the independent final ASCII boundary");
     Check(calls == 0u && bytes == 0u, "bulk character movement and collapsed deletion request no C++ heap storage");
 }
 

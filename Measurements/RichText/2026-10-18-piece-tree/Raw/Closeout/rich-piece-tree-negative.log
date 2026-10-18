@@ -1,0 +1,5 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\rich-piece-tree-seal-negative-2b1133e9a1af44edadf7d3bdbe11c1e6\Verify.ps1:8
+Line |
+   8 |  … ath $target).Hash -cne $Expected){throw "SHA-256 differs: $Relative"}
+     |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | SHA-256 differs: Native/EditorControls-x64-Release.log

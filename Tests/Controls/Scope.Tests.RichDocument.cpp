@@ -263,6 +263,194 @@ void TestRichDocumentUtf8ExactAdmissionLimits()
         Require(rejected, "both impossible byte size and excessive decoded size have explicit length errors");
     }
 }
+void TestRichDocumentFragmentedEditFixedTrials()
+{
+    std::wstring expected;
+    for (size_t index = 0u; index < 4096u; ++index)
+        expected += L"aX";
+    expected.append(4096u, L'a');
+    for (size_t trial = 0u; trial < 5u; ++trial)
+    {
+        Document document(std::wstring(8192u, L'a'));
+        const auto started = std::chrono::steady_clock::now();
+        for (size_t index = 0u; index < 4096u; ++index)
+        {
+            const auto position = index * 2u + 1u;
+            document.Replace(position, position, L"X", {position + 1u, position + 1u});
+        }
+        const auto milliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        Require(document.Text() == expected, "fragmented edit trials match independently constructed source");
+        size_t undos = 0u;
+        while (document.Undo())
+            ++undos;
+        Require(undos == 128u, "timed fragmented transactions retain exactly the declared history bound");
+        std::cout << "RichDocument edit trial=" << trial << " edits=4096 sourceUnits=" << expected.size() << " elapsedMs=" << milliseconds << '\n';
+    }
+}
+void TestRichDocumentPersistentSplitMergeOracle()
+{
+    using namespace DxUi::RichText;
+    Document document;
+    std::wstring expected;
+    std::vector<std::pair<SourceSnapshot, std::wstring>> retained;
+    std::uint32_t random = 0x5a17421du;
+    const auto next      = [&]()
+    {
+        random = random * 1664525u + 1013904223u;
+        return random;
+    };
+    const auto boundary = [](std::wstring_view text, size_t position)
+    {
+        if (! position || position == text.size())
+            return true;
+        const auto left = static_cast<unsigned>(text[position - 1u]), right = static_cast<unsigned>(text[position]);
+        return ! (left >= 0xd800u && left <= 0xdbffu && right >= 0xdc00u && right <= 0xdfffu) && ! (left == '\r' && right == '\n');
+    };
+    for (size_t round = 0u; round < 32u; ++round)
+    {
+        document.Reset(std::wstring(8192u, L'a'));
+        expected.assign(8192u, L'a');
+        for (size_t index = 0u; index < 2048u; ++index)
+        {
+            const auto position = index * 2u + 1u;
+            document.Replace(position, position, L"X", {0u, 0u});
+            expected.insert(position, L"X");
+        }
+        retained.emplace_back(document.Snapshot(), expected);
+        // Keep tiny prefixes/suffixes after crossing many internal nodes,
+        // then alternate prepend, append and interior edits on the survivors.
+        const auto left = static_cast<size_t>(next() % 7u), right = expected.size() - static_cast<size_t>(next() % 7u);
+        document.Replace(left, right, L"\U0001f600\r\n", {0u, 0u});
+        expected.replace(left, right - left, L"\U0001f600\r\n");
+        for (size_t operation = 0u; operation < 256u; ++operation)
+        {
+            size_t first = next() % (expected.size() + 1u), last = next() % (expected.size() + 1u);
+            if (first > last)
+                std::swap(first, last);
+            while (! boundary(expected, first))
+                --first;
+            while (! boundary(expected, last))
+                ++last;
+            const std::wstring insertion = (operation % 3u == 0u) ? L"\r\n\U0001f600" : L"\u0915\u094d\u0915";
+            const auto before            = expected;
+            const auto changed           = document.Replace(first, last, insertion, {0u, 0u});
+            expected.replace(first, last - first, insertion);
+            Require(document.Text() == expected, "split/merge edits agree with an independent flat Unicode oracle");
+            if (changed)
+            {
+                Require(document.Undo() && document.Text() == before, "cross-node undo preserves exact Unicode source");
+                Require(document.Redo() && document.Text() == expected, "cross-node redo restores the expected source");
+            }
+            const auto snapshot = document.Snapshot();
+            for (size_t position = 0u; position <= expected.size(); ++position)
+                Require(snapshot.IsBoundary(position) == boundary(expected, position), "tree boundaries agree at every independent scalar/CRLF edge");
+        }
+        if (retained.size() > 8u)
+            retained.erase(retained.begin());
+        for (const auto& [snapshot, original] : retained)
+            Require(snapshot.Text() == original, "retained snapshots survive later splits, merges, reset and history retirement");
+    }
+}
+
+void TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins()
+{
+    SourceSnapshot empty;
+    Require(empty.Length() == 0u && empty.Text().empty() && empty.Slice(0u, 0u).empty() && empty.IsBoundary(0u) && ! empty.IsBoundary(SIZE_MAX),
+            "default empty snapshot safely handles all empty and outside queries");
+    Document document(L"\r");
+    for (size_t index = 0u; index < 2048u; ++index)
+        document.Replace(document.Length(), document.Length(), L"x", {0u, 0u});
+    document.Replace(document.Length(), document.Length(), L"\n", {0u, 0u});
+    const auto before   = document.Snapshot();
+    const auto revision = document.Revision();
+    Reject([&] { document.Replace(1u, document.Length() - 1u, L"", {1u, 1u}); }, "cross-node deletion cannot leave selection inside newly joined CRLF");
+    Require(document.Snapshot().Text() == before.Text() && document.Revision() == revision, "invalid virtual future selection publishes no tree");
+    document.Replace(1u, document.Length() - 1u, L"", {2u, 2u});
+    Require(document.Text() == L"\r\n" && ! document.Snapshot().IsBoundary(1u), "cross-node deletion joins CRLF and retires removed subtrees");
+    auto original    = document.Snapshot();
+    const auto moved = std::move(original);
+    Require(original.Length() == 0u && original.Text().empty() && moved.Text() == L"\r\n", "moved snapshot remains an empty queryable value");
+    document.Replace(0u, 2u, L"", {0u, 0u});
+    Require(document.Length() == 0u && document.Text().empty() && moved.Text() == L"\r\n" && before.Length() == 2050u,
+            "deleting every subtree publishes empty storage without retiring captured snapshots");
+    Require(document.Undo() && document.Text() == L"\r\n" && document.Redo() && document.Text().empty(), "empty-root undo and redo preserve source");
+}
+void TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse()
+{
+    Document document(std::wstring(32768u, L'a'));
+    std::wstring expected;
+    for (size_t index = 0u; index < 32768u; ++index)
+    {
+        const auto position = index * 2u + 1u;
+        document.Replace(position, position, L"X", {0u, 0u});
+        expected += L"aX";
+    }
+    const auto maximum = document.Snapshot();
+    Require(document.Length() == Document::MaximumUnits && document.Text() == expected,
+            "maximum fragmented source matches an independent alternating flat oracle");
+    for (size_t position = 0u; position <= expected.size(); ++position)
+        Require(maximum.IsBoundary(position), "every ASCII boundary is reachable through the maximum-depth tree");
+    for (size_t probe = 0u; probe < 512u; ++probe)
+    {
+        const auto first = probe * 127u;
+        Require(maximum.Slice(first, first + 128u) == expected.substr(first, 128u), "cross-node slices retain exact maximum-size source");
+    }
+    Reject([&] { document.Replace(1u, 1u, L"!", {0u, 0u}); }, "full fragmented source still rejects capacity overflow atomically");
+    Require(document.Text() == expected, "capacity rejection preserves the maximum tree");
+    document.Replace(1u, document.Length() - 1u, L"", {0u, 0u});
+    Require(document.Text() == L"aX", "a multi-level middle deletion keeps only its two boundary pieces");
+    for (size_t cycle = 0u; cycle < 128u; ++cycle)
+    {
+        for (size_t index = 0u; index < 256u; ++index)
+            document.Replace(1u, 1u, L"y", {0u, 0u});
+        Require(document.Text() == L"a" + std::wstring(256u, L'y') + L"X", "repeated prepend growth preserves the independent source");
+        document.Replace(1u, document.Length() - 1u, L"", {0u, 0u});
+        Require(document.Text() == L"aX", "repeated root collapse preserves both surviving ends");
+    }
+    Require(maximum.Text() == expected, "a maximum snapshot survives deep cuts and subsequent history retirement");
+}
+
+void TestRichDocumentBorrowedInputLifetime()
+{
+    std::wstring input = L"A\U0001f600\r\nB";
+    const auto initial = input;
+    Document document{std::wstring_view(input)};
+    input.assign(2048u, L'x');
+    Require(document.Text() == initial, "construction copies borrowed Unicode source before returning");
+    const auto initialSnapshot = document.Snapshot();
+    {
+        std::wstring replacement = L"prefix\u0915\u094d\u0915suffix";
+        document.Replace(0u, document.Length(), std::wstring_view(replacement).substr(6u, 3u), {3u, 3u});
+        replacement.assign(4096u, L'z');
+    }
+    Require(document.Text() == L"\u0915\u094d\u0915" && initialSnapshot.Text() == initial,
+            "replacement copies the borrowed substring while earlier snapshots remain immutable");
+    document.SetSelection({0u, document.Length()});
+    document.ReplaceSelection(std::wstring(L"\U0001f469\u200d\U0001f4bb"));
+    Require(document.Text() == L"\U0001f469\u200d\U0001f4bb", "selection replacement outlives a temporary owning argument");
+    document.Undo();
+    const bool undo = document.CanUndo(), redo = document.CanRedo();
+    {
+        std::wstring preview = L"transient\r\n\U0001f600";
+        document.ReplaceTransient(std::wstring_view(preview), {0u, 0u});
+        preview.clear();
+    }
+    Require(document.Text() == L"transient\r\n\U0001f600" && document.CanUndo() == undo && document.CanRedo() == redo,
+            "transient replacement owns its borrowed source and preserves both histories");
+    {
+        std::wstring reset = L"reset\r\n\U0001f600";
+        document.Reset(std::wstring_view(reset));
+        reset.assign(1024u, L'q');
+    }
+    Require(document.Text() == L"reset\r\n\U0001f600" && ! document.CanUndo() && ! document.CanRedo(),
+            "reset owns the borrowed source and retires history only after success");
+    const auto revision = document.Revision();
+    const auto same     = document.Text();
+    Require(! document.Replace(0u, document.Length(), std::wstring_view(same), {document.Length(), 0u}) &&
+                document.GetSelection() == Selection{document.Length(), 0u} && document.Revision() == revision && same == document.Text(),
+            "same-content view acknowledges selection without consuming caller storage");
+}
+
 } // namespace
 
 void RunRichDocumentTests()
@@ -274,4 +462,9 @@ void RunRichDocumentTests()
     DXUI_RUN_TEST(TestRichDocumentFragmentedSnapshotOracle);
     DXUI_RUN_TEST(TestRichDocumentConcurrentSnapshotReads);
     DXUI_RUN_TEST(TestRichDocumentUtf8ExactAdmissionLimits);
+    DXUI_RUN_TEST(TestRichDocumentFragmentedEditFixedTrials);
+    DXUI_RUN_TEST(TestRichDocumentPersistentSplitMergeOracle);
+    DXUI_RUN_TEST(TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins);
+    DXUI_RUN_TEST(TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse);
+    DXUI_RUN_TEST(TestRichDocumentBorrowedInputLifetime);
 }

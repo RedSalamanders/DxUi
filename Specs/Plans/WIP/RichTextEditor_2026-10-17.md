@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, indexed snapshot reads and shared Unicode 17 segmentation functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Remaining D2a, complete engine and physical input/AT gates stay open.
+Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, shared Unicode 17 segmentation and persistent piece-tree storage functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Incremental/shared preparation, the complete engine and physical input/AT gates stay open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -624,17 +624,17 @@ unchanged tree paths and source buffers; no cache, worker or view-owned resource
 is added. The 64-Ki/128-history bounds stay fixed until incremental preparation is
 qualified separately.
 
-- [ ] Measure retained C++ bytes for fragmented source plus capped history,
+- [x] Measure retained C++ bytes for fragmented source plus capped history,
   no-op replacement allocation and edit/read trials with independent text/history
   oracles. Keep raw failures and descriptive timings.
-- [ ] Move private snapshot representation behind its existing shared ownership
+- [x] Move private snapshot representation behind its existing shared ownership
   boundary. Use a balanced persistent piece tree with bounded fanout, path copying,
   exact subtree lengths and boundary-local rebalance/coalescing. Reuse subtrees
   outside the edit; retain transactional failure behavior and concurrent reads.
-- [ ] Reject invalid selections and acknowledge same-content edits before
+- [x] Reject invalid selections and acknowledge same-content edits before
   cloning storage/history. Cover empty, cross-node UTF-16/CRLF, split/merge,
   deletion/undo/redo/reset, retained snapshots and hostile fragmentation.
-- [ ] Qualify deterministic retained-byte bounds, native/embedded behavior,
+- [x] Qualify deterministic retained-byte bounds, native/embedded behavior,
   all required configurations and specs/docs; keep incremental layout/shared
   scheduling and full large-document support explicitly open until implemented.
 
@@ -643,3 +643,83 @@ bulk negative movement currently counts a prefix and visits its target. A single
 step can use the existing predecessor walk without that second traversal. Retain
 the corpus/count oracle and a large-source single-step observation when changing
 this path; the qualified bulk packet makes no single-step speedup claim.
+
+The fixed storage-before schedule completed three slots: a root Release run of
+the unchanged fragmented-read oracle and new edit/single-step trials, followed
+by two isolated resource failures against the same attested library build.
+The 12,288-unit fragmented source plus capped history retains 40,235,301 tracked
+C++ bytes and releases its delta to zero. Same-content replacement requests
+24 C++ allocations / 518,630 bytes. The predeclared candidate bounds are 4 MiB
+retained and zero no-op allocations. Original failure logs, process hashes,
+build identities and the root canonical report remain preserved. These focused
+resource runs are separate from full native-suite qualification.
+
+Persistent storage, virtual future-selection validation, early no-op admission
+and the single-backward shortcut pass the first three affected Release suites
+with zero skips. Tracked retained storage is 1,212,046 bytes; no-op replacement
+requests zero allocations/bytes; all five allocation-failure sweeps pass.
+Split/merge stress keeps eight independent
+snapshots across resets and compares every source/boundary with a flat oracle.
+Fault injection sweeps all allocation points of five source/history operations.
+The private node change preserves SourceSnapshot/Document object layouts and API
+revision 4; it does not establish binary compatibility with differently built
+archives. Source-coordinated consumers must rebuild. No existing gallery inputs,
+shaping, styles or consumer pins change in this slice. A final test adds 65,536
+separate source pieces, middle cuts and 128 repeated growth/root-collapse cycles.
+All six profiles are being qualified with these final frozen test inputs.
+
+The initial matrix passes all 19 Release suites, including maximum fragmentation,
+then Debug exposes two C++ iterator-proxy allocations / 32 bytes in the exact
+same no-op method. Retain that failure and every initial scheduled/unattempted
+profile separately. MSVC's owning string moves allocate Debug container proxies;
+fault injection must also avoid their noexcept move/default-construction paths.
+The repair borrows Unicode views synchronously, copies changed payload into owned
+buffers, and constructs optional history staging directly from existing history.
+It never retains caller views. Add borrowed/temporary input lifetime coverage,
+retain the original measured method bodies, then rerun all six profiles. Header/
+archive signatures remain source-coordinated; object sizes and API revision 4
+remain unchanged, without claiming compatibility with an older built archive.
+
+The [persistent-storage qualification](../../../Measurements/RichText/2026-10-18-piece-tree/README.md)
+seals library fingerprint 8EE9BD21B0CE810E1B6B39EBE30D00EF62945764CDF52D8C9AB8D65D8B8EFD99.
+All 57 final ordinary x64 suites pass with zero native skips, including 57 named
+rich cases in each profile. Six successful build attestations, full tooling/
+validators and formatting are retained. Embedded passes 5,222 Release checks and
+5,234 Debug/ASan checks, with 1,000 allocation-free warm composites in each.
+Retained C++ storage is 1,212,046 bytes in Release and 1,310,422 in Debug/ASan;
+all profiles release the tracked delta to zero and request zero no-op allocations.
+Every observed failure point in all five operations preserves complete history.
+The original three-slot schedule completes in 254.052 seconds; the initial
+six-profile matrix attempts two slots in 906.632 seconds and retains its Debug
+failure and four unattempted slots. The separate six-profile recovery completes
+all six in 2,039.092 seconds. ARM64 remains cross-build only.
+
+Five unchanged within-process methods retain descriptive Release medians:
+fragmented edits 202.858 -> 16.7215 ms, lookup 0.7445 -> 0.5166 ms, and 32 backward
+single-step queries 32.5871 -> 17.6228 ms. The dormant allocation-failure hook is
+added after the before run; there are no same-binary controls or quiet-host proof.
+These observations do not clear Default frame acceptance. A current read-only
+token check still lists no system-profiling privilege; no machine policy or
+privileges change and no scheduler trace is claimed.
+
+### Next D2a incremental-preparation sequence
+
+- [ ] Add immutable bounded change metadata between source snapshots, including
+  transient bursts, undo/redo/branches, reset and expired history. Preserve the
+  existing object sizes, no-op admission and 4 MiB fixture budget. Return safe
+  conservative scalar/CRLF source intervals without allocation or mutable caches.
+- [ ] Use those intervals to reuse unchanged projection/paragraph geometry.
+  Measure initial preparation and edits independently; preserve source/geometry
+  publication, caret/range/scroll behavior, cancellation and stale-result checks.
+- [ ] Integrate bounded host/shared preparation scheduling and resource ownership
+  for native/embedded views; qualify clean/dirty/hidden/device-loss and two-view
+  behavior before changing capacity or claiming large-document support.
+- [ ] Complete the pinned Markdown/extension engine and rich transactions under
+  D4a, with original corpora and explicit source/edit/diagnostic semantics.
+
+Private preparation has collected the 652 CommonMark 0.31.2 examples, all 672
+GFM source examples from the pinned 0.29.0.gfm.13 tag and their original licenses.
+Two upstream task-list examples are marked disabled; preserve them for coverage.
+This collection is not a parser implementation or conformance claim. The helper
+decision and desktop timing question remain pending; independent preparation
+and source services continue without either answer.
