@@ -1,0 +1,1 @@
+- Record PR #85's passing post-merge native and public-consumer evidence, retaining the three shared ARM64 leases' unverified focus restoration, the inconclusive paired result and all remaining qualification gates and unchanged thresholds.
