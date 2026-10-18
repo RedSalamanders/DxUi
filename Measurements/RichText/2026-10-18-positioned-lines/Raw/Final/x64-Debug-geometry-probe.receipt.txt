@@ -1,0 +1,9 @@
+{
+  "configuration": "Debug",
+  "exitCode": 0,
+  "argument": "--test-rich-geometry-failures",
+  "sha256": "5A8EB9781EE6A89BDC00C2EE5BAC867B01AE057E0C4691806FF2B6F913BD6609",
+  "classification": "isolated diagnostic allocation sweep",
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+  "buildAttestationIdentity": "82dd1ed6bdac14e83371c202ca73ec4d4eb09590df6758ae53cf505807450c14"
+}

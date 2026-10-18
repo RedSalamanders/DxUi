@@ -428,21 +428,33 @@ or preparing the clone does not change the original. Full shared scheduling,
 complete Markdown/extensions and platform/performance acceptance remain pending.
 
 The implementation reserves one of its 128 geometry slots for a canonical whole-layout
-compatibility cache. Numerically unsafe chunk placement falls back to whole
-geometry; raster origins or transforms can also need whole-layout drawing.
+compatibility cache. The qualified positioned-line implementation prepends an invisible
+origin line inside noninitial DirectWrite layouts. Its private UTF-16 units never
+enter source/display mappings or text-service content. DirectWrite calculates
+real lines in document coordinates and draws every chunk at the same origin.
+Reuse requires the same origin: height-changing edits can rebuild the dependent
+suffix. Inexact origin lines and empty displayed suffixes retain whole geometry
+to preserve terminal-font behavior.
 `UsesWholeGeometry()`, `UsesWholeRaster()` and the separate whole-layout preparation,
-reuse and source-unit statistics make that work visible. Prefix validation remains
-linear in line count. Exact incremental rendering across all documents/transforms
-is still a plan item. The original height/pixel failures stay preserved; no oracle
+reuse and source-unit statistics make that work visible. Prefix indexing remains
+linear in line count. Positioned lines pass all three x64 profiles and ARM64
+cross-builds. The original height/pixel failures stay preserved; no oracle
 or performance threshold is relaxed to accept the new cache.
 
 The [geometry packet](../Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains 57 passing ordinary x64 suite runs, six builds, complete observed
 copy/geometry allocation sweeps, 162 exact WARP image pairs and fixed storage
 bounds. The original Debug point-173 noexcept move failure is preserved. The
-native 13-DIP fixture still needs whole-layout compatibility: its descriptive
-128-edit median is 53,381.5 ms versus 51,102.6 ms before, with no controlled timing
-acceptance. Exact incremental rendering and shared preparation remain active work.
+earlier native 13-DIP fixture needed whole-layout compatibility: its descriptive
+128-edit median was 53,381.5 ms versus 51,102.6 ms before, with no controlled timing
+acceptance. New affected Release checks avoid whole work in native and embedded
+13-DIP editors. The [positioned-line packet](../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+adds 324 exact pixel pairs across default/fractional/large-origin profiles, 57
+ordinary x64 suite successes and all six builds. The unchanged five-trial method
+records medians of 145.909 ms initial preparation and 2,166.98 ms for 128 edits,
+versus the original 522.474/51,102.6 ms. These descriptive shared-host observations
+provide no controlled causal speedup, large-document latency or frame acceptance.
+Universal incremental work and shared preparation remain active work.
 
 The [thread-state follow-up](../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
 preserves four same-binary observer controls and 1,280 clear/readback frames.

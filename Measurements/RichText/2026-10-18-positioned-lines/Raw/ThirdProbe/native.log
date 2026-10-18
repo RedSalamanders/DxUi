@@ -1,0 +1,253 @@
+[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentLayoutRawLineOriginDiagnostics
+rich raw color capability result=0 available=1
+rich raw caret detail font=13 profile=0 position=1007 line=1007 actual=17412.0547 metricTop=17412.0547 metricHeight=17.2910156 lineTop=17412.0527 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1113 line=1113 actual=19244.9023 metricTop=19244.9023 metricHeight=17.2910156 lineTop=19244.9004 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1219 line=1219 actual=21077.75 metricTop=21077.75 metricHeight=17.2910156 lineTop=21077.748 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1325 line=1325 actual=22910.5977 metricTop=22910.5977 metricHeight=17.2910156 lineTop=22910.5957 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1431 line=1431 actual=24743.4453 metricTop=24743.4453 metricHeight=17.2910156 lineTop=24743.4434 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1537 line=1537 actual=26576.293 metricTop=26576.293 metricHeight=17.2910156 lineTop=26576.291 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1643 line=1643 actual=28409.1406 metricTop=28409.1406 metricHeight=17.2910156 lineTop=28409.1387 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=0 position=1749 line=1749 actual=30241.9883 metricTop=30241.9883 metricHeight=17.2910156 lineTop=30241.9863 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw range font=13 profile=0 count=65536 topMismatches=0 heightMismatches=0
+rich positioned geometry font=13 profile=0 split=1007 seed=17412.0527 prefixHeight=17412.0527 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=133514.5
+rich positioned glyphs font=13 profile=0 originY=0 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63630 firstPosition=0 actualBits=0 bottomMismatches=34073 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=0 originY=0 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=61787 doubleMismatches=65521 firstPosition=0 actualBits=1096810496 bottomMismatches=61788 leadingMismatches=61787 singleBaselineBits=1096840192 doubleBaselineBits=1096840192 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=0 originY=-611.75 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63630 firstPosition=0 actualBits=0 bottomMismatches=34073 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=0 originY=-611.75 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=61787 doubleMismatches=65521 firstPosition=0 actualBits=3289743360 bottomMismatches=61786 leadingMismatches=61787 singleBaselineBits=3289738800 doubleBaselineBits=3289738800 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=0 originY=-123456.25 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=-123456.25 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63628 firstPosition=0 actualBits=0 bottomMismatches=34073 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=0 originY=-123456.25 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=13 profile=0 lines=65536 originY=-123456.25 snapping=1 glyphRuns=65536 singleMismatches=61749 doubleMismatches=65504 firstPosition=0 actualBits=3354466560 bottomMismatches=61750 leadingMismatches=61749 singleBaselineBits=3354466588 doubleBaselineBits=3354466588 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211 fromBaselineMismatches=0
+rich raw caret detail font=13 profile=1 position=16112 line=947 actual=16374.5928 metricTop=16374.5928 metricHeight=17.2910156 lineTop=16374.5918 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16271 line=957 actual=16547.5039 metricTop=16547.5039 metricHeight=17.2910156 lineTop=16547.502 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16377 line=963 actual=16651.25 metricTop=16651.25 metricHeight=17.2910156 lineTop=16651.248 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16483 line=969 actual=16754.9961 metricTop=16754.9961 metricHeight=17.2910156 lineTop=16754.9941 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16589 line=975 actual=16858.7422 metricTop=16858.7422 metricHeight=17.2910156 lineTop=16858.7402 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16748 line=985 actual=17031.6523 metricTop=17031.6523 metricHeight=17.2910156 lineTop=17031.6504 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16854 line=991 actual=17135.3984 metricTop=17135.3984 metricHeight=17.2910156 lineTop=17135.3965 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw caret detail font=13 profile=1 position=16960 line=997 actual=17239.1445 metricTop=17239.1445 metricHeight=17.2910156 lineTop=17239.1426 lineHeight=17.2910156 lineBaseline=14.0283203
+rich raw range font=13 profile=1 count=1024 topMismatches=0 heightMismatches=0
+rich positioned geometry font=13 profile=1 split=8721 seed=8870.29102 prefixHeight=8870.29102 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-982297.125
+rich positioned glyphs font=13 profile=1 originY=0 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=1 originY=0 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=1096810496 bottomMismatches=2048 leadingMismatches=2048 singleBaselineBits=1096840192 doubleBaselineBits=1096840192 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=1 originY=-611.75 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=1 originY=-611.75 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=3289743360 bottomMismatches=2048 leadingMismatches=2048 singleBaselineBits=3289738800 doubleBaselineBits=3289738800 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=1 originY=-123456.25 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=-123456.25 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich positioned glyphs font=13 profile=1 originY=-123456.25 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=13 profile=1 lines=1025 originY=-123456.25 snapping=1 glyphRuns=2048 singleMismatches=2030 doubleMismatches=2030 firstPosition=0 actualBits=3354466560 bottomMismatches=2030 leadingMismatches=2030 singleBaselineBits=3354466588 doubleBaselineBits=3354466588 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12 fromBaselineMismatches=0
+rich raw caret detail font=13 profile=2 position=159 line=3 actual=111.184273 metricTop=111.184273 metricHeight=17.2910156 lineTop=98.5587845 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=212 line=4 actual=144.037201 metricTop=144.037201 metricHeight=17.2910156 lineTop=131.411713 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=265 line=5 actual=176.890137 metricTop=176.890137 metricHeight=17.2910156 lineTop=164.264648 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=318 line=6 actual=209.743073 metricTop=209.743073 metricHeight=17.2910156 lineTop=197.117584 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=371 line=7 actual=244.665344 metricTop=244.665344 metricHeight=15.2216797 lineTop=229.97052 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=424 line=8 actual=277.51828 metricTop=277.51828 metricHeight=15.2216797 lineTop=262.823456 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=477 line=9 actual=310.371216 metricTop=310.371216 metricHeight=15.2216797 lineTop=295.676392 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw caret detail font=13 profile=2 position=530 line=10 actual=341.154816 metricTop=341.154816 metricHeight=17.2910156 lineTop=328.529327 lineHeight=32.8529282 lineBaseline=26.6538067
+rich raw range font=13 profile=2 count=4096 topMismatches=0 heightMismatches=0
+rich positioned geometry font=13 profile=2 split=25650 seed=16853.4805 prefixHeight=16853.4805 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-966361.375
+rich positioned glyphs font=13 profile=2 originY=0 snapping=0 compared=4599 mismatches=0
+rich raw glyph detail font=13 profile=2 position=24957 line=499 glyphs=8 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=24965 line=499 glyphs=1 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=24967 line=499 glyphs=1 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=24968 line=499 glyphs=2 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=24978 line=499 glyphs=20 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=24998 line=499 glyphs=0 actual=16420.1836 expected=16420.1855 fromBottom=16420.1855 fromLeading=16420.1836 top=16393.5312 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=25057 line=501 glyphs=8 actual=16485.8906 expected=16485.8926 fromBottom=16485.8926 fromLeading=16485.8906 top=16459.2383 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=13 profile=2 position=25065 line=501 glyphs=1 actual=16485.8906 expected=16485.8926 fromBottom=16485.8926 fromLeading=16485.8906 top=16459.2383 height=32.8529282 baseline=26.6538067 runFontSize=13 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw baseline font=13 profile=2 lines=1025 originY=0 snapping=0 glyphRuns=9216 singleMismatches=1494 doubleMismatches=9075 firstPosition=24957 actualBits=1182812254 bottomMismatches=1503 leadingMismatches=0 singleBaselineBits=1182812255 doubleBaselineBits=1182812296 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich positioned glyphs font=13 profile=2 originY=0 snapping=1 compared=4599 mismatches=0
+rich raw baseline font=13 profile=2 lines=1025 originY=0 snapping=1 glyphRuns=9216 singleMismatches=9198 doubleMismatches=9162 firstPosition=0 actualBits=1104674816 bottomMismatches=9198 leadingMismatches=9192 singleBaselineBits=1104493311 doubleBaselineBits=1104493311 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich positioned glyphs font=13 profile=2 originY=-611.75 snapping=0 compared=4599 mismatches=0
+rich raw baseline font=13 profile=2 lines=1025 originY=-611.75 snapping=0 glyphRuns=9216 singleMismatches=1494 doubleMismatches=9075 firstPosition=24957 actualBits=1182204348 bottomMismatches=1503 leadingMismatches=0 singleBaselineBits=1182204350 doubleBaselineBits=1182204432 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich positioned glyphs font=13 profile=2 originY=-611.75 snapping=1 compared=4599 mismatches=0
+rich raw baseline font=13 profile=2 lines=1025 originY=-611.75 snapping=1 glyphRuns=9216 singleMismatches=9198 doubleMismatches=9216 firstPosition=0 actualBits=3289530368 bottomMismatches=9198 leadingMismatches=9192 singleBaselineBits=3289531944 doubleBaselineBits=3289531944 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich positioned glyphs font=13 profile=2 originY=-123456.25 snapping=0 compared=4599 mismatches=0
+rich raw baseline font=13 profile=2 lines=1025 originY=-123456.25 snapping=0 glyphRuns=9216 singleMismatches=372 doubleMismatches=7914 firstPosition=25157 actualBits=3352349780 bottomMismatches=372 leadingMismatches=0 singleBaselineBits=3352349779 doubleBaselineBits=3352349769 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich positioned glyphs font=13 profile=2 originY=-123456.25 snapping=1 compared=4599 mismatches=0
+rich raw baseline font=13 profile=2 lines=1025 originY=-123456.25 snapping=1 glyphRuns=9216 singleMismatches=9117 doubleMismatches=9216 firstPosition=0 actualBits=3354465024 bottomMismatches=9117 leadingMismatches=9111 singleBaselineBits=3354464972 doubleBaselineBits=3354464972 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960 fromBaselineMismatches=831
+rich raw caret detail font=18 profile=0 position=1431 line=1431 actual=34260.1562 metricTop=34260.1562 metricHeight=23.9414062 lineTop=34260.1523 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=1537 line=1537 actual=36797.9453 metricTop=36797.9453 metricHeight=23.9414062 lineTop=36797.9414 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=1643 line=1643 actual=39335.7344 metricTop=39335.7344 metricHeight=23.9414062 lineTop=39335.7305 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=1749 line=1749 actual=41873.5234 metricTop=41873.5234 metricHeight=23.9414062 lineTop=41873.5195 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=1855 line=1855 actual=44411.3125 metricTop=44411.3125 metricHeight=23.9414062 lineTop=44411.3086 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=1961 line=1961 actual=46949.1016 metricTop=46949.1016 metricHeight=23.9414062 lineTop=46949.0977 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=2067 line=2067 actual=49486.8906 metricTop=49486.8906 metricHeight=23.9414062 lineTop=49486.8867 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw caret detail font=18 profile=0 position=2173 line=2173 actual=52024.6797 metricTop=52024.6797 metricHeight=23.9414062 lineTop=52024.6758 lineHeight=23.9414062 lineBaseline=19.4238281
+rich raw range font=18 profile=0 count=65536 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18 profile=0 split=1007 seed=24108.9961 prefixHeight=24108.9961 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=570132.375
+rich positioned glyphs font=18 profile=0 originY=0 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 bottomMismatches=32683 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=0 originY=0 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=63644 doubleMismatches=65521 firstPosition=0 actualBits=1100480512 bottomMismatches=62959 leadingMismatches=63644 singleBaselineBits=1100702720 doubleBaselineBits=1100702720 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=0 originY=-611.75 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 bottomMismatches=32683 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=0 originY=-611.75 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=63641 doubleMismatches=65522 firstPosition=0 actualBits=3289645056 bottomMismatches=62957 leadingMismatches=63641 singleBaselineBits=3289650400 doubleBaselineBits=3289650400 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=0 originY=-123456.25 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=-123456.25 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 bottomMismatches=32683 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=0 originY=-123456.25 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18 profile=0 lines=65536 originY=-123456.25 snapping=1 glyphRuns=65536 singleMismatches=63632 doubleMismatches=65509 firstPosition=0 actualBits=3354465920 bottomMismatches=62948 leadingMismatches=63632 singleBaselineBits=3354465898 doubleBaselineBits=3354465898 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199 fromBaselineMismatches=0
+rich raw range font=18 profile=1 count=1024 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18 profile=1 split=8721 seed=12281.9414 prefixHeight=12281.9414 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-975488.312
+rich positioned glyphs font=18 profile=1 originY=0 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=1 originY=0 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=1100480512 bottomMismatches=2048 leadingMismatches=2048 singleBaselineBits=1100702720 doubleBaselineBits=1100702720 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=1 originY=-611.75 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=1 originY=-611.75 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=3289645056 bottomMismatches=2048 leadingMismatches=2048 singleBaselineBits=3289650400 doubleBaselineBits=3289650400 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=1 originY=-123456.25 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-123456.25 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich positioned glyphs font=18 profile=1 originY=-123456.25 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-123456.25 snapping=1 glyphRuns=2048 singleMismatches=2032 doubleMismatches=2032 firstPosition=0 actualBits=3354465920 bottomMismatches=2032 leadingMismatches=2032 singleBaselineBits=3354465898 doubleBaselineBits=3354465898 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0 fromBaselineMismatches=0
+rich raw caret detail font=18 profile=2 position=159 line=6 actual=225.771667 metricTop=225.771667 metricHeight=23.9414062 lineTop=208.290222 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=212 line=8 actual=295.201752 metricTop=295.201752 metricHeight=23.9414062 lineTop=277.720306 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=265 line=10 actual=364.631836 metricTop=364.631836 metricHeight=23.9414062 lineTop=347.150391 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=318 line=12 actual=434.06192 metricTop=434.06192 metricHeight=23.9414062 lineTop=416.580475 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=371 line=14 actual=506.357239 metricTop=506.357239 metricHeight=21.0761719 lineTop=486.010559 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=424 line=16 actual=575.787292 metricTop=575.787292 metricHeight=21.0761719 lineTop=555.440613 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=477 line=18 actual=645.217346 metricTop=645.217346 metricHeight=21.0761719 lineTop=624.870667 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw caret detail font=18 profile=2 position=530 line=20 actual=711.782166 metricTop=711.782166 metricHeight=23.9414062 lineTop=694.30072 lineHeight=45.4886703 lineBaseline=36.9052734
+rich raw range font=18 profile=2 count=6144 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18 profile=2 split=25650 seed=35617.4844 prefixHeight=35617.4844 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-928907.625
+rich positioned glyphs font=18 profile=2 originY=0 snapping=0 compared=5621 mismatches=0
+rich raw glyph detail font=18 profile=2 position=47221 line=1888 glyphs=7 actual=65578.5938 expected=65578.5859 fromBottom=65578.5859 fromLeading=65578.5781 top=65541.6797 height=45.4886703 baseline=36.9052734 runFontSize=18 designUnits=2048 ascent=1884 descent=514 gap=0
+rich raw baseline font=18 profile=2 lines=2049 originY=0 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=11123 firstPosition=47221 actualBits=1199576396 bottomMismatches=2294 leadingMismatches=1417 singleBaselineBits=1199576395 doubleBaselineBits=1199576435 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich positioned glyphs font=18 profile=2 originY=0 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=0 snapping=1 glyphRuns=11264 singleMismatches=11202 doubleMismatches=11227 firstPosition=0 actualBits=1108606976 bottomMismatches=11220 leadingMismatches=11214 singleBaselineBits=1108582144 doubleBaselineBits=1108582144 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich positioned glyphs font=18 profile=2 originY=-611.75 snapping=0 compared=5621 mismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=-611.75 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=11123 firstPosition=47221 actualBits=1199425240 bottomMismatches=2294 leadingMismatches=1417 singleBaselineBits=1199425238 doubleBaselineBits=1199425318 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich positioned glyphs font=18 profile=2 originY=-611.75 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=-611.75 snapping=1 glyphRuns=11264 singleMismatches=11213 doubleMismatches=11220 firstPosition=0 actualBits=3289366528 bottomMismatches=11231 leadingMismatches=11225 singleBaselineBits=3289363984 doubleBaselineBits=3289363984 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich positioned glyphs font=18 profile=2 originY=-123456.25 snapping=0 compared=5621 mismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=-123456.25 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=10239 firstPosition=47221 actualBits=3345094056 bottomMismatches=159 leadingMismatches=1 singleBaselineBits=3345094058 doubleBaselineBits=3345093978 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich positioned glyphs font=18 profile=2 originY=-123456.25 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=-123456.25 snapping=1 glyphRuns=11264 singleMismatches=11178 doubleMismatches=11158 firstPosition=0 actualBits=3354463616 bottomMismatches=11178 leadingMismatches=11178 singleBaselineBits=3354463660 doubleBaselineBits=3354463660 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960 fromBaselineMismatches=522
+rich raw range font=18.1000004 profile=0 count=65536 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18.1000004 profile=0 split=1007 seed=24242.7773 prefixHeight=24242.7773 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=578487.75
+rich positioned glyphs font=18.1000004 profile=0 originY=0 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65513 firstPosition=0 actualBits=0 bottomMismatches=46478 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=0 originY=0 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=60610 doubleMismatches=65520 firstPosition=0 actualBits=1101004800 bottomMismatches=60653 leadingMismatches=60610 singleBaselineBits=1100759296 doubleBaselineBits=1100759296 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=0 originY=-611.75 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65511 firstPosition=0 actualBits=0 bottomMismatches=46477 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=0 originY=-611.75 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=60610 doubleMismatches=65521 firstPosition=0 actualBits=3289645056 bottomMismatches=60653 leadingMismatches=60610 singleBaselineBits=3289648632 doubleBaselineBits=3289648632 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=0 originY=-123456.25 snapping=0 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=-123456.25 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65362 firstPosition=0 actualBits=0 bottomMismatches=46476 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=0 originY=-123456.25 snapping=1 compared=64529 mismatches=0
+rich raw baseline font=18.1000004 profile=0 lines=65536 originY=-123456.25 snapping=1 glyphRuns=65536 singleMismatches=60590 doubleMismatches=65504 firstPosition=0 actualBits=3354465920 bottomMismatches=60633 leadingMismatches=60590 singleBaselineBits=3354465884 doubleBaselineBits=3354465884 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1000004 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237 fromBaselineMismatches=0
+rich raw caret detail font=18.1000004 profile=1 position=371 line=21 actual=505.562622 metricTop=505.562622 metricHeight=24.0744133 lineTop=505.562592 lineHeight=24.0744133 lineBaseline=19.5317383
+rich raw range font=18.1000004 profile=1 count=1024 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18.1000004 profile=1 split=8721 seed=12350.1133 prefixHeight=12350.1133 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-975352.312
+rich positioned glyphs font=18.1000004 profile=1 originY=0 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=2018 firstPosition=0 actualBits=0 bottomMismatches=4 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=1 originY=0 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2042 doubleMismatches=2044 firstPosition=0 actualBits=1101004800 bottomMismatches=2042 leadingMismatches=2042 singleBaselineBits=1100759296 doubleBaselineBits=1100759296 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=1 originY=-611.75 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=2014 firstPosition=0 actualBits=0 bottomMismatches=2 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=1 originY=-611.75 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2042 doubleMismatches=2046 firstPosition=0 actualBits=3289645056 bottomMismatches=2042 leadingMismatches=2042 singleBaselineBits=3289648632 doubleBaselineBits=3289648632 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=1 originY=-123456.25 snapping=0 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=-123456.25 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=1716 firstPosition=0 actualBits=0 bottomMismatches=0 leadingMismatches=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich positioned glyphs font=18.1000004 profile=1 originY=-123456.25 snapping=1 compared=1022 mismatches=0
+rich raw baseline font=18.1000004 profile=1 lines=1025 originY=-123456.25 snapping=1 glyphRuns=2048 singleMismatches=2026 doubleMismatches=2030 firstPosition=0 actualBits=3354465920 bottomMismatches=2026 leadingMismatches=2026 singleBaselineBits=3354465884 doubleBaselineBits=3354465884 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1000004 profile=1 samples=330 singleMismatches=1 doubleMismatches=326 fromBaselineMismatches=0
+rich raw caret detail font=18.1000004 profile=2 position=159 line=6 actual=227.02597 metricTop=227.02597 metricHeight=24.0744133 lineTop=209.447403 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=212 line=8 actual=296.841736 metricTop=296.841736 metricHeight=24.0744133 lineTop=279.263184 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=265 line=10 actual=366.657532 metricTop=366.657532 metricHeight=24.0744133 lineTop=349.078979 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=318 line=12 actual=436.473328 metricTop=436.473328 metricHeight=24.0744133 lineTop=418.894775 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=371 line=14 actual=509.170288 metricTop=509.170288 metricHeight=21.193264 lineTop=488.710571 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=424 line=16 actual=578.986084 metricTop=578.986084 metricHeight=21.193264 lineTop=558.526367 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=477 line=18 actual=648.80188 metricTop=648.80188 metricHeight=21.193264 lineTop=628.342163 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw caret detail font=18.1000004 profile=2 position=530 line=20 actual=715.736511 metricTop=715.736511 metricHeight=24.0744133 lineTop=698.157959 lineHeight=45.7413864 lineBaseline=37.110302
+rich raw range font=18.1000004 profile=2 count=6144 topMismatches=0 heightMismatches=0
+rich positioned geometry font=18.1000004 profile=2 split=25650 seed=35815.6133 prefixHeight=35815.6133 prefixUnits=2 heightEqual=1 caretMismatches=0 overhangTop=-0 overhangBottom=-928512.188
+rich positioned glyphs font=18.1000004 profile=2 originY=0 snapping=0 compared=5621 mismatches=0
+rich raw glyph detail font=18.1000004 profile=2 position=5907 line=236 glyphs=8 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=5915 line=236 glyphs=1 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=5917 line=236 glyphs=1 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=5918 line=236 glyphs=2 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=5928 line=236 glyphs=5 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=5933 line=236 glyphs=1 actual=8275.35547 expected=8275.35645 fromBottom=8275.35645 fromLeading=8275.35547 top=8238.24609 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=6007 line=240 glyphs=8 actual=8414.98633 expected=8414.9873 fromBottom=8414.9873 fromLeading=8414.98633 top=8377.87695 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw glyph detail font=18.1000004 profile=2 position=6015 line=240 glyphs=1 actual=8414.98633 expected=8414.9873 fromBottom=8414.9873 fromLeading=8414.98633 top=8377.87695 height=45.7413864 baseline=37.110302 runFontSize=18.1000004 designUnits=2048 ascent=2210 descent=514 gap=0
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=0 snapping=0 glyphRuns=11264 singleMismatches=354 doubleMismatches=11102 firstPosition=5907 actualBits=1174490476 bottomMismatches=2925 leadingMismatches=539 singleBaselineBits=1174490477 doubleBaselineBits=1174490496 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+rich positioned glyphs font=18.1000004 profile=2 originY=0 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=0 snapping=1 glyphRuns=11264 singleMismatches=11220 doubleMismatches=11264 firstPosition=0 actualBits=1108606976 bottomMismatches=11231 leadingMismatches=11219 singleBaselineBits=1108635891 doubleBaselineBits=1108635891 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+rich positioned glyphs font=18.1000004 profile=2 originY=-611.75 snapping=0 compared=5621 mismatches=0
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=-611.75 snapping=0 glyphRuns=11264 singleMismatches=354 doubleMismatches=11102 firstPosition=5907 actualBits=1173322968 bottomMismatches=2921 leadingMismatches=539 singleBaselineBits=1173322970 doubleBaselineBits=1173323008 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+rich positioned glyphs font=18.1000004 profile=2 originY=-611.75 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=-611.75 snapping=1 glyphRuns=11264 singleMismatches=11227 doubleMismatches=11185 firstPosition=0 actualBits=3289366528 bottomMismatches=11236 leadingMismatches=11227 singleBaselineBits=3289360625 doubleBaselineBits=3289360625 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+rich positioned glyphs font=18.1000004 profile=2 originY=-123456.25 snapping=0 compared=5621 mismatches=0
+  [DONE] TestRichDocumentLayoutRawLineOriginDiagnostics (0.490 s)
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=-123456.25 snapping=0 glyphRuns=11264 singleMismatches=42 doubleMismatches=10347 firstPosition=6307 actualBits=3353337648 bottomMismatches=750 leadingMismatches=293 singleBaselineBits=3353337647 doubleBaselineBits=3353337645 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+rich positioned glyphs font=18.1000004 profile=2 originY=-123456.25 snapping=1 compared=5621 mismatches=0
+rich raw baseline font=18.1000004 profile=2 lines=2049 originY=-123456.25 snapping=1 glyphRuns=11264 singleMismatches=11154 doubleMismatches=11094 firstPosition=0 actualBits=3354463616 bottomMismatches=11161 leadingMismatches=11154 singleBaselineBits=3354463634 doubleBaselineBits=3354463634 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1000004 profile=2 samples=968 singleMismatches=542 doubleMismatches=957 fromBaselineMismatches=522
+[DONE] EditorControls (0.492 s)
+All DxUi tests passed.

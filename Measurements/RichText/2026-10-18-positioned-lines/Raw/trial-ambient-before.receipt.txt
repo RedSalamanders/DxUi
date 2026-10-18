@@ -1,0 +1,40 @@
+{
+  "sourceSha256": "E6822BFE26ED3451F72B95D89D9240C58E781F52C4AB5F4510C2560D1ADF76FF",
+  "rows": [
+    {
+      "cpuSeconds": 0.9375,
+      "createdUtc": "2026-10-18T10:54:50.8264159Z",
+      "processId": 39012,
+      "name": "MSBuild"
+    },
+    {
+      "cpuSeconds": 0.921875,
+      "createdUtc": "2026-10-18T10:54:50.8265739Z",
+      "processId": 65836,
+      "name": "MSBuild"
+    },
+    {
+      "cpuSeconds": 1.0,
+      "createdUtc": "2026-10-18T10:54:50.8267772Z",
+      "processId": 35280,
+      "name": "MSBuild"
+    },
+    {
+      "cpuSeconds": 0.921875,
+      "createdUtc": "2026-10-18T10:54:50.8269789Z",
+      "processId": 94452,
+      "name": "MSBuild"
+    },
+    {
+      "cpuSeconds": 1.09375,
+      "createdUtc": "2026-10-18T10:54:50.8272243Z",
+      "processId": 90120,
+      "name": "MSBuild"
+    }
+  ],
+  "errors": [],
+  "excluded": "No command lines, paths, thread snapshots, process suspension, priority/affinity changes or process termination.",
+  "classification": "Read-only selected-image counters outside the complete native study; no frame attribution, ownership inference or quiet-host proof",
+  "endedUtc": "2026-10-18T11:07:45.5660438Z",
+  "startedUtc": "2026-10-18T11:07:45.4716937Z"
+}

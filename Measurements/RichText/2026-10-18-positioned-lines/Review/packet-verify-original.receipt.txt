@@ -1,0 +1,6 @@
+{
+  "utc": "2026-10-18T11:56:32.1610641Z",
+  "scriptSha256": "A19659D5CF0A8BC77B07A16C9FB05B8860705BC11A03E1FD4ACF1EAAFA68B2D4",
+  "classification": "Original verifier looked for native/embedded UIA scrolling in EditorControls; the registered cases complete in ordinary Accessibility. No native change or test rerun.",
+  "exitCode": 1
+}

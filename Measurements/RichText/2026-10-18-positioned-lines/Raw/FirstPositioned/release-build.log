@@ -1,0 +1,76 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+?������������������������������������������������������������������������?
+�                                                                        �
+�                      �����ۻ �ۻ  �ۻ�ۻ   �ۻ�ۻ                      �
+�                      ������ۻ��ۻ��ɼ�ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ɼ �ۺ   �ۺ�ۺ                      �
+�                      �ۺ  �ۺ ����ۻ �ۺ   �ۺ�ۺ                      �
+�                      ������ɼ��ɼ �ۻ�������ɼ�ۺ                      �
+�                      �����ͼ �ͼ  �ͼ �����ͼ �ͼ                      �
+�                                                                        �
+�      ?  PIXELS PRIMED    CONTROLS READY    COMPILE MODE: GO!  ?      �
+�                  ?  RELEASE  /  X64  /  REBUILD  ?                   �
+�                                                                        �
+?������������������������������������������������������������������������?
+
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichTextLayout.cpp
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextLayout.cpp(202,53): error C2248: 'Microsoft::WRL::Details::DontUseNewUseMake::operator new': cannot access private member declared in class 'Microsoft::WRL::Details::DontUseNewUseMake' [Z:\src\DxUi-worktrees\rich-text-core-d2\src\DxUi.vcxproj]
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\implements.h(259,11):
+      see declaration of 'Microsoft::WRL::Details::DontUseNewUseMake::operator new'
+      C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt\wrl\implements.h(256,7):
+      see declaration of 'Microsoft::WRL::Details::DontUseNewUseMake'
+  
+  DxUi.RichDocumentLayout.cpp
+  DxUi.RichTextEditor.cpp
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.TextElements.cpp
+  Generating Code...
+
+========================================
+DxUi build failed
+Exit code: 1
+Build time: 01:10
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Release-797f704ff5d04e17adeb5a78786ecc97.log
+========================================

@@ -1,0 +1,27 @@
+{
+  "startedUtc": "2026-10-18T11:57:37.4794375Z",
+  "elapsedSeconds": 11.6733252,
+  "classification": "Final post-closeout metadata and prose validation; C++ and native source unchanged after qualified frozen matrix",
+  "results": [
+    {
+      "exitCode": 0,
+      "script": "validate-skills.ps1"
+    },
+    {
+      "exitCode": 0,
+      "script": "validate-specs.ps1"
+    },
+    {
+      "exitCode": 0,
+      "script": "validate-dependencies.ps1"
+    },
+    {
+      "exitCode": 0,
+      "script": "validate-test-port.ps1"
+    },
+    {
+      "exitCode": 0,
+      "script": "validate-build-matrix.ps1"
+    }
+  ]
+}

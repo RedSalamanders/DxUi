@@ -710,9 +710,10 @@ privileges change and no scheduler trace is claimed.
   conservative scalar/CRLF source intervals without allocation or mutable caches.
 - [x] Add the bounded v0 line-block projection service with exact mapping, reuse,
   retirement, failure and retention qualification.
-- [ ] Integrate retained paragraph geometry with the qualified projection service.
-  Measure initial preparation and edits independently; preserve source/geometry
-  publication, caret/range/scroll behavior, cancellation and stale-result checks.
+- [x] Integrate bounded retained paragraph geometry with the qualified projection
+  service. Measure initial preparation and edits independently; preserve atomic
+  source/geometry publication and caret/range/scroll behavior. Cancellation and
+  stale scheduled-result checks belong to the following shared-preparation step.
 - [ ] Integrate bounded host/shared preparation scheduling and resource ownership
   for native/embedded views; qualify clean/dirty/hidden/device-loss and two-view
   behavior before changing capacity or claiming large-document support.
@@ -1012,12 +1013,13 @@ Continue implementation in this order:
   diagnostic using the documented SDK flag; test both policies and exact captures.
   Preserve default library/canonical device creation. Work placement/runtime
   changes are not a measurement of scheduler latency by themselves.
-- [ ] Measure independent whole-DirectWrite callback baselines, caret/range line
+- [x] Measure independent whole-DirectWrite callback baselines, caret/range line
   placement and accumulation at 13/18/18.1 DIP, maximum newlines, wrapped/mixed
   fonts, RTL and fractional origins before selecting a retained-line adapter.
-  The private raw-baseline draft is uncompiled and is not implemented support.
-- [ ] Finish exact retained line placement/drawing where the current compatibility
-  path rebuilds a whole layout; retain independent geometry and pixel oracles.
+  All three bounded native probes are preserved with their original observations.
+- [x] Finish exact retained line placement/drawing for qualified default,
+  fractional and large-origin cases; retain independent geometry and pixel
+  oracles. Inexact tiny-font/empty-suffix cases retain explicit whole fallback.
 - [ ] Integrate shared/cooperative preparation under existing host ownership,
   cancellation, revision/binding and stale-publication contracts. Embedded mode
   does not acquire its own worker/timer; shared DWrite factory identity alone
@@ -1118,3 +1120,156 @@ No library/canonical device, judge, threshold, baseline or consumer pin changes.
 Continue the independent retained-line probe, exact retained drawing, shared
 preparation and full syntax/semantic/editing implementation. D2a/D4a/D4c/D4d/D5
 remain active; this is a supporting diagnostic component, not overall completion.
+
+### Exact retained-line investigation started
+
+An explicit `TestRichDocumentLayoutRawLineOriginDiagnostics` candidate now lives
+in the existing document-layout test module. It creates independent whole
+DirectWrite layouts rather than reading the owned chunk implementation. Bounded
+preallocated callback storage records real glyph origins; metrics/ACP samples
+compare actual positions with single-precision and double-prefix accumulation.
+Cases cover 13/18/18.1 DIP, maximum newlines, plain/wrapped mixed fonts and RTL,
+fractional/far origins and pixel-snapping options. The candidate is uncompiled;
+the production retained renderer and geometry/pixel oracles are unchanged.
+Next: compile/run the owned bounded Release probe and retain all observations
+before choosing a line-placement/drawing change. No new performance claim follows.
+
+The first root Release build/probe pass in 447.163 seconds. The native selected
+case takes 0.337 seconds; exact source, executable/PDB, build attestation, filtered
+receipt/log and canonical unpaired diagnostic are retained. Single-precision
+sequential metrics match total height bits in all nine layouts. Simple prefix
+baselines still differ in mixed-font glyph callbacks, and caret top differs at
+some ACPs even in plain text. Do not adopt a prefix-only correction as exact.
+The next probe records font metrics, bounded mismatch details, range top/height,
+alternative operation associations and actual color-glyph interface availability.
+Round-trip float output also preserves the far fractional origin explicitly.
+
+The second root Release probe passes in 361.631 seconds; its actual ranges match
+single-precision top/height in all nine cases, while caret and mixed-font glyph
+arithmetic differs. The third independent experiment places a zero-width,
+invisible first-line object at the intended document origin. All nine total-height/
+caret comparisons and all 54 glyph-origin comparisons match exactly, including
+snapping and far origins. Original data/source/artifacts for all three probes stay
+retained. These are focused diagnostic observations, not full renderer qualification.
+
+A production candidate now seeds each retained DirectWrite chunk with that private
+positioning line. Its two synthetic UTF-16 units stay outside every source/display
+map. DirectWrite retains its own caret/font/color drawing and origin association.
+Reuse also requires identical document origin; height-changing edits may rebuild
+the dependent suffix and must report that source work. Prefix-height mismatch
+retains canonical whole fallback. Existing geometry/pixel tolerances remain
+unchanged; tiny-font fallback, source boundaries, clear/fault/resource, actual
+native/embedded use and exact WARP tests must pass before accepting the candidate.
+
+The first positioned build fails because WRL prevents ordinary `new` on runtime
+classes. Its full source/build/error are retained. Use `Make` and translate a null
+allocation result to `std::bad_alloc` during staging; do not change the public
+failure contract or treat that compile failure as native qualification.
+
+The second candidate builds without warnings and passes the affected Release
+Embedded/EditorControls suites in 322.233 seconds overall. The 54 actual/reference
+WARP pixel pairs and unchanged geometry tolerances pass. The actual native body
+font is 13 DIP: 26 retained chunks, 1,040 newly prepared source units and no whole
+geometry/raster/preparation. Ordinary fault schedules cover 249 chunk and 361
+whole-fallback C++ allocations; clear/unchanged queries remain allocation-free.
+These affected checks do not substitute for the final configuration matrix.
+Exact source, binaries/PDBs, root receipts, logs and all 108 PNGs remain private
+under rich-line-origins-20261018/SecondPositioned pending the sealed public packet.
+
+Next tests exercise inserted newlines, heading height and wrapped first-line
+changes with explicit dependent suffix work, undo, hidden-only terminal blocks,
+real user FFFC preservation, and the actual 13-DIP embedded editor at three DPIs.
+Only after they pass will the unchanged five-trial diagnostic be measured again.
+Shared/cooperative preparation, full grammar/semantic editing and physical/platform
+acceptance remain active; this candidate does not close those gates.
+
+The third affected Release candidate passes in 328.947 seconds, including all
+new height/empty-suffix tests and the default embedded editor at 96/144/192 DPI.
+Each embedded edit reuses 25 of 26 chunks and prepares 1,040 source units, with no
+whole work. Source text-service snapshots contain exact original units. The
+final test delta retains the original 54 WARP pairs and adds 13-DIP, fractional
+18.1-DIP and large-origin profiles (108 pairs total), with nonempty final-viewport
+checks and explicit no-fallback assertions. Native/embedded UIA scroll fixtures
+also assert positioned geometry and exact source text. Qualification is pending.
+
+The fourth affected Release candidate passes in 331.413 seconds: all 108 exact
+pixel pairs execute, all final viewports contain actual reference ink, and every
+profile uses chunk geometry/drawing. Native/embedded UIA scrolling passes on
+default-font positioned layouts and exposes exact source. The fixed next schedule
+freezes all changed code/tests/prose, executes the unchanged explicit five-trial
+method once, then x64 Debug/ASan/Release ordinary suites with isolated Debug/ASan
+clear/chunk/whole/flat failure sweeps and all three ARM64 builds. Focus-taking
+suites still require desktop-time agreement. All original attempts/artifacts stay
+retained; no accepted frame-performance or universal incremental-work claim follows.
+
+### Qualified positioned lines and next shared-preparation component
+
+The frozen final matrix passes all 14 owned operations in 2,338.031 seconds:
+57 ordinary x64 suites (19 each in Debug, Release and ASan Debug), six isolated
+Debug/ASan probes, and all six root build profiles. There are zero native skips,
+build warnings or build errors. ARM64 results are cross-builds, not execution.
+All 14 changed source/test/spec/doc inputs match their start/end hashes. Seventy-
+four exact final build artifact files remain private with hashes; the earlier
+failed WRL build and all three probe/four candidate attempts remain preserved.
+
+Each x64 profile passes 108 exact WARP pairs (324 total), with original geometry
+tolerances unchanged. The six font profiles include actual 13-DIP controls,
+fractional 18.1-DIP text and large origins, both bidi directions, three transforms
+and first/middle/end viewports. Every final viewport contains actual reference
+ink. Native/embedded UIA scrolling exposes exact source text; embedded edits at
+96/144/192 DPI reuse 25 of 26 chunks and prepare 1,040 source units without whole
+geometry, preparation or drawing. Height-changing edits, hidden-only suffixes,
+real FFFC source, undo, failed staging and retirement have explicit tests.
+
+Clear/unchanged/cached composition retain zero tracked C++ allocations. Complete
+Debug/ASan schedules exercise 22 copy, 335 chunk, 469 whole and 29 flat-projection
+allocation points each. Release maximum-source C++ storage is 7,771,189/5,690,558/
+13,290,725 bytes; the repeated-edit fixture retains 2,845,969 bytes with a 2,944,126-
+byte replacement peak. All tracked release deltas are zero. Existing 24 MiB
+maximum-source and 8/16 MiB retained/replacement limits remain unchanged and
+exclude SDK-private heaps.
+
+The byte-identical explicit five-trial body passes. Median initial preparation
+is 145.909 ms and 128 accepted edits take 2,166.98 ms, versus the preserved original
+522.474/51,102.6 ms. Keep every sample and earlier 53,381.5/66,413.6-ms observations
+separate. These are descriptive shared-host results without same-binary drift
+controls, quiet-host proof, a causal speed claim, 1 MiB p95 input-to-paint evidence
+or frame acceptance. The original clear/readback/scheduler HOLD remains open.
+Canonical benchmark/judges/thresholds/baseline and consumer pins are unchanged.
+
+The [positioned-line packet](../../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+records source, original failures, receipts, exact images and replay. Documentation
+and gallery review finds no intended visual change: the independent whole-layout
+pixel oracle is unchanged, and every new retained image matches it exactly. No
+gallery fixture, typography token, theme, catalog entry or preview is changed.
+
+Next implementation order, still active under D2a/D4a/D4c/D4d/D5:
+
+1. Add cancellable owner-thread staged geometry advances with independent finite
+   SDK-layout and reusable-block work budgets, preserving the last published pair
+   on failure. Budgeted work units do not bound an indivisible SDK/parser call.
+2. Integrate host wakeups/coalescing, document identity/revision/binding/typography/
+   device keys and stale publication rejection. Audit every synchronous
+   EnsureLayout caller, including input, TSF and UIA. Pending geometry must not
+   silently drain the entire request. Embedded controls acquire no worker/timer.
+3. Implement lossless semantic anchors, pinned CommonMark/GFM and accepted math,
+   Mermaid, footnotes/front matter, then source-preserving rich transactions.
+4. Qualify long paragraphs, capacity/latency, two views, clean/dirty/hidden/device
+   loss, physical IME/AT and native ARM64. Focus-taking tests still require agreed
+   desktop time under AGENTS.md; silence supplies no agreement.
+
+Fresh actual Ghidra MCP reads separately verify eight recalculation routines from
+the saved Office reference without changing its program or active user32 view.
+StartBackgroundRecalc requests a host timer and has a synchronous failure path;
+StepBackgroundRecalc's wrapper supplies no hard CPU budget. The owned design must
+separate invalidation, pending work, advances, completion and retirement rather
+than copying private flags, ABI, timer ownership or presumed thread safety. Those
+reads are next-component evidence, not an implemented scheduler or HOLD closure.
+
+Full validation (all five validators and tooling tests) and pinned formatter
+22.1.3 pass in 352.743 seconds after native qualification. Packet replay and two
+one-byte negative integrity tests pass. The original verifier's incorrect UIA
+suite-log lookup is preserved; correction reads the existing passing Accessibility
+log and changes no native source/test/result or oracle. Final document checks and
+staged Git-only replay precede the local component commit; the full feature and
+original frame-performance HOLD remain open.

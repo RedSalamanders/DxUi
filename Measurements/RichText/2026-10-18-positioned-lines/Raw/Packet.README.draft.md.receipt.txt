@@ -1,0 +1,76 @@
+# Positioned retained Unicode lines, 2026-10-18
+
+Draft: final matrix, tooling, sealing and tracked replay are still pending.
+Do not publish this draft as completed qualification.
+
+The candidate keeps DirectWrite's document-coordinate accumulation inside each
+retained chunk with an invisible positioning-only inline object and line break.
+Its two private UTF-16 units never enter source/display maps, navigation, text
+stores or UIA text. Drawing preserves the platform's caret/font/color behavior;
+each layout draws at the same document origin. No custom monochrome renderer,
+private Office ABI, embedded worker/timer/HWND/device or production WARP policy
+change is introduced.
+
+Reuse additionally requires the same document origin. Height changes may rebuild
+the complete dependent suffix and count all that source work. An inexact private
+line or empty displayed suffix retains canonical whole geometry and its terminal
+font. The chunk graph remains capped at 127 layouts plus an optional whole cache.
+The complete Markdown/extension engine, shared/cooperative preparation, universal
+incremental work, physical/platform and trusted frame-performance gates remain
+open. This component does not finish the full editor.
+
+## Evidence to verify after qualification
+
+- Six build profiles and 57 ordinary x64 suites, zero skips; distinguish ARM64
+  cross-builds from native execution. Six isolated Debug/ASan clear, copy/chunk/
+  whole and flat-projection diagnostic operations are separate from ordinary tests.
+- 108 exact WARP pairs per x64 profile: all original cases plus actual 13-DIP,
+  fractional 18.1-DIP and large-coordinate fonts, both bidi directions, identity/
+  scale+DPI/skew transforms, and first/middle/final viewports. Every final viewport
+  has real reference ink; every case asserts chunk geometry/drawing actually ran.
+- Height-changing newline/heading/wrap edits, suffix work, undo, hidden-only final
+  blocks, real FFFC source, failed publication, retirement and default native/
+  embedded text/UIA behavior. Embedded default-font edits at three DPIs reuse
+  25 of 26 chunks and prepare 1,040 source units without whole work.
+- Fixed source-limit/retention/replacement bounds, zero release deltas and zero
+  C++ allocations for clear/unchanged/cached composition. SDK-private heaps are
+  outside those counters. Source/spec/test/docs freeze is retained explicitly.
+
+## Unchanged native timing observations
+
+The exact five-trial method has SHA-256
+`38F507301DAB9D0A8612D20365ECD09F856209E7611575084665E33DF76DDB91`.
+All five original and five candidate observations remain, without trimming.
+An actual 13-DIP native control executes 128 accepted edits in 26,624 source units.
+
+| Median | Original whole layout | Positioned candidate |
+| --- | ---: | ---: |
+| Initial preparation | 522.474 ms | 145.909 ms |
+| 128 preparation/raster edits | 51,102.6 ms | 2,166.98 ms |
+
+The original guarded candidate's 53,381.5-ms median and later unchanged-library
+66,413.6-ms median remain in their earlier immutable packets. They are not erased
+or pooled. Current observations provide no same-binary drift control, quiet-host
+proof, controlled causal speedup, 1 MiB p95 input-to-paint result or frame
+acceptance. Main clear/readback/scheduler HOLD remains open. Benchmark, judges,
+thresholds, baseline and consumer pins are unchanged.
+
+## Preserved investigation and limits
+
+Three independent whole-DirectWrite probes establish single-precision total
+height, show that naive mixed-font/caret arithmetic is insufficient, then match
+all nine positioned caret/height cases and 54 glyph-origin cases. These raw
+diagnostics are not substitutes for actual pixels or ordinary native suites.
+The first production candidate's WRL C2248 compile failure is retained with exact
+source/logs. Make plus explicit null-to-bad_alloc translation keeps staging's
+allocation-failure contract. Prior float-height/pixel and Debug noexcept failures
+remain in the earlier immutable guarded-geometry packet.
+
+Original native executables, symbols and deployed runtimes remain private, with
+hashes/bindings in the inventory. Reviewed source, logs, receipts and all final
+images are public packet material. Historical JSON/Markdown/project snapshots
+are aliased as receipt text; long restore paths receive byte-preserving aliases.
+The verifier must replay from tracked Git blobs alone and reject one-byte altered
+source/native receipt copies. No ordinary build binary belongs in Measurements.
+
+The indexed WIP plan stays active until all feature and acceptance gates close.

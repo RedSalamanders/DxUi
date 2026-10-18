@@ -1,0 +1,19 @@
+{
+  "classification": "Primary public API contract inspection; not executable qualification or proof of DLL-private behavior",
+  "reviewedUtc": "2026-10-18T11:04:02.7772824Z",
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwriteinlineobject-getoverhangmetrics",
+      "observation": "Inline-object visible extents are relative to its reported object size and are not baseline adjusted."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/dwrite/ns-dwrite-dwrite_overhang_metrics",
+      "observation": "Negative overhang is permitted and represents whitespace inside the logical box. Logical overhang excludes rendering transforms, snapping, grid fitting and final hinting effects."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/dwrite/ns-dwrite-dwrite_inline_object_metrics",
+      "observation": "An application-defined inline object supplies width, height, baseline and sideways support."
+    }
+  ],
+  "inference": "The invisible zero-width origin object may report negative top overhang to exclude its logical height from visible ink. Independent exact-pixel tests are still required, including transformed and large-origin cases."
+}

@@ -1,0 +1,2 @@
+- Position retained rich-text chunks in document coordinates through an invisible private DirectWrite origin line, preserving source ACPs and the platform's mixed-font caret and color drawing behavior.
+  Add independent origin/caret/range diagnostics and preserve geometry/pixel/resource oracles; full native, embedded and configuration qualification remains active work.

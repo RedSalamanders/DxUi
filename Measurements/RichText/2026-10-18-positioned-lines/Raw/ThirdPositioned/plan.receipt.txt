@@ -1,0 +1,58 @@
+{
+  "overallBudgetSeconds": 1200,
+  "classification": "Positioned-chunk candidate; affected Release only, not final qualification or accepted performance",
+  "buildChildBudgetSeconds": 600,
+  "rootTestChildBudgetSeconds": 480,
+  "startedUtc": "2026-10-18T10:55:03.7801234Z",
+  "source": [
+    {
+      "sha256": "3AEB065E67A1BBAC1A537540E4DF1AC74D17886BB63240C1B8748A1D3E26863F",
+      "path": "Changes/2026-10-18-retained-line-origins.md"
+    },
+    {
+      "sha256": "57A8D43A8A880152F1E31DA001389D4E124EE80707270D67E9C53D9D2910B71D",
+      "path": "include/DxUi/RichTextLayout.h"
+    },
+    {
+      "sha256": "22EF665B56D7C1A366B15D840E819C903BF5D3610C4C9D07FEE688A40B6A1563",
+      "path": "Specs/Core/Core_PerformanceAndResources.md"
+    },
+    {
+      "sha256": "BE4C3F6C297746552445CBC5C5E642EC971FC417BF1B42D88D25E12E4982FF70",
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md"
+    },
+    {
+      "sha256": "E413D05B3D8A06578637B2ABEE2C2AE1412872A2A895C0F7A4BC319BB21B3509",
+      "path": "Specs/UI/UI_ControlsAndLayout.md"
+    },
+    {
+      "sha256": "D0D6602F75D38DFEDD73FC84AE6FE37E2DDE09556712CDB1FC021B08B02215CF",
+      "path": "src/Controls/DxUi.RichDocumentLayout.cpp"
+    },
+    {
+      "sha256": "89DE3D63EABED65E49AD91C37711DAFC45BC0C542F0339531332BF157F7279DF",
+      "path": "src/Controls/DxUi.RichTextLayout.cpp"
+    },
+    {
+      "sha256": "2FB442352D42BABBA2CE55C027BAEF4D22BA2EF2A821C1690132070EB1E5735E",
+      "path": "Tests/Controls/Scope.Tests.RichDocumentLayout.cpp"
+    },
+    {
+      "sha256": "A67C5E5FE7C800153AE850E8134AC7CFB278239770CF25FBD667E2987E1CFE46",
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "214E2D1B642B8A1AB0B74E324956699B645033D8FD5D677801F598BE918E800F",
+      "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+    },
+    {
+      "sha256": "EC07FA5F5E617956575226517074F5FBDF5243593BC4D439E094D86329ADFDFF",
+      "path": "Tests/Embedded/Scope.Tests.RichGeometryResources.h"
+    },
+    {
+      "sha256": "769F35B046A2BEA3609B384701E54E057227C24A14ADC8BFC7BD834CC4EE2460",
+      "path": "Tests/Embedded/Scope.Tests.RichTextResources.h"
+    }
+  ],
+  "perNativeTestBudgetSeconds": 120
+}

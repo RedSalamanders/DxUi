@@ -1,0 +1,42 @@
+{
+  "overallBudgetSeconds": 1200,
+  "source": [
+    {
+      "path": "Changes/2026-10-18-retained-line-origins.md",
+      "sha256": "3AEB065E67A1BBAC1A537540E4DF1AC74D17886BB63240C1B8748A1D3E26863F"
+    },
+    {
+      "path": "include/DxUi/RichTextLayout.h",
+      "sha256": "C64B5CED5BE33ECBA73E711B48F5112CED1D4815E155ACC9C4040B1842FDE427"
+    },
+    {
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md",
+      "sha256": "2188A24D38F128BE4CAC6B6F348A5CF509E4ED44144FB5C343DF53A7A94E7592"
+    },
+    {
+      "path": "src/Controls/DxUi.RichDocumentLayout.cpp",
+      "sha256": "D0D6602F75D38DFEDD73FC84AE6FE37E2DDE09556712CDB1FC021B08B02215CF"
+    },
+    {
+      "path": "src/Controls/DxUi.RichTextLayout.cpp",
+      "sha256": "89DE3D63EABED65E49AD91C37711DAFC45BC0C542F0339531332BF157F7279DF"
+    },
+    {
+      "path": "Tests/Controls/Scope.Tests.RichDocumentLayout.cpp",
+      "sha256": "07959A820193EB3B3800ED9A1C8902BE94EB9957C8A8FF244ECC49AC2953FA35"
+    },
+    {
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp",
+      "sha256": "A67C5E5FE7C800153AE850E8134AC7CFB278239770CF25FBD667E2987E1CFE46"
+    },
+    {
+      "path": "Tests/Embedded/Scope.Tests.RichGeometryResources.h",
+      "sha256": "EC07FA5F5E617956575226517074F5FBDF5243593BC4D439E094D86329ADFDFF"
+    }
+  ],
+  "rootTestChildBudgetSeconds": 480,
+  "perNativeTestBudgetSeconds": 120,
+  "startedUtc": "2026-10-18T10:47:26.7542374Z",
+  "buildChildBudgetSeconds": 600,
+  "classification": "First positioned-chunk candidate; affected Release only, not final qualification or accepted performance"
+}

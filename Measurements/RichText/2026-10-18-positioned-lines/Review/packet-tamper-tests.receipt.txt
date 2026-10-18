@@ -1,0 +1,36 @@
+{
+  "cases": [
+    {
+      "originalUnchanged": true,
+      "expectedHashFailure": true,
+      "target": "Native/Embedded-x64-Release.receipt.txt",
+      "copiedDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-line-origins-20261018\\tamper-62b1f512826845ad90142686cfffbe34",
+      "originalSha256": "CC8E5E7846D2B649C1CEF8D9D2F304CFCBE40F9D0EACBFDFFF1FECEA98C112A3",
+      "drained": true,
+      "nativeChildPid": 40756,
+      "tamperedSha256": "51EFEC9DB5030F690D35BA1C6919B1D24A0D2EC97C923786C58E008695E2A3BF",
+      "timedOut": false,
+      "packet": "2026-10-18-positioned-lines",
+      "exitCode": 1
+    },
+    {
+      "originalUnchanged": true,
+      "expectedHashFailure": true,
+      "target": "Source/src/Controls/DxUi.RichTextLayout.cpp",
+      "copiedDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-line-origins-20261018\\tamper-f2938ba17fce4672859afe4039985966",
+      "originalSha256": "89DE3D63EABED65E49AD91C37711DAFC45BC0C542F0339531332BF157F7279DF",
+      "drained": true,
+      "nativeChildPid": 95456,
+      "tamperedSha256": "122CF4B80B8F8CD69829BE1ECD6ED4977BB602DDD7C58AB422D549AF1CA6CF9E",
+      "timedOut": false,
+      "packet": "2026-10-18-positioned-lines",
+      "exitCode": 1
+    }
+  ],
+  "childBudgetSeconds": 120,
+  "elapsedSeconds": 4.2991242,
+  "classification": "Negative integrity tests on disposable preserved copies; actual packets unchanged",
+  "attempted": 2,
+  "scriptSha256": "C47EB51D0F8F928F20105BDD2430C44E71678EDD6E69C3DC481206AEDD1C98F7",
+  "scheduled": 2
+}

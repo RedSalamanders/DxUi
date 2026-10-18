@@ -633,8 +633,11 @@ original failure separately from successful final sweeps and build qualification
 
 Guarded rich document geometry retains at most 127 chunk layouts plus one optional
 whole-layout compatibility resource, with old/staged replacement bounded together.
-Rounding-sensitive geometry/raster falls back explicitly; count whole-layout work
-separately from chunk reuse. Owner preparation may construct that cache; cached
+The qualified positioned-line implementation preserves DirectWrite's global coordinate math with
+private invisible origin lines. Reuse additionally requires an identical document
+origin; height-changing edits may rebuild the entire suffix and must report every
+prepared source unit. Inexact origins and empty displayed suffixes fall back
+explicitly; count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
 embedded composition must allocate and prepare nothing. No per-control worker or
 periodic timer follows from reference DLL recalculation code.
 
@@ -644,5 +647,11 @@ bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; thes
 limits exclude SDK-private heaps and do not establish whole-process acceptance.
 The [guarded geometry record](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains all failure schedules, geometry/pixel oracles and original negative runs.
+The [positioned-line record](../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+adds 324 exact WARP pairs, default-font native/embedded reuse, complete observed
+copy/chunk/whole/flat failure schedules and all six build profiles. Clear,
+unchanged queries and cached composition allocate no tracked C++ storage. Its
+unchanged five-trial preparation observations do not establish quiet-host,
+same-binary drift, causal speedup, large-document latency or frame acceptance.
 Clear uses fallibly preconstructed retirement storage; staged projection building
 must not depend on optional NRVO to avoid noexcept Debug proxy termination.

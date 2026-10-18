@@ -59,9 +59,9 @@ void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, 
 struct GeometryChunk
 {
     PreparedLayout layout;
-    // A nonfinal chunk's terminal LF creates a phantom empty DirectWrite line.
-    // Its start, not the full metrics height, is the next chunk's y origin.
-    float continuationHeight{};
+    // All layout coordinates are already in document space. A nonfinal chunk's
+    // terminal LF creates a phantom empty line; exclude it from the next origin.
+    float continuationBottom{};
     float drawingTop{}, drawingBottom{};
 };
 struct ChunkPlacement
@@ -189,9 +189,10 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
     const auto append = [&](std::size_t first, std::size_t end, std::shared_ptr<const GeometryChunk> geometry)
     {
         const auto& block = blocks[first];
-        const auto height = end == blocks.size() ? geometry->layout.Height() : geometry->continuationHeight;
+        const auto bottom = end == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
+        const auto height = bottom - next->height;
         next->chunks.push_back({block.sourceStart, block.displayStart, first, end - first, next->height, height, std::move(geometry)});
-        next->height += height;
+        next->height = bottom;
         if (! std::isfinite(next->height))
             throw std::overflow_error("Rich geometry height overflow");
     };
@@ -207,7 +208,7 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
         {
             if (! compact)
             {
-                if (const auto* old = reusable(first))
+                if (const auto* old = reusable(first); old && old->geometry->layout.VerticalOrigin() == next->height)
                 {
                     append(first, first + old->blockCount, old->geometry);
                     first += old->blockCount;
@@ -223,12 +224,16 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
             Projection joined{
                 std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
             JoinBlocks(joined, blocks, first, end, mode);
-            geometry->layout.PrepareOwned(factory, joined, options);
+            geometry->layout.PrepareOwned(factory, joined, options, next->height);
             const auto drawingBounds     = geometry->layout.DrawingVerticalBounds();
             geometry->drawingTop         = drawingBounds.first;
             geometry->drawingBottom      = drawingBounds.second;
             const auto& text             = geometry->layout.Content().text;
-            geometry->continuationHeight = ! text.empty() && text.back() == L'\n' ? geometry->layout.Caret(text.size()).y : geometry->layout.Height();
+            geometry->continuationBottom = next->height;
+            const auto lineMetrics       = geometry->layout.LineMetrics();
+            const auto lineCount         = ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u : lineMetrics.size();
+            for (std::size_t line = 0u; line < lineCount; ++line)
+                geometry->continuationBottom = AddCoordinate(geometry->continuationBottom, lineMetrics[line].height);
             append(first, end, std::move(geometry));
             next->last.preparedSourceUnits += units;
             ++next->last.preparedChunks;
@@ -239,32 +244,9 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
         if (compact)
             throw std::logic_error("Rich geometry chunk bound exceeded");
     }
-    bool exactPlacement = true;
-    float globalTop     = 0.0f;
-    if (next->chunks.size() > 1u)
-    {
-        for (std::size_t index = 0u; index < next->chunks.size(); ++index)
-        {
-            const auto& chunk  = next->chunks[index];
-            const auto metrics = chunk.geometry->layout.LineMetrics();
-            auto count         = metrics.size();
-            const auto& text   = chunk.geometry->layout.Content().text;
-            if (index + 1u < next->chunks.size() && ! text.empty() && text.back() == L'\n' && count)
-                --count;
-            float localTop = 0.0f;
-            for (std::size_t line = 0u; line < count; ++line)
-            {
-                exactPlacement =
-                    exactPlacement && AddCoordinate(chunk.y, localTop) == globalTop &&
-                    AddCoordinate(chunk.y, AddCoordinate(localTop, metrics[line].baseline)) == AddCoordinate(globalTop, metrics[line].baseline) &&
-                    static_cast<double>(chunk.y) + localTop == static_cast<double>(globalTop) &&
-                    static_cast<double>(globalTop) + metrics[line].baseline == static_cast<double>(AddCoordinate(globalTop, metrics[line].baseline));
-                localTop  = AddCoordinate(localTop, metrics[line].height);
-                globalTop = AddCoordinate(globalTop, metrics[line].height);
-            }
-        }
-        exactPlacement = exactPlacement && globalTop == next->height;
-    }
+    const bool exactPlacement = std::all_of(next->chunks.begin(), next->chunks.end(), [](const ChunkPlacement& chunk) {
+        return chunk.geometry->layout.PositionedExactly() && chunk.geometry->layout.VerticalOrigin() == chunk.y;
+    });
     if (! exactPlacement || (compatible && state_->reference))
     {
         Projection joined{
@@ -286,9 +268,8 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
     }
     if (! exactPlacement)
     {
-        // Different grouping changes long-document float accumulation. Preserve
-        // the established whole-layout geometry until exact incremental line
-        // placement/rendering is implemented; never widen a pixel/geometry oracle.
+        // Extremely small typography can dominate the hidden origin line.
+        // Preserve the whole-layout contract if its measured prefix is inexact.
         next->referenceForGeometry = true;
         next->height               = next->reference->Height();
         next->chunks.clear();
@@ -369,9 +350,7 @@ CaretGeometry PreparedDocumentLayout::Caret(std::size_t position) const
     if (const auto& state = Prepared(); state.referenceForGeometry)
         return state.reference->Caret(position);
     const auto& chunk = Prepared().chunks[ChunkAt(position)];
-    auto caret        = chunk.geometry->layout.Caret(position - chunk.displayStart);
-    caret.y += chunk.y;
-    return caret;
+    return chunk.geometry->layout.Caret(position - chunk.displayStart);
 }
 Hit PreparedDocumentLayout::HitTest(float x, float y) const
 {
@@ -382,7 +361,7 @@ Hit PreparedDocumentLayout::HitTest(float x, float y) const
         throw std::invalid_argument("Invalid rich document hit test");
     const auto found  = std::upper_bound(state.chunks.begin(), state.chunks.end(), y, [](float top, const ChunkPlacement& chunk) { return top < chunk.y; });
     const auto& chunk = found == state.chunks.begin() ? state.chunks.front() : *std::prev(found);
-    auto hit          = chunk.geometry->layout.HitTest(x, y - chunk.y);
+    auto hit          = chunk.geometry->layout.HitTest(x, y);
     hit.position += chunk.displayStart;
     return hit;
 }
@@ -403,12 +382,7 @@ std::vector<D2D1_RECT_F> PreparedDocumentLayout::Range(std::size_t first, std::s
             break;
         const auto end = std::min(last - chunk.displayStart, chunk.geometry->layout.Content().text.size());
         auto local     = chunk.geometry->layout.Range(first > chunk.displayStart ? first - chunk.displayStart : 0u, end);
-        for (auto rectangle : local)
-        {
-            rectangle.top += chunk.y;
-            rectangle.bottom += chunk.y;
-            rectangles.push_back(rectangle);
-        }
+        rectangles.insert(rectangles.end(), local.begin(), local.end());
     }
     return rectangles;
 }
@@ -464,7 +438,7 @@ std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float t
             break;
         if (chunk.y + chunk.height <= top)
             continue;
-        const auto range = chunk.geometry->layout.VisibleRange(top - chunk.y, std::min(bottom - chunk.y, chunk.height));
+        const auto range = chunk.geometry->layout.VisibleRange(top, std::min(bottom, chunk.y + chunk.height));
         // A collapsed range at the final display ACP can be a visible empty
         // line/end caret. Only {0,0} for a nonempty layout means no line here.
         if (range.first == range.second && range.first != chunk.geometry->layout.Content().text.size())
@@ -489,26 +463,8 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
     // Public DirectWrite overhang metrics include glyph ink, but not hinting or
     // strikethrough. Union with logical metrics, allow two target pixels plus
     // float cancellation, and draw all bounded chunks for non-axis transforms.
-    const auto padding   = canCull ? 2.0f / scale + 0.125f : 0.0f;
-    bool referenceRaster = state.referenceForGeometry || static_cast<bool>(state.reference) || (! canCull && state.chunks.size() > 1u);
-    if (! referenceRaster && state.chunks.size() > 1u)
-    {
-        for (const auto& chunk : state.chunks)
-        {
-            if (chunk.y + chunk.geometry->drawingTop - padding >= bottom || chunk.y + chunk.geometry->drawingBottom + padding <= top)
-                continue;
-            float localTop = 0.0f;
-            for (const auto line : chunk.geometry->layout.LineMetrics())
-            {
-                const auto localBaseline = AddCoordinate(localTop, line.baseline);
-                const auto wholeBaseline = AddCoordinate(origin.y, AddCoordinate(chunk.y, localBaseline));
-                const auto chunkBaseline = AddCoordinate(AddCoordinate(origin.y, chunk.y), localBaseline);
-                if (wholeBaseline != chunkBaseline)
-                    referenceRaster = true;
-                localTop = AddCoordinate(localTop, line.height);
-            }
-        }
-    }
+    const auto padding         = canCull ? 2.0f / scale + 0.125f : 0.0f;
+    const bool referenceRaster = state.referenceForGeometry || static_cast<bool>(state.reference);
     if (referenceRaster)
     {
         if (! state.reference)
@@ -527,8 +483,8 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
     }
     for (const auto& chunk : state.chunks)
     {
-        if (! canCull || (chunk.y + chunk.geometry->drawingTop - padding < bottom && chunk.y + chunk.geometry->drawingBottom + padding > top))
-            chunk.geometry->layout.Draw(target, brush, {origin.x, origin.y + chunk.y});
+        if (! canCull || (chunk.geometry->drawingTop - padding < bottom && chunk.geometry->drawingBottom + padding > top))
+            chunk.geometry->layout.Draw(target, brush, origin);
     }
 }
 } // namespace DxUi::RichText

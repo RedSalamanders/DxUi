@@ -1,0 +1,25 @@
+{
+  "scheduled": 2,
+  "operations": [
+    {
+      "exitCode": 1,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release"
+      ],
+      "timedOut": false,
+      "elapsedSeconds": 86.7576284,
+      "processId": 30920,
+      "drained": true,
+      "name": "release-build"
+    }
+  ],
+  "attempted": 1,
+  "elapsedSeconds": 87.0239407
+}

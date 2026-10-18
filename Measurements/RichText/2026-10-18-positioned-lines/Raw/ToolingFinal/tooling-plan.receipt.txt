@@ -1,0 +1,22 @@
+{
+  "steps": [
+    {
+      "script": "validate.ps1",
+      "arguments": [],
+      "name": "validation-full"
+    },
+    {
+      "script": "format.ps1",
+      "arguments": [
+        "-Check",
+        "-FormatterPath",
+        "Z:\\src\\DxUi\\.build\\format\\clang_format\\data\\bin\\clang-format.exe"
+      ],
+      "name": "format-check"
+    }
+  ],
+  "startedUtc": "2026-10-18T11:49:39.5203187Z",
+  "notes": "Starts only after all native benchmark/test slots; ARM64 cross-builds may run concurrently. All repository inputs, including prose, remain frozen.",
+  "overallBudgetSeconds": 900,
+  "ownedChildBudgetSeconds": 600
+}

@@ -746,13 +746,24 @@ evidence pass in all three x64 profiles, with all ARM64 cross-builds and tooling
 The [qualification packet](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains original failures and exact source/artifact bindings. It provides no shared
 worker, arbitrary-thread DirectWrite access or complete Markdown engine.
-Numerically unsafe global float positions/baselines use canonical whole geometry.
-Raster origin association or non-axis transforms may also need whole drawing.
+The qualified positioned-line implementation seeds each noninitial layout with an invisible
+DirectWrite inline object and line break. The two private UTF-16 units never enter
+source/display maps, Unicode navigation or text-service content. DirectWrite
+accumulates real lines in document coordinates and draws every chunk at the same
+origin, preserving its mixed-font caret and color-font behavior. Reuse requires
+the same vertical origin; a height-changing edit rebuilds dependent suffixes and
+reports all that work. An inexact synthetic line or an empty displayed suffix
+retains canonical whole geometry, including terminal-font behavior.
 Whole-layout preparation/reuse/source units are reported separately and cannot be
 credited as bounded incremental work. Original height/raster failures remain
-retained, and exact incremental rendering across every document/transform is open.
-The native 13-DIP fixture still reports complete chunk and whole-layout work;
-qualification does not establish a timing improvement. Clear must not construct
+retained. All three x64 profiles pass geometry and 108 exact WARP pairs each,
+including default/fractional/large-origin cases, height-changing edits, hidden-only
+suffixes and real FFFC source. Default 13-DIP native/embedded editors avoid whole
+work; native/embedded UIA scrolling preserves exact source. All six build profiles
+pass; ARM64 remains compile-only. The [positioned-line record](../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+retains the unchanged five-trial observations without timing acceptance. Shared
+preparation, full syntax/semantic editing and platform/performance gates stay open.
+Clear must not construct
 STL containers inside noexcept retirement. Geometry staging fills fallibly
 constructed projection storage in place rather than depending on optional NRVO;
 the original Debug point-173 termination remains retained.

@@ -1,0 +1,55 @@
+# Next D2a slice - draft, not implemented or qualified
+
+Do not mutate the frozen positioned-line code/test/prose while its declared
+qualification is running. Preserve original and candidate timing samples even
+when the controlled frame-performance HOLD is still inconclusive.
+
+Current contracts and obstacles:
+
+- RichTextEditor::EnsureLayout synchronously prepares projection and geometry.
+  Text-input synchronization, accessibility geometry, input and painting all
+  reach this method. Merely moving Paint work does not remove synchronous work
+  from an input callback.
+- PreparedProjection clones/prefix-indexes line blocks in one call. Its v0
+  line-local widening is invalid for CommonMark reference/list/fence semantics.
+- Positioned chunks retain DirectWrite's exact global origin; height changes
+  can force a complete suffix rebuild. One pathological source line is not
+  bounded by the 1,024-unit target. Neither outcome is universal bounded reflow.
+- EmbeddedHost::Prepare currently arranges, rasterizes and publishes coherence
+  synchronously. Composite must remain allocation/layout/raster/wait free. A
+  pending text layout must not acknowledge stale interaction/text/UIA geometry.
+- An embedded control/view must not create a worker, timer, HWND or device.
+  Pure source/parser work may use caller-supplied shared execution services;
+  DirectWrite/D2D work and final publication remain on the preparation owner.
+
+Implementation sequence after this component closes:
+
+1. Define a pure, cancellable staged preparation request with immutable source,
+   document identity/revision, binding epoch, mode, typography/width/DPI key and
+   factory/device generation. Keep active and staged graphs independently owned.
+2. Add bounded cooperative geometry advances on the owner; return explicit
+   pending/completed/cancelled status. A work-unit budget is not a hard CPU-time
+   guarantee around an indivisible SDK call. Handle long paragraphs separately.
+3. Borrow host scheduling/execution services. Bound queued/running/staged requests,
+   coalesce superseded keys and reject stale results before publishing. No raw
+   control pointer can outlive its lifetime token or cross an arbitrary callback.
+4. Audit every EnsureLayout caller. Pending geometry must yield unavailable text
+   bounds instead of synchronously draining the whole request. Source edits and
+   source snapshots remain available. Selection/history never depend on parsing.
+5. Integrate native and embedded preparation entry points, event-driven wakeups,
+   destruction/rebinding/hide/zero-size/device-loss cancellation, and source-visible
+   pending/error fallback. Publish pixels, interaction and text/UIA state together.
+6. Tests: deterministic fake scheduler, out-of-order completion, rapid typing,
+   equal revision/different identity, all key changes, close/rebind during callback,
+   cancellation before/within/after work, fault atomicity, queue/storage ceilings,
+   two views, zero work when clean/hidden, exact final geometry/pixels and real
+   native/embedded text/UIA paths. Measure source/preparation/raster separately.
+
+Full grammar prerequisites remain independent active work: lossless syntax nodes,
+expanded/generated/reordered source-display anchors, NUL admission versus preserved
+source and projected replacement, strict CommonMark/GFM profiles, extensions,
+semantic transactions/objects/interchange and capacity qualification. MD4C 0.5.2
+supports a Windows UTF-16 parser build and callbacks, but has not been adopted;
+its advertised CommonMark 0.31 support is not a proof of the pinned 0.31.2 or
+strict 0.29-gfm corpora. A monolithic parser aborted at a time budget cannot be
+called resumable. No parser/helper dependency is silently chosen by this draft.

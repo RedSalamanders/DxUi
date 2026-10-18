@@ -1,0 +1,41 @@
+# Retained line adapter investigation
+
+The active candidate is currently only an explicit raw-origin diagnostic. Do not
+call any production renderer fix implemented or qualified until independent
+geometry/pixel/resource tests and the required profiles pass.
+
+Installed SDK10.0.26100.0 d2d1_3.h declares ID2D1DeviceContext7 with
+DrawGlyphRunWithColorSupport. Its exact signature takes baseline, glyph run,
+glyph description, foreground brush, SVG style, palette index, measuring mode
+and bitmap snap option. This can preserve the platform's color-font machinery
+instead of hand-implementing bitmap/SVG/COLR/paint dispatch. Runtime QI is still
+required; a declaration is not runtime availability. Keep canonical compatibility
+when a capability is unavailable, and report any whole-layout work explicitly.
+
+Microsoft's preview color-font page documents the intended custom-renderer use:
+https://learn.microsoft.com/en-us/windows/win32/directwrite/color-fonts-preview
+Its displayed example signature differs from the installed SDK declaration.
+Use the actual typed installed header and executable tests, not an assumed ABI
+or an unchecked copy of that example. No interface has yet been adopted.
+
+After the raw probe establishes actual accumulation:
+
+- Preserve local immutable chunk layouts and compute explicit global visual-line
+  placements from their actual metrics. Include the final empty line and exclude
+  only nonfinal phantom LF lines. Bound the sidecar graph/storage.
+- Query ACP/caret/range/visible/hit behavior against the independent whole layout.
+  Use source positions/line metadata rather than rounded-baseline equality for
+  run/line association. Investigate mixed-font caret/range top offsets explicitly.
+- Raster through a public callback adapter only after global origins, pixel
+  snapping, transform/DPI/origin association and decoration behavior are proven.
+  Color glyphs and generic brush opacity must match the reference. No blanket
+  oracle tolerance increase and no monochrome-only replacement.
+- Keep staging atomic, old/new resource graphs bounded and retirement nonallocating.
+  No embedded HWND/device/worker/timer. Owner raster preparation is distinct from
+  allocation-free cached composition.
+- Run the actual default13-DIP native and embedded fixtures and assert that claimed
+  fast paths execute, rather than merely reporting a faster unguarded draft.
+  Preserve full fallback statistics, every failure and all unchanged-body trials.
+
+The main WARP policy study is committed in09b37160 and remains inconclusive for
+scheduler latency. It changes no production device policy or performance gate.

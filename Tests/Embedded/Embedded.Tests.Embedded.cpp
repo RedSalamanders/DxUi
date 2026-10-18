@@ -1349,6 +1349,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();
     TestRichProjectionMaximumSourceStorageBudget();
+    TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRichPreparedLayoutClearAllocationBudget();
     TestRichPreparedLayoutValueFailureAtomicity();

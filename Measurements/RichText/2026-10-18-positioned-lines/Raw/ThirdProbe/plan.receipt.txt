@@ -1,0 +1,12 @@
+{
+  "classification": "Independent raw DirectWrite investigation, not a renderer fix, full qualification or performance acceptance",
+  "baseCommit": "09b371601d4d64197a3dcc135f637a5b437edfa7",
+  "startedUtc": "2026-10-18T10:30:41.6982980Z",
+  "sourcePath": "Tests/Controls/Scope.Tests.RichDocumentLayout.cpp",
+  "buildChildBudgetSeconds": 600,
+  "overallBudgetSeconds": 900,
+  "nativeTestBudgetSeconds": 120,
+  "method": "TestRichDocumentLayoutRawLineOriginDiagnostics",
+  "sourceSha256": "02B345EDEC2F4DE3257683D64FA01D37A962F1E0EA263F152168E77DCAC4FB56",
+  "rootTestChildBudgetSeconds": 240
+}

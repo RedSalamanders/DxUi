@@ -1,0 +1,51 @@
+{
+  "attempted": 2,
+  "operations": [
+    {
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release"
+      ],
+      "name": "release-build",
+      "elapsedSeconds": 361.5202779,
+      "timedOut": false,
+      "exitCode": 0,
+      "processId": 94060,
+      "drained": true
+    },
+    {
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release",
+        "-Suites",
+        "EditorControls",
+        "-Tests",
+        "TestRichDocumentLayoutRawLineOriginDiagnostics",
+        "-SkipBuild",
+        "-SkipTooling",
+        "-TestTimeout",
+        "120"
+      ],
+      "name": "release-probe",
+      "elapsedSeconds": 85.42112,
+      "timedOut": false,
+      "exitCode": 0,
+      "processId": 28924,
+      "drained": true
+    }
+  ],
+  "elapsedSeconds": 447.1632595,
+  "scheduled": 2
+}

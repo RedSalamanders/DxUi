@@ -452,9 +452,14 @@ void ScrollingCommands(bool embedded)
         source += L"**line" + std::to_wstring(index) + L"** alpha beta gamma delta\r\n";
     fixture.editor->SetText(source);
     fixture.Publish();
+    const auto prepared = fixture.editor->DebugGetState();
+    Require(prepared.retainedGeometryChunks > 1u && ! prepared.wholeGeometryFallback && ! prepared.wholeRasterFallback && prepared.wholeLayoutsPrepared == 0u,
+            "native and embedded UIA scrolling fixtures actually use default-font positioned chunks");
     auto text = TextProvider(fixture);
     wil::com_ptr_nothrow<ITextRangeProvider> document;
     RequireSucceeded(text->get_DocumentRange(document.put()), "scroll document");
+    Require(ReadTextRangeText(*document.get(), -1, "positioned source document") == source,
+            "private chunk-origin units never enter native or embedded UIA document text");
     auto target = FindRange(*document.get(), L"line40");
     Require(target && RectangleValues(*target.get()) == 0, "offscreen target starts without visible rectangles");
     const auto selection = fixture.editor->GetSelection();

@@ -2,9 +2,11 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
+#include <new>
 #include <optional>
 #include <stdexcept>
 #include <wil/result.h>
+#include <wrl/implements.h>
 namespace DxUi::RichText
 {
 namespace
@@ -14,6 +16,46 @@ void Check(HRESULT result, const char* operation)
     if (FAILED(result))
         THROW_HR_MSG(result, "%hs", operation);
 }
+// A positioning-only first line lets DirectWrite perform its own sequential
+// document-coordinate rounding, mixed-font caret math and color-font drawing.
+// Its two private text units never enter source/display ACP mappings.
+class InvisibleLayoutOrigin final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
+{
+public:
+    explicit InvisibleLayoutOrigin(float height) noexcept : height_(height)
+    {
+    }
+    HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_INLINE_OBJECT_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        *metrics = {0.0f, height_, height_ * 0.5f, FALSE};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        // No ink belongs to this zero-width object. Collapse its ink box at the
+        // synthetic line's end so it cannot expand viewport drawing bounds.
+        *metrics = {0.0f, -height_, 0.0f, 0.0f};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
+    {
+        if (! before || ! after)
+            return E_POINTER;
+        *before = *after = DWRITE_BREAK_CONDITION_NEUTRAL;
+        return S_OK;
+    }
+
+private:
+    float height_{};
+};
 } // namespace
 struct PreparedLayout::State
 {
@@ -26,10 +68,14 @@ struct PreparedLayout::State
     }
     Projection retirement;
     wil::com_ptr<IDWriteTextLayout> layout;
+    wil::com_ptr<IDWriteInlineObject> positioning;
     std::vector<std::size_t> clusters, lines;
     std::vector<DWRITE_LINE_METRICS> lineMetrics;
     float height{};
     float drawingTop{}, drawingBottom{};
+    float verticalOrigin{};
+    UINT32 textOffset{};
+    bool positionedExactly = true;
 };
 PreparedLayout::PreparedLayout()
     : projection_{std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)}
@@ -91,13 +137,14 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options)
+void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
     if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! validName(options.fontFamily) ||
         ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
-        (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
+        (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
+        ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f)
         throw std::invalid_argument("Invalid rich-text layout options");
     if (projection.text.size() > Document::MaximumUnits || ! IsValidUtf16(projection.text) || projection.source.size() > Document::MaximumUnits ||
         ! IsValidUtf16(projection.source) || projection.units.size() != projection.text.size() ||
@@ -139,11 +186,30 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
     Check(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     wil::com_ptr<IDWriteTextLayout> layout;
-    Check(factory->CreateTextLayout(projection.text.data(), static_cast<UINT32>(projection.text.size()), format.get(), width, 1000000.0f, layout.put()),
-          "CreateTextLayout");
+    std::wstring positionedText(0u, L'\0');
+    const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;
+    if (textOffset)
+    {
+        positionedText.assign(L"\ufffc\n");
+        positionedText.append(projection.text);
+    }
+    const auto text = textOffset ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
+    Check(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()), "CreateTextLayout");
+    wil::com_ptr<IDWriteInlineObject> positioning;
+    if (textOffset)
+    {
+        // WRL allocates through Make's nothrow new. Translate only its null
+        // allocation result to the existing fallible staging contract.
+        auto origin = Microsoft::WRL::Make<InvisibleLayoutOrigin>(verticalOrigin);
+        if (origin.Get() == nullptr)
+            throw std::bad_alloc();
+        positioning = origin.Get();
+        Check(layout->SetFontSize(0.01f, {0u, textOffset}), "Set private origin font size");
+        Check(layout->SetInlineObject(positioning.get(), {0u, 1u}), "Set private layout origin");
+    }
     for (const auto& run : projection.runs)
     {
-        DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start), static_cast<UINT32>(run.length)};
+        DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + textOffset, static_cast<UINT32>(run.length)};
         if (run.flags & Bold)
             Check(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range), "SetFontWeight");
         if (run.flags & Italic)
@@ -162,7 +228,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};
     Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");
-    const auto drawingTop    = std::min(0.0f, -overhang.top);
+    const auto drawingTop    = std::min(verticalOrigin, -overhang.top);
     const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom);
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
         throw std::overflow_error("Nonfinite rich-text drawing metrics");
@@ -174,18 +240,28 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
     std::vector<DWRITE_LINE_METRICS> lineMetrics(count);
     if (count)
         Check(layout->GetLineMetrics(lineMetrics.data(), count, &count), "GetLineMetrics");
+    // An empty suffix would inherit the tiny prefix LF's terminal font. Keep
+    // that uncommon case on canonical whole geometry instead.
+    const bool positionedExactly = ! textOffset || (! projection.text.empty() && ! lineMetrics.empty() && lineMetrics.front().length == textOffset &&
+                                                    lineMetrics.front().height == verticalOrigin);
+    if (textOffset && ! lineMetrics.empty())
+        lineMetrics.erase(lineMetrics.begin());
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next           = std::make_unique<State>();
-    projection_         = std::move(projection);
-    next->layout        = std::move(layout);
-    next->clusters      = std::move(clusters);
-    next->lines         = std::move(lines);
-    next->lineMetrics   = std::move(lineMetrics);
-    next->height        = metrics.height;
-    next->drawingTop    = drawingTop;
-    next->drawingBottom = drawingBottom;
+    auto next               = std::make_unique<State>();
+    projection_             = std::move(projection);
+    next->layout            = std::move(layout);
+    next->positioning       = std::move(positioning);
+    next->clusters          = std::move(clusters);
+    next->lines             = std::move(lines);
+    next->lineMetrics       = std::move(lineMetrics);
+    next->height            = metrics.height;
+    next->drawingTop        = drawingTop;
+    next->drawingBottom     = drawingBottom;
+    next->verticalOrigin    = verticalOrigin;
+    next->textOffset        = textOffset;
+    next->positionedExactly = positionedExactly;
     state_.swap(next);
     ++generation_;
 }
@@ -219,6 +295,14 @@ std::span<const DWRITE_LINE_METRICS> PreparedLayout::LineMetrics() const
         throw std::logic_error("Unprepared rich-text line metrics");
     return state_->lineMetrics;
 }
+float PreparedLayout::VerticalOrigin() const noexcept
+{
+    return state_ ? state_->verticalOrigin : 0.0f;
+}
+bool PreparedLayout::PositionedExactly() const noexcept
+{
+    return state_ && state_->positionedExactly;
+}
 Hit PreparedLayout::HitTest(float x, float y) const
 {
     if (! state_ || ! std::isfinite(x) || ! std::isfinite(y))
@@ -226,7 +310,8 @@ Hit PreparedLayout::HitTest(float x, float y) const
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
     Check(state_->layout->HitTestPoint(x, y, &trailing, &inside, &metrics), "HitTestPoint");
-    auto position = std::min<std::size_t>(metrics.textPosition + (trailing ? metrics.length : 0), Content().text.size());
+    const auto actualPosition = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
+    auto position             = std::min<std::size_t>(actualPosition > state_->textOffset ? actualPosition - state_->textOffset : 0u, Content().text.size());
     // A font/OS can shape one Unicode grapheme into several glyph clusters.
     // Mouse navigation uses the same logical stops as deletion and arrows;
     // explicit ACP caret/range geometry still goes directly to DirectWrite.
@@ -241,7 +326,7 @@ CaretGeometry PreparedLayout::Caret(std::size_t position) const
         throw std::out_of_range("Caret position");
     float x = 0, y = 0;
     DWRITE_HIT_TEST_METRICS metrics{};
-    Check(state_->layout->HitTestTextPosition(static_cast<UINT32>(position), FALSE, &x, &y, &metrics), "HitTestTextPosition");
+    Check(state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics), "HitTestTextPosition");
     return {x, y, metrics.height};
 }
 std::vector<D2D1_RECT_F> PreparedLayout::Range(std::size_t first, std::size_t last) const
@@ -251,10 +336,11 @@ std::vector<D2D1_RECT_F> PreparedLayout::Range(std::size_t first, std::size_t la
     if (first == last)
         return std::vector<D2D1_RECT_F>(0u);
     UINT32 count = 0;
-    state_->layout->HitTestTextRange(static_cast<UINT32>(first), static_cast<UINT32>(last - first), 0, 0, nullptr, 0, &count);
+    state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, nullptr, 0, &count);
     std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
     if (count)
-        Check(state_->layout->HitTestTextRange(static_cast<UINT32>(first), static_cast<UINT32>(last - first), 0, 0, metrics.data(), count, &count),
+        Check(state_->layout->HitTestTextRange(
+                  static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, metrics.data(), count, &count),
               "HitTestTextRange");
     std::vector<D2D1_RECT_F> rectangles(0u);
     rectangles.reserve(count);

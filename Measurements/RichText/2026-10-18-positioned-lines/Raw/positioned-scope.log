@@ -1,0 +1,10 @@
+Native test naming: 106 files checked.
+Test plan: Affected (x64 Debug); scopes: Embedded, EditorControls, Tooling
+  Changes/2026-10-18-retained-line-origins.md: documentation/skill validation; no native test input => Tooling
+  include/DxUi/RichTextLayout.h: additive Unicode document, Markdown projection and borrowed layout core => EditorControls, Embedded
+  Specs/Plans/WIP/RichTextEditor_2026-10-17.md: documentation/skill validation; no native test input => Tooling
+  src/Controls/DxUi.RichDocumentLayout.cpp: owned rich-text preparation core; shared archive and supplied target behavior => EditorControls, Embedded
+  src/Controls/DxUi.RichTextLayout.cpp: owned rich-text preparation core; shared archive and supplied target behavior => EditorControls, Embedded
+  Tests/Controls/Scope.Tests.RichDocumentLayout.cpp: owned rich-text core contracts in the EditorControls suite => EditorControls
+  Tests/Controls/Scope.Tests.RichTextEditor.cpp: owned rich-text core contracts in the EditorControls suite => EditorControls
+  Tests/Embedded/Scope.Tests.RichGeometryResources.h: embedded scenarios and benchmark => Embedded

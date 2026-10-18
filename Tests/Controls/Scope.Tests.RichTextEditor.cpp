@@ -385,6 +385,8 @@ void TestRichTextEditorNativeCompatibilityWorkIsReported()
               << " preparedChunkSourceUnits=" << state.preparedSourceUnits << " wholeLayoutsPrepared=" << state.wholeLayoutsPrepared
               << " wholeLayoutSourceUnits=" << state.wholeLayoutSourceUnits << '\n';
     Require(state.layoutReady && state.retainedGeometryChunks <= 128u, "native compatibility resource graph remains coherent and bounded");
+    Require(! state.wholeGeometryFallback && ! state.wholeRasterFallback && state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u,
+            "the actual default 13-DIP native editor reuses positioned chunks without whole-layout preparation or raster fallback");
     if (state.wholeGeometryFallback || state.wholeRasterFallback)
         Require(state.wholeLayoutsPrepared > 0u && state.wholeLayoutSourceUnits == seed.size(),
                 "whole-layout compatibility work is explicitly reported rather than attributed to bounded chunk preparation");

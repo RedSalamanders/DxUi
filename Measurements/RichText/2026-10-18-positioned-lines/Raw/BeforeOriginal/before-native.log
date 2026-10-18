@@ -1,0 +1,26 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichTextEditorRetainedPreparationFixedTrials
+rich retained preparation trial=0 sourceUnits=26624 edits=128 initialMs=657.105 editMs=51271.2
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+rich retained preparation trial=1 sourceUnits=26624 edits=128 initialMs=534.335 editMs=51110.5
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+rich retained preparation trial=2 sourceUnits=26624 edits=128 initialMs=521.036 editMs=51037
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+rich retained preparation trial=3 sourceUnits=26624 edits=128 initialMs=521.85 editMs=51102.6
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+rich retained preparation trial=4 sourceUnits=26624 edits=128 initialMs=522.474 editMs=50897.8
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorRetainedPreparationFixedTrials (258.335 s)
+[DONE] EditorControls (258.336 s)
+All DxUi tests passed.

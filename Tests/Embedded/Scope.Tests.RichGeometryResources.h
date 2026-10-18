@@ -127,7 +127,7 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
     LayoutOptions options;
     options.widthDip = 310.0f;
     if (requireWhole)
-        options.fontSizeDip = 18.1f;
+        options.fontSizeDip = 0.0001f; // The minimum private prefix font dominates this tiny document origin.
     size_t requests = 0u;
     {
         PreparedDocumentLayout prepared;

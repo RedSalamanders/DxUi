@@ -208,6 +208,42 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     }
 }
 
+static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "positioned rich-text shared device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "positioned rich-text embedded view");
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    auto control = std::make_unique<RichTextEditor>(seed);
+    auto* editor = control.get();
+    view.Controls().SetRoot(std::move(control));
+    view.Controls().SetFocusControl(editor, false);
+    for (const float dpi : {96.0f, 144.0f, 192.0f})
+    {
+        Hr(view.Prepare(480, 240, dpi), "positioned rich-text embedded initial preparation");
+        editor->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
+        Check(editor->ReplaceSelection(dpi == 144.0f ? L"y" : L"x"), "positioned embedded fixture changes display text");
+        Hr(view.Prepare(480, 240, dpi), "positioned rich-text embedded edited preparation");
+        const auto state = editor->DebugGetState();
+        auto* format     = view.Controls().GetTextFormat(FontRole::Body);
+        Check(format && format->GetFontSize() == 13.0f && state.layoutReady && state.retainedGeometryChunks > 1u && state.retainedGeometryChunks <= 128u &&
+                  state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u && ! state.wholeGeometryFallback && ! state.wholeRasterFallback &&
+                  state.wholeLayoutsPrepared == 0u && state.wholeLayoutSourceUnits == 0u,
+              "actual default 13-DIP embedded editor reuses positioned chunks at each DPI without hidden whole-layout work");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "positioned embedded cached composition");
+        EmbeddedTextInputSnapshot snapshot;
+        Hr(view.ReadTextInput(snapshot), "positioned embedded source text input snapshot");
+        Check(snapshot.state.text == editor->GetText() && snapshot.state.text.size() == seed.size(),
+              "private layout-origin units never enter the embedded text store");
+        std::cout << "rich embedded positioned dpi=" << dpi << " bodyFontSize=" << format->GetFontSize() << " chunks=" << state.retainedGeometryChunks
+                  << " reusedChunks=" << state.reusedGeometryChunks << " preparedSourceUnits=" << state.preparedSourceUnits << '\n';
+    }
+}
 static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
 {
     using namespace DxUi;

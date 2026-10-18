@@ -1,0 +1,2 @@
+- Position retained rich-text chunks in document coordinates through an invisible private DirectWrite origin line, preserving source ACPs and the platform's mixed-font caret and color drawing behavior.
+  Add independent origin/caret/range diagnostics, suffix/source/failure tests and 324 exact WARP comparisons; qualify native/embedded behavior in three x64 profiles and all ARM64 cross-builds. Shared preparation, the complete Markdown engine and platform/frame-performance acceptance remain open.

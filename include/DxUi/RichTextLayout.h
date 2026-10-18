@@ -80,7 +80,9 @@ private:
     friend class PreparedDocumentLayout;
     std::pair<float, float> DrawingVerticalBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options);
+    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
+    float VerticalOrigin() const noexcept;
+    bool PositionedExactly() const noexcept;
     struct State;
     // Keep the returned member object stable across preparation and retirement.
     Projection projection_;
@@ -94,8 +96,10 @@ struct LayoutPreparation
 };
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout
-// bound the retained graph. Rounding-sensitive geometry/raster uses the canonical
-// whole layout; statistics report that work separately from incremental reuse.
+// bound the retained graph. Private positioning lines preserve DirectWrite's
+// document-coordinate math without entering the projection. Reuse requires the
+// same vertical origin. Inexact positioning/empty suffixes retain canonical whole
+// geometry; statistics report that work separately from incremental reuse.
 // Source edits may retain immutable old chunks for the next Prepare. Invalidate
 // rejects stale geometry; Clear additionally releases the complete retained graph.
 // This service owns no HWND, graphics device, worker, timer or scheduling policy.

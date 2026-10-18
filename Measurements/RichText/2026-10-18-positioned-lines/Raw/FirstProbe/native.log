@@ -1,0 +1,114 @@
+[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentLayoutRawLineOriginDiagnostics
+rich raw baseline font=13 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63630 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=61787 doubleMismatches=65521 firstPosition=0 actualBits=1096810496 singleBaselineBits=1096840192 doubleBaselineBits=1096840192 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63630 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=61787 doubleMismatches=65521 firstPosition=0 actualBits=3289743360 singleBaselineBits=3289738800 doubleBaselineBits=3289738800 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=0 lines=65536 originY=-123456 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=63628 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=0 lines=65536 originY=-123456 snapping=1 glyphRuns=65536 singleMismatches=61749 doubleMismatches=65504 firstPosition=0 actualBits=3354466560 singleBaselineBits=3354466588 doubleBaselineBits=3354466588 heightBits=1233804910 singleBits=1233804910 doubleBits=1233802240
+rich raw caret font=13 profile=0 samples=1238 singleMismatches=10 doubleMismatches=1211
+rich raw baseline font=13 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=1096810496 singleBaselineBits=1096840192 doubleBaselineBits=1096840192 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=3289743360 singleBaselineBits=3289738800 doubleBaselineBits=3289738800 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=1 lines=1025 originY=-123456 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=1 lines=1025 originY=-123456 snapping=1 glyphRuns=2048 singleMismatches=2030 doubleMismatches=2030 firstPosition=0 actualBits=3354466560 singleBaselineBits=3354466588 doubleBaselineBits=3354466588 heightBits=1183479445 singleBits=1183479445 doubleBits=1183479445
+rich raw caret font=13 profile=1 samples=330 singleMismatches=12 doubleMismatches=12
+rich raw baseline font=13 profile=2 lines=1025 originY=0 snapping=0 glyphRuns=9216 singleMismatches=1494 doubleMismatches=9075 firstPosition=24957 actualBits=1182812254 singleBaselineBits=1182812255 doubleBaselineBits=1182812296 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=13 profile=2 lines=1025 originY=0 snapping=1 glyphRuns=9216 singleMismatches=9198 doubleMismatches=9162 firstPosition=0 actualBits=1104674816 singleBaselineBits=1104493311 doubleBaselineBits=1104493311 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=13 profile=2 lines=1025 originY=-611.75 snapping=0 glyphRuns=9216 singleMismatches=1494 doubleMismatches=9075 firstPosition=24957 actualBits=1182204348 singleBaselineBits=1182204350 doubleBaselineBits=1182204432 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=13 profile=2 lines=1025 originY=-611.75 snapping=1 glyphRuns=9216 singleMismatches=9198 doubleMismatches=9216 firstPosition=0 actualBits=3289530368 singleBaselineBits=3289531944 doubleBaselineBits=3289531944 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=13 profile=2 lines=1025 originY=-123456 snapping=0 glyphRuns=9216 singleMismatches=372 doubleMismatches=7914 firstPosition=25157 actualBits=3352349780 singleBaselineBits=3352349779 doubleBaselineBits=3352349769 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=13 profile=2 lines=1025 originY=-123456 snapping=1 glyphRuns=9216 singleMismatches=9117 doubleMismatches=9216 firstPosition=0 actualBits=3354465024 singleBaselineBits=3354464972 doubleBaselineBits=3354464972 heightBits=1191410398 singleBits=1191410398 doubleBits=1191410352
+rich raw caret font=13 profile=2 samples=968 singleMismatches=833 doubleMismatches=960
+rich raw baseline font=18 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=63644 doubleMismatches=65521 firstPosition=0 actualBits=1100480512 singleBaselineBits=1100702720 doubleBaselineBits=1100702720 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=63641 doubleMismatches=65522 firstPosition=0 actualBits=3289645056 singleBaselineBits=3289650400 doubleBaselineBits=3289650400 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=0 lines=65536 originY=-123456 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=62792 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=0 lines=65536 originY=-123456 snapping=1 glyphRuns=65536 singleMismatches=63632 doubleMismatches=65509 firstPosition=0 actualBits=3354465920 singleBaselineBits=3354465898 doubleBaselineBits=3354465898 heightBits=1237297864 singleBits=1237297864 doubleBits=1237288960
+rich raw caret font=18 profile=0 samples=1238 singleMismatches=13 doubleMismatches=1199
+rich raw baseline font=18 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=1100480512 singleBaselineBits=1100702720 doubleBaselineBits=1100702720 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2048 doubleMismatches=2048 firstPosition=0 actualBits=3289645056 singleBaselineBits=3289650400 doubleBaselineBits=3289650400 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-123456 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=0 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=1 lines=1025 originY=-123456 snapping=1 glyphRuns=2048 singleMismatches=2032 doubleMismatches=2032 firstPosition=0 actualBits=3354465920 singleBaselineBits=3354465898 doubleBaselineBits=3354465898 heightBits=1186969570 singleBits=1186969570 doubleBits=1186969570
+rich raw caret font=18 profile=1 samples=330 singleMismatches=0 doubleMismatches=0
+rich raw baseline font=18 profile=2 lines=2049 originY=0 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=11123 firstPosition=47221 actualBits=1199576396 singleBaselineBits=1199576395 doubleBaselineBits=1199576435 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18 profile=2 lines=2049 originY=0 snapping=1 glyphRuns=11264 singleMismatches=11202 doubleMismatches=11227 firstPosition=0 actualBits=1108606976 singleBaselineBits=1108582144 doubleBaselineBits=1108582144 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18 profile=2 lines=2049 originY=-611.75 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=11123 firstPosition=47221 actualBits=1199425240 singleBaselineBits=1199425238 doubleBaselineBits=1199425318 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18 profile=2 lines=2049 originY=-611.75 snapping=1 glyphRuns=11264 singleMismatches=11213 doubleMismatches=11220 firstPosition=0 actualBits=3289366528 singleBaselineBits=3289363984 doubleBaselineBits=3289363984 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18 profile=2 lines=2049 originY=-123456 snapping=0 glyphRuns=11264 singleMismatches=1 doubleMismatches=10239 firstPosition=47221 actualBits=3345094056 singleBaselineBits=3345094058 doubleBaselineBits=3345093978 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18 profile=2 lines=2049 originY=-123456 snapping=1 glyphRuns=11264 singleMismatches=11178 doubleMismatches=11158 firstPosition=0 actualBits=3354463616 singleBaselineBits=3354463660 doubleBaselineBits=3354463660 heightBits=1200285774 singleBits=1200285774 doubleBits=1200285740
+rich raw caret font=18 profile=2 samples=968 singleMismatches=666 doubleMismatches=960
+rich raw baseline font=18.1 profile=0 lines=65536 originY=0 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65513 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=0 lines=65536 originY=0 snapping=1 glyphRuns=65536 singleMismatches=60610 doubleMismatches=65520 firstPosition=0 actualBits=1101004800 singleBaselineBits=1100759296 doubleBaselineBits=1100759296 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=0 lines=65536 originY=-611.75 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65511 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=0 lines=65536 originY=-611.75 snapping=1 glyphRuns=65536 singleMismatches=60610 doubleMismatches=65521 firstPosition=0 actualBits=3289645056 singleBaselineBits=3289648632 doubleBaselineBits=3289648632 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=0 lines=65536 originY=-123456 snapping=0 glyphRuns=65536 singleMismatches=0 doubleMismatches=65362 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=0 lines=65536 originY=-123456 snapping=1 glyphRuns=65536 singleMismatches=60590 doubleMismatches=65504 firstPosition=0 actualBits=3354465920 singleBaselineBits=3354465884 doubleBaselineBits=3354465884 heightBits=1237364707 singleBits=1237364707 doubleBits=1237358694
+rich raw caret font=18.1 profile=0 samples=1238 singleMismatches=0 doubleMismatches=1237
+rich raw baseline font=18.1 profile=1 lines=1025 originY=0 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=2018 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+rich raw baseline font=18.1 profile=1 lines=1025 originY=0 snapping=1 glyphRuns=2048 singleMismatches=2042 doubleMismatches=2044 firstPosition=0 actualBits=1101004800 singleBaselineBits=1100759296 doubleBaselineBits=1100759296 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+  [DONE] TestRichDocumentLayoutRawLineOriginDiagnostics (0.319 s)
+rich raw baseline font=18.1 profile=1 lines=1025 originY=-611.75 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=2014 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+rich raw baseline font=18.1 profile=1 lines=1025 originY=-611.75 snapping=1 glyphRuns=2048 singleMismatches=2042 doubleMismatches=2046 firstPosition=0 actualBits=3289645056 singleBaselineBits=3289648632 doubleBaselineBits=3289648632 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+rich raw baseline font=18.1 profile=1 lines=1025 originY=-123456 snapping=0 glyphRuns=2048 singleMismatches=0 doubleMismatches=1716 firstPosition=0 actualBits=0 singleBaselineBits=0 doubleBaselineBits=0 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+rich raw baseline font=18.1 profile=1 lines=1025 originY=-123456 snapping=1 glyphRuns=2048 singleMismatches=2026 doubleMismatches=2030 firstPosition=0 actualBits=3354465920 singleBaselineBits=3354465884 doubleBaselineBits=3354465884 heightBits=1187039290 singleBits=1187039290 doubleBits=1187039372
+rich raw caret font=18.1 profile=1 samples=330 singleMismatches=1 doubleMismatches=326
+rich raw baseline font=18.1 profile=2 lines=2049 originY=0 snapping=0 glyphRuns=11264 singleMismatches=354 doubleMismatches=11102 firstPosition=5907 actualBits=1174490476 singleBaselineBits=1174490477 doubleBaselineBits=1174490496 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+rich raw baseline font=18.1 profile=2 lines=2049 originY=0 snapping=1 glyphRuns=11264 singleMismatches=11220 doubleMismatches=11264 firstPosition=0 actualBits=1108606976 singleBaselineBits=1108635891 doubleBaselineBits=1108635891 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+rich raw baseline font=18.1 profile=2 lines=2049 originY=-611.75 snapping=0 glyphRuns=11264 singleMismatches=354 doubleMismatches=11102 firstPosition=5907 actualBits=1173322968 singleBaselineBits=1173322970 doubleBaselineBits=1173323008 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+rich raw baseline font=18.1 profile=2 lines=2049 originY=-611.75 snapping=1 glyphRuns=11264 singleMismatches=11227 doubleMismatches=11185 firstPosition=0 actualBits=3289366528 singleBaselineBits=3289360625 doubleBaselineBits=3289360625 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+rich raw baseline font=18.1 profile=2 lines=2049 originY=-123456 snapping=0 glyphRuns=11264 singleMismatches=42 doubleMismatches=10347 firstPosition=6307 actualBits=3353337648 singleBaselineBits=3353337647 doubleBaselineBits=3353337645 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+rich raw baseline font=18.1 profile=2 lines=2049 originY=-123456 snapping=1 glyphRuns=11264 singleMismatches=11154 doubleMismatches=11094 firstPosition=0 actualBits=3354463616 singleBaselineBits=3354463634 doubleBaselineBits=3354463634 heightBits=1200336411 singleBits=1200336411 doubleBits=1200336314
+rich raw caret font=18.1 profile=2 samples=968 singleMismatches=542 doubleMismatches=957
+[DONE] EditorControls (0.337 s)
+All DxUi tests passed.
