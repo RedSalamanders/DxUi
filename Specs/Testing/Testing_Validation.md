@@ -3,6 +3,15 @@
 Status: normative intended contract
 Last reviewed: 2026-10-18
 
+Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
+the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
+notification is valid and does not belong to the activation batch. Retain the exact one-text/one-layout assertion
+for that reconciliation turn, verify its queued record cannot duplicate the notification, and test a following
+queued geometry change separately. A whole-queue counterfactual must expose the old count-boundary error.
+Diagnostics are bounded scalar records after each observed boundary; retain cookie/activation identity, counts,
+geometry and focus state without publishing desktop identities. These tests do not qualify native ARM64, real IME,
+physical input or performance acceptance.
+
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 

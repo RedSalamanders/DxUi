@@ -778,7 +778,13 @@ void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
     }
 }
 
-void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
+enum class NativeReconciliationDispatch
+{
+    CurrentTurn,
+    WholeQueueCounterfactual,
+};
+
+void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(NativeReconciliationDispatch dispatch, bool queueFollowingGeometryChange)
 {
     using namespace DxUi;
 
@@ -811,6 +817,14 @@ void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
     bool externalThreadManagerFocusPreserved = false;
     bool activationNotifiedTextAndLayoutOnce = false;
     bool parentSetterPreservedCallbackEditor = false;
+    bool reconciliationMessageHandled        = false;
+    bool followingGeometryQueued             = false;
+    bool followingGeometryApplied            = false;
+    bool followingGeometryWasHeldBack        = false;
+    bool followingLayoutWasSeparate          = false;
+    bool wholeQueueIncludesSeparateLayout    = false;
+    bool duplicateTurnWasInert               = false;
+    constexpr UINT followingGeometryMessage  = WM_APP + 0x317;
     wil::com_ptr_nothrow<IUnknown> externalThreadManagerDocument;
     const auto run = [&]
     {
@@ -825,6 +839,9 @@ void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
         activationWorkWasPosted = activationWorkWasDrained = false;
         externalThreadManagerFocusPreserved = activationNotifiedTextAndLayoutOnce = false;
         parentSetterPreservedCallbackEditor                                       = false;
+        reconciliationMessageHandled = followingGeometryQueued = followingGeometryApplied = false;
+        followingGeometryWasHeldBack = followingLayoutWasSeparate = wholeQueueIncludesSeparateLayout = false;
+        duplicateTurnWasInert                                                                        = false;
         window.Host().SetFocusControl(nullptr);
         first->SetText(L"first");
         requested->SetText(L"requested");
@@ -945,16 +962,89 @@ void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
         uint64_t layoutChangesBeforeDispatch    = 0u;
         window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(
             textChangesBeforeDispatch, selectionChangesBeforeDispatch, layoutChangesBeforeDispatch);
-        window.PumpMessages();
-        activationWorkWasDrained               = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        const UINT_PTR cookieBeforeDispatch = window.Host().DebugGetNativeTextStoreDispatchCookieForTest();
+        const auto boundsBeforeDispatch     = requested->GetBounds();
+        const auto eventsBeforeDispatch     = window.Host().DebugGetNativeTextInputEventCounters();
+        if (queueFollowingGeometryChange)
+        {
+            window.SetApplicationMessageHandler([&](UINT message, WPARAM, LPARAM, LRESULT& result)
+            {
+                if (message != followingGeometryMessage)
+                    return false;
+                requested->SetBounds(D2D1::RectF(20.0f, 22.0f, 410.0f, 60.0f));
+                followingGeometryApplied = true;
+                result                   = 0;
+                return true;
+            });
+            followingGeometryQueued = PostMessageW(window.Hwnd(), followingGeometryMessage, 0, 0) != FALSE;
+        }
+        if (dispatch == NativeReconciliationDispatch::CurrentTurn)
+        {
+            // Observe exactly the production generation-tagged turn, as in the dispatch-cookie regression below.
+            // A general pump can also deliver independent geometry/input work and must not define this count boundary.
+            const auto message = WndMsg::NativeTextStoreDeferredWork();
+            if (message)
+                static_cast<void>(
+                    window.Host().HandleMessage(window.Hwnd(), message.value, static_cast<WPARAM>(cookieBeforeDispatch), 0, reconciliationMessageHandled));
+        }
+        else
+            window.PumpMessages();
         uint64_t textChangesAfterDispatch      = 0u;
         uint64_t selectionChangesAfterDispatch = 0u;
         uint64_t layoutChangesAfterDispatch    = 0u;
         window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(
             textChangesAfterDispatch, selectionChangesAfterDispatch, layoutChangesAfterDispatch);
+        const auto boundsAfterDispatch = requested->GetBounds();
+        const auto eventsAfterDispatch = window.Host().DebugGetNativeTextInputEventCounters();
+        // One bounded scalar record per existing foreground attempt, after the observed turn. No text or desktop identities.
+        std::cerr << "    [TSF] staged reconciliation: text=" << textChangesBeforeDispatch << '/' << textChangesAfterDispatch
+                  << " selection=" << selectionChangesBeforeDispatch << '/' << selectionChangesAfterDispatch << " layout=" << layoutChangesBeforeDispatch << '/'
+                  << layoutChangesAfterDispatch << " cookie=" << cookieBeforeDispatch << '/' << window.Host().DebugGetNativeTextStoreDispatchCookieForTest()
+                  << " activation=" << eventsBeforeDispatch.tsfActivationSuccessCount << '/' << eventsAfterDispatch.tsfActivationSuccessCount
+                  << " posted=" << activationWorkWasPosted << '/' << window.Host().DebugHasPostedNativeTextStoreWorkForTest()
+                  << " active=" << window.Host().DebugHasActiveNativeTextInputTsfDocument() << " focus=" << (GetFocus() == window.Hwnd())
+                  << " foreground=" << (GetForegroundWindow() == window.Hwnd()) << " bounds=" << boundsBeforeDispatch.left << ',' << boundsBeforeDispatch.top
+                  << ',' << boundsBeforeDispatch.right << ',' << boundsBeforeDispatch.bottom << '/' << boundsAfterDispatch.left << ','
+                  << boundsAfterDispatch.top << ',' << boundsAfterDispatch.right << ',' << boundsAfterDispatch.bottom << '\n';
         activationNotifiedTextAndLayoutOnce = textChangesAfterDispatch == textChangesBeforeDispatch + 1u &&
                                               layoutChangesAfterDispatch == layoutChangesBeforeDispatch + 1u &&
                                               selectionChangesAfterDispatch >= selectionChangesBeforeDispatch;
+        followingGeometryWasHeldBack        = ! followingGeometryApplied;
+        wholeQueueIncludesSeparateLayout    = followingGeometryApplied && textChangesAfterDispatch == textChangesBeforeDispatch + 1u &&
+                                              layoutChangesAfterDispatch >= layoutChangesBeforeDispatch + 2u;
+        // Consume remaining queued work, including the real post. Independent geometry/lock work belongs to later
+        // observations, not the count measured above.
+        window.PumpMessages();
+        uint64_t textChangesAfterQueue      = 0u;
+        uint64_t selectionChangesAfterQueue = 0u;
+        uint64_t layoutChangesAfterQueue    = 0u;
+        window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(textChangesAfterQueue, selectionChangesAfterQueue, layoutChangesAfterQueue);
+        // Preserve the original whole-queue lifecycle check: a sink can legitimately request another deferred lock.
+        activationWorkWasDrained    = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        const auto duplicateMessage = WndMsg::NativeTextStoreDeferredWork();
+        bool duplicateHandled       = false;
+        if (duplicateMessage)
+            static_cast<void>(
+                window.Host().HandleMessage(window.Hwnd(), duplicateMessage.value, static_cast<WPARAM>(cookieBeforeDispatch), 0, duplicateHandled));
+        uint64_t textChangesAfterDuplicate      = 0u;
+        uint64_t selectionChangesAfterDuplicate = 0u;
+        uint64_t layoutChangesAfterDuplicate    = 0u;
+        window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(
+            textChangesAfterDuplicate, selectionChangesAfterDuplicate, layoutChangesAfterDuplicate);
+        duplicateTurnWasInert = duplicateHandled && textChangesAfterDuplicate == textChangesAfterQueue &&
+                                selectionChangesAfterDuplicate == selectionChangesAfterQueue && layoutChangesAfterDuplicate == layoutChangesAfterQueue &&
+                                ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        followingLayoutWasSeparate =
+            followingGeometryApplied && textChangesAfterQueue == textChangesAfterDispatch && layoutChangesAfterQueue >= layoutChangesAfterDispatch + 1u;
+        std::cerr << "    [TSF] following queue: geometry=" << queueFollowingGeometryChange << '/' << followingGeometryQueued << '/' << followingGeometryApplied
+                  << " text=" << textChangesAfterDispatch << '/' << textChangesAfterQueue << " selection=" << selectionChangesAfterDispatch << '/'
+                  << selectionChangesAfterQueue << " layout=" << layoutChangesAfterDispatch << '/' << layoutChangesAfterQueue
+                  << " single-turn=" << (dispatch == NativeReconciliationDispatch::CurrentTurn) << " handled=" << reconciliationMessageHandled
+                  << " duplicate-inert=" << duplicateTurnWasInert << " cookie=" << cookieBeforeDispatch << '/'
+                  << window.Host().DebugGetNativeTextStoreDispatchCookieForTest() << " activation=" << eventsBeforeDispatch.tsfActivationSuccessCount << '/'
+                  << window.Host().DebugGetNativeTextInputEventCounters().tsfActivationSuccessCount << " focus=" << (GetFocus() == window.Hwnd())
+                  << " foreground=" << (GetForegroundWindow() == window.Hwnd()) << '\n';
+        window.SetApplicationMessageHandler({});
 
         // Disable the callback before cleanup causes another document Pop.
         sink.onSetFocus = {};
@@ -974,9 +1064,35 @@ void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
     Require(parentSetterPreservedCallbackEditor, "a parent focus setter cannot overwrite the different editor selected by its TSF Pop callback");
     Require(callbackTextChanged && callbackTextWasRetained && activationWorkWasPosted && activationWorkWasDrained,
             "text and layout changes during TSF SetFocus coalesce onto a post-commit reconciliation turn");
-    Require(activationNotifiedTextAndLayoutOnce, "the post-commit turn reports the combined text and layout change once");
+    Require(duplicateTurnWasInert, "a duplicate queued record for the drained turn cannot repeat any text, selection or layout notification");
+    if (dispatch == NativeReconciliationDispatch::CurrentTurn)
+    {
+        Require(reconciliationMessageHandled, "the production handler accepts the current session's reconciliation turn");
+        Require(activationNotifiedTextAndLayoutOnce, "the post-commit turn reports the combined text and layout change once");
+        if (queueFollowingGeometryChange)
+            Require(followingGeometryQueued && followingGeometryWasHeldBack && followingGeometryApplied && followingLayoutWasSeparate,
+                    "queued geometry stays outside the exact reconciliation count and delivers its own layout change later");
+    }
+    else
+        Require(followingGeometryQueued && wholeQueueIncludesSeparateLayout && ! activationNotifiedTextAndLayoutOnce,
+                "the old whole-queue count predicate fails when an independent geometry change also runs");
     Require(externalThreadManagerFocusPreserved, "retiring a host TSF document preserves a different document that now owns thread-manager focus");
     Require(window.Host().GetFocusControl() == nullptr, "TSF event sink cleanup leaves no retained editor focus");
+}
+
+void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
+{
+    VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(NativeReconciliationDispatch::CurrentTurn, false);
+}
+
+void TestNativeTextInputTsfReconciliationExcludesFollowingQueuedGeometry()
+{
+    VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(NativeReconciliationDispatch::CurrentTurn, true);
+}
+
+void TestNativeTextInputTsfWholeQueueCounterfactualIncludesSeparateLayout()
+{
+    VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(NativeReconciliationDispatch::WholeQueueCounterfactual, true);
 }
 
 void TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor()
@@ -9084,6 +9200,8 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus);
     DXUI_RUN_TEST(TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately);
     DXUI_RUN_TEST(TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession);
+    DXUI_RUN_TEST(TestNativeTextInputTsfReconciliationExcludesFollowingQueuedGeometry);
+    DXUI_RUN_TEST(TestNativeTextInputTsfWholeQueueCounterfactualIncludesSeparateLayout);
     DXUI_RUN_TEST(TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor);
     DXUI_RUN_TEST(TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken);
     DXUI_RUN_TEST(TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt);

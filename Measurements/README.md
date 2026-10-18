@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [Staged TSF reconciliation boundary, 2026-10-18](TextInput/2026-10-18-staged-reconciliation/README.md):
+  bounded notification/session diagnostics and a queued-geometry counterfactual distinguish one reconciliation
+  turn from a whole queue drain. The historical ARM64 ordering and failed probe cursor restoration remain
+  unattributed; native runtime, trusted performance and all shared qualification gates stay open.
+
 - [ASan foreground setup, 2026-10-18](TextInput/2026-10-18-asan-setup/README.md):
   creation-before-activation, strict sent-callback readiness, actual thread-exit cleanup and bounded diagnostics;
   six builds, 57 noninteractive and six full foreground suite passes with zero skips and verified restoration.

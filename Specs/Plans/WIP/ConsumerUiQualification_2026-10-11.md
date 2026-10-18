@@ -700,6 +700,50 @@ MultilineGrid memory uncertainty and retention limitations remain. All deadlines
 allocation ceilings and `qualified=false` policy are unchanged. This harness slice changes no library API,
 consumer adapter or control pixels; documentation/gallery review requires no visual regeneration.
 
+### PR #87 staged TSF notification follow-up (18 October 2026)
+
+PR #87 run `39160627044`, at `ee63697c6c91a139aded97daa95a2335181d3dcc`, passes five Full native
+runs but fails ARM64 Release NativeTextInput in `TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession`:
+the exact post-commit text/layout notification-count predicate fails after the earlier text-retention and
+posted-work-drain predicates pass. Menu passes with zero capability skips in that job. The test body and production
+implementation are unchanged; shared-harness timing effects are not excluded. The original receipt omits the
+before/after notification counts, so missing, duplicated and earlier notifications remain distinct hypotheses.
+The failed log/report and their hashes are retained privately under `Z:/DxUiSetup`; a green repeat cannot attribute it.
+
+The [bounded count-boundary packet](../../../Measurements/TextInput/2026-10-18-staged-reconciliation/README.md)
+retains an instrumentation-only Release pass and a controlled queued-geometry counterfactual. The former records
+text/layout counts `0/1` and `0/1`, with unchanged session/activation identity. In the counterfactual a whole pump
+records one text notification and two layout notifications: the exact old predicate is false while valid independent
+geometry work runs. Dispatching the current production reconciliation turn separately records one text/one layout;
+the later queued geometry then adds its own layout notification. This proves the observation-boundary defect,
+without reconstructing the original ARM64 ordering.
+
+The repair retains the exact one-text/one-layout predicate for that turn, the existing reentrancy/lifetime checks,
+and the original drained-work check after the full pump. A sink may legitimately request a later deferred lock.
+Two registered cases cover following queued geometry and the old whole-queue counterfactual; an idle duplicate
+record must repeat none of the three notification families. Two bounded scalar records per existing foreground
+attempt retain counts, cookies, activation identity, geometry and actual focus/foreground, with no new wait or retry.
+
+The intermediate three-case probe has zero native skips and passing assertions, but its lease fails cursor restoration.
+The person confirms desktop interaction and readiness for the remaining approved runs. That is context rather than
+causal proof: the failed lease and its source/image identities remain retained, and cannot qualify complete foreground
+validation. The final matrix has six successful builds, 57 affected noninteractive x64 executions and three full
+NativeTextInput runs (169 cases each, zero skips and verified desktop restoration), bound separately to final source
+and images. The five candidate validators, all 18 tooling groups and formatting pass. The initial whole-checkout
+validation reports unrelated local measurement metadata/path errors and a malformed new changelog fragment;
+the fragment is fixed and all five validators pass in the isolated candidate. The failed log remains retained.
+The single retained Release comparison is within the unchanged noise bands with zero new flags; it is unpaired
+and clears none of the earlier flags. Full Menu/resource receipts remain attached to their earlier source/images;
+this follow-up leaves new-head hosted Full validation and native ARM64 execution pending. No exact assertion, deadline, threshold, attempt bound,
+budget or policy is relaxed, and all 20 qualification gates remain open throughout this investigation.
+
+ARM64 Debug and Release receipts now identify `focusCapture.Reason=foreground-minimized`, with query error 0.
+That describes the unavailable initial focus in those captures; neither lease verifies focus restoration.
+This test-only repair changes no production library/API, consumer adapter or control pixels; the documentation/gallery
+review requires no visual regeneration. A fresh native ARM64 Release run must retain the bounded counts and session
+identity before treating the corrected predicate as observed on that platform. Earlier failures, performance flags,
+MultilineGrid memory uncertainty and retention limits remain attached to their original evidence.
+
 ### PR #84 hover-switch follow-up (18 October 2026)
 
 PR #84's post-merge [run 39072493730](https://github.com/RedSalamanders/DxUi/actions/runs/39072493730),
