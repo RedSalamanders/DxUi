@@ -1,0 +1,11 @@
+{
+  "kind": "Map",
+  "mainState": 5,
+  "mainWaitReason": 6,
+  "window": 0,
+  "status": "complete",
+  "queryEndedQpc": 59,
+  "readyWorkerRows": 1,
+  "queryStartedQpc": 51,
+  "frame": 0
+}

@@ -694,9 +694,10 @@ Same-content previews acknowledge selection without allocating source/history or
 advancing source revision. No caller view is retained after the call.
 Stage source, revision metadata and history before publication; failed metadata
 allocation or page rollover preserves all state and reports no phantom change.
-Current storage is bounded at 64 Ki UTF-16 units/128 history items. The retained
-editor still uses full projection/layout; the supporting block projection below
-does not establish incremental geometry, host scheduling or large-file acceptance.
+Current storage is bounded at 64 Ki UTF-16 units/128 history items. The earlier
+projection-block checkpoint did not establish incremental geometry, host scheduling
+or large-file acceptance. The guarded retained-geometry candidate below is now
+connected to both hosting modes; its remaining qualification is explicit.
 
 PreparedProjection prepares the same v0 grammar as Project in immutable physical
 source-line blocks, including CR/LF/CRLF endings. Source/display prefixes index
@@ -730,8 +731,34 @@ retained/shared preparation integration is implemented.
 
 ## Retained RichTextEditor v0 preview (D2c)
 
-The control on DxUi.h owns bounded source/selection/history, one cached
-PreparedLayout and a vertical scroll offset. It borrows ControlHost DWrite/D2D,
+The bounded retained-geometry component is functionally qualified:
+PreparedDocumentLayout stages immutable projection clones and DirectWrite chunks
+jointly. Geometry chunks target 1,024 source units at physical-line boundaries;
+127 chunk slots plus one optional whole-layout compatibility slot cap published
+layouts at 128, with bounded compaction before further chunk allocation.
+Source edits make geometry unavailable immediately while retaining old chunks
+for owner-thread reuse. Full retirement discards the active graph. Options,
+factory identity, source identity/change interval and mode govern reuse; equal
+numeric source revisions alone never establish compatibility. A nonfinal chunk's
+phantom terminal line must not add height. Native/embedded geometry, exact WARP
+pixels, complete observed C++ allocation schedules and source-limit resource
+evidence pass in all three x64 profiles, with all ARM64 cross-builds and tooling.
+The [qualification packet](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+retains original failures and exact source/artifact bindings. It provides no shared
+worker, arbitrary-thread DirectWrite access or complete Markdown engine.
+Numerically unsafe global float positions/baselines use canonical whole geometry.
+Raster origin association or non-axis transforms may also need whole drawing.
+Whole-layout preparation/reuse/source units are reported separately and cannot be
+credited as bounded incremental work. Original height/raster failures remain
+retained, and exact incremental rendering across every document/transform is open.
+The native 13-DIP fixture still reports complete chunk and whole-layout work;
+qualification does not establish a timing improvement. Clear must not construct
+STL containers inside noexcept retirement. Geometry staging fills fallibly
+constructed projection storage in place rather than depending on optional NRVO;
+the original Debug point-173 termination remains retained.
+
+The control on DxUi.h owns bounded source/selection/history, one guarded
+PreparedDocumentLayout and a vertical scroll offset. It borrows ControlHost DWrite/D2D,
 Body/Monospace typography, brushes, theme/DPI, focus, capture, Unicode clipboard,
 invalidation and event-driven caret animation in both hosting modes. It creates
 no HWND, device, swap chain, thread or timer. All mutation/preparation is owner-

@@ -404,13 +404,49 @@ Mode/reset/missing ancestry falls back to complete bounded preparation. The
 prefix index remains linear in line count. All new state is staged before one
 publication; failure leaves the prior revision, payload identities and mapping
 intact. `Clear()` releases its state and rejects content/mapping queries until
-prepared again. This helper still uses v0 syntax. It does not yet replace the
-retained editor's full layout or provide shared host scheduling. Its current
-qualification is recorded in the active plan; no complete Markdown claim follows.
+prepared again. This helper still uses v0 syntax. Its original qualification
+preceded the guarded geometry integration below and provides no shared host
+scheduling. No complete Markdown claim follows.
 The [projection-block qualification](../Measurements/RichText/2026-10-18-projection-blocks/README.md)
 retains the original reuse and Debug noexcept failures, 57 final native suite
 successes, six builds, allocation/retention observations and unchanged operation
 methods. Snapshot slicing now propagates allocation failure. Valid block mapping
-and unchanged preparation allocate zero C++ bytes. The retained editor's geometry,
-shared scheduling and complete syntax profiles remain separate plan gates; the
+and unchanged preparation allocate zero C++ bytes. Exact universal retained
+rendering, shared scheduling and complete syntax profiles remain plan gates; the
 descriptive operation improvements do not resolve frame-performance acceptance.
+
+The retained editor's bounded geometry update is functionally qualified.
+`PreparedDocumentLayout` joins source-line projections into chunks targeting
+1,024 source units and caps the published document at 128 chunks. Unchanged
+chunks reuse immutable DirectWrite layouts after source edits; source and geometry
+publish together only after preparation succeeds. `Invalidate()` rejects stale
+queries while retaining bounded reuse state. `Clear()` releases that graph.
+Drawing remains owner-thread raster preparation and visits only visible chunks;
+embedded composition keeps using its cached surface. `Clone()` creates an
+independent projection service while sharing immutable block payloads; clearing
+or preparing the clone does not change the original. Full shared scheduling,
+complete Markdown/extensions and platform/performance acceptance remain pending.
+
+The implementation reserves one of its 128 geometry slots for a canonical whole-layout
+compatibility cache. Numerically unsafe chunk placement falls back to whole
+geometry; raster origins or transforms can also need whole-layout drawing.
+`UsesWholeGeometry()`, `UsesWholeRaster()` and the separate whole-layout preparation,
+reuse and source-unit statistics make that work visible. Prefix validation remains
+linear in line count. Exact incremental rendering across all documents/transforms
+is still a plan item. The original height/pixel failures stay preserved; no oracle
+or performance threshold is relaxed to accept the new cache.
+
+The [geometry packet](../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+retains 57 passing ordinary x64 suite runs, six builds, complete observed
+copy/geometry allocation sweeps, 162 exact WARP image pairs and fixed storage
+bounds. The original Debug point-173 noexcept move failure is preserved. The
+native 13-DIP fixture still needs whole-layout compatibility: its descriptive
+128-edit median is 53,381.5 ms versus 51,102.6 ms before, with no controlled timing
+acceptance. Exact incremental rendering and shared preparation remain active work.
+
+The [thread-state follow-up](../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+preserves four same-binary observer controls and 1,280 clear/readback frames.
+All captures match, but 17–25 ms query p95 cannot resolve 0.45–0.57 ms frame p95;
+none of 35 acquisition brackets fits inside a frame. There is no Map wait-reason
+or scheduler-delay conclusion. The Windows trace-policy refusal and performance
+HOLD remain open; a separate documented WARP threading diagnostic is planned.

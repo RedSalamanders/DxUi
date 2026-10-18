@@ -2764,11 +2764,19 @@ private:
 // adapters. Real IME/AT qualification and complete rich Markdown remain separate.
 struct RichTextEditorDebugState
 {
-    bool layoutReady          = false;
-    uint64_t layoutGeneration = 0;
-    float contentHeightDip    = 0;
-    float scrollOffsetDip     = 0;
-    bool dragging             = false;
+    bool layoutReady              = false;
+    uint64_t layoutGeneration     = 0;
+    float contentHeightDip        = 0;
+    float scrollOffsetDip         = 0;
+    bool dragging                 = false;
+    size_t retainedGeometryChunks = 0;
+    size_t preparedGeometryChunks = 0;
+    size_t reusedGeometryChunks   = 0;
+    size_t preparedSourceUnits    = 0;
+    bool wholeGeometryFallback    = false;
+    bool wholeRasterFallback      = false;
+    size_t wholeLayoutsPrepared   = 0;
+    size_t wholeLayoutSourceUnits = 0;
 };
 
 class RichTextEditor : public Control

@@ -1,0 +1,274 @@
+{
+  "scheduledOperations": 12,
+  "completed": 6,
+  "attempted": 6,
+  "scheduled": 6,
+  "elapsedSeconds": 3344.3662783,
+  "profiles": [
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 771.7602602,
+      "platform": "x64",
+      "configuration": "Debug"
+    },
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 1198.1759478,
+      "platform": "x64",
+      "configuration": "ASan Debug"
+    },
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 753.9122875,
+      "platform": "x64",
+      "configuration": "Release"
+    },
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 198.2112967,
+      "platform": "ARM64",
+      "configuration": "Debug"
+    },
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 235.4206813,
+      "platform": "ARM64",
+      "configuration": "Release"
+    },
+    {
+      "exitCode": 0,
+      "elapsedSeconds": 186.2555881,
+      "platform": "ARM64",
+      "configuration": "ASan Debug"
+    }
+  ],
+  "operations": [
+    {
+      "elapsedSeconds": 190.9063725,
+      "processId": 16240,
+      "name": "x64-Debug-build",
+      "drained": true,
+      "completedUtc": "2026-10-18T06:53:24.1269299Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Debug"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 0.0545817,
+      "processId": 104780,
+      "name": "x64-Debug-layout-clear-probe",
+      "drained": true,
+      "completedUtc": "2026-10-18T06:53:24.1972231Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "--test-rich-layout-clear"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 6.124162,
+      "processId": 80224,
+      "name": "x64-Debug-geometry-probe",
+      "drained": true,
+      "completedUtc": "2026-10-18T06:53:30.3319145Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "--test-rich-geometry-failures"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 574.6147206,
+      "processId": 90424,
+      "name": "x64-Debug",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:03:04.9579182Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Debug",
+        "-Full",
+        "-SkipTooling",
+        "-TestTimeout",
+        "600",
+        "-SkipBuild"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 189.5965614,
+      "processId": 18640,
+      "name": "x64-ASan-Debug-build",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:06:14.7780074Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "ASan Debug"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 0.0805351,
+      "processId": 52016,
+      "name": "x64-ASan-Debug-layout-clear-probe",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:06:14.8740636Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": true,
+      "arguments": [
+        "--test-rich-layout-clear"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 32.44466,
+      "processId": 78836,
+      "name": "x64-ASan-Debug-geometry-probe",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:06:47.3321581Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": true,
+      "arguments": [
+        "--test-rich-geometry-failures"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 976.0069778,
+      "processId": 108396,
+      "name": "x64-ASan-Debug",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:23:03.3539082Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "ASan Debug",
+        "-Full",
+        "-SkipTooling",
+        "-TestTimeout",
+        "600",
+        "-SkipBuild"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 753.9105418,
+      "processId": 97292,
+      "name": "x64-Release",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:35:37.4830572Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release",
+        "-Full",
+        "-SkipTooling",
+        "-TestTimeout",
+        "600"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 198.2096991,
+      "processId": 101844,
+      "name": "ARM64-Debug",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:38:55.8653048Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "ARM64",
+        "-Configuration",
+        "Debug"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 235.4191587,
+      "processId": 96812,
+      "name": "ARM64-Release",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:42:51.2924317Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "ARM64",
+        "-Configuration",
+        "Release"
+      ],
+      "timedOut": false
+    },
+    {
+      "elapsedSeconds": 186.2541213,
+      "processId": 107588,
+      "name": "ARM64-ASan-Debug",
+      "drained": true,
+      "completedUtc": "2026-10-18T07:45:57.5535132Z",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "ARM64",
+        "-Configuration",
+        "ASan Debug"
+      ],
+      "timedOut": false
+    }
+  ],
+  "attemptedOperations": 12
+}

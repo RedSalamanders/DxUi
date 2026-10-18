@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "error": "Dot-sourced analyzer parameter cleared the test output parameter. Rename the test parameter; original diagnostic data is untouched."
+}

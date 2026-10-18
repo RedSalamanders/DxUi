@@ -1,0 +1,200 @@
+[
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788785325075,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788785074985,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788785768301,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788785624239,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788786093303,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788785935437,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788786422122,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788786244135,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788786707773,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788786553142,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788787019742,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788786864329,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788787333551,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788787173743,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": 0,
+    "queryEndedQpc": 1788787629777,
+    "mainState": 5,
+    "frame": null,
+    "queryStartedQpc": 1788787483239,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788787960628,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788787798079,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788788261183,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788788103571,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": 0,
+    "queryEndedQpc": 1788788571731,
+    "mainState": 5,
+    "frame": null,
+    "queryStartedQpc": 1788788415772,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788788869667,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788788723531,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": 0,
+    "queryEndedQpc": 1788789193300,
+    "mainState": 5,
+    "frame": null,
+    "queryStartedQpc": 1788789035659,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788789515849,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788789348088,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788789802436,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788789661617,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": 0,
+    "queryEndedQpc": 1788790113033,
+    "mainState": 5,
+    "frame": null,
+    "queryStartedQpc": 1788789968663,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": 0,
+    "queryEndedQpc": 1788790459419,
+    "mainState": 5,
+    "frame": null,
+    "queryStartedQpc": 1788790287561,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  },
+  {
+    "readyWorkerRows": 0,
+    "mainWaitReason": null,
+    "queryEndedQpc": 1788790741116,
+    "mainState": 2,
+    "frame": null,
+    "queryStartedQpc": 1788790597687,
+    "kind": "outside-or-cross-frame",
+    "status": "complete",
+    "window": null
+  }
+]

@@ -2,6 +2,8 @@
 #include "../../src/Controls/TextClipboard.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/ControlCatalog.h>
+#include <chrono>
+#include <iostream>
 #include <stdexcept>
 
 namespace
@@ -328,6 +330,99 @@ void TestRichTextEditorCatalogAndRebinding()
     second.SetRoot(std::move(control));
     Require(editor->GetText() == L"kept!" && editor->Undo() && editor->GetText() == L"kept", "host rebinding preserves logical state");
 }
+
+void TestRichTextEditorRetainedPreparationFixedTrials()
+{
+    // Kept byte-identical across the geometry baseline/candidate. This includes
+    // the real native host's dirty preparation/raster path, without activation.
+    // Five trials describe this process; they are not frame-gate acceptance.
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    for (size_t trial = 0u; trial < 5u; ++trial)
+    {
+        AttachedHostWindow window;
+        auto editor              = std::make_unique<RichTextEditor>(seed);
+        auto* raw                = editor.get();
+        const auto firstRevision = raw->Revision();
+        window.Host().SetRoot(std::move(editor));
+        const auto start = std::chrono::steady_clock::now();
+        RenderEditor(window);
+        const auto initial     = std::chrono::steady_clock::now();
+        constexpr size_t edits = 128u;
+        for (size_t edit = 0u; edit < edits; ++edit)
+        {
+            raw->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
+            Require(raw->ReplaceSelection(edit % 2u ? L"x" : L"y"), "retained trial replaces one ASCII source unit");
+            RenderEditor(window);
+        }
+        const auto finish = std::chrono::steady_clock::now();
+        Require(raw->DebugGetState().layoutReady && raw->GetText().size() == seed.size() && raw->Revision() == firstRevision + edits,
+                "retained trial publishes every edited revision with unchanged source length");
+        std::cout << "rich retained preparation trial=" << trial << " sourceUnits=" << seed.size() << " edits=" << edits
+                  << " initialMs=" << std::chrono::duration<double, std::milli>(initial - start).count()
+                  << " editMs=" << std::chrono::duration<double, std::milli>(finish - initial).count() << '\n';
+    }
+}
+void TestRichTextEditorNativeCompatibilityWorkIsReported()
+{
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(seed);
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    raw->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
+    Require(raw->ReplaceSelection(L"x"), "compatibility work fixture changes actual display text");
+    RenderEditor(window);
+    const auto state = raw->DebugGetState();
+    auto* format     = window.Host().GetTextFormat(FontRole::Body);
+    std::cout << "rich native compatibility sourceUnits=" << seed.size() << " dpi=" << window.Host().GetDpi()
+              << " bodyFontSize=" << (format ? format->GetFontSize() : 0.0f) << " chunks=" << state.retainedGeometryChunks
+              << " wholeGeometry=" << state.wholeGeometryFallback << " wholeRaster=" << state.wholeRasterFallback
+              << " preparedChunkSourceUnits=" << state.preparedSourceUnits << " wholeLayoutsPrepared=" << state.wholeLayoutsPrepared
+              << " wholeLayoutSourceUnits=" << state.wholeLayoutSourceUnits << '\n';
+    Require(state.layoutReady && state.retainedGeometryChunks <= 128u, "native compatibility resource graph remains coherent and bounded");
+    if (state.wholeGeometryFallback || state.wholeRasterFallback)
+        Require(state.wholeLayoutsPrepared > 0u && state.wholeLayoutSourceUnits == seed.size(),
+                "whole-layout compatibility work is explicitly reported rather than attributed to bounded chunk preparation");
+    else
+        Require(state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u, "native exact-placement path reports actual incremental geometry reuse");
+}
+void TestRichTextEditorNativeChunkReuseAndRetirement()
+{
+    std::wstring seed;
+    for (size_t line = 0u; line < 512u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600\r\n";
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(seed);
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    const auto initial = raw->DebugGetState();
+    Require(initial.retainedGeometryChunks > 1u && initial.retainedGeometryChunks <= 128u && initial.preparedSourceUnits == seed.size(),
+            "native control prepares an actually bounded chunk graph");
+    raw->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
+    Require(raw->ReplaceSelection(L"x") && ! raw->DebugGetState().layoutReady, "native source edit immediately invalidates old geometry");
+    RenderEditor(window);
+    const auto edited = raw->DebugGetState();
+    Require(edited.layoutReady && edited.reusedGeometryChunks > 0u && edited.preparedSourceUnits <= 2048u,
+            "native host preparation actually reuses unchanged DirectWrite chunks");
+    Require(raw->Undo(), "native retained chunk undo");
+    RenderEditor(window);
+    Require(raw->GetText() == seed && raw->DebugGetState().reusedGeometryChunks > 0u, "undo reuses matching native geometry and restores exact source");
+    raw->SetVisible(false);
+    RenderEditor(window);
+    Require(! raw->DebugGetState().layoutReady && raw->DebugGetState().retainedGeometryChunks == 0u, "hiding native control retires the chunk graph");
+    raw->SetVisible(true);
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutReady && raw->DebugGetState().reusedGeometryChunks == 0u, "show rebuilds retired native resources");
+    raw->SetViewMode(ViewMode::Source);
+    RenderEditor(window);
+    Require(raw->DebugGetState().reusedGeometryChunks == 0u && raw->GetText() == seed, "source mode retires rich geometry without rewriting source");
+}
 } // namespace
 
 void RunRichTextEditorTests()
@@ -342,4 +437,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
     DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
+    DXUI_RUN_TEST(TestRichTextEditorRetainedPreparationFixedTrials);
+    DXUI_RUN_TEST(TestRichTextEditorNativeChunkReuseAndRetirement);
+    DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
 }

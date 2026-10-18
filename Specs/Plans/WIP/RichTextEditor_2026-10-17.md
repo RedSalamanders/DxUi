@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, shared Unicode 17 segmentation, persistent piece-tree storage and bounded source-change metadata functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Incremental/shared preparation, the complete engine and physical input/AT gates stay open.
+Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services and guarded retained geometry are functionally qualified. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. Exact incremental rendering/shared preparation, the complete engine and physical/platform gates remain open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -870,3 +870,168 @@ adding host services. DirectWrite formats may not be thread-safe; no assumption
 of arbitrary-thread geometry follows merely from a shared factory. The control
 still prepares full layout and no consumer pin or gallery input changes here.
 The six-profile/twelve-operation schedule completes in 2088.375 seconds under its declared limits.
+
+### Retained geometry qualification sequence
+
+- [x] Preserve a fresh real native-control baseline with the original full layout:
+  five fixed 26,624-unit / 128-edit preparation/raster trials, original executable,
+  root build attestation, native receipt, complete logs and unpaired canonical
+  performance report. Owned supervision completes in 517.991 seconds, exit zero,
+  without timeouts or desktop activation. Initial times are 521–657 ms and edit
+  times 50,898–51,271 ms. These are descriptive observations, not gate acceptance.
+- [x] Qualify PreparedDocumentLayout against whole-document DirectWrite geometry
+  and WARP pixels, then finish native/embedded publication/lifetime/resource tests.
+- [x] Qualify zero-allocation layout retirement, clone isolation, all observed
+  geometry allocation failures and maximum-source chunk/storage limits in x64
+  Debug/Release/ASan, followed by all three ARM64 cross-builds and tooling checks.
+
+The candidate connects the existing immutable source-line projections to retained
+geometry in both ControlHost modes. Geometry chunks target 1,024 source units,
+ending at physical lines; no published document may exceed 128 chunks. Source
+changes invalidate public geometry immediately while retaining the previous
+bounded graph for reuse. Host/font/mode/visibility retirement releases it.
+Staged projection clones share immutable payloads, and all fallible geometry work
+precedes joint publication. A nonfinal chunk excludes its phantom terminal empty
+DirectWrite line; the final chunk keeps the real final line. Drawing visits only
+viewport-intersecting chunks during host preparation. Prefix work remains linear,
+and an unusually long source line still uses a whole-line layout.
+
+Clear must not default-construct STL containers inside noexcept. Fallibly prepared
+empty retirement buffers allow nonallocating swaps while retaining Content's
+projection member identity. End on a trailing empty display line must remain at
+its caret, including hidden-only final source. No new worker/timer/device or
+canonical benchmark policy change is introduced. The complete shared scheduler,
+full Markdown/extensions and physical IME/AT/native ARM64 gates remain open.
+
+The first candidate failed compilation on an unavailable WIL helper; its complete
+source and build failure are retained. The second candidate exposed a collapsed
+visible-range error, while Embedded passed 7,828 checks and Accessibility passed.
+After that correction, all 32 short geometry variants and edit/undo comparisons
+passed, but maximum-newline height differed by roughly 1,100 DIPs and fractional
+raster scaling differed in 2,656 bytes. Original raw images, artifacts, source,
+logs and independent diagnostic outcomes remain under the current geometry work.
+Four independent probes passed (edit publication, compaction/branches, native
+reuse/retirement and fixed trials); height and raster probes failed independently.
+The diagnostic driver initially searched stdout for trace markers; stderr proves
+the selected cases started/completed, so retain that receipt limitation explicitly.
+
+The next candidate keeps a conservative whole-layout compatibility path. Separate
+chunk accumulation must match sequential DirectWrite float positions/baselines
+exactly, without absolute-placement rounding; otherwise stage canonical whole
+geometry and discard the incompatible chunk graph. Raster origin association or
+non-axis transforms can request one whole-layout raster cache during owner
+preparation. Whole-layout work/reuse/source units and fallback state are explicit
+statistics, not credited as bounded incremental work. Reserve one of 128 resource
+slots for this compatibility cache (127 chunks); old/staged graphs remain bounded.
+Source-only changes may share a compatible immutable whole layout if display text,
+styles, factory and typography match. Exact incremental rendering for every
+rounding-sensitive document/transform remains an unchecked D2a requirement; this
+fallback preserves behavior and does not close performance acceptance.
+
+The fourth affected Release run passes EditorControls and Embedded (8,797 checks)
+under source fingerprint 2DB200E3. All observed copy/chunk/whole-geometry failure
+sweeps pass (9/265/359 allocations); clear and unchanged paths allocate zero C++
+bytes. The 1,024-line/512-edit retained and replacement peaks are 2,844,161 and
+2,942,318 tracked C++ bytes, and release returns to zero. Eighteen raster pairs
+match. Its fixed 128-edit trials are about 53 seconds, so the fast unguarded draft
+is not accepted as the implementation. This evidence is still affected Release,
+not the final six-profile qualification.
+
+The fifth affected Release run adds 54 exact WARP pairs spanning heading/rich,
+source and styled no-heading profiles, LTR/RTL, DPI/scale and skew, and three
+viewports. Source/styled 16-DIP cases explicitly assert actual chunk geometry and
+first-view chunk drawing. It passes all selected cases and preserves 108 PNGs.
+The real native diagnostic confirms 13-DIP body typography at 96 DPI uses whole
+geometry/raster for the 26,624-unit fixture; its full source work is reported.
+The original fixed timing method remains unchanged. Final Debug/Release/ASan,
+ARM64 cross-build and tooling qualification now follows with inputs frozen.
+
+The first final matrix passes all 19 Release scopes, then stops during the
+isolated Debug geometry sweep at allocation point 173 (exit 197). Clear and
+22 copy-assignment allocation points pass first. A separate local-symbol stack
+probe identifies the named JoinBlocks return moving a Projection through a
+noexcept Debug string move constructor. Preserve both failed operations, their
+exact executables/PDBs, source and streams. The stack-probe wrapper contains an
+obsolete snapshot-slice predicate; its child stack is diagnostic evidence, not
+a successful wrapper or qualification result. Fill a fallibly constructed
+Projection in place and prepare through the existing reference-taking helper.
+Both chunk and forced-whole allocation sweeps must pass before ordinary Debug
+and ASan qualification resumes. Remove the temporary DbgHelp import from the
+test executable; canonical measurement inputs gain no symbol-reporting work.
+
+### Qualified guarded geometry and observer-resolution closeout
+
+The [geometry packet](../../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+binds source fingerprint 4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C.
+All 57 ordinary x64 suite executions pass with zero skips; all six build profiles
+and four isolated Debug/ASan diagnostics pass. The twelve-operation matrix finishes
+in 3,344.366 seconds with all 22 changed inputs byte-identical at start/end. Full
+validation/tooling and pinned formatting pass. Exact WARP qualification preserves
+54 pairs per profile, including actual chunk geometry/drawing assertions. Original
+compile, visible-range, height, pixel and point-173 Debug failures remain retained;
+the stack-probe wrapper's obsolete predicate is explicitly not a passing operation.
+
+Release copy/normal/forced-whole sweeps cover 9/265/359 allocation points;
+Debug/ASan cover 22/349/464. Clear, unchanged geometry and cached composition
+allocate zero C++ storage. The 1,024-line/512-edit retained/replacement peaks are
+2,844,161/2,942,318 bytes in Release and 2,980,281/3,078,982 in Debug/ASan. Maximum
+distinct-line storage reaches 13,940,034/17,872,762 bytes under its fixed 24 MiB
+limit; all tracked deltas release to zero. SDK-private heaps remain outside these
+C++ counters. Native ARM64 execution and physical input/AT are not established.
+
+The fixed native trial body is unchanged. Before/final initial medians are
+522.474/521.053 ms; 128-edit medians are 51,102.6/53,381.5 ms. The default 13-DIP
+fixture explicitly reports complete chunk and whole-layout work. This is a
+behavior-preserving compatibility component, not an accepted speed improvement.
+Keep that cost visible while implementing exact retained line placement/drawing;
+do not accept the unsafe fast draft, loosen an oracle or silently rebaseline.
+
+The [thread-state packet](../../../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+preserves Off/On/On/Off same-binary controls after build/tooling activity stopped.
+All 1,280 frames and four populated captures match their invariants; all native
+children exit zero. The native main-thread identity and common QPC clock are
+verified. All 35 acquisition brackets cross or fall outside frame boundaries:
+query p95 17–25 ms is too coarse for full-frame p95 0.45–0.57 ms. No Map state,
+wait-reason, scheduler-delay or stable observer-overhead conclusion follows.
+The raw outliers, empty aligned histograms, original helper-development errors
+and unavailable source lookup remain retained. Kernel tracing is still refused
+by Windows policy; the existing performance HOLD stays open.
+
+Continue implementation in this order:
+
+- [ ] Investigate legacy flat Projection/default/move/copy failure safety in
+  isolated native children before claiming a defect. Preserve an original passing
+  sweep if the compiler's NRVO avoids the suspected flat-helper failure. A private
+  constructor/probe draft is uncompiled and is not implemented support.
+- [ ] Move the five repeated native timing trials behind explicit diagnostic
+  selection, preserving their body and final Release artifact/sample bindings.
+  Independent behavior/resource tests remain ordinary. This removes roughly
+  280/530 seconds of descriptive repetition from Debug/ASan iteration without
+  reducing behavior coverage or changing the canonical acceptance fixture.
+- [ ] Implement a separate bounded WARP default/calling-thread-rasterization
+  diagnostic using the documented SDK flag; test both policies and exact captures.
+  Preserve default library/canonical device creation. Work placement/runtime
+  changes are not a measurement of scheduler latency by themselves.
+- [ ] Finish exact retained line placement/drawing where the current compatibility
+  path rebuilds a whole layout; retain independent geometry and pixel oracles.
+- [ ] Integrate shared/cooperative preparation under existing host ownership,
+  cancellation, revision/binding and stale-publication contracts. Embedded mode
+  does not acquire its own worker/timer; shared DWrite factory identity alone
+  does not prove arbitrary-thread format/layout safety.
+- [ ] Complete pinned CommonMark/GFM, lossless semantic source/display anchors,
+  rich transactions and the accepted math/Mermaid/footnote/front-matter profiles.
+  The original full specification's 1 MiB typing, 10 MiB loading and 100 MiB
+  source-preservation targets exceed the current 65,536-unit v0 bound; they are
+  not qualified large-document support. Reconcile expanded/generated/reordered
+  display spans and NUL admission before claiming full conformance.
+
+This closes only the guarded geometry/resource component and the coarse-observer
+investigation. D2a, D4a/D4c/D4d and D5 remain active; keep the plan under WIP.
+Desktop-time agreement is still absent, so focus-taking suites remain pending
+under AGENTS.md. No consumer pin or gallery input is changed by this closeout.
+
+Both packet verifiers and their one-byte negative integrity tests pass. The first
+post-archive dependency validation reports 32 paths over the 150-character
+consumer restore limit. Compact aliases retain original path mappings and every
+byte hash; all five post-archive validators then pass. This packaging repair does
+not change native source, results or performance acceptance.

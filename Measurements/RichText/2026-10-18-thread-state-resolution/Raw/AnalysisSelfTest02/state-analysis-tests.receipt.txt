@@ -1,0 +1,9 @@
+{
+  "nearestRankCases": 2,
+  "containmentCases": 8,
+  "reversedIntervalRejected": true,
+  "classification": "Functional analyzer tests only",
+  "analyzerSha256": "C6EDD639715761D0E7928917A47FD7719BC50B183F535E029EF4EC96B930FF0D",
+  "int64CreationRoundTrip": true,
+  "testSha256": "0E9917EB6FE08DA2AAA5B747294147E9FC71565E9BD9A07BAADD380C0AFE0F95"
+}

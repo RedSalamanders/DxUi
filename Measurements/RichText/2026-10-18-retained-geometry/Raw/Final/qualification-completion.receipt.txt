@@ -1,0 +1,88 @@
+{
+  "attempted": 2,
+  "completed": 1,
+  "attemptedOperations": 4,
+  "elapsedSeconds": 779.9059292,
+  "profiles": [
+    {
+      "elapsedSeconds": 557.5009128,
+      "exitCode": 0,
+      "platform": "x64",
+      "configuration": "Release"
+    }
+  ],
+  "scheduledOperations": 12,
+  "operations": [
+    {
+      "processId": 80112,
+      "name": "x64-Release",
+      "exitCode": 0,
+      "elapsedSeconds": 557.4746538,
+      "drained": true,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release",
+        "-Full",
+        "-SkipTooling",
+        "-TestTimeout",
+        "600"
+      ],
+      "sanitizedDiagnosticOptions": false,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T06:32:08.6579937Z"
+    },
+    {
+      "processId": 104984,
+      "name": "x64-Debug-build",
+      "exitCode": 0,
+      "elapsedSeconds": 220.913919,
+      "drained": true,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Debug"
+      ],
+      "sanitizedDiagnosticOptions": false,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T06:35:49.8775446Z"
+    },
+    {
+      "processId": 82252,
+      "name": "x64-Debug-layout-clear-probe",
+      "exitCode": 0,
+      "elapsedSeconds": 0.0926884,
+      "drained": true,
+      "arguments": [
+        "--test-rich-layout-clear"
+      ],
+      "sanitizedDiagnosticOptions": false,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T06:35:49.9848665Z"
+    },
+    {
+      "processId": 80040,
+      "name": "x64-Debug-geometry-probe",
+      "exitCode": 197,
+      "elapsedSeconds": 0.9506501,
+      "drained": true,
+      "arguments": [
+        "--test-rich-geometry-failures"
+      ],
+      "sanitizedDiagnosticOptions": false,
+      "timedOut": false,
+      "completedUtc": "2026-10-18T06:35:50.9462879Z"
+    }
+  ],
+  "scheduled": 6
+}

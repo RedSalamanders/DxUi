@@ -1,0 +1,229 @@
+rich layout copy failure-point=0
+rich layout copy failure-point=1
+rich layout copy failure-point=2
+rich layout copy failure-point=3
+rich layout copy failure-point=4
+rich layout copy failure-point=5
+rich layout copy failure-point=6
+rich layout copy failure-point=7
+rich layout copy failure-point=8
+rich layout copy failure-point=9
+rich layout copy failure-point=10
+rich layout copy failure-point=11
+rich layout copy failure-point=12
+rich layout copy failure-point=13
+rich layout copy failure-point=14
+rich layout copy failure-point=15
+rich layout copy failure-point=16
+rich layout copy failure-point=17
+rich layout copy failure-point=18
+rich layout copy failure-point=19
+rich layout copy failure-point=20
+rich layout copy failure-point=21
+rich geometry failure-point=0
+rich geometry failure-point=1
+rich geometry failure-point=2
+rich geometry failure-point=3
+rich geometry failure-point=4
+rich geometry failure-point=5
+rich geometry failure-point=6
+rich geometry failure-point=7
+rich geometry failure-point=8
+rich geometry failure-point=9
+rich geometry failure-point=10
+rich geometry failure-point=11
+rich geometry failure-point=12
+rich geometry failure-point=13
+rich geometry failure-point=14
+rich geometry failure-point=15
+rich geometry failure-point=16
+rich geometry failure-point=17
+rich geometry failure-point=18
+rich geometry failure-point=19
+rich geometry failure-point=20
+rich geometry failure-point=21
+rich geometry failure-point=22
+rich geometry failure-point=23
+rich geometry failure-point=24
+rich geometry failure-point=25
+rich geometry failure-point=26
+rich geometry failure-point=27
+rich geometry failure-point=28
+rich geometry failure-point=29
+rich geometry failure-point=30
+rich geometry failure-point=31
+rich geometry failure-point=32
+rich geometry failure-point=33
+rich geometry failure-point=34
+rich geometry failure-point=35
+rich geometry failure-point=36
+rich geometry failure-point=37
+rich geometry failure-point=38
+rich geometry failure-point=39
+rich geometry failure-point=40
+rich geometry failure-point=41
+rich geometry failure-point=42
+rich geometry failure-point=43
+rich geometry failure-point=44
+rich geometry failure-point=45
+rich geometry failure-point=46
+rich geometry failure-point=47
+rich geometry failure-point=48
+rich geometry failure-point=49
+rich geometry failure-point=50
+rich geometry failure-point=51
+rich geometry failure-point=52
+rich geometry failure-point=53
+rich geometry failure-point=54
+rich geometry failure-point=55
+rich geometry failure-point=56
+rich geometry failure-point=57
+rich geometry failure-point=58
+rich geometry failure-point=59
+rich geometry failure-point=60
+rich geometry failure-point=61
+rich geometry failure-point=62
+rich geometry failure-point=63
+rich geometry failure-point=64
+rich geometry failure-point=65
+rich geometry failure-point=66
+rich geometry failure-point=67
+rich geometry failure-point=68
+rich geometry failure-point=69
+rich geometry failure-point=70
+rich geometry failure-point=71
+rich geometry failure-point=72
+rich geometry failure-point=73
+rich geometry failure-point=74
+rich geometry failure-point=75
+rich geometry failure-point=76
+rich geometry failure-point=77
+rich geometry failure-point=78
+rich geometry failure-point=79
+rich geometry failure-point=80
+rich geometry failure-point=81
+rich geometry failure-point=82
+rich geometry failure-point=83
+rich geometry failure-point=84
+rich geometry failure-point=85
+rich geometry failure-point=86
+rich geometry failure-point=87
+rich geometry failure-point=88
+rich geometry failure-point=89
+rich geometry failure-point=90
+rich geometry failure-point=91
+rich geometry failure-point=92
+rich geometry failure-point=93
+rich geometry failure-point=94
+rich geometry failure-point=95
+rich geometry failure-point=96
+rich geometry failure-point=97
+rich geometry failure-point=98
+rich geometry failure-point=99
+rich geometry failure-point=100
+rich geometry failure-point=101
+rich geometry failure-point=102
+rich geometry failure-point=103
+rich geometry failure-point=104
+rich geometry failure-point=105
+rich geometry failure-point=106
+rich geometry failure-point=107
+rich geometry failure-point=108
+rich geometry failure-point=109
+rich geometry failure-point=110
+rich geometry failure-point=111
+rich geometry failure-point=112
+rich geometry failure-point=113
+rich geometry failure-point=114
+rich geometry failure-point=115
+rich geometry failure-point=116
+rich geometry failure-point=117
+rich geometry failure-point=118
+rich geometry failure-point=119
+rich geometry failure-point=120
+rich geometry failure-point=121
+rich geometry failure-point=122
+rich geometry failure-point=123
+rich geometry failure-point=124
+rich geometry failure-point=125
+rich geometry failure-point=126
+rich geometry failure-point=127
+rich geometry failure-point=128
+rich geometry failure-point=129
+rich geometry failure-point=130
+rich geometry failure-point=131
+rich geometry failure-point=132
+rich geometry failure-point=133
+rich geometry failure-point=134
+rich geometry failure-point=135
+rich geometry failure-point=136
+rich geometry failure-point=137
+rich geometry failure-point=138
+rich geometry failure-point=139
+rich geometry failure-point=140
+rich geometry failure-point=141
+rich geometry failure-point=142
+rich geometry failure-point=143
+rich geometry failure-point=144
+rich geometry failure-point=145
+rich geometry failure-point=146
+rich geometry failure-point=147
+rich geometry failure-point=148
+rich geometry failure-point=149
+rich geometry failure-point=150
+rich geometry failure-point=151
+rich geometry failure-point=152
+rich geometry failure-point=153
+rich geometry failure-point=154
+rich geometry failure-point=155
+rich geometry failure-point=156
+rich geometry failure-point=157
+rich geometry failure-point=158
+rich geometry failure-point=159
+rich geometry failure-point=160
+rich geometry failure-point=161
+rich geometry failure-point=162
+rich geometry failure-point=163
+rich geometry failure-point=164
+rich geometry failure-point=165
+rich geometry failure-point=166
+rich geometry failure-point=167
+rich geometry failure-point=168
+rich geometry failure-point=169
+rich geometry failure-point=170
+rich geometry failure-point=171
+rich geometry failure-point=172
+rich geometry failure-point=173
+rich preparation probe: unexpected noexcept termination
+  00007FF648C79F06 ReportRichPreparationTermination+0x1b6 Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:64
+  00007FF648C41C55 `RunFunctionalTests'::`5'::<lambda_1>::operator()+0x25 Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:1216
+  00007FF648B9938B `RunFunctionalTests'::`5'::<lambda_1>::<lambda_invoker_cdecl>+0x1b
+  00007FF9493FAB1E
+  00007FF9EB66200D
+  00007FF9EB662CBA
+  00007FF9EB662D4A
+  00007FF9EB66659B
+  00007FFA16B2631F
+  00007FFA16A84035
+  00007FFA169D9F3D
+  00007FFA1406483A
+  00007FF976D193A2
+  00007FF648C5E1E1 FailAllocationIfRequested+0xa1 Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:91
+  00007FF648C31555 operator new+0x25 Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:97
+  00007FF648CD136C std::_Default_allocate_traits::_Allocate+0x2c C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:137
+  00007FF648BC58FF std::_Allocate<16,std::_Default_allocate_traits>+0x6f C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:258
+  00007FF648CF0899 std::allocator<std::_Container_proxy>::allocate+0x39 C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:995
+  00007FF648BC5816 std::_Container_base12::_Alloc_proxy<std::allocator<std::_Container_proxy> >+0x36 C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1232
+  00007FF648C13ED6 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >+0xa6 C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1079
+  00007FF64914A18C DxUi::RichText::Projection::Projection+0x3c
+  00007FF64914E7E4 DxUi::RichText::`anonymous namespace'::JoinBlocks+0x4b4 Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichDocumentLayout.cpp:56
+  00007FF64914F5A9 DxUi::RichText::PreparedDocumentLayout::Prepare+0x809 Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichDocumentLayout.cpp:222
+  00007FF648CBE17C TestRichDocumentGeometryFailureAtomicity+0x83c Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Scope.Tests.RichGeometryResources.h:171
+  00007FF648C848BC RunFunctionalTests+0x51c Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:1225
+  00007FF648D0B098 wmain+0x938 Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.BenchmarkMain.h:47
+  00007FF649228049 invoke_main+0x39 D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:91
+  00007FF649227EF2 __scrt_common_main_seh+0x132 D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+  00007FF649227DAE __scrt_common_main+0xe D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:331
+  00007FF6492280DE wmainCRTStartup+0xe D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:17
+  00007FFA15FFCDF7
+  00007FFA16A3EE4C

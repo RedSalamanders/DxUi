@@ -1,0 +1,36 @@
+# Guarded geometry source review
+
+The current candidate library source fingerprint is
+4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C.
+This is a source review record, not a substitute for runtime qualification.
+
+- PreparedDocumentLayout stages a cloned projection, options, chunks and optional
+  canonical layout before its only state swap. Old and staged graphs have explicit
+  128-resource limits. Compaction discards only staged chunks and retains original
+  published state until commit. No published raw pointer refers to caller buffers.
+- A retained whole layout may have old source spelling when current display/style
+  content is identical. Current source/display mapping always comes from the new
+  PreparedProjection, while geometry uses display ACPs only. SourceMatches and
+  SourceBoundary consult the current projection, not the compatibility cache.
+- Active factories are retained with WIL references; matching a factory pointer
+  cannot accidentally reuse an address after the old factory has been destroyed.
+- New JoinBlocks construction fills caller-owned, explicitly fallible containers;
+  PrepareOwned consumes their buffers by reference. The preserved Debug stack
+  proves why a named return and optional NRVO were insufficient. No DbgHelp import
+  remains in the active test binary.
+- PreparedLayout preserves Content member addresses across prepare/clear. Its
+  preconstructed retirement buffers allow allocation-free noexcept retirement.
+  Copy assignment stages all fallible work; move assignment swaps per-container
+  buffers into an empty destination without proxy allocation.
+- Geometry/raster resources remain owner-thread state. Embedded composition uses
+  cached host surfaces and does not acquire a worker, timer, device or layout path.
+  Raster compatibility creation is owner preparation and is explicitly counted.
+- Exact geometric/pixel oracles are retained. Default 13-DIP work, whole source
+  preparation, long-document accumulation and fractional origin association remain
+  visible. The unsafe draft is not used as final timing evidence.
+
+Follow-through remains in Next.Required.md: investigate the legacy flat Project
+named return, move repeated descriptive timing to explicit opt-in mode, finish
+exact incremental rendering/shared preparation, then the pinned syntax and rich
+transaction engine. No software/physical/platform/performance gate is closed by
+this review record.

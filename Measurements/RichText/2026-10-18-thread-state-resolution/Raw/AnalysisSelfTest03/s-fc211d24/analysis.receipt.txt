@@ -1,0 +1,227 @@
+{
+  "limitations": "Snapshots are unweighted counts and do not estimate occupancy, scheduler delay, ready-time latency, stacks, GPU operation duration or causality. Snapshot acquisition and observer process scheduling can perturb timings. WaitReason Unknown is not decoded into an invented native kernel reason.",
+  "stateEnums": "System.Diagnostics.ThreadState: Ready=1, Running=2, Standby=3, Wait=5; raw enums retained in each state report.",
+  "classification": "Same-binary external-observer diagnostic; no baseline/candidate comparison or acceptance",
+  "alignment": "The full Refresh/Threads acquisition bracket must fit inside one segment; mixed/cross-frame/outside observations remain separate. Creation identity is checked as Int64. Rows are cached snapshot values, not a simultaneous multi-thread sample.",
+  "cases": [
+    {
+      "snapshotCount": 0,
+      "threadRowsMedian": null,
+      "windows": [
+        {
+          "clear": true,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": true,
+          "frameCount": 1
+        },
+        {
+          "clear": false,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 1,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": false,
+          "frameCount": 1
+        }
+      ],
+      "queryP95Milliseconds": null,
+      "mainMissingSnapshots": 0,
+      "samplingTruncated": false,
+      "mapReadyWorkerRows": 0,
+      "stateReportSha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "threadRowsMaximum": null,
+      "nativeReport": "state-01-Off.native.receipt.txt",
+      "queryMedianMilliseconds": null,
+      "alignmentGroups": {},
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "snapshotErrors": 0,
+      "mapSnapshotsWithReadyWorkers": 0,
+      "mapMainStateCounts": {},
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "Off",
+      "mapSnapshotCountsByWindow": {},
+      "mapMainSamples": 0,
+      "index": 1,
+      "mapMainWaitReasonCounts": {},
+      "statuses": {}
+    },
+    {
+      "snapshotCount": 1,
+      "threadRowsMedian": 2.0,
+      "windows": [
+        {
+          "clear": true,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": true,
+          "frameCount": 1
+        },
+        {
+          "clear": false,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 1,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": false,
+          "frameCount": 1
+        }
+      ],
+      "queryP95Milliseconds": 8.0,
+      "mainMissingSnapshots": 0,
+      "samplingTruncated": false,
+      "mapReadyWorkerRows": 1,
+      "stateReportSha256": "9C869A7E777BC0EE242A2045551884E6B314307A2FA8D3E79BD173436BAD9E44",
+      "threadRowsMaximum": 2.0,
+      "nativeReport": "state-02-On.native.receipt.txt",
+      "queryMedianMilliseconds": 8.0,
+      "alignmentGroups": {
+        "Map": 1
+      },
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "snapshotErrors": 0,
+      "mapSnapshotsWithReadyWorkers": 1,
+      "mapMainStateCounts": {
+        "5": 1
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "On",
+      "mapSnapshotCountsByWindow": {
+        "0": 1
+      },
+      "mapMainSamples": 1,
+      "index": 2,
+      "mapMainWaitReasonCounts": {
+        "6": 1
+      },
+      "statuses": {
+        "complete": 1
+      }
+    },
+    {
+      "snapshotCount": 1,
+      "threadRowsMedian": 2.0,
+      "windows": [
+        {
+          "clear": true,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": true,
+          "frameCount": 1
+        },
+        {
+          "clear": false,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 1,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": false,
+          "frameCount": 1
+        }
+      ],
+      "queryP95Milliseconds": 8.0,
+      "mainMissingSnapshots": 0,
+      "samplingTruncated": false,
+      "mapReadyWorkerRows": 1,
+      "stateReportSha256": "049F6A3376829AA9AA5F59174D1FA8A2B01C524A6F2395DFA22D30D2B2A57007",
+      "threadRowsMaximum": 2.0,
+      "nativeReport": "state-03-On.native.receipt.txt",
+      "queryMedianMilliseconds": 8.0,
+      "alignmentGroups": {
+        "Map": 1
+      },
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "snapshotErrors": 0,
+      "mapSnapshotsWithReadyWorkers": 1,
+      "mapMainStateCounts": {
+        "2": 1
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "On",
+      "mapSnapshotCountsByWindow": {
+        "0": 1
+      },
+      "mapMainSamples": 1,
+      "index": 3,
+      "mapMainWaitReasonCounts": {},
+      "statuses": {
+        "complete": 1
+      }
+    },
+    {
+      "snapshotCount": 0,
+      "threadRowsMedian": null,
+      "windows": [
+        {
+          "clear": true,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": true,
+          "frameCount": 1
+        },
+        {
+          "clear": false,
+          "frameP95Milliseconds": 80.0,
+          "frameMedianMilliseconds": 80.0,
+          "mapP95Milliseconds": 10.0,
+          "p95Frame": 0,
+          "window": 1,
+          "mapShareAtFrameP95Percent": 12.5,
+          "frameMaximumMilliseconds": 80.0,
+          "composite": false,
+          "frameCount": 1
+        }
+      ],
+      "queryP95Milliseconds": null,
+      "mainMissingSnapshots": 0,
+      "samplingTruncated": false,
+      "mapReadyWorkerRows": 0,
+      "stateReportSha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "threadRowsMaximum": null,
+      "nativeReport": "state-04-Off.native.receipt.txt",
+      "queryMedianMilliseconds": null,
+      "alignmentGroups": {},
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "snapshotErrors": 0,
+      "mapSnapshotsWithReadyWorkers": 0,
+      "mapMainStateCounts": {},
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "Off",
+      "mapSnapshotCountsByWindow": {},
+      "mapMainSamples": 0,
+      "index": 4,
+      "mapMainWaitReasonCounts": {},
+      "statuses": {}
+    }
+  ],
+  "analyzerSha256": "7545E166848C8090E94939DB11B676A477641FC35D7953646440F60F1C1A9BE7"
+}

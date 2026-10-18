@@ -1,0 +1,25 @@
+{
+  "observerEnabled": true,
+  "drainError": "",
+  "arguments": [
+    "-NoProfile",
+    "-NonInteractive",
+    "-File",
+    "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\OwnedThreadTarget.ps1"
+  ],
+  "timeoutSeconds": 30,
+  "measurement": "Owned-child thread-state snapshots and wait reasons; query brackets are QPC. These are sampled observations, without context-switch events, ready-time latency, stacks, GPU duration or performance acceptance.",
+  "sampleCount": 47,
+  "exitCode": 0,
+  "maximumSamples": 4096,
+  "timedOut": false,
+  "samplingTruncated": false,
+  "clockFrequency": 10000000,
+  "startedUtc": "2026-10-18T07:04:47.3335725Z",
+  "executable": "C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe",
+  "completedUtc": "2026-10-18T07:04:48.9846398Z",
+  "elapsedSeconds": 1.6428226,
+  "processId": 53372,
+  "nominalIntervalMilliseconds": 10,
+  "terminationError": ""
+}

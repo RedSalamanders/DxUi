@@ -1,0 +1,3 @@
+- Reuse bounded Unicode rich-text geometry chunks where placement is exact, retain canonical whole-layout compatibility paths, publish source/geometry atomically, and retire active layout storage without allocating.
+  Native/embedded behavior, Unicode/DirectWrite geometry, WARP pixels, allocation failures and resource bounds are tested independently; complete syntax, shared scheduling and performance acceptance remain explicit plan gates.
+  Preserve the original Debug projection-move termination and inconclusive external thread-state controls, with source-bound replayable evidence and explicit whole-layout work statistics.

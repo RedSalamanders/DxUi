@@ -1,0 +1,70 @@
+{
+  "classification": "Descriptive native preparation/raster observations; no same-binary control or frame-performance acceptance",
+  "afterLogSha256": "211C873473CF0B79A822778CAA6A4928B9137E6C0A049C6D21B4629C1683CB42",
+  "method": "TestRichTextEditorRetainedPreparationFixedTrials",
+  "after": {
+    "samples": [
+      {
+        "initialMilliseconds": 511.198,
+        "trial": 0,
+        "editMilliseconds": 53381.5
+      },
+      {
+        "initialMilliseconds": 521.053,
+        "trial": 1,
+        "editMilliseconds": 53651.0
+      },
+      {
+        "initialMilliseconds": 539.428,
+        "trial": 2,
+        "editMilliseconds": 53444.7
+      },
+      {
+        "initialMilliseconds": 528.758,
+        "trial": 3,
+        "editMilliseconds": 53093.6
+      },
+      {
+        "initialMilliseconds": 521.015,
+        "trial": 4,
+        "editMilliseconds": 53147.4
+      }
+    ],
+    "initialMedianMilliseconds": 521.053,
+    "editMedianMilliseconds": 53381.5
+  },
+  "limitations": "The guarded default-font fixture uses whole layout and reports that work. The rejected unguarded draft had geometry and pixel failures and is not substituted as the candidate. No quiet-host or causality claim.",
+  "before": {
+    "samples": [
+      {
+        "initialMilliseconds": 657.105,
+        "trial": 0,
+        "editMilliseconds": 51271.2
+      },
+      {
+        "initialMilliseconds": 534.335,
+        "trial": 1,
+        "editMilliseconds": 51110.5
+      },
+      {
+        "initialMilliseconds": 521.036,
+        "trial": 2,
+        "editMilliseconds": 51037.0
+      },
+      {
+        "initialMilliseconds": 521.85,
+        "trial": 3,
+        "editMilliseconds": 51102.6
+      },
+      {
+        "initialMilliseconds": 522.474,
+        "trial": 4,
+        "editMilliseconds": 50897.8
+      }
+    ],
+    "initialMedianMilliseconds": 522.474,
+    "editMedianMilliseconds": 51102.6
+  },
+  "methodSha256": "38F507301DAB9D0A8612D20365ECD09F856209E7611575084665E33DF76DDB91",
+  "beforeLogSha256": "8FE1AEC957785B41C44378F7E757804D791BE1892A27B00086FBBDE23F621DE9"
+}

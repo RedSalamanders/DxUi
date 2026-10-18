@@ -1,0 +1,9 @@
+{
+  "observed": "Styled 16-DIP RTL view at fractional scale: bold, italic, strike, stacked accents, color emoji, code and bidirectional mixed text. Deliberate viewport clipping is visible; no unexpected blank or displaced chunk.",
+  "classification": "Visual inspection of actual harness pixels, alongside the independent exact-byte oracle",
+  "image": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-document-raster\\profile-2-direction-1-variant-1-viewport-1-actual.png",
+  "configuration": "Debug",
+  "performanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Debug-2b3366e38c3b4604a4d04ef6b39293e6.json",
+  "imageSha256": "46CEAA8081465299DAD76A00D2EF62E5CEECA00C2C289342E7D4D88503FA86AA",
+  "controlTestSha256": "E1188C2336EF73E1DF9A38AC1996146A53F637ABCAF15DC828BFA4A43A29A578"
+}

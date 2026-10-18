@@ -247,9 +247,60 @@ void TestRichTextLayoutDeletionRangesAndRetirement()
     layout.Clear();
     Reject([&] { static_cast<void>(layout.DeletionRange(0u, false)); }, "retirement invalidates prepared deletion queries");
 }
+void TestRichTextLayoutTrailingEmptyLineBoundary()
+{
+    const auto factory = CreateRichTextTestFactory();
+    for (const auto text : {L"", L"a\n", L"a\r\n", L"# Heading\n# "})
+    {
+        Document document(text);
+        PreparedLayout layout;
+        layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), 240.0f);
+        const auto& content = layout.Content();
+        const auto end      = content.text.size();
+        Require(layout.LineBoundary(end, false) == end && layout.LineBoundary(end, true) == end,
+                "Home and End of a trailing empty display line stay at its caret, including hidden-only final source");
+        const auto* retainedMember = &layout.Content();
+        const auto* retainedText   = &layout.Content().text;
+        layout.Clear();
+        Require(&layout.Content() == retainedMember && &layout.Content().text == retainedText && retainedText->empty(),
+                "retirement preserves projection member identity while releasing its active data");
+        layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), 240.0f);
+        Require(&layout.Content() == retainedMember && &layout.Content().text == retainedText, "preparation preserves projection object reference identity");
+    }
+}
 
+void TestRichTextLayoutCopyMoveOwnership()
+{
+    using namespace DxUi::RichText;
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"**owned** \U0001f600\nsecond");
+    PreparedLayout original;
+    original.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), 240.0f);
+    const auto height = original.Height();
+    PreparedLayout copied(original), assigned;
+    assigned = copied;
+    original.Clear();
+    copied.Clear();
+    Require(assigned.Ready() && assigned.Height() == height && assigned.Content().source == document.Text(),
+            "copied layout owns independent source/index/retirement state and keeps immutable DirectWrite geometry alive");
+    const auto* member = &assigned.Content();
+    PreparedLayout moved(std::move(assigned));
+    Require(! assigned.Ready() && assigned.Content().text.empty() && moved.Ready() && moved.Height() == height && &assigned.Content() == member,
+            "move construction preserves member identity and leaves a safely retired source");
+    PreparedLayout target;
+    const auto* targetMember = &target.Content();
+    target                   = std::move(moved);
+    Require(target.Ready() && ! moved.Ready() && moved.Content().text.empty() && &target.Content() == targetMember,
+            "move assignment transfers geometry without moving the destination projection member");
+    auto* self = &target;
+    target     = *self;
+    target     = std::move(*self);
+    Require(target.Ready() && target.Height() == height && target.Content().source == document.Text(), "self copy/move preserve the complete layout");
+}
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestRichTextLayoutCopyMoveOwnership);
+    DXUI_RUN_TEST(TestRichTextLayoutTrailingEmptyLineBoundary);
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
     DXUI_RUN_TEST(TestRichTextLayoutOptionsFailureAtomicityAndRetirement);
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);

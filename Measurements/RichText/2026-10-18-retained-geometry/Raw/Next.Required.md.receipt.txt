@@ -1,0 +1,53 @@
+# Follow-through after guarded geometry
+
+This is a private draft while the six-profile inputs remain frozen.
+
+- Investigate the legacy flat Project helper returning a named Projection.
+  JoinBlocks now has a proven Debug noexcept-move failure and fills in place.
+  Project still returns a named aggregate; optional NRVO must not be treated as
+  a failure-safety guarantee. This is a source-backed hypothesis, not a reproduced
+  flat-helper failure. Add an isolated complete allocation sweep and retain the
+  original child before selecting a fix. Do not label the geometry sweeps as
+  coverage of this separate flat helper.
+- Finish the external thread-state study only after native/build/tooling work
+  stops. Retain Off/On/On/Off same-binary controls and interval containment tests.
+- Exact universal retained rendering is not solved by whole-layout compatibility.
+  The 13-DIP real-host diagnostic still reports whole source preparation and the
+  unsafe fast draft remains rejected. A next renderer design must independently
+  preserve per-line geometry and WARP pixels, including float origin association,
+  color fonts and overhang. Do not widen the existing oracle for convenience.
+- Review shared GraphicsDevice/ControlHost preparation ownership before a scheduler
+  API. Embedded controls must not gain a worker or periodic timer. A shared DWrite
+  factory alone is not evidence of arbitrary-thread format/layout safety.
+- Implement the already specified full grammar and source-preserving edit-anchor
+  model, then declared math/Mermaid/front-matter/footnote semantics. The external
+  prototype spec defines the native safe HTML subset and helper recommendations;
+  do not re-ask answered scope questions. Explicit pinned corpora remain required.
+- Physical IME/AT and native ARM64 execution remain distinct obligations. Desktop
+  agreement has not arrived; do not start focus-taking suites on silence.
+
+The original full specification also requires a lossless syntax tree, UTF-8 /
+UTF-16 / grapheme / display spans, semantic view anchors, grouped rich edits and
+virtualized paragraph/table/object layout. Its suggested 1 MiB typing, 10 MiB
+load and 100 MiB source-preservation workloads exceed the current explicit
+65,536-unit v0 limit; they remain future evidence requirements, not qualified
+large-document support. Image/diagram generation and file I/O are bounded worker
+work. Embedded rendering/preparation remains owner driven and does not acquire
+its own worker merely because the standalone prototype once had one.
+
+Possible next boundaries (design only): a caller-owned pure parsing service over
+immutable snapshots, bounded/coalescing jobs and revision/binding cancellation;
+owner-only geometry/GPU publication; retain source fallback while results are
+pending. New semantics must handle expanded entities and generated/reordered
+markers, where the current strictly ordered SourceUnit mapping is insufficient.
+Do not retrofit those semantics by silently widening the v0 helper's contract.
+
+The five fixed 128-edit timing trials currently run as an ordinary native test in
+all profiles, costing about 280 seconds in Debug and roughly 530 seconds under
+ASan. They have one final state assertion; independent native reuse/retirement,
+full geometry, input/UIA and embedded fixtures cover the actual behavior. After
+preserving this declared matrix, move descriptive repeated timing to an explicit
+opt-in diagnostic while keeping the measured method byte-identical. This is a
+future test-harness efficiency fix, not permission to skip this running matrix or
+reuse its receipts after source changes. Retain final Release timing/artifact
+bindings before changing registration.

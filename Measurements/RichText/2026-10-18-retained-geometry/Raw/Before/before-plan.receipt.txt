@@ -1,0 +1,24 @@
+{
+  "overallBudgetSeconds": 900,
+  "expectedExit": 0,
+  "expectedPredicate": "all fixed retained trials pass",
+  "notes": "Real native retained-control dirty preparation/raster baseline. Five fixed trials, no desktop activation. Owned child bounded from launch; evidence is descriptive, not performance acceptance.",
+  "startedUtc": "2026-10-18T04:56:58.2729325Z",
+  "arguments": [
+    "-NoProfile",
+    "-NonInteractive",
+    "-File",
+    "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+    "-Configuration",
+    "Release",
+    "-Platform",
+    "x64",
+    "-SkipTooling",
+    "-Suites",
+    "EditorControls",
+    "-Tests",
+    "TestRichTextEditorRetainedPreparationFixedTrials"
+  ],
+  "ownedChildBudgetSeconds": 600,
+  "scheduled": 1
+}

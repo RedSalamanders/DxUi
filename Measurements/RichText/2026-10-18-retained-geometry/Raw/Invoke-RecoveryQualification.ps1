@@ -1,0 +1,100 @@
+[CmdletBinding()]param([string]$Root,[string]$OutputDirectory)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$started=[datetime]::UtcNow
+$slots=@(@{platform='x64';configuration='Debug'},@{platform='x64';configuration='ASan Debug'},@{platform='x64';configuration='Release'},
+ @{platform='ARM64';configuration='Debug'},@{platform='ARM64';configuration='Release'},@{platform='ARM64';configuration='ASan Debug'})
+New-Item -ItemType Directory -Path $OutputDirectory -Force|Out-Null
+$operations=[Collections.Generic.List[object]]::new();$completed=[Collections.Generic.List[object]]::new();$attempted=0
+@{startedUtc=$started.ToString('o');profiles=$slots;scheduled=6;scheduledOperations=12;overallBudgetSeconds=7200;profileBudgetSeconds=1800;
+ buildChildBudgetSeconds=600;suiteChildBudgetSeconds=1200;probeChildBudgetSeconds=180;perNativeTestTimeoutSeconds=600;
+ notes='Frozen compiled and prose inputs across all six profiles. Root Full runs all 19 ordinary scopes per x64 profile. Explicit isolated Debug/ASan clear/copy/move/chunk/whole failure sweeps precede ordinary suites and install the diagnostic-only terminate handler. ARM64 cross-builds do not imply native execution. Canonical reports stay unpaired diagnostics; original failed oracles and all samples remain retained.'}|
+ ConvertTo-Json -Depth 8|Set-Content (Join-Path $OutputDirectory 'qualification-plan.receipt.txt')
+function Invoke-Owned([string]$Name,[string]$Executable,[string[]]$CommandArguments,[int]$Limit,[datetime]$SlotStarted,[bool]$Sanitized=$false){
+ $seconds=[math]::Floor([math]::Min($Limit,[math]::Min(1800-([datetime]::UtcNow-$SlotStarted).TotalSeconds,7200-([datetime]::UtcNow-$started).TotalSeconds)))
+ if($seconds -le 0){throw 'Fixed qualification deadline reached.'}
+ $start=[Diagnostics.ProcessStartInfo]::new($Executable)
+ $start.WorkingDirectory=$Root;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+ foreach($argument in $CommandArguments){$start.ArgumentList.Add($argument)}
+ if($Sanitized){$start.Environment['ASAN_OPTIONS']='halt_on_error=1:abort_on_error=0:detect_leaks=0'}
+ Write-Host "Qualification: $Name"
+ $childStarted=[datetime]::UtcNow
+ $process=[Diagnostics.Process]::Start($start)
+ try{
+  $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync()
+  $timedOut=-not$process.WaitForExit([int]($seconds*1000))
+  if($timedOut){$process.Kill($true);[void]$process.WaitForExit(5000)}
+  $drained=[Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdout,$stderr),5000)
+  if($drained){[IO.File]::WriteAllText((Join-Path $OutputDirectory ($Name+'.log')),$stdout.GetAwaiter().GetResult());[IO.File]::WriteAllText((Join-Path $OutputDirectory ($Name+'.err')),$stderr.GetAwaiter().GetResult())}
+  $code=if($process.HasExited){$process.ExitCode}else{$null}
+  $operations.Add(@{name=$Name;processId=$process.Id;arguments=$CommandArguments;exitCode=$code;timedOut=$timedOut;drained=$drained;
+    sanitizedDiagnosticOptions=$Sanitized;elapsedSeconds=([datetime]::UtcNow-$childStarted).TotalSeconds;completedUtc=[datetime]::UtcNow.ToString('o')})
+  if($timedOut -or -not$drained -or $code -ne 0){throw "Qualification failed: $Name (exit $code)"}
+ }finally{$process.Dispose()}
+}
+function Copy-SlotEvidence([hashtable]$Slot,[string]$Stem,[datetime]$SlotStarted){
+ $destination=Join-Path $OutputDirectory $Stem
+ New-Item -ItemType Directory -Path $destination -Force|Out-Null
+ $buildDirectory=Join-Path $Root ('.build/reports/performance-build/'+$Slot.platform+'-'+$Slot.configuration.Replace(' ',''))
+ if(Test-Path -LiteralPath $buildDirectory){Get-ChildItem -LiteralPath $buildDirectory -Filter '*.json'|Copy-Item -Destination $destination}
+ foreach($receiptFile in Get-ChildItem (Join-Path $Root '.build/reports') -Filter ('*'+$Slot.platform+'-'+$Slot.configuration+'*.json')){
+  if($receiptFile.Name -like '*.comparison.json'){continue}
+  $receipt=Get-Content -LiteralPath $receiptFile.FullName -Raw|ConvertFrom-Json
+  if($receipt.PSObject.Properties.Name -contains 'completedUtc' -and [datetime]$receipt.completedUtc -ge $SlotStarted){
+   Copy-Item -LiteralPath $receiptFile.FullName -Destination $destination
+  }
+ }
+ foreach($logFile in Get-ChildItem (Join-Path $Root '.build/logs') -File){
+  if($logFile.LastWriteTimeUtc -ge $SlotStarted -and $logFile.Name.Contains($Slot.platform+'-'+$Slot.configuration)){
+   Copy-Item -LiteralPath $logFile.FullName -Destination $destination
+  }
+ }
+ if($Slot.platform -ceq 'x64'){
+  $raster=Join-Path $Root '.build/reports/rich-document-raster'
+  if(Test-Path -LiteralPath $raster){
+   New-Item -ItemType Directory (Join-Path $destination 'Raster') -Force|Out-Null
+   Get-ChildItem -LiteralPath $raster -Filter 'profile-*.png'|Where-Object LastWriteTimeUtc -GE $SlotStarted|Copy-Item -Destination (Join-Path $destination 'Raster')
+  }
+ }
+}
+try{
+ foreach($slot in $slots){
+  ++$attempted;$slotStarted=[datetime]::UtcNow
+  $stem=$slot.platform+'-'+$slot.configuration.Replace(' ','-')
+  @{platform=$slot.platform;configuration=$slot.configuration;startedUtc=$slotStarted.ToString('o')}|ConvertTo-Json|Set-Content (Join-Path $OutputDirectory ($stem+'-started.receipt.txt'))
+  try{
+   $base=@('-NoProfile','-NonInteractive','-File')
+   $options=@('-Platform',$slot.platform,'-Configuration',$slot.configuration)
+   $prebuild=$slot.platform -ceq 'x64' -and $slot.configuration -cne 'Release'
+   if($prebuild){
+    Invoke-Owned ($stem+'-build') (Get-Command pwsh).Source ($base+@((Join-Path $Root 'build.ps1'))+$options) 600 $slotStarted
+    $buildFile=Join-Path $Root ('.build/reports/performance-build/'+$slot.platform+'-'+$slot.configuration.Replace(' ','')+'/build.json')
+    $build=Get-Content -LiteralPath $buildFile -Raw|ConvertFrom-Json
+    if($build.outcome -cne 'PASSED'){throw 'Probe has no successful root attestation.'}
+    $executable=Join-Path $Root ('.build/x64/'+$slot.configuration+'/DxUi.EmbeddedTests.exe')
+    $hash=(Get-FileHash -LiteralPath $executable).Hash
+    $sanitized=$slot.configuration -ceq 'ASan Debug'
+    if($sanitized -and -not(Test-Path -LiteralPath (Join-Path (Split-Path $executable) 'clang_rt.asan_dynamic-x86_64.dll'))){throw 'ASan diagnostic runtime missing; do not launch a loader-error dialog.'}
+    foreach($probe in @('layout-clear','geometry')){
+     $argument=if($probe -ceq 'geometry'){'--test-rich-geometry-failures'}else{'--test-rich-layout-clear'}
+     $name=$stem+'-'+$probe+'-probe'
+     Invoke-Owned $name $executable @($argument) 180 $slotStarted $sanitized
+     if((Get-FileHash -LiteralPath $executable).Hash -cne $hash){throw 'Probe artifact changed.'}
+     @{classification='isolated diagnostic allocation sweep';configuration=$slot.configuration;executable=$executable;sha256=$hash;
+       buildAttestationIdentity=$build.identity;exitCode=0;argument=$argument}|ConvertTo-Json|Set-Content (Join-Path $OutputDirectory ($name+'.receipt.txt'))
+    }
+   }
+   if($slot.platform -ceq 'x64'){
+    $testArguments=$base+@((Join-Path $Root 'test.ps1'))+$options+@('-Full','-SkipTooling','-TestTimeout','600')
+    if($prebuild){$testArguments+=@('-SkipBuild')}
+    Invoke-Owned $stem (Get-Command pwsh).Source $testArguments 1200 $slotStarted
+   }else{Invoke-Owned $stem (Get-Command pwsh).Source ($base+@((Join-Path $Root 'build.ps1'))+$options) 600 $slotStarted}
+   $completed.Add(@{platform=$slot.platform;configuration=$slot.configuration;exitCode=0;elapsedSeconds=([datetime]::UtcNow-$slotStarted).TotalSeconds})
+  }finally{Copy-SlotEvidence $slot $stem $slotStarted}
+ }
+}finally{
+ @{scheduled=6;attempted=$attempted;completed=$completed.Count;scheduledOperations=12;attemptedOperations=$operations.Count;
+   elapsedSeconds=([datetime]::UtcNow-$started).TotalSeconds;profiles=$completed.ToArray();operations=$operations.ToArray()}|
+  ConvertTo-Json -Depth 10|Set-Content (Join-Path $OutputDirectory 'qualification-completion.receipt.txt')
+}
+if($completed.Count -ne 6 -or $operations.Count -ne 12){throw 'Incomplete fixed qualification inventory.'}

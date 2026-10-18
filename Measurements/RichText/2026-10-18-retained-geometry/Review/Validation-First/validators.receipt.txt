@@ -1,0 +1,27 @@
+[
+  {
+    "step": "validate-skills.ps1",
+    "exitCode": 0,
+    "elapsedSeconds": 0.366503
+  },
+  {
+    "step": "validate-specs.ps1",
+    "exitCode": 0,
+    "elapsedSeconds": 3.3122134
+  },
+  {
+    "step": "validate-dependencies.ps1",
+    "exitCode": 1,
+    "elapsedSeconds": 1.1139463
+  },
+  {
+    "step": "validate-test-port.ps1",
+    "exitCode": 0,
+    "elapsedSeconds": 4.9382263
+  },
+  {
+    "step": "validate-build-matrix.ps1",
+    "exitCode": 0,
+    "elapsedSeconds": 0.4776703
+  }
+]

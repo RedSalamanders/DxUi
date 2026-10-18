@@ -1,0 +1,22 @@
+{
+  "samples": [
+    {
+      "errors": [],
+      "status": "complete",
+      "rows": [
+        [
+          71,
+          2,
+          null
+        ],
+        [
+          72,
+          1,
+          null
+        ]
+      ],
+      "queryEndedQpc": 59,
+      "queryStartedQpc": 51
+    }
+  ]
+}

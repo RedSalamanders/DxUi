@@ -65,6 +65,8 @@ public:
     PreparedProjection& operator=(PreparedProjection&&) noexcept;
     PreparedProjection(const PreparedProjection&)            = delete;
     PreparedProjection& operator=(const PreparedProjection&) = delete;
+    // Fallible index copy sharing immutable payloads, for joint geometry staging.
+    PreparedProjection Clone() const;
     void Prepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode);
     void Clear() noexcept;
     bool Ready() const noexcept;

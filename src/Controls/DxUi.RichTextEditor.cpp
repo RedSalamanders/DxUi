@@ -11,7 +11,7 @@ struct RichTextEditor::State
     {
     }
     RichText::Document document;
-    RichText::PreparedLayout layout;
+    RichText::PreparedDocumentLayout layout;
     RichText::ViewMode mode = RichText::ViewMode::Rich;
     std::shared_ptr<const std::function<void()>> onTextChanged;
     uint64_t typographyRevision  = 0;
@@ -132,7 +132,13 @@ void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
-        RetireLayout();
+    {
+        // Reject stale queries immediately, but retain bounded immutable chunks
+        // for the next owner-thread preparation. Host/font/visibility retirement
+        // still releases the complete graph through RetireLayout/Clear.
+        _state->layout.Invalidate();
+        _state->revealCaret = true;
+    }
     const auto callback = sourceChanged ? _state->onTextChanged : nullptr;
     const auto lifetime = GetLifetimeToken();
     const auto revision = Revision();
@@ -214,14 +220,14 @@ void RichTextEditor::EnsureLayout(const ControlHost& host) const
         options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
         // DirectWrite and rasterization run only on the host's owner thread.
         // EmbeddedHost subsequently composites its existing cached surface.
-        state.layout.Prepare(host.GetWriteFactory(), RichText::Project(state.document.Snapshot(), state.document.Revision(), state.mode), options);
+        state.layout.Prepare(host.GetWriteFactory(), state.document.Snapshot(), state.document.Revision(), state.mode, options);
         state.layoutWidth        = width;
         state.typographyRevision = host.GetTypographyRevision();
     }
     const float height = std::max(0.0f, viewport.bottom - viewport.top);
     if (state.revealCaret)
     {
-        const auto caret = state.layout.Caret(state.layout.Content().ToDisplay(state.document.GetSelection().caret));
+        const auto caret = state.layout.Caret(state.layout.ToDisplay(state.document.GetSelection().caret));
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -232,7 +238,20 @@ void RichTextEditor::EnsureLayout(const ControlHost& host) const
 }
 RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
 {
-    return {_state->layout.Ready(), _state->layout.Generation(), _state->layout.Height(), _state->scrollDip, _state->dragging};
+    const auto preparation = _state->layout.LastPreparation();
+    return {_state->layout.Ready(),
+            _state->layout.Generation(),
+            _state->layout.Height(),
+            _state->scrollDip,
+            _state->dragging,
+            _state->layout.ChunkCount(),
+            preparation.preparedChunks,
+            preparation.reusedChunks,
+            preparation.preparedSourceUnits,
+            _state->layout.UsesWholeGeometry(),
+            _state->layout.UsesWholeRaster(),
+            preparation.wholeLayoutsPrepared,
+            preparation.wholeLayoutSourceUnits};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {
@@ -243,27 +262,23 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
     try
     {
         EnsureLayout(host);
-        const auto& projection = _state->layout.Content();
+        const auto& projection = _state->layout;
         std::vector<std::pair<size_t, size_t>> ranges;
         size_t displayStart = 0;
         size_t sourceStart  = 0;
         do
         {
             size_t displayEnd = _state->layout.LineBoundary(displayStart, true);
-            if (displayEnd < projection.text.size() && projection.text[displayEnd] == L'\n')
+            if (displayEnd < projection.DisplayLength() && projection.DisplayUnit(displayEnd) == L'\n')
                 ++displayEnd;
             // Earliest source affinity makes adjacent lines partition exact
             // source, including hidden markers and original CRLF pairs.
-            const size_t sourceEnd =
-                displayEnd == projection.text.size()
-                    ? projection.source.size()
-                    : static_cast<size_t>(std::lower_bound(projection.sourceToDisplay.begin(), projection.sourceToDisplay.end(), displayEnd) -
-                                          projection.sourceToDisplay.begin());
+            const size_t sourceEnd = displayEnd == projection.DisplayLength() ? projection.SourceLength() : projection.SourceBoundary(displayEnd);
             ranges.emplace_back(sourceStart, sourceEnd);
-            if (displayEnd >= projection.text.size() || displayEnd <= displayStart)
+            if (displayEnd >= projection.DisplayLength() || displayEnd <= displayStart)
             {
-                if (! projection.text.empty() && projection.text.back() == L'\n')
-                    ranges.emplace_back(projection.source.size(), projection.source.size());
+                if (projection.DisplayLength() && projection.DisplayUnit(projection.DisplayLength() - 1u) == L'\n')
+                    ranges.emplace_back(projection.SourceLength(), projection.SourceLength());
                 break;
             }
             sourceStart  = sourceEnd;
@@ -284,7 +299,7 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         if (GetHost() != &host || ! IsEnabled() || sourceStart > sourceEnd || ! source.IsBoundary(sourceStart) || ! source.IsBoundary(sourceEnd))
             return false;
         EnsureLayout(host);
-        const auto& projection = _state->layout.Content();
+        const auto& projection = _state->layout;
         const auto first       = projection.ToDisplay(sourceStart);
         const auto last        = projection.ToDisplay(sourceEnd);
         // Hidden-only syntax has no painted extent to reveal. Do not jump to
@@ -340,7 +355,7 @@ std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(c
         EnsureLayout(host);
         const auto viewport      = TextViewport();
         const auto [first, last] = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
-        const auto& projection   = _state->layout.Content();
+        const auto& projection   = _state->layout;
         return std::pair{projection.ToSource(first), projection.ToSource(last, true)};
     }
     catch (const std::exception&)
@@ -362,7 +377,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
     try
     {
         EnsureLayout(host);
-        const auto caret    = _state->layout.Caret(_state->layout.Content().ToDisplay(sourceIndex));
+        const auto caret    = _state->layout.Caret(_state->layout.ToDisplay(sourceIndex));
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
         // screen transport clip it to the same prepared text viewport.
@@ -384,7 +399,7 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
     try
     {
         EnsureLayout(host);
-        const auto& projection = _state->layout.Content();
+        const auto& projection = _state->layout;
         const auto viewport    = TextViewport();
         auto rectangles        = _state->layout.Range(projection.ToDisplay(sourceStart), projection.ToDisplay(sourceEnd));
         for (auto& rectangle : rectangles)
@@ -414,7 +429,7 @@ std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& h
         EnsureLayout(host);
         const auto viewport = TextViewport();
         const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
-        return _state->layout.Content().ToSource(hit.position, hit.trailing);
+        return _state->layout.ToSource(hit.position, hit.trailing);
     }
     catch (const std::exception&)
     {
@@ -489,12 +504,12 @@ void RichTextEditor::Paint(ControlHost& host) const
     auto* selectionBrush    = host.GetSolidBrush(style.selectionFill);
     auto* caretBrush        = host.GetSolidBrush(style.caret);
     const auto selection    = state.document.GetSelection();
-    const auto& projection  = state.layout.Content();
+    const auto& projection  = state.layout;
     const auto rectangles   = state.layout.Range(projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End()));
     const auto origin       = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
     context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    state.layout.Draw(context, textBrush, origin);
+    state.layout.Draw(context, textBrush, origin, state.scrollDip, state.scrollDip + viewport.bottom - viewport.top);
     for (const auto& rectangle : rectangles)
     {
         const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
@@ -503,14 +518,14 @@ void RichTextEditor::Paint(ControlHost& host) const
         context->FillRectangle(translated, selectionBrush);
         context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        state.layout.Draw(context, selectedTextBrush, origin);
+        state.layout.Draw(context, selectedTextBrush, origin, rectangle.top, rectangle.bottom);
     }
     NativeTextInputState input;
-    if (host.TryReadNativeTextInputState(this, input) && input.text == projection.source && input.compositionStartIndex && input.compositionEndIndex)
+    if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
     {
         const auto underline = [&](size_t first, size_t last, float thickness)
         {
-            if (first > last || last > projection.source.size())
+            if (first > last || last > projection.SourceLength())
                 return;
             for (const auto& rect : state.layout.Range(projection.ToDisplay(first), projection.ToDisplay(last)))
                 context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
@@ -558,14 +573,14 @@ size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
     EnsureLayout(host);
     const auto viewport = TextViewport();
     const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
-    return _state->layout.Content().ToSource(hit.position, hit.trailing);
+    return _state->layout.ToSource(hit.position, hit.trailing);
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
 {
     EnsureLayout(host);
     auto& state            = *_state;
     const auto selection   = GetSelection();
-    const auto& projection = state.layout.Content();
+    const auto& projection = state.layout;
     const auto position    = projection.ToDisplay(selection.caret);
     size_t next            = position;
     bool trailing          = false;
@@ -578,14 +593,14 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     }
     switch (key)
     {
-        case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.text, position) : state.layout.PreviousCluster(position); break;
+        case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
         case VK_RIGHT:
-            next     = byWord ? FindNextWordBoundary(projection.text, position) : state.layout.NextCluster(position);
+            next     = byWord ? FindNextWordBoundary(projection.DisplayText(), position) : state.layout.NextCluster(position);
             trailing = true;
             break;
         case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(position, false); break;
         case VK_END:
-            next     = byWord ? projection.text.size() : state.layout.LineBoundary(position, true);
+            next     = byWord ? projection.DisplayLength() : state.layout.LineBoundary(position, true);
             trailing = true;
             break;
         default:
@@ -619,7 +634,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
         return ReplaceSelection({});
     EnsureLayout(host);
     auto& state              = *_state;
-    const auto& projection   = state.layout.Content();
+    const auto& projection   = state.layout;
     const auto position      = projection.ToDisplay(selection.caret);
     const auto [first, last] = state.layout.DeletionRange(position, backwards);
     if (first == last)
@@ -813,10 +828,10 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
         if (! IsEnabled() || rightButton)
             return false;
         const auto source      = HitSource(host, point);
-        const auto& projection = _state->layout.Content();
+        const auto& projection = _state->layout;
         size_t caret           = projection.ToDisplay(source);
         std::optional<size_t> anchor;
-        SelectSingleLineWordAt(projection.text, caret, caret, anchor);
+        SelectSingleLineWordAt(projection.DisplayText(), caret, caret, anchor);
         _state->dragging = false;
         SetSelection({projection.ToSource(anchor.value_or(caret)), projection.ToSource(caret, true)});
         return true;

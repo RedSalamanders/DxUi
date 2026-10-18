@@ -1,0 +1,174 @@
+{
+  "copies": [
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\clang_rt.asan_dynamic-x86_64.dll",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\clang_rt.asan_dynamic-x86_64.dll",
+      "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F",
+      "bytes": 1881912
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.ControlTests.exe",
+      "sha256": "BB28D1CA2F9CDD65751D52BD2E74BBF6D440FF4B7D5E86EB151A3616CB99936D",
+      "bytes": 37701632
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.ControlTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.ControlTests.pdb",
+      "sha256": "72AF187B2BFDB3DBE34AEFD26938CAD8D46289EEFDE26AF52EF99FDAA4BBA77A",
+      "bytes": 65810432
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedControls.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.EmbeddedControls.pdb",
+      "sha256": "D7DC19A8E222620E80596FEA271A245BD9DDC8C8B6A8AA4AA5F0FB94188D234E",
+      "bytes": 25800704
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.EmbeddedTests.exe",
+      "sha256": "D34C4A4EBC46A7BD689CDD212F346E9B27CFF28320DA7C1B83A1A304EA5C506B",
+      "bytes": 15613440
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.EmbeddedTests.pdb",
+      "sha256": "4882504B96AED00DBF09B75DFF811194922A38460BA39FDEBA4F6893967AF3CF",
+      "bytes": 30838784
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.FoundationTests.exe",
+      "sha256": "3B084639152E07C4B8228927F9D9B602B4C157102E9D0BED8E9003DDE9C771BF",
+      "bytes": 12478464
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.FoundationTests.pdb",
+      "sha256": "F6E0786144B164D4D4E2394CE5A828CBFFAC16B3708D24F56C71A8824C5AFD9C",
+      "bytes": 25374720
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.InteractiveLease.pdb",
+      "sha256": "3EF53DA813D57D03360888FFC1BAB51456D3559882E5E33C68E4D81D5E0BD4D6",
+      "bytes": 6361088
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\ASan Debug\\DxUi.pdb",
+      "sha256": "3476F3584FEBE53ED13ADFEA1EDA93582B45BDE7CCEE26884519D4B363AA02AA",
+      "bytes": 8663040
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.ControlTests.exe",
+      "sha256": "E1188C2336EF73E1DF9A38AC1996146A53F637ABCAF15DC828BFA4A43A29A578",
+      "bytes": 22418944
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.ControlTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.ControlTests.pdb",
+      "sha256": "8AEBDC931FE0C964755B47E5FDD9E1D1458BD6CD9343D91D9D18BAFB2BCFF1C5",
+      "bytes": 72437760
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedControls.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.EmbeddedControls.pdb",
+      "sha256": "3A6E8537EF46062FA519597E51983A4231021B876C60A3BB24826C4D7750F3A6",
+      "bytes": 27848704
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.EmbeddedTests.exe",
+      "sha256": "A66407D993C2B4A9FC4323AE7E7220F0AE88582F21C33940AB45F71E503F8FFF",
+      "bytes": 10037248
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.EmbeddedTests.pdb",
+      "sha256": "C7811C65197F95414E980217E2D666310D70BE12F628C4CB030741E67D017CEB",
+      "bytes": 33296384
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.FoundationTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.FoundationTests.exe",
+      "sha256": "5BF30B30458152CFB228273094B93D50A1576932858C4A44040440C884017845",
+      "bytes": 8012800
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.FoundationTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.FoundationTests.pdb",
+      "sha256": "9814359B3FDDAE8788ED9C545AB6AEA5870BCD570E3CF74CACEDB998D51822DD",
+      "bytes": 27340800
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.InteractiveLease.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.InteractiveLease.pdb",
+      "sha256": "71E54CE824E7FC07440493D339598E4F6175CC317127347E02A139205BA152D6",
+      "bytes": 6787072
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Debug\\DxUi.pdb",
+      "sha256": "8AD1F812A33F1845C35897135C26429ACFA6EF8CBE980EAD097101F00F01066B",
+      "bytes": 8556544
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.ControlTests.exe",
+      "sha256": "AEF80B3BBED4FB008C0F67BD1AFDF1CAF26458F8D83CF19A5D8347DDA5624968",
+      "bytes": 11334144
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.ControlTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.ControlTests.pdb",
+      "sha256": "FE8D964E499992A11CA7609058516EBB1B7485CB6ECCDD8C3241745C0293F756",
+      "bytes": 65466368
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedControls.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.EmbeddedControls.pdb",
+      "sha256": "4D817ADCD3D88E4C2847D2887BFD3458D265E64A28F5EC3DCF0C690E1FF26792",
+      "bytes": 22171648
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.EmbeddedTests.exe",
+      "sha256": "DB26F74D7957114E7EB9626C4C49F06604886E93AF431A7158F71F7CA0FEC435",
+      "bytes": 4274688
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.EmbeddedTests.pdb",
+      "sha256": "90F4C6ADB9688B47683293FF803E0DB170A2409C83B13600D89827C220094570",
+      "bytes": 26980352
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.FoundationTests.exe",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.FoundationTests.exe",
+      "sha256": "266AC315C4201C8CCC29119AFFF446C532237A611295A1910E56C3109EE8D098",
+      "bytes": 3209728
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.FoundationTests.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.FoundationTests.pdb",
+      "sha256": "C4F374F45C9C17CFE46FA498859D83DBB4708564EE44EBC1BF020F3F39969382",
+      "bytes": 21590016
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.InteractiveLease.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.InteractiveLease.pdb",
+      "sha256": "A6D94A66F597F3D18A25DB7F39D5AACCC47F704CE225037FED98E523D572C9CE",
+      "bytes": 6541312
+    },
+    {
+      "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.pdb",
+      "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\FinalArtifacts\\Release\\DxUi.pdb",
+      "sha256": "95E137A62972F6D08D03B3EAEC08B3A97AE14DDAC713435FB355C170903D3243",
+      "bytes": 8392704
+    }
+  ],
+  "fileCount": 28,
+  "classification": "Private exact final native binaries, matching symbols/deployed DLLs and deliberate ASan probe. Never publish ordinary build products in Measurements."
+}

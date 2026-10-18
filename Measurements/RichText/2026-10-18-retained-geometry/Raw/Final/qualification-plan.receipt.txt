@@ -1,0 +1,38 @@
+{
+  "suiteChildBudgetSeconds": 1200,
+  "overallBudgetSeconds": 7200,
+  "scheduledOperations": 12,
+  "probeChildBudgetSeconds": 180,
+  "scheduled": 6,
+  "profiles": [
+    {
+      "configuration": "Release",
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "platform": "x64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "Release",
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "platform": "ARM64"
+    }
+  ],
+  "buildChildBudgetSeconds": 600,
+  "notes": "Frozen compiled and prose inputs across all six profiles. Root Full runs all 19 ordinary scopes per x64 profile. Explicit isolated Debug/ASan clear/copy/move/chunk/whole failure sweeps precede ordinary suites and install the diagnostic-only terminate handler. ARM64 cross-builds do not imply native execution. Canonical reports stay unpaired diagnostics; original failed oracles and all samples remain retained.",
+  "profileBudgetSeconds": 1800,
+  "startedUtc": "2026-10-18T06:22:51.1465084Z",
+  "perNativeTestTimeoutSeconds": 600
+}

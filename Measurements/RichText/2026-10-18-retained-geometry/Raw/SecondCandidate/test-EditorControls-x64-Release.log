@@ -1,0 +1,156 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentPrototypeContracts
+  [DONE] TestRichDocumentPrototypeContracts (0.003 s)
+  [START] TestRichDocumentSlicesAndJoinedBoundaries
+  [DONE] TestRichDocumentSlicesAndJoinedBoundaries (0.000 s)
+  [START] TestRichDocumentCrossPieceUnicodeOracle
+  [DONE] TestRichDocumentCrossPieceUnicodeOracle (0.003 s)
+  [START] TestRichDocumentUnicodeCodecRejections
+  [DONE] TestRichDocumentUnicodeCodecRejections (0.000 s)
+  [START] TestRichDocumentFragmentedSnapshotOracle
+RichDocument fragmented lookup diagnostic: insertions=4096 units=24580 queries=8192 expected=5431 documentBytes=88 snapshotBytes=16 trialMs=0.5353,0.5267,0.5276,0.528,0.5223,
+  [DONE] TestRichDocumentFragmentedSnapshotOracle (0.019 s)
+  [START] TestRichDocumentConcurrentSnapshotReads
+  [DONE] TestRichDocumentConcurrentSnapshotReads (0.002 s)
+  [START] TestRichDocumentUtf8ExactAdmissionLimits
+  [DONE] TestRichDocumentUtf8ExactAdmissionLimits (0.001 s)
+  [START] TestRichDocumentFragmentedEditFixedTrials
+RichDocument edit trial=0 edits=4096 sourceUnits=12288 elapsedMs=17.387
+  [DONE] TestRichDocumentFragmentedEditFixedTrials (0.090 s)
+RichDocument edit trial=1 edits=4096 sourceUnits=12288 elapsedMs=17.4696
+RichDocument edit trial=2 edits=4096 sourceUnits=12288 elapsedMs=17.2782
+RichDocument edit trial=3 edits=4096 sourceUnits=12288 elapsedMs=17.2481
+RichDocument edit trial=4 edits=4096 sourceUnits=12288 elapsedMs=17.3607
+  [START] TestRichDocumentPersistentSplitMergeOracle
+  [DONE] TestRichDocumentPersistentSplitMergeOracle (0.316 s)
+  [START] TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins
+  [DONE] TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins (0.008 s)
+  [START] TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse
+  [DONE] TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse (0.272 s)
+  [START] TestRichDocumentBorrowedInputLifetime
+  [DONE] TestRichDocumentBorrowedInputLifetime (0.000 s)
+  [START] TestUnicode17DefaultGraphemeCorpus
+  [DONE] TestUnicode17DefaultGraphemeCorpus (0.000 s)
+  [START] TestTextElementBoundsMalformedAndLongContext
+  [DONE] TestTextElementBoundsMalformedAndLongContext (0.000 s)
+  [START] TestUnicode17BulkCharacterMovementOracle
+  [DONE] TestUnicode17BulkCharacterMovementOracle (0.001 s)
+  [START] TestTextElementBulkMovementFixedTrials
+  [DONE] TestTextElementBulkMovementFixedTrials (0.001 s)
+  [START] TestTextElementBulkMovementMaximumSourceAndMalformedBounds
+UIA bulk trial=0 sourceUnits=6144 elements=3072 forwardMs=0.049 backwardMs=0.0487
+UIA bulk trial=1 sourceUnits=6144 elements=3072 forwardMs=0.0487 backwardMs=0.0485
+UIA bulk trial=2 sourceUnits=6144 elements=3072 forwardMs=0.0486 backwardMs=0.0485
+UIA bulk trial=3 sourceUnits=6144 elements=3072 forwardMs=0.0487 backwardMs=0.0485
+UIA bulk trial=4 sourceUnits=6144 elements=3072 forwardMs=0.0487 backwardMs=0.0486
+  [DONE] TestTextElementBulkMovementMaximumSourceAndMalformedBounds (0.001 s)
+  [START] TestTextFieldInteriorAcpDeletion
+  [DONE] TestTextFieldInteriorAcpDeletion (0.250 s)
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+  [START] TestMultilineFieldInteriorAcpDeletion
+  [DONE] TestMultilineFieldInteriorAcpDeletion (0.000 s)
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+  [START] TestComboBoxInteriorAcpDeletion
+  [DONE] TestComboBoxInteriorAcpDeletion (0.000 s)
+  [START] TestUnicode17CollapsedDeletionCorpus
+  [DONE] TestUnicode17CollapsedDeletionCorpus (0.000 s)
+  [START] TestTextElementSingleBackwardFixedTrials
+UIA single-backward trial=0 sourceUnits=61440 queries=32 elapsedMs=16.6193
+  [DONE] TestTextElementSingleBackwardFixedTrials (0.080 s)
+UIA single-backward trial=1 sourceUnits=61440 queries=32 elapsedMs=16.1197
+UIA single-backward trial=2 sourceUnits=61440 queries=32 elapsedMs=15.7805
+UIA single-backward trial=3 sourceUnits=61440 queries=32 elapsedMs=15.7862
+UIA single-backward trial=4 sourceUnits=61440 queries=32 elapsedMs=15.8586
+  [START] TestRichSourceChangeSingleTransactions
+  [DONE] TestRichSourceChangeSingleTransactions (0.000 s)
+  [START] TestRichSourceChangeLocalizedTransientPreviews
+  [DONE] TestRichSourceChangeLocalizedTransientPreviews (0.000 s)
+  [START] TestRichSourceChangeJoinedCrlfBounds
+  [DONE] TestRichSourceChangeJoinedCrlfBounds (0.000 s)
+  [START] TestRichSourceChangeUndoRedoAndBranches
+  [DONE] TestRichSourceChangeUndoRedoAndBranches (0.000 s)
+  [START] TestRichSourceChangeTransientPagesAndExpiry
+  [DONE] TestRichSourceChangeTransientPagesAndExpiry (0.001 s)
+  [START] TestRichSourceChangeIndependentUnicodeOracle
+  [DONE] TestRichSourceChangeIndependentUnicodeOracle (0.007 s)
+  [START] TestRichSourceChangeConcurrentEmptyAndMovedValues
+  [DONE] TestRichSourceChangeConcurrentEmptyAndMovedValues (0.001 s)
+  [START] TestRichMarkdownPrototypeContracts
+  [DONE] TestRichMarkdownPrototypeContracts (0.000 s)
+  [START] TestRichMarkdownSnapshotAndValidationContracts
+  [DONE] TestRichMarkdownSnapshotAndValidationContracts (0.000 s)
+  [START] TestRichMarkdownV0StylesCommandsAndMalformedMappings
+  [DONE] TestRichMarkdownV0StylesCommandsAndMalformedMappings (0.000 s)
+  [START] TestRichProjectionCloneIsolation
+  [DONE] TestRichProjectionCloneIsolation (0.000 s)
+  [START] TestRichProjectionWholeSourceFixedTrials
+RichProjection whole-initial trial=0 sourceUnits=30634 elapsedMs=0.4093
+  [DONE] TestRichProjectionWholeSourceFixedTrials (0.234 s)
+RichProjection whole-edits trial=0 edits=128 checksum=3528064 elapsedMs=54.3472
+RichProjection whole-initial trial=1 sourceUnits=30634 elapsedMs=0.3663
+RichProjection whole-edits trial=1 edits=128 checksum=3528064 elapsedMs=53.4498
+RichProjection whole-initial trial=2 sourceUnits=30634 elapsedMs=0.3906
+RichProjection whole-edits trial=2 edits=128 checksum=3528064 elapsedMs=43.4172
+RichProjection whole-initial trial=3 sourceUnits=30634 elapsedMs=0.4155
+RichProjection whole-edits trial=3 edits=128 checksum=3528064 elapsedMs=42.4589
+RichProjection whole-initial trial=4 sourceUnits=30634 elapsedMs=0.3809
+RichProjection whole-edits trial=4 edits=128 checksum=3528064 elapsedMs=35.2712
+  [START] TestRichProjectionBlockFixedTrials
+RichProjection initial trial=0 sourceUnits=30634 blocks=1024 elapsedMs=1.2696
+  [DONE] TestRichProjectionBlockFixedTrials (0.023 s)
+RichProjection edits trial=0 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=1.9815
+RichProjection initial trial=1 sourceUnits=30634 blocks=1024 elapsedMs=1.2333
+RichProjection edits trial=1 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=1.9073
+RichProjection initial trial=2 sourceUnits=30634 blocks=1024 elapsedMs=1.2266
+RichProjection edits trial=2 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=1.9076
+RichProjection initial trial=3 sourceUnits=30634 blocks=1024 elapsedMs=1.1943
+RichProjection edits trial=3 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=1.9168
+RichProjection initial trial=4 sourceUnits=30634 blocks=1024 elapsedMs=1.2221
+RichProjection edits trial=4 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=1.9093
+  [START] TestRichProjectionBlockFullEquivalence
+  [DONE] TestRichProjectionBlockFullEquivalence (0.000 s)
+  [START] TestRichProjectionBlockReuseAndLineJoins
+  [DONE] TestRichProjectionBlockReuseAndLineJoins (0.000 s)
+  [START] TestRichProjectionBlockUnicodeEditOracle
+  [DONE] TestRichProjectionBlockUnicodeEditOracle (0.006 s)
+  [START] TestRichProjectionBlockFallbackModesAndLifetime
+  [DONE] TestRichProjectionBlockFallbackModesAndLifetime (0.000 s)
+  [START] TestRichProjectionBlockMaximumSource
+  [DONE] TestRichProjectionBlockMaximumSource (0.025 s)
+  [START] TestRichProjectionBlockBranchesAndRetirement
+  [DONE] TestRichProjectionBlockBranchesAndRetirement (0.000 s)
+  [START] TestRichTextLayoutTrailingEmptyLineBoundary
+  [DONE] TestRichTextLayoutTrailingEmptyLineBoundary (0.001 s)
+  [START] TestRichTextLayoutPrototypeContracts
+  [DONE] TestRichTextLayoutPrototypeContracts (0.000 s)
+  [START] TestRichTextLayoutOptionsFailureAtomicityAndRetirement
+  [DONE] TestRichTextLayoutOptionsFailureAtomicityAndRetirement (0.000 s)
+  [START] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement
+  [DONE] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement (0.018 s)
+  [START] TestRichTextLayoutHostLocaleAndReadingDirection
+  [DONE] TestRichTextLayoutHostLocaleAndReadingDirection (0.000 s)
+  [START] TestRichTextLayoutUnicode17NavigationAndHitStops
+  [DONE] TestRichTextLayoutUnicode17NavigationAndHitStops (0.000 s)
+  [START] TestRichTextLayoutDeletionRangesAndRetirement
+  [DONE] TestRichTextLayoutDeletionRangesAndRetirement (0.000 s)
+  [START] TestRichDocumentLayoutWholeGeometryOracle
+FAILED: chunked visible lines match the complete layout

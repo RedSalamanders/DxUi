@@ -1,0 +1,382 @@
+#include "Scope.Tests.RichTextEditor.h"
+#include "../../src/Controls/TextClipboard.h"
+#include "Controls.Tests.DxUiTestHelpers.h"
+#include <DxUi/ControlCatalog.h>
+#include <chrono>
+#include <iostream>
+#include <stdexcept>
+
+namespace
+{
+using namespace DxUi;
+using namespace DxUi::RichText;
+
+class RichEditorClipboard final : public TextClipboard
+{
+public:
+    RichEditorClipboard() : previous(testTextClipboard)
+    {
+        testTextClipboard = this;
+    }
+    ~RichEditorClipboard()
+    {
+        testTextClipboard = previous;
+    }
+    TextClipboard* previous;
+    std::wstring text;
+    bool busy = false;
+    std::function<void()> afterRead;
+    HRESULT Read(HWND, std::wstring& out) noexcept override
+    {
+        if (busy)
+            return E_ACCESSDENIED;
+        try
+        {
+            out = text;
+            if (auto callback = std::exchange(afterRead, {}))
+                callback();
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    }
+    HRESULT Write(HWND, std::wstring_view value) noexcept override
+    {
+        if (busy)
+            return E_ACCESSDENIED;
+        try
+        {
+            text = value;
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    }
+};
+
+template <typename F> void RejectEditor(F&& operation)
+{
+    bool rejected = false;
+    try
+    {
+        operation();
+    }
+    catch (const std::exception&)
+    {
+        rejected = true;
+    }
+    Require(rejected, "invalid editor update is rejected");
+}
+
+void RenderEditor(AttachedHostWindow& window)
+{
+    Require(window.Host().RenderInitialFrameForShow(), "native retained rich-text frame prepares");
+}
+
+void TestRichTextEditorTransactionsAndValidation()
+{
+    ControlHost host;
+    RichTextEditor editor(L"abc");
+    size_t changes = 0;
+    editor.SetOnTextChanged([&] { ++changes; });
+    editor.SetSelection({3, 1});
+    Require(editor.ReplaceSelection(L"\U0001f600"), "replace backwards selection");
+    Require(editor.GetText() == L"a\U0001f600" && editor.GetSelection() == Selection{3, 3}, "source transaction and caret");
+    Require(editor.Undo() && editor.GetText() == L"abc" && editor.GetSelection() == Selection{3, 1}, "undo restores source and direction");
+    Require(editor.Redo() && editor.GetText() == L"a\U0001f600" && changes == 3, "redo and one notification per change");
+    const auto revision = editor.Revision();
+    const auto snapshot = editor.Snapshot();
+    RejectEditor([&] { editor.SetSelection({2, 2}); });
+    RejectEditor([&] { editor.SetText(std::wstring(1, wchar_t(0xd800))); });
+    RejectEditor([&] { editor.ReplaceSelection(std::wstring(Document::MaximumUnits + 1, L'x')); });
+    RejectEditor([&] { editor.SetViewMode(static_cast<ViewMode>(99)); });
+    Require(editor.Revision() == revision && snapshot.Text() == editor.GetText() && changes == 3, "rejections preserve source history and callbacks");
+    editor.SetReadOnly(true);
+    Require(! editor.ReplaceSelection(L"x") && ! editor.Undo() && ! editor.Redo() && ! editor.ToggleFormatting(L"**"), "read-only blocks source commands");
+    Require(! editor.OnChar(host, L'x', 0), "read-only rejects character input");
+    Require(editor.OnSelectAll(host) && editor.GetSelection() == Selection{0, 3}, "read-only retains selection");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.ReplaceSelection(L"x") && ! editor.OnSelectAll(host) && ! editor.OnKeyDown(host, VK_DELETE, 0), "disabled blocks interaction");
+    editor.SetEnabled(true);
+    editor.SetText(L"new");
+    Require(! editor.CanUndo() && ! editor.CanRedo() && changes == 3, "SetText resets history without application notification");
+}
+
+void TestRichTextEditorUnicodeCharacterTransactions()
+{
+    ControlHost host;
+    RichTextEditor editor;
+    size_t changes = 0;
+    editor.SetOnTextChanged([&] { ++changes; });
+    Require(editor.OnChar(host, wchar_t(0xd83d), 0) && editor.GetText().empty(), "pending lead surrogate stays outside document");
+    Require(editor.OnChar(host, wchar_t(0xde00), 0) && editor.GetText() == L"\U0001f600" && changes == 1, "one scalar is one edit");
+    Require(editor.Undo() && editor.GetText().empty(), "one undo removes complete scalar");
+    Require(editor.OnChar(host, wchar_t(0xde00), 0) && editor.GetText().empty(), "orphan trail discarded");
+    static_cast<void>(editor.OnChar(host, wchar_t(0xd83d), 0));
+    editor.SetSelection({0, 0});
+    static_cast<void>(editor.OnChar(host, wchar_t(0xde00), 0));
+    Require(editor.GetText().empty(), "selection change retires pending scalar");
+    static_cast<void>(editor.OnChar(host, wchar_t(0xd83d), 0));
+    Require(editor.OnChar(host, L'\r', 0) && editor.GetText() == L"\r\n", "Enter commits one CRLF transaction");
+    Require(! editor.OnChar(host, L'\t', 0) && ! editor.OnChar(host, L'\0', 0), "host traversal and NUL never enter source");
+    Require(! editor.OnChar(host, L'b', MK_CONTROL) && ! editor.OnChar(host, L'i', kModifierAlt), "shortcuts do not insert characters");
+    Require(editor.OnChar(host, L'\u20ac', MK_CONTROL | kModifierAlt) && editor.GetText() == L"\r\n\u20ac", "AltGr Unicode character is accepted");
+    Require(editor.Undo() && editor.GetText() == L"\r\n", "AltGr insertion is an ordinary source transaction");
+    static_cast<void>(editor.OnChar(host, wchar_t(0xd83d), 0));
+    editor.SetReadOnly(true);
+    editor.SetReadOnly(false);
+    static_cast<void>(editor.OnChar(host, wchar_t(0xde00), 0));
+    Require(editor.GetText() == L"\r\n" && IsValidUtf16(editor.GetText()), "mode transition retires pending scalar");
+}
+
+void TestRichTextEditorFormattingAndModePreserveSource()
+{
+    ControlHost host;
+    RichTextEditor editor(L"hello");
+    editor.SetSelection({5, 0});
+    Require(editor.OnKeyDown(host, 'B', MK_CONTROL), "bold command consumed");
+    Require(editor.GetText() == L"**hello**" && editor.GetSelection() == Selection{7, 2}, "bold preserves backwards source selection");
+    const auto revision = editor.Revision();
+    editor.SetViewMode(ViewMode::Source);
+    editor.SetViewMode(ViewMode::Rich);
+    Require(editor.Revision() == revision && editor.GetText() == L"**hello**", "view mode never rewrites source or history");
+    Require(editor.ToggleFormatting(L"**") && editor.GetText() == L"hello", "toggle unwraps exact delimiter");
+    Require(editor.ToggleFormatting(L"*") && editor.ToggleFormatting(L"~~") && editor.ToggleFormatting(L"`"), "all four v0 formatting commands");
+    Require(editor.Undo() && editor.Redo(), "formatting is undoable");
+    const auto source = editor.GetText();
+    RejectEditor([&] { editor.ToggleFormatting(L"unsupported"); });
+    Require(editor.GetText() == source, "unsupported formatting preserves source");
+}
+
+void TestRichTextEditorCallbackRetirementAndFailure()
+{
+    ControlHost host;
+    auto editor = std::make_unique<RichTextEditor>(L"x");
+    auto* raw   = editor.get();
+    host.SetRoot(std::move(editor));
+    size_t calls = 0;
+    raw->SetOnTextChanged([&]
+    {
+        ++calls;
+        host.SetRoot(std::make_unique<Label>(L"replacement"));
+    });
+    Require(raw->OnChar(host, L'y', 0) && calls == 1, "callback may retire editor during character command");
+    auto replacement = std::make_unique<RichTextEditor>();
+    raw              = replacement.get();
+    host.SetRoot(std::move(replacement));
+    raw->SetOnTextChanged([] { throw std::runtime_error("notification failed"); });
+    Require(raw->OnChar(host, L'z', 0) && raw->GetText() == L"z" && raw->CanUndo(), "callback failure leaves committed edit usable");
+    raw->SetOnTextChanged([&]
+    {
+        raw->SetOnTextChanged({});
+        raw->SetText(L"application replacement");
+    });
+    Require(raw->ReplaceSelection(L"!") && raw->GetText() == L"application replacement" && ! raw->CanUndo(), "callback may replace source and delegate");
+}
+
+void TestRichTextEditorNativeHostAndLayoutReuse()
+{
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(L"# Heading\r\n**bold** \u03b2 \U0001f600\nlast");
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    const auto prepared = raw->DebugGetState();
+    Require(prepared.layoutReady && prepared.contentHeightDip > 0, "native host supplies DWrite and raster services");
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutGeneration == prepared.layoutGeneration, "unchanged painting reuses layout");
+    raw->SetSelection({2, 9});
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutGeneration == prepared.layoutGeneration, "selection only rerasterizes pixels");
+    auto palette   = window.Host().GetTheme();
+    palette.accent = D2D1::ColorF(D2D1::ColorF::Orange);
+    window.Host().SetTheme(palette);
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutGeneration == prepared.layoutGeneration, "palette update reuses shaping");
+    raw->SetFlowDirection(FlowDirection::RightToLeft);
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutGeneration > prepared.layoutGeneration && raw->GetText().starts_with(L"# Heading"),
+            "flow rebuilds layout without changing source");
+    raw->SetVisible(false);
+    RenderEditor(window);
+    Require(! raw->DebugGetState().layoutReady, "hidden branch releases retained layout");
+    raw->SetVisible(true);
+    RenderEditor(window);
+    Require(raw->DebugGetState().layoutReady, "show prepares layout again");
+}
+
+void TestRichTextEditorNativeUnicodeRoutingAndNavigation()
+{
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(L"a\u0301\U0001f600\r\nword");
+    auto* raw   = editor.get();
+    raw->SetViewMode(ViewMode::Source);
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.Host().SetFocusControl(raw, false); // Logical focus only: no desktop takeover.
+    Require(window.Host().HasActiveNativeTextInputSession(), "D2d maintains a logical native text cache without taking desktop focus");
+    raw->SetSelection({4, 4});
+    Require(raw->OnKeyDown(window.Host(), VK_LEFT, 0) && raw->GetSelection().caret == 2, "left crosses complete supplementary scalar");
+    Require(raw->OnKeyDown(window.Host(), VK_LEFT, 0) && raw->GetSelection().caret == 0, "left crosses combining cluster");
+    Require(raw->OnKeyDown(window.Host(), VK_RIGHT, MK_SHIFT) && raw->GetSelection() == Selection{0, 2}, "shift navigation extends source selection");
+    Require(raw->OnKeyDown(window.Host(), VK_BACK, 0) && raw->GetText() == L"\U0001f600\r\nword", "delete combining selection atomically");
+    raw->SetSelection({2, 2});
+    Require(raw->OnKeyDown(window.Host(), VK_DELETE, 0) && raw->GetText() == L"\U0001f600word", "display newline deletion preserves CRLF boundary");
+    Require(raw->OnKeyDown(window.Host(), VK_END, MK_CONTROL), "document end command");
+    SendMessageW(window.Hwnd(), WM_CHAR, L'\u03b2', 0);
+    Require(raw->GetText() == L"\U0001f600word\u03b2", "native WM_CHAR routes through retained control");
+    Require(raw->OnKeyDown(window.Host(), VK_HOME, MK_CONTROL) && raw->GetSelection().caret == 0, "document home");
+    Require(! raw->OnKeyDown(window.Host(), VK_TAB, 0), "Tab remains host navigation");
+    raw->SetText(L"one two\r\nthree\r\nfour");
+    Require(raw->OnKeyDown(window.Host(), VK_RIGHT, MK_CONTROL) && raw->GetSelection().caret == 4, "word navigation uses existing host text helper");
+    raw->SetSelection({0, 0});
+    Require(raw->OnKeyDown(window.Host(), VK_DOWN, 0) && raw->GetSelection().caret > 0, "down enters next prepared line");
+    Require(raw->OnKeyDown(window.Host(), VK_UP, 0) && raw->GetSelection().caret == 0, "up retains preferred horizontal position");
+    Require(raw->OnKeyDown(window.Host(), VK_NEXT, 0) && raw->GetSelection().caret > 0, "page down advances through viewport");
+    Require(raw->OnKeyDown(window.Host(), VK_PRIOR, 0) && raw->GetSelection().caret == 0, "page up returns toward document start");
+}
+
+void TestRichTextEditorClipboardAtomicityAndSourceContract()
+{
+    AttachedHostWindow window;
+    RichEditorClipboard clipboard;
+    auto editor = std::make_unique<RichTextEditor>(L"**\u03b2**\r\n");
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    raw->SetSelection({0, 7});
+    clipboard.busy = true;
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText() == L"**\u03b2**\r\n" && ! raw->CanUndo(), "busy clipboard never cuts source");
+    clipboard.busy = false;
+    Require(raw->OnCopy(window.Host()), "copy through host Unicode clipboard");
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText().empty(), "successful copy precedes cut");
+    Require(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL) && raw->GetText() == L"**\u03b2**\r\n", "paste retains exact markers Unicode and EOL");
+    raw->SetReadOnly(true);
+    raw->SetSelection({0, 7});
+    Require(raw->OnCopy(window.Host()), "read-only copy allowed");
+    static_cast<void>(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL));
+    static_cast<void>(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL));
+    Require(raw->GetText() == L"**\u03b2**\r\n", "read-only clipboard mutations blocked");
+    raw->SetReadOnly(false);
+    const auto revision = raw->Revision();
+    Require(window.Host().CopyTextToClipboard(std::wstring(1, wchar_t(0xd800))), "transport fixture can supply malformed UTF-16");
+    static_cast<void>(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL));
+    Require(raw->Revision() == revision && IsValidUtf16(raw->GetText()), "malformed paste rejected without edit");
+    clipboard.text      = L"replacement";
+    const auto original = raw->GetText();
+    clipboard.afterRead = [&] { raw->SetSelection({1, 1}); };
+    static_cast<void>(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL));
+    Require(raw->GetText() == original, "clipboard callback changing selection supersedes old paste");
+    clipboard.afterRead = [&] { window.Host().SetRoot(std::make_unique<Label>(L"retired")); };
+    Require(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL) && dynamic_cast<Label*>(window.Host().GetRoot()),
+            "clipboard callback may retire owner without resuming paste");
+}
+
+void TestRichTextEditorScrollAndHostClock()
+{
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(std::wstring(500, L'\n'));
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    Require(raw->OnMouseWheel(window.Host(), {}, -WHEEL_DELTA, 0), "wheel handled");
+    RenderEditor(window);
+    Require(raw->DebugGetState().scrollOffsetDip > 0, "wheel scrolls bounded viewport");
+    Require(! raw->OnMouseWheel(window.Host(), {}, std::numeric_limits<float>::infinity(), 0), "nonfinite wheel rejected");
+    raw->SetSelection({500, 500});
+    RenderEditor(window);
+    const auto bottom = raw->DebugGetState().scrollOffsetDip;
+    Require(bottom > 48, "selection reveals end caret");
+    raw->SetSelection({0, 0});
+    RenderEditor(window);
+    Require(raw->DebugGetState().scrollOffsetDip == 0, "selection reveals start caret");
+    window.Host().SetFocusControl(raw, false);
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = false;
+    window.Host().SetTheme(theme);
+    Require(raw->Tick(window.Host(), 0), "host epoch can begin at zero");
+    const auto invalidations = window.Host().DebugGetInvalidateCount();
+    Require(raw->Tick(window.Host(), 100) && window.Host().DebugGetInvalidateCount() == invalidations, "same caret phase does not dirty pixels");
+    Require(raw->Tick(window.Host(), 500) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
+    Require(raw->Tick(window.Host(), 10), "backwards host timestamp resets epoch safely");
+    raw->SetReadOnly(true);
+    Require(! raw->Tick(window.Host(), 1000), "read-only caret requests no periodic work");
+}
+
+void TestRichTextEditorCatalogAndRebinding()
+{
+    std::unique_ptr<Control> control;
+    RequireSucceeded(CreateControl(ControlKind::RichTextEditor, control), "catalog creates rich-text editor");
+    Require(dynamic_cast<RichTextEditor*>(control.get()) != nullptr, "factory returns retained concrete type");
+    bool found = false;
+    for (const auto& descriptor : GetControlCatalog())
+        found = found || (descriptor.kind == ControlKind::RichTextEditor && descriptor.name == L"RichTextEditor");
+    Require(found, "catalog names new control");
+    ControlHost first, second;
+    auto root    = std::make_unique<Panel>();
+    auto* panel  = root.get();
+    auto* editor = root->AddChild<RichTextEditor>();
+    editor->SetText(L"kept");
+    editor->SetSelection({4, 4});
+    first.SetRoot(std::move(root));
+    Require(editor->ReplaceSelection(L"!"), "source edit in first host");
+    // Supported extraction preserves the same identity and history.
+    control = panel->TakeChild(0);
+    second.SetRoot(std::move(control));
+    Require(editor->GetText() == L"kept!" && editor->Undo() && editor->GetText() == L"kept", "host rebinding preserves logical state");
+}
+
+void TestRichTextEditorRetainedPreparationFixedTrials()
+{
+    // Kept byte-identical across the geometry baseline/candidate. This includes
+    // the real native host's dirty preparation/raster path, without activation.
+    // Five trials describe this process; they are not frame-gate acceptance.
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    for (size_t trial = 0u; trial < 5u; ++trial)
+    {
+        AttachedHostWindow window;
+        auto editor              = std::make_unique<RichTextEditor>(seed);
+        auto* raw                = editor.get();
+        const auto firstRevision = raw->Revision();
+        window.Host().SetRoot(std::move(editor));
+        const auto start = std::chrono::steady_clock::now();
+        RenderEditor(window);
+        const auto initial     = std::chrono::steady_clock::now();
+        constexpr size_t edits = 128u;
+        for (size_t edit = 0u; edit < edits; ++edit)
+        {
+            raw->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
+            Require(raw->ReplaceSelection(edit % 2u ? L"x" : L"y"), "retained trial replaces one ASCII source unit");
+            RenderEditor(window);
+        }
+        const auto finish = std::chrono::steady_clock::now();
+        Require(raw->DebugGetState().layoutReady && raw->GetText().size() == seed.size() && raw->Revision() == firstRevision + edits,
+                "retained trial publishes every edited revision with unchanged source length");
+        std::cout << "rich retained preparation trial=" << trial << " sourceUnits=" << seed.size() << " edits=" << edits
+                  << " initialMs=" << std::chrono::duration<double, std::milli>(initial - start).count()
+                  << " editMs=" << std::chrono::duration<double, std::milli>(finish - initial).count() << '\n';
+    }
+}
+} // namespace
+
+void RunRichTextEditorTests()
+{
+    ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
+    DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
+    DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
+    DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
+    DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
+    DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
+    DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
+    DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
+    DXUI_RUN_TEST(TestRichTextEditorRetainedPreparationFixedTrials);
+}

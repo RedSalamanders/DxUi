@@ -1,0 +1,4 @@
+{
+  "classification": "Deliberately altered synthetic fixture; not native benchmark evidence",
+  "tamperRejected": true
+}

@@ -1,5 +1,15 @@
 # Independent DxUi measurements
 
+- [Guarded rich geometry, 2026-10-18](RichText/2026-10-18-retained-geometry/README.md):
+  57 ordinary x64 suite passes, six builds, 162 exact WARP pairs, observed allocation
+  schedules and bounded storage; original geometry/pixel/Debug failures retained.
+  Whole-layout compatibility, full syntax and performance acceptance remain open.
+
+- [Thread-state resolution, 2026-10-18](RichText/2026-10-18-thread-state-resolution/README.md):
+  four same-binary controls, 1,280 frames and matching populated captures; the query
+  is too coarse for frame attribution. Empty aligned histograms do not close the
+  trace-policy or performance HOLD.
+
 - [PR #80 paired controls, 2026-10-17](Performance/2026-10-17-pr80-controls/README.md): sanitized replay and
   attribution evidence for 71/72 unstable controls, quantized preparation, retained long-frame/memory witnesses
   and the single legacy/migrated improvement disagreement. Remaining performance, platform and consumer gates stay open.

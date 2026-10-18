@@ -1,0 +1,17 @@
+{
+  "executableSha256": "2EFF3A52514F59D52C56E330FAE27CE0E9464C83B61E87FB1AF5EB57E2C3931E",
+  "buildAttestationIdentity": "de7d2173416274b96937f74001bca6748a436020b826e14c0630f634afd54542",
+  "tests": [
+    "TestRichDocumentLayoutEditsAndFailurePublication",
+    "TestRichDocumentLayoutLongHeightAndChunkBudget",
+    "TestRichDocumentLayoutWarpRasterOracle",
+    "TestRichDocumentLayoutBranchesOptionsAndCompaction",
+    "TestRichTextEditorNativeChunkReuseAndRetirement",
+    "TestRichTextEditorRetainedPreparationFixedTrials"
+  ],
+  "overallBudgetSeconds": 600,
+  "startedUtc": "2026-10-18T05:28:31.7373176Z",
+  "classification": "isolated diagnostic children, not root suite qualification or a performance gate",
+  "scheduled": 6,
+  "childBudgetSeconds": 90
+}

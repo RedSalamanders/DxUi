@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "nativeReport": "state-01-Off.native.receipt.txt",
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "child": {
+        "samplingTruncated": false
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "Off",
+      "mainIdentityVerified": true,
+      "index": 1,
+      "identityAndNativeValidationPassed": true
+    },
+    {
+      "nativeReport": "state-02-On.native.receipt.txt",
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "child": {
+        "samplingTruncated": false
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "On",
+      "mainIdentityVerified": true,
+      "index": 2,
+      "identityAndNativeValidationPassed": true
+    },
+    {
+      "nativeReport": "state-03-On.native.receipt.txt",
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "child": {
+        "samplingTruncated": false
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "On",
+      "mainIdentityVerified": true,
+      "index": 3,
+      "identityAndNativeValidationPassed": true
+    },
+    {
+      "nativeReport": "state-04-Off.native.receipt.txt",
+      "captureSha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "child": {
+        "samplingTruncated": false
+      },
+      "nativeSha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "observer": "Off",
+      "mainIdentityVerified": true,
+      "index": 4,
+      "identityAndNativeValidationPassed": true
+    }
+  ],
+  "overallBudgetExceeded": false,
+  "attempted": 4
+}

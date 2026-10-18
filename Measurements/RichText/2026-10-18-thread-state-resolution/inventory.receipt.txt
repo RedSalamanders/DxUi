@@ -1,0 +1,1018 @@
+{
+  "copies": [
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Analyze-StateControls.ps1",
+      "path": "Raw/Analyze-StateControls.ps1",
+      "sha256": "7545E166848C8090E94939DB11B676A477641FC35D7953646440F60F1C1A9BE7",
+      "bytes": 8439
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Analyze-StateControls.ps1",
+      "path": "Source/Analyze-StateControls.ps1",
+      "sha256": "7545E166848C8090E94939DB11B676A477641FC35D7953646440F60F1C1A9BE7",
+      "bytes": 8439
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Analyze-StateControls.ps1.tests.receipt.txt",
+      "path": "Raw/Analyze-StateControls.ps1.tests.receipt.txt",
+      "sha256": "C210E6BBD5A07DD71215B26D00AD645165A495A8BCE845081D3EFA7C3415A1D2",
+      "bytes": 263
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Archive.ps1",
+      "path": "Archive.ps1",
+      "sha256": "531D985D1656AC43EEA369F9E1B62D0F08A684E948CB74315A03D6B8AA9212F9",
+      "bytes": 4752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Capture-RuntimeSnapshotSemantics.ps1",
+      "path": "Raw/Capture-RuntimeSnapshotSemantics.ps1",
+      "sha256": "ABE2A179653427C87CA7D68E29132E5C37F2B7FAD9BC361421F72D06020203C5",
+      "bytes": 3668
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Capture-RuntimeSnapshotSemantics.ps1",
+      "path": "Source/Capture-RuntimeSnapshotSemantics.ps1",
+      "sha256": "ABE2A179653427C87CA7D68E29132E5C37F2B7FAD9BC361421F72D06020203C5",
+      "bytes": 3668
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Capture-RuntimeSnapshotSemantics.ps1.first-failed-result.receipt.txt",
+      "path": "Raw/Capture-RuntimeSnapshotSemantics.ps1.first-failed-result.receipt.txt",
+      "sha256": "3948C5B8F2485DF7A9484C9D12C5AEE3F77BA91F8FF65C9F6CA62F2FF2B9BEBA",
+      "bytes": 157
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Capture-RuntimeSnapshotSemantics.ps1.first-failed.receipt.txt",
+      "path": "Raw/Capture-RuntimeSnapshotSemantics.ps1.first-failed.receipt.txt",
+      "sha256": "755A147D4F25D8AF82C56227475F83AA76A7A1308236524176CA66424AA2492E",
+      "bytes": 3613
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Invoke-StateControls.ps1",
+      "path": "Raw/Invoke-StateControls.ps1",
+      "sha256": "BCB5B9CF3953A5D910ED274E7B17679CE2AF0A5006647D0E153366980016A522",
+      "bytes": 5478
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Invoke-StateControls.ps1",
+      "path": "Source/Invoke-StateControls.ps1",
+      "sha256": "BCB5B9CF3953A5D910ED274E7B17679CE2AF0A5006647D0E153366980016A522",
+      "bytes": 5478
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Next-WarpThreadingControl.md",
+      "path": "Raw/Next-WarpThreadingControl.md.receipt.txt",
+      "sha256": "B0DDF9D81A87056EBFEF51461014E8A6FCE930CA5814515DE0FABDC4F809D6EC",
+      "bytes": 2376
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\runtime-semantics-summary.receipt.txt",
+      "path": "Raw/runtime-semantics-summary.receipt.txt",
+      "sha256": "F31D9B32C869B172B549E7FF3014E61E247366287AED838E3BBCC30EF1388029",
+      "bytes": 1189
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-CommonClock.ps1",
+      "path": "Raw/Test-CommonClock.ps1",
+      "sha256": "2666AAB7898F00E53C90661BC22B2506D3FE61BFA4399069440B59E534261203",
+      "bytes": 1915
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-CommonClock.ps1",
+      "path": "Source/Test-CommonClock.ps1",
+      "sha256": "2666AAB7898F00E53C90661BC22B2506D3FE61BFA4399069440B59E534261203",
+      "bytes": 1915
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-StateAnalysis.ps1",
+      "path": "Raw/Test-StateAnalysis.ps1",
+      "sha256": "0E9917EB6FE08DA2AAA5B747294147E9FC71565E9BD9A07BAADD380C0AFE0F95",
+      "bytes": 4664
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-StateAnalysis.ps1",
+      "path": "Source/Test-StateAnalysis.ps1",
+      "sha256": "0E9917EB6FE08DA2AAA5B747294147E9FC71565E9BD9A07BAADD380C0AFE0F95",
+      "bytes": 4664
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-StateAnalysis.ps1.first-failed-result.receipt.txt",
+      "path": "Raw/Test-StateAnalysis.ps1.first-failed-result.receipt.txt",
+      "sha256": "CC1EE60D91888B56C5A62E88792837CCF501452AFA2A4E44E962A0C67DFCAB17",
+      "bytes": 467
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-StateAnalysis.ps1.first-failed-result.receipt.txt.initial-inaccurate.receipt.txt",
+      "path": "Raw/Test-StateAnalysis.ps1.first-failed-result.receipt.txt.initial-inaccurate.receipt.txt",
+      "sha256": "DECEF8B7C7B8DABBC396EC3EAE21A0CA780B0500B34A6BA3B22BEFF5F67F79FF",
+      "bytes": 170
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-StateAnalysis.ps1.first-failed.receipt.txt",
+      "path": "Raw/Test-StateAnalysis.ps1.first-failed.receipt.txt",
+      "sha256": "CAF06428CF6A674DDA1D2FF65F1B51E6FDBC2AC758C9BD31EEE0627C62701CB6",
+      "bytes": 1889
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-ThreadStates.ps1",
+      "path": "Raw/Test-ThreadStates.ps1",
+      "sha256": "BAD7F28D0DEF523BF91A7D315C7557DDF68353B2AABC5A238BDA8EDF10CD00F2",
+      "bytes": 3882
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Test-ThreadStates.ps1",
+      "path": "Source/Test-ThreadStates.ps1",
+      "sha256": "BAD7F28D0DEF523BF91A7D315C7557DDF68353B2AABC5A238BDA8EDF10CD00F2",
+      "bytes": 3882
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\ThreadStates.ps1",
+      "path": "Raw/ThreadStates.ps1",
+      "sha256": "4109FE03EF255543DB3DD80EB89A1D31A955EC4734A02ADDFA4E8D4CA163C6D8",
+      "bytes": 8545
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\ThreadStates.ps1",
+      "path": "Source/ThreadStates.ps1",
+      "sha256": "4109FE03EF255543DB3DD80EB89A1D31A955EC4734A02ADDFA4E8D4CA163C6D8",
+      "bytes": 8545
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Verify.ps1",
+      "path": "Verify.ps1",
+      "sha256": "1F4E5B878040CF3AD0D8FBB652C61DC4BFC34F7A0E61F426D0A19E6E15E5FDE7",
+      "bytes": 5903
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest\\state-analysis-tests.receipt.txt",
+      "path": "Raw/AnalysisSelfTest/state-analysis-tests.receipt.txt",
+      "sha256": "38FAB176C5250F44B952BB0EB0F68697F121AB036403CBBAC94ED940755D14B2",
+      "bytes": 358
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\state-analysis-tests.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/state-analysis-tests.receipt.txt",
+      "sha256": "9E9B120B365A0164AC6F57FD32A0B7B78D5AA2832854AB2CB4CA2296CFE7C61B",
+      "bytes": 358
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\analysis.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/analysis.receipt.txt",
+      "sha256": "E2B9F5BDA1E0FB18B8356606F314A42C42B6F62F5FF8C5A83C528F42F6B8EDED",
+      "bytes": 7494
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\completion.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/completion.receipt.txt",
+      "sha256": "6286BCCC2D62BEE1E53C76FBD537BBF0209D7D414E3BDEC26D76FB1A96879928",
+      "bytes": 1878
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\negative-synthetic.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/negative-synthetic.receipt.txt",
+      "sha256": "7AE4F992F826937DC44897BFEC1F80FC771B625298285DCF2D2AF16160072EC0",
+      "bytes": 126
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.native.receipt.txt",
+      "sha256": "E1DB6BBC402C938055DE90057D409452C57E6589DE4FBAC788FDC0E2DF89F15A",
+      "bytes": 753
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "bytes": 23
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.joined.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.joined.receipt.txt",
+      "sha256": "D7501943DF66505C49EEA3844DF761C65A727774F3BD16A25208A4012D59FBD4",
+      "bytes": 197
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.states.receipt.txt",
+      "sha256": "C5034D34DA85EF2CFAC2EB91BD75B3FF34DCD7110293F10A4942ECEA7206C38A",
+      "bytes": 307
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.joined.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.joined.receipt.txt",
+      "sha256": "8454074D136CD63F4DFEFAF3298ECF38BB8D61D9BAA001E297937CCB20E6C339",
+      "bytes": 200
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.states.receipt.txt",
+      "sha256": "1D213A6C913ED0C23B3B03DF1177A9A2C4C06F6FAA104A2F8E686A676D19E131",
+      "bytes": 310
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "bytes": 23
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\state-analysis-tests.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/state-analysis-tests.receipt.txt",
+      "sha256": "0100074A0FF4B9FDF1A808FB82A5315C510101C297C00590CE95E48D1041615D",
+      "bytes": 358
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\analysis.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/analysis.receipt.txt",
+      "sha256": "74A1A450256860D7F8D96792C550B8A609D1B6CF8FD688CE0CA4D262A447A2C4",
+      "bytes": 7966
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\completion.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/completion.receipt.txt",
+      "sha256": "72B2954B9791195AC129EE801FBD5ADBD4039343293AF33F3C11E8C7F7769B2B",
+      "bytes": 1878
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\negative-synthetic.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/negative-synthetic.receipt.txt",
+      "sha256": "32F10C0C50FCCFCA0D8E75B33D8FEF6C749577739433E3C2929F568E7179353E",
+      "bytes": 126
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.native.receipt.txt",
+      "sha256": "6688CC9A4142D32E50034B6B0BD8BACDE31FE1C8D31196BA1ED75E18A99CA8BA",
+      "bytes": 753
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "bytes": 23
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.joined.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.joined.receipt.txt",
+      "sha256": "6515D03BE52BB8873C3401A015F64CD3BAE9A813819E81111B92F8692C1D033D",
+      "bytes": 197
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.states.receipt.txt",
+      "sha256": "9C869A7E777BC0EE242A2045551884E6B314307A2FA8D3E79BD173436BAD9E44",
+      "bytes": 307
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.joined.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.joined.receipt.txt",
+      "sha256": "2E80553A1AA42736A5937207A414E05A83FC8FC4D150485AA472C902598A39C4",
+      "bytes": 200
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.states.receipt.txt",
+      "sha256": "049F6A3376829AA9AA5F59174D1FA8A2B01C524A6F2395DFA22D30D2B2A57007",
+      "bytes": 310
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.native.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "bytes": 752
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.native.receipt.txt.png",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "bytes": 3
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.states.receipt.txt",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "bytes": 23
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\ClockSelfTest\\common-clock-tests.receipt.txt",
+      "path": "Raw/ClockSelfTest/common-clock-tests.receipt.txt",
+      "sha256": "87A3AEDB11B838F030E212C5C8255308092E68341049C7BD6738F2490744054D",
+      "bytes": 4781
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\analysis.receipt.txt",
+      "path": "Raw/Controls/analysis.receipt.txt",
+      "sha256": "AEB3453AB7A4C7BAA910C3604C6E66026AD44ACD435B3994DA062F5AAA0EEC8D",
+      "bytes": 17547
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\completion.receipt.txt",
+      "path": "Raw/Controls/completion.receipt.txt",
+      "sha256": "D5C7512FEA6E48DE164082BB2D08C5198FA5DA4CD29A3FE4694057A9976666DD",
+      "bytes": 6757
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\plan.receipt.txt",
+      "path": "Raw/Controls/plan.receipt.txt",
+      "sha256": "BE32B315750EBF1A51C76EC14CAA388DFA27C8DFB98A6CC27E87F8F77BB0A3F5",
+      "bytes": 5001
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.child.receipt.txt",
+      "path": "Raw/Controls/state-01-Off.child.receipt.txt",
+      "sha256": "06AA45B9EBFC430E82CE1B6C8075ADE7D6DD4E47BB9227B92E5F3627636A5D74",
+      "bytes": 1004
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.err",
+      "path": "Raw/Controls/state-01-Off.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.log",
+      "path": "Raw/Controls/state-01-Off.log",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.native.receipt.txt",
+      "path": "Raw/Controls/state-01-Off.native.receipt.txt",
+      "sha256": "BECDE4EA2C3DA8AE3DF48EB1A95DAF0B89D364745F3D63C1B81802DC6CE6ECF1",
+      "bytes": 56533
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.native.receipt.txt.png",
+      "path": "Raw/Controls/state-01-Off.native.receipt.txt.png",
+      "sha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "bytes": 57320
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-01-Off.states.receipt.txt",
+      "path": "Raw/Controls/state-01-Off.states.receipt.txt",
+      "sha256": "916AD3E0CD79575DFE9BFCA40E8F79FBFE87DBAF0696A88DA0DC06E1C19997AE",
+      "bytes": 1065
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.child.receipt.txt",
+      "path": "Raw/Controls/state-02-On.child.receipt.txt",
+      "sha256": "8074C598C6727FD9DE6E771BD694AF7DAD8EA8A03F0BF3347F4D098F7B381091",
+      "bytes": 1003
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.err",
+      "path": "Raw/Controls/state-02-On.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.joined.receipt.txt",
+      "path": "Raw/Controls/state-02-On.joined.receipt.txt",
+      "sha256": "09C6AF24A7B044C5079CEC7F5AB851529DB01F7C0A13A29D18D489DE6A6E3337",
+      "bytes": 4850
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.log",
+      "path": "Raw/Controls/state-02-On.log",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.native.receipt.txt",
+      "path": "Raw/Controls/state-02-On.native.receipt.txt",
+      "sha256": "CD590ED7B796DB25A4F8E47482D6D6228D1259B3ED3B079FB288239B4212DACE",
+      "bytes": 56485
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.native.receipt.txt.png",
+      "path": "Raw/Controls/state-02-On.native.receipt.txt.png",
+      "sha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "bytes": 57320
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-02-On.states.receipt.txt",
+      "path": "Raw/Controls/state-02-On.states.receipt.txt",
+      "sha256": "7B46355A6D06AF070975850103E6B955597A5CC4820218CFECBCF126B726244D",
+      "bytes": 11893
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.child.receipt.txt",
+      "path": "Raw/Controls/state-03-On.child.receipt.txt",
+      "sha256": "92190B77481A4FFE6176E5C695D87B395BF7E7B3D6413A90DED775C5E3A4165B",
+      "bytes": 1004
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.err",
+      "path": "Raw/Controls/state-03-On.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.joined.receipt.txt",
+      "path": "Raw/Controls/state-03-On.joined.receipt.txt",
+      "sha256": "C9BA56B557D11D398AC7AC7CDFB34454E27F85A89DD78D710126563E3D2AD488",
+      "bytes": 4581
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.log",
+      "path": "Raw/Controls/state-03-On.log",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.native.receipt.txt",
+      "path": "Raw/Controls/state-03-On.native.receipt.txt",
+      "sha256": "A23E2CAEE28A5F61F9FF8F96A2314119D51844FC27D8775CDF4DE42B6B070725",
+      "bytes": 56534
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.native.receipt.txt.png",
+      "path": "Raw/Controls/state-03-On.native.receipt.txt.png",
+      "sha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "bytes": 57320
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-03-On.states.receipt.txt",
+      "path": "Raw/Controls/state-03-On.states.receipt.txt",
+      "sha256": "E2C8E1258CD93A571908B52F01F9EBB09CDC259C555E967BA67F30ABBBC6FAE9",
+      "bytes": 10658
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.child.receipt.txt",
+      "path": "Raw/Controls/state-04-Off.child.receipt.txt",
+      "sha256": "11B89BDF8E8E4D9632BF8E8EEAF9111EA1124F8CE31184B96D625612012DE202",
+      "bytes": 1004
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.err",
+      "path": "Raw/Controls/state-04-Off.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.log",
+      "path": "Raw/Controls/state-04-Off.log",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.native.receipt.txt",
+      "path": "Raw/Controls/state-04-Off.native.receipt.txt",
+      "sha256": "6C635475D5AE0D9EAF77ABD0A7BA929637A928546D89CE4E369E71214F0A7DE2",
+      "bytes": 56533
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.native.receipt.txt.png",
+      "path": "Raw/Controls/state-04-Off.native.receipt.txt.png",
+      "sha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "bytes": 57320
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\Controls\\state-04-Off.states.receipt.txt",
+      "path": "Raw/Controls/state-04-Off.states.receipt.txt",
+      "sha256": "916AD3E0CD79575DFE9BFCA40E8F79FBFE87DBAF0696A88DA0DC06E1C19997AE",
+      "bytes": 1065
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\RuntimeInspection\\runtime-snapshot-semantics.receipt.txt",
+      "path": "Raw/RuntimeInspection/runtime-snapshot-semantics.receipt.txt",
+      "sha256": "5A513DB5F1886820474A14A4A02CB8A14E275B96A9B1A6B2A4DBFBDED4DF464D",
+      "bytes": 30730
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\RuntimeSources\\Process.cs.unavailable.receipt.txt",
+      "path": "Raw/RuntimeSources/Process.cs.unavailable.receipt.txt",
+      "sha256": "1EE853F1BB50A5370662C42D80CCE64A0E4318ED3C6840F5309456A5E32FEE53",
+      "bytes": 263
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\RuntimeSources\\ProcessManager.Win32.cs.unavailable.receipt.txt",
+      "path": "Raw/RuntimeSources/ProcessManager.Win32.cs.unavailable.receipt.txt",
+      "sha256": "FBB4270A2B752C4A25B110259D7C2FA97F1C87AF8DAED3AC6333668FA65FA3ED",
+      "bytes": 276
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\RuntimeSources\\ProcessManager.Windows.cs.unavailable.receipt.txt",
+      "path": "Raw/RuntimeSources/ProcessManager.Windows.cs.unavailable.receipt.txt",
+      "sha256": "0358551904DB994397452560DB2E6742D77AF3C4DB68BE8337884AAFA8728B68",
+      "bytes": 278
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\RuntimeSources\\ProcessThread.cs.unavailable.receipt.txt",
+      "path": "Raw/RuntimeSources/ProcessThread.cs.unavailable.receipt.txt",
+      "sha256": "974667A4E63FF47CB03357941705B384E53E5BCF0215D6F580BB0B95D678C187",
+      "bytes": 269
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\OwnedThreadTarget.ps1",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/OwnedThreadTarget.ps1",
+      "sha256": "963959C755F69E0CABFFC5588A07EB7D4CF2C5FBFB1AB2C965438D067E2C47EC",
+      "bytes": 626
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-off.child.receipt.txt",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-off.child.receipt.txt",
+      "sha256": "44A7F3E5FFEB0F62953C6AA40C222C6C01143D14F588F7612644B842D01850A5",
+      "bytes": 1047
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-off.err",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-off.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-off.log",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-off.log",
+      "sha256": "FCF64E48C2FD69F814A38A78919B124DD0CB82F8279BEEE53F8A6DB5B71F8E27",
+      "bytes": 56
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-off.states.receipt.txt",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-off.states.receipt.txt",
+      "sha256": "3A01C9BC038A072A25E644B2D5988379F7301FD3DEEC074FD853A59F143851F3",
+      "bytes": 1065
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-on.child.receipt.txt",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-on.child.receipt.txt",
+      "sha256": "7931A171300AA5823DEFF0B68FAD79590DEBAB3EC857D3F7AB6130FA30BB914F",
+      "bytes": 1049
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-on.err",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-on.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-on.log",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-on.log",
+      "sha256": "A35746B6ED696D28FFD2E68F8779808CF7E86EB906499C65881BA4621970E3F0",
+      "bytes": 56
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-on.states.receipt.txt",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-on.states.receipt.txt",
+      "sha256": "971C99D252B5F66D93991F7BA67D69DA83F373B00D9AC94F444713C02B7B2555",
+      "bytes": 25201
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-108fb5e3f92b4291af583ac44dbb36f9\\self-test.receipt.txt",
+      "path": "Raw/SelfTest-108fb5e3f92b4291af583ac44dbb36f9/self-test.receipt.txt",
+      "sha256": "D1A643CD3FF37B7002AD86B2C2948E7F2CE884E9BA265F781D399F9A36383C30",
+      "bytes": 463
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\OwnedThreadTarget.ps1",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/OwnedThreadTarget.ps1",
+      "sha256": "963959C755F69E0CABFFC5588A07EB7D4CF2C5FBFB1AB2C965438D067E2C47EC",
+      "bytes": 626
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-off.child.receipt.txt",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-off.child.receipt.txt",
+      "sha256": "E97B86545EA3E2A8D8BD8D70FED28C99A52C5CF5509562F9C1FD77FB7B5692E5",
+      "bytes": 1049
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-off.err",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-off.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-off.log",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-off.log",
+      "sha256": "B0186F3178077F51C2413D1D91273F0DE48DCD1478ABDE7B1D653121EB38B3E2",
+      "bytes": 55
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-off.states.receipt.txt",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-off.states.receipt.txt",
+      "sha256": "AB685909E46F1E078DB099A0467D628718A717CAA905F486C7CCE19C307BA7FC",
+      "bytes": 1065
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-on.child.receipt.txt",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-on.child.receipt.txt",
+      "sha256": "ABE9EC0BA3845E6800EC08855CF489B52A097EFB456F949CDDEF226C65872123",
+      "bytes": 1049
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-on.err",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-on.err",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-on.log",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-on.log",
+      "sha256": "39F1CF96A59B0F20FC2FCE96992ABEE4E74C365756500FB026274407D5B50358",
+      "bytes": 56
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-on.states.receipt.txt",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-on.states.receipt.txt",
+      "sha256": "3097B37526B644A266900B50224A15EE5CE35F417B66DFFAB6562225A1849EE6",
+      "bytes": 27562
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\SelfTest-255ce2cd1a1046d7b0157dec2a9d9370\\self-test.receipt.txt",
+      "path": "Raw/SelfTest-255ce2cd1a1046d7b0157dec2a9d9370/self-test.receipt.txt",
+      "sha256": "9B4E3B0B73DD00008EB811E5A8FB59FA5FF1B011786DEAA18A032CACDB44C06E",
+      "bytes": 462
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Scope.Tests.ComplexUiProfiling.h",
+      "path": "Source/profilingInputs/Tests/Embedded/Scope.Tests.ComplexUiProfiling.h",
+      "sha256": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+      "bytes": 30244
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Scope.Tests.ComplexUiBoundaries.h",
+      "path": "Source/profilingInputs/Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h",
+      "sha256": "5BD861A9FBCCB3399D02F9BDD88F7306E8A566BFA890109E156B0B23729E2116",
+      "bytes": 10394
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Embedded.Tests.Embedded.cpp",
+      "path": "Source/profilingInputs/Tests/Embedded/Embedded.Tests.Embedded.cpp",
+      "sha256": "AD496AFD2F711B40FADA5F095F3550672187C06DD7E78406EA00BB4AE7D673DB",
+      "bytes": 96658
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Embedded.Tests.ComplexUiBenchmark.h",
+      "path": "Source/profilingInputs/Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
+      "sha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+      "bytes": 17143
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Support\\Support.Tests.HeapDiagnostic.h",
+      "path": "Source/profilingInputs/Tests/Support/Support.Tests.HeapDiagnostic.h",
+      "sha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+      "bytes": 2807
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Samples\\ComplexUi\\ComplexUiScene.h",
+      "path": "Source/profilingInputs/Samples/ComplexUi/ComplexUiScene.h",
+      "sha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+      "bytes": 4531
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+      "path": "Source/profilingInputs/Samples/EmbeddedControls/GraphicsFixture.h",
+      "sha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+      "bytes": 4826
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\performance-profile.ps1",
+      "path": "Source/profilingInputs/performance-profile.ps1",
+      "sha256": "01A5D6727B8986CDA2DB23C11D3C0483FC47FC1149AE42A812CEE79F922B80F7",
+      "bytes": 3537
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tools\\PerformanceProfiling.psm1",
+      "path": "Source/profilingInputs/Tools/PerformanceProfiling.psm1",
+      "sha256": "EF842F4A69F54E2499C26E2022D688B19E57CE7DF35D73F2CC323DA85E182296",
+      "bytes": 43923
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tools\\PerformancePolicy.psm1",
+      "path": "Source/profilingInputs/Tools/PerformancePolicy.psm1",
+      "sha256": "A4A81214B7B9F62481C4DD4E83B6F37F1A43BEBC74378AE8928085F027F6EB5E",
+      "bytes": 84366
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tools\\ScopedTesting.psm1",
+      "path": "Source/profilingInputs/Tools/ScopedTesting.psm1",
+      "sha256": "FD728FACD01E19100B7B01234A4808C52E003628076AB0CDA7AB42E09AB43A5E",
+      "bytes": 23110
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Embedded.Tests.BenchmarkMain.h",
+      "path": "Source/benchmarkInputs/Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+      "sha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+      "bytes": 1893
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Embedded\\Embedded.Tests.ComplexUiBenchmark.h",
+      "path": "Source/benchmarkInputs/Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
+      "sha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+      "bytes": 17143
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Tests\\Support\\Support.Tests.HeapDiagnostic.h",
+      "path": "Source/benchmarkInputs/Tests/Support/Support.Tests.HeapDiagnostic.h",
+      "sha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+      "bytes": 2807
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Samples\\ComplexUi\\ComplexUiScene.h",
+      "path": "Source/benchmarkInputs/Samples/ComplexUi/ComplexUiScene.h",
+      "sha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+      "bytes": 4531
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+      "path": "Source/benchmarkInputs/Samples/EmbeddedControls/GraphicsFixture.h",
+      "sha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+      "bytes": 4826
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\performance-build\\x64-Release\\build.json",
+      "path": "Build/release-build.receipt.txt",
+      "sha256": "71227294B8818E27879EAB248EC91A207C9C96C5B3F315C6C1A7A2C624D7836B",
+      "bytes": 259
+    }
+  ],
+  "limitations": "All 35 acquisition brackets are outside or cross frame boundaries. Query p95 exceeds frame p95. Preserve inconclusive state attribution and all outliers. Three-byte synthetic hash fixtures are aliased as receipt text, never presented as native PNG captures.",
+  "enabledSnapshots": 35,
+  "privateArtifact": {
+    "sha256": "DB26F74D7957114E7EB9626C4C49F06604886E93AF431A7158F71F7CA0FEC435",
+    "path": ".build/reports/rich-retained-geometry-20261018/FinalArtifacts/Release/DxUi.EmbeddedTests.exe"
+  },
+  "fullyContainedFrameSnapshots": 0,
+  "nativeCaseCount": 4,
+  "classification": "Same-binary external-observer resolution diagnostic; no baseline/candidate, scheduler-event or acceptance verdict",
+  "actualFrames": 1280,
+  "restorePathAliases": [
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\analysis.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/analysis.receipt.txt",
+      "sha256": "E2B9F5BDA1E0FB18B8356606F314A42C42B6F62F5FF8C5A83C528F42F6B8EDED",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/analysis.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\completion.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/completion.receipt.txt",
+      "sha256": "6286BCCC2D62BEE1E53C76FBD537BBF0209D7D414E3BDEC26D76FB1A96879928",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/completion.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\negative-synthetic.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/negative-synthetic.receipt.txt",
+      "sha256": "7AE4F992F826937DC44897BFEC1F80FC771B625298285DCF2D2AF16160072EC0",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/negative-synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-01-Off.native.receipt.txt",
+      "sha256": "E1DB6BBC402C938055DE90057D409452C57E6589DE4FBAC788FDC0E2DF89F15A",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-01-Off.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-01-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-01-Off.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.joined.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-02-On.joined.receipt.txt",
+      "sha256": "D7501943DF66505C49EEA3844DF761C65A727774F3BD16A25208A4012D59FBD4",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.joined.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-02-On.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-02-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-02-On.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-02-On.states.receipt.txt",
+      "sha256": "C5034D34DA85EF2CFAC2EB91BD75B3FF34DCD7110293F10A4942ECEA7206C38A",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-02-On.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.joined.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-03-On.joined.receipt.txt",
+      "sha256": "8454074D136CD63F4DFEFAF3298ECF38BB8D61D9BAA001E297937CCB20E6C339",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.joined.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-03-On.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-03-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-03-On.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-03-On.states.receipt.txt",
+      "sha256": "1D213A6C913ED0C23B3B03DF1177A9A2C4C06F6FAA104A2F8E686A676D19E131",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-03-On.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-04-Off.native.receipt.txt",
+      "sha256": "82C3AC99BD59685C8944B940D612017C7867F4F7AA1004E205395AA6A4C356AC",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest02\\synthetic-0a9fdb0a082245c39d665d5ba915ab24\\state-04-Off.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest02/synthetic-0a9fdb0a082245c39d665d5ba915ab24/state-04-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "path": "Raw/AnalysisSelfTest02/s-0a9fdb0a/state-04-Off.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\analysis.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/analysis.receipt.txt",
+      "sha256": "74A1A450256860D7F8D96792C550B8A609D1B6CF8FD688CE0CA4D262A447A2C4",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/analysis.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\completion.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/completion.receipt.txt",
+      "sha256": "72B2954B9791195AC129EE801FBD5ADBD4039343293AF33F3C11E8C7F7769B2B",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/completion.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\negative-synthetic.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/negative-synthetic.receipt.txt",
+      "sha256": "32F10C0C50FCCFCA0D8E75B33D8FEF6C749577739433E3C2929F568E7179353E",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/negative-synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-01-Off.native.receipt.txt",
+      "sha256": "6688CC9A4142D32E50034B6B0BD8BACDE31FE1C8D31196BA1ED75E18A99CA8BA",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-01-Off.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-01-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-01-Off.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.joined.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-02-On.joined.receipt.txt",
+      "sha256": "6515D03BE52BB8873C3401A015F64CD3BAE9A813819E81111B92F8692C1D033D",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.joined.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-02-On.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-02-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-02-On.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-02-On.states.receipt.txt",
+      "sha256": "9C869A7E777BC0EE242A2045551884E6B314307A2FA8D3E79BD173436BAD9E44",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-02-On.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.joined.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-03-On.joined.receipt.txt",
+      "sha256": "2E80553A1AA42736A5937207A414E05A83FC8FC4D150485AA472C902598A39C4",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.joined.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-03-On.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-03-On.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-03-On.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-03-On.states.receipt.txt",
+      "sha256": "049F6A3376829AA9AA5F59174D1FA8A2B01C524A6F2395DFA22D30D2B2A57007",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-03-On.states.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.native.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-04-Off.native.receipt.txt",
+      "sha256": "E3DBCE64686D3663914C50593683EF84BABC39E6E2E86AAB5BA13449C859A366",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.native.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.native.receipt.txt.png",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt",
+      "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.native.receipt.txt.png.synthetic.receipt.txt"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-thread-states-20261018\\AnalysisSelfTest03\\synthetic-fc211d245d6042f996d8cc3838654277\\state-04-Off.states.receipt.txt",
+      "originalArchivePath": "Raw/AnalysisSelfTest03/synthetic-fc211d245d6042f996d8cc3838654277/state-04-Off.states.receipt.txt",
+      "sha256": "F192CF841D78042EA15500D5615AFCE5D0DBDA90718BA674867FBBAA8A1EC531",
+      "path": "Raw/AnalysisSelfTest03/s-fc211d24/state-04-Off.states.receipt.txt"
+    }
+  ]
+}

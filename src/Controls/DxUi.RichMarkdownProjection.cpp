@@ -231,6 +231,13 @@ void PreparedProjection::Clear() noexcept
 {
     state_.reset();
 }
+PreparedProjection PreparedProjection::Clone() const
+{
+    PreparedProjection copy;
+    if (state_)
+        copy.state_ = std::make_unique<State>(*state_);
+    return copy;
+}
 void PreparedProjection::Prepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
 {
     if (mode != ViewMode::Source && mode != ViewMode::Rich)
@@ -358,7 +365,7 @@ std::size_t PreparedProjection::ToSource(std::size_t offset, bool trailing) cons
 std::wstring PreparedProjection::DisplayText() const
 {
     const auto& blocks = Blocks();
-    std::wstring result;
+    std::wstring result(0u, L'\0');
     result.reserve(DisplayLength());
     for (const auto& block : blocks)
         result += block.content->text;

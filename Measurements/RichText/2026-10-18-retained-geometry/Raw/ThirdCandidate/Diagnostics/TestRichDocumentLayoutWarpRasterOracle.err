@@ -1,0 +1,5 @@
+[WATCHDOG] each test may run 80 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentLayoutWarpRasterOracle
+chunk raster direction=0 variant=1 top=6081.11 differingBytes=2656
+FAILED: chunked visible raster matches whole-document DirectWrite pixels exactly on WARP

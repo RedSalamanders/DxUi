@@ -1,0 +1,10 @@
+[
+  {
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\StackProbe\\Source\\src\\Controls\\DxUi.RichDocumentLayout.cpp",
+    "Hash": "C6B799E302A56AC4C616979FAF5A99D5A7B442AA84D96B8455DB3587E89CD97E"
+  },
+  {
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-retained-geometry-20261018\\StackProbe\\Source\\Tests\\Embedded\\Embedded.Tests.Embedded.cpp",
+    "Hash": "581CC0B548E76CA271FB1A36864C9DB14C12F3265EDC7ACA1CCD535440C23C64"
+  }
+]

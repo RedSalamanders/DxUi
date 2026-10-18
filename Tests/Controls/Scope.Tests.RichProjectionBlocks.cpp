@@ -348,8 +348,31 @@ void TestRichProjectionBlockBranchesAndRetirement()
 }
 
 } // namespace
+void TestRichProjectionCloneIsolation()
+{
+    using namespace DxUi::RichText;
+    PreparedProjection empty;
+    auto absent = empty.Clone();
+    Require(! absent.Ready(), "an unprepared projection clone owns no state");
+    Document document(L"# First\n**second**\nlast");
+    PreparedProjection original;
+    original.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    auto copy = original.Clone();
+    for (size_t index = 0u; index < original.Blocks().size(); ++index)
+        Require(original.Blocks()[index].content == copy.Blocks()[index].content, "forked preparation shares every immutable block payload");
+    const auto text     = original.DisplayText();
+    const auto revision = original.Revision();
+    document.Replace(2u, 3u, L"x", {0u, 0u});
+    copy.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    Require(original.DisplayText() == text && original.Revision() == revision && copy.Revision() == document.Revision(),
+            "preparing a clone cannot change the original published projection");
+    original.Clear();
+    Require(copy.Ready() && copy.DisplayText() == Project(document.Snapshot(), document.Revision(), ViewMode::Rich).text,
+            "retiring the original leaves independently prepared shared blocks alive");
+}
 void RunRichProjectionBlockTests()
 {
+    DXUI_RUN_TEST(TestRichProjectionCloneIsolation);
     DXUI_RUN_TEST(TestRichProjectionWholeSourceFixedTrials);
     DXUI_RUN_TEST(TestRichProjectionBlockFixedTrials);
     DXUI_RUN_TEST(TestRichProjectionBlockFullEquivalence);

@@ -422,6 +422,18 @@ attribution requires an actual aligned trace and its loss/completeness checks;
 a permission refusal leaves that gate open. This diagnostic changes no acceptance
 workload, judge, policy, threshold or historical receipt.
 
+The [external thread-state controls](../../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+verify owned-child main-thread identity and a common native/managed QPC clock.
+WaitReason is read only for Wait. Require the entire acquisition bracket inside
+a frame/segment before assigning a sampled state; retain mixed/outside samples,
+errors and truncation separately. These samples are unweighted observations,
+not occupancy, ready latency, scheduler events or GPU time. In the retained study,
+all 35 brackets exceed/cross native frame boundaries: 17–25 ms query p95 cannot
+resolve 0.45–0.57 ms frame p95. Empty Map histograms mean unavailable evidence.
+Same-binary observer controls do not establish stable overhead or close HOLD.
+A WARP calling-thread rasterization experiment is a separate future diagnostic;
+it changes work placement and must not change canonical/library device defaults.
+
 The shared Unicode 17 grapheme walker retains constant numeric state and requests
 no C++ heap storage. Prepared rich navigation and password mask indexing walk
 established boundaries forward once; arbitrary-caret queries may recover context
@@ -611,3 +623,19 @@ preserve the captured source, document revision and histories. The isolated
 allocation diagnostics install a terminate handler only in their explicit child;
 normal suites and canonical benchmark dispatch never install it. Retain the
 original failure separately from successful final sweeps and build qualification.
+
+Guarded rich document geometry retains at most 127 chunk layouts plus one optional
+whole-layout compatibility resource, with old/staged replacement bounded together.
+Rounding-sensitive geometry/raster falls back explicitly; count whole-layout work
+separately from chunk reuse. Owner preparation may construct that cache; cached
+embedded composition must allocate and prepare nothing. No per-control worker or
+periodic timer follows from reference DLL recalculation code.
+
+The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB retained
+and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
+bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
+limits exclude SDK-private heaps and do not establish whole-process acceptance.
+The [guarded geometry record](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+retains all failure schedules, geometry/pixel oracles and original negative runs.
+Clear uses fallibly preconstructed retirement storage; staged projection building
+must not depend on optional NRVO to avoid noexcept Debug proxy termination.

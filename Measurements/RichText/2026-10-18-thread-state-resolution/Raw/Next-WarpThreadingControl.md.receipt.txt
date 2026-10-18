@@ -1,0 +1,37 @@
+# Next controlled WARP threading experiment
+
+Design only. Current retained-geometry qualification inputs remain frozen and the
+same-binary Off/On/On/Off state study has not run yet.
+
+Microsoft's D3D11_CREATE_DEVICE_FLAG contract documents
+D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS: with WARP it prevents
+WARP worker creation and performs rasterization on the calling thread. It is not
+recommended for general use. The remarks explicitly mention debugging/profiling.
+Source: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_create_device_flag
+Retrieved 2026-10-18; no private constant or undocumented interface is required.
+
+After the current study, consider a separate explicit boundary diagnostic option
+that creates WARP with BGRA_SUPPORT plus this flag. Reuse GraphicsFixture.Resize,
+Bind/Read/Save and the existing synthetic scene; do not modify GraphicsFixture.h,
+the canonical benchmark closure or any library device default. Its owned public
+device/context fields permit diagnostic-only device creation before Resize.
+Declare device flags in the raw native receipt and expose the option only through
+the opt-in diagnostic dispatcher/runner. Preserve default original paths.
+
+Use a fresh fixed ABBA default/calling-thread-WARP schedule with boundary timers
+on, then separate same-binary observer controls if needed. Verify source/build/
+artifact identities, main thread creation, clean no-ops, hidden resource release,
+zero C++ frame allocations and exact matching populated captures. Native WARP
+smoke cases test both device policies under the normal functional gate; canonical
+acceptance still uses its original BGRA-only WARP device.
+
+The intervention changes work placement and potentially runtime implementation;
+it is not an algebraic estimate of worker scheduling delay or GPU duration. Other
+runtime/DirectWrite threads may remain, so never assert total process threads=1.
+State snapshots alone do not provide ReadyThread/CSwitch events. Hold acceptance
+until the existing controlled policy/platform obligations are met.
+
+Combine the production flat-Projection failure-safety investigation, opt-in native
+trial registration and this diagnostic slice only if their final source/test/
+spec scopes stay clear. No planned experiment is an implemented feature or a
+reason to stop the running declared qualification matrix.

@@ -31,6 +31,9 @@ static thread_local size_t allocations     = 0;
 static thread_local size_t allocationBytes = 0;
 static thread_local bool countLiveBytes    = false;
 static thread_local ptrdiff_t liveBytes    = 0;
+// Opt-in replacement-peak observation for geometry resource fixtures. Dormant
+// for canonical benchmarks and all earlier live-storage measurements.
+static thread_local ptrdiff_t* liveBytesPeak = nullptr;
 // Test-only fault injection is dormant outside an explicit operation sweep.
 static thread_local size_t failAllocationAfter = std::numeric_limits<size_t>::max();
 static void FailAllocationIfRequested()
@@ -53,7 +56,11 @@ void* operator new(size_t bytes)
     if (auto* p = malloc(bytes ? bytes : 1))
     {
         if (countLiveBytes)
+        {
             liveBytes += static_cast<ptrdiff_t>(_msize(p));
+            if (liveBytesPeak)
+                *liveBytesPeak = std::max(*liveBytesPeak, liveBytes);
+        }
         return p;
     }
     throw std::bad_alloc();
@@ -142,6 +149,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "Scope.Tests.ComplexUiBoundaries.h"
 #include "Scope.Tests.ComplexUiProfiling.h"
 #include "Scope.Tests.RichDocumentStorageResources.h"
+#include "Scope.Tests.RichGeometryResources.h"
 #include "Scope.Tests.RichProjectionResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
@@ -1149,7 +1157,8 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 __declspec(noinline) static int RunFunctionalTests()
 {
     if (__argc == 2 &&
-        (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures"))
+        (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1162,7 +1171,15 @@ __declspec(noinline) static int RunFunctionalTests()
             std::_Exit(197);
         });
         const auto restore  = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
-        if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
+        if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
+            TestRichPreparedLayoutClearAllocationBudget(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")
+        {
+            TestRichPreparedLayoutValueFailureAtomicity(true);
+            TestRichDocumentGeometryFailureAtomicity(true);
+            TestRichDocumentGeometryFailureAtomicity(true, true);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
         else
             TestRichProjectionPreparationAllocationFailureAtomicity(true);
@@ -1308,6 +1325,14 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionRetainedStorageBudget();
     TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextSharedViewsAndResources(gpu);
+    TestRichPreparedLayoutClearAllocationBudget();
+    TestRichPreparedLayoutValueFailureAtomicity();
+    TestRichDocumentGeometryFailureAtomicity();
+    TestRichDocumentGeometryFailureAtomicity(false, true);
+    TestRichDocumentGeometryUnchangedAllocationBudget();
+    TestRichDocumentGeometryMaximumStorageBudget();
+    TestRichDocumentGeometryReplacementPeakBudget();
+    TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);
     TestRetainedRichTextUiaRangeAllocationBudget(gpu);
