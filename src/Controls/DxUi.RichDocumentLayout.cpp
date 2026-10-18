@@ -1,8 +1,10 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <stdexcept>
+#include <wil/resource.h>
 
 namespace DxUi::RichText
 {
@@ -86,6 +88,66 @@ struct PreparedDocumentLayout::State
     float height{};
     mutable LayoutPreparation last;
 };
+struct PreparedDocumentLayout::Preparation
+{
+    enum class Phase
+    {
+        Reuse,
+        Chunks,
+        Placement,
+        Reference,
+        Publish
+    };
+    Preparation() : next(std::make_unique<State>()), reusable(0u)
+    {
+    }
+    std::unique_ptr<State> next;
+    SourceChangeRange change;
+    // Pointers borrow the immutable published graph, which remains alive until
+    // publication or cancellation. Nothing leaves this preparation owner.
+    std::vector<const ChunkPlacement*> reusable;
+    const ChunkPlacement* scanning{};
+    std::size_t scanBlock{}, scanLocal{}, first{}, end{}, units{}, checkedChunks{};
+    Phase phase = Phase::Chunks;
+    bool compatible{}, compact{}, exactPlacement = true;
+
+    const ChunkPlacement* Candidate(const State& previous, std::size_t block) const
+    {
+        const auto& blocks      = next->projection.Blocks();
+        const auto currentStart = blocks[block].sourceStart;
+        std::size_t oldStart    = currentStart;
+        if (change.kind != SourceChangeKind::Unchanged)
+        {
+            if (currentStart >= change.currentEnd)
+                oldStart = currentStart - change.currentEnd + change.previousEnd;
+            else if (currentStart >= change.begin)
+                return nullptr;
+        }
+        const auto found = std::lower_bound(previous.chunks.begin(), previous.chunks.end(), oldStart, [](const ChunkPlacement& chunk, std::size_t offset) {
+            return chunk.sourceStart < offset;
+        });
+        if (found == previous.chunks.end() || found->sourceStart != oldStart || found->blockCount > blocks.size() - block)
+            return nullptr;
+        const auto oldLength = found->geometry->layout.Content().source.size();
+        if (change.kind != SourceChangeKind::Unchanged && oldStart < change.begin && oldLength > change.begin - oldStart)
+            return nullptr;
+        return &*found;
+    }
+    const ChunkPlacement* Reusable(std::size_t block) const noexcept
+    {
+        return ! compact && block < reusable.size() ? reusable[block] : nullptr;
+    }
+    void Append(std::size_t begin, std::size_t limit, std::shared_ptr<const GeometryChunk> geometry)
+    {
+        const auto& blocks = next->projection.Blocks();
+        const auto& block  = blocks[begin];
+        const auto bottom  = limit == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
+        next->chunks.push_back({block.sourceStart, block.displayStart, begin, limit - begin, next->height, bottom - next->height, std::move(geometry)});
+        next->height = bottom;
+        if (! std::isfinite(bottom))
+            throw std::overflow_error("Rich geometry height overflow");
+    }
+};
 PreparedDocumentLayout::PreparedDocumentLayout() noexcept  = default;
 PreparedDocumentLayout::~PreparedDocumentLayout() noexcept = default;
 const PreparedDocumentLayout::State& PreparedDocumentLayout::Prepared() const
@@ -128,19 +190,47 @@ bool PreparedDocumentLayout::UsesWholeRaster() const noexcept
 }
 void PreparedDocumentLayout::Invalidate() noexcept
 {
+    CancelPreparation();
     ready_ = false;
 }
 void PreparedDocumentLayout::Clear() noexcept
 {
+    CancelPreparation();
     ready_ = false;
     state_.reset();
     ++generation_;
 }
 void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
 {
-    // Only public DirectWrite is used. Office's StepBackgroundRecalc/WaitForRecalc
-    // evidence distinguishes invalidation, work and completion; it neither
-    // establishes thread safety nor authorizes an embedded per-control timer.
+    if (BeginPreparation(factory, std::move(source), revision, mode, options) == LayoutPreparationStatus::Complete)
+        return;
+    const LayoutWorkBudget unlimited{std::numeric_limits<std::size_t>::max(), std::numeric_limits<std::size_t>::max()};
+    while (AdvancePreparation(unlimited).status == LayoutPreparationStatus::Pending)
+    {
+    }
+}
+bool PreparedDocumentLayout::HasPendingPreparation() const noexcept
+{
+    return static_cast<bool>(pending_);
+}
+LayoutPreparation PreparedDocumentLayout::PendingPreparation() const noexcept
+{
+    return pending_ ? pending_->next->last : LayoutPreparation{};
+}
+void PreparedDocumentLayout::CancelPreparation() noexcept
+{
+    // No retirement container is constructed in this noexcept path.
+    pending_.reset();
+}
+LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
+    IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
+{
+    // Office's pending/step/completion routines motivate the separation of these
+    // states, not a private ABI, timer, worker, or arbitrary-thread SDK access.
+    if (pending_ && pending_->next->factory.get() == factory && pending_->next->projection.Mode() == mode &&
+        pending_->next->projection.Revision() == revision && SameOptions(pending_->next->options, options) &&
+        source.ChangedRangeFrom(pending_->next->source).kind == SourceChangeKind::Unchanged)
+        return LayoutPreparationStatus::Pending;
     const bool compatible = state_ && state_->factory.get() == factory && state_->projection.Mode() == mode && SameOptions(state_->options, options);
     const auto change     = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
     if (compatible && change.kind == SourceChangeKind::Unchanged)
@@ -148,137 +238,216 @@ void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot sou
         state_->projection.Prepare(source, revision, mode);
         state_->source = std::move(source);
         state_->last   = {0u, state_->chunks.size(), 0u, 0u, state_->reference ? 1u : 0u, 0u};
-        ready_         = true;
+        CancelPreparation();
+        ready_ = true;
         ++generation_;
-        return;
+        return LayoutPreparationStatus::Complete;
     }
-    auto next = std::make_unique<State>();
+    auto request = std::make_unique<Preparation>();
+    auto& next   = *request->next;
     if (state_)
-        next->projection = state_->projection.Clone();
-    next->projection.Prepare(source, revision, mode);
-    next->source        = source;
-    next->options       = options;
-    next->factory       = factory; // WIL retains the factory, preventing address reuse while chunks live.
-    const auto& blocks  = next->projection.Blocks();
-    const auto reusable = [&](std::size_t first) -> const ChunkPlacement*
+        next.projection = state_->projection.Clone();
+    // This bounded v0 parser/index pass is still indivisible. Do not describe a
+    // work-unit budget around DirectWrite as a resumable Markdown parser.
+    next.projection.Prepare(source, revision, mode);
+    next.source         = std::move(source);
+    next.options        = options;
+    next.factory        = factory;
+    request->compatible = compatible;
+    request->change     = change;
+    if (compatible && change.kind != SourceChangeKind::FullReplacement && ! state_->chunks.empty())
     {
-        if (! compatible || change.kind == SourceChangeKind::FullReplacement)
-            return nullptr;
-        const auto currentStart = blocks[first].sourceStart;
-        std::size_t oldStart    = currentStart;
-        if (change.kind != SourceChangeKind::Unchanged)
-        {
-            if (currentStart >= change.currentEnd)
-                oldStart = currentStart - change.currentEnd + change.previousEnd;
-            else if (currentStart >= change.begin)
-                return nullptr;
-        }
-        const auto found = std::lower_bound(
-            state_->chunks.begin(), state_->chunks.end(), oldStart, [](const ChunkPlacement& chunk, std::size_t offset) { return chunk.sourceStart < offset; });
-        if (found == state_->chunks.end() || found->sourceStart != oldStart || found->blockCount > blocks.size() - first)
-            return nullptr;
-        const auto oldLength = found->geometry->layout.Content().source.size();
-        if (change.kind != SourceChangeKind::Unchanged && oldStart < change.begin && oldLength > change.begin - oldStart)
-            return nullptr;
-        const auto& oldBlocks = state_->projection.Blocks();
-        for (std::size_t local = 0u; local < found->blockCount; ++local)
-            if (blocks[first + local].content->source != oldBlocks[found->firstBlock + local].content->source)
-                return nullptr;
-        return &*found;
+        request->reusable.resize(next.projection.Blocks().size(), nullptr);
+        request->phase = Preparation::Phase::Reuse;
+    }
+    // Replacing a pending request is atomic even if cloning/indexing/options fail.
+    pending_.swap(request);
+    return LayoutPreparationStatus::Pending;
+}
+LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget& budget)
+{
+    if (! budget.maximumLayouts || ! budget.maximumBlockSteps)
+        throw std::invalid_argument("Rich preparation budgets must be positive");
+    if (! pending_)
+        return {};
+    LayoutAdvance result;
+    auto discardOnFailure = wil::scope_exit([&] { pending_.reset(); });
+    const auto leave      = [&](LayoutPreparationStatus status)
+    {
+        result.status = status;
+        discardOnFailure.release();
+        return result;
     };
-    const auto append = [&](std::size_t first, std::size_t end, std::shared_ptr<const GeometryChunk> geometry)
+    auto& request      = *pending_;
+    auto& next         = *request.next;
+    const auto& blocks = next.projection.Blocks();
+    for (;;)
     {
-        const auto& block = blocks[first];
-        const auto bottom = end == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
-        const auto height = bottom - next->height;
-        next->chunks.push_back({block.sourceStart, block.displayStart, first, end - first, next->height, height, std::move(geometry)});
-        next->height = bottom;
-        if (! std::isfinite(next->height))
-            throw std::overflow_error("Rich geometry height overflow");
-    };
-    // One fallback compaction prevents repeated edits from fragmenting a view
-    // into an unbounded COM graph. At most old+new bounded graphs coexist.
-    for (bool compact = false;; compact = true)
-    {
-        next->chunks.clear();
-        next->height            = 0.0f;
-        next->last.reusedChunks = 0u;
-        std::size_t first       = 0u;
-        while (first < blocks.size() && next->chunks.size() < MaximumChunks)
+        switch (request.phase)
         {
-            if (! compact)
+            case Preparation::Phase::Reuse:
             {
-                if (const auto* old = reusable(first); old && old->geometry->layout.VerticalOrigin() == next->height)
+                if (request.scanBlock == blocks.size())
                 {
-                    append(first, first + old->blockCount, old->geometry);
-                    first += old->blockCount;
-                    ++next->last.reusedChunks;
+                    request.phase = Preparation::Phase::Chunks;
                     continue;
                 }
+                if (result.blockSteps == budget.maximumBlockSteps)
+                    return leave(LayoutPreparationStatus::Pending);
+                ++result.blockSteps;
+                if (! request.scanning)
+                    request.scanning = request.Candidate(*state_, request.scanBlock);
+                if (! request.scanning)
+                {
+                    ++request.scanBlock;
+                    continue;
+                }
+                const auto& old       = *request.scanning;
+                const auto& oldBlocks = state_->projection.Blocks();
+                if (blocks[request.scanBlock + request.scanLocal].content->source != oldBlocks[old.firstBlock + request.scanLocal].content->source)
+                {
+                    ++request.scanBlock;
+                    request.scanLocal = 0u;
+                    request.scanning  = nullptr;
+                }
+                else if (++request.scanLocal == old.blockCount)
+                {
+                    request.reusable[request.scanBlock] = request.scanning;
+                    request.scanBlock += old.blockCount;
+                    request.scanLocal = 0u;
+                    request.scanning  = nullptr;
+                }
+                continue;
             }
-            auto end   = first + 1u;
-            auto units = blocks[first].content->source.size();
-            while (end < blocks.size() && units < TargetChunkUnits && (compact || ! reusable(end)))
-                units += blocks[end++].content->source.size();
-            auto geometry = std::make_shared<GeometryChunk>();
-            Projection joined{
-                std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-            JoinBlocks(joined, blocks, first, end, mode);
-            geometry->layout.PrepareOwned(factory, joined, options, next->height);
-            const auto drawingBounds     = geometry->layout.DrawingVerticalBounds();
-            geometry->drawingTop         = drawingBounds.first;
-            geometry->drawingBottom      = drawingBounds.second;
-            const auto& text             = geometry->layout.Content().text;
-            geometry->continuationBottom = next->height;
-            const auto lineMetrics       = geometry->layout.LineMetrics();
-            const auto lineCount         = ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u : lineMetrics.size();
-            for (std::size_t line = 0u; line < lineCount; ++line)
-                geometry->continuationBottom = AddCoordinate(geometry->continuationBottom, lineMetrics[line].height);
-            append(first, end, std::move(geometry));
-            next->last.preparedSourceUnits += units;
-            ++next->last.preparedChunks;
-            first = end;
+            case Preparation::Phase::Chunks:
+            {
+                if (request.first == blocks.size())
+                {
+                    request.phase = Preparation::Phase::Placement;
+                    continue;
+                }
+                if (next.chunks.size() == MaximumChunks)
+                {
+                    if (request.compact)
+                        throw std::logic_error("Rich geometry chunk bound exceeded");
+                    if (result.blockSteps == budget.maximumBlockSteps)
+                        return leave(LayoutPreparationStatus::Pending);
+                    ++result.blockSteps;
+                    // Discard only staging and count all abandoned preparation.
+                    request.compact = true;
+                    request.first = request.end = request.units = 0u;
+                    next.chunks.clear();
+                    next.height            = 0.0f;
+                    next.last.reusedChunks = 0u;
+                    continue;
+                }
+                if (request.end == request.first)
+                {
+                    if (const auto* old = request.Reusable(request.first); old && old->geometry->layout.VerticalOrigin() == next.height)
+                    {
+                        if (result.blockSteps == budget.maximumBlockSteps)
+                            return leave(LayoutPreparationStatus::Pending);
+                        ++result.blockSteps;
+                        request.Append(request.first, request.first + old->blockCount, old->geometry);
+                        request.first += old->blockCount;
+                        request.end = request.first;
+                        ++next.last.reusedChunks;
+                        continue;
+                    }
+                }
+                while (request.end < blocks.size() && (request.end == request.first || (request.units < TargetChunkUnits && ! request.Reusable(request.end))))
+                {
+                    if (result.blockSteps == budget.maximumBlockSteps)
+                        return leave(LayoutPreparationStatus::Pending);
+                    ++result.blockSteps;
+                    request.units += blocks[request.end++].content->source.size();
+                }
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    return leave(LayoutPreparationStatus::Pending);
+                auto geometry = std::make_shared<GeometryChunk>();
+                Projection joined{
+                    std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+                JoinBlocks(joined, blocks, request.first, request.end, next.projection.Mode());
+                geometry->layout.PrepareOwned(next.factory.get(), joined, next.options, next.height);
+                ++result.layoutsPrepared;
+                const auto drawingBounds     = geometry->layout.DrawingVerticalBounds();
+                geometry->drawingTop         = drawingBounds.first;
+                geometry->drawingBottom      = drawingBounds.second;
+                geometry->continuationBottom = next.height;
+                const auto& text             = geometry->layout.Content().text;
+                const auto lineMetrics       = geometry->layout.LineMetrics();
+                const auto count             = ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u : lineMetrics.size();
+                for (std::size_t line = 0u; line < count; ++line)
+                    geometry->continuationBottom = AddCoordinate(geometry->continuationBottom, lineMetrics[line].height);
+                request.Append(request.first, request.end, std::move(geometry));
+                next.last.preparedSourceUnits += request.units;
+                ++next.last.preparedChunks;
+                request.first = request.end;
+                request.units = 0u;
+                continue;
+            }
+            case Preparation::Phase::Placement:
+            {
+                if (request.checkedChunks == next.chunks.size())
+                {
+                    request.phase = Preparation::Phase::Reference;
+                    continue;
+                }
+                if (result.blockSteps == budget.maximumBlockSteps)
+                    return leave(LayoutPreparationStatus::Pending);
+                ++result.blockSteps;
+                const auto& chunk = next.chunks[request.checkedChunks++];
+                request.exactPlacement =
+                    request.exactPlacement && chunk.geometry->layout.PositionedExactly() && chunk.geometry->layout.VerticalOrigin() == chunk.y;
+                continue;
+            }
+            case Preparation::Phase::Reference:
+            {
+                if (! request.exactPlacement || (request.compatible && state_->reference))
+                {
+                    if (result.layoutsPrepared == budget.maximumLayouts || result.blockSteps == budget.maximumBlockSteps)
+                        return leave(LayoutPreparationStatus::Pending);
+                    ++result.blockSteps;
+                    // One explicit compatibility work unit; joining a whole
+                    // projection/SDK layout is not a hard CPU-time guarantee.
+                    Projection joined{
+                        std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+                    JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
+                    if (request.compatible && state_->reference && SameStyles(joined, state_->reference->Content()))
+                    {
+                        next.reference = state_->reference;
+                        ++next.last.wholeLayoutsReused;
+                    }
+                    else if (! request.exactPlacement)
+                    {
+                        auto reference = std::make_shared<PreparedLayout>();
+                        reference->PrepareOwned(next.factory.get(), joined, next.options);
+                        next.reference = std::move(reference);
+                        ++result.layoutsPrepared;
+                        ++next.last.wholeLayoutsPrepared;
+                        next.last.wholeLayoutSourceUnits = next.source.Length();
+                    }
+                }
+                if (! request.exactPlacement)
+                {
+                    next.referenceForGeometry = true;
+                    next.height               = next.reference->Height();
+                    next.chunks.clear();
+                }
+                request.phase = Preparation::Phase::Publish;
+                continue;
+            }
+            case Preparation::Phase::Publish:
+            {
+                // Only this nonthrowing commit changes the published pair.
+                state_.swap(request.next);
+                ready_ = true;
+                ++generation_;
+                pending_.reset();
+                return leave(LayoutPreparationStatus::Complete);
+            }
         }
-        if (first == blocks.size())
-            break;
-        if (compact)
-            throw std::logic_error("Rich geometry chunk bound exceeded");
     }
-    const bool exactPlacement = std::all_of(next->chunks.begin(), next->chunks.end(), [](const ChunkPlacement& chunk) {
-        return chunk.geometry->layout.PositionedExactly() && chunk.geometry->layout.VerticalOrigin() == chunk.y;
-    });
-    if (! exactPlacement || (compatible && state_->reference))
-    {
-        Projection joined{
-            std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-        JoinBlocks(joined, blocks, 0u, blocks.size(), mode);
-        if (compatible && state_->reference && SameStyles(joined, state_->reference->Content()))
-        {
-            next->reference = state_->reference;
-            ++next->last.wholeLayoutsReused;
-        }
-        else if (! exactPlacement)
-        {
-            auto reference = std::make_shared<PreparedLayout>();
-            reference->PrepareOwned(factory, joined, options);
-            next->reference = std::move(reference);
-            ++next->last.wholeLayoutsPrepared;
-            next->last.wholeLayoutSourceUnits = source.Length();
-        }
-    }
-    if (! exactPlacement)
-    {
-        // Extremely small typography can dominate the hidden origin line.
-        // Preserve the whole-layout contract if its measured prefix is inexact.
-        next->referenceForGeometry = true;
-        next->height               = next->reference->Height();
-        next->chunks.clear();
-    }
-    // Nothing above touches the published source/geometry pair. Invalid input,
-    // allocation and DirectWrite failures leave the prior pair unchanged.
-    state_.swap(next);
-    ready_ = true;
-    ++generation_;
 }
 std::size_t PreparedDocumentLayout::DisplayLength() const
 {

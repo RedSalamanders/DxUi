@@ -139,6 +139,18 @@ static void Hr(HRESULT hr, const char* text)
         std::cerr << "HRESULT: " << std::hex << hr << std::dec << '\n';
     Check(SUCCEEDED(hr), text);
 }
+static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, UINT height, float dpi = 96.0f)
+{
+    for (size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const HRESULT hr = view.Prepare(width, height, dpi);
+        if (FAILED(hr))
+            return hr;
+        if (! view.NeedsPreparation())
+            return hr;
+    }
+    return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+}
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
@@ -1350,6 +1362,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionRetainedStorageBudget();
     TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
+    TestRichTextCooperativeSchedulingAndTextInput(gpu);
+    TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRichPreparedLayoutClearAllocationBudget();
     TestRichPreparedLayoutValueFailureAtomicity();

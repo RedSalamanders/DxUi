@@ -47,7 +47,7 @@ void TestRichTextServiceValidationAndGeometry()
     auto editor = std::make_unique<ServiceRichEditor>(L"# **\u03b2\U0001f600**\r\nnext");
     auto* raw   = editor.get();
     window.Host().SetRoot(std::move(editor));
-    Require(window.Host().RenderInitialFrameForShow(), "prepare native rich service geometry");
+    Require(PrepareNativeContentForTests(window.Host()), "prepare native rich service geometry");
     window.Host().SetFocusControl(raw, false);
     TextInputState state;
     Require(raw->ExportTextInputState(state) && state.multiline && ! state.masked, "service exposes Unicode multiline source");
@@ -69,7 +69,7 @@ void TestRichTextServiceValidationAndGeometry()
     const auto hit = raw->TryHitTestTextInputPoint(window.Host(), {caret->left, (caret->top + caret->bottom) / 2});
     Require(hit && *hit == 4, "projected point maps back after hidden opening markers");
     raw->SetViewMode(ViewMode::Source);
-    Require(window.Host().RenderInitialFrameForShow(), "prepare visible source markers");
+    Require(PrepareNativeContentForTests(window.Host()), "prepare visible source markers");
     const auto source = raw->TryGetTextInputRangeRects(window.Host(), 0, 4);
     Require(source && ! source->empty(), "source mode exposes marker geometry");
     raw->SetReadOnly(true);
@@ -137,10 +137,10 @@ void TestRichTextEmbeddedCompositionRevisionsAndRebinding()
     auto* raw = root->AddChild<RichTextEditor>(L"**a**");
     raw->SetBounds(D2D1::RectF(0, 0, 400, 180));
     view.Controls().SetRoot(std::move(root));
-    RequireSucceeded(view.Prepare(480, 240), "prepare embedded rich input");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare embedded rich input");
     view.Controls().SetFocusControl(raw, false);
     raw->SetSelection({3, 3});
-    RequireSucceeded(view.Prepare(480, 240), "prepare selected embedded input");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare selected embedded input");
     size_t notices = 0;
     raw->SetOnTextChanged([&] { ++notices; });
     EmbeddedTextInputSnapshot before;
@@ -156,7 +156,7 @@ void TestRichTextEmbeddedCompositionRevisionsAndRebinding()
     Require(raw->GetText() == preview.text && notices == 0 && ! raw->CanUndo(), "embedded preview preserves history and notification boundary");
     Require(view.ApplyTextInput(before.revision, preview, EmbeddedTextInputAction::Commit) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
             "stale service revision rejected");
-    RequireSucceeded(view.Prepare(480, 240), "prepare composition underline and geometry");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare composition underline and geometry");
     RequireSucceeded(gpu.Resize(480, 240), "composition capture target");
     gpu.Bind();
     RequireSucceeded(view.Composite(gpu.context.get(), gpu.Viewport()), "composite prepared composition pixels");
@@ -176,7 +176,7 @@ void TestRichTextEmbeddedCompositionRevisionsAndRebinding()
     result.conversionTargetEndIndex.reset();
     Require(view.ApplyTextInput(live.revision, result, EmbeddedTextInputAction::Commit) == S_OK && notices == 1, "embedded final preview commits exactly once");
     Require(raw->Undo() && raw->GetText() == before.state.text && ! raw->CanUndo(), "embedded composition is one undo entry");
-    RequireSucceeded(view.Prepare(480, 240, 144), "DPI reprepare retains input identity");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240, 144), "DPI reprepare retains input identity");
     Require(view.ReadTextInput(live) == S_OK && live.focusId == before.focusId, "DPI preserves focused service identity");
     raw->SetOnTextChanged([&] { view.Controls().SetRoot(std::make_unique<Label>(L"retired")); });
     auto committed       = live.state;
@@ -198,7 +198,7 @@ void TestRichTextEmbeddedMappedGeometry()
     auto root    = std::make_unique<RichTextEditor>(L"**alpha**\r\n");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
-    RequireSucceeded(view.Prepare(480, 240), "prepare mapped rich input");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare mapped rich input");
     view.Controls().SetFocusControl(editor, false);
     std::wstring source = L"**alpha**\r\n";
     for (int line = 0; line < 80; ++line)
@@ -211,7 +211,7 @@ void TestRichTextEmbeddedMappedGeometry()
     Require(view.GetTextInputRangeBounds(snapshot.revision, 0, source.size(), bounds, clipped) == S_FALSE, "geometry waits for coherent preparation");
     for (const float dpi : {96.0f, 144.0f})
     {
-        RequireSucceeded(view.Prepare(480, 240, dpi), "prepare mapped geometry at DPI");
+        RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240, dpi), "prepare mapped geometry at DPI");
         Require(view.ReadTextInput(snapshot) == S_OK && snapshot.caretBoundsDip && snapshot.viewportBoundsDip, "prepared source geometry is available");
         Require(view.GetTextInputRangeBounds(snapshot.revision, 0, source.size(), bounds, clipped) == S_OK && clipped,
                 "offscreen lines set the service clipping flag");
@@ -243,7 +243,7 @@ void TestRichTextEmbeddedPreviewRebinding()
     auto* editor = panel->AddChild<RichTextEditor>(L"kept");
     editor->SetBounds(D2D1::RectF(0, 0, 400, 180));
     first.Controls().SetRoot(std::move(root));
-    RequireSucceeded(first.Prepare(480, 240), "prepare first rich input host");
+    RequireSucceeded(PrepareEmbeddedContentForTests(first, 480, 240), "prepare first rich input host");
     first.Controls().SetFocusControl(editor, false);
     editor->SetSelection({4, 4});
     Require(editor->ReplaceSelection(L"!"), "prior independent rich edit");
@@ -258,7 +258,7 @@ void TestRichTextEmbeddedPreviewRebinding()
     auto retained = panel->TakeChild(0);
     Require(retained.get() == editor && editor->GetText() == L"kept!", "detach cancels owned preview before changing host binding");
     second.Controls().SetRoot(std::move(retained));
-    RequireSucceeded(second.Prepare(480, 240, 144), "prepare rebound rich input editor");
+    RequireSucceeded(PrepareEmbeddedContentForTests(second, 480, 240, 144), "prepare rebound rich input editor");
     second.Controls().SetFocusControl(editor, false);
     Require(first.ApplyTextInput(before.revision, preview, EmbeddedTextInputAction::Commit) != S_OK, "old view cannot commit through a rebound editor");
     Require(editor->Undo() && editor->GetText() == L"kept", "rebinding preserves pre-composition undo history");

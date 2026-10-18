@@ -34,14 +34,14 @@ struct RichAccessibilityFixture
         controls->SetRoot(std::move(root));
         if (embedded)
         {
-            RequireSucceeded(view.Prepare(480, 240), "prepare rich UIA view");
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich UIA view");
             bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, 480, 240);
             RequireSucceeded(bridge->Attach(false, 0x524943480001ull), "attach rich application accessibility bridge");
             RequireSucceeded(view.GetAccessibilityProvider(provider.put()), "embedded rich root provider");
         }
         else
         {
-            Require(controls->RenderInitialFrameForShow(), "prepare native rich UIA pixels");
+            Require(PrepareNativeContentForTests(*controls), "prepare native rich UIA pixels");
             provider.attach(CreateWindowHostAccessibilityProvider(window->Hwnd()));
         }
         controls->SetFocusControl(editor, false);
@@ -57,12 +57,12 @@ struct RichAccessibilityFixture
     {
         if (embedded)
         {
-            RequireSucceeded(view.Prepare(480, 240), "prepare rich source publication");
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich source publication");
             RequireSucceeded(bridge->Update(), "publish rich embedded semantics");
         }
         else
         {
-            Require(controls->RenderInitialFrameForShow(), "prepare native rich source publication");
+            Require(PrepareNativeContentForTests(*controls), "prepare native rich source publication");
             controls->RefreshAccessibilitySnapshot();
         }
         Pump();
@@ -799,6 +799,74 @@ void TestRichTextAccessibilityEmbeddedBulkCharacterCommands()
 {
     EmbeddedCase(BulkCharacterCommands);
 }
+void PendingPreparationGeometry(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text->get_DocumentRange(range.put()), "retain document range before cooperative source change");
+    std::wstring source;
+    for (size_t line = 0u; line < 1024u; ++line)
+        source += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    fixture.editor->SetText(source);
+    if (embedded)
+        Require(fixture.view.Prepare(480, 240) == S_FALSE, "embedded UIA fixture yields pending source");
+    else
+        Require(fixture.controls->RenderInitialFrameForShow(), "native UIA fixture advances once");
+    const auto advances = fixture.editor->DebugGetState().preparationAdvances;
+    Require(fixture.editor->DebugGetState().preparationPending, "UIA fixture really has uncompleted glyph work");
+    using UniqueArray = wil::unique_any<SAFEARRAY*, decltype(&::SafeArrayDestroy), ::SafeArrayDestroy>;
+    UniqueArray bounds;
+    RequireSucceeded(range->GetBoundingRectangles(bounds.put()), "pending UIA range bounds query");
+    Require(bounds && bounds.get()->cDims == 1u && bounds.get()->rgsabound[0].cElements == 0u,
+            "pending rich ranges never fabricate viewport-sized glyph bounds");
+    Require(range->ScrollIntoView(TRUE) == UIA_E_INVALIDOPERATION, "pending range scrolling reports unavailable geometry");
+    if (embedded)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fresh;
+        Require(fixture.view.GetAccessibilityProvider(fresh.put()) == S_FALSE && ! fresh,
+                "embedded current provider acquisition waits for coherent preparation");
+    }
+    else
+    {
+        std::atomic<bool> done = false;
+        HRESULT result         = E_FAIL;
+        ULONG elements         = 1u;
+        std::jthread worker([&]
+        {
+            UniqueArray dispatched;
+            result = range->GetBoundingRectangles(dispatched.put());
+            if (dispatched)
+                elements = dispatched.get()->rgsabound[0].cElements;
+            done.store(true, std::memory_order_release);
+        });
+        const auto deadline = GetTickCount64() + 12000u;
+        while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+        {
+            fixture.Pump();
+            Sleep(1);
+        }
+        Require(done.load(std::memory_order_acquire), "native pending bounds dispatch completes within its independent deadline");
+        worker.join();
+        Require(result == S_OK && elements == 0u, "foreign-thread native bounds also avoid the generic viewport fallback");
+    }
+    Require(fixture.editor->DebugGetState().preparationAdvances == advances && fixture.editor->GetText() == source,
+            "UIA owner/foreign-thread queries neither advance staging nor rewrite source");
+    fixture.Publish();
+    RequireSucceeded(text->get_DocumentRange(range.put()), "read document range after current source publication");
+    Require(ReadTextRangeText(*range.get(), -1, "current cooperative UIA source") == source, "published UIA text is the latest exact source");
+    bounds.reset();
+    RequireSucceeded(range->GetBoundingRectangles(bounds.put()), "current UIA glyph bounds");
+    Require(bounds && bounds.get()->rgsabound[0].cElements > 0u, "current geometry replaces unavailable pending bounds");
+}
+void TestRichTextAccessibilityWindowPendingPreparationGeometry()
+{
+    PendingPreparationGeometry(false);
+}
+void TestRichTextAccessibilityEmbeddedPendingPreparationGeometry()
+{
+    EmbeddedCase(PendingPreparationGeometry);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -824,4 +892,6 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedInteriorAcpDeletion);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowBulkCharacterCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedBulkCharacterCommands);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowPendingPreparationGeometry);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPendingPreparationGeometry);
 }

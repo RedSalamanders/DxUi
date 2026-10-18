@@ -74,7 +74,7 @@ template <typename F> void RejectEditor(F&& operation)
 
 void RenderEditor(AttachedHostWindow& window)
 {
-    Require(window.Host().RenderInitialFrameForShow(), "native retained rich-text frame prepares");
+    Require(PrepareNativeContentForTests(window.Host()), "native retained rich-text owner turns finish preparation");
 }
 
 void TestRichTextEditorTransactionsAndValidation()
@@ -236,6 +236,10 @@ void TestRichTextEditorNativeUnicodeRoutingAndNavigation()
     raw->SetText(L"one two\r\nthree\r\nfour");
     Require(raw->OnKeyDown(window.Host(), VK_RIGHT, MK_CONTROL) && raw->GetSelection().caret == 4, "word navigation uses existing host text helper");
     raw->SetSelection({0, 0});
+    const auto pendingAdvances = raw->DebugGetState().preparationAdvances;
+    Require(raw->OnKeyDown(window.Host(), VK_DOWN, 0) && raw->GetSelection().caret == 0 && raw->DebugGetState().preparationAdvances == pendingAdvances,
+            "vertical movement waits for visual lines without draining preparation");
+    RenderEditor(window);
     Require(raw->OnKeyDown(window.Host(), VK_DOWN, 0) && raw->GetSelection().caret > 0, "down enters next prepared line");
     Require(raw->OnKeyDown(window.Host(), VK_UP, 0) && raw->GetSelection().caret == 0, "up retains preferred horizontal position");
     Require(raw->OnKeyDown(window.Host(), VK_NEXT, 0) && raw->GetSelection().caret > 0, "page down advances through viewport");
@@ -425,6 +429,197 @@ void TestRichTextEditorNativeChunkReuseAndRetirement()
     RenderEditor(window);
     Require(raw->DebugGetState().reusedGeometryChunks == 0u && raw->GetText() == seed, "source mode retires rich geometry without rewriting source");
 }
+void TestRichTextEditorNativeCooperativePreparation()
+{
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(seed);
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    Require(window.Host().RenderInitialFrameForShow(), "one native owner preparation turn");
+    const auto pending = editor->DebugGetState();
+    Require(pending.preparationPending && ! pending.layoutReady && window.Host().HasPendingContentPreparation() && pending.lastAdvanceLayouts <= 4u &&
+                pending.lastAdvanceBlockSteps <= 4096u,
+            "large native source yields after one bounded owner advance");
+    Require(! editor->TryGetTextInputCaretRect(window.Host(), 0u) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
+                ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),
+            "native text/UIA geometry is unavailable during pending preparation");
+    Require(! editor->ScrollSourceRangeIntoView(window.Host(), 0u, 4u, true) && editor->DebugGetState().preparationAdvances == pending.preparationAdvances,
+            "queries and scrolling never drain a pending native request");
+    for (size_t key = 0u; key < 48u; ++key)
+        Require(editor->OnChar(window.Host(), L'x', 0u), "rapid typing stays accepted before native geometry catches up");
+    const auto latest = editor->GetText();
+    Require(editor->DebugGetState().preparationAdvances == pending.preparationAdvances && editor->DebugGetState().cancelledPreparations > 0u,
+            "rapid source edits coalesce without advancing superseded glyph work");
+    Require(editor->OnKeyDown(window.Host(), VK_BACK, 0u) && editor->Undo() && editor->GetText() == latest,
+            "pending source deletion remains a complete Unicode undo transaction");
+    RenderEditor(window);
+    Require(editor->DebugGetState().layoutReady && editor->GetText() == latest && ! window.Host().HasPendingContentPreparation(),
+            "native publication contains the latest source, never an obsolete staged revision");
+    editor->SetText(seed);
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending, "enter pending native typography fixture");
+    editor->SetDensity(Density::Compact);
+    Require(! editor->DebugGetState().preparationPending && editor->DebugGetState().retainedGeometryChunks == 0u,
+            "density cancels work using previous text viewport options");
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending, "begin pending native direction fixture");
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    Require(! editor->DebugGetState().preparationPending, "direction cancels the previous shaping request");
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending, "begin pending native resource fixture");
+    const auto resourceGeneration = window.Host().GetResourceGeneration();
+    window.Host().DebugSimulateDeviceLoss();
+    Require(window.Host().GetResourceGeneration() != resourceGeneration && ! editor->DebugGetState().preparationPending &&
+                editor->DebugGetState().retainedGeometryChunks == 0u && editor->GetText() == seed,
+            "native device loss rejects pending resource identities without losing source");
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending, "native cancellation fixture enters pending work");
+    editor->SetViewMode(ViewMode::Source);
+    Require(! editor->DebugGetState().preparationPending && editor->DebugGetState().retainedGeometryChunks == 0u,
+            "mode replacement immediately retires staged and published layouts");
+    Require(window.Host().RenderInitialFrameForShow(), "begin replacement native mode");
+    editor->SetVisible(false);
+    Require(! editor->DebugGetState().preparationPending && editor->GetText() == seed, "hiding cancels native staging and preserves source");
+    RenderEditor(window);
+    editor->SetVisible(true);
+    RenderEditor(window);
+    const auto complete = editor->DebugGetState();
+    RenderEditor(window);
+    Require(editor->DebugGetState().preparationAdvances == complete.preparationAdvances &&
+                editor->DebugGetState().layoutGeneration == complete.layoutGeneration,
+            "clean native repaint does not resume or rebuild completed work");
+}
+void TestRichTextEditorNativeMessageSchedulingAndFailure()
+{
+    class FailingEditor final : public RichTextEditor
+    {
+    public:
+        FailingEditor() : RichTextEditor(L"retained source")
+        {
+        }
+        bool fail = true;
+        size_t calls{};
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            ++calls;
+            return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
+        }
+    };
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<FailingEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    Require((GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "native scheduler fixture cannot activate the person's desktop window");
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    const auto waitFor = [&](auto predicate)
+    {
+        const auto deadline = GetTickCount64() + 12000u;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages(10u);
+            Sleep(1u);
+        }
+        return predicate();
+    };
+    Require(waitFor([&] { return editor->calls > 0u; }), "ordinary WM_PAINT reaches shared content preparation");
+    window.PumpMessages(20u); // Consume any initial-show messages before observing failed-work idleness.
+    const auto failedCalls = editor->calls;
+    const auto idleUntil   = GetTickCount64() + 40u;
+    while (GetTickCount64() < idleUntil)
+    {
+        window.PumpMessages(10u);
+        Sleep(1u);
+    }
+    Require(editor->calls == failedCalls && window.Host().HasPendingContentPreparation() && ! editor->DebugGetState().layoutReady,
+            "failed native work stays unavailable without a self-invalidating repaint loop");
+    std::wstring source;
+    for (size_t line = 0u; line < 1024u; ++line)
+        source += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    editor->fail = false;
+    editor->SetText(source);
+    Require(waitFor([&] { return ! window.Host().HasPendingContentPreparation(); }),
+            "native invalidation schedules every cooperative continuation through WM_PAINT");
+    const auto prepared = editor->DebugGetState();
+    Require(prepared.layoutReady && prepared.preparationAdvances > 1u && editor->GetText() == source,
+            "multiple message-loop turns publish only the latest complete native document");
+    window.PumpMessages(20u);
+    Require(editor->DebugGetState().preparationAdvances == prepared.preparationAdvances, "completed native content leaves no preparation polling loop");
+}
+void TestRichTextEditorNativeHostVisibilityAndZeroHeight()
+{
+    std::wstring source;
+    for (size_t line = 0u; line < 1024u; ++line)
+        source += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    Require((GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "native suspension fixture cannot activate the person's desktop window");
+    editor->SetSelection({3u, 3u});
+    Require(editor->ReplaceSelection(L"x"), "native suspension fixture retains an undo transaction");
+    source               = editor->GetText();
+    const auto selection = editor->GetSelection();
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending,
+            "native window hide fixture has staged work before suspension");
+    ShowWindow(window.Hwnd(), SW_HIDE);
+    const auto hidden = editor->DebugGetState();
+    Require(! hidden.preparationPending && ! hidden.layoutReady && hidden.retainedGeometryChunks == 0u,
+            "native window hide retires both staged and published content without requiring control visibility changes");
+    window.PumpMessages(20u);
+    Require(editor->DebugGetState().preparationAdvances == hidden.preparationAdvances && editor->GetText() == source && editor->GetSelection() == selection &&
+                editor->CanUndo(),
+            "hidden native window does not resume glyph work or lose source, selection or history");
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    Require(window.Host().RenderInitialFrameForShow() && editor->DebugGetState().preparationPending, "show starts a fresh bounded native request");
+    RECT client{};
+    Require(GetClientRect(window.Hwnd(), &client) != FALSE && client.right > 0 && client.bottom > 0,
+            "native suspension fixture has a positive original client size");
+    // Send the host's ordinary resize protocol with unchanged width and zero
+    // height. This specifically catches relying only on shaping-width changes.
+    SendMessageW(window.Hwnd(), WM_SIZE, SIZE_RESTORED, MAKELPARAM(client.right, 0));
+    Require(! editor->DebugGetState().preparationPending && ! editor->DebugGetState().layoutReady && editor->DebugGetState().retainedGeometryChunks == 0u &&
+                ! window.Host().HasActiveNativeTextInputSession(),
+            "native height-only zero extent explicitly cancels preparation and text-service geometry");
+    SendMessageW(window.Hwnd(), WM_SIZE, SIZE_RESTORED, MAKELPARAM(client.right, client.bottom));
+    RenderEditor(window);
+    Require(editor->DebugGetState().layoutReady && editor->GetText() == source && editor->GetSelection() == selection && editor->CanUndo(),
+            "native restore publishes current geometry and preserves the edit transaction");
+}
+void TestRichTextEditorNativePreparationCanReplaceRoot()
+{
+    class ReplacingEditor final : public RichTextEditor
+    {
+    public:
+        ReplacingEditor() : RichTextEditor(std::wstring(8192u, L'x')), replacement(std::make_unique<Label>(L"current root"))
+        {
+        }
+        std::unique_ptr<Control> replacement;
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            const auto result = RichTextEditor::PrepareContent(host);
+            if (result == S_OK && replacement)
+            {
+                try
+                {
+                    host.SetRoot(std::move(replacement));
+                }
+                catch (const std::exception&)
+                {
+                    return E_FAIL;
+                }
+                return S_FALSE; // this has retired; do not read another member.
+            }
+            return result;
+        }
+    };
+    AttachedHostWindow window;
+    auto editor         = std::make_unique<ReplacingEditor>();
+    const auto lifetime = GetControlLifetimeToken(*editor);
+    window.Host().SetRoot(std::move(editor));
+    Require(window.Host().RenderInitialFrameForShow() && lifetime.expired(), "native shared traversal tolerates root retirement from preparation");
+    Require(dynamic_cast<Label*>(window.Host().GetRoot()) != nullptr && window.Host().RenderInitialFrameForShow(),
+            "replacement root prepares without publishing retired editor work");
+}
 } // namespace
 
 void RunRichTextEditorTests()
@@ -445,4 +640,8 @@ void RunRichTextEditorTests()
         DXUI_RUN_TEST(TestRichTextEditorRetainedPreparationFixedTrials);
     DXUI_RUN_TEST(TestRichTextEditorNativeChunkReuseAndRetirement);
     DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
+    DXUI_RUN_TEST(TestRichTextEditorNativeCooperativePreparation);
+    DXUI_RUN_TEST(TestRichTextEditorNativeMessageSchedulingAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);
+    DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
 }

@@ -128,6 +128,18 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
     options.widthDip = 310.0f;
     if (requireWhole)
         options.fontSizeDip = 0.0001f; // The minimum private prefix font dominates this tiny document origin.
+    const auto prepareChanged = [&](PreparedDocumentLayout& prepared)
+    {
+        prepared.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
+        for (size_t turn = 0u; turn < 65536u; ++turn)
+        {
+            const auto advance = prepared.AdvancePreparation({1u, 8u});
+            Check(advance.layoutsPrepared <= 1u && advance.blockSteps <= 8u, "fault probe advances obey both cooperative work budgets");
+            if (advance.status == LayoutPreparationStatus::Complete)
+                return;
+        }
+        Check(false, "fault probe continuation must terminate");
+    };
     size_t requests = 0u;
     {
         PreparedDocumentLayout prepared;
@@ -143,7 +155,7 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
         });
         allocations = allocationBytes = 0u;
         countAllocations              = true;
-        prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
+        prepareChanged(prepared);
         countAllocations = false;
         requests         = allocations;
     }
@@ -168,15 +180,15 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
             failAllocationAfter   = failure;
             try
             {
-                prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
+                prepareChanged(prepared);
             }
             catch (const std::bad_alloc&)
             {
                 rejected = true;
             }
         }
-        Check(rejected && prepared.Ready() && prepared.Generation() == generation && prepared.Revision() == revision && prepared.Height() == height &&
-                  prepared.ChunkCount() == chunks && prepared.DisplayText() == text && prepared.SourceMatches(seed),
+        Check(rejected && ! prepared.HasPendingPreparation() && prepared.Ready() && prepared.Generation() == generation && prepared.Revision() == revision &&
+                  prepared.Height() == height && prepared.ChunkCount() == chunks && prepared.DisplayText() == text && prepared.SourceMatches(seed),
               "every failed geometry preparation preserves its published source, mapping, geometry and revision");
         prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
         Check(prepared.Ready() && prepared.Revision() == document.Revision() && prepared.SourceMatches(document.Text()),
@@ -292,8 +304,8 @@ static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
     auto* other     = otherOwned.get();
     first.Controls().SetRoot(std::move(owned));
     second.Controls().SetRoot(std::move(otherOwned));
-    Hr(first.Prepare(480, 240), "chunk reuse initial frame");
-    Hr(second.Prepare(320, 160, 144), "chunk reuse independent variant");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "chunk reuse initial frame");
+    Hr(PrepareRichEmbeddedContent(second, 320, 160, 144), "chunk reuse independent variant");
     const auto initial     = editor->DebugGetState();
     const auto independent = other->DebugGetState();
     Check(initial.retainedGeometryChunks > 1u && initial.retainedGeometryChunks <= 128u, "embedded source really uses bounded multiple chunks");
@@ -301,7 +313,7 @@ static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
     Check(editor->ReplaceSelection(L"x") && ! editor->DebugGetState().layoutReady &&
               editor->DebugGetState().retainedGeometryChunks == initial.retainedGeometryChunks,
           "embedded source invalidation hides stale geometry while retaining its bounded graph");
-    Hr(first.Prepare(480, 240), "chunk reuse changed frame");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "chunk reuse changed frame");
     Check(editor->DebugGetState().reusedGeometryChunks > 0u && editor->DebugGetState().preparedSourceUnits <= 2048u &&
               other->DebugGetState().layoutGeneration == independent.layoutGeneration && other->GetText() == seed,
           "embedded preparation reuses unchanged geometry without touching another variant");
@@ -328,13 +340,13 @@ static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
     Check(calls == 0u && bytes == 0u && first.GetStatistics().preparations == statistics.preparations &&
               first.GetStatistics().surfaceAllocations == statistics.surfaceAllocations,
           "chunked cached composition performs no C++ allocation or preparation");
-    Hr(first.Prepare(320, 240), "chunk geometry width variant");
+    Hr(PrepareRichEmbeddedContent(first, 320, 240), "chunk geometry width variant");
     Check(editor->DebugGetState().reusedGeometryChunks == 0u, "width change cannot reuse incompatible geometry");
     first.SetVisible(false);
     Check(! editor->DebugGetState().layoutReady && editor->DebugGetState().retainedGeometryChunks == 0u && ! first.NeedsPreparation(),
           "hidden embedded view retires every geometry chunk without scheduling work");
     first.SetVisible(true);
-    Hr(first.Prepare(480, 240), "resumed chunk geometry");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "resumed chunk geometry");
     Check(editor->DebugGetState().reusedGeometryChunks == 0u && editor->Undo() && editor->GetText() == seed,
           "resuming rebuilds resources while retaining independent source history");
 }

@@ -792,3 +792,24 @@ shared native TSF/IMM and embedded source text adapter plus Document/Text/Text2/
 TextEdit UIA, mapped source geometry and single-transaction composition. Actual
 IME/AT/physical/platform qualification remains separate under the input contract.
 The capability is explicitly a preview, not complete rich-text/Markdown support.
+
+Cooperative preparation: content owners
+opt into ControlHost's shared preparation traversal. S_FALSE retains one pending
+owner request for a later turn; failure permits explicit retry without an
+automatic retry loop. Rich text stages one immutable source/geometry request
+and publishes it atomically. Source/mode/binding/width/typography/resource changes
+cancel obsolete work. Geometry queries must not drain preparation; unavailable
+current geometry returns the existing optional/error result. Source text, Unicode
+logical edits, history and IME transactions remain available while reflow is
+pending. Pixel completion precedes text-service/UIA geometry notification.
+
+Native window hiding and either zero-size dimension cancel retained content,
+including a height-only resize whose shaping width stays unchanged. This does
+not discard the native swap chain on WM_SHOWWINDOW/WM_SETREDRAW. The next real
+visible/sized owner preparation rebuilds the current request; source, selection
+and history survive suspension.
+
+BeginPreparation still constructs the bounded v0 projection/indexes at once.
+Logical pending edits may project bounded source without DirectWrite; neither
+path is a resumable complete Markdown parser. These limits and indivisible
+long-paragraph/whole SDK calls remain pending performance work.

@@ -655,3 +655,20 @@ unchanged five-trial preparation observations do not establish quiet-host,
 same-binary drift, causal speedup, large-document latency or frame acceptance.
 Clear uses fallibly preconstructed retirement storage; staged projection building
 must not depend on optional NRVO to avoid noexcept Debug proxy termination.
+
+Cooperative rich preparation retains at
+most one published and one staged bounded graph per owner; immutable geometry
+can be shared between them. Each graph keeps the existing 127 chunk plus one
+whole-layout bound. Advancing limits SDK layouts and block/reused-placement work
+separately (default 4 layouts/4,096 steps per visible owner per host turn). Aggregate
+host work also depends on visible owner count. Projection construction, joining
+and one physical paragraph/whole SDK call are indivisible v0 work, so these are
+work-unit ceilings, not hard millisecond guarantees. Cancellation/retirement adds
+no heap work. No per-editor worker, timer, device or HWND is introduced.
+
+One outstanding application wakeup is separate from dirty surface state. A
+pending turn may request one continuation; a failed turn must not self-reschedule.
+Clean/hidden work does not poll; new source after failure can request explicit
+retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
+
+The [cooperative preparation record](../../Measurements/RichText/2026-10-18-cooperative/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.

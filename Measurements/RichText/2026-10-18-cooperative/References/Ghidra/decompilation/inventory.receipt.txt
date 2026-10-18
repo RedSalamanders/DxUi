@@ -1,0 +1,84 @@
+{
+  "classification": "read-only-pinned-office-cooperative-work-decompilation",
+  "sha256": "7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41",
+  "programPath": "/office-modern/RICHED20.DLL",
+  "imageBase": "180000000",
+  "language": "x86:LE:64:default",
+  "functions": [
+    {
+      "name": "CDisplayEngineML::StartBackgroundRecalc",
+      "entry": "1801a5324",
+      "rva": "0x1a5324",
+      "bodyBytes": 182,
+      "signature": "bool __thiscall StartBackgroundRecalc(void)",
+      "warning": "",
+      "file": "1801a5324.c"
+    },
+    {
+      "name": "CDisplayEngineML::IsBackgroundRecalcDone",
+      "entry": "180203160",
+      "rva": "0x203160",
+      "bodyBytes": 25,
+      "signature": "bool __thiscall IsBackgroundRecalcDone(void)",
+      "warning": "",
+      "file": "180203160.c"
+    },
+    {
+      "name": "CDisplayEngineML::StepBackgroundRecalc",
+      "entry": "180203220",
+      "rva": "0x203220",
+      "bodyBytes": 93,
+      "signature": "void __thiscall StepBackgroundRecalc(void)",
+      "warning": "",
+      "file": "180203220.c"
+    },
+    {
+      "name": "CDisplayML::WaitForRecalcIli",
+      "entry": "18014be50",
+      "rva": "0x14be50",
+      "bodyBytes": 142,
+      "signature": "bool __thiscall WaitForRecalcIli(long param_1)",
+      "warning": "",
+      "file": "18014be50.c"
+    },
+    {
+      "name": "CDisplayML::WaitForRecalcView",
+      "entry": "18014ceb0",
+      "rva": "0x14ceb0",
+      "bodyBytes": 45,
+      "signature": "bool __thiscall WaitForRecalcView(void)",
+      "warning": "",
+      "file": "18014ceb0.c"
+    },
+    {
+      "name": "CDisplay::FLayoutRecalcPending",
+      "entry": "18014da00",
+      "rva": "0x14da00",
+      "bodyBytes": 27,
+      "signature": "bool __thiscall FLayoutRecalcPending(void)",
+      "warning": "",
+      "file": "18014da00.c"
+    },
+    {
+      "name": "CDisplay::RequestStrongRecalc",
+      "entry": "1800544d0",
+      "rva": "0x544d0",
+      "bodyBytes": 209,
+      "signature": "void __thiscall RequestStrongRecalc(void)",
+      "warning": "",
+      "file": "1800544d0.c"
+    },
+    {
+      "name": "CDisplayML::RecalcLine",
+      "entry": "180204c80",
+      "rva": "0x204c80",
+      "bodyBytes": 102,
+      "signature": "void __thiscall RecalcLine(long param_1)",
+      "warning": "",
+      "file": "180204c80.c"
+    }
+  ],
+  "programChanged": false,
+  "activeBefore": "/windows-edit/user32.dll",
+  "activeAfter": "/windows-edit/user32.dll"
+}

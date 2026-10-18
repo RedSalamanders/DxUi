@@ -1,0 +1,125 @@
+{
+  "classification": "actual-read-only-ghidra-mcp-saved-office-function-inventory",
+  "sha256": "7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41",
+  "programPath": "/office-modern/RICHED20.DLL",
+  "scannedFunctions": 9706,
+  "matches": [
+    {
+      "name": "CDisplayML::StepBackgroundRecalc",
+      "entry": "1800040b0",
+      "rva": "0x40b0",
+      "bodyBytes": 203
+    },
+    {
+      "name": "CDisplayEngineML::RecalcLines",
+      "entry": "18003df50",
+      "rva": "0x3df50",
+      "bodyBytes": 2185
+    },
+    {
+      "name": "CDisplayML::WaitForRecalc",
+      "entry": "180040810",
+      "rva": "0x40810",
+      "bodyBytes": 380
+    },
+    {
+      "name": "CDisplayEngineML::WaitForRecalc",
+      "entry": "180040990",
+      "rva": "0x40990",
+      "bodyBytes": 650
+    },
+    {
+      "name": "CDisplayML::RecalcView",
+      "entry": "180041280",
+      "rva": "0x41280",
+      "bodyBytes": 2418
+    },
+    {
+      "name": "CDisplay::InvalidateRecalc",
+      "entry": "180045170",
+      "rva": "0x45170",
+      "bodyBytes": 217
+    },
+    {
+      "name": "CDisplay::RequestStrongRecalc",
+      "entry": "1800544d0",
+      "rva": "0x544d0",
+      "bodyBytes": 209
+    },
+    {
+      "name": "CDisplayEngineML::RecalcView",
+      "entry": "1800e1b30",
+      "rva": "0xe1b30",
+      "bodyBytes": 99
+    },
+    {
+      "name": "CDisplayEngineML::RecalcLines",
+      "entry": "18010ed50",
+      "rva": "0x10ed50",
+      "bodyBytes": 11770
+    },
+    {
+      "name": "CDisplayML::WaitForRecalcIli",
+      "entry": "18014be50",
+      "rva": "0x14be50",
+      "bodyBytes": 142
+    },
+    {
+      "name": "CDisplayML::WaitForRecalcView",
+      "entry": "18014ceb0",
+      "rva": "0x14ceb0",
+      "bodyBytes": 45
+    },
+    {
+      "name": "CDisplay::FLayoutRecalcPending",
+      "entry": "18014da00",
+      "rva": "0x14da00",
+      "bodyBytes": 27
+    },
+    {
+      "name": "CDisplay::RecalcView",
+      "entry": "180170820",
+      "rva": "0x170820",
+      "bodyBytes": 340
+    },
+    {
+      "name": "CDisplayML::RecalcScrollBars",
+      "entry": "18017cd20",
+      "rva": "0x17cd20",
+      "bodyBytes": 167
+    },
+    {
+      "name": "CDisplayEngineML::StartBackgroundRecalc",
+      "entry": "1801a5324",
+      "rva": "0x1a5324",
+      "bodyBytes": 182
+    },
+    {
+      "name": "CDisplayEngineML::IsBackgroundRecalcDone",
+      "entry": "180203160",
+      "rva": "0x203160",
+      "bodyBytes": 25
+    },
+    {
+      "name": "CDisplayEngineML::StepBackgroundRecalc",
+      "entry": "180203220",
+      "rva": "0x203220",
+      "bodyBytes": 93
+    },
+    {
+      "name": "CDisplayML::ForcePtsRecalc",
+      "entry": "180204480",
+      "rva": "0x204480",
+      "bodyBytes": 43
+    },
+    {
+      "name": "CDisplayML::RecalcLine",
+      "entry": "180204c80",
+      "rva": "0x204c80",
+      "bodyBytes": 102
+    }
+  ],
+  "programChanged": false,
+  "activeBefore": "/windows-edit/user32.dll",
+  "activeAfter": "/windows-edit/user32.dll"
+}

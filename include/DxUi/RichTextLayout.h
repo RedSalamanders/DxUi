@@ -94,6 +94,22 @@ struct LayoutPreparation
     std::size_t preparedChunks{}, reusedChunks{}, preparedSourceUnits{};
     std::size_t wholeLayoutsPrepared{}, wholeLayoutsReused{}, wholeLayoutSourceUnits{};
 };
+enum class LayoutPreparationStatus
+{
+    Idle,
+    Pending,
+    Complete
+};
+struct LayoutWorkBudget
+{
+    std::size_t maximumLayouts    = 4u;
+    std::size_t maximumBlockSteps = 4096u;
+};
+struct LayoutAdvance
+{
+    LayoutPreparationStatus status = LayoutPreparationStatus::Idle;
+    std::size_t layoutsPrepared{}, blockSteps{};
+};
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout
 // bound the retained graph. Private positioning lines preserve DirectWrite's
@@ -111,6 +127,18 @@ public:
     PreparedDocumentLayout(const PreparedDocumentLayout&)            = delete;
     PreparedDocumentLayout& operator=(const PreparedDocumentLayout&) = delete;
     void Prepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options);
+    // Owner-thread staging. Begin coalesces the previous request only after its
+    // replacement is staged successfully. Projection/index construction is still
+    // one indivisible v0 operation; budgets bound advances, not CPU milliseconds.
+    LayoutPreparationStatus BeginPreparation(
+        IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options);
+    // Limits SDK layout calls and source-block/reused-placement walking separately.
+    // One physical paragraph or whole compatibility layout remains indivisible.
+    // Failure discards staging and preserves the published pair and generation.
+    LayoutAdvance AdvancePreparation(const LayoutWorkBudget& budget = {});
+    bool HasPendingPreparation() const noexcept;
+    LayoutPreparation PendingPreparation() const noexcept;
+    void CancelPreparation() noexcept;
     void Invalidate() noexcept;
     void Clear() noexcept;
     bool Ready() const noexcept;
@@ -145,9 +173,11 @@ public:
 
 private:
     struct State;
+    struct Preparation;
     const State& Prepared() const;
     std::size_t ChunkAt(std::size_t position) const;
     std::unique_ptr<State> state_;
+    std::unique_ptr<Preparation> pending_;
     std::uint64_t generation_{};
     bool ready_{};
 };

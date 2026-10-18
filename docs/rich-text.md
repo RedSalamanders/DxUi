@@ -498,8 +498,52 @@ the study; they cannot establish a quiet host or attribute individual frames.
 Keep all windows/outliers and the original HOLD. This is a complex-UI diagnostic,
 not a rich-editor edit-throughput or baseline/candidate acceptance result.
 
-The unchanged explicit native preparation trial now has initial/edit medians of
-683.7/66,413.6 ms on this shared host. These observations retain the same library
+The earlier explicit native preparation trial recorded initial/edit medians of
+683.7/66,413.6 ms on this shared host. Those observations retain the same library
 fingerprint as the prior guarded geometry; no causal speed/regression conclusion
-follows. Exact retained line placement/drawing, shared preparation and the full
-Markdown/extension engine remain active implementation work.
+follows. The later positioned-line record qualifies exact retained placement;
+cooperative preparation and the full Markdown/extension engine remain active work.
+
+Cooperative preparation is implemented and configuration-qualified. The core exposes `BeginPreparation`,
+`AdvancePreparation` and `CancelPreparation`; synchronous `Prepare` drains those
+phases for direct core users. The control uses shared host turns, never an input/
+geometry callback drain. An embedded pending turn returns S_FALSE with
+`NeedsPreparation()` true; process the next wakeup before composing or publishing
+geometry. Source typing, history and IME remain available while glyph work waits.
+
+Hiding a native window or making either client dimension zero cancels retained
+content, even if the shaping width stays unchanged. Show/restore prepares again
+without losing source, selection or undo history. Native swap-chain ownership
+and WM_SETREDRAW handling stay with the host.
+
+The default owner advance permits four SDK layouts and 4,096 block/placement
+steps. A physical paragraph/whole SDK call and the bounded v0 projection pass
+remain indivisible. Logical commands without current geometry may project source
+without DirectWrite. No hard input latency, large-document or resumable full
+parser claim follows. All ordinary x64 Debug/Release/ASan suites and all six build profiles pass; native ARM64 runtime and physical IME/AT remain separate.
+
+Parser design references requested for the complete engine:
+
+- [MD4C](https://github.com/mity/md4c/tree/60e8065cfccd5d7ac561115f9a9bfbdf811f5cc9)
+  uses block/span/text callbacks and offers a Windows UTF-16 build. Borrow its
+  parsing/rendering separation and explicit callback handling. Callback abort
+  is not resumable pause; complete-document parsing still needs scheduling and
+  cancellation. Current-head claims are separate from release-0.5.2 and our
+  pinned conformance corpora.
+- [Discount](https://github.com/Orc/discount/tree/0cc4fef6b7ccdc19a8e64ef73aa21596b47c335b)
+  separates input, compilation and document generation, with explicit dialect/
+  feature flags. Use that separation to inform selectable profiles; its legacy
+  Markdown compatibility is not a strict CommonMark/GFM oracle.
+- [cmark-gfm](https://github.com/github/cmark-gfm/tree/27d942c8b0a62d192f616e5bf3578f4b6a89e180)
+  exposes an AST, source positions, input feed/finish and extension interfaces.
+  Use these to inform semantic nodes, extension boundaries and independent
+  tests. Feed/finish alone does not establish resumable edit reflow or bounded
+  CPU time.
+
+These are design inferences from pinned public README/API/license snapshots.
+No parser implementation/dependency is adopted. The owned editor still needs
+lossless anchors, explicit UTF-8/UTF-16 mappings where applicable, the accepted
+extensions and full corpus qualification. An HTML output renderer or private
+Microsoft engine does not replace the owned Unicode control.
+
+The [cooperative preparation record](../Measurements/RichText/2026-10-18-cooperative/README.md) retains native/build/pixel/fault/resource evidence, all original failed/interrupted attempts and pinned Ghidra/parser references. This closes the scheduling component; the full engine and original frame-performance HOLD remain open.

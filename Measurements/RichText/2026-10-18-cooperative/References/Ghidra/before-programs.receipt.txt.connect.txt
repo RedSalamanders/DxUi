@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"connected\": true, \"transport\": \"tcp\", \"url\": \"http://127.0.0.1:8089\", \"tools_registered\": 67, \"tools_total\": 205, \"loaded_groups\": [\"function\", \"listing\", \"program\"], \"note\": \"Loaded 67/205 tools (default groups). Use load_tool_group() for more.\"}"
+    }
+  ],
+  "isError": false
+}

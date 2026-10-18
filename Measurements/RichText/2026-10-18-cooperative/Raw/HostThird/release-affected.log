@@ -1,0 +1,64 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2376.4 completed offscreen FPS; p95 0.5519 ms; private 27938816 bytes
+Complex UI clean round 2: 2507.6 completed offscreen FPS; p95 0.4779 ms; private 28422144 bytes
+Complex UI clean round 3: 2401.88 completed offscreen FPS; p95 0.4858 ms; private 28647424 bytes
+Complex UI clean round 4: 2390 completed offscreen FPS; p95 0.4911 ms; private 28680192 bytes
+Complex UI clean round 5: 2418.2 completed offscreen FPS; p95 0.5081 ms; private 28647424 bytes
+Complex UI dirty round 1: 592.655 completed offscreen FPS; p95 2.0257 ms; private 29204480 bytes
+Complex UI dirty round 2: 594.719 completed offscreen FPS; p95 1.9632 ms; private 29077504 bytes
+Complex UI dirty round 3: 602.275 completed offscreen FPS; p95 1.8701 ms; private 29179904 bytes
+Complex UI dirty round 4: 542.519 completed offscreen FPS; p95 2.0701 ms; private 29196288 bytes
+Complex UI dirty round 5: 566.632 completed offscreen FPS; p95 2.0094 ms; private 28999680 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Release-8d8a98272bb54baab380b05556ad7cba.json
+Running Embedded (x64 Release)
+FAIL Embedded exited with code 1
+rich geometry maximum kind=1 sourceUnits=65536 chunks=1 retainedCppBytes=5690558 releasedDelta=0
+rich geometry maximum kind=2 sourceUnits=65536 chunks=64 retainedCppBytes=13290725 releasedDelta=0
+rich geometry replacement lines=1024 edits=512 retainedCppBytes=2845969 peakCppBytes=2946550 releasedDelta=0
+rich UIA ranges sourceUnits=32 largestMetadataRequestBytes=400
+rich UIA ranges sourceUnits=65536 largestMetadataRequestBytes=400
+Embedded multiline grid cell 0,0: twin ink from 17, changed inside or on rows the twin leaves blank 0, marker pixels 12
+Embedded multiline grid cell 0,1: twin ink from 236, changed inside or on rows the twin leaves blank 0, marker pixels 14
+Embedded multiline grid row 1: ink rows 29 at clamp 2, 43 at clamp 3
+Embedded multiline grid at 144 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 96 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+Running EditorControls (x64 Release)
+FAIL EditorControls exited with code 1
+  [DONE] TestRichTextEditorUnicodeCharacterTransactions (0.000 s)
+  [START] TestRichTextEditorFormattingAndModePreserveSource
+  [DONE] TestRichTextEditorFormattingAndModePreserveSource (0.000 s)
+  [START] TestRichTextEditorCallbackRetirementAndFailure
+  [DONE] TestRichTextEditorCallbackRetirementAndFailure (0.000 s)
+  [START] TestRichTextEditorNativeHostAndLayoutReuse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeHostAndLayoutReuse (0.090 s)
+  [START] TestRichTextEditorNativeUnicodeRoutingAndNavigation
+FAILED: down enters next prepared line
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)

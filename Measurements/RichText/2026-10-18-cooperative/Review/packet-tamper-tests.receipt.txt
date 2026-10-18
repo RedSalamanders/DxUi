@@ -1,0 +1,36 @@
+{
+  "classification": "Negative integrity tests on disposable preserved copies; actual packets unchanged",
+  "scheduled": 2,
+  "childBudgetSeconds": 120,
+  "cases": [
+    {
+      "tamperedSha256": "E1EE3BAA7782B8E3812874B1FFE365A6231DF35A1F721E04241E8DFDDECDB61E",
+      "drained": true,
+      "target": "Native/Embedded-x64-Release.receipt.txt",
+      "nativeChildPid": 3444,
+      "packet": "2026-10-18-cooperative",
+      "timedOut": false,
+      "exitCode": 1,
+      "originalSha256": "556F1A5F04F7801612BEA4546C2A514A9EA8734AFBFE446732EE4F6D20ACFF7D",
+      "originalUnchanged": true,
+      "expectedHashFailure": true,
+      "copiedDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\tamper-4a2aea47d485401eb296205ce7ec16d2"
+    },
+    {
+      "tamperedSha256": "A55624E633A71D1C46FE47078A6DE0057FC99E39E4364B671AD27FC2D57BB665",
+      "drained": true,
+      "target": "Source/src/Controls/DxUi.RichDocumentLayout.cpp",
+      "nativeChildPid": 107152,
+      "packet": "2026-10-18-cooperative",
+      "timedOut": false,
+      "exitCode": 1,
+      "originalSha256": "EBEC58B503AFA5673EE0F1DADA734130CAE3051E9FE9C52F5BB50083AE8E37D4",
+      "originalUnchanged": true,
+      "expectedHashFailure": true,
+      "copiedDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\tamper-87805ec37cb54eedac5890f653dc862e"
+    }
+  ],
+  "elapsedSeconds": 7.6926396,
+  "scriptSha256": "DF0685A5090609692F20AB63738433AE964414862097C84F11CE3DA06B7300DB",
+  "attempted": 2
+}

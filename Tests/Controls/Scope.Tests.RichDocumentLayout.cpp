@@ -779,6 +779,116 @@ void TestRichDocumentLayoutBranchesOptionsAndCompaction()
     Require(prepared.LastPreparation().reusedChunks == 0u && prepared.LastPreparation().preparedSourceUnits == sibling.Length(),
             "expired bounded source ancestry falls back to complete preparation");
 }
+void DrainDocumentPreparation(PreparedDocumentLayout& layout, const LayoutWorkBudget& budget)
+{
+    for (size_t call = 0u; call < 200000u; ++call)
+    {
+        const auto advance = layout.AdvancePreparation(budget);
+        Require(advance.layoutsPrepared <= budget.maximumLayouts && advance.blockSteps <= budget.maximumBlockSteps,
+                "each cooperative advance obeys both independent work budgets");
+        if (advance.status == LayoutPreparationStatus::Complete)
+            return;
+        Require(advance.status == LayoutPreparationStatus::Pending && layout.HasPendingPreparation(),
+                "incomplete preparation retains an explicit continuation");
+    }
+    Require(false, "finite document preparation must terminate within its independent test bound");
+}
+void TestRichDocumentLayoutCooperativeBudgetsAndGeometry()
+{
+    const auto factory = DocumentFactory();
+    std::wstring source;
+    for (size_t line = 0u; line < 160u; ++line)
+        source += line % 7u ? L"mixed **bold** a\u0301 \U0001f600 \u05d0\u05d1\r\n" : L"# Heading\n";
+    Document document(source);
+    for (const auto font : {13.0f, 18.1f, 0.0001f})
+    {
+        LayoutOptions options;
+        options.widthDip    = 273.25f;
+        options.fontSizeDip = font;
+        PreparedLayout flat;
+        flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), options);
+        for (const auto budget : {LayoutWorkBudget{1u, 1u}, LayoutWorkBudget{2u, 17u}, LayoutWorkBudget{128u, 100000u}})
+        {
+            PreparedDocumentLayout layout;
+            const auto generation = layout.Generation();
+            Require(layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options) ==
+                            LayoutPreparationStatus::Pending &&
+                        ! layout.Ready() && layout.Generation() == generation,
+                    "begin stages source/projection without publishing incomplete geometry");
+            DrainDocumentPreparation(layout, budget);
+            Require(layout.Generation() == generation + 1u && ! layout.HasPendingPreparation(), "one coherent publication increments generation once");
+            CompareDocumentGeometry(layout, flat, 17u);
+            Require(layout.AdvancePreparation(budget).status == LayoutPreparationStatus::Idle, "advancing completed work does not republish it");
+            document.Replace(0u, 0u, L"inserted\n", {0u, 0u});
+            layout.Invalidate();
+            layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
+            DrainDocumentPreparation(layout, budget);
+            flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), options);
+            CompareDocumentGeometry(layout, flat, 19u);
+            Require(document.Undo(), "cooperative geometry fixture restores the original source");
+            flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), options);
+        }
+    }
+}
+void TestRichDocumentLayoutCoalescingCancellationAndFailure()
+{
+    const auto factory = DocumentFactory();
+    LayoutOptions options;
+    options.widthDip = 310.0f;
+    Document original(L"published **source**"), candidate(std::wstring(5120u, L'x'));
+    PreparedDocumentLayout layout;
+    layout.Prepare(factory.get(), original.Snapshot(), original.Revision(), ViewMode::Rich, options);
+    const auto generation = layout.Generation();
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+    const auto first = layout.AdvancePreparation({1u, 1u});
+    Require(first.status == LayoutPreparationStatus::Pending && layout.SourceMatches(original.Text()) && layout.Generation() == generation,
+            "pending work leaves the previous published source/geometry pair intact");
+    Require(layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options) == LayoutPreparationStatus::Pending,
+            "identical request coalesces without resetting continuation");
+    Require(layout.PendingPreparation().preparedChunks == 1u, "coalescing preserves work already completed by the previous advance");
+    layout.CancelPreparation();
+    Require(! layout.HasPendingPreparation() && layout.Ready() && layout.SourceMatches(original.Text()) && layout.Generation() == generation,
+            "cancellation retires only staging and does not fabricate a publication");
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+    Document replacement(L"different identity, equal caller revision");
+    layout.BeginPreparation(factory.get(), replacement.Snapshot(), candidate.Revision(), ViewMode::Source, options);
+    DrainDocumentPreparation(layout, {1u, 1u});
+    Require(layout.SourceMatches(replacement.Text()) && ! layout.SourceMatches(candidate.Text()), "latest source/mode wins despite equal numeric revision");
+    const auto publishedGeneration = layout.Generation();
+    auto invalid                   = options;
+    invalid.widthDip               = std::numeric_limits<float>::quiet_NaN();
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, invalid);
+    bool rejected = false;
+    try
+    {
+        DrainDocumentPreparation(layout, {1u, 1u});
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    Require(rejected && ! layout.HasPendingPreparation() && layout.Generation() == publishedGeneration && layout.SourceMatches(replacement.Text()),
+            "failed advance discards staging and preserves the published pair");
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+    rejected = false;
+    try
+    {
+        static_cast<void>(layout.AdvancePreparation({0u, 1u}));
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    Require(rejected && layout.HasPendingPreparation(), "invalid work budget leaves a valid pending request intact");
+    layout.Invalidate();
+    Require(! layout.Ready() && ! layout.HasPendingPreparation(), "invalidation cancels an obsolete request and rejects old geometry");
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+    layout.Clear();
+    Require(! layout.Ready() && ! layout.HasPendingPreparation() && layout.ChunkCount() == 0u, "clear retires published and staged graphs");
+    layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+    DrainDocumentPreparation(layout, {1u, 1u});
+    Require(layout.SourceMatches(candidate.Text()), "retired or failed preparation can be explicitly retried");
+}
 } // namespace
 void RunRichDocumentLayoutTests()
 {
@@ -794,4 +904,6 @@ void RunRichDocumentLayoutTests()
     DXUI_RUN_TEST(TestRichDocumentLayoutLongHeightAndChunkBudget);
     DXUI_RUN_TEST(TestRichDocumentLayoutWarpRasterOracle);
     DXUI_RUN_TEST(TestRichDocumentLayoutBranchesOptionsAndCompaction);
+    DXUI_RUN_TEST(TestRichDocumentLayoutCooperativeBudgetsAndGeometry);
+    DXUI_RUN_TEST(TestRichDocumentLayoutCoalescingCancellationAndFailure);
 }

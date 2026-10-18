@@ -55,6 +55,16 @@ Applications retain HWND/TSF client, focusId/revision and screen-placement owner
 prepare changed composition/scroll/DPI before publishing geometry or accessibility.
 Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
 
+Cooperative content preparation: Prepare returns
+S_FALSE with NeedsPreparation=true while owner work remains; the application
+callback requests the next event-driven turn. No partial surface is composed.
+One outstanding notification coalesces further changes even while pixels remain
+dirty. Failure schedules no automatic retry. Geometry/pointer input stays
+unavailable; an explicitly opted-in focused rich editor may export/edit current
+source and run revision-checked IME transactions. Tree/bounds/visibility/focus/
+resource changes revoke pending text permission. Replacement, hiding, zero extent
+and detach cancel obsolete staging.
+
 `GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
 embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared
 pool, its own ControlHost and one offscreen BGRA surface. Two density variants use two EmbeddedHosts with the same

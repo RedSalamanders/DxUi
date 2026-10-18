@@ -1,0 +1,140 @@
+[
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.ControlTests.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "5C0360B9CD6BA4AA8B8F3538428FC1AEC6F13BA71829DA2B8993C3B09F976E40"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.ControlTests.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.ControlTests.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "FFDB2791FDECA19DB4B179BE790A23B694B7EB16761A450F6CBEAFFB524F6677"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.EmbeddedControls.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedControls.exe",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "AD36699112B4BC1B6580DB7E79141E550855408DF712F1CCE8B49AF8408A8495"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.EmbeddedControls.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedControls.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "EA4F0768B90CA8BF705C299D73ECF9555E7E6492A9A49BF416F012101CB1EAB5"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "79EE44EBB81810FBB4E28C188A4F631593AE3F83EDC5EB70A5E1E5DD148A9B1A"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.EmbeddedTests.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "09C42E49977B72F2442A78A3F6900BF8009731140BFE51C3B31DD669E8F47F81"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.FoundationTests.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.FoundationTests.exe",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "97AFE578EFBB94012944F0522095CA4693DEFE0A8AB71B90A05E185A290A0067"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.FoundationTests.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.FoundationTests.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "717EE45DE317F27D22DBEE460531C2E4F46A239A03DCA17674F27682EB955D20"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.InteractiveLease.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.InteractiveLease.exe",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "E8298A5004524E5D01AB387AB4B4863734EECEEF23513EDAD6B706AE95B54988"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.InteractiveLease.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.InteractiveLease.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "52F68FE11C2BAE1E3F0F8E467017AF02903B65D6ACE773E35AF7B4A2A61EC9B7"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.lib",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.lib",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "C83AEA57162C354E7862D2E0DEAD772ECF106D0F42C6F3A30C239AB1137C4D6F"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\Debug\\DxUi.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.pdb",
+    "classification": "Complete first-matrix Debug outputs",
+    "sha256": "035AC0406660F10A6E40FE8ADB09C6B090966BBF2454B7D6B2A8817E619DE8C6"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\clang_rt.asan_dynamic-x86_64.dll",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\clang_rt.asan_dynamic-x86_64.dll",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.EmbeddedControls.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedControls.exe",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "EF6BF16C472A4C66726DB7CD825D38D0F7471D7E3BD048DB9BB5462E350BEBBF"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.EmbeddedControls.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedControls.pdb",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "DD4E14E9380B60C4393EC1F344AFE931E89AA8DC0A3A6FDA902E356DCC2C9EAF"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "E2D3CD10FB85B3BCE9F4B7487A195842C2967D05A05C79F1D28807BF2112F7A6"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.EmbeddedTests.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.pdb",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "F78B84DCBE9D0F4B0D113BA4D05F4A72876EEA888BDF0C865079C9B51AFC1FA1"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "E001FAA35DD0ACCF810EF423BFB6249FB4B512F92802ED6ECAD72F7C23FCF134"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.FoundationTests.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.pdb",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "7CB60C244753FAD9C11E3F249EE4434F892196FA436549AAB694EC4F174ED52C"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.exe",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "AD2D90638F15B0101D9D5122DDB96BBA8DEEDA5DC0170B014AE72646A52934C9"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.InteractiveLease.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.InteractiveLease.pdb",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "896AA6081505443AEC4CDCC115724C597B94CD5BBB8D66CAA93F438135452806"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.lib",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.lib",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "E336C43EB31E060533B0361B7C9F2F288E7C85A7F3CE54D068162C4284951D15"
+  },
+  {
+    "copy": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\FirstMatrix\\AttemptArtifacts\\x64\\ASan Debug\\DxUi.pdb",
+    "path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.pdb",
+    "classification": "Aborted ASan build output bytes, not a successful profile",
+    "sha256": "A95E20E6BFC702B41E7256BF1783F00F92C627EEF9F27DEAB4C330C92B203B30"
+  }
+]

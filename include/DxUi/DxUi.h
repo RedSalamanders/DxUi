@@ -1682,6 +1682,13 @@ protected:
     void EnableIntrinsicLayout() noexcept;
     void RequestIntrinsicLayout() noexcept;
     [[nodiscard]] virtual HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept;
+    // Shared owner preparation: S_FALSE requests another cooperative turn;
+    // failure retains dirty work for an explicit retry without a retry loop.
+    void EnableContentPreparation() noexcept;
+    void RequestContentPreparation(bool requestWake = true) const noexcept;
+    [[nodiscard]] virtual HRESULT PrepareContent(ControlHost& host) noexcept;
+    virtual void CancelContentPreparation() noexcept;
+    [[nodiscard]] virtual bool AcceptsTextInputDuringPreparation() const noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
     virtual void OnCaptureLost(ControlHost& host);
@@ -1729,10 +1736,12 @@ private:
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
-    std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
-    uint64_t _measureRevision           = 0u;
-    bool _intrinsicLayoutEnabled        = false;
-    bool _intrinsicLayoutPending        = false;
+    std::shared_ptr<int> _lifetimeToken     = std::make_shared<int>(0);
+    uint64_t _measureRevision               = 0u;
+    bool _intrinsicLayoutEnabled            = false;
+    bool _intrinsicLayoutPending            = false;
+    bool _contentPreparationEnabled         = false;
+    mutable bool _contentPreparationPending = false;
 };
 
 [[nodiscard]] inline HRESULT MeasureControl(const Control& control,
@@ -2777,6 +2786,11 @@ struct RichTextEditorDebugState
     bool wholeRasterFallback      = false;
     size_t wholeLayoutsPrepared   = 0;
     size_t wholeLayoutSourceUnits = 0;
+    bool preparationPending       = false;
+    size_t preparationAdvances    = 0;
+    size_t cancelledPreparations  = 0;
+    size_t lastAdvanceLayouts     = 0;
+    size_t lastAdvanceBlockSteps  = 0;
 };
 
 class RichTextEditor : public Control
@@ -2829,6 +2843,9 @@ public:
     bool OnSelectAll(ControlHost& host) noexcept override;
 
 protected:
+    [[nodiscard]] HRESULT PrepareContent(ControlHost& host) noexcept override;
+    void CancelContentPreparation() noexcept override;
+    [[nodiscard]] bool AcceptsTextInputDuringPreparation() const noexcept override;
     [[nodiscard]] bool SupportsTextInput() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputViewportRect() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputCaretRect(const ControlHost& host, size_t sourceIndex) const noexcept override;
@@ -2850,7 +2867,9 @@ private:
     struct State;
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
-    void EnsureLayout(const ControlHost& host) const;
+    [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
+    void RequireCurrentLayout(const ControlHost& host) const;
+    void UpdateCaretScroll() const;
     void RetireLayout() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true);
@@ -5085,6 +5104,10 @@ public:
     [[nodiscard]] ID2D1DeviceContext* GetDeviceContext() const noexcept;
     [[nodiscard]] IDWriteFactory* GetWriteFactory() const noexcept;
     [[nodiscard]] uint64_t GetTypographyRevision() const noexcept;
+    // Monotonic owner resource epoch, including retirement/replacement even
+    // when a COM interface later has the same address.
+    [[nodiscard]] uint64_t GetResourceGeneration() const noexcept;
+    [[nodiscard]] bool HasPendingContentPreparation() const noexcept;
     [[nodiscard]] uint64_t GetInteractionRevision() const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role) const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
@@ -5194,12 +5217,19 @@ private:
     uint64_t _interactionRevision             = 0;
     bool _pendingPageLayout                   = false;
     bool _pendingIntrinsicLayout              = false;
+    mutable bool _pendingContentPreparation   = false;
+    bool _contentPreparationContinues         = false;
+    bool _contentGeometryChanged              = false;
+    uint64_t _preparedContentResources        = 0u;
+    uint64_t _preparedContentTypography       = 0u;
     mutable uint64_t _typographyRevision      = 0u;
     const Control* _intrinsicArrangeBranch    = nullptr;
     uint64_t _intrinsicArrangeForeignRevision = 0u;
     uint64_t _intrinsicArrangeBoundsRevision  = 0u;
     void BeginIntrinsicArrange(const Control& owner) noexcept;
     [[nodiscard]] bool PreparePendingPageLayout() noexcept;
+    void PublishPreparedContent() noexcept;
+    void CancelPreparedContent() noexcept;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;
@@ -5359,6 +5389,7 @@ private:
     UINT _swapChainWidthPx                 = 0;
     UINT _swapChainHeightPx                = 0;
     uint64_t _sharedGraphicsGeneration     = 0u;
+    uint64_t _resourceGeneration           = 1u;
     bool _forceFullPresentAfterBufferReset = false;
 
     mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache;

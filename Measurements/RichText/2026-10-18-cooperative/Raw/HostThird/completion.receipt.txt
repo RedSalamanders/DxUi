@@ -1,0 +1,49 @@
+{
+  "attempted": 2,
+  "operations": [
+    {
+      "exitCode": 0,
+      "processId": 87648,
+      "elapsedSeconds": 306.8471171,
+      "drained": true,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release"
+      ],
+      "timedOut": false,
+      "name": "release-build"
+    },
+    {
+      "exitCode": 1,
+      "processId": 104904,
+      "elapsedSeconds": 202.6503145,
+      "drained": true,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\test.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Release",
+        "-Suites",
+        "Embedded,EditorControls,Accessibility",
+        "-SkipBuild",
+        "-SkipTooling",
+        "-TestTimeout",
+        "120"
+      ],
+      "timedOut": false,
+      "name": "release-affected"
+    }
+  ],
+  "scheduled": 2,
+  "elapsedSeconds": 510.0735834
+}

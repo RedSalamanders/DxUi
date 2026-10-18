@@ -1,5 +1,167 @@
 #pragma once
 
+static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct Requests
+    {
+        EmbeddedHost* view{};
+        size_t count{};
+        bool replaceRoot{};
+        bool tryReenter{};
+        HRESULT reentrantResult = S_OK;
+    } requests;
+    EmbeddedHost view, other;
+    requests.view = &view;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "cooperative shared graphics");
+    Hr(view.Attach(graphics,
+                   {&requests,
+                    [](void* context) noexcept
+    {
+        auto& request = *static_cast<Requests*>(context);
+        ++request.count;
+        if (std::exchange(request.tryReenter, false))
+            request.reentrantResult = request.view->Prepare(480, 240);
+        if (std::exchange(request.replaceRoot, false))
+        {
+            try
+            {
+                request.view->Controls().SetRoot(std::make_unique<Label>(L"replacement"));
+            }
+            catch (const std::exception&)
+            {
+                Check(false, "replacement scheduling callback completes");
+            }
+        }
+    }}),
+       "cooperative embedded host");
+    Hr(other.Attach(graphics), "cooperative independent view");
+    auto independent  = std::make_unique<RichTextEditor>(L"independent **source**");
+    auto* otherEditor = independent.get();
+    other.Controls().SetRoot(std::move(independent));
+    Hr(PrepareRichEmbeddedContent(other, 320, 160, 144), "prepare independent density");
+    const auto independentGeneration = otherEditor->DebugGetState().layoutGeneration;
+    std::wstring seed;
+    for (size_t line = 0u; line < 1024u; ++line)
+        seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
+    auto owned   = std::make_unique<RichTextEditor>(seed);
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor, false);
+    const auto beforeTurn = requests.count;
+    requests.tryReenter   = true;
+    Check(view.Prepare(480, 240) == S_FALSE && view.NeedsPreparation() && requests.count == beforeTurn + 1u,
+          "one bounded embedded turn queues one continuation while pixels remain dirty");
+    Check(requests.reentrantResult == E_UNEXPECTED, "a continuation callback cannot recursively drain preparation");
+    const auto pending = editor->DebugGetState();
+    Check(pending.preparationPending && pending.lastAdvanceLayouts <= 4u && pending.lastAdvanceBlockSteps <= 4096u,
+          "embedded preparation obeys layout and source-block budgets");
+    gpu.Bind();
+    Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! editor->TryGetTextInputCaretRect(view.Controls(), 0u) &&
+              ! editor->GetVisibleSourceRange(view.Controls()),
+          "pending pixels and geometry are unavailable");
+    EmbeddedTextInputSnapshot stale;
+    Hr(view.ReadTextInput(stale), "read exact source while embedded geometry is pending");
+    Check(stale.state.text == seed && ! stale.caretBoundsDip, "pending source snapshot has no fabricated caret bounds");
+    const auto outstanding = requests.count;
+    for (size_t key = 0u; key < 48u; ++key)
+        Check(view.DispatchCharacter(L'x'), "pending embedded owner accepts rapid Unicode source input");
+    const auto latest = editor->GetText();
+    Check(requests.count == outstanding && editor->DebugGetState().preparationAdvances == pending.preparationAdvances,
+          "typing coalesces wakeups and never drains or resumes obsolete glyph work");
+    Check(view.ApplyTextInput(stale.revision, stale.state, EmbeddedTextInputAction::Commit) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH) &&
+              editor->GetText() == latest,
+          "stale service result cannot overwrite newer pending source");
+    EmbeddedTextInputSnapshot current;
+    Hr(view.ReadTextInput(current), "read pending composition entry");
+    auto preview = current.state;
+    preview.text += L"\u03b2";
+    preview.caretIndex = preview.text.size();
+    preview.selectionAnchorIndex.reset();
+    preview.compositionStartIndex = latest.size();
+    preview.compositionEndIndex   = preview.text.size();
+    Hr(view.ApplyTextInput(current.revision, preview, EmbeddedTextInputAction::Preview), "IME preview remains available during reflow");
+    Hr(view.ReadTextInput(current), "read pending composition revision");
+    Hr(view.ApplyTextInput(current.revision, {}, EmbeddedTextInputAction::Cancel), "cancel pending composition transaction");
+    Check(editor->GetText() == latest && otherEditor->DebugGetState().layoutGeneration == independentGeneration,
+          "composition cancellation preserves source/history and the independent view");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "publish latest coalesced embedded source");
+    Hr(view.ReadTextInput(current), "read current prepared source");
+    Check(current.state.text == latest && current.caretBoundsDip && ! view.NeedsPreparation(), "only final source/geometry becomes coherent");
+    editor->SetText(seed);
+    view.Controls().CaptureMouse(editor); // Embedded logical capture owns no OS capture.
+    Check(view.Controls().GetCapturedControl() == editor, "pending source fixture begins with logical capture");
+    Check(view.Prepare(480, 240) == S_FALSE && editor->DebugGetState().preparationPending, "enter pending zero-size fixture");
+    Check(view.Controls().GetCapturedControl() == nullptr, "pending geometry cancels capture before an unavailable Up can be lost");
+    const auto zeroRequests = requests.count;
+    Check(view.Prepare(0, 0) == S_FALSE && ! editor->DebugGetState().preparationPending && view.GetStatistics().surfaceBytes == 0u &&
+              requests.count == zeroRequests,
+          "zero extent cancels staging and adds no periodic work");
+    Check(view.Prepare(480, 240) == S_FALSE, "resumed extent starts fresh bounded work");
+    const auto oldResources = view.Controls().GetResourceGeneration();
+    Hr(view.ReplaceDevice(graphics), "replace resources with the same graphics pointer");
+    Check(view.Controls().GetResourceGeneration() != oldResources && ! editor->DebugGetState().preparationPending &&
+              editor->DebugGetState().retainedGeometryChunks == 0u && editor->GetText() == seed,
+          "resource epoch cancels old work even when device/pool addresses repeat");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare after resource replacement");
+    editor->SetText(seed + L"x");
+    Check(view.Prepare(480, 240) == S_FALSE, "enter pending density and extent fixture");
+    const auto cancellations = editor->DebugGetState().cancelledPreparations;
+    Check(view.Prepare(360, 180, 144) == S_FALSE && editor->DebugGetState().cancelledPreparations > cancellations && editor->GetText() == seed + L"x",
+          "changed DPI and width replace pending work without publishing the old key");
+    editor->SetDensity(Density::Compact);
+    Check(! editor->DebugGetState().preparationPending, "embedded density change retires the pending viewport request");
+    Hr(PrepareRichEmbeddedContent(view, 360, 180, 144), "publish only the new embedded typography and width");
+    editor->SetText(seed);
+    Check(view.Prepare(480, 240) == S_FALSE, "enter pending hidden fixture");
+    view.SetVisible(false);
+    const auto hiddenRequests = requests.count;
+    Check(! editor->DebugGetState().preparationPending && view.Prepare(480, 240) == S_FALSE && requests.count == hiddenRequests,
+          "hidden view retires preparation without wakeups");
+    view.SetVisible(true);
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "resume visible cooperative view");
+    editor->SetText(seed);
+    const auto lifetime  = GetControlLifetimeToken(*editor);
+    requests.replaceRoot = true;
+    Check(view.Prepare(480, 240) == S_FALSE && lifetime.expired(), "continuation callback may retire its editor safely");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare replacement root after callback retirement");
+    Check(dynamic_cast<Label*>(view.Controls().GetRoot()) != nullptr && ! view.NeedsPreparation(), "retired editor work never replaces the current tree");
+}
+
+static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    class FailingPreparation final : public RichTextEditor
+    {
+    public:
+        FailingPreparation() : RichTextEditor(L"source survives")
+        {
+        }
+        bool fail = true;
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
+        }
+    };
+    EmbeddedHost view;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "failing cooperative graphics");
+    size_t requests = 0u;
+    Hr(view.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "failing cooperative host");
+    auto owned   = std::make_unique<FailingPreparation>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    const auto beforeFailure = requests;
+    Check(FAILED(view.Prepare(480, 240)) && view.NeedsPreparation() && requests == beforeFailure,
+          "preparation failure suppresses publication and schedules no automatic retry");
+    editor->fail = false;
+    editor->SetText(L"new source permits retry");
+    Check(requests == beforeFailure + 1u, "a new model request wakes a failed dirty view exactly once");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "retry new source after explicit change");
+    Check(editor->GetText() == L"new source permits retry" && editor->DebugGetState().layoutReady, "explicit retry publishes retained source");
+}
+
 // Included by the supplied-device fixture after its Check/Hr and allocation counter.
 static void TestUnicodeGraphemeForwardWalkAllocationBudget()
 {
@@ -147,9 +309,9 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     auto root    = std::make_unique<RichTextEditor>(L"initial");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
-    Hr(view.Prepare(480, 240), "prepare rich allocation source");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare rich allocation source");
     view.Controls().SetFocusControl(editor, false);
-    Hr(view.Prepare(480, 240), "prepare focus before publishing rich allocation semantics");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare focus before publishing rich allocation semantics");
     auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
     const EmbeddedAccessibilityPlacement placement{{0, 0, 480, 240}, true};
     Check(view.AttachAccessibility(site, 0x5249434842554447ull, placement) == S_OK, "attach coherent rich allocation semantics");
@@ -169,7 +331,7 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     for (const size_t units : {size_t(32), RichText::Document::MaximumUnits})
     {
         editor->SetText(std::wstring(units, L'a'));
-        Hr(view.Prepare(480, 240), "prepare small/maximum rich source outside range-query budget");
+        Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare small/maximum rich source outside range-query budget");
         Check(view.UpdateAccessibility(placement) == S_OK, "publish small/maximum rich source");
         wil::com_ptr_nothrow<ITextRangeProvider> document;
         Hr(text->get_DocumentRange(document.put()), "read published source outside metadata budget");
@@ -224,10 +386,10 @@ static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
     view.Controls().SetFocusControl(editor, false);
     for (const float dpi : {96.0f, 144.0f, 192.0f})
     {
-        Hr(view.Prepare(480, 240, dpi), "positioned rich-text embedded initial preparation");
+        Hr(PrepareRichEmbeddedContent(view, 480, 240, dpi), "positioned rich-text embedded initial preparation");
         editor->SetSelection({seed.size() / 2u, seed.size() / 2u + 1u});
         Check(editor->ReplaceSelection(dpi == 144.0f ? L"y" : L"x"), "positioned embedded fixture changes display text");
-        Hr(view.Prepare(480, 240, dpi), "positioned rich-text embedded edited preparation");
+        Hr(PrepareRichEmbeddedContent(view, 480, 240, dpi), "positioned rich-text embedded edited preparation");
         const auto state = editor->DebugGetState();
         auto* format     = view.Controls().GetTextFormat(FontRole::Body);
         Check(format && format->GetFontSize() == 13.0f && state.layoutReady && state.retainedGeometryChunks > 1u && state.retainedGeometryChunks <= 128u &&
@@ -260,8 +422,8 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     auto* other               = b.get();
     first.Controls().SetRoot(std::move(a));
     second.Controls().SetRoot(std::move(b));
-    Hr(first.Prepare(480, 240), "rich-text first preparation");
-    Hr(second.Prepare(320, 160, 144), "rich-text independent density preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text first preparation");
+    Hr(PrepareRichEmbeddedContent(second, 320, 160, 144), "rich-text independent density preparation");
     Check(first.Controls().GetHwnd() == nullptr && second.Controls().GetHwnd() == nullptr, "retained rich text creates no embedded HWND");
     const auto prepared        = editor->DebugGetState();
     const auto otherGeneration = other->DebugGetState().layoutGeneration;
@@ -271,7 +433,7 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     Hr(first.Composite(gpu.context.get(), gpu.Viewport()), "rich-text initial composition");
     std::vector<uint8_t> before;
     Hr(gpu.Read(before), "rich-text initial pixels");
-    Check(first.Prepare(480, 240) == S_FALSE, "clean rich text does no preparation");
+    Check(PrepareRichEmbeddedContent(first, 480, 240) == S_FALSE, "clean rich text does no preparation");
     const auto statistics          = first.GetStatistics();
     const size_t allocationsBefore = allocations;
     countAllocations               = true;
@@ -286,7 +448,7 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     // Control visibility differs from suspending the complete view. In both
     // cases the retired rich layout must stay retired until the control is shown.
     editor->SetVisible(false);
-    Hr(first.Prepare(480, 240), "hidden concrete rich-text root preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "hidden concrete rich-text root preparation");
     Check(! editor->DebugGetState().layoutReady, "hidden root painting does not recreate retired layout");
     gpu.Bind();
     Hr(first.Composite(gpu.context.get(), gpu.Viewport()), "hidden rich-text root composition");
@@ -294,7 +456,7 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     Hr(gpu.Read(hidden), "hidden rich-text root pixels");
     Check(hidden != before, "hidden root does not expose its text");
     editor->SetVisible(true);
-    Hr(first.Prepare(480, 240), "shown concrete rich-text root preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "shown concrete rich-text root preparation");
     gpu.Bind();
     Hr(first.Composite(gpu.context.get(), gpu.Viewport()), "shown rich-text root composition");
     std::vector<uint8_t> restored;
@@ -303,13 +465,13 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
           "show restores identical rich pixels without replacing the view surface");
     first.Controls().SetFocusControl(editor, false);
     editor->SetSelection({source.size(), source.size()});
-    Hr(first.Prepare(480, 240), "rich-text logical focus");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text logical focus");
     const auto revision = editor->Revision();
     Check(first.DispatchCharacter(wchar_t(0xd83d)) && editor->Revision() == revision, "pending embedded scalar remains unpublished");
     Check(first.DispatchCharacter(wchar_t(0xde00)) && editor->Revision() == revision + 1, "embedded scalar publishes one revision");
     Check(other->GetText() == source && other->DebugGetState().layoutGeneration == otherGeneration, "editing one view leaves the other independent");
     Check(requests > 0 && first.NeedsPreparation(), "editing schedules host preparation");
-    Hr(first.Prepare(480, 240), "rich-text changed preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text changed preparation");
     gpu.Bind();
     Hr(first.Composite(gpu.context.get(), gpu.Viewport()), "rich-text changed composition");
     std::vector<uint8_t> after;
@@ -323,21 +485,21 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     Check(editor->GetSelection().Start() != editor->GetSelection().End(), "drag updates source selection");
     Check(first.DispatchPointer({PointerAction::Cancel}), "rich-text pointer cancellation");
     Check(first.Controls().GetCapturedControl() == nullptr && ! editor->DebugGetState().dragging, "capture loss retires drag");
-    Hr(first.Prepare(480, 240), "rich-text after capture cancellation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text after capture cancellation");
     Check(first.DispatchPointer({PointerAction::Down, 12, 16}) && first.DispatchPointer({PointerAction::Up, 12, 16}), "ordinary pointer release ends drag");
     Check(first.Controls().GetCapturedControl() == nullptr && ! editor->DebugGetState().dragging, "mouse up releases host capture");
     Check(editor->OnMouseDoubleClick(first.Controls(), D2D1::Point2F(12, 16), false, 0) && editor->GetSelection().Start() != editor->GetSelection().End(),
           "double click selects a displayed word using source offsets");
-    Hr(first.Prepare(480, 240), "rich-text word selection");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text word selection");
     // Move outside double-click slop: this scenario begins a new drag.
     Check(first.DispatchPointer({PointerAction::Down, 200, 80}), "selection before Escape");
     Check(first.DispatchKey(VK_ESCAPE, true) && first.Controls().GetCapturedControl() == nullptr, "Escape cancels selection capture");
     editor->SetEnabled(false);
-    Hr(first.Prepare(480, 240), "disabled rich-text preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "disabled rich-text preparation");
     Check(! first.DispatchCharacter(L'x'), "disabled rich-text receives no character input");
     editor->SetEnabled(true);
     editor->SetSelection({0, 0});
-    Hr(first.Prepare(480, 240, 192), "rich-text DPI update");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240, 192), "rich-text DPI update");
     Check(editor->DebugGetState().layoutReady && editor->GetText().ends_with(L"\U0001f600"), "DPI update preserves source");
     const auto retained          = editor->Snapshot();
     const auto retainedSelection = editor->GetSelection();
@@ -345,20 +507,20 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     first.SetVisible(false);
     Check(first.GetStatistics().surfaceBytes == 0 && ! editor->DebugGetState().layoutReady && ! first.NeedsPreparation() && ! first.NeedsAnimation(),
           "hidden view releases pixels and layout without periodic work");
-    Check(! first.DispatchCharacter(L'x') && first.Prepare(480, 240) == S_FALSE, "hidden view rejects input and preparation");
+    Check(! first.DispatchCharacter(L'x') && PrepareRichEmbeddedContent(first, 480, 240) == S_FALSE, "hidden view rejects input and preparation");
     first.SetVisible(true);
-    Hr(first.Prepare(480, 240, 192), "rich-text show prepares again");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240, 192), "rich-text show prepares again");
     Check(editor->GetText() == retained.Text(), "show preserves model");
-    Hr(first.Prepare(0, 0), "zero-size rich text suspends");
+    Hr(PrepareRichEmbeddedContent(first, 0, 0), "zero-size rich text suspends");
     Check(first.GetStatistics().surfaceBytes == 0 && ! first.DispatchCharacter(L'x'), "zero size releases surface and blocks input");
-    Hr(first.Prepare(480, 240), "restore rich-text extent");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "restore rich-text extent");
     GraphicsFixture replacement;
     Hr(replacement.Create(), "rich-text replacement WARP device");
     std::shared_ptr<GraphicsDevice> nextGraphics;
     Hr(GraphicsDevice::Create(replacement.device.get(), nextGraphics), "rich-text replacement host pool");
     Hr(first.ReplaceDevice(nextGraphics), "rich-text device generation replacement");
     Check(! first.DispatchCharacter(L'x'), "replacement rejects input before coherent preparation");
-    Hr(first.Prepare(480, 240), "rich-text replacement preparation");
+    Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text replacement preparation");
     replacement.Bind();
     Hr(first.Composite(replacement.context.get(), replacement.Viewport()), "rich-text replacement composition");
     Check(editor->GetText() == retained.Text() && editor->CanUndo() == canUndo && editor->GetSelection() == retainedSelection,
@@ -392,11 +554,11 @@ static void TestRetainedRichTextSchedulingCanRetireOwner(GraphicsFixture& gpu)
     size_t notices = 0;
     editor->SetOnTextChanged([&] { ++notices; });
     view.Controls().SetRoot(std::move(control));
-    Hr(view.Prepare(480, 240), "retiring rich-text preparation");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "retiring rich-text preparation");
     callback.retire = true;
     Check(editor->ReplaceSelection(L"committed before retirement"), "host scheduling can retire editing owner");
     Check(view.Controls().GetRoot() == nullptr && notices == 0, "retired callback batch stops before text notification");
-    Hr(view.Prepare(480, 240), "prepare replacement empty root after retirement");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare replacement empty root after retirement");
 }
 
 static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
@@ -423,12 +585,12 @@ static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
     const auto source = editor->Snapshot();
-    Check(FAILED(view.Prepare(480, 240)), "rich-text raster exception fails preparation");
+    Check(FAILED(PrepareRichEmbeddedContent(view, 480, 240)), "rich-text raster exception fails preparation");
     gpu.Bind();
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! view.DispatchCharacter(L'x'),
           "failed rich-text frame publishes neither pixels nor input");
     editor->fail = false;
-    Hr(view.Prepare(480, 240), "explicit rich-text preparation retry");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "explicit rich-text preparation retry");
     Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "recovered rich-text surface composes");
     Check(editor->GetText() == source.Text(), "failed preparation never changes logical document");
 }

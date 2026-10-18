@@ -1,0 +1,30 @@
+{
+  "startedUtc": "2026-10-18T12:15:42.5043390Z",
+  "source": [
+    {
+      "sha256": "9DA8D6F91359715917DEE68C1D1DCB1720D08CBBA7674F7B4D17D96178BA1E2B",
+      "path": "Changes/2026-10-18-cooperative-rich-preparation.md"
+    },
+    {
+      "sha256": "04B07E09AD7E4149E24C71E96463EBED932C13B8BFE355B6952FDA4A2BE71AA9",
+      "path": "include/DxUi/RichTextLayout.h"
+    },
+    {
+      "sha256": "DD16E002C23259EFB53927616269CE243544B7125F0E03BEC077D21D688C20AF",
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md"
+    },
+    {
+      "sha256": "EBEC58B503AFA5673EE0F1DADA734130CAE3051E9FE9C52F5BB50083AE8E37D4",
+      "path": "src/Controls/DxUi.RichDocumentLayout.cpp"
+    },
+    {
+      "sha256": "E27AAF177EAADF3D56DD7A0388E76BF8E023BEAF8AA3D729D26FBCA8692A6561",
+      "path": "Tests/Controls/Scope.Tests.RichDocumentLayout.cpp"
+    }
+  ],
+  "rootTestChildBudgetSeconds": 480,
+  "overallBudgetSeconds": 1200,
+  "perNativeTestBudgetSeconds": 120,
+  "classification": "Cooperative-chunk candidate; affected Release only, not final qualification or accepted performance",
+  "buildChildBudgetSeconds": 600
+}

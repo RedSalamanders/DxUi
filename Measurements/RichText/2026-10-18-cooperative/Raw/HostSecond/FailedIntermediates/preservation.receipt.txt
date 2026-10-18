@@ -1,0 +1,259 @@
+[
+  {
+    "archive": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\HostSecond\\FailedIntermediates\\DxUi.ControlTests",
+    "files": [
+      {
+        "bytes": 5830,
+        "sha256": "B517C698D15D61AC61049116482A54FBC81C46967ABCA12C2EE556DA36E7E06D",
+        "path": "DxUi.ControlTests.Build.CppClean.log"
+      },
+      {
+        "bytes": 668,
+        "sha256": "168A52BB5E3986666313BA45C681C8D374286611790F94393A4B3627524E4227",
+        "path": "DxUi.ControlTests.exe.recipe"
+      },
+      {
+        "bytes": 13708124,
+        "sha256": "97336FCEF33B2752CF78085D10EEDB9A6564727877A551A9BBB29E153BF2FDDA",
+        "path": "DxUi.Tests.Accessibility.obj"
+      },
+      {
+        "bytes": 3600334,
+        "sha256": "C639A4A2C52BD197B813350D38B0A76F33D08E40D0DC22A3EC476FB60AF9BC67",
+        "path": "DxUi.Tests.Animation.obj"
+      },
+      {
+        "bytes": 3489816,
+        "sha256": "8645302CD944307A89835FB35E4FAE5E12BEA0F1F204E693B719A2235F38CB77",
+        "path": "DxUi.Tests.ComboBox.obj"
+      },
+      {
+        "bytes": 5504063,
+        "sha256": "C0FCBBC215BF8BC03FEB17F6974DF8294EF18CCBEA593A23C476773A77AD8E5B",
+        "path": "DxUi.Tests.Controls.obj"
+      },
+      {
+        "bytes": 4548513,
+        "sha256": "A4F35CCCC817B081006F8B326F4AE116DADEAFEBCAB2820C81008CE082B96EA3",
+        "path": "DxUi.Tests.EditorControls.obj"
+      },
+      {
+        "bytes": 3779064,
+        "sha256": "5ADA04F7330D6D4255780499E9B44BCCC2B9D730A587C665618ECF93448A148B",
+        "path": "DxUi.Tests.Gallery.obj"
+      },
+      {
+        "bytes": 6264192,
+        "sha256": "A78D4957DB9176ECEC4209413AC54F6CD951EE316C126D22E79A5EA4C29FC997",
+        "path": "DxUi.Tests.Grid.obj"
+      },
+      {
+        "bytes": 2951336,
+        "sha256": "DB38B8084C9BD93B89F721CA3BC7237F9605E5E1EB38E857E3152BA873EFB504",
+        "path": "DxUi.Tests.InteractiveLease.obj"
+      },
+      {
+        "bytes": 9634042,
+        "sha256": "954C00F1DB4B2666B31C4CD73560F23CA437FEE2A44C76B2CF924E2D89D70414",
+        "path": "DxUi.Tests.Menu.obj"
+      },
+      {
+        "bytes": 3669454,
+        "sha256": "0917A30BCC279B57C7672560671A217D66827A14CC2BD7482F321A5A3B718402",
+        "path": "DxUi.Tests.MultilineText.obj"
+      },
+      {
+        "bytes": 7605766,
+        "sha256": "72B7361D09B85E60EE97140DDECD0016847D2682AAB4E67730968A62AAF69C60",
+        "path": "DxUi.Tests.NativeTextInput.obj"
+      },
+      {
+        "bytes": 4850230,
+        "sha256": "0E1AFFEF858383AF5EECED123A26EAC18FA3D74C2F4A3F217E0518E63EB0BC05",
+        "path": "DxUi.Tests.NewControls.obj"
+      },
+      {
+        "bytes": 2348442,
+        "sha256": "9585874C0F6307DA2459FA634B3E023911045DCA9F98BAF19F9C43CC49175212",
+        "path": "DxUi.Tests.ReadOnly.obj"
+      },
+      {
+        "bytes": 5593321,
+        "sha256": "D7945606A609619E2616B40A9A0ECEE075A1EAAB8869324D34C5865244AEDF7F",
+        "path": "DxUi.Tests.Rendering.obj"
+      },
+      {
+        "bytes": 2256319,
+        "sha256": "7C24B38835B804468C6E3F0F075D14C43F49073714A484670668DA760CA38046",
+        "path": "DxUi.Tests.Runner.obj"
+      },
+      {
+        "bytes": 3444674,
+        "sha256": "DEA4714E26A4F02D887F6BB143F8BCA57E9543C18546EA1495A6166F161548F4",
+        "path": "DxUi.Tests.TextField.obj"
+      },
+      {
+        "bytes": 3342492,
+        "sha256": "7BFB56776B11473806165C69772471AB4A7AE7410B377BC2EAD2D81E930B57A6",
+        "path": "DxUi.Tests.Theme.obj"
+      },
+      {
+        "bytes": 2231422,
+        "sha256": "C4182A7E5DE39C56C43935041127416F23ED9D651337D45321B0900496280259",
+        "path": "DxUi.Tests.Tooltip.obj"
+      },
+      {
+        "bytes": 3847513,
+        "sha256": "32D20ED60C9D8EF1B21C12EBD3E376C243BD081FC6628FA92C8980B825D88F17",
+        "path": "DxUi.Tests.Tree.obj"
+      },
+      {
+        "bytes": 6839536,
+        "sha256": "06A6D2C0AA91A8D09A64916AA7CE607ED181C46AD606A2B8E23E468E7D3B1437",
+        "path": "DxUi.Tests.WindowHost.obj"
+      },
+      {
+        "bytes": 2035809,
+        "sha256": "24313F80440527E1C5086B456960B0D8916D858A1C9CF162CA9E22F00591B81C",
+        "path": "Scope.Tests.FormAccessibility.obj"
+      },
+      {
+        "bytes": 2518474,
+        "sha256": "0E0B7B6A5229D3B2F4A09B30249D52662E7F0679B9CE821007937E93E36F3C94",
+        "path": "Scope.Tests.Forms.obj"
+      },
+      {
+        "bytes": 1448178,
+        "sha256": "9BA7DB76B2FD1E85A07F3EE6E63A0F8340D87131E60EA83CA11E8F3CC0FA17F7",
+        "path": "Scope.Tests.GridUiaPattern.obj"
+      },
+      {
+        "bytes": 2864192,
+        "sha256": "06FC944A907F5E96158EAE23E34A316D5BB0DC5093379B3A48284EE1885C6402",
+        "path": "Scope.Tests.HostControlRegressions.obj"
+      },
+      {
+        "bytes": 2466714,
+        "sha256": "D70C9DCFD3016A5B1A32657E81B9EC8BE8F44E6828C121BDC9A5CBAA48221832",
+        "path": "Scope.Tests.IntrinsicLayout.obj"
+      },
+      {
+        "bytes": 2268103,
+        "sha256": "1B5CFC667D0DEBFB1646578E385EE843973EB843416254EB7C2B1165FE102C90",
+        "path": "Scope.Tests.RichDocument.obj"
+      },
+      {
+        "bytes": 2467998,
+        "sha256": "AE644E2E4C413F2D44F4072250516E9AA297EE6A533998E24E248CFC2054989D",
+        "path": "Scope.Tests.RichDocumentLayout.obj"
+      },
+      {
+        "bytes": 1862407,
+        "sha256": "47183B4DC6EFABE30F80D7225CEE526004259A5EE14977E12838EE454C332383",
+        "path": "Scope.Tests.RichMarkdown.obj"
+      },
+      {
+        "bytes": 1902849,
+        "sha256": "213840C5D56AD5AD8EF834C7A125246ED67A37E4FD035DF9864E8D9CFE6B2876",
+        "path": "Scope.Tests.RichProjectionBlocks.obj"
+      },
+      {
+        "bytes": 1875862,
+        "sha256": "54480C435BB9647BB1D382BC25621ABEAB5AD2EB94EC98169D88E33B2CAC806A",
+        "path": "Scope.Tests.RichSourceChanges.obj"
+      },
+      {
+        "bytes": 3123156,
+        "sha256": "44789AE3BEFC81606E35CB25BFDBC1FC93C3A0BC74AF88AD63A07E7490127C03",
+        "path": "Scope.Tests.RichTextAccessibility.obj"
+      },
+      {
+        "bytes": 2299737,
+        "sha256": "B8217A54B1C954C897E20D93AEB21C8D0DA32C776E88BB9ABB502965191B2B8E",
+        "path": "Scope.Tests.RichTextInput.obj"
+      },
+      {
+        "bytes": 2072045,
+        "sha256": "7CA887A84AC7EFBC926CD7443A0D2FC2918175F04D0BBD14816D738598C7014C",
+        "path": "Scope.Tests.RichTextLayout.obj"
+      },
+      {
+        "bytes": 2224675,
+        "sha256": "2DD8593137E2928C7BC9655353FCBF8D5BCE699A9868250915E27D49E4CAF1CD",
+        "path": "Scope.Tests.TextElementMovement.obj"
+      },
+      {
+        "bytes": 2022993,
+        "sha256": "5182145E30B785920421E49DE24F8F9EFC76767BB4EE48E8B60B27A5E9AD1F71",
+        "path": "Scope.Tests.TextElements.obj"
+      },
+      {
+        "bytes": 18960384,
+        "sha256": "DB7CE7434456A97D54D7DA920A84B38AA5DCADDCCEC138AA7B26D268A066C0AC",
+        "path": "vc145.pdb"
+      },
+      {
+        "bytes": 55680,
+        "sha256": "DD0DE4FF13E4F402E5F269A3B9F4759A67FAFDB0BA302BAA0AA396D5B6B0CCC6",
+        "path": "DxUi.Con.B4F322B1.tlog\\CL.command.1.tlog"
+      },
+      {
+        "bytes": 2082412,
+        "sha256": "5E545865EE0C79F11E7AAF9FA5B2127E2BB57835F8C5F1FAC941386B609CE2B9",
+        "path": "DxUi.Con.B4F322B1.tlog\\CL.read.1.tlog"
+      },
+      {
+        "bytes": 14544,
+        "sha256": "41A8FA4B59AD53532BCDFCBD9D8EB2850CD2EB3339E8B04BBE4FD11E4051C1B7",
+        "path": "DxUi.Con.B4F322B1.tlog\\CL.write.1.tlog"
+      },
+      {
+        "bytes": 345,
+        "sha256": "1D2D9A8A03672AE49DB09793DF56CF55917007C8BAE020EDDEEC2BD210DC55F1",
+        "path": "DxUi.Con.B4F322B1.tlog\\DxUi.ControlTests.lastbuildstate"
+      },
+      {
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "path": "DxUi.Con.B4F322B1.tlog\\unsuccessfulbuild"
+      }
+    ],
+    "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\Intermediate\\x64\\Release\\DxUi.ControlTests"
+  },
+  {
+    "archive": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-cooperative-20261018\\HostSecond\\FailedIntermediates\\DxUi.EmbeddedTests",
+    "files": [
+      {
+        "bytes": 1671,
+        "sha256": "7210DA09175B70CA39926CC82CD654F2A7B6170CE75322AA35B4F4C29EE56177",
+        "path": "DxUi.EmbeddedTests.Build.CppClean.log"
+      },
+      {
+        "bytes": 669,
+        "sha256": "1E37BFE49CF9AA01EE978AB654B96472D546270C72CEBAA1584E7A93F97B121D",
+        "path": "DxUi.EmbeddedTests.exe.recipe"
+      },
+      {
+        "bytes": 2676888,
+        "sha256": "DDF874224A516EAA7351034A54D173E09FB54631525BD273A4D880C2CB762F07",
+        "path": "vc145.pdb"
+      },
+      {
+        "bytes": 2,
+        "sha256": "B3D510EF04275CA8E698E5B3CBB0ECE3949EF9252F0CDC839E9EE347409A2209",
+        "path": "DxUi.Emb.8B4FAB6F.tlog\\CL.command.1.tlog"
+      },
+      {
+        "bytes": 345,
+        "sha256": "1D2D9A8A03672AE49DB09793DF56CF55917007C8BAE020EDDEEC2BD210DC55F1",
+        "path": "DxUi.Emb.8B4FAB6F.tlog\\DxUi.EmbeddedTests.lastbuildstate"
+      },
+      {
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "path": "DxUi.Emb.8B4FAB6F.tlog\\unsuccessfulbuild"
+      }
+    ],
+    "original": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\Intermediate\\x64\\Release\\DxUi.EmbeddedTests"
+  }
+]

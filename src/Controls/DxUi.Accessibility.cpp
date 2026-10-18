@@ -5998,10 +5998,19 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
         return hr;
     }
 
-    std::vector<D2D1_RECT_F> boundsDip =
-        TryResolveTextRangeCaretRects(*host, *control, text, range).value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
-    const float dipToPixelScale = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
-    const HRESULT hr            = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
+    auto resolved = TryResolveTextRangeCaretRects(*host, *control, text, range);
+    if (dynamic_cast<const RichTextEditor*>(control))
+    {
+        const auto snapshot = CaptureSnapshot();
+        const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+        // Generic viewport bounds are not measured rich-text extents. A held
+        // embedded range may still describe its last acknowledged source.
+        if (! resolved || ! record || record->controlAccessibleText != text)
+            return SetDoubleArray(outRectangles, {});
+    }
+    std::vector<D2D1_RECT_F> boundsDip = resolved.value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
+    const float dipToPixelScale        = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
+    const HRESULT hr                   = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
     Debug::Perf::Emit(L"dxui.uia.text_range_us", L"bounding-rectangles", Debug::Perf::ElapsedUs(startedAt), boundsDip.size(), range.end - range.start, hr);
     return hr;
 }
@@ -6569,7 +6578,15 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
         return S_OK;
     }
 
-    outBoundsDip = TryResolveTextRangeCaretRects(*host, *control, text, range).value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
+    auto resolved = TryResolveTextRangeCaretRects(*host, *control, text, range);
+    if (dynamic_cast<const RichTextEditor*>(control))
+    {
+        const auto snapshot = CaptureSnapshot();
+        const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+        if (! resolved || ! record || record->controlAccessibleText != text)
+            return S_OK; // Output was cleared; never fabricate pending geometry.
+    }
+    outBoundsDip = resolved.value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
     return S_OK;
 }
 

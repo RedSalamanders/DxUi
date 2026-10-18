@@ -1,0 +1,5 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-cooperative-20261018\tamper-87805ec37cb54eedac5890f653dc862e\Verify.ps1:12
+Line |
+  12 |  . lPath $path).Hash -cne $Expected){throw "SHA-256 differs: $Relative"}
+     |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | SHA-256 differs: Source/src/Controls/DxUi.RichDocumentLayout.cpp

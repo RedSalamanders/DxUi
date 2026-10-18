@@ -1,0 +1,105 @@
+{
+  "scheduled": 7,
+  "classification": "Post-qualification prose/evidence checks; compiled inputs unchanged, complete tooling already passed on the frozen run",
+  "attempted": 7,
+  "results": [
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-skills.ps1"
+      ],
+      "processId": 84896,
+      "name": "skills",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-specs.ps1"
+      ],
+      "processId": 35720,
+      "name": "specs",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-dependencies.ps1"
+      ],
+      "processId": 101320,
+      "name": "dependencies",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-test-port.ps1"
+      ],
+      "processId": 19956,
+      "name": "test-port",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\validate-build-matrix.ps1"
+      ],
+      "processId": 41544,
+      "name": "build-matrix",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\format.ps1",
+        "-Check",
+        "-FormatterPath",
+        "Z:\\src\\DxUi\\.build\\format\\clang_format\\data\\bin\\clang-format.exe"
+      ],
+      "processId": 81964,
+      "name": "format",
+      "timedOut": false
+    },
+    {
+      "drained": true,
+      "exitCode": 0,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\Test-Changes.ps1",
+        "-Mode",
+        "PrePush",
+        "-Explain"
+      ],
+      "processId": 102080,
+      "name": "prepush-scope",
+      "timedOut": false
+    }
+  ],
+  "elapsedSeconds": 21.0857887
+}

@@ -1,0 +1,163 @@
+# Embedded D3D11 hosting
+
+Status: normative intended contract
+Last reviewed: 2026-10-17
+
+Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
+targets are acceptance contracts, not claims of current support.
+
+### Graphics and lifetime
+
+The embedding application owns the BGRA-capable D3D11 device, immediate context, swap chain, presentation, frame
+pacing and device-loss sequence. Embedded DxUi derives its D2D/DWrite resources from that supplied device and owns
+only offscreen textures and cached control resources. It creates no second D3D device, swap chain, rendering HWND
+or independent render thread.
+
+Render D2D content into reusable BGRA textures on that device, then composite into an application-bound render target.
+This follows the [device-context model](https://learn.microsoft.com/en-us/windows/win32/direct2d/devices-and-device-contexts)
+and [DXGI interoperability](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-direct3d-interoperation-overview).
+No CPU readback/upload round trip is permitted in production rendering. Test premultiplied alpha, target format,
+text antialiasing and D2D/D3D ordering. End preparation before composition and rebind the application's pipeline state.
+
+Share an explicit GraphicsDevice pool among views using the same device generation. Each view owns its control tree,
+focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
+state. Graphics recovery must not execute unrelated application operations.
+
+Device replacement and detach release the view's owned targets, surfaces and graphics references without calling
+ClearState or Flush on the application's supplied immediate context. Native swap-chain retirement owns that
+cleanup separately. This preserves application bindings during retirement; Composite still binds its documented
+pipeline state and does not preserve the caller's state while drawing.
+
+### Preparation and composition
+
+1. Input, model, theme, DPI and geometry changes mark bounded dirty state. The supplied callback asks the application
+   to schedule preparation. Coalesce work, reject stale instance requests and avoid recursive preparation dispatch.
+2. On the owning UI thread, prepare changed visible content before scene composition. Allocation, layout, shaping
+   and raster work belong here, including content changes at an unchanged size. No application ABI is prescribed.
+3. Composite the prepared surface without layout, allocation, rasterization, application calls, I/O or blocking work.
+   Clean views do not repaint merely because other content animates. Hidden/occluded work waits for visibility.
+4. A preparation failure must suppress stale interaction and follow the documented unavailable/retry contract;
+   it must not start an automatic retry loop.
+
+Different simultaneous layouts use independent views with a shared pool. Presentation transforms do not require
+rerasterizing unchanged content. Consumers map input to the displayed view and account for every raster extent.
+Their widget, overlay, plugin and host-service contracts belong in their own repositories, not this library spec.
+
+### Implemented public contract
+
+RichTextEditor v0 uses this same ControlHost preparation/cache/composition path.
+It borrows host fonts, brushes, DWrite/D2D and owner scheduling, creating no
+embedded HWND/device/worker/timer. Unicode source, selection and history survive
+surface suspension and device-generation replacement. Its layout retires when
+hidden and rebuilds on demand; clean composition does no rich-text work.
+DispatchCharacter and the D2d source text-service/UIA adapters are available.
+Applications retain HWND/TSF client, focusId/revision and screen-placement ownership;
+prepare changed composition/scroll/DPI before publishing geometry or accessibility.
+Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
+
+Cooperative content candidate (qualification in progress): Prepare returns
+S_FALSE with NeedsPreparation=true while owner work remains; the application
+callback requests the next event-driven turn. No partial surface is composed.
+One outstanding notification coalesces further changes even while pixels remain
+dirty. Failure schedules no automatic retry. Geometry/pointer input stays
+unavailable; an explicitly opted-in focused rich editor may export/edit current
+source and run revision-checked IME transactions. Tree/bounds/visibility/focus/
+resource changes revoke pending text permission. Replacement, hiding, zero extent
+and detach cancel obsolete staging.
+
+`GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
+embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared
+pool, its own ControlHost and one offscreen BGRA surface. Two density variants use two EmbeddedHosts with the same
+pool and application model; their trees and hit rectangles remain independent. The caller selects which view is
+interactive and supplies view-local physical coordinates. This replaces the earlier single-tree/two-surface sketch.
+
+Attach, prepare, input, animation, replace-device and destruction are UI-thread affine. The borrowed preparation
+callback is synchronous and must not re-enter the host. Dirty requests coalesce; requests raised during painting
+remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
+request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
+view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+
+Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
+milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime
+from application time. Native hosting retains its dispatcher clock. Hiding/zero-sizing still suspends ticks under
+the existing retained-motion contract. These two controls' epoch regressions do not qualify every legacy clock
+consumer; the [qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md#remaining-legacy-clock-audit)
+tracks the remaining Button, editor, Tree/Grid and initial-tooltip clock audit.
+
+Preparation rechecks the root after DPI notification and between paint and overlay calls. Root retirement or
+interaction-geometry replacement during painting returns `E_ABORT`, retains pending preparation and leaves the
+surface incoherent. A later explicit successful preparation restores composition. Standard paint exceptions restore
+draw state and return a failure without publishing the partial surface.
+Model notifications invalidate the interaction revision as well as pixels. A page installed during paint defers its
+bounds to the next explicit Prepare, including transition pages; no resize or animation tick is required. Preparation
+executes this layout before rendering, and a reentrant pending replacement keeps the frame unpublished.
+Flow, density and Tree/Grid metric changes revoke prepared hit geometry. Pointer dispatch rechecks coherence after
+pruning, uncaptured hover callbacks and hit testing, so a reentrant change cannot retarget the current Down against an
+old surface. Captured controls receive each event once directly; a completed drag handler may invalidate sibling pane
+layout and retains its draft through the following preparation while its captured bounds and effective state survive.
+Color-only theme changes outside painting keep dirty-pixel pointer input available; in-paint palette replacement
+rejects the mixed frame.
+
+AdvanceAnimation marks the view dirty only through control invalidation. Every `Tick` that changes visual state
+invalidates its host: an indeterminate progress bar on every tick, a caret only when its blink phase flips, a
+transition on every tick including the one that settles it, tooltip show/hide, and grid/tree/menu animation. An
+idle tick therefore leaves a clean prepared view clean and causes no raster work. Hosts check NeedsPreparation after
+ticking; an unconditional Prepare of a clean view still returns S_FALSE. `RequestAnimation` wakes the application
+through the preparation callback only when animation becomes requested; a request raised while painting (an
+indeterminate progress bar, a busy grid) does not re-dirty the view inside the preparation that painted it.
+
+Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
+then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
+one, so the single-surface cap bounds the transactional replacement peak to 128 MiB per view by construction;
+`replacementPeakBytes` reports the observed peak. Graphics resources are shared at the pool; surface bytes,
+replacement peak, allocation/preparation/composition counts and the per-view cache sizes (`cachedBrushes`,
+`cachedTextFormats`) are queryable. Solid brushes are bounded to 256 entries and configured text formats to 96
+(`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
+start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
+simultaneous view.
+
+Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
+alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
+and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins
+are allowed for page transitions; non-finite or invalid dimensions/depth ranges fail. It never allocates, shapes
+text, rerasterizes, reads back, presents or calls user diagnostics. Consumers bind their state before subsequent work.
+
+ReplaceDevice cancels capture and drops old surface resources while preserving the logical tree/model; a successful
+prepare is required before interaction resumes. Recovery never reapplies application commands. EmbeddedTests checks an actual
+new WARP device generation, foreign-device rejection, dirty/hidden/zero/DPI behavior, pixel changes, hostile state,
+negative origins, all catalog controls, allocation-free warm composition, surface release on hide and zero extent
+with exactly one reallocation and pixel-identical restoration, device replacement while hidden, tick-driven dirtying
+and cache bounds. Injected physical GPU removal remains a separate hardware validation case; device-generation
+replacement is not evidence of a physical fault.
+
+Hit-tested gestures require a prepared interaction revision. Captured continuation can update a live draft before its next
+paint. A bounds revision of some other control keeps that capture when the captured control is still in the tree,
+it and every ancestor are enabled and visible, and it keeps the same bounds, so a splitter drag can reflow the panes
+on the next preparation. The check resolves the capture through the live tree before touching it, so a destroyed
+control is only released. Moving the captured control itself, hiding or disabling it or an ancestor, removing it, and
+any change of the view's size or DPI, cancels capture and disables input until prepare succeeds. A second Down on the
+same control within the system double-click interval and a 16 DIP slop is
+`OnMouseDoubleClick`. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
+same prepared interaction revision. After interaction geometry changes, a consumer calls Prepare before the next
+independent hit-tested gesture, or finishes arranging every live control bound and calls PrepareInteraction at the
+last successfully painted width, height and DPI. PrepareInteraction only acknowledges that layout; it does no
+painting, resource creation, cache trimming or accessibility/text-geometry publication, and changes none of the
+surface/preparation/composition counters. Dirty pixels remain scheduled for the next full Prepare before composition.
+The caller must not acknowledge a partial arrangement or rely on painting to finish its hit geometry.
+
+This optional boundary cannot enable initial, failed, hidden, zero-sized or replaced-device preparation. A changed
+extent/DPI requires full Prepare; PrepareInteraction returns S_FALSE and disables dispatch until then. At the accepted
+extent it returns S_OK after a changed interaction revision, or S_FALSE when already current. Wrong-thread calls fail
+without mutation. The ordinary capture rules apply: a still-live captured control with unchanged bounds and enabled,
+visible ancestors survives sibling layout; moved, removed, hidden or disabled capture is canceled. A cancellation
+callback changing interaction geometry prevents acknowledgement (ERROR_RETRY); the caller must arrange that new
+state explicitly. A failed paint or a text-import exception cannot be rehabilitated through this boundary. Text-input bounds and
+UIA snapshot publication still require clean full preparation. Qualification is tracked in the
+[interaction layout qualification](../Plans/Done/EmbeddedInteractionLayout_2026-10-06.md).
+
+A hidden or zero-extent view holds no surface. SetVisible(false) and a zero-sized Prepare release the texture, shader
+view and D2D target, report `surfaceBytes` 0, cancel pointer/text input and disconnect accessibility. Both states
+suspend preparation requests and animation ticks. Dirty state and pending motion remain retained; the caller resumes
+them by showing the view or preparing a nonzero target, which allocates exactly one surface (one
+`surfaceAllocations` increment) and re-rasterizes the content. Hidden and zero-sized views never request background
+frames for those deferred changes.

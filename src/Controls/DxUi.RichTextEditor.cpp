@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
 #include <stdexcept>
@@ -14,8 +15,15 @@ struct RichTextEditor::State
     RichText::PreparedDocumentLayout layout;
     RichText::ViewMode mode = RichText::ViewMode::Rich;
     std::shared_ptr<const std::function<void()>> onTextChanged;
-    uint64_t typographyRevision  = 0;
-    uint64_t bindingRevision     = 0;
+    uint64_t typographyRevision = 0;
+    uint64_t bindingRevision    = 0;
+    uint64_t resourceGeneration = 0;
+    uint64_t requestRevision = 0, requestBinding = 0, requestTypography = 0, requestResources = 0;
+    IDWriteFactory* requestFactory = nullptr; // Identity only; staged layouts retain the factory through WIL.
+    RichText::ViewMode requestMode = RichText::ViewMode::Rich;
+    float requestWidth             = 0;
+    bool requestActive             = false;
+    size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
     float layoutWidth            = 0;
     float scrollDip              = 0;
     bool revealCaret             = true;
@@ -30,6 +38,7 @@ struct RichTextEditor::State
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
 {
     SetFocusable(true);
+    EnableContentPreparation();
 }
 RichTextEditor::~RichTextEditor() noexcept = default;
 void RichTextEditor::SetText(std::wstring text)
@@ -136,7 +145,11 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         // Reject stale queries immediately, but retain bounded immutable chunks
         // for the next owner-thread preparation. Host/font/visibility retirement
         // still releases the complete graph through RetireLayout/Clear.
+        if (_state->layout.HasPendingPreparation())
+            ++_state->cancelledPreparations;
         _state->layout.Invalidate();
+        _state->requestActive = false;
+        RequestContentPreparation(false);
         _state->revealCaret = true;
     }
     const auto callback = sourceChanged ? _state->onTextChanged : nullptr;
@@ -191,40 +204,140 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
 }
 void RichTextEditor::RetireLayout() const noexcept
 {
+    if (_state->layout.HasPendingPreparation())
+        ++_state->cancelledPreparations;
     _state->layout.Clear();
-    _state->revealCaret = true;
+    _state->requestActive = false;
+    _state->revealCaret   = true;
+    RequestContentPreparation(false);
 }
-void RichTextEditor::EnsureLayout(const ControlHost& host) const
+bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
+{
+    const auto& state   = *_state;
+    const auto viewport = TextViewport();
+    return GetHost() == &host && state.layout.Ready() && state.layout.Revision() == state.document.Revision() &&
+           state.layoutWidth == std::max(1.0f, viewport.right - viewport.left) && state.typographyRevision == host.GetTypographyRevision() &&
+           state.resourceGeneration == host.GetResourceGeneration();
+}
+bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
+{
+    return true; // Source/selection/transactions are independent of glyph preparation.
+}
+void RichTextEditor::CancelContentPreparation() noexcept
+{
+    RetireLayout();
+}
+HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
+{
+    auto& state              = *_state;
+    state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
+    try
+    {
+        const auto viewport = TextViewport();
+        if (GetHost() != &host || ! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
+        {
+            if (state.layout.HasPendingPreparation())
+                ++state.cancelledPreparations;
+            state.layout.Clear();
+            state.requestActive = false;
+            return S_OK;
+        }
+        if (LayoutIsCurrent(host))
+        {
+            UpdateCaretScroll();
+            return S_OK;
+        }
+        const auto width      = std::max(1.0f, viewport.right - viewport.left);
+        auto* factory         = host.GetWriteFactory();
+        const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
+        const auto revision = Revision(), binding = state.bindingRevision;
+        const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestFactory == factory &&
+                                 state.requestRevision == revision && state.requestBinding == binding && state.requestTypography == typography &&
+                                 state.requestResources == resources && state.requestWidth == width && state.requestMode == state.mode;
+        if (! sameRequest)
+        {
+            if (state.layout.HasPendingPreparation())
+                ++state.cancelledPreparations;
+            state.layout.Invalidate();
+            state.requestActive = false;
+            auto* format        = host.GetTextFormat(FontRole::Body);
+            auto* codeFormat    = host.GetTextFormat(FontRole::Monospace);
+            if (! factory || ! format || ! codeFormat)
+                THROW_HR(E_UNEXPECTED);
+            RichText::LayoutOptions options;
+            options.widthDip    = width;
+            options.fontSizeDip = format->GetFontSize();
+            options.fontFamily.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);
+            THROW_IF_FAILED(format->GetFontFamilyName(options.fontFamily.data(), static_cast<UINT32>(options.fontFamily.size())));
+            options.fontFamily.pop_back();
+            options.codeFontFamily.resize(static_cast<size_t>(codeFormat->GetFontFamilyNameLength()) + 1u);
+            THROW_IF_FAILED(codeFormat->GetFontFamilyName(options.codeFontFamily.data(), static_cast<UINT32>(options.codeFontFamily.size())));
+            options.codeFontFamily.pop_back();
+            options.locale.resize(static_cast<size_t>(format->GetLocaleNameLength()) + 1u);
+            THROW_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
+            options.locale.pop_back();
+            options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+            state.layout.BeginPreparation(factory, state.document.Snapshot(), revision, state.mode, options);
+            state.requestRevision   = revision;
+            state.requestBinding    = binding;
+            state.requestTypography = typography;
+            state.requestResources  = resources;
+            state.requestWidth      = width;
+            state.requestMode       = state.mode;
+            state.requestFactory    = factory;
+            state.requestActive     = true;
+        }
+        if (state.layout.HasPendingPreparation())
+        {
+            ++state.preparationAdvances;
+            const auto advance          = state.layout.AdvancePreparation();
+            state.lastAdvanceLayouts    = advance.layoutsPrepared;
+            state.lastAdvanceBlockSteps = advance.blockSteps;
+            if (advance.status == RichText::LayoutPreparationStatus::Pending)
+                return S_FALSE;
+        }
+        // No application callback crosses staging. Recheck the complete key
+        // before acknowledging geometry; host publication follows rasterization.
+        if (GetHost() != &host || Revision() != revision || state.bindingRevision != binding || state.mode != state.requestMode ||
+            host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typography ||
+            std::max(1.0f, TextViewport().right - TextViewport().left) != width)
+        {
+            state.layout.Invalidate();
+            state.requestActive = false;
+            return S_FALSE;
+        }
+        state.layoutWidth        = width;
+        state.typographyRevision = typography;
+        state.resourceGeneration = resources;
+        state.requestActive      = false;
+        UpdateCaretScroll();
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        state.layout.Invalidate();
+        state.requestActive = false;
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        state.layout.Invalidate();
+        state.requestActive = false;
+        return E_FAIL;
+    }
+}
+void RichTextEditor::RequireCurrentLayout(const ControlHost& host) const
+{
+    // Geometry queries, input and painting never drain pending preparation.
+    if (! LayoutIsCurrent(host) || host.HasPendingContentPreparation())
+        throw std::logic_error("Rich-text geometry is pending or unavailable");
+    UpdateCaretScroll();
+}
+void RichTextEditor::UpdateCaretScroll() const
 {
     auto& state         = *_state;
     const auto viewport = TextViewport();
-    const float width   = std::max(1.0f, viewport.right - viewport.left);
-    if (! state.layout.Ready() || state.layoutWidth != width || state.typographyRevision != host.GetTypographyRevision())
-    {
-        auto* format     = host.GetTextFormat(FontRole::Body);
-        auto* codeFormat = host.GetTextFormat(FontRole::Monospace);
-        if (! format || ! codeFormat || ! host.GetWriteFactory())
-            THROW_HR(E_UNEXPECTED);
-        RichText::LayoutOptions options;
-        options.widthDip    = width;
-        options.fontSizeDip = format->GetFontSize();
-        options.fontFamily.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1);
-        THROW_IF_FAILED(format->GetFontFamilyName(options.fontFamily.data(), static_cast<UINT32>(options.fontFamily.size())));
-        options.fontFamily.pop_back();
-        options.codeFontFamily.resize(static_cast<size_t>(codeFormat->GetFontFamilyNameLength()) + 1);
-        THROW_IF_FAILED(codeFormat->GetFontFamilyName(options.codeFontFamily.data(), static_cast<UINT32>(options.codeFontFamily.size())));
-        options.codeFontFamily.pop_back();
-        options.locale.resize(static_cast<size_t>(format->GetLocaleNameLength()) + 1);
-        THROW_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
-        options.locale.pop_back();
-        options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-        // DirectWrite and rasterization run only on the host's owner thread.
-        // EmbeddedHost subsequently composites its existing cached surface.
-        state.layout.Prepare(host.GetWriteFactory(), state.document.Snapshot(), state.document.Revision(), state.mode, options);
-        state.layoutWidth        = width;
-        state.typographyRevision = host.GetTypographyRevision();
-    }
-    const float height = std::max(0.0f, viewport.bottom - viewport.top);
+    const float height  = std::max(0.0f, viewport.bottom - viewport.top);
     if (state.revealCaret)
     {
         const auto caret = state.layout.Caret(state.layout.ToDisplay(state.document.GetSelection().caret));
@@ -251,7 +364,12 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->layout.UsesWholeGeometry(),
             _state->layout.UsesWholeRaster(),
             preparation.wholeLayoutsPrepared,
-            preparation.wholeLayoutSourceUnits};
+            preparation.wholeLayoutSourceUnits,
+            _state->layout.HasPendingPreparation(),
+            _state->preparationAdvances,
+            _state->cancelledPreparations,
+            _state->lastAdvanceLayouts,
+            _state->lastAdvanceBlockSteps};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {
@@ -261,7 +379,7 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
 {
     try
     {
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         std::vector<std::pair<size_t, size_t>> ranges;
         size_t displayStart = 0;
@@ -298,7 +416,7 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         const auto source = Snapshot();
         if (GetHost() != &host || ! IsEnabled() || sourceStart > sourceEnd || ! source.IsBoundary(sourceStart) || ! source.IsBoundary(sourceEnd))
             return false;
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         const auto first       = projection.ToDisplay(sourceStart);
         const auto last        = projection.ToDisplay(sourceEnd);
@@ -352,7 +470,7 @@ std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(c
         return std::nullopt;
     try
     {
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto viewport      = TextViewport();
         const auto [first, last] = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
         const auto& projection   = _state->layout;
@@ -376,7 +494,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
         return std::nullopt;
     try
     {
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto caret    = _state->layout.Caret(_state->layout.ToDisplay(sourceIndex));
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
@@ -398,7 +516,7 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
         return std::nullopt;
     try
     {
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         const auto viewport    = TextViewport();
         auto rectangles        = _state->layout.Range(projection.ToDisplay(sourceStart), projection.ToDisplay(sourceEnd));
@@ -426,7 +544,7 @@ std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& h
         return std::nullopt;
     try
     {
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto viewport = TextViewport();
         const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
         return _state->layout.ToSource(hit.position, hit.trailing);
@@ -497,7 +615,7 @@ void RichTextEditor::Paint(ControlHost& host) const
     const auto viewport = TextViewport();
     if (viewport.right <= viewport.left || viewport.bottom <= viewport.top)
         return;
-    EnsureLayout(host);
+    RequireCurrentLayout(host);
     auto& state             = *_state;
     auto* textBrush         = host.GetSolidBrush(style.text);
     auto* selectedTextBrush = host.GetSolidBrush(style.selectionText);
@@ -570,14 +688,43 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
 }
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
 {
-    EnsureLayout(host);
+    RequireCurrentLayout(host);
     const auto viewport = TextViewport();
     const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
     return _state->layout.ToSource(hit.position, hit.trailing);
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
 {
-    EnsureLayout(host);
+    if (! LayoutIsCurrent(host))
+    {
+        // Logical source commands remain usable during reflow. The bounded v0
+        // projection preserves hidden-marker affinity and Unicode semantics;
+        // no DirectWrite, rasterization or geometry preparation runs here.
+        const auto selection = GetSelection();
+        if (! extend && selection.Start() != selection.End() && (key == VK_LEFT || key == VK_RIGHT))
+        {
+            const auto source = key == VK_LEFT ? selection.Start() : selection.End();
+            SetSelection({source, source});
+            return;
+        }
+        if (key != VK_LEFT && key != VK_RIGHT && ! (byWord && (key == VK_HOME || key == VK_END)))
+            return; // Wrapped/vertical movement needs published visual geometry.
+        const auto projection = RichText::Project(Snapshot(), Revision(), _state->mode);
+        const auto position   = projection.ToDisplay(selection.caret);
+        size_t next;
+        switch (key)
+        {
+            case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.text, position) : StepToPreviousTextElement(projection.text, position); break;
+            case VK_RIGHT: next = byWord ? FindNextWordBoundary(projection.text, position) : StepToNextTextElement(projection.text, position); break;
+            case VK_HOME: next = 0u; break;
+            default: next = projection.text.size(); break;
+        }
+        const auto source = projection.ToSource(next, key == VK_RIGHT || key == VK_END);
+        SetSelection({extend ? selection.anchor : source, source});
+        return;
+    }
+    if (host.HasPendingContentPreparation() && key != VK_LEFT && key != VK_RIGHT && ! (byWord && (key == VK_HOME || key == VK_END)))
+        return;
     auto& state            = *_state;
     const auto selection   = GetSelection();
     const auto& projection = state.layout;
@@ -632,7 +779,17 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     const auto selection = GetSelection();
     if (selection.Start() != selection.End())
         return ReplaceSelection({});
-    EnsureLayout(host);
+    if (! LayoutIsCurrent(host))
+    {
+        const auto projection = RichText::Project(Snapshot(), Revision(), _state->mode);
+        const auto range      = GetTextElementDeletionRange(projection.text, projection.ToDisplay(selection.caret), backwards);
+        if (range.first == range.last)
+            return false;
+        const auto first = projection.ToSource(range.first), last = projection.ToSource(range.last, true);
+        const bool changed = _state->document.Replace(first, last, {}, {first, first});
+        Changed(changed);
+        return changed;
+    }
     auto& state              = *_state;
     const auto& projection   = state.layout;
     const auto position      = projection.ToDisplay(selection.caret);
@@ -876,7 +1033,7 @@ bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta,
     {
         if (! IsEnabled() || ! std::isfinite(delta))
             return false;
-        EnsureLayout(host);
+        RequireCurrentLayout(host);
         const auto viewport = TextViewport();
         _state->scrollDip =
             std::clamp(_state->scrollDip - delta / WHEEL_DELTA * 48.0f, 0.0f, std::max(0.0f, _state->layout.Height() - (viewport.bottom - viewport.top)));

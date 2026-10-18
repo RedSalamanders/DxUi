@@ -1,0 +1,6 @@
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\test.ps1:265
+Line |
+ 265 |  . es.Count) { throw "DxUi failed suites: $($failures -join '; '). See . .
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | DxUi failed suites: Embedded exited with code 1; EditorControls exited with code 1. See .build/logs and
+     | .build/reports.

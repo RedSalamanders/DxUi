@@ -1,0 +1,8 @@
+{
+  "parentProcessId": 76692,
+  "childProcessId": 40740,
+  "classification": "Deliberate stop of owned ASan build tree for newly audited native hide/zero-height cancellation gap; not a compiler failure, timeout, completed matrix or performance result",
+  "requestedUtc": "2026-10-18T13:42:08.0000131Z",
+  "parentCommandLine": "\"C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe\" -Command \"try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n$root=(Resolve-Path -LiteralPath '.').Path; $env:TEMP='Z:\\DxUiPerfTemp\\uia-ranges'; $env:TMP=$env:TEMP; $env:MSBUILDDISABLENODEREUSE='1'; & '.build/reports/rich-cooperative-20261018/Invoke-FrozenQualification.ps1' -Root $root\"",
+  "childCommandLine": "\"C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe\" -NoProfile -NonInteractive -File Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1 -Platform x64 -Configuration \"ASan Debug\""
+}
