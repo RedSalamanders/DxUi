@@ -1,0 +1,1 @@
+Verified M2 seal 9AE95BE4EA96F6546C420807BAF65E36D0305A95C57A7FAB323DA39F607F78D0; frozen source, 57 ordinary x64 scope obligations, six builds, eight failure probes, 324 exact raster pairs, standards/data and full tooling receipts. No native ARM64, physical IME/AT, full inline/semantic renderer or frame-performance acceptance claim.

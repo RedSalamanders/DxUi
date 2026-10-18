@@ -1,0 +1,111 @@
+{
+  "notes": "Frozen M2 qualification; two exact whole-suite Release successes reused, remaining 55 ordinary suites executed. No performance acceptance or native ARM64/physical IME/AT claim.",
+  "files": [
+    {
+      "sha256": "13662DB13A6813A01DA15C91B8C585D57508E5051E12956028962439DE307A70",
+      "path": "capabilities.json"
+    },
+    {
+      "sha256": "424C3F24B44DD1717775E7F25EA51D6341B1CA284879B0E69D27883AA1502985",
+      "path": "Changes/2026-10-18-markdown-block-tree.md"
+    },
+    {
+      "sha256": "905C2E9D9837844D84009008C5185ECFB20E14D47CBEC694845FC173D2EEDBB2",
+      "path": "docs/rich-text.md"
+    },
+    {
+      "sha256": "F7FCEB9597F62B10CE42249159B1F7C37087FDF3277312ABF2CEDF5A22AA44E9",
+      "path": "include/DxUi/MarkdownSyntax.h"
+    },
+    {
+      "sha256": "A478BE6FFC0C042AF924AF6C8BADBD7F016D529A5E3535807CE000969118F5A7",
+      "path": "README.md"
+    },
+    {
+      "sha256": "D91C0DE64293F57AD9F633C50CF21EC49258136C48C6A9F54A7B81EFB0332277",
+      "path": "Specs/Core/Core_PerformanceAndResources.md"
+    },
+    {
+      "sha256": "C10F215C66F3DD57432C1B1EB1BF16AC53DA2A07BCBC6495F5C868A027DBBCE6",
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md"
+    },
+    {
+      "sha256": "EC0693EAAE1E8683711AA840482389A726288F96C7A50457841CB324F43681A2",
+      "path": "Specs/Rendering/Rendering_EmbeddedD3D11.md"
+    },
+    {
+      "sha256": "527EF515FEA5F935D76D6CA14DFE1979B6FC2DF1FF3672FD1369DB3AE5E90EEC",
+      "path": "Specs/UI/UI_ControlsAndLayout.md"
+    },
+    {
+      "sha256": "6229E8C7840D6ABD48EBC9BB5A4E4FDF83CB5F043848B7C262C8739D67D3FF28",
+      "path": "Specs/UI/UI_InputAndAccessibility.md"
+    },
+    {
+      "sha256": "2486FFDE14BCB39A8B713C1D462FF639DD6D05731E4EE31E43C2E5ABDE2FB13A",
+      "path": "src/Controls/DxUi.MarkdownBlocks.h"
+    },
+    {
+      "sha256": "A3FE832544F9CE1421BFD8143F251FE220FDF60ED477409F9FE64A2177520F1A",
+      "path": "src/Controls/DxUi.MarkdownSyntax.cpp"
+    },
+    {
+      "sha256": "3D436C46FBC1348CEA9A1FBBB021CE9B8C79D5855C1DEE4CA5E29E65B1045507",
+      "path": "src/Controls/DxUi.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "3A6C5D5E397DB5CA85C977D841CAEE13C0FE768FD6080B25F54D7770179AAB15",
+      "path": "Tests/Controls/Scope.Tests.MarkdownCorpus.h"
+    },
+    {
+      "sha256": "551894968DE5CC75B2B3C7A9F750749509033A12A2C74EB2C5AF8062191BBC56",
+      "path": "Tests/Controls/Scope.Tests.RichMarkdown.cpp"
+    },
+    {
+      "sha256": "42D07123263EE84EDD905518F4FBF235813C2950D808791645D2711FA345C579",
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "3D1FED3118BB5B4ADB78A717760911AC059DBAA7DEC0E7717162CA91184BE1DD",
+      "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+    },
+    {
+      "sha256": "B34E013421A5518CF98BA479847BACFC198CB19B361A111FAA51875E059FCCFE",
+      "path": "Tests/Embedded/Scope.Tests.RichTextResources.h"
+    },
+    {
+      "sha256": "E98EEA4320B9CCDF3C6A683F8DA98677478D5722736EA45B1D0CB84F757AF377",
+      "path": "Tests/native-test-files.json"
+    },
+    {
+      "sha256": "5DE67B1139D5A47A1028A61F83FBD10D0CEAA078BE995E3F836FC3FA31447203",
+      "path": "Tests/Support/Scope.Tests.MarkdownBlocks.h"
+    },
+    {
+      "sha256": "1613198B379E385D1A63B467140BA1E516E638123CDF44F47D4E2D6B3B1F4BA7",
+      "path": "ThirdParty/Markdown/README.md"
+    },
+    {
+      "sha256": "2AE6D58CFCD766D3CC4286DA66A7590F3C112F1CDD1114434E559C2C9C8463F5",
+      "path": "Tools/Generate-MarkdownTestData.ps1"
+    }
+  ],
+  "sourceFingerprint": "1238CEE85A031EA32CE6810F5F2FDF6066BCA33677E67AE22C1DB7097ED9B768",
+  "startedUtc": "2026-10-18T19:01:25.6342118Z",
+  "reusedRelease": [
+    {
+      "performance": "Performance-x64-Release-84bb4cae41e8450a8eb78e5f434c6352.json",
+      "sha256": "5F137958C3DCCA383703E7D7A61B4CD4BD6B78D50C8A515259202E9B551D934C",
+      "scope": "Embedded",
+      "receipt": "Embedded-x64-Release.json"
+    },
+    {
+      "performance": "Performance-x64-Release-84bb4cae41e8450a8eb78e5f434c6352.json",
+      "sha256": "324BB9C40E951AC7506F7DA8BC0C0206C910A29FAE0060D753623B61546AB922",
+      "scope": "EditorControls",
+      "receipt": "EditorControls-x64-Release.json"
+    }
+  ],
+  "baseCommit": "b9ef83fcb0ac8c7857eb1a975e687f6b991b2895",
+  "candidateSource": "Eighth/Source"
+}

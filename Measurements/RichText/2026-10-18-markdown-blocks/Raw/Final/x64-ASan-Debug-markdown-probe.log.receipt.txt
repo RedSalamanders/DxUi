@@ -1,0 +1,1 @@
+lossless Markdown sweptRequests=147 pendingBeginRequests=23 maximumRetainedCppBytes=11929485 replacementPeakCppBytes=26317573 releasedDelta=0 unchangedAndRetireAllocations=0

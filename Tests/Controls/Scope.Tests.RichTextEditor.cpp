@@ -1,6 +1,8 @@
 #include "Scope.Tests.RichTextEditor.h"
 #include "../../src/Controls/TextClipboard.h"
+#include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Scope.Tests.RichMarkdown.h"
 #include <DxUi/ControlCatalog.h>
 #include <chrono>
 #include <iostream>
@@ -624,6 +626,73 @@ void TestRichTextEditorNativePreparationCanReplaceRoot()
 
 namespace
 {
+void TestRichTextEditorNativeBlockGrammarAndIdentity()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
+    for (const auto& scenario : MarkdownBlockTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        RenderEditor(window);
+        const auto syntax = editor->GetMarkdownSyntax();
+        Require(syntax && MarkdownBlockTests::BlockSignature(*syntax) == scenario.signature, "native block grammar scenario matches its independent structure");
+        Require(editor->GetText() == scenario.source && ! editor->CanUndo(), "native block analysis preserves source and history");
+    }
+    editor->SetText(L"# heading\n\n> alpha\n\ntail\n");
+    RenderEditor(window);
+    const auto old  = editor->GetMarkdownSyntax();
+    const auto text = editor->GetText();
+    const auto at   = text.find(L"alpha");
+    editor->SetSelection({at, at});
+    Require(editor->ReplaceSelection(L"\U0001f600 "), "native structural source edit");
+    Require(! editor->GetMarkdownSyntax(), "native edit retires current syntax immediately");
+    RenderEditor(window);
+    const auto current = editor->GetMarkdownSyntax();
+    Require(current && current->DocumentIdentity() == old->DocumentIdentity() && current->Nodes().size() == old->Nodes().size(),
+            "native identity scope survives owner scheduling");
+    for (std::size_t i = 0; i < old->Nodes().size(); ++i)
+        Require(current->Nodes()[i].identity == old->Nodes()[i].identity, "native mapped nodes retain identity");
+    Require(editor->Undo(), "native block edit undo");
+    RenderEditor(window);
+    Require(editor->GetText() == text && old->Source() == text, "native undo and held syntax retain exact source");
+    editor->SetText(L"same\n\nsame\n\nsame\n");
+    RenderEditor(window);
+    const auto duplicates = editor->GetMarkdownSyntax();
+    const auto first      = duplicates->Nodes()[0u].firstChild;
+    const auto second     = duplicates->Nodes()[first].nextSibling;
+    editor->SetSelection({0u, 6u});
+    Require(editor->ReplaceSelection(L""), "native delete first duplicate");
+    RenderEditor(window);
+    const auto remaining = editor->GetMarkdownSyntax();
+    Require(remaining->Nodes()[remaining->Nodes()[0u].firstChild].identity == duplicates->Nodes()[second].identity,
+            "native tracked source ancestry preserves the surviving duplicate rather than its equal predecessor");
+    std::wstring nested;
+    for (unsigned level = 0u; level < 256u; ++level)
+        nested += L"- ";
+    nested += L"alpha\n";
+    nested.append(512u, L' ');
+    nested += L"beta\n";
+    editor->SetText(nested);
+    RenderEditor(window);
+    const auto bounded = editor->GetMarkdownSyntax();
+    Require(bounded && bounded->Nodes().size() == 514u && bounded->BlockStatistics().prefixInspectionUnits <= nested.size() * 40u,
+            "native owner preparation preserves deep list structure with bounded prefix inspection");
+    for (const auto& edge : MarkdownBlockTests::identityEdges)
+    {
+        editor->SetText(std::wstring(edge.source));
+        RenderEditor(window);
+        const auto before = editor->GetMarkdownSyntax();
+        editor->SetSelection(edge.selection);
+        Require(editor->ReplaceSelection(L""), "native Unicode paragraph-edge deletion");
+        RenderEditor(window);
+        const auto after = editor->GetMarkdownSyntax();
+        Require(after && after->Nodes()[after->Nodes()[0u].firstChild].identity == before->Nodes()[before->Nodes()[0u].firstChild].identity,
+                "native first/last scalar deletion retains the compatible paragraph identity");
+    }
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -713,4 +782,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);
     DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
     DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);
+    DXUI_RUN_TEST(TestRichTextEditorNativeBlockGrammarAndIdentity);
 }

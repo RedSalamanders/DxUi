@@ -1,0 +1,4 @@
+{
+  "classification": "Unattested incremental diagnostic of fallible node/container construction; root gates remain required",
+  "msbuild": "C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders\\MSBuild\\Current\\Bin\\MSBuild.exe"
+}

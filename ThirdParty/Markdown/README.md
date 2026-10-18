@@ -31,7 +31,13 @@ Run these from the repository root; generation and checking need no network:
 ```
 
 Both generators require exact data and license hashes before writing anything.
+The generated corpus header also carries each original example's section and
+expected HTML for an independent block-structure/code-content/list-start oracle.
+Those expectations come directly from the pinned standard inputs, not from the
+owned parser. Inline/full HTML conformance remains a later gate.
+
 Tests cover deterministic regeneration, read-only verification, stale/missing
-output and every modified/missing input or notice. Native tests currently check
-lossless partitions of every original corpus input and all entity values. This
-does not compare HTML or establish complete CommonMark/GFM grammar conformance.
+output and every modified/missing input or notice. Native tests check lossless
+partitions of every original corpus input, all entity values and the selected
+block-section structural expectations. This does not establish full inline/HTML
+conformance or qualify the formatted renderer.

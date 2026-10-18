@@ -8,6 +8,11 @@ replacement cancels the pending owner job. Immutable published source-only
 analysis may survive geometry changes and retained readers may outlive a view.
 Analysis adds no HWND, worker, timer, device or swap chain. The current stage
 does not change v0 formatted pixels or implement a semantic Markdown renderer.
+Block-tree preparation uses the same owner traversal. Snapshot ancestry and node
+reconciliation belong to source preparation, never Composite. Equal source in a
+second view has a separate document identity; geometry-only changes may retain a
+completed pure syntax. Dependent fence/container edits must not reuse stale
+line-local block classifications.
 
 Status: normative intended contract
 Last reviewed: 2026-10-17

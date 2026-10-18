@@ -1,13 +1,17 @@
 #include "Scope.Tests.RichMarkdown.h"
+#include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
+#include <iostream>
+#include <set>
 #include <span>
 #include <type_traits>
 namespace
 {
 using namespace DxUi::RichText;
+using MarkdownBlockTests::BlockSignature;
 static_assert(! std::is_constructible_v<MarkdownSyntax, std::wstring_view>);
 static_assert(! std::is_copy_assignable_v<MarkdownSyntax>);
 template <typename F> void Reject(F&& operation, const char* description)
@@ -145,8 +149,9 @@ void TestRichMarkdownV0StylesCommandsAndMalformedMappings()
 }
 std::shared_ptr<const MarkdownSyntax> CompleteMarkdown(MarkdownParser& parser, std::size_t budget = 7u)
 {
-    std::size_t total = 0u;
-    for (std::size_t turn = 0u; turn < Document::MaximumUnits * 2u + 4u; ++turn)
+    const auto previousUnits = parser.Published() ? parser.Published()->Source().size() : 0u;
+    std::size_t total        = 0u;
+    for (std::size_t turn = 0u; turn < Document::MaximumUnits * 8u + 16u; ++turn)
     {
         const auto advance = parser.Advance(budget);
         Require(advance.workUnits <= budget, "Markdown advance respects the supplied operation budget");
@@ -154,7 +159,8 @@ std::shared_ptr<const MarkdownSyntax> CompleteMarkdown(MarkdownParser& parser, s
         if (advance.status == MarkdownPreparationStatus::Complete)
         {
             const auto syntax = parser.Published();
-            Require(syntax && total <= syntax->Source().size() * 2u + 3u, "scans resume with linear bounded work and atomically publish");
+            Require(syntax && total <= (syntax->Source().size() + previousUnits) * 8u + 16u,
+                    "scanner/index steps resume with bounded work and atomically publish");
             return syntax;
         }
         Require(advance.status == MarkdownPreparationStatus::Pending, "started Markdown parse remains pending until publication");
@@ -185,6 +191,224 @@ void CheckMarkdownPartitions(const MarkdownSyntax& syntax, std::wstring_view ori
         end = token.source.last;
     }
     Require(end == original.size(), "no lost delimiters, trivia or unknown lexical source");
+    const auto& nodes = syntax.Nodes();
+    Require(! nodes.empty() && nodes[0].block.kind == MarkdownBlockKind::Document && syntax.DocumentIdentity() != 0u, "syntax has a scoped document root");
+    std::set<std::uint64_t> identities;
+    std::vector<bool> seen(nodes.size());
+    seen[0] = true;
+    for (std::size_t parent = 0; parent < nodes.size(); ++parent)
+    {
+        const auto& node = nodes[parent];
+        Require(node.identity && identities.insert(node.identity).second, "node identities are unique in a document revision");
+        auto last = node.block.source.first;
+        for (auto child = node.firstChild; child != MarkdownNoNode; child = nodes[child].nextSibling)
+        {
+            Require(child < nodes.size() && ! seen[child], "tree edges are bounded, unique and acyclic");
+            seen[child]        = true;
+            const auto& nested = nodes[child];
+            Require(nested.parent == parent && nested.block.source.first >= last && nested.block.source.last <= node.block.source.last,
+                    "siblings remain source-ordered inside their actual parent");
+            last = nested.block.source.last;
+        }
+        for (const auto& line : node.lines)
+            Require(line.source.first >= node.block.source.first && line.source.last <= node.block.source.last && line.source.first <= line.source.last,
+                    "prefix-stripped lines retain bounded exact source spans");
+    }
+    Require(std::all_of(seen.begin(), seen.end(), [](bool value) { return value; }), "no retired or unreachable staging nodes are published");
+}
+void TestLosslessMarkdownIndependentBlockCorpus()
+{
+    std::size_t checked = 0, failures = 0;
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+    {
+        const auto expectations = profile == MarkdownProfile::CommonMark0312 ? std::span<const MarkdownCorpus::BlockExample>(MarkdownCorpus::kCommonMarkBlocks)
+                                                                             : std::span<const MarkdownCorpus::BlockExample>(MarkdownCorpus::kGfmBlocks);
+        const auto inputs       = profile == MarkdownProfile::CommonMark0312 ? std::span<const std::wstring_view>(MarkdownCorpus::kCommonMark)
+                                                                             : std::span<const std::wstring_view>(MarkdownCorpus::kGfm);
+        for (std::size_t example = 0; example < expectations.size(); ++example)
+        {
+            const auto& expected = expectations[example];
+            if (expected.section != L"Thematic breaks" && expected.section != L"ATX headings" && expected.section != L"Setext headings" &&
+                expected.section != L"Indented code blocks" && expected.section != L"Fenced code blocks" && expected.section != L"HTML blocks" &&
+                expected.section != L"Link reference definitions" && expected.section != L"Paragraphs" && expected.section != L"Blank lines" &&
+                expected.section != L"Block quotes" && expected.section != L"List items" && expected.section != L"Lists")
+                continue;
+            MarkdownParser parser;
+            parser.Begin(inputs[example], example, profile);
+            const auto syntax = CompleteMarkdown(parser);
+            auto html         = std::wstring(expected.html);
+            // Raw HTML is an opaque block, including tags which happen to spell p,
+            // li or pre. Remove its exact literal payload before reading the oracle's
+            // structural tags. This does not execute/parse HTML as a browser would.
+            for (const auto& node : syntax->Nodes())
+                if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+                {
+                    std::wstring raw;
+                    for (const auto& line : node.lines)
+                    {
+                        raw.append(line.leadingSpaces, L' ');
+                        raw += syntax->Slice(line.source);
+                    }
+                    if (! raw.empty() && raw.back() != L'\n')
+                        raw += L'\n';
+                    if (const auto found = html.find(raw); found != std::wstring::npos)
+                        html.replace(found, raw.size(), L"<htmlblock></htmlblock>");
+                }
+            std::wstring signature;
+            std::vector<std::wstring> tags;
+            std::vector<unsigned> expectedStarts, actualStarts;
+            std::vector<std::wstring> expectedCode, actualCode;
+            for (std::size_t at = 0u; (at = html.find(L"<pre><code", at)) != std::wstring::npos;)
+            {
+                const auto first = html.find(L'>', at + 5u) + 1u, last = html.find(L"</code></pre>", first);
+                Require(last != std::wstring::npos, "pinned code-block HTML oracle is complete");
+                auto text = html.substr(first, last - first);
+                for (const auto& escape : {std::pair{L"&lt;", L"<"}, std::pair{L"&gt;", L">"}, std::pair{L"&quot;", L"\""}, std::pair{L"&amp;", L"&"}})
+                    for (std::size_t pos = 0; (pos = text.find(escape.first, pos)) != std::wstring::npos; pos += std::wstring_view(escape.second).size())
+                        text.replace(pos, std::wstring_view(escape.first).size(), escape.second);
+                expectedCode.push_back(std::move(text));
+                at = last + 12u;
+            }
+            for (const auto& node : syntax->Nodes())
+            {
+                if (node.block.kind == MarkdownBlockKind::List && (node.listMarker == L'.' || node.listMarker == L')'))
+                    actualStarts.push_back(node.listStart);
+                if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode)
+                    continue;
+                std::wstring text;
+                for (const auto& line : node.lines)
+                {
+                    text.append(line.leadingSpaces, L' ');
+                    for (auto offset = line.source.first; offset < line.source.last; ++offset)
+                    {
+                        auto c = syntax->Source()[offset];
+                        if (c == L'\r')
+                        {
+                            if (offset + 1u < line.source.last && syntax->Source()[offset + 1u] == L'\n')
+                                ++offset;
+                            c = L'\n';
+                        }
+                        text += c ? c : L'\ufffd';
+                    }
+                }
+                if (! text.empty() && text.back() != L'\n')
+                    text += L'\n';
+                actualCode.push_back(std::move(text));
+            }
+            for (std::size_t i = 0; i < html.size(); ++i)
+                if (html[i] == L'<')
+                {
+                    const auto end = html.find(L'>', i);
+                    if (end == std::wstring::npos)
+                        break;
+                    auto tag = html.substr(i + 1u, end - i - 1u);
+                    if (tag == L"ol" || tag.starts_with(L"ol "))
+                    {
+                        const auto start = tag.find(L"start=\"");
+                        expectedStarts.push_back(start == std::wstring::npos ? 1u : static_cast<unsigned>(std::stoul(tag.substr(start + 7u))));
+                    }
+                    const bool close = tag.starts_with(L"/");
+                    if (close)
+                        tag.erase(0u, 1u);
+                    tag = tag.substr(0u, tag.find_first_of(L" /"));
+                    if (tag == L"p" || tag == L"ul" || tag == L"ol" || tag == L"li" || tag == L"blockquote" || tag == L"pre" || tag == L"htmlblock" ||
+                        (tag.size() == 2u && tag[0] == L'h' && tag[1] >= L'1' && tag[1] <= L'6'))
+                    {
+                        if (! close)
+                        {
+                            tags.push_back(tag);
+                            signature += L"<" + tag + L">";
+                        }
+                        else if (! tags.empty() && tags.back() == tag)
+                        {
+                            tags.pop_back();
+                            signature += L"</" + tag + L">";
+                        }
+                        // Unmatched literal closing HTML is inline source, not an
+                        // independent semantic block (CommonMark example 148).
+                    }
+                    else if (tag == L"hr")
+                        signature += L"<hr></hr>";
+                    i = end;
+                }
+            ++checked;
+            if (BlockSignature(*syntax) != signature || actualStarts != expectedStarts || actualCode != expectedCode)
+            {
+                ++failures;
+                std::wcerr << L"block profile " << static_cast<int>(profile) << L" example " << expected.number << L": expected " << signature << L" actual "
+                           << BlockSignature(*syntax) << L"; starts match=" << (actualStarts == expectedStarts) << L"; code matches="
+                           << (actualCode == expectedCode) << L'\n';
+            }
+        }
+    }
+    std::cout << "independent block-section structural expectations: " << checked << "; failures: " << failures << '\n';
+    Require(checked > 560u && failures == 0u, "every pinned CommonMark/GFM block-section example matches independent structural HTML expectations");
+}
+void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
+{
+    for (const auto& scenario : MarkdownBlockTests::scenarios)
+    {
+        MarkdownParser parser;
+        parser.Begin(scenario.source, 1u);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        CheckMarkdownPartitions(*syntax, scenario.source);
+        if (BlockSignature(*syntax) != scenario.signature)
+            std::wcerr << scenario.name << L": " << BlockSignature(*syntax) << L'\n';
+        Require(BlockSignature(*syntax) == scenario.signature, "independent named block behavior");
+    }
+    MarkdownParser parser;
+    const std::wstring source = L"# head\n\n> alpha\n> beta\n\n- one\n- two\n\ntail\n";
+    parser.Begin(source, 1u);
+    const auto old      = CompleteMarkdown(parser);
+    const auto document = old->DocumentIdentity();
+    auto edited         = source;
+    edited.insert(edited.find(L"alpha"), L"Unicode \U0001f600 ");
+    parser.Begin(edited, 2u);
+    parser.Advance(1u);
+    parser.Cancel();
+    Require(parser.Published() == old, "cancelled structural edit cannot mutate stable identities");
+    parser.Begin(edited, 2u);
+    const auto current = CompleteMarkdown(parser, 1u);
+    CheckMarkdownPartitions(*current, edited);
+    Require(current->DocumentIdentity() == document && current->Nodes().size() == old->Nodes().size(), "ordinary edits retain document identity");
+    for (std::size_t i = 0; i < old->Nodes().size(); ++i)
+        Require(current->Nodes()[i].identity == old->Nodes()[i].identity, "mapped unchanged and enclosing nodes retain identity across an edit");
+    edited.replace(0u, 1u, L"---\n");
+    parser.Begin(edited, 3u);
+    const auto structural = CompleteMarkdown(parser);
+    CheckMarkdownPartitions(*structural, edited);
+    Require(structural->Nodes()[0].identity == old->Nodes()[0].identity, "document node survives structural grammar changes");
+    Require(structural->Nodes()[structural->Nodes()[0].firstChild].identity != old->Nodes()[old->Nodes()[0].firstChild].identity,
+            "a changed block kind cannot inherit another node's identity");
+    Require(old->Source() == source, "held old source/tree remains immutable");
+    MarkdownParser other;
+    other.Begin(source, 1u);
+    Require(CompleteMarkdown(other)->DocumentIdentity() != document, "parsers do not share document identity");
+    parser.Clear();
+    parser.Begin(source, 1u);
+    Require(CompleteMarkdown(parser)->DocumentIdentity() != document, "Clear starts a fresh identity namespace");
+    Document duplicates(L"same\n\nsame\n\nsame\n");
+    MarkdownParser tracked;
+    tracked.Begin(duplicates.Snapshot(), duplicates.Revision());
+    const auto before = CompleteMarkdown(tracked);
+    const auto first  = before->Nodes()[0].firstChild;
+    const auto second = before->Nodes()[first].nextSibling;
+    duplicates.SetSelection({0u, 6u});
+    duplicates.ReplaceSelection(L"");
+    tracked.Begin(duplicates.Snapshot(), duplicates.Revision());
+    const auto after = CompleteMarkdown(tracked);
+    Require(after->Nodes()[after->Nodes()[0].firstChild].identity == before->Nodes()[second].identity,
+            "tracked deletion of the first duplicate preserves the second duplicate's identity");
+    MarkdownParser nested;
+    nested.Begin(L"> > alpha\n", 1u);
+    const auto nestedOld = CompleteMarkdown(nested);
+    nested.Begin(L"> > alpha more\n", 2u);
+    const auto nestedNew = CompleteMarkdown(nested);
+    for (std::size_t i = 0; i < nestedOld->Nodes().size(); ++i)
+        Require(nestedNew->Nodes()[i].identity == nestedOld->Nodes()[i].identity, "identical nested quote ranges reconcile using their parent identity");
+    MarkdownParser moved(std::move(tracked));
+    tracked.Begin(L"reused moved-from parser", 1u);
+    Require(CompleteMarkdown(tracked)->DocumentIdentity() != moved.Published()->DocumentIdentity(), "moved-from reuse cannot alias a live identity namespace");
 }
 void TestLosslessMarkdownOriginalCorporaPreservation()
 {
@@ -204,6 +428,133 @@ void TestLosslessMarkdownOriginalCorporaPreservation()
         }
     }
     Require(examples == 1324u, "all 652 CommonMark and 672 GFM original examples retained without exclusions");
+}
+void TestLosslessMarkdownContentSpansAndDependencies()
+{
+    MarkdownParser parser;
+    parser.Begin(L">\t\tcode\r\n", 1u);
+    auto syntax      = CompleteMarkdown(parser, 1u);
+    const auto& code = syntax->Nodes()[2u];
+    Require(code.block.kind == MarkdownBlockKind::IndentedCode && code.lines.size() == 1u && code.lines[0].leadingSpaces == 2u &&
+                syntax->Slice(code.lines[0].source) == L"code\r\n",
+            "a partially consumed tab retains exact raw spelling and its remaining code columns");
+    parser.Begin(L"> [a\n> b]:\n>  <dest>\n>  'title'\n> rest\n", 2u);
+    syntax                = CompleteMarkdown(parser, 1u);
+    const auto& quote     = syntax->Nodes()[syntax->Nodes()[0u].firstChild];
+    const auto& reference = syntax->Nodes()[quote.firstChild];
+    Require(reference.block.kind == MarkdownBlockKind::ReferenceDefinition && syntax->Slice(reference.destination) == L"dest" &&
+                syntax->Slice(reference.title) == L"title" && reference.lines.size() == 4u,
+            "multiline container reference retains destination/title and prefix-stripped source fragments");
+    Require(syntax->Nodes()[reference.nextSibling].block.kind == MarkdownBlockKind::Paragraph,
+            "definition prefix leaves its residual paragraph in source order");
+    const std::wstring fenced = L"```\n# inside\n```\n# after\n";
+    parser.Begin(fenced, 3u);
+    const auto old = CompleteMarkdown(parser);
+    auto changed   = fenced;
+    changed.erase(changed.find(L"```", 3u), 3u);
+    parser.Begin(changed, 4u);
+    syntax = CompleteMarkdown(parser, 1u);
+    Require(syntax->Blocks().size() == 1u && syntax->Blocks()[0u].kind == MarkdownBlockKind::FencedCode && ! syntax->Blocks()[0u].closed &&
+                old->Blocks().size() == 2u,
+            "removing a fence closer reparses dependent suffixes rather than reusing a stale heading");
+    CheckMarkdownPartitions(*syntax, changed);
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+    {
+        parser.Begin(L"<textarea>\n\n# text\n</textarea>\n", 5u, profile);
+        syntax = CompleteMarkdown(parser);
+        Require(syntax->Nodes()[syntax->Nodes()[0u].firstChild].htmlType == (profile == MarkdownProfile::CommonMark0312 ? 1u : 7u),
+                "version-specific raw-text HTML boundaries stay distinct");
+    }
+    for (const auto count : {997u, 998u})
+    {
+        parser.Begin(L"[" + std::wstring(count, L'a') + L"\\]]: /url\n", 7u);
+        syntax = CompleteMarkdown(parser);
+        Require((syntax->Nodes()[syntax->Nodes()[0u].firstChild].block.kind == MarkdownBlockKind::ReferenceDefinition) == (count == 997u),
+                "escaped label punctuation counts both source characters against the 999-character limit");
+    }
+    parser.Begin(L"[\u00a0]: /url\n", 8u);
+    syntax = CompleteMarkdown(parser);
+    Require(syntax->Nodes()[syntax->Nodes()[0u].firstChild].block.kind == MarkdownBlockKind::ReferenceDefinition,
+            "non-ASCII space is not an empty ASCII-whitespace link label");
+}
+void TestLosslessMarkdownNestedPrefixWorkIsBounded()
+{
+    for (const auto depth : {128u, 512u, 4096u})
+    {
+        std::wstring source;
+        for (unsigned level = 0u; level < depth; ++level)
+            source += L"- ";
+        source += L"alpha\n";
+        source.append(depth * 2u, L' ');
+        source += L"beta\n";
+        MarkdownParser parser;
+        parser.Begin(source, depth);
+        const auto syntax = CompleteMarkdown(parser, 17u);
+        CheckMarkdownPartitions(*syntax, source);
+        Require(syntax->Nodes().size() == depth * 2u + 2u, "deep lists retain every container and the continued paragraph");
+        const auto work = syntax->BlockStatistics();
+        Require(work.prefixInspectionUnits <= source.size() * 40u && work.containerFinalizations <= syntax->Nodes().size(),
+                "indentation and thematic-prefix lookahead do not multiply nesting depth by suffix length");
+    }
+    std::wstring lazy(2048u, L'>');
+    lazy += L"alpha\n";
+    for (unsigned line = 0u; line < 512u; ++line)
+        lazy += L"beta\n";
+    MarkdownParser parser;
+    parser.Begin(lazy, 1u);
+    const auto syntax = CompleteMarkdown(parser, 17u);
+    CheckMarkdownPartitions(*syntax, lazy);
+    Require(syntax->Nodes().size() == 2050u && syntax->BlockStatistics().containerFinalizations == 2049u,
+            "lazy continuation finalizes each ancestor once rather than extending every ancestor on every line");
+    Require(syntax->BlockStatistics().prefixInspectionUnits <= lazy.size() * 40u, "lazy nested paragraphs retain bounded prefix inspection work");
+}
+void TestLosslessMarkdownIdentityAtUnicodeParagraphEdges()
+{
+    for (const auto& edge : MarkdownBlockTests::identityEdges)
+        for (const bool snapshots : {false, true})
+        {
+            Document document(std::wstring(edge.source));
+            MarkdownParser parser;
+            const auto begin = [&]
+            {
+                if (snapshots)
+                    parser.Begin(document.Snapshot(), document.Revision());
+                else
+                    parser.Begin(document.Text(), document.Revision());
+            };
+            begin();
+            const auto old = CompleteMarkdown(parser);
+            document.SetSelection(edge.selection);
+            document.ReplaceSelection(L"");
+            begin();
+            const auto current = CompleteMarkdown(parser, 1u);
+            CheckMarkdownPartitions(*current, document.Text());
+            Require(current->Nodes()[current->Nodes()[0u].firstChild].identity == old->Nodes()[old->Nodes()[0u].firstChild].identity,
+                    "deleting first/last ASCII or supplementary scalar preserves the compatible paragraph identity");
+        }
+}
+void TestLosslessMarkdownHtmlRawNameAndVersionBoundaries()
+{
+    MarkdownParser parser;
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        for (const auto raw : {L"pre", L"SCRIPT", L"style"})
+        {
+            const auto input = L"<" + std::wstring(raw) + L"/>\n# heading\n";
+            parser.Begin(input, 1u, profile);
+            const auto syntax = CompleteMarkdown(parser);
+            Require(BlockSignature(*syntax) == L"<p></p><h1></h1>", "type seven excludes raw opening names which failed the type-one boundary");
+            CheckMarkdownPartitions(*syntax, input);
+        }
+        parser.Begin(L"<textarea/>\n# heading\n", 2u, profile);
+        auto syntax = CompleteMarkdown(parser);
+        Require(BlockSignature(*syntax) == (profile == MarkdownProfile::Gfm029 ? L"<htmlblock></htmlblock>" : L"<p></p><h1></h1>"),
+                "textarea opening-name exclusion follows the pinned dialect");
+        parser.Begin(L"alpha\n<search>\ntext\n", 3u, profile);
+        syntax = CompleteMarkdown(parser);
+        Require(BlockSignature(*syntax) == (profile == MarkdownProfile::Gfm029 ? L"<p></p>" : L"<p></p><htmlblock></htmlblock>"),
+                "search block-tag interruption belongs to CommonMark 0.31.2 rather than strict GFM 0.29");
+    }
 }
 void TestLosslessMarkdownRootLeafBlocks()
 {
@@ -228,8 +579,7 @@ void TestLosslessMarkdownRootLeafBlocks()
             const auto heading = CompleteMarkdown(parser);
             Require(heading->Blocks()[0].kind == MarkdownBlockKind::AtxHeading, "empty, six-level and trailing-content headings recognized");
         }
-        for (const auto input :
-             {L"####### literal", L"#no-space", L"    # indented", L"\t# tab", L"* _ *", L"\\# escaped", L"&#35; not heading", L"&#10;&#10;still one block"})
+        for (const auto input : {L"####### literal", L"#no-space", L"\\# escaped", L"&#35; not heading", L"&#10;&#10;still one block"})
         {
             parser.Begin(input, 2u, profile);
             Require(CompleteMarkdown(parser)->Blocks()[0].kind == MarkdownBlockKind::Paragraph, "invalid root marker remains exact paragraph source");
@@ -329,7 +679,7 @@ void TestLosslessMarkdownSchedulingCancellationAndIdentity()
     std::size_t total = first.workUnits;
     while (parser.HasPendingPreparation())
         total += parser.Advance(17u).workUnits;
-    Require(total == latest.size() * 2u + 3u && parser.Published()->Source() == latest,
+    Require(total <= latest.size() * 8u + 16u && parser.Published()->Source() == latest,
             "same pending request coalesces without restarting or quadratic hostile ampersand scans");
     const auto published = parser.Published();
     parser.Begin(latest, 2u);
@@ -360,6 +710,12 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestRichMarkdownSnapshotAndValidationContracts);
     DXUI_RUN_TEST(TestRichMarkdownV0StylesCommandsAndMalformedMappings);
     DXUI_RUN_TEST(TestLosslessMarkdownOriginalCorporaPreservation);
+    DXUI_RUN_TEST(TestLosslessMarkdownIndependentBlockCorpus);
+    DXUI_RUN_TEST(TestLosslessMarkdownBlockScenariosAndNodeIdentity);
+    DXUI_RUN_TEST(TestLosslessMarkdownContentSpansAndDependencies);
+    DXUI_RUN_TEST(TestLosslessMarkdownNestedPrefixWorkIsBounded);
+    DXUI_RUN_TEST(TestLosslessMarkdownIdentityAtUnicodeParagraphEdges);
+    DXUI_RUN_TEST(TestLosslessMarkdownHtmlRawNameAndVersionBoundaries);
     DXUI_RUN_TEST(TestLosslessMarkdownRootLeafBlocks);
     DXUI_RUN_TEST(TestLosslessMarkdownFencedCodeBoundaries);
     DXUI_RUN_TEST(TestLosslessMarkdownLexicalValuesAndAffinity);

@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Markdown root/lexical analysis is qualified as an opt-in bounded preview. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
+Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Markdown base block-tree/lexical analysis and document-scoped node reconciliation are qualified as an opt-in bounded preview. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -45,9 +45,19 @@ tests and owning contract/docs updates before completion):
   Code/tests/docs pass all 57 ordinary x64 suites, six profile builds and full
   tooling/format checks. See the [sealed parser-stage evidence](../../../Measurements/RichText/2026-10-18-markdown-parser/README.md).
   This qualifies root/lexical analysis, not complete CommonMark/GFM rendering.
-- [ ] M2: Complete dependency-aware container/leaf blocks (nested lists/quotes,
-  indentation/lazy continuation, reference definitions, HTML blocks, interruption
-  rules), stable document/node identities and reconciliation after structural edits.
+- [x] M2: Complete dependency-aware base container/leaf blocks, exact content-line
+  spans and conservative document/node reconciliation across structural edits.
+  All 568 pinned CommonMark/GFM block-section structure/code/list-start oracles,
+  source preservation, native/embedded scenarios, duplicates and Unicode edge
+  identities pass. Capped lookahead/marker metadata and deferred container ends
+  have deterministic scaling tests. Fallible node/container construction passes
+  all observed Debug/ASan allocation schedules; the original noexcept failure
+  and interrupted/failed attempts remain preserved. All 57 ordinary x64 scope
+  obligations (55 fresh plus two exact reused), six root builds, eight failure
+  probes, 324 exact raster pairs and full tooling/format checks pass. See the
+  [sealed M2 evidence](../../../Measurements/RichText/2026-10-18-markdown-blocks/README.md).
+  Source stays capped at 65,536 UTF-16 units; line/reference/compaction work is
+  indivisible, and full inline/extension/semantic/platform/performance gates remain.
 - [ ] M3: Complete inline precedence and delimiters, code spans, links/images,
   autolinks, safe raw HTML, line breaks and profile-specific GFM extensions.
   Lexical values are candidates until their context is resolved, never ready-made
@@ -115,6 +125,19 @@ tests and owning contract/docs updates before completion):
   Consumer pins/adapters/product qualification remain separately owned.
 
 ## Proposed source and test map
+
+### HTML strategy
+
+HTML recognition, standard conformance output and product rendering are separate
+contracts. M2 recognizes the pinned dialect's seven HTML-block boundary rules,
+including container termination and literal code contexts, and retains every raw
+source unit. M3 resolves inline tags/precedence and dialect-specific filtering.
+Independent expected HTML is a test oracle; the control does not use a browser DOM
+or HTML as its native rendering engine. M4 will project an explicitly supported
+safe subset through the owned native renderer. Scripts, event attributes and
+remote resource requests do not execute; unsupported/active HTML remains visible,
+editable source. This is an intended rendering boundary, not a claim that the
+current v0 preview already renders HTML tags semantically.
 
 The owned parser stage adds public `MarkdownSyntax.h` and canonical
 `DxUi.MarkdownSyntax.cpp`, with no second projection implementation. The existing
@@ -1408,3 +1431,22 @@ consumer adoption and final performance acceptance remain explicit later gates.
 Docs/gallery review retains the existing assets after review of the unchanged
 catalog/example/styles and small one-turn gallery fixture. Independent exact
 raster/geometry oracles validate the completed control; no baseline is rebaselined.
+
+## M2 block-tree closeout, 2026-10-18
+
+The owning code/test/contracts/docs are synchronized for the bounded syntax slice.
+The source manifest and actual native artifacts are bound in the sealed M2 packet.
+Its benchmark-source fingerprint is
+`1238CEE85A031EA32CE6810F5F2FDF6066BCA33677E67AE22C1DB7097ED9B768`.
+The packet includes original standards/notices, raw failures, independent block
+oracles, exact raster pairs and offline integrity replay. Private binaries and
+symbols remain under the owning .build report folder. Final prose closeout follows
+qualification without changing compiled code, fixtures, judges or thresholds.
+
+Snapshot ancestry distinguishes equal paragraphs; exact surviving nodes take
+priority over enclosing-node fallback at deletion boundaries. Changed kinds,
+reparenting and lost ancestry remain conservative. Block IDs are not geometry or
+semantic-cache validity keys. The renderer remains v0 and analysis remains opt-in.
+M3 is next: inline precedence, global reference resolution and dialect extensions,
+then independent full semantic/HTML expectations. D2a/M4-M6/D4c/D4d/D5 stay open;
+there is no native ARM64, physical IME/AT, large-file or frame-performance acceptance.

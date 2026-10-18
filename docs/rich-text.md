@@ -551,9 +551,10 @@ The [cooperative preparation record](../Measurements/RichText/2026-10-18-coopera
 ## Owned lossless Markdown preparation
 
 `DxUi/MarkdownSyntax.h` starts the owned parser independently of the v0 renderer.
-It retains exact Unicode source, root block ranges and a second complete lexical
-partition. Current root recognition covers ATX/setext headings, thematic breaks,
-paragraphs, blank lines and fenced code, including unterminated input. Original
+It retains exact Unicode source, root block ranges, a container/leaf tree and an
+independent complete lexical partition. Block recognition covers nested/lazy
+quotes and lists, tight/loose and empty items, headings, thematic breaks,
+indented/fenced code, seven HTML forms and multiline reference definitions. Original
 delimiters, trivia, unknown constructs, mixed line endings and entity spellings
 are preserved. The parser accepts raw NUL and supplies a replacement lexical
 value; the existing editor Document/codecs/text services still reject NUL.
@@ -562,7 +563,7 @@ The three grammar targets are CommonMark0312, Gfm029 and RichMarkdown. They are
 keys for continued implementation, not complete conformance profiles yet. Lexical
 candidates include all 2,125 semicolon-terminated named references, bounded numeric
 references and ASCII punctuation escapes. A candidate inside code/HTML cannot be
-rendered by decoding it in isolation; full inline/container precedence remains
+rendered by decoding it in isolation; full inline precedence remains
 pending. `LexemeSourceAnchor` expresses leading/trailing source affinity when one
 reference expands to several UTF-16 units. It does not replace model edit-boundary
 checks or provide generated-object/footnote semantic anchors.
@@ -576,6 +577,8 @@ if (auto syntax = editor->GetMarkdownSyntax())
 {
     auto exactSource = syntax->Source(); // Borrow while retaining syntax.
     const auto& rootBlocks = syntax->Blocks();
+    const auto& nodes = syntax->Nodes(); // nodes[0] is the document root.
+    auto documentIdentity = syntax->DocumentIdentity();
 }
 // Optional analysis can be disabled without editing source or history.
 editor->SetMarkdownAnalysisProfile(std::nullopt);
@@ -590,10 +593,30 @@ No worker, timer, graphics resource or additional HWND is created. Begin's copy,
 validation and same-source comparisons remain indivisible, and operation budgets
 do not guarantee a wall-clock deadline. The 65,536-unit limit remains.
 
+Prefer the `Begin(SourceSnapshot, revision, profile)` overload when maintaining
+an edited document. The retained editor does so: tracked edit ranges distinguish
+which identical paragraph was removed. Node identities are scoped to one parser
+until Clear and reconciled under compatible parent identities. String Begin uses
+common-prefix/suffix mapping; deleted/reclassified/reparented nodes may acquire
+new IDs, and no unbounded syntax history is retained. Blocks are reparsed across
+the bounded source before reconciliation. Per-line transitions, paragraph
+finalization and tree compaction remain indivisible; step budgets are not hard
+latency guarantees.
+`BlockStatistics()` reports deterministic prefix inspection and container closure
+counts. Prefix lookahead uses bounded thresholds and line metadata; lazy lines
+share a deferred accepted container end. These counters support regression tests
+and do not measure complete CPU time. Node identity is a logical handle, not a
+cache-validity or geometry-generation key; also check the source revision/profile.
+
+HTML blocks remain exact opaque source. Later inline/semantic stages will map an
+explicit safe subset to our native renderer. No browser DOM, script execution,
+event handler execution or automatic remote loading is introduced. Unsupported
+HTML remains editable source; the current formatted view is still the v0 preview.
+
 The native tests preserve all 652 CommonMark and 672 GFM original example inputs
 and check all named entity values against independently transcribed standard data.
 Those are source/lexical tests, not full HTML conformance. Further work includes
-container/dependency reconciliation, inline precedence, semantic rendering/editing,
+inline precedence, semantic rendering/editing,
 GFM extensions, math, Mermaid, footnotes/front matter and end-to-end NUL admission.
 Pinned inputs, attribution and offline generators are described in
 [ThirdParty/Markdown](../ThirdParty/Markdown/README.md). The control catalog,
@@ -601,3 +624,11 @@ styles and existing gallery example remain unchanged; embedded exact-pixel tests
 compare the same preview with optional analysis disabled and enabled.
 
 The [parser-stage qualification](../Measurements/RichText/2026-10-18-markdown-parser/README.md) retains all 57 ordinary x64 suite receipts, six root builds, 324 exact rendering pairs, complete parser failure traces/storage measurements and the original failed fixture. Full grammar/HTML conformance, semantic rendering/editing, extensions and the original platform/performance gates remain open.
+
+The [M2 block-tree qualification](../Measurements/RichText/2026-10-18-markdown-blocks/README.md)
+adds 568 independent pinned block-structure/code-content/ordered-start expectations,
+conservative snapshot-based node IDs and native/embedded grammar/Unicode edge tests.
+All 57 ordinary x64 scope obligations, six root builds, eight isolated failure
+probes and 324 exact raster pairs pass. It retains the original failures and the
+MSVC Debug proxy-allocation fix. Full inline/GFM extensions, semantic rendering/
+editing and the original physical/platform/performance gates remain open.

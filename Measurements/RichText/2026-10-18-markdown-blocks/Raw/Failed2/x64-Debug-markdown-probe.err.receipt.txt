@@ -1,0 +1,10 @@
+lossless Markdown failure-point=0
+lossless Markdown failure-point=1
+lossless Markdown failure-point=2
+lossless Markdown failure-point=3
+lossless Markdown failure-point=4
+lossless Markdown failure-point=5
+lossless Markdown failure-point=6
+lossless Markdown failure-point=7
+lossless Markdown failure-point=8
+rich preparation probe: unexpected noexcept termination

@@ -1180,6 +1180,18 @@ __declspec(noinline) static int RunFunctionalTests()
         const auto previous = std::set_terminate([]
         {
             std::fputs("rich preparation probe: unexpected noexcept termination\n", stderr);
+            // Bounded addresses need no C++ heap allocation even while the
+            // injection counter is exhausted. Resolve them offline against the
+            // exact retained executable/PDB; never invoke a desktop debugger.
+            void* frames[32]{};
+            const auto count = CaptureStackBackTrace(0u, 32u, frames, nullptr);
+            const auto base  = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+            for (unsigned frame = 0u; frame < count; ++frame)
+                std::fprintf(stderr,
+                             "rich termination frame %u: %p image+0x%llx\n",
+                             frame,
+                             frames[frame],
+                             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(frames[frame]) - base));
             std::fflush(stderr);
             std::_Exit(197);
         });

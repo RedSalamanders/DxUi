@@ -1,0 +1,92 @@
+[CmdletBinding()]param([string]$Root,[string]$Packet,[string]$ExpectedSource)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Text.Json
+$work=Join-Path $Root '.build/reports/rich-markdown-blocks-20261018'
+if(Test-Path -LiteralPath $Packet){throw 'Fresh packet required; never replace evidence.'}
+$matrix=Get-Content (Join-Path $work 'Final/qualification-completion.receipt.txt') -Raw|ConvertFrom-Json
+$tooling=Get-Content (Join-Path $work 'Final/tooling-completion.receipt.txt') -Raw|ConvertFrom-Json
+if($matrix.completed -ne 6 -or $matrix.operations.Count -ne 16 -or $tooling.attempted -ne 2 -or @($tooling.results|Where-Object exitCode -NE 0).Count){throw 'Qualification is incomplete.'}
+New-Item -ItemType Directory -Path $Packet|Out-Null
+$records=[Collections.Generic.List[object]]::new();$native=[Collections.Generic.List[object]]::new();$pairs=[Collections.Generic.List[object]]::new()
+$destinations=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
+$aliases=[Collections.Generic.List[object]]::new()
+function Compact-Raw([string]$Relative) {
+ $result="Raw/"+$Relative;if(([IO.Path]::GetRelativePath($Root,(Join-Path $Packet $result))).Length -gt 149){$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Relative)));$result="Raw/Long/"+$hash.Substring(0,24)+$(if($Relative.EndsWith(".png")){".png"}else{".receipt.txt"})};return $result
+}
+function Canonical-Name([string]$Path) {$hash=(Get-FileHash -LiteralPath $Path).Hash;return "Performance/"+$hash.Substring(0,24)+".receipt.txt"}
+function Copy-Exact([string]$From,[string]$Relative){
+ $sha=(Get-FileHash -LiteralPath $From).Hash
+ if($destinations.ContainsKey($Relative)){if($destinations[$Relative] -cne $sha){throw 'Archive path collision.'};return}
+ $to=Join-Path $Packet $Relative;New-Item -ItemType Directory -Path (Split-Path $to) -Force|Out-Null
+ Copy-Item -LiteralPath $From -Destination $to
+ if((Get-FileHash -LiteralPath $to).Hash -cne $sha){throw 'Archive copy changed bytes.'}
+ $destinations[$Relative]=$sha;$records.Add(@{path=$Relative;sha256=$sha;bytes=(Get-Item -LiteralPath $to).Length})
+}
+$scopes=@('Foundation','Embedded','Grid','Theme','Control','MenuExitLifetime','NewControls','EditorControls','TextField','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost','InteractiveLease')
+foreach($configuration in @('Debug','Release','ASan Debug')){
+ $profile='x64-'+$configuration.Replace(' ','-');$directory=Join-Path $work ('Final/'+$profile)
+ foreach($scope in $scopes){
+  $file=Join-Path $directory ($scope+'-x64-'+$configuration+'.json');$receipt=Get-Content -LiteralPath $file -Raw|ConvertFrom-Json
+  if($receipt.suite -cne $scope -or $receipt.exitCode -ne 0 -or $receipt.skips.Count -or $receipt.PSObject.Properties.Name -contains 'tests'){throw 'Not a complete ordinary suite success.'}
+  if((Get-FileHash -LiteralPath $receipt.executable).Hash -cne $receipt.sha256){throw 'Successful runtime artifact changed.'}
+  $performance=Get-Content -LiteralPath $receipt.performanceReport -Raw|ConvertFrom-Json
+  if($performance.sourceFingerprint -cne $ExpectedSource -or $performance.executableSha256 -cne $receipt.performanceExecutableSha256){throw 'Native/canonical source or artifact binding differs.'}
+  $a=[System.Text.Json.Nodes.JsonNode]::Parse(($receipt.performanceScenarios|ConvertTo-Json -Depth 48 -Compress))
+  $b=[System.Text.Json.Nodes.JsonNode]::Parse(($performance.scenarios|ConvertTo-Json -Depth 48 -Compress))
+  if(-not[System.Text.Json.Nodes.JsonNode]::DeepEquals($a,$b)){throw 'Native/canonical observations differ.'}
+  $stem=$scope+'-x64-'+$configuration;$nativePath='Native/'+$stem+'.receipt.txt';$logPath='Native/'+$stem+'.log'
+  Copy-Exact $file $nativePath
+  Copy-Exact (Join-Path $directory ('test-'+$stem+'.log')) $logPath
+  $performancePath=Canonical-Name $receipt.performanceReport
+  Copy-Exact $receipt.performanceReport $performancePath
+  if(Test-Path -LiteralPath ($receipt.performanceReport+'.comparison.json')){Copy-Exact ($receipt.performanceReport+'.comparison.json') ($performancePath+'.comparison.receipt.txt')}
+  $native.Add(@{scope=$scope;configuration=$configuration;receipt=$nativePath;log=$logPath;performance=$performancePath;sha256=$receipt.sha256})
+ }
+ $expected=@(Get-ChildItem -LiteralPath (Join-Path $directory 'Raster') -Filter 'profile-*-expected.png')
+ if($expected.Count -ne 108){throw 'Expected 108 retained geometry/raster pairs per x64 profile.'}
+ foreach($png in $expected){
+  $actual=$png.FullName.Replace('-expected.png','-actual.png')
+  if((Get-FileHash -LiteralPath $png.FullName).Hash -cne (Get-FileHash -LiteralPath $actual).Hash){throw 'Exact raster pair differs.'}
+  $left='Raster/'+$profile+'/'+$png.Name;$right='Raster/'+$profile+'/'+(Split-Path $actual -Leaf)
+  Copy-Exact $png.FullName $left;Copy-Exact $actual $right;$pairs.Add(@{expected=$left;actual=$right})
+ }
+}
+$private=@(foreach($file in Get-ChildItem -LiteralPath $work -Recurse -File|Where-Object Extension -In @('.exe','.dll','.pdb','.lib')){@{path=[IO.Path]::GetRelativePath($Root,$file.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $file.FullName).Hash;bytes=$file.Length}})
+$private|ConvertTo-Json -Depth 8|Set-Content (Join-Path $Packet 'private-artifacts.receipt.txt')
+foreach($file in Get-ChildItem -LiteralPath $work -Recurse -File){
+ $relative=[IO.Path]::GetRelativePath($work,$file.FullName).Replace('\','/')
+ if($file.Extension -in @('.exe','.dll','.pdb','.lib') -or $file.Name -ceq 'Progress.md'){continue}
+ $name=$relative
+ if($file.Extension -cne '.png'){$name+='.receipt.txt'}
+ $archived=Compact-Raw $name;Copy-Exact $file.FullName $archived;$aliases.Add(@{original=$relative;path=$archived})
+ if($file.Extension -ceq '.json' -or $file.Name -like '*.receipt.txt'){
+  try{$value=Get-Content -LiteralPath $file.FullName -Raw|ConvertFrom-Json -AsHashtable -Depth 64}catch [System.ArgumentException]{continue}
+  if($value -is [Collections.IDictionary] -and $value.Contains('performanceReport') -and (Test-Path -LiteralPath $value.performanceReport)){
+   Copy-Exact $value.performanceReport (Canonical-Name $value.performanceReport)
+  }
+ }
+}
+foreach($platform in @('x64','ARM64')){foreach($configuration in @('Debug','Release','ASan Debug')){
+ $profile=$platform+'-'+$configuration.Replace(' ','');foreach($kind in @('build','incremental')){
+  Copy-Exact (Join-Path $Root ('.build/reports/performance-build/'+$profile+'/'+$kind+'.json')) ('Build/'+$profile+'-'+$kind+'.receipt.txt')
+ }
+}}
+$pins=@{
+ 'corpora/CommonMark-0.31.2-spec.json'='D431B29D97B6F73E69D547109CF5081578FAC931E72AFE95639EBE766C1B2A20'
+ 'corpora/CommonMark-0.31.2-LICENSE.txt'='3E4806BA6F20073E8CE40DA5A0C4B59F7F44287965F538E195A4D734D833557B'
+ 'corpora/GFM-0.29.0.gfm.13-spec.txt'='7D8E5814BEFEC287AC116786D81FF14E0ADC9B13295B4494649E995408FD871C'
+ 'corpora/GFM-0.29.0.gfm.13-COPYING.txt'='C22E885F33B821BDDB24CF007145E5540655B6C0F403E49E6C76A93C28E6D9A9'
+ 'whatwg-2026-10-18/entities.json'='D741D877AC77C4194C4AD526B5B4A19AEF8DFE411AB840A466891CDBB9F362E6'
+ 'whatwg-2026-10-18/LICENSE.txt'='85DC6F5CCB57A6FE8C33D158F9FC8FC7EE5655A5D3DB2CDD131C6A3D0F48A864'
+}
+foreach($pin in $pins.GetEnumerator()){
+ $file=Join-Path $Root ('ThirdParty/Markdown/'+$pin.Key);if((Get-FileHash -LiteralPath $file).Hash -cne $pin.Value){throw 'Pinned original reference data changed.'}
+ Copy-Exact $file ('References/'+$pin.Key+'.receipt.txt')
+}
+$summary=@{component='M2 owned Unicode block grammar and identity reconciliation';sourceFingerprint=$ExpectedSource;native=$native.ToArray();rasterPairs=$pairs.ToArray();workAliases=$aliases.ToArray();
+ qualification='57 complete ordinary x64 scope obligations: 55 fresh matrix scopes plus two exact successful candidate scopes; six root profile builds; native ARM64 runtime remains unqualified.';
+ limits='65,536 UTF-16 units; block syntax/identity metadata only; full inline/GFM extensions, semantic rendering/editing, physical IME/AT and frame performance acceptance remain open.';
+ matrix='Raw/Final/qualification-completion.receipt.txt.receipt.txt';tooling='Raw/Final/tooling-completion.receipt.txt.receipt.txt';privateArtifactCount=$private.Count}
+$summary|ConvertTo-Json -Depth 14|Set-Content (Join-Path $Packet 'summary.receipt.txt')
+Write-Output "Copied exact M2 evidence: $($native.Count) complete suites, $($pairs.Count) exact raster pairs; private binaries omitted. Author README/Verify, then seal all files."

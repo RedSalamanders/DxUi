@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "timedOut": false,
+      "drained": true,
+      "step": "validation-full",
+      "processId": 8732,
+      "exitCode": 0
+    },
+    {
+      "timedOut": false,
+      "drained": true,
+      "step": "format-check",
+      "processId": 80776,
+      "exitCode": 0
+    }
+  ],
+  "attempted": 2,
+  "scheduled": 2,
+  "elapsedSeconds": 324.0835497
+}

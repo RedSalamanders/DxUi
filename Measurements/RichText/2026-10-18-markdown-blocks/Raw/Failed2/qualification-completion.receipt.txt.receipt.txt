@@ -1,0 +1,44 @@
+{
+  "elapsedSeconds": 247.6340981,
+  "operations": [
+    {
+      "processId": 92888,
+      "timedOut": false,
+      "name": "x64-Debug-build",
+      "exitCode": 0,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Debug"
+      ],
+      "elapsedSeconds": 247.324062,
+      "completedUtc": "2026-10-18T18:43:29.8808458Z",
+      "drained": true
+    },
+    {
+      "processId": 83320,
+      "timedOut": false,
+      "name": "x64-Debug-markdown-probe",
+      "exitCode": 197,
+      "sanitizedDiagnosticOptions": false,
+      "arguments": [
+        "--test-rich-markdown-failures"
+      ],
+      "elapsedSeconds": 0.0627653,
+      "completedUtc": "2026-10-18T18:43:29.9643203Z",
+      "drained": true
+    }
+  ],
+  "attemptedOperations": 2,
+  "profiles": [],
+  "scheduled": 6,
+  "attempted": 1,
+  "completed": 0,
+  "scheduledOperations": 16
+}

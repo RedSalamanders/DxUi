@@ -1,0 +1,45 @@
+FailAllocationIfRequested
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:44:0
+
+operator new(unsigned __int64)
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:50:0
+
+std::_Default_allocate_traits::_Allocate(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:137:0
+
+std::_Allocate<16, struct std::_Default_allocate_traits>(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:258:0
+
+std::allocator<struct std::_Container_proxy>::allocate(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:995:0
+
+std::_Container_base12::_Alloc_proxy<class std::allocator<struct std::_Container_proxy>>(class std::allocator<struct std::_Container_proxy> &&)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1232:0
+
+std::vector<struct DxUi::RichText::MarkdownNode, class std::allocator<struct DxUi::RichText::MarkdownNode>>::vector<struct DxUi::RichText::MarkdownNode, class std::allocator<struct DxUi::RichText::MarkdownNode>>(void)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:673:0
+
+DxUi::RichText::MarkdownSyntax::MarkdownSyntax(class std::basic_string_view<wchar_t, struct std::char_traits<wchar_t>>, unsigned __int64, enum DxUi::RichText::MarkdownProfile)
+Z:\src\DxUi-worktrees\rich-text-core-d2\include\DxUi\MarkdownSyntax.h:125:0
+
+DxUi::RichText::MarkdownParser::Preparation::Preparation(class std::basic_string_view<wchar_t, struct std::char_traits<wchar_t>>, unsigned __int64, enum DxUi::RichText::MarkdownProfile)
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.MarkdownSyntax.cpp:192:0
+
+std::make_unique<struct DxUi::RichText::MarkdownParser::Preparation, class std::basic_string_view<wchar_t, struct std::char_traits<wchar_t>> &, unsigned __int64 &, enum DxUi::RichText::MarkdownProfile &, 0>(class std::basic_string_view<wchar_t, struct std::char_traits<wchar_t>> &, unsigned __int64 &, enum DxUi::RichText::MarkdownProfile &)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666:0
+
+DxUi::RichText::MarkdownParser::BeginSource(class std::basic_string_view<wchar_t, struct std::char_traits<wchar_t>>, unsigned __int64, enum DxUi::RichText::MarkdownProfile, class std::optional<struct DxUi::RichText::SourceChangeRange>)
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.MarkdownSyntax.cpp:474:0
+
+DxUi::RichText::MarkdownParser::Begin(class DxUi::RichText::SourceSnapshot const &, unsigned __int64, enum DxUi::RichText::MarkdownProfile)
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.MarkdownSyntax.cpp:454:0
+
+TestRichMarkdownParserFailureAndStorageBudgets
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Scope.Tests.RichTextResources.h:55:0
+
+RunFunctionalTests
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:1212:0
+
+wmain
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.BenchmarkMain.h:47:0
+

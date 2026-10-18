@@ -1,0 +1,5 @@
+{
+  "msbuild": "C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders\\MSBuild\\Current\\Bin\\MSBuild.exe",
+  "classification": "Unattested incremental diagnostic only; not a root build or qualification pass",
+  "sourceSha256": "3D1FED3118BB5B4ADB78A717760911AC059DBAA7DEC0E7717162CA91184BE1DD"
+}

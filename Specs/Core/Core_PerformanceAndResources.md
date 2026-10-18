@@ -3,11 +3,20 @@
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
-hard wall-clock bounds. Physical-line recognition stores metadata rather than
-rescanning long marker lines. Lexical reference recognition examines at most
+hard wall-clock bounds. Block transitions inspect one bounded physical line;
+reference finalization and tree compaction are indivisible bounded work. Each
+revision reparses block dependencies before identity reconciliation; this is not
+incremental block reuse. Lexical reference recognition examines at most
 33 source units per candidate and uses a fixed sorted standard-data table.
-Native tests bound total scanner operations by 2 * source units + 3. A maximum
-all-newline source exercises every physical-line/block/lexeme allocation; owned
+Native tests bound scanner/root/index/reconciliation steps by
+8 * (current source units + previous source units) + 16. This counts steps,
+not all character visits inside block transitions. Prefix inspection fixtures
+independently check 128/512/4096 nested list levels
+and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
+capped, thematic suffix rejection uses one line metadata pass, and containers
+finalize once rather than extending every ancestor per lazy line. BlockStatistics
+exposes those deterministic counts; it is not a total CPU/time counter. The maximum
+all-newline source exercises maximum root-trivia and lexical partition counts; owned
 C++ retained storage must stay within 24 MiB and release completely. Replacing
 that maximum result while retaining its previous publication is bounded to
 32 MiB peak C++ storage. This is not
@@ -15,6 +24,12 @@ a process/SDK/GPU or large-document capacity claim. Same completed requests,
 read-only publication access and retirement allocate no C++ storage. Parser
 allocation-failure sweeps must retain the previous publication and allow explicit
 retry. No parser result changes the existing frame performance HOLD.
+MSVC Debug iterator proxies allocate even in default/noexcept STL container
+constructors. Parser staging and node values use explicit fallible zero-size
+construction and copies rather than noexcept allocator-backed container moves.
+The allocation sweep must cover admission, growth, reference extraction and
+compaction. Diagnostic children may emit bounded raw stack addresses on unexpected
+termination; ordinary suites and canonical benchmarks keep their normal path.
 
 Status: normative current contract
 Last reviewed: 2026-10-18

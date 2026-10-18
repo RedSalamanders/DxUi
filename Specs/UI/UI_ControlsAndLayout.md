@@ -816,30 +816,68 @@ long-paragraph/whole SDK calls remain pending performance work.
 
 ### Lossless Markdown analysis preview
 
-`MarkdownSyntax.h` supplies independent immutable source, root leaf-block ranges
-and context-free lexical candidates. Block ranges and, separately, lexical ranges
-partition the entire original source, including delimiters, unknown constructs,
-mixed line endings and NUL. Content/info ranges point into that source. Implemented
-root recognition covers paragraphs, blank lines, ATX/setext headings, thematic
-breaks and fenced code, including unfinished code through EOF. It does not parse
-containers, references, HTML blocks or indented code yet. Lexical candidates cover
-ASCII punctuation escapes, semicolon-terminated named/numeric references, line
-endings and NUL replacement. Candidate decoding does not establish inline
-precedence: code spans, raw HTML, links and delimiter resolution remain necessary
-before using those values as rendered rich text.
+`MarkdownSyntax.h` supplies immutable exact source, a root source partition,
+a linked container/leaf tree and an independent complete lexical partition.
+`Nodes()[0]` is the document; revision-local parent/firstChild/nextSibling indices
+express source order. Container ranges include their raw prefixes and contain
+child ranges. Blank trivia belongs to Source/Blocks rather than semantic nodes.
+Node content-line spans exclude container prefixes and retain any unconsumed
+columns of a partly consumed tab. Delimiters, original line endings and unknown
+content are never reconstructed from decoded values.
 
-Every result carries the requested CommonMark0312, Gfm029 or RichMarkdown profile
-and source revision. These are separate grammar targets, not conformance claims.
-`MarkdownParser::Begin` validates and owns at most 65,536 UTF-16 units, accepting
-NUL and rejecting unpaired surrogates before publication. Begin/copy/comparison
-are bounded but indivisible. `Advance` resumes at its stored cursors and consumes
-no more than the requested operation budget. One operation scans one scalar/CRLF
-or source unit, finalizes one line or recognizes a bounded <=33-unit lexical
-candidate. Classification uses accumulated line metadata, never another full-line
-scan. It owns at most one staged and one published revision. Zero budget does no
-work. Equal pending/completed source/revision/profile coalesces; equal revision
-with different text/profile does not. Invalid/failed Begin preserves the old
-request; failed Advance cancels staging and retains the published revision.
+Block recognition includes nested quotes and ordered/bullet lists, empty items,
+lazy continuation, interruption precedence, tight/loose lists, indented/fenced
+code, ATX/setext headings, thematic breaks, paragraphs and multiline reference
+definitions. Reference label/destination/title ranges and prefix-stripped lines
+remain exact source; Unicode label folding and link resolution are M3 work.
+The pinned dialect's seven HTML-block forms are opaque literal source, with
+container/EOF termination and their appropriate closing/blank-line conditions.
+CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
+Inline precedence, GFM extension blocks and full semantic output remain pending.
+BlockStatistics records deterministic prefix-inspection and container-finalization
+work. Indentation lookahead stops at its required threshold; a line's marker
+metadata rejects incompatible thematic suffixes without rescanning each nested
+list suffix. Open containers share a deferred accepted source end and finalize
+once, preventing lazy lines from updating every ancestor. These counters cover
+the named work, not complete parser CPU or a latency guarantee.
+
+DocumentIdentity scopes nonzero node identities to one parser lifetime until
+Clear; move transfers that scope, and reuse of the moved-from parser creates a
+new one. Revisions retain immutable old trees. Reparse the entire bounded block
+source before reconciling identities; the older projection's line-local widening
+is unsafe for fences/containers/references. Prefer Begin(SourceSnapshot, ...):
+tracked source ancestry distinguishes equal paragraphs and pending sibling edits.
+Map unchanged prefix/suffix and compatible enclosing nodes under the same parent
+identity; changed kinds, reparented nodes, lost ancestry and newly created nodes
+receive new identities. Deleted identities are not resurrected from an unbounded
+syntax history. At edit boundaries prefer an exact surviving prefix/suffix node,
+then a compatible enclosing node; deleting its first/last scalar must not replace
+the identity of a paragraph which remains present. String Begin uses deterministic
+common-prefix/suffix mapping and
+cannot infer which equal paragraph an external caller removed. Profile changes
+may replace node identities; Clear explicitly starts a new document namespace.
+
+Every result carries its requested CommonMark0312, Gfm029 or RichMarkdown target
+and source revision. These remain separate targets, not full conformance claims.
+Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
+unpaired surrogates. Equal source/revision/profile/change requests coalesce.
+Snapshot admission uses bounded source materialization and tracked change queries;
+unchanged completed snapshots avoid materialization. Invalid/failed Begin keeps
+the old request; failed Advance cancels staging and keeps the prior publication.
+One staged and one published syntax are retained. Source/lexical scanning, root
+partitioning and identity indexing/reconciliation resume at stored cursors.
+Zero budget does no work. Budgets count steps: physical-line transitions,
+paragraph-reference finalization, tree compaction, comparisons and allocations
+remain bounded indivisible work, not per-character or wall-clock guarantees.
+Lexical candidates cover ASCII escapes, semicolon named/numeric references,
+line endings and NUL replacement. Code/HTML/link/delimiter context must resolve
+candidates before their values can become formatted text.
+
+HTML recognition and standard expected HTML are independent of product rendering.
+The intended native formatted renderer uses an explicit safe supported subset;
+scripts, event attributes and automatic remote resource loading do not execute.
+Unsupported/active HTML stays visible editable source. There is no browser DOM.
+This stage supplies syntax metadata and does not implement semantic HTML display.
 
 `LexemeSourceAnchor` keeps transformed-value leading/trailing affinity explicit,
 including a named reference producing two Unicode scalars. Original spelling
@@ -860,3 +898,11 @@ is permitted in either host. Completed pure analysis is independent of geometry.
 The raw parser's NUL admission deliberately does not change the existing Document,
 codec, clipboard or source text-store admission contract. End-to-end NUL editing,
 complete pinned grammar/HTML output, extensions and semantic commands remain open.
+
+The bounded base block-tree/identity slice is qualified in the
+[M2 evidence packet](../../Measurements/RichText/2026-10-18-markdown-blocks/README.md):
+568 independent block-section expectations, all source inputs, native/embedded
+behaviors, Unicode edge identities, prefix-work/resource/failure predicates,
+57 ordinary x64 scope obligations, six builds and 324 exact raster pairs pass.
+Inline/extension/semantic acceptance stays open. ARM64 is compile-only; source
+limits and indivisible-work caveats above remain normative.

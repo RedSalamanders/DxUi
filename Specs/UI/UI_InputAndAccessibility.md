@@ -9,6 +9,10 @@ acknowledged embedded text snapshot must never acquire unrelated current glyph
 bounds. Structured Markdown accessibility/semantic anchors require their separate
 implementation and qualification. The raw parser accepting NUL does not change
 the editor/text-store admission contract.
+Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
+anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
+new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
+exact source; block analysis never silently substitutes native rich-text ranges.
 
 Status: normative intended contract
 Last reviewed: 2026-10-18

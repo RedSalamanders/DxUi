@@ -1,0 +1,4 @@
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.lib
+  Embedded.Tests.Embedded.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.EmbeddedTests.exe

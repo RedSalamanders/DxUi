@@ -1,9 +1,13 @@
 #pragma once
+#include "../Support/Scope.Tests.MarkdownBlocks.h"
 
 static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
 {
     using namespace DxUi::RichText;
-    const std::wstring source = L"# staged\r\n" + std::wstring(512u, L'\n') + L"&NotEqualTilde; &#x1f600;";
+    const std::wstring source =
+        L"# staged\r\n> - nested\n>\n>   [a\nb]: /url 'title'\n\n<!-- raw -->\n" + std::wstring(512u, L'\n') + L"&NotEqualTilde; &#x1f600;";
+    Document sourceDocument(source);
+    const auto sourceSnapshot = sourceDocument.Snapshot();
     const auto finish         = [](MarkdownParser& parser)
     {
         while (parser.HasPendingPreparation())
@@ -24,12 +28,12 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         });
         allocations = allocationBytes = 0u;
         countAllocations              = true;
-        parser.Begin(source, 2u);
+        parser.Begin(sourceSnapshot, 2u);
         finish(parser);
         countAllocations = false;
         requests         = allocations;
     }
-    Check(requests > 0u && requests < 128u, "lossless parser has a finite observed allocation schedule");
+    Check(requests > 0u && requests < 512u, "lossless parser has a finite observed allocation schedule including containers and references");
     for (size_t failure = 0u; failure < requests; ++failure)
     {
         if (trace)
@@ -48,7 +52,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
             failAllocationAfter   = failure;
             try
             {
-                parser.Begin(source, 2u);
+                parser.Begin(sourceSnapshot, 2u);
                 finish(parser);
             }
             catch (const std::bad_alloc&)
@@ -58,7 +62,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         }
         Check(rejected && parser.Published() == previous && previous->Source() == L"previous" && ! parser.HasPendingPreparation(),
               "failure at every Begin/Advance allocation preserves published source and retires staged work");
-        parser.Begin(source, 2u);
+        parser.Begin(sourceSnapshot, 2u);
         finish(parser);
         Check(parser.Published()->Source() == source, "explicit retry after allocation failure succeeds");
     }
@@ -77,7 +81,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         });
         allocations = allocationBytes = 0u;
         countAllocations              = true;
-        parser.Begin(source, 2u);
+        parser.Begin(sourceSnapshot, 2u);
         countAllocations = false;
         beginRequests    = allocations;
     }
@@ -102,7 +106,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
             failAllocationAfter   = failure;
             try
             {
-                parser.Begin(source, 3u);
+                parser.Begin(sourceSnapshot, 3u);
             }
             catch (const std::bad_alloc&)
             {
@@ -152,7 +156,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
     Check(retained >= 0 && retained <= 24 * 1024 * 1024 && released == 0, "maximum bounded syntax storage releases completely within 24 MiB C++ budget");
     Check(peak >= retained && peak <= 32 * 1024 * 1024, "old/staged maximum syntax replacement stays within 32 MiB peak C++ storage");
     MarkdownParser parser;
-    parser.Begin(source, 1u);
+    parser.Begin(sourceSnapshot, 1u);
     finish(parser);
     const auto oldCounting = countAllocations;
     const auto oldCalls = allocations, oldBytes = allocationBytes;
@@ -168,7 +172,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         countAllocations              = true;
         for (size_t repeat = 0u; repeat < 100u; ++repeat)
         {
-            parser.Begin(source, 1u);
+            parser.Begin(sourceSnapshot, 1u);
             static_cast<void>(parser.Published());
             parser.Advance(0u);
             parser.Cancel();
@@ -223,6 +227,66 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
         Check(pixels == originalPixels, "lossless analysis does not silently replace or change the v0 formatted renderer");
     }
     const auto held = editor->GetMarkdownSyntax();
+    for (const auto& scenario : MarkdownBlockTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded independent block scenario");
+        const auto parsed = editor->GetMarkdownSyntax();
+        Check(parsed && MarkdownBlockTests::BlockSignature(*parsed) == scenario.signature, "embedded block grammar matches independent expected structure");
+        Check(editor->GetText() == scenario.source && ! editor->CanUndo() && independentEditor->GetMarkdownSyntax() == independentSyntax,
+              "embedded block grammar retains exact source/history and isolates its second view");
+    }
+    editor->SetText(L"# heading\n\n> alpha\n\ntail\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded identity initial tree");
+    const auto oldTree      = editor->GetMarkdownSyntax();
+    const auto originalText = editor->GetText();
+    const auto editAt       = originalText.find(L"alpha");
+    editor->SetSelection({editAt, editAt});
+    Check(editor->ReplaceSelection(L"\U0001f600 "), "embedded Unicode block edit");
+    Check(! editor->GetMarkdownSyntax(), "embedded edit hides stale current syntax");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded identity changed tree");
+    const auto changedTree = editor->GetMarkdownSyntax();
+    Check(changedTree && changedTree->DocumentIdentity() == oldTree->DocumentIdentity() && changedTree->Nodes().size() == oldTree->Nodes().size(),
+          "embedded owner publication retains identity scope");
+    for (std::size_t i = 0; i < oldTree->Nodes().size(); ++i)
+        Check(changedTree->Nodes()[i].identity == oldTree->Nodes()[i].identity, "embedded unchanged/enclosing node reconciliation");
+    Check(editor->Undo(), "embedded block edit undo");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded undo tree");
+    Check(editor->GetText() == originalText && oldTree->Source() == originalText, "embedded held tree remains immutable through undo");
+    editor->SetText(L"same\n\nsame\n\nsame\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded duplicate tree");
+    const auto duplicates = editor->GetMarkdownSyntax();
+    const auto first      = duplicates->Nodes()[0u].firstChild;
+    const auto second     = duplicates->Nodes()[first].nextSibling;
+    editor->SetSelection({0u, 6u});
+    Check(editor->ReplaceSelection(L""), "embedded delete first duplicate");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded reconciled duplicate tree");
+    const auto remaining = editor->GetMarkdownSyntax();
+    Check(remaining->Nodes()[remaining->Nodes()[0u].firstChild].identity == duplicates->Nodes()[second].identity,
+          "embedded tracked ancestry preserves the surviving duplicate's identity");
+    std::wstring nested;
+    for (unsigned level = 0u; level < 256u; ++level)
+        nested += L"- ";
+    nested += L"alpha\n";
+    nested.append(512u, L' ');
+    nested += L"beta\n";
+    editor->SetText(nested);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded deep prefix preparation");
+    const auto bounded = editor->GetMarkdownSyntax();
+    Check(bounded && bounded->Nodes().size() == 514u && bounded->BlockStatistics().prefixInspectionUnits <= nested.size() * 40u,
+          "embedded owner preparation keeps deep containers and bounded prefix inspection");
+    for (const auto& edge : MarkdownBlockTests::identityEdges)
+    {
+        editor->SetText(std::wstring(edge.source));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded paragraph-edge source");
+        const auto before = editor->GetMarkdownSyntax();
+        editor->SetSelection(edge.selection);
+        Check(editor->ReplaceSelection(L""), "embedded Unicode paragraph-edge deletion");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded paragraph-edge reconciliation");
+        const auto after = editor->GetMarkdownSyntax();
+        Check(after && after->Nodes()[after->Nodes()[0u].firstChild].identity == before->Nodes()[before->Nodes()[0u].firstChild].identity,
+              "embedded first/last scalar deletion preserves its compatible paragraph identity");
+    }
     editor->SetText(std::wstring(32000u, L'&'));
     Check(view.Prepare(480u, 240u) == S_FALSE && editor->DebugGetState().markdownPreparationPending && ! editor->GetMarkdownSyntax(),
           "embedded parser yields before geometry and never presents stale syntax as current");

@@ -95,6 +95,7 @@
   "Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h",
   "Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp",
   "Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h",
+  "Tests/Support/Scope.Tests.MarkdownBlocks.h",
   "Tests/Support/Support.Tests.DesktopLease.h",
   "Tests/Support/Support.Tests.FailureReports.h",
   "Tests/Support/Support.Tests.ForegroundThief.h",

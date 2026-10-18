@@ -288,7 +288,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 // Parsing resumes its own cursors, without DirectWrite or a
                 // per-control worker. Future semantic rendering consumes this
                 // tree only after inline/container precedence is implemented.
-                state.markdown.Begin(Snapshot().Text(), Revision(), *state.markdownProfile);
+                state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
                 state.markdownRequestRevision = Revision();
                 state.markdownRequestActive   = true;
             }

@@ -1,0 +1,32 @@
+
+  ControlCatalog.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.EditorControls.cpp
+  DxUi.Forms.cpp
+  DxUi.Grid.cpp
+  DxUi.Layout.cpp
+  DxUi.MarkdownSyntax.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.RichTextEditor.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  Compiling...
+  DxUi.cpp
+  NativeMenuInterop.cpp
+  TextClipboard.cpp
+  TextInputServices.cpp
+  Embedded.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.lib
+  Embedded.Tests.Embedded.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Debug\DxUi.EmbeddedTests.exe

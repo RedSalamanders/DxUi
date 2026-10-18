@@ -1,0 +1,16 @@
+[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestLosslessMarkdownOriginalCorporaPreservation
+  [DONE] TestLosslessMarkdownOriginalCorporaPreservation (0.003 s)
+  [START] TestLosslessMarkdownIndependentBlockCorpus
+block example 148: expected <htmlblock></htmlblock><p></pre></p><htmlblock></htmlblock> actual <htmlblock></htmlblock><p></p><htmlblock></htmlblock>
+block example 278: expected <ul><li></li><li><pre></pre></li><li><pre></pre></li></ul> actual <ul><li><pre></pre></li><li><pre></pre></li></ul>
+block example 280: expected <ul><li></li></ul><p></p> actual <ul><li><p></p></li></ul>
+block example 281: expected <ul><li></li><li></li><li></li></ul> actual <ul><li></li><li></li></ul>
+block example 282: expected <ul><li></li><li></li><li></li></ul> actual <ul><li></li><li></li></ul>
+block example 283: expected <ol><li></li><li></li><li></li></ol> actual <ol><li></li></ol>
+block example 302: expected <ol><li></li><li></li></ol><ol><li></li></ol> actual <ol><li></li></ol>
+block example 315: expected <ul><li><p></p></li><li></li><li><p></p></li></ul> actual <ul><li><p></p></li><li><p></p></li></ul>
+block example 319: expected <ul><li><ul><li><p></p><p></p></li></ul></li><li></li></ul> actual <ul><li><p></p><ul><li><p></p><p></p></li></ul></li><li><p></p></li></ul>
+block example 320: expected <ul><li><blockquote><p></p></blockquote></li><li></li></ul> actual <ul><li><p></p><blockquote><p></p></blockquote></li><li><p></p></li></ul>
+FAILED: every pinned CommonMark block-section example matches independent structural HTML expectations

@@ -1,0 +1,22 @@
+[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestLosslessMarkdownOriginalCorporaPreservation
+  [DONE] TestLosslessMarkdownOriginalCorporaPreservation (0.003 s)
+  [START] TestLosslessMarkdownIndependentBlockCorpus
+independent block-section structural expectations: 568; failures: 0
+  [DONE] TestLosslessMarkdownIndependentBlockCorpus (0.002 s)
+  [START] TestLosslessMarkdownBlockScenariosAndNodeIdentity
+  [DONE] TestLosslessMarkdownBlockScenariosAndNodeIdentity (0.000 s)
+  [START] TestLosslessMarkdownContentSpansAndDependencies
+  [DONE] TestLosslessMarkdownContentSpansAndDependencies (0.000 s)
+  [START] TestLosslessMarkdownRootLeafBlocks
+  [DONE] TestLosslessMarkdownRootLeafBlocks (0.000 s)
+  [START] TestLosslessMarkdownFencedCodeBoundaries
+  [DONE] TestLosslessMarkdownFencedCodeBoundaries (0.000 s)
+  [START] TestRichTextEditorNativeBlockGrammarAndIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeBlockGrammarAndIdentity (0.568 s)
+[DONE] EditorControls (0.576 s)
+All DxUi tests passed.

@@ -1,6 +1,7 @@
 #pragma once
 #include <DxUi/RichDocument.h>
 #include <array>
+#include <optional>
 
 namespace DxUi::RichText
 {
@@ -24,7 +25,14 @@ enum class MarkdownBlockKind
     AtxHeading,
     SetextHeading,
     ThematicBreak,
-    FencedCode
+    FencedCode,
+    Document,
+    BlockQuote,
+    List,
+    ListItem,
+    IndentedCode,
+    HtmlBlock,
+    ReferenceDefinition
 };
 struct MarkdownBlock
 {
@@ -34,6 +42,40 @@ struct MarkdownBlock
     wchar_t fenceMarker{};
     std::size_t fenceLength{};
     bool closed = true;
+};
+inline constexpr std::size_t MarkdownNoNode = static_cast<std::size_t>(-1);
+// Tree indices are revision-local; identities belong to DocumentIdentity().
+// Container source ranges include their prefixes and overlap their descendants.
+// Blank trivia stays in Blocks()/Source(), rather than becoming semantic nodes.
+struct MarkdownContentLine
+{
+    MarkdownRange source;
+    unsigned leadingSpaces{}; // Unconsumed columns of a partially consumed tab.
+};
+struct MarkdownNode
+{
+    // MSVC Debug's default/move vector constructors are noexcept but allocate
+    // iterator proxies. Empty-size/copy construction is fallible, so allocation
+    // injection can unwind staging rather than terminating the process.
+    MarkdownNode() : lines(0u)
+    {
+    }
+    MarkdownNode(const MarkdownNode&)            = default;
+    MarkdownNode& operator=(const MarkdownNode&) = default;
+    MarkdownBlock block;
+    std::uint64_t identity{};
+    std::size_t parent = MarkdownNoNode, firstChild = MarkdownNoNode, nextSibling = MarkdownNoNode;
+    std::vector<MarkdownContentLine> lines;
+    MarkdownRange label, destination, title;
+    unsigned listStart{}, contentIndent{}, htmlType{};
+    wchar_t listMarker{};
+    bool tight = true;
+};
+struct MarkdownBlockStatistics
+{
+    // Prefix metadata/cursor visits and container closure visits. These are
+    // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
+    std::size_t prefixInspectionUnits{}, containerFinalizations{};
 };
 // Context-free lexical candidates. Inline precedence (code, HTML, links,
 // delimiters) must resolve them before using their values for rich rendering.
@@ -67,6 +109,11 @@ public:
     std::uint64_t Revision() const noexcept;
     MarkdownProfile Profile() const noexcept;
     const std::vector<MarkdownBlock>& Blocks() const noexcept;
+    // Node zero is the document. Follow firstChild/nextSibling for source order;
+    // finalizing reference definitions can append nodes after their siblings.
+    const std::vector<MarkdownNode>& Nodes() const noexcept;
+    std::uint64_t DocumentIdentity() const noexcept;
+    MarkdownBlockStatistics BlockStatistics() const noexcept;
     const std::vector<MarkdownLexeme>& Lexemes() const noexcept;
     std::wstring_view Slice(MarkdownRange range) const;
     std::wstring_view LexemeValue(std::size_t index) const;
@@ -82,6 +129,9 @@ private:
     MarkdownProfile profile_{};
     std::vector<MarkdownBlock> blocks_;
     std::vector<MarkdownLexeme> lexemes_;
+    std::vector<MarkdownNode> nodes_;
+    std::uint64_t documentIdentity_{};
+    MarkdownBlockStatistics blockStatistics_;
     friend class MarkdownParser;
 };
 
@@ -97,11 +147,13 @@ struct MarkdownAdvance
     std::size_t workUnits{};
 };
 // Owned parser, no foreign implementation/dependency, worker, host or graphics.
-// Begin copies/validates the bounded source once. Advance resumes line scanning,
-// root leaf-block recognition and lexical partitioning; it never restarts a scan
-// after yielding. One work unit visits one source unit or scalar/CRLF, finalizes one
-// physical line, or recognizes one bounded (<=33-unit) lexical candidate.
-// Budgets bound operations, not allocator time or a hard wall-clock deadline.
+// Begin copies/validates bounded source. Advance resumes source/lexical cursors,
+// root partitions and identity-index/reconciliation steps. A physical-line
+// transition, paragraph-reference finalization and tree compaction are bounded
+// indivisible operations; they can inspect more than one source unit. Budgets
+// count steps, not character visits, allocator time or wall-clock deadlines.
+// Each revision reparses blocks, so container/fence/reference dependencies cannot
+// inherit the older v0 projection's line-local reuse assumptions.
 class MarkdownParser
 {
 public:
@@ -115,6 +167,10 @@ public:
     // with different source or profile are distinct requests. Failed Begin leaves
     // the previous request intact; failed Advance discards only staged work.
     void Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile = MarkdownProfile::CommonMark0312);
+    // Prefer snapshots for edits: tracked source ancestry distinguishes edits
+    // among identical paragraphs. String callers use deterministic prefix/suffix
+    // mapping; that fallback cannot recover which duplicate the caller deleted.
+    void Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile = MarkdownProfile::CommonMark0312);
     MarkdownAdvance Advance(std::size_t maximumWorkUnits = 4096);
     bool HasPendingPreparation() const noexcept;
     std::shared_ptr<const MarkdownSyntax> Published() const noexcept;
@@ -125,5 +181,8 @@ private:
     struct Preparation;
     std::unique_ptr<Preparation> preparation_;
     std::shared_ptr<const MarkdownSyntax> published_;
+    std::uint64_t documentIdentity_{}, nextNodeIdentity_ = 1u;
+    std::optional<SourceSnapshot> publishedSource_;
+    void BeginSource(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<SourceChangeRange> change);
 };
 } // namespace DxUi::RichText

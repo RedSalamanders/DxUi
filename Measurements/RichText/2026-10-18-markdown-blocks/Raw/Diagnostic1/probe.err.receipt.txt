@@ -1,0 +1,42 @@
+lossless Markdown failure-point=0
+lossless Markdown failure-point=1
+lossless Markdown failure-point=2
+lossless Markdown failure-point=3
+lossless Markdown failure-point=4
+lossless Markdown failure-point=5
+lossless Markdown failure-point=6
+lossless Markdown failure-point=7
+lossless Markdown failure-point=8
+rich preparation probe: unexpected noexcept termination
+rich termination frame 0: 00007FF61F055B3A image+0x445b3a
+rich termination frame 1: 00007FF61EFCB87B image+0x3bb87b
+rich termination frame 2: 00007FF944BFAB1E image+0x325feab1e
+rich termination frame 3: 00007FF9E3DC200D image+0x3c51b200d
+rich termination frame 4: 00007FF9E3DC2CBA image+0x3c51b2cba
+rich termination frame 5: 00007FF9E3DC2D4A image+0x3c51b2d4a
+rich termination frame 6: 00007FF9E3DC659B image+0x3c51b659b
+rich termination frame 7: 00007FFA16B2631F image+0x3f7f1631f
+rich termination frame 8: 00007FFA16A84035 image+0x3f7e74035
+rich termination frame 9: 00007FFA169D9F3D image+0x3f7dc9f3d
+rich termination frame 10: 00007FFA1406483A image+0x3f545483a
+rich termination frame 11: 00007FF9BAFC93A2 image+0x39c3b93a2
+rich termination frame 12: 00007FF61F097E41 image+0x487e41
+rich termination frame 13: 00007FF61F0691D5 image+0x4591d5
+rich termination frame 14: 00007FF61F11427C image+0x50427c
+rich termination frame 15: 00007FF61EFF893F image+0x3e893f
+rich termination frame 16: 00007FF61F134E49 image+0x524e49
+rich termination frame 17: 00007FF61EFF8856 image+0x3e8856
+rich termination frame 18: 00007FF61F17922A image+0x56922a
+rich termination frame 19: 00007FF61F179F5A image+0x569f5a
+rich termination frame 20: 00007FF61F17A153 image+0x56a153
+rich termination frame 21: 00007FF61F176A74 image+0x566a74
+rich termination frame 22: 00007FF61F17FBD8 image+0x56fbd8
+rich termination frame 23: 00007FF61F17F7D2 image+0x56f7d2
+rich termination frame 24: 00007FF61F0FFF81 image+0x4eff81
+rich termination frame 25: 00007FF61F0BED1C image+0x4aed1c
+rich termination frame 26: 00007FF61F1507F8 image+0x5407f8
+rich termination frame 27: 00007FF61F69A879 image+0xa8a879
+rich termination frame 28: 00007FF61F69A722 image+0xa8a722
+rich termination frame 29: 00007FF61F69A5DE image+0xa8a5de
+rich termination frame 30: 00007FF61F69A90E image+0xa8a90e
+rich termination frame 31: 00007FFA15FFCDF7 image+0x3f73ecdf7

@@ -1,17 +1,17 @@
+#include "DxUi.MarkdownBlocks.h"
 #include "DxUi.MarkdownEntityData.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
+#include <atomic>
 #include <iterator>
+#include <map>
 #include <stdexcept>
 
 namespace DxUi::RichText
 {
 namespace
 {
-bool Space(wchar_t value) noexcept
-{
-    return value == L' ' || value == L'\t';
-}
+std::atomic<std::uint64_t> nextDocumentIdentity{1u};
 bool Punctuation(wchar_t value) noexcept
 {
     return (value >= L'!' && value <= L'/') || (value >= L':' && value <= L'@') || (value >= L'[' && value <= L'`') || (value >= L'{' && value <= L'~');
@@ -118,50 +118,6 @@ bool CharacterReference(std::wstring_view source, std::size_t first, MarkdownLex
     return false;
 }
 
-// Derived in one resumable pass. Classification never scans the physical line
-// again, including a maximum-capacity line of fence/heading punctuation.
-struct PhysicalLine
-{
-    std::size_t first{}, contentFirst{}, runEnd{}, trimEnd{}, tailFirst{}, hashFirst{}, beforeHashes{};
-    std::size_t nonSpace{};
-    unsigned indent{};
-    wchar_t marker{};
-    bool hasContent{}, inRun = true, tailHasContent{}, tailBacktick{}, onlyMarker = true, trailingHashes{};
-    void Visit(wchar_t character, std::size_t offset) noexcept
-    {
-        if (! hasContent)
-        {
-            if (Space(character))
-            {
-                indent = std::min(4u, character == L'\t' ? (indent + 4u) & ~3u : indent + 1u);
-                return;
-            }
-            hasContent   = true;
-            contentFirst = offset;
-            marker       = character;
-        }
-        if (inRun && character == marker)
-            runEnd = offset + 1u;
-        else
-        {
-            inRun = false;
-            if (character == L'`')
-                tailBacktick = true;
-            if (! Space(character) && ! tailHasContent)
-            {
-                tailHasContent = true;
-                tailFirst      = offset;
-            }
-        }
-        if (! Space(character))
-        {
-            trailingHashes = character == L'#';
-            onlyMarker     = onlyMarker && character == marker;
-            ++nonSpace;
-            trimEnd = offset + 1u;
-        }
-    }
-};
 } // namespace
 
 MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile)
@@ -169,7 +125,8 @@ MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision,
       revision_(revision),
       profile_(profile),
       blocks_(0u),
-      lexemes_(0u)
+      lexemes_(0u),
+      nodes_(0u)
 {
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
@@ -187,6 +144,18 @@ MarkdownProfile MarkdownSyntax::Profile() const noexcept
 const std::vector<MarkdownBlock>& MarkdownSyntax::Blocks() const noexcept
 {
     return blocks_;
+}
+const std::vector<MarkdownNode>& MarkdownSyntax::Nodes() const noexcept
+{
+    return nodes_;
+}
+std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
+{
+    return documentIdentity_;
+}
+MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
+{
+    return blockStatistics_;
 }
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
@@ -225,109 +194,160 @@ struct MarkdownParser::Preparation
     {
     }
     std::shared_ptr<MarkdownSyntax> syntax;
-    PhysicalLine line;
-    std::size_t cursor{}, lexicalCursor{}, literalFirst{};
-    bool blocksComplete{}, lexemesComplete{}, hashRun{};
-
-    void FinishLine(std::size_t bodyEnd, std::size_t end)
+    std::shared_ptr<const MarkdownSyntax> previous;
+    std::optional<SourceSnapshot> snapshot;
+    std::optional<SourceChangeRange> change;
+    using NodeKey = std::tuple<std::uint64_t, std::size_t, std::size_t, MarkdownBlockKind>;
+    std::map<NodeKey, std::size_t> oldNodes;
+    std::size_t commonFirst{}, commonOldEnd{}, commonNewEnd{}, identityCursor{}, oldIndexCursor{};
+    std::uint64_t nextIdentity = 1u;
+    bool identitiesComplete{};
+    bool discardOldIdentities{};
+    void SetPrevious(std::shared_ptr<const MarkdownSyntax> old, std::uint64_t document, std::uint64_t next)
     {
-        auto& blocks         = syntax->blocks_;
-        const auto runLength = line.hasContent ? line.runEnd - line.contentFirst : 0u;
-        const bool fence     = line.hasContent && line.indent <= 3u && runLength >= 3u && (line.marker == L'`' || line.marker == L'~');
-        if (! blocks.empty() && blocks.back().kind == MarkdownBlockKind::FencedCode && ! blocks.back().closed)
+        syntax->documentIdentity_ = document;
+        previous                  = std::move(old);
+        nextIdentity              = next;
+        if (! previous || previous->Profile() != syntax->Profile())
         {
-            auto& block = blocks.back();
-            if (fence && line.marker == block.fenceMarker && runLength >= block.fenceLength && ! line.tailHasContent)
+            previous.reset();
+            return;
+        }
+        const auto a = previous->Source(), b = syntax->Source();
+        while (commonFirst < a.size() && commonFirst < b.size() && a[commonFirst] == b[commonFirst])
+            ++commonFirst;
+        commonOldEnd = a.size();
+        commonNewEnd = b.size();
+        while (commonOldEnd > commonFirst && commonNewEnd > commonFirst && a[commonOldEnd - 1u] == b[commonNewEnd - 1u])
+        {
+            --commonOldEnd;
+            --commonNewEnd;
+        }
+        if (change)
+        {
+            if (change->kind == SourceChangeKind::TrackedEdits)
             {
-                block.source.last  = end;
-                block.content.last = line.first;
-                block.closed       = true;
+                commonFirst  = change->begin;
+                commonOldEnd = change->previousEnd;
+                commonNewEnd = change->currentEnd;
             }
-            else
-            {
-                block.source.last  = end;
-                block.content.last = end;
-            }
+            else if (change->kind == SourceChangeKind::FullReplacement)
+                discardOldIdentities = true;
         }
-        else if (! line.hasContent)
-            blocks.push_back({MarkdownBlockKind::BlankLine, {line.first, end}, {line.first, bodyEnd}});
-        else if (line.indent <= 3u && (line.marker == L'=' || line.marker == L'-') && ! line.tailHasContent && ! blocks.empty() &&
-                 blocks.back().kind == MarkdownBlockKind::Paragraph)
-        {
-            auto& block       = blocks.back();
-            block.kind        = MarkdownBlockKind::SetextHeading;
-            block.heading     = line.marker == L'=' ? 1u : 2u;
-            block.source.last = end;
-        }
-        else if (fence && (line.marker == L'~' || ! line.tailBacktick))
-        {
-            const auto infoFirst = line.tailHasContent ? line.tailFirst : bodyEnd;
-            blocks.push_back({MarkdownBlockKind::FencedCode,
-                              {line.first, end},
-                              {end, end},
-                              {infoFirst, std::max(infoFirst, line.trimEnd)},
-                              0u,
-                              line.indent,
-                              line.marker,
-                              runLength,
-                              false});
-        }
-        else if (line.indent <= 3u && line.marker == L'#' && runLength <= 6u && (line.runEnd == bodyEnd || Space(syntax->source_[line.runEnd])))
-        {
-            const auto first = line.tailHasContent ? line.tailFirst : bodyEnd;
-            auto last        = std::max(first, line.trimEnd);
-            if (line.trailingHashes && line.hashFirst >= first && line.hashFirst < last &&
-                (line.hashFirst == line.runEnd || (line.hashFirst > line.runEnd && Space(syntax->source_[line.hashFirst - 1u]))))
-                last = std::max(first, line.beforeHashes);
-            blocks.push_back({MarkdownBlockKind::AtxHeading, {line.first, end}, {first, last}, {}, static_cast<unsigned>(runLength)});
-        }
-        else if (line.indent <= 3u && line.onlyMarker && line.nonSpace >= 3u && (line.marker == L'*' || line.marker == L'_' || line.marker == L'-'))
-            blocks.push_back({MarkdownBlockKind::ThematicBreak, {line.first, end}, {line.contentFirst, line.trimEnd}});
-        else if (! blocks.empty() && blocks.back().kind == MarkdownBlockKind::Paragraph)
-        {
-            blocks.back().source.last  = end;
-            blocks.back().content.last = line.trimEnd;
-        }
-        else
-            blocks.push_back({MarkdownBlockKind::Paragraph, {line.first, end}, {line.contentFirst, line.trimEnd}});
-        line       = {};
-        line.first = end;
-        hashRun    = false;
     }
+    void IdentityUnit()
+    {
+        if (previous && oldIndexCursor < previous->Nodes().size())
+        {
+            const auto& oldNode = previous->Nodes()[oldIndexCursor];
+            const auto& block   = oldNode.block;
+            const auto parent   = oldNode.parent == MarkdownNoNode ? 0u : previous->Nodes()[oldNode.parent].identity;
+            oldNodes.emplace(NodeKey{parent, block.source.first, block.source.last, block.kind}, oldIndexCursor++);
+            return;
+        }
+        if (identityCursor == syntax->nodes_.size())
+        {
+            identitiesComplete = true;
+            return;
+        }
+        auto& node = syntax->nodes_[identityCursor++];
+        if (identityCursor == 1u && previous)
+        {
+            node.identity = previous->Nodes()[0].identity;
+            return;
+        }
+        auto first = node.block.source.first, last = node.block.source.last;
+        bool mapped = previous && ! discardOldIdentities;
+        // Only unchanged prefix/suffix and a single enclosing edited node map.
+        // The ancestry check prevents identities migrating between containers.
+        if (first >= commonNewEnd && previous)
+        {
+            first = commonOldEnd + (first - commonNewEnd);
+            last  = commonOldEnd + (last - commonNewEnd);
+        }
+        else if (last <= commonFirst)
+        {
+        }
+        else if (first <= commonFirst && last >= commonNewEnd && previous)
+            last = commonOldEnd + (last - commonNewEnd);
+        else
+            mapped = false;
+        if (mapped)
+        {
+            const auto parentIdentity = node.parent == MarkdownNoNode ? 0u : syntax->nodes_[node.parent].identity;
+            const auto reuseIdentity  = [&](std::size_t candidateFirst, std::size_t candidateLast)
+            {
+                const auto found = oldNodes.find(NodeKey{parentIdentity, candidateFirst, candidateLast, node.block.kind});
+                if (found == oldNodes.end())
+                    return std::uint64_t{};
+                const auto& old   = previous->Nodes()[found->second];
+                const bool parent = node.parent == MarkdownNoNode
+                                        ? old.parent == MarkdownNoNode
+                                        : old.parent != MarkdownNoNode && syntax->nodes_[node.parent].identity == previous->Nodes()[old.parent].identity;
+                return parent ? old.identity : std::uint64_t{};
+            };
+            node.identity = reuseIdentity(first, last);
+            // At a deletion boundary a surviving suffix/prefix and an edited
+            // enclosing node are both possible. Prefer an exact surviving node;
+            // otherwise retain the compatible enclosure (e.g. EOF Backspace).
+            const auto original = node.block.source;
+            if (! node.identity && original.first <= commonFirst && original.last >= commonNewEnd)
+                node.identity = reuseIdentity(original.first, commonOldEnd + (original.last - commonNewEnd));
+        }
+        if (! node.identity)
+            node.identity = nextIdentity++;
+    }
+    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_};
+    std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
+    bool blocksComplete{}, lexemesComplete{}, rootsComplete{};
     void ScanBlockUnit()
     {
         const auto& source = syntax->source_;
         if (cursor == source.size())
         {
-            if (line.first < cursor)
-                FinishLine(cursor, cursor);
-            blocksComplete = true;
+            if (lineFirst < cursor)
+                blocks.Line(lineFirst, cursor, cursor);
+            blocks.Finish();
+            syntax->blockStatistics_ = blocks.Statistics();
+            rootNode                 = syntax->nodes_[0].firstChild;
+            blocksComplete           = true;
             return;
         }
-        const auto character = source[cursor];
+        const auto character = source[cursor++];
         if (character == L'\r' || character == L'\n')
         {
-            const auto bodyEnd = cursor++;
+            const auto bodyEnd = cursor - 1u;
             if (character == L'\r' && cursor < source.size() && source[cursor] == L'\n')
                 ++cursor;
-            FinishLine(bodyEnd, cursor);
-            return;
+            blocks.Line(lineFirst, bodyEnd, cursor);
+            lineFirst = cursor;
         }
-        if (character == L'#')
+    }
+    void RootUnit()
+    {
+        auto& roots = syntax->blocks_;
+        if (rootNode != MarkdownNoNode && rootCursor == syntax->nodes_[rootNode].block.source.first)
         {
-            if (! hashRun)
+            roots.push_back(syntax->nodes_[rootNode].block);
+            rootCursor = roots.back().source.last;
+            rootNode   = syntax->nodes_[rootNode].nextSibling;
+        }
+        else if (rootCursor < syntax->source_.size())
+        {
+            const auto first = rootCursor;
+            do
             {
-                line.hashFirst    = cursor;
-                line.beforeHashes = line.trimEnd;
-            }
-            hashRun = true;
+                ++rootCursor;
+            } while (rootCursor < syntax->source_.size() && syntax->source_[rootCursor - 1u] != L'\r' && syntax->source_[rootCursor - 1u] != L'\n');
+            if (syntax->source_[rootCursor - 1u] == L'\r' && rootCursor < syntax->source_.size() && syntax->source_[rootCursor] == L'\n')
+                ++rootCursor;
+            auto bodyEnd = rootCursor;
+            while (bodyEnd > first && (syntax->source_[bodyEnd - 1u] == L'\r' || syntax->source_[bodyEnd - 1u] == L'\n'))
+                --bodyEnd;
+            roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, bodyEnd}});
         }
         else
-            hashRun = false;
-        line.Visit(character, cursor);
-        ++cursor;
-        // Scanning can observe an interior surrogate ACP; publication ranges
-        // are formed only at line boundaries. It never truncates the source.
+            rootsComplete = true;
     }
     void FlushLiteral(std::size_t end)
     {
@@ -373,10 +393,30 @@ struct MarkdownParser::Preparation
     }
 };
 
-MarkdownParser::MarkdownParser() noexcept                            = default;
-MarkdownParser::~MarkdownParser() noexcept                           = default;
-MarkdownParser::MarkdownParser(MarkdownParser&&) noexcept            = default;
-MarkdownParser& MarkdownParser::operator=(MarkdownParser&&) noexcept = default;
+MarkdownParser::MarkdownParser() noexcept  = default;
+MarkdownParser::~MarkdownParser() noexcept = default;
+MarkdownParser::MarkdownParser(MarkdownParser&& other) noexcept
+    : preparation_(std::move(other.preparation_)),
+      published_(std::move(other.published_)),
+      documentIdentity_(std::exchange(other.documentIdentity_, 0u)),
+      nextNodeIdentity_(std::exchange(other.nextNodeIdentity_, 1u)),
+      publishedSource_(std::move(other.publishedSource_))
+{
+    other.publishedSource_.reset();
+}
+MarkdownParser& MarkdownParser::operator=(MarkdownParser&& other) noexcept
+{
+    if (this != &other)
+    {
+        preparation_      = std::move(other.preparation_);
+        published_        = std::move(other.published_);
+        documentIdentity_ = std::exchange(other.documentIdentity_, 0u);
+        nextNodeIdentity_ = std::exchange(other.nextNodeIdentity_, 1u);
+        publishedSource_  = std::move(other.publishedSource_);
+        other.publishedSource_.reset();
+    }
+    return *this;
+}
 bool MarkdownParser::HasPendingPreparation() const noexcept
 {
     return static_cast<bool>(preparation_);
@@ -393,21 +433,51 @@ void MarkdownParser::Clear() noexcept
 {
     Cancel();
     published_.reset();
+    documentIdentity_ = 0u;
+    nextNodeIdentity_ = 1u;
+    publishedSource_.reset();
 }
 void MarkdownParser::Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile)
+{
+    BeginSource(source, revision, profile, std::nullopt);
+}
+void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile)
+{
+    ValidateProfile(profile);
+    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile)
+    {
+        Cancel();
+        publishedSource_ = source;
+        return;
+    }
+    const auto flat = source.Text();
+    BeginSource(flat, revision, profile, change);
+    if (preparation_)
+        preparation_->snapshot = source;
+    else
+        publishedSource_ = source;
+}
+void MarkdownParser::BeginSource(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<SourceChangeRange> change)
 {
     ValidateProfile(profile);
     const auto same = [&](const auto& syntax)
     { return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Source() == source; };
-    if (preparation_ && same(preparation_->syntax))
+    const auto sameChange = [](const auto& a, const auto& b)
+    { return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd); };
+    if (preparation_ && same(preparation_->syntax) && sameChange(preparation_->change, change))
         return;
-    if (same(published_))
+    if (same(published_) && (! change || change->kind == SourceChangeKind::Unchanged))
     {
         Cancel();
         return;
     }
-    auto staged  = std::make_unique<Preparation>(source, revision, profile);
-    preparation_ = std::move(staged);
+    auto staged         = std::make_unique<Preparation>(source, revision, profile);
+    staged->change      = change;
+    const auto document = documentIdentity_ ? documentIdentity_ : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
+    staged->SetPrevious(published_, document, nextNodeIdentity_);
+    preparation_      = std::move(staged);
+    documentIdentity_ = document;
 }
 MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
 {
@@ -422,11 +492,17 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             ++result.workUnits;
             if (! pending.blocksComplete)
                 pending.ScanBlockUnit();
+            else if (! pending.rootsComplete)
+                pending.RootUnit();
             else if (! pending.lexemesComplete)
                 pending.ScanLexicalUnit();
+            else if (! pending.identitiesComplete)
+                pending.IdentityUnit();
             else
             {
-                published_ = std::move(pending.syntax);
+                nextNodeIdentity_ = pending.nextIdentity;
+                publishedSource_  = std::move(pending.snapshot);
+                published_        = std::move(pending.syntax);
                 preparation_.reset();
                 result.status = MarkdownPreparationStatus::Complete;
                 break;
