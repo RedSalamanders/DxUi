@@ -453,14 +453,69 @@ and then `within-noise-budget`. All three observations remain retained; the last
 earlier flags. They lack stable paired controls and continuous host-load admission and do not qualify policy.
 
 All three ARM64 configurations cross-build successfully; output PE architecture checks match all six requested
-configurations. Next is fresh exact-source native ARM64 Debug observation with the bounded failure trace retained
-if the assertion recurs. Cross-builds and local x64 passes cannot substitute for that native
-observation or resolve the original untraced occurrence. The separate focus-capture reason and verified live-focus
-round trip remain open under the preceding investigation. MenuResources/MenuResourceScaling, physical input,
+configurations. The later exact-source native observation is recorded in the PR #85 section below. Cross-builds
+and local x64 passes cannot substitute for native observation or resolve the original untraced occurrence.
+The separate focus-capture reason and verified live-focus round trip remain open under the preceding
+investigation. MenuResources/MenuResourceScaling, physical input,
 real IME/AT/touch, consumer adoption, memory attribution and trusted-policy/paired acceptance remain open.
 The 900 ms hover guard, 180 ms pointer guard, all other deadlines, 5% timing/FPS and 2% memory bands, exact
 budgets, allocation ceilings and `qualified=false` are unchanged. Queue priority and diagnostic tests change
 no gallery pixels or usage API; no visual regeneration or consumer pin change is required.
+
+### PR #85 post-merge functional evidence (18 October 2026)
+
+[PR #85](https://github.com/RedSalamanders/DxUi/pull/85) merged as
+`7b59070b5567a8d8a8673d8b163e6bf700aa2af8` under explicit implementation-only authorization, retaining the
+inconclusive paired/failed PR aggregate result and all qualification HOLDs. Its first-attempt
+[post-merge run 39123726986](https://github.com/RedSalamanders/DxUi/actions/runs/39123726986) passes all six
+native jobs, eight enabled relocated public-consumer checks, Ubuntu/Windows validation and tooling, formatting
+and `ci-gate`. The separate [C++ formatting run](https://github.com/RedSalamanders/DxUi/actions/runs/39123726999)
+also passes for that exact merge. Four non-ASan annotations-disabled consumer steps are disabled by the matrix;
+they are not capability skips. No CI failure, retry or additional repair was needed in this post-merge run.
+
+The six downloaded native artifacts contain 128 passing suite receipts and zero capability skips. Every x64 and
+native ARM64 Debug, Release and ASan Debug profile completes 110/110 Menu and 165/165 NativeTextInput cases.
+Both `TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar` and
+`TestMenuBarHoverMessageSwitchesRootWithPopupPaintPending` complete once per profile, with two passing bounded
+hover trace summaries and zero dropped records. The healthy/wedged state probe, visible/hidden initialization
+and minimized-stale-focus regressions also complete in all six profiles. Both ASan profiles diagnose the separate
+intentional heap-use-after-free probe while their ordinary suites pass. Consumer receipts and performance raw
+reports identify the exact clean merge source, and control-suite executable receipt hashes and performance
+report/executable references agree per profile. The retained artifact hashes audit uploaded logs and receipts;
+the upload does not contain the native executables for independent binary rehashing.
+
+All three x64 Full leases verify foreground/focus/pointer restoration. ARM64 retains this separate limitation:
+
+| Native ARM64 profile | Shared Full lease restoration | Child execution |
+| --- | --- | --- |
+| [Debug](https://github.com/RedSalamanders/DxUi/actions/runs/39123726986/job/117664462059) | foreground `restored`, focus `none`, pointer `restored` | Menu 110/110; NativeTextInput 165/165; zero skips |
+| [Release](https://github.com/RedSalamanders/DxUi/actions/runs/39123726986/job/117664462008) | foreground `restored`, focus `none`, pointer `restored` | Menu 110/110; NativeTextInput 165/165; zero skips |
+| [ASan Debug](https://github.com/RedSalamanders/DxUi/actions/runs/39123726986/job/117664462065) | foreground `restored`, focus `none`, pointer `restored` | Menu 110/110; NativeTextInput 165/165; zero skips |
+
+These are **three shared leases**, each represented by Menu and NativeTextInput child receipts, rather than six
+independent snapshots. `focus=none` records unavailable initial focus, so these passes do not establish a verified
+focus round trip or identify the capture-time null-focus branch. It is not a capability skip or proof of a control
+focus defect, and it does not attribute the original untraced ARM64 hover failure. Keep that failed PR #84 receipt
+and the original healthy-probe failure separately. This plan still owns the preceding capture-reason diagnostic,
+distinct-outcome regression coverage and separately identified native ARM64 focus diagnostic. A genuinely visible
+foreground with recorded live focus remains required before claiming complete focus restoration; all admission,
+warning, ownership, child, probe and restoration limits stay in force. Raw desktop identities and audit packets
+remain private; this is their sanitized result.
+
+Push skips paired measurement, so its green aggregate supplies no new paired result. PR #85's
+[paired run 39117607398](https://github.com/RedSalamanders/DxUi/actions/runs/39117607398), comparing base
+`51ef9f292418` with tested merge `6d020ed6ab59`, remains inconclusive because the base policy is unqualified;
+its paired and aggregate checks fail. Its retained comparisons have 69/72 unstable same-binary controls
+(23/24 per scenario). The three diagnostic sets report zero regressed metrics and judge agreement, which cannot
+qualify that policy, waive earlier memory/timing flags or repair the original binary-retention gaps. The tested
+merge and actual merge have the same source tree; that identity does not establish non-regression.
+
+No remaining qualification checkbox is closed by these functional observations. ARM64 focus restoration and
+opt-in resources, physical input/device removal, real IME/AT/touch, consumer adoption, memory attribution and
+trusted-policy/paired acceptance remain open. Preserve the 900 ms hover and 180 ms pointer guards, all other
+deadlines, 5% timing/FPS and 2% memory bands, exact budgets, allocation ceilings and `qualified=false`. This
+evidence-only follow-up changes no runtime/test behavior, public usage, consumer pins or gallery pixels; no
+visual regeneration is required.
 
 ## 4. Consumer adoption gates
 
