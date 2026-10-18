@@ -1276,6 +1276,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentFragmentedHistoryStorageBudget();
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
+    TestRichSourceChangeAllocationBudget();
+    TestRichSourceChangeTransientStorageBudget();
+    TestRichSourceChangeRolloverFailureAtomicity();
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

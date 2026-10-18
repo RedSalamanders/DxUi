@@ -1,6 +1,8 @@
 #include "DxUi.TextElements.h"
 #include <DxUi/RichDocument.h>
 #include <array>
+#include <atomic>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <span>
@@ -321,12 +323,115 @@ struct SourceSnapshot::PieceTreeNode
         }
         return true;
     }
+    template <typename Visitor> static bool VisitRangeReverse(const PieceTreeNode* node, size_t first, size_t last, Visitor&& visitor)
+    {
+        if (first == last)
+            return true;
+        for (auto next = node->FindEntry(last - 1u) + 1u; next > 0u;)
+        {
+            const auto index = --next;
+            const auto begin = node->EntryStart(index), end = node->EntryEnd(index);
+            const auto left = std::max(first, begin), right = std::min(last, end);
+            if (node->height)
+            {
+                if (! VisitRangeReverse(std::get<Branches>(node->entries)[index].node.get(), left - begin, right - begin, visitor))
+                    return false;
+            }
+            else
+            {
+                const auto& piece = std::get<Leaves>(node->entries)[index];
+                if (! visitor(std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - begin, right - left)))
+                    return false;
+            }
+            if (begin <= first)
+                break;
+        }
+        return true;
+    }
+};
+
+namespace
+{
+struct SnapshotEdit
+{
+    std::uint64_t previousIdentity{}, currentIdentity{};
+    size_t begin{}, previousEnd{}, currentEnd{};
+};
+struct SnapshotEditPage
+{
+    static constexpr size_t Capacity = 32u;
+    std::array<SnapshotEdit, Capacity> entries{};
+};
+struct SnapshotLineage
+{
+    std::atomic<std::uint64_t> nextIdentity{1u};
+    std::uint64_t AllocateIdentity()
+    {
+        auto value = nextIdentity.load(std::memory_order_relaxed);
+        do
+        {
+            if (value == std::numeric_limits<std::uint64_t>::max())
+                throw std::length_error("Source snapshot identity space exhausted");
+        } while (! nextIdentity.compare_exchange_weak(value, value + 1u, std::memory_order_relaxed));
+        return value;
+    }
+};
+} // namespace
+struct SourceSnapshot::Revision
+{
+    using Pointer = std::shared_ptr<const Revision>;
+    std::shared_ptr<const PieceTreeNode> root;
+    std::shared_ptr<SnapshotLineage> lineage;
+    std::uint64_t identity{};
+    // Sealed pages contain numeric edits only: no source root or page chain.
+    // Three pages plus the active 1..32 edits retain a bounded 97..128 window.
+    std::array<std::shared_ptr<const SnapshotEditPage>, 3u> sealed;
+    SnapshotEditPage active;
+    size_t activeCount{};
+    Revision(std::shared_ptr<const PieceTreeNode> tree, const Revision* previous, size_t begin, size_t previousEnd, size_t currentEnd)
+        : root(std::move(tree)),
+          lineage(previous ? previous->lineage : std::make_shared<SnapshotLineage>()),
+          identity(lineage->AllocateIdentity())
+    {
+        if (! previous)
+            return; // Reset starts an unrelated lineage, including empty source.
+        sealed = previous->sealed;
+        if (previous->activeCount == SnapshotEditPage::Capacity)
+        {
+            auto completed = std::make_shared<const SnapshotEditPage>(previous->active);
+            sealed[0]      = std::move(sealed[1]);
+            sealed[1]      = std::move(sealed[2]);
+            sealed[2]      = std::move(completed);
+        }
+        else
+        {
+            active      = previous->active;
+            activeCount = previous->activeCount;
+        }
+        active.entries[activeCount++] = {previous->identity, identity, begin, previousEnd, currentEnd};
+    }
+    size_t CopyNewestEdits(std::span<SnapshotEdit> output) const noexcept
+    {
+        size_t used = 0u;
+        for (size_t index = activeCount; index > 0u && used < output.size(); --index)
+            output[used++] = active.entries[index - 1u];
+        for (size_t page = sealed.size(); page > 0u; --page)
+            if (sealed[page - 1u])
+                for (size_t index = SnapshotEditPage::Capacity; index > 0u && used < output.size(); --index)
+                    output[used++] = sealed[page - 1u]->entries[index - 1u];
+        return used;
+    }
 };
 
 SourceSnapshot::SourceSnapshot() = default;
+const SourceSnapshot::PieceTreeNode* SourceSnapshot::RootNode() const noexcept
+{
+    return state_ ? state_->root.get() : nullptr;
+}
 std::size_t SourceSnapshot::Length() const noexcept
 {
-    return state_ ? state_->length : 0u;
+    const auto* root = RootNode();
+    return root ? root->length : 0u;
 }
 std::wstring SourceSnapshot::Text() const
 {
@@ -334,7 +439,7 @@ std::wstring SourceSnapshot::Text() const
 }
 wchar_t SourceSnapshot::CharacterAt(std::size_t offset) const noexcept
 {
-    auto* node = state_.get();
+    auto* node = RootNode();
     if (! node || offset >= node->length)
         return L'\0';
     while (node->height)
@@ -361,7 +466,7 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
         throw std::out_of_range("Invalid snapshot slice");
     std::wstring result;
     result.reserve(last - first);
-    PieceTreeNode::VisitRange(state_.get(),
+    PieceTreeNode::VisitRange(RootNode(),
                               first,
                               last,
                               [&](std::wstring_view fragment)
@@ -371,6 +476,94 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
     });
     return result;
 }
+SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previous) const noexcept
+{
+    const auto previousLength = previous.Length(), currentLength = Length();
+    if (state_ == previous.state_ || (! previousLength && ! currentLength))
+        return {SourceChangeKind::Unchanged, 0u, 0u, 0u};
+    const SourceChangeRange fallback{SourceChangeKind::FullReplacement, 0u, previousLength, currentLength};
+    if (! state_ || ! previous.state_ || state_->lineage != previous.state_->lineage)
+        return fallback;
+    constexpr size_t maximumEdits = SnapshotEditPage::Capacity * 4u;
+    std::array<SnapshotEdit, maximumEdits> currentEdits{}, previousEdits{};
+    const auto currentCount  = state_->CopyNewestEdits(currentEdits);
+    const auto previousCount = previous.state_->CopyNewestEdits(previousEdits);
+    size_t currentSteps = 0u, previousSteps = 0u;
+    bool found = false;
+    // Numeric ancestry survives expired transient preview objects without
+    // retaining their source buffers. Search is bounded to two small windows.
+    for (size_t oldStep = 0u; oldStep <= previousCount && ! found; ++oldStep)
+    {
+        const auto oldIdentity = oldStep ? previousEdits[oldStep - 1u].previousIdentity : previous.state_->identity;
+        for (size_t newStep = 0u; newStep <= currentCount; ++newStep)
+        {
+            const auto newIdentity = newStep ? currentEdits[newStep - 1u].previousIdentity : state_->identity;
+            if (oldIdentity == newIdentity)
+            {
+                previousSteps = oldStep;
+                currentSteps  = newStep;
+                found         = true;
+                break;
+            }
+        }
+    }
+    if (! found)
+        return fallback;
+    size_t begin = 0u, previousEnd = 0u;
+    bool hasEdit       = false;
+    const auto mapBack = [](size_t position, const SnapshotEdit& edit, bool trailing) noexcept
+    {
+        if (position < edit.begin)
+            return position;
+        if (position > edit.currentEnd)
+            return position - edit.currentEnd + edit.previousEnd;
+        return trailing ? edit.previousEnd : edit.begin;
+    };
+    const auto accumulate = [&](const SnapshotEdit& edit) noexcept
+    {
+        if (! hasEdit)
+        {
+            begin       = edit.begin;
+            previousEnd = edit.previousEnd;
+            hasEdit     = true;
+        }
+        else
+        {
+            begin       = std::min(mapBack(begin, edit, false), edit.begin);
+            previousEnd = std::max(mapBack(previousEnd, edit, true), edit.previousEnd);
+        }
+    };
+    // Walk the combined previous -> ancestor -> current script backwards.
+    for (size_t index = 0u; index < currentSteps; ++index)
+        accumulate(currentEdits[index]);
+    for (size_t index = previousSteps; index > 0u; --index)
+    {
+        auto inverse = previousEdits[index - 1u];
+        std::swap(inverse.previousEnd, inverse.currentEnd);
+        accumulate(inverse);
+    }
+    if (! hasEdit || previousEnd > previousLength)
+        return fallback;
+    const auto suffixLength = previousLength - previousEnd;
+    if (suffixLength > currentLength)
+        return fallback;
+    auto currentEnd = currentLength - suffixLength;
+    if (begin > previousEnd || begin > currentEnd)
+        return fallback;
+    // Raw deltas can meet inside a newly joined CRLF. Expand matching unchanged
+    // context in both coordinate spaces so callers can safely use Slice.
+    while (begin && (! previous.IsBoundary(begin) || ! IsBoundary(begin)))
+        --begin;
+    while (previousEnd < previousLength && currentEnd < currentLength && (! previous.IsBoundary(previousEnd) || ! IsBoundary(currentEnd)))
+    {
+        ++previousEnd;
+        ++currentEnd;
+    }
+    if (! previous.IsBoundary(previousEnd) || ! IsBoundary(currentEnd))
+        return fallback;
+    return {SourceChangeKind::TrackedEdits, begin, previousEnd, currentEnd};
+}
+
 Document::Document(std::wstring_view text)
 {
     Reset(text);
@@ -378,13 +571,14 @@ Document::Document(std::wstring_view text)
 void Document::Reset(std::wstring_view text)
 {
     Validate(text);
-    SourceSnapshot next;
+    std::shared_ptr<const SourceSnapshot::PieceTreeNode> root;
     if (! text.empty())
     {
         auto buffer = std::make_shared<const std::wstring>(text);
         const SourceSnapshot::PieceTreeNode::Fragment fragment{buffer, 0u, buffer->size()};
-        next.state_ = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
+        root = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
     }
+    SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
     source_    = std::move(next);
     selection_ = {};
     undo_.clear();
@@ -412,8 +606,52 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view tex
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
-    return ReplaceImpl(0, Length(), text, selection, false);
+    Validate(text);
+    const auto length      = Length();
+    const auto commonLimit = std::min(length, text.size());
+    size_t prefix          = 0u;
+    SourceSnapshot::PieceTreeNode::VisitRange(source_.RootNode(),
+                                              0u,
+                                              commonLimit,
+                                              [&](std::wstring_view fragment)
+    {
+        if (fragment == text.substr(prefix, fragment.size()))
+        {
+            prefix += fragment.size();
+            return true;
+        }
+        const auto mismatch = std::mismatch(fragment.begin(), fragment.end(), text.begin() + static_cast<std::ptrdiff_t>(prefix));
+        const auto matched  = static_cast<size_t>(mismatch.first - fragment.begin());
+        prefix += matched;
+        return matched == fragment.size();
+    });
+    while (prefix && (! source_.IsBoundary(prefix) || ! IsEditBoundary(text, prefix)))
+        --prefix;
+    size_t suffix          = 0u;
+    const auto suffixLimit = commonLimit - prefix;
+    SourceSnapshot::PieceTreeNode::VisitRangeReverse(source_.RootNode(),
+                                                     length - suffixLimit,
+                                                     length,
+                                                     [&](std::wstring_view fragment)
+    {
+        if (fragment == text.substr(text.size() - suffix - fragment.size(), fragment.size()))
+        {
+            suffix += fragment.size();
+            return true;
+        }
+        const auto targetEnd = text.begin() + static_cast<std::ptrdiff_t>(text.size() - suffix);
+        const auto mismatch  = std::mismatch(fragment.rbegin(), fragment.rend(), std::make_reverse_iterator(targetEnd));
+        const auto matched   = static_cast<size_t>(mismatch.first - fragment.rbegin());
+        suffix += matched;
+        return matched == fragment.size();
+    });
+    while (suffix && (! source_.IsBoundary(length - suffix) || ! IsEditBoundary(text, text.size() - suffix)))
+        --suffix;
+    // The OS supplies whole preview text. Retain only its changed interval;
+    // untouched buffers/paths and useful incremental metadata stay shared.
+    return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, false);
 }
+
 bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory)
 {
     Validate(text);
@@ -445,7 +683,7 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     bool equal      = end - begin == text.size();
     size_t compared = 0u;
     if (equal)
-        SourceSnapshot::PieceTreeNode::VisitRange(source_.state_.get(),
+        SourceSnapshot::PieceTreeNode::VisitRange(source_.RootNode(),
                                                   begin,
                                                   end,
                                                   [&](std::wstring_view fragment)
@@ -465,7 +703,9 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
         insertion.buffer = std::make_shared<const std::wstring>(text);
         insertion.length = insertion.buffer->size();
     }
-    SourceSnapshot candidate(SourceSnapshot::PieceTreeNode::ReplaceRange(source_.state_, begin, end, insertion));
+    const auto root = source_.state_ ? source_.state_->root : nullptr;
+    auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);
+    SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), source_.state_.get(), begin, end, insertedEnd));
     // Construct history only for a recorded edit. Copy construction can report
     // allocation failure; an unused default Debug STL container would also
     // allocate an iterator proxy inside its noexcept constructor.

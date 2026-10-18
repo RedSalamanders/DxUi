@@ -462,6 +462,14 @@ replacement must request zero C++ allocations/bytes and preserve both histories.
 These measure the C++ override, not Windows/CRT-internal storage. Sweep every
 observed allocation point of changed source/history operations to verify failure
 atomicity. Retain before failures and fixed edit/read/single-step timings.
+Source-change metadata must retain numeric edit pages without a source-root or
+page-parent chain. At most three sealed 32-edit pages accompany the active page;
+bounded queries use stack storage and request zero C++ bytes. The 512-query /
+64-retired-preview fixture must remain tracked and allocation-free. A separate
+8,192-unit / 4,096-preview fixture must retain at most 256 KiB of tracked C++
+storage, with no undo/redo and zero tracked delta after destruction. The existing
+4 MiB fragmented-source/history limit remains fixed. Sweep page-rollover failures
+and retain metadata overhead/timing observations without changing acceptance policy.
 The fixed fragmented-lookup trials are descriptive test diagnostics, separate from
 the canonical completed-frame fixture and its unresolved acceptance policy.
 

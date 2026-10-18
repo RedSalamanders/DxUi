@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, shared Unicode 17 segmentation and persistent piece-tree storage functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Incremental/shared preparation, the complete engine and physical input/AT gates stay open.
+Status: ACTIVE — bounded retained preview, D2d source adapters, source UIA range commands, shared Unicode 17 segmentation, persistent piece-tree storage and bounded source-change metadata functionally qualified. Clear/readback profiling locates a blocking-Map boundary; Windows policy refuses scheduler tracing. Unstable controls and the unqualified policy keep performance acceptance on HOLD. Incremental/shared preparation, the complete engine and physical input/AT gates stay open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -704,7 +704,7 @@ privileges change and no scheduler trace is claimed.
 
 ### Next D2a incremental-preparation sequence
 
-- [ ] Add immutable bounded change metadata between source snapshots, including
+- [x] Add immutable bounded change metadata between source snapshots, including
   transient bursts, undo/redo/branches, reset and expired history. Preserve the
   existing object sizes, no-op admission and 4 MiB fixture budget. Return safe
   conservative scalar/CRLF source intervals without allocation or mutable caches.
@@ -723,3 +723,64 @@ Two upstream task-list examples are marked disabled; preserve them for coverage.
 This collection is not a parser implementation or conformance claim. The helper
 decision and desktop timing question remain pending; independent preparation
 and source services continue without either answer.
+
+The next source-change tests reproduce the missing tracked interval against a
+correct whole-source fallback. Original failing receipt, native/root logs,
+canonical report and unchanged operation trials are preserved before metadata
+implementation. The owned root child has a verified 600-second deadline from
+creation; supervision attaches after launch, and its exit-code field is null.
+The starting runner and original native receipt both retain the actual exit 1;
+the guard records no timeout and 256.699 seconds. Do not represent the supervisor
+as having captured an exit code or a drained output stream.
+
+The implementation keeps immutable numeric pages beside the tree root, with a
+shared lineage counter to distinguish branches and identity gaps after failed
+staging. Pages retain no source roots or parent-page chains. The latest 96 edits
+are guaranteed within a 97..128-entry window after rollover. A bounded common-
+ancestor search handles undo/redo and copied documents; missing history/reset
+uses whole-source fallback. Conservative intervals expand newly joined CRLF
+edges so both snapshots can be sliced safely. Initial affected qualification is
+pending. New resource budgets are zero C++ query allocations, at most 256 KiB
+after 4,096 transient previews, and the unchanged 4 MiB history fixture limit.
+
+The first metadata candidate passes all six initial source-change cases and
+the ordinary EditorControls/Accessibility suites. Embedded confirms zero query
+allocation, but fails the expected localized preview interval: ReplaceTransient
+still replaces complete source. Preserve that original candidate's source,
+receipts, logs and canonical report. Refine whole-text previews by comparing
+common prefix/suffix across shared fragments, expanding scalar/CRLF boundaries
+and replacing only the changed interval. Add explicit same-content, supplementary
+scalar, CRLF, empty/whole replacement tests before rerunning affected suites.
+
+### Bounded source-change qualification
+
+The [source-change packet](../../../Measurements/RichText/2026-10-18-source-changes/README.md)
+seals library fingerprint 3FEED65870EA98787EAC461CCB7AA6BA1CD9E5BC73C21684AB650B873517BAC4.
+All 57 ordinary native suite runs pass with zero skips across x64 Release,
+Debug and ASan, alongside all six build profiles and full tooling/format checks.
+Seven new source-change cases cover localized previews, scalar/CRLF joins,
+undo/redo/branches, expiry, reset, independent reconstruction and concurrent reads.
+The 512-query/64-preview fixture allocates zero C++ bytes. After 4,096 previews,
+tracked retained storage is 22,911 Release / 22,999 Debug/ASan bytes, released to
+zero afterward. All page-rollover and five ordinary operation allocation failures
+preserve complete state and histories. Embedded passes 5,771 Release and 5,917
+Debug/ASan checks; 1,000 warm composites remain allocation-free in every profile.
+
+Numeric metadata adds 188,664 C++ retained bytes to the existing history fixture:
+1,400,710 Release / 1,499,086 Debug/ASan, below the unchanged 4 MiB limit. Five
+unchanged within-process methods retain descriptive medians: fragmented edits
+15.7147 -> 16.6739 ms, lookup 0.5189 -> 0.5270 ms, and backward queries
+18.2838 -> 18.7574 ms. Record that overhead without a controlled timing claim.
+Original baseline and first-candidate failures are preserved, with exact source,
+canonical reports and the attached-supervisor limitation. ARM64 remains a build
+gate only; native execution and physical input/AT remain open.
+
+Next implement immutable physical-line projection reuse for the bounded v0
+grammar, with exact full-projection text/style/source-unit/ACP-affinity comparison,
+unchanged fixed initial/edit trials, bounded mapping allocations and complete
+preparation-failure atomicity. This supporting service must not be mistaken for
+retained paragraph geometry, shared host scheduling or CommonMark conformance.
+Then integrate those geometry/scheduling contracts with native/embedded caret,
+scroll, input and UIA tests before completing D2a. Gallery fixtures, typography,
+rendering behavior and consumer pins are unchanged by the source-only slice.
+The six-slot schedule completes in 1696.316 seconds within its declared 3,600-second overall / 900-second child limits.

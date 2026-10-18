@@ -50,6 +50,10 @@ replacement. It sweeps every observed allocation point in replace, transient
 replace, reset, undo and redo, comparing complete histories after failure.
 Single-backward movement has a fixed large-source observation and retains the
 complete corpus/count oracle; elapsed times have no acceptance assertion.
+Source-change tests add independent interval reconstruction, scalar/CRLF joins,
+undo/redo/branches, transient-page rollover/expiry, reset, concurrency and moved
+values. Embedded adds zero-allocation queries after retired previews, a 256 KiB
+transient-storage bound and allocation-failure sweeps through page sealing.
 
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the

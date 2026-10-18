@@ -1,0 +1,1 @@
+- Track bounded immutable source changes across edits, transient previews, undo/redo and branches, with safe scalar/CRLF intervals and complete-source fallback. Add reconstruction, lifetime, query-allocation, preview-retention and page-rollover failure coverage for incremental preparation.

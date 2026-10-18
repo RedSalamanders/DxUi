@@ -678,6 +678,22 @@ valid no-ops before creating owning strings or staging history. This avoids
 Debug iterator-proxy allocations from string moves and unnecessary default
 history containers. Never retain the caller's view.
 Default, moved-from and fully deleted snapshots behave as empty queryable values.
+ChangedRangeFrom reports an unchanged source, a tracked conservative replacement
+interval or a whole-source fallback. Both coordinate spaces preserve scalar/CRLF
+slice boundaries, including CRLF newly joined by replacement. Tracked intervals
+can contain unchanged context. Immutable revision metadata retains a 32-edit
+active page and at most three sealed numeric pages: the latest 96 edits are
+always available, with at most 128 retained. Undo/redo and copied-document
+branches resolve a bounded common ancestor; reset and missing history fall back.
+Transient previews carry edit metadata without creating undo/redo or retaining
+intermediate preview buffers. Queries allocate nothing and mutate no cache.
+Whole-text transient input must be validated, then narrowed by common prefix/
+suffix to a source replacement with scalar/CRLF-safe boundaries. Compare shared
+fragments without flattening old source; reuse untouched buffers and tree paths.
+Same-content previews acknowledge selection without allocating source/history or
+advancing source revision. No caller view is retained after the call.
+Stage source, revision metadata and history before publication; failed metadata
+allocation or page rollover preserves all state and reports no phantom change.
 Current storage is bounded at 64 Ki UTF-16 units/128 history items; full-document
 projection/layout remains a v0 limitation, not incremental/large-file acceptance.
 

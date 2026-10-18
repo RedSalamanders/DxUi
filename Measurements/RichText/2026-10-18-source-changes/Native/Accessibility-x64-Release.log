@@ -1,0 +1,1511 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestRichTextAccessibilityWindowSourceAndRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSourceAndRanges (0.363 s)
+  [START] TestRichTextAccessibilityEmbeddedSourceAndRanges
+  [DONE] TestRichTextAccessibilityEmbeddedSourceAndRanges (0.024 s)
+  [START] TestRichTextAccessibilityWindowClientNavigationAndEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowClientNavigationAndEvents (0.280 s)
+  [START] TestRichTextAccessibilityEmbeddedClientNavigationAndEvents
+  [DONE] TestRichTextAccessibilityEmbeddedClientNavigationAndEvents (0.131 s)
+  [START] TestRichTextAccessibilityWindowSelectionCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSelectionCommands (0.242 s)
+  [START] TestRichTextAccessibilityEmbeddedSelectionCommands
+  [DONE] TestRichTextAccessibilityEmbeddedSelectionCommands (0.019 s)
+  [START] TestRichTextAccessibilityWindowSearchCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowSearchCommands (0.158 s)
+  [START] TestRichTextAccessibilityEmbeddedSearchCommands
+  [DONE] TestRichTextAccessibilityEmbeddedSearchCommands (0.019 s)
+  [START] TestRichTextAccessibilityWindowScrollingCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowScrollingCommands (0.250 s)
+  [START] TestRichTextAccessibilityEmbeddedScrollingCommands
+  [DONE] TestRichTextAccessibilityEmbeddedScrollingCommands (0.018 s)
+  [START] TestRichTextAccessibilityWindowRemainingRangeCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowRemainingRangeCommands (0.137 s)
+  [START] TestRichTextAccessibilityEmbeddedRemainingRangeCommands
+  [DONE] TestRichTextAccessibilityEmbeddedRemainingRangeCommands (0.019 s)
+  [START] TestRichTextAccessibilityWindowThreadedRangeCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowThreadedRangeCommands (0.168 s)
+  [START] TestRichTextAccessibilityEmbeddedThreadedRangeCommands
+  [DONE] TestRichTextAccessibilityEmbeddedThreadedRangeCommands (0.016 s)
+  [START] TestRichTextAccessibilityWindowUnicode17Commands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowUnicode17Commands (0.223 s)
+  [START] TestRichTextAccessibilityEmbeddedUnicode17Commands
+  [DONE] TestRichTextAccessibilityEmbeddedUnicode17Commands (0.030 s)
+  [START] TestRichTextAccessibilityWindowInteriorAcpDeletion
+    [TRACE] attached host dtor: begin
+rich interior embedded=0 key=8 resultUnits=2
+rich interior embedded=0 key=46 resultUnits=2
+rich interior embedded=0 key=8 resultUnits=2
+rich interior embedded=0 key=46 resultUnits=2
+rich interior embedded=0 key=8 resultUnits=2
+rich interior embedded=0 key=46 resultUnits=2
+rich interior embedded=0 key=8 resultUnits=2
+rich interior embedded=0 key=46 resultUnits=2
+rich interior embedded=0 key=8 resultUnits=2
+rich interior embedded=0 key=46 resultUnits=2
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowInteriorAcpDeletion (0.222 s)
+  [START] TestRichTextAccessibilityEmbeddedInteriorAcpDeletion
+rich interior embedded=1 key=8 resultUnits=2
+  [DONE] TestRichTextAccessibilityEmbeddedInteriorAcpDeletion (0.026 s)
+rich interior embedded=1 key=46 resultUnits=2
+rich interior embedded=1 key=8 resultUnits=2
+rich interior embedded=1 key=46 resultUnits=2
+rich interior embedded=1 key=8 resultUnits=2
+rich interior embedded=1 key=46 resultUnits=2
+rich interior embedded=1 key=8 resultUnits=2
+rich interior embedded=1 key=46 resultUnits=2
+rich interior embedded=1 key=8 resultUnits=2
+rich interior embedded=1 key=46 resultUnits=2
+  [START] TestRichTextAccessibilityWindowBulkCharacterCommands
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextAccessibilityWindowBulkCharacterCommands (0.128 s)
+  [START] TestRichTextAccessibilityEmbeddedBulkCharacterCommands
+  [DONE] TestRichTextAccessibilityEmbeddedBulkCharacterCommands (0.023 s)
+  [START] TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren (0.432 s)
+  [START] TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren
+  [DONE] TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren (0.381 s)
+  [START] TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream
+  [DONE] TestUiaQuiescenceReportsTimeoutInsteadOfAcceptingAnActiveStream (0.000 s)
+  [START] TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary
+  [DONE] TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary (0.000 s)
+  [START] TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep
+  [DONE] TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep (0.000 s)
+  [START] TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication
+  [DONE] TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication (0.000 s)
+  [START] TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient (0.017 s)
+  [START] TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback
+[PREPARED TREE PUBLISH] notifyMs=0 refreshMs=0
+[PREPARED TREE CLIENT] notified=1 read=0 invoke=0 replacements=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback (0.016 s)
+  [START] TestPreparedTreeInvalidCountFallsBackToCurrentModel
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPreparedTreeInvalidCountFallsBackToCurrentModel (0.004 s)
+  [START] TestPreparedTreeCaptureCanRetireItsControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPreparedTreeCaptureCanRetireItsControl (0.004 s)
+  [START] TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint (0.004 s)
+  [START] TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries (0.003 s)
+  [START] TestAccessibilityActionsReportControlsDestroyedByCallbacks
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityActionsReportControlsDestroyedByCallbacks (0.007 s)
+  [START] TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries (0.004 s)
+  [START] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction
+    [TRACE] attached host dtor: begin
+    [UIA focus reentry] invoke=0 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA focus reentry] invoke=1 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction (0.006 s)
+  [START] TestNativeAccessibilityProvidersRejectReplacementAtSamePath
+    [UIA lifetime] replaceRoot=0 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA lifetime] replaceRoot=1 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityProvidersRejectReplacementAtSamePath (0.224 s)
+  [START] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt (0.007 s)
+  [START] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement (0.006 s)
+  [START] TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires (0.006 s)
+  [START] TestNativeAccessibilityPostedSelectRejectsReplacement
+    [UIA lifetime] posted-select result=0x80040201
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedSelectRejectsReplacement (0.117 s)
+  [START] TestNativeAccessibilityPostedInvokeRejectsReplacement
+    [TRACE] attached host dtor: begin
+    [UIA lifetime] posted-invoke result=0x80040201 original=0 replacement=0
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedInvokeRejectsReplacement (0.016 s)
+  [START] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus (0.027 s)
+  [START] TestSingleTreeWindowElementIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowElementIsTheParentOfItsItems (0.640 s)
+  [START] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn (0.139 s)
+  [START] TestTreeBesideAnotherControlIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlIsTheParentOfItsItems (0.713 s)
+  [START] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells (1.040 s)
+  [START] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells (1.177 s)
+  [START] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton (0.186 s)
+  [START] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow (8.141 s)
+  [START] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow (8.142 s)
+  [START] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [UIA provider attempts] capacity=1024 storageBytes=32768 callbackData=numeric-only hook=after-raise-attempt
+    [UIA timeline] begin step=1 mark=0 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161305781..161306281 lastArrival=161305781 counts=0..0
+    [UIA timeline] step=1 mark=0 cutoff=4 cutoffTick=161306796 expected=2 expectedArrived=1 action=161306281..161306281
+    [UIA stream] phase=after quiet=1 ticks=161306281..161306796 lastArrival=161306296 counts=2..4
+    [UIA arrivals] entries=4 completed=4 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=1 index=0 entered=161306281 completed=161306281 [property 30079 from DataItem 'Ligne 1' = true]
+    [UIA arrival] seq=2 index=1 entered=161306281 completed=161306281 [event 20012 from DataItem 'Ligne 1']
+    [UIA arrival] seq=3 index=2 entered=161306281 completed=161306281 [property 30079 from DataItem 'Ligne 1' = true]
+    [UIA arrival] seq=4 index=3 entered=161306281 completed=161306281 [event 20012 from DataItem 'Ligne 1']
+    [UIA provider attempts] step=1 phase=after counts=0..2 stepFirst=0 actionFirst=0 capacity=1024 overflow=0
+    [UIA provider attempt] seq=1 step=1 tick=161306281 phase=after thread=31928
+    [UIA provider attempt] seq=2 step=1 tick=161306281 phase=after thread=31928
+    [UIA timeline] step=1 name=a click on a row of an empty selection
+    [UIA timeline] begin step=2 mark=4 expected=3
+    [UIA stream] phase=before quiet=1 ticks=161306796..161307296 lastArrival=161306796 counts=4..4
+    [UIA timeline] step=2 mark=4 cutoff=10 cutoffTick=161307812 expected=3 expectedArrived=1 action=161307296..161307296
+    [UIA stream] phase=after quiet=1 ticks=161307296..161307812 lastArrival=161307312 counts=7..10
+    [UIA arrivals] entries=10 completed=10 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=5 index=4 entered=161307296 completed=161307296 [property 30079 from DataItem 'Ligne 1' = false]
+    [UIA arrival] seq=6 index=5 entered=161307296 completed=161307296 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=7 index=6 entered=161307296 completed=161307296 [event 20012 from DataItem 'Ligne 2']
+    [UIA arrival] seq=8 index=7 entered=161307296 completed=161307296 [property 30079 from DataItem 'Ligne 1' = false]
+    [UIA arrival] seq=9 index=8 entered=161307296 completed=161307296 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=10 index=9 entered=161307296 completed=161307296 [event 20012 from DataItem 'Ligne 2']
+    [UIA provider attempts] step=2 phase=after counts=2..5 stepFirst=2 actionFirst=2 capacity=1024 overflow=0
+    [UIA provider attempt] seq=3 step=2 tick=161307296 phase=after thread=31928
+    [UIA provider attempt] seq=4 step=2 tick=161307296 phase=after thread=31928
+    [UIA provider attempt] seq=5 step=2 tick=161307296 phase=after thread=31928
+    [UIA timeline] step=2 name=a click on another row
+    [UIA timeline] begin step=3 mark=10 expected=3
+    [UIA stream] phase=before quiet=1 ticks=161307812..161308312 lastArrival=161307812 counts=10..10
+    [UIA timeline] step=3 mark=10 cutoff=16 cutoffTick=161308828 expected=3 expectedArrived=1 action=161308312..161308312
+    [UIA stream] phase=after quiet=1 ticks=161308312..161308828 lastArrival=161308328 counts=13..16
+    [UIA arrivals] entries=16 completed=16 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=11 index=10 entered=161308312 completed=161308312 [property 30079 from DataItem 'Ligne 2' = false]
+    [UIA arrival] seq=12 index=11 entered=161308312 completed=161308312 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=13 index=12 entered=161308312 completed=161308312 [event 20012 from DataItem 'Ligne 3']
+    [UIA arrival] seq=14 index=13 entered=161308312 completed=161308312 [property 30079 from DataItem 'Ligne 2' = false]
+    [UIA arrival] seq=15 index=14 entered=161308312 completed=161308312 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=16 index=15 entered=161308312 completed=161308312 [event 20012 from DataItem 'Ligne 3']
+    [UIA provider attempts] step=3 phase=after counts=5..8 stepFirst=5 actionFirst=5 capacity=1024 overflow=0
+    [UIA provider attempt] seq=6 step=3 tick=161308312 phase=after thread=31928
+    [UIA provider attempt] seq=7 step=3 tick=161308312 phase=after thread=31928
+    [UIA provider attempt] seq=8 step=3 tick=161308312 phase=after thread=31928
+    [UIA timeline] step=3 name=Down
+    [UIA timeline] begin step=4 mark=16 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161308828..161309328 lastArrival=161308828 counts=16..16
+    [UIA timeline] step=4 mark=16 cutoff=20 cutoffTick=161309843 expected=2 expectedArrived=1 action=161309328..161309328
+    [UIA stream] phase=after quiet=1 ticks=161309328..161309843 lastArrival=161309343 counts=18..20
+    [UIA arrivals] entries=20 completed=20 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=17 index=16 entered=161309328 completed=161309328 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=18 index=17 entered=161309328 completed=161309328 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=19 index=18 entered=161309328 completed=161309328 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=20 index=19 entered=161309328 completed=161309328 [event 20010 from DataItem 'Ligne 5']
+    [UIA provider attempts] step=4 phase=after counts=8..10 stepFirst=8 actionFirst=8 capacity=1024 overflow=0
+    [UIA provider attempt] seq=9 step=4 tick=161309328 phase=after thread=31928
+    [UIA provider attempt] seq=10 step=4 tick=161309328 phase=after thread=31928
+    [UIA timeline] step=4 name=Ctrl+click
+    [UIA timeline] begin step=5 mark=20 expected=6
+    [UIA stream] phase=before quiet=1 ticks=161309843..161310343 lastArrival=161309843 counts=20..20
+    [UIA timeline] step=5 mark=20 cutoff=32 cutoffTick=161310859 expected=6 expectedArrived=1 action=161310343..161310343
+    [UIA stream] phase=after quiet=1 ticks=161310343..161310859 lastArrival=161310359 counts=26..32
+    [UIA arrivals] entries=32 completed=32 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=21 index=20 entered=161310343 completed=161310343 [property 30079 from DataItem 'Ligne 3' = false]
+    [UIA arrival] seq=22 index=21 entered=161310343 completed=161310343 [event 20011 from DataItem 'Ligne 3']
+    [UIA arrival] seq=23 index=22 entered=161310343 completed=161310343 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=24 index=23 entered=161310343 completed=161310343 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=25 index=24 entered=161310343 completed=161310343 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=26 index=25 entered=161310343 completed=161310343 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=27 index=26 entered=161310343 completed=161310343 [property 30079 from DataItem 'Ligne 3' = false]
+    [UIA arrival] seq=28 index=27 entered=161310343 completed=161310343 [event 20011 from DataItem 'Ligne 3']
+    [UIA arrival] seq=29 index=28 entered=161310359 completed=161310359 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=30 index=29 entered=161310359 completed=161310359 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=31 index=30 entered=161310359 completed=161310359 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=32 index=31 entered=161310359 completed=161310359 [event 20010 from DataItem 'Ligne 7']
+    [UIA provider attempts] step=5 phase=after counts=10..16 stepFirst=10 actionFirst=10 capacity=1024 overflow=0
+    [UIA provider attempt] seq=11 step=5 tick=161310343 phase=after thread=31928
+    [UIA provider attempt] seq=12 step=5 tick=161310343 phase=after thread=31928
+    [UIA provider attempt] seq=13 step=5 tick=161310343 phase=after thread=31928
+    [UIA provider attempt] seq=14 step=5 tick=161310343 phase=after thread=31928
+    [UIA provider attempt] seq=15 step=5 tick=161310343 phase=after thread=31928
+    [UIA provider attempt] seq=16 step=5 tick=161310343 phase=after thread=31928
+    [UIA timeline] step=5 name=Shift+click
+    [UIA timeline] begin step=6 mark=32 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161310859..161311359 lastArrival=161310859 counts=32..32
+    [UIA timeline] step=6 mark=32 cutoff=36 cutoffTick=161311875 expected=2 expectedArrived=1 action=161311359..161311359
+    [UIA stream] phase=after quiet=1 ticks=161311359..161311875 lastArrival=161311375 counts=34..36
+    [UIA arrivals] entries=36 completed=36 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=33 index=32 entered=161311359 completed=161311359 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=34 index=33 entered=161311359 completed=161311359 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=35 index=34 entered=161311359 completed=161311359 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=36 index=35 entered=161311359 completed=161311359 [event 20010 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=6 phase=after counts=16..18 stepFirst=16 actionFirst=16 capacity=1024 overflow=0
+    [UIA provider attempt] seq=17 step=6 tick=161311359 phase=after thread=31928
+    [UIA provider attempt] seq=18 step=6 tick=161311359 phase=after thread=31928
+    [UIA timeline] step=6 name=Ctrl+click adds a row outside the range
+    [UIA timeline] begin step=7 mark=36 expected=8
+    [UIA stream] phase=before quiet=1 ticks=161311875..161312375 lastArrival=161311875 counts=36..36
+    [UIA timeline] step=7 mark=36 cutoff=52 cutoffTick=161312890 expected=8 expectedArrived=1 action=161312375..161312375
+    [UIA stream] phase=after quiet=1 ticks=161312375..161312890 lastArrival=161312390 counts=44..52
+    [UIA arrivals] entries=52 completed=52 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=37 index=36 entered=161312375 completed=161312375 [property 30079 from DataItem 'Ligne 5' = false]
+    [UIA arrival] seq=38 index=37 entered=161312375 completed=161312375 [event 20011 from DataItem 'Ligne 5']
+    [UIA arrival] seq=39 index=38 entered=161312375 completed=161312375 [property 30079 from DataItem 'Ligne 6' = false]
+    [UIA arrival] seq=40 index=39 entered=161312375 completed=161312375 [event 20011 from DataItem 'Ligne 6']
+    [UIA arrival] seq=41 index=40 entered=161312375 completed=161312375 [property 30079 from DataItem 'Ligne 7' = false]
+    [UIA arrival] seq=42 index=41 entered=161312375 completed=161312375 [event 20011 from DataItem 'Ligne 7']
+    [UIA arrival] seq=43 index=42 entered=161312375 completed=161312375 [property 30079 from DataItem 'Ligne 4' = false]
+    [UIA arrival] seq=44 index=43 entered=161312375 completed=161312375 [event 20011 from DataItem 'Ligne 4']
+    [UIA arrival] seq=45 index=44 entered=161312375 completed=161312375 [property 30079 from DataItem 'Ligne 5' = false]
+    [UIA arrival] seq=46 index=45 entered=161312390 completed=161312390 [event 20011 from DataItem 'Ligne 5']
+    [UIA arrival] seq=47 index=46 entered=161312390 completed=161312390 [property 30079 from DataItem 'Ligne 6' = false]
+    [UIA arrival] seq=48 index=47 entered=161312390 completed=161312390 [event 20011 from DataItem 'Ligne 6']
+    [UIA arrival] seq=49 index=48 entered=161312390 completed=161312390 [property 30079 from DataItem 'Ligne 7' = false]
+    [UIA arrival] seq=50 index=49 entered=161312390 completed=161312390 [event 20011 from DataItem 'Ligne 7']
+    [UIA arrival] seq=51 index=50 entered=161312390 completed=161312390 [property 30079 from DataItem 'Ligne 4' = false]
+    [UIA arrival] seq=52 index=51 entered=161312390 completed=161312390 [event 20011 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=7 phase=after counts=18..26 stepFirst=18 actionFirst=18 capacity=1024 overflow=0
+    [UIA provider attempt] seq=19 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=20 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=21 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=22 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=23 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=24 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=25 step=7 tick=161312375 phase=after thread=31928
+    [UIA provider attempt] seq=26 step=7 tick=161312375 phase=after thread=31928
+    [UIA timeline] step=7 name=clearing the selection
+    [UIA timeline] begin step=8 mark=52 expected=1
+    [UIA stream] phase=before quiet=1 ticks=161312890..161313390 lastArrival=161312890 counts=52..52
+    [UIA timeline] step=8 mark=52 cutoff=54 cutoffTick=161313906 expected=1 expectedArrived=1 action=161313390..161313390
+    [UIA stream] phase=after quiet=1 ticks=161313390..161313906 lastArrival=161313406 counts=53..54
+    [UIA arrivals] entries=54 completed=54 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=53 index=52 entered=161313390 completed=161313390 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=54 index=53 entered=161313390 completed=161313390 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=8 phase=after counts=26..27 stepFirst=26 actionFirst=26 capacity=1024 overflow=0
+    [UIA provider attempt] seq=27 step=8 tick=161313390 phase=after thread=31928
+    [UIA timeline] step=8 name=Ctrl+A
+    [UIA timeline] begin step=9 mark=54 expected=1
+    [UIA stream] phase=before quiet=1 ticks=161313906..161314406 lastArrival=161313906 counts=54..54
+    [UIA timeline] step=9 mark=54 cutoff=56 cutoffTick=161314921 expected=1 expectedArrived=1 action=161314406..161314406
+    [UIA stream] phase=after quiet=1 ticks=161314406..161314921 lastArrival=161314421 counts=55..56
+    [UIA arrivals] entries=56 completed=56 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=55 index=54 entered=161314406 completed=161314406 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=56 index=55 entered=161314406 completed=161314406 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=9 phase=after counts=27..28 stepFirst=27 actionFirst=27 capacity=1024 overflow=0
+    [UIA provider attempt] seq=28 step=9 tick=161314406 phase=after thread=31928
+    [UIA timeline] step=9 name=a click after Ctrl+A
+    [UIA timeline] begin step=10 mark=56 expected=40
+    [UIA stream] phase=before quiet=1 ticks=161314921..161315421 lastArrival=161314921 counts=56..56
+    [UIA timeline] step=10 mark=56 cutoff=136 cutoffTick=161315953 expected=40 expectedArrived=1 action=161315421..161315421
+    [UIA stream] phase=after quiet=1 ticks=161315421..161315953 lastArrival=161315453 counts=96..136
+    [UIA arrivals] entries=136 completed=136 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=57 index=56 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=58 index=57 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 2']
+    [UIA arrival] seq=59 index=58 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=60 index=59 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 3']
+    [UIA arrival] seq=61 index=60 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=62 index=61 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=63 index=62 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=64 index=63 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=65 index=64 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=66 index=65 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=67 index=66 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=68 index=67 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=69 index=68 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 8' = true]
+    [UIA arrival] seq=70 index=69 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 8']
+    [UIA arrival] seq=71 index=70 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 9' = true]
+    [UIA arrival] seq=72 index=71 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 9']
+    [UIA arrival] seq=73 index=72 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 10' = true]
+    [UIA arrival] seq=74 index=73 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 10']
+    [UIA arrival] seq=75 index=74 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 11' = true]
+    [UIA arrival] seq=76 index=75 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 11']
+    [UIA arrival] seq=77 index=76 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 12' = true]
+    [UIA arrival] seq=78 index=77 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 12']
+    [UIA arrival] seq=79 index=78 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 13' = true]
+    [UIA arrival] seq=80 index=79 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 13']
+    [UIA arrival] seq=81 index=80 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 14' = true]
+    [UIA arrival] seq=82 index=81 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 14']
+    [UIA arrival] seq=83 index=82 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 15' = true]
+    [UIA arrival] seq=84 index=83 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 15']
+    [UIA arrival] seq=85 index=84 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 16' = true]
+    [UIA arrival] seq=86 index=85 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 16']
+    [UIA arrival] seq=87 index=86 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 17' = true]
+    [UIA arrival] seq=88 index=87 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 17']
+    [UIA arrival] seq=89 index=88 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 18' = true]
+    [UIA arrival] seq=90 index=89 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 18']
+    [UIA arrival] seq=91 index=90 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 19' = true]
+    [UIA arrival] seq=92 index=91 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 19']
+    [UIA arrival] seq=93 index=92 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 20' = true]
+    [UIA arrival] seq=94 index=93 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 20']
+    [UIA arrival] seq=95 index=94 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 21' = true]
+    [UIA arrival] seq=96 index=95 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 21']
+    [UIA arrival] seq=97 index=96 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 2' = true]
+    [UIA arrival] seq=98 index=97 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 2']
+    [UIA arrival] seq=99 index=98 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=100 index=99 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 3']
+    [UIA arrival] seq=101 index=100 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=102 index=101 entered=161315421 completed=161315421 [event 20010 from DataItem 'Ligne 4']
+    [UIA arrival] seq=103 index=102 entered=161315421 completed=161315421 [property 30079 from DataItem 'Ligne 5' = true]
+    [UIA arrival] seq=104 index=103 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 5']
+    [UIA arrival] seq=105 index=104 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 6' = true]
+    [UIA arrival] seq=106 index=105 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 6']
+    [UIA arrival] seq=107 index=106 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 7' = true]
+    [UIA arrival] seq=108 index=107 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 7']
+    [UIA arrival] seq=109 index=108 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 8' = true]
+    [UIA arrival] seq=110 index=109 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 8']
+    [UIA arrival] seq=111 index=110 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 9' = true]
+    [UIA arrival] seq=112 index=111 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 9']
+    [UIA arrival] seq=113 index=112 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 10' = true]
+    [UIA arrival] seq=114 index=113 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 10']
+    [UIA arrival] seq=115 index=114 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 11' = true]
+    [UIA arrival] seq=116 index=115 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 11']
+    [UIA arrival] seq=117 index=116 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 12' = true]
+    [UIA arrival] seq=118 index=117 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 12']
+    [UIA arrival] seq=119 index=118 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 13' = true]
+    [UIA arrival] seq=120 index=119 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 13']
+    [UIA arrival] seq=121 index=120 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 14' = true]
+    [UIA arrival] seq=122 index=121 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 14']
+    [UIA arrival] seq=123 index=122 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 15' = true]
+    [UIA arrival] seq=124 index=123 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 15']
+    [UIA arrival] seq=125 index=124 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 16' = true]
+    [UIA arrival] seq=126 index=125 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 16']
+    [UIA arrival] seq=127 index=126 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 17' = true]
+    [UIA arrival] seq=128 index=127 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 17']
+    [UIA arrival] seq=129 index=128 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 18' = true]
+    [UIA arrival] seq=130 index=129 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 18']
+    [UIA arrival] seq=131 index=130 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 19' = true]
+    [UIA arrival] seq=132 index=131 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 19']
+    [UIA arrival] seq=133 index=132 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 20' = true]
+    [UIA arrival] seq=134 index=133 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 20']
+    [UIA arrival] seq=135 index=134 entered=161315437 completed=161315437 [property 30079 from DataItem 'Ligne 21' = true]
+    [UIA arrival] seq=136 index=135 entered=161315437 completed=161315437 [event 20010 from DataItem 'Ligne 21']
+    [UIA provider attempts] step=10 phase=after counts=28..68 stepFirst=28 actionFirst=28 capacity=1024 overflow=0
+    [UIA provider attempt] seq=29 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=30 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=31 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=32 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=33 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=34 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=35 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=36 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=37 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=38 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=39 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=40 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=41 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=42 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=43 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=44 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=45 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=46 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=47 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=48 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=49 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=50 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=51 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=52 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=53 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=54 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=55 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=56 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=57 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=58 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=59 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=60 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=61 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=62 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=63 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=64 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=65 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=66 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=67 step=10 tick=161315421 phase=after thread=31928
+    [UIA provider attempt] seq=68 step=10 tick=161315421 phase=after thread=31928
+    [UIA timeline] step=10 name=twenty rows added at once
+    [UIA timeline] begin step=11 mark=136 expected=1
+    [UIA stream] phase=before quiet=1 ticks=161315953..161316453 lastArrival=161315953 counts=136..136
+    [UIA timeline] step=11 mark=136 cutoff=138 cutoffTick=161316968 expected=1 expectedArrived=1 action=161316453..161316453
+    [UIA stream] phase=after quiet=1 ticks=161316453..161316968 lastArrival=161316468 counts=137..138
+    [UIA arrivals] entries=138 completed=138 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=137 index=136 entered=161316453 completed=161316453 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=138 index=137 entered=161316453 completed=161316453 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=11 phase=after counts=68..69 stepFirst=68 actionFirst=68 capacity=1024 overflow=0
+    [UIA provider attempt] seq=69 step=11 tick=161316453 phase=after thread=31928
+    [UIA timeline] step=11 name=nine rows replacing twenty-one
+    [UIA timeline] begin step=12 mark=138 expected=1
+    [UIA stream] phase=before quiet=1 ticks=161316968..161317468 lastArrival=161316968 counts=138..138
+    [UIA timeline] step=12 mark=138 cutoff=140 cutoffTick=161317984 expected=1 expectedArrived=1 action=161317468..161317468
+    [UIA stream] phase=after quiet=1 ticks=161317468..161317984 lastArrival=161317484 counts=139..140
+    [UIA arrivals] entries=140 completed=140 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=139 index=138 entered=161317468 completed=161317468 [event 20013 from DataGrid 'R?sultats']
+    [UIA arrival] seq=140 index=139 entered=161317468 completed=161317468 [event 20013 from DataGrid 'R?sultats']
+    [UIA provider attempts] step=12 phase=after counts=69..70 stepFirst=69 actionFirst=69 capacity=1024 overflow=0
+    [UIA provider attempt] seq=70 step=12 tick=161317468 phase=after thread=31928
+    [UIA timeline] step=12 name=clearing a selection out of view
+    [UIA timeline] begin step=13 mark=140 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161317984..161318484 lastArrival=161317984 counts=140..140
+    [UIA timeline] step=13 mark=140 cutoff=144 cutoffTick=161319000 expected=2 expectedArrived=1 action=161318484..161318484
+    [UIA stream] phase=after quiet=1 ticks=161318484..161319000 lastArrival=161318500 counts=142..144
+    [UIA arrivals] entries=144 completed=144 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=141 index=140 entered=161318484 completed=161318484 [property 30079 from DataItem 'Ligne 25' = true]
+    [UIA arrival] seq=142 index=141 entered=161318484 completed=161318484 [event 20012 from DataItem 'Ligne 25']
+    [UIA arrival] seq=143 index=142 entered=161318484 completed=161318484 [property 30079 from DataItem 'Ligne 25' = true]
+    [UIA arrival] seq=144 index=143 entered=161318500 completed=161318500 [event 20012 from DataItem 'Ligne 25']
+    [UIA provider attempts] step=13 phase=after counts=70..72 stepFirst=70 actionFirst=70 capacity=1024 overflow=0
+    [UIA provider attempt] seq=71 step=13 tick=161318484 phase=after thread=31928
+    [UIA provider attempt] seq=72 step=13 tick=161318484 phase=after thread=31928
+    [UIA timeline] step=13 name=the application selecting a row off screen
+    [UIA timeline] begin step=14 mark=144 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161319000..161319500 lastArrival=161319000 counts=144..144
+    [UIA timeline] step=14 mark=144 cutoff=148 cutoffTick=161320015 expected=2 expectedArrived=1 action=161319500..161319500
+    [UIA stream] phase=after quiet=1 ticks=161319500..161320015 lastArrival=161319515 counts=146..148
+    [UIA arrivals] entries=148 completed=148 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=145 index=144 entered=161319500 completed=161319500 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=146 index=145 entered=161319500 completed=161319500 [event 20012 from DataItem 'Ligne 3']
+    [UIA arrival] seq=147 index=146 entered=161319500 completed=161319500 [property 30079 from DataItem 'Ligne 3' = true]
+    [UIA arrival] seq=148 index=147 entered=161319500 completed=161319500 [event 20012 from DataItem 'Ligne 3']
+    [UIA provider attempts] step=14 phase=after counts=72..74 stepFirst=72 actionFirst=72 capacity=1024 overflow=0
+    [UIA provider attempt] seq=73 step=14 tick=161319500 phase=after thread=31928
+    [UIA provider attempt] seq=74 step=14 tick=161319500 phase=after thread=31928
+    [UIA timeline] step=14 name=a click that replaces a selection out of view
+    [UIA timeline] begin step=15 mark=148 expected=0
+    [UIA stream] phase=before quiet=1 ticks=161320015..161320515 lastArrival=161320015 counts=148..148
+    [UIA timeline] step=15 mark=148 cutoff=148 cutoffTick=161321015 expected=0 expectedArrived=1 action=161320515..161320515
+    [UIA stream] phase=after quiet=1 ticks=161320515..161321015 lastArrival=161320515 counts=148..148
+    [UIA arrivals] entries=148 completed=148 capacity=1024 overflow=0 failed=0
+    [UIA provider attempts] step=15 phase=after counts=74..74 stepFirst=74 actionFirst=74 capacity=1024 overflow=0
+    [UIA timeline] step=15 name=republishing an unchanged selection
+    [UIA timeline] begin step=16 mark=148 expected=2
+    [UIA stream] phase=before quiet=1 ticks=161321015..161321515 lastArrival=161321015 counts=148..148
+    [UIA timeline] step=16 mark=148 cutoff=152 cutoffTick=161322031 expected=2 expectedArrived=1 action=161321515..161321515
+    [UIA stream] phase=after quiet=1 ticks=161321515..161322031 lastArrival=161321531 counts=150..152
+    [UIA arrivals] entries=152 completed=152 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=149 index=148 entered=161321515 completed=161321515 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=150 index=149 entered=161321515 completed=161321515 [event 20012 from DataItem 'Ligne 4']
+    [UIA arrival] seq=151 index=150 entered=161321515 completed=161321515 [property 30079 from DataItem 'Ligne 4' = true]
+    [UIA arrival] seq=152 index=151 entered=161321515 completed=161321515 [event 20012 from DataItem 'Ligne 4']
+    [UIA provider attempts] step=16 phase=after counts=74..76 stepFirst=74 actionFirst=74 capacity=1024 overflow=0
+    [UIA provider attempt] seq=75 step=16 tick=161321515 phase=after thread=31928
+    [UIA provider attempt] seq=76 step=16 tick=161321515 phase=after thread=31928
+    [UIA timeline] step=16 name=the selected row leaving the grid
+    [UIA timeline] tail step=16 mark=148 cutoff=153 cutoffTick=161322031
+    [UIA arrivals] entries=153 completed=153 capacity=1024 overflow=0 failed=0
+    [UIA arrival] seq=153 index=152 entered=161322031 completed=161322031 [event 20012 from Text 'Ligne 2']
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow (16.314 s)
+  [START] TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow (16.303 s)
+  [START] TestQueuedSelectionEventsStopWhenControlLeavesDuringRaise
+    [queued selection interruption] hiding the grid while its selection events are raised ends them: events=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [queued selection interruption] replacing the window's root while the grid's selection events are raised ends them: events=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [queued selection interruption] detaching the host while the grid's selection events are raised ends them: events=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestQueuedSelectionEventsStopWhenControlLeavesDuringRaise (0.143 s)
+  [START] TestTreeSelectionPublishReplacementFollowsRequests
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsRequests (0.524 s)
+  [START] TestTreeSelectionPublishReplacementFollowsPointerHandlers
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsPointerHandlers (0.838 s)
+  [START] TestTreeSelectionPublishReplacementFollowsReorderClick
+    [UIA publish lifetime] Tree click on a row of a multi-selection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree click on a row of a multi-selection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsReorderClick (0.125 s)
+  [START] TestTreeSelectionPublishReplacementFollowsKeyboardHandlers
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsKeyboardHandlers (0.342 s)
+  [START] TestTreeSelectionPublishReplacementFollowsSelectAll
+    [UIA publish lifetime] Tree SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsSelectAll (0.091 s)
+  [START] TestTreeSelectionPublishReplacementFollowsModeChange
+    [UIA publish lifetime] Tree multi-select disabled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree multi-select disabled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementFollowsModeChange (0.079 s)
+  [START] TestTreeDataChangedSelectionDelegateCompletesBeforeReplacement
+    [UIA publish lifetime] Tree NotifyDataChanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree NotifyDataChanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeDataChangedSelectionDelegateCompletesBeforeReplacement (0.062 s)
+  [START] TestGridSelectionPublishReplacementFollowsInput
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSelectionPublishReplacementFollowsInput (0.278 s)
+  [START] TestGridSelectionPublishReplacementFollowsSelectAll
+    [UIA publish lifetime] Grid SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSelectionPublishReplacementFollowsSelectAll (0.094 s)
+  [START] TestGridGroupSelectionPublishReplacementFollowsKeyboardHandler
+    [UIA publish lifetime] Grid keyboard group collapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid keyboard group collapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridGroupSelectionPublishReplacementFollowsKeyboardHandler (0.092 s)
+  [START] TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents (0.163 s)
+  [START] TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement (0.210 s)
+  [START] TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges (0.062 s)
+  [START] TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement (0.093 s)
+  [START] TestNumericStepperStepButtonsAreNamedForAutomation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNumericStepperStepButtonsAreNamedForAutomation (0.004 s)
+  [START] TestWindowHostStaleElementCannotActOnAReplacementControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostStaleElementCannotActOnAReplacementControl (0.005 s)
+  [START] TestWindowHostReplacedTreeItemsGetNewRuntimeIds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostReplacedTreeItemsGetNewRuntimeIds (0.003 s)
+  [START] TestWindowHostRebuildRaisesStructureInvalidation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRebuildRaisesStructureInvalidation (1.182 s)
+  [START] TestCollapsedStatusRootChildEventComesFromTheChild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestCollapsedStatusRootChildEventComesFromTheChild (0.124 s)
+  [START] TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus (0.004 s)
+  [START] TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds (0.004 s)
+  [START] TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved (0.004 s)
+  [START] TestRootlessHostKeepsFocusAfterItsCallback
+  [DONE] TestRootlessHostKeepsFocusAfterItsCallback (0.000 s)
+  [START] TestDisclosureButtonExpandCollapsePreservesAcknowledgedState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDisclosureButtonExpandCollapsePreservesAcknowledgedState (0.005 s)
+  [START] TestDisclosureNotifiesNativeAutomationClient
+    [UIA] disclosure subscription stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=78 elementFromHandleMs=62 subscribeMs=0 longestOwnerPumpMs=0 allowanceMs=20000
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDisclosureNotifiesNativeAutomationClient (0.123 s)
+  [START] TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy
+  [DONE] TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy (0.000 s)
+  [START] TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement
+    [TRACE] attached host dtor: begin
+Concurrent traversal: 2223935 traversals, 37 reads of replaced elements
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement (1.241 s)
+  [START] TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider (0.005 s)
+  [START] TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues (0.004 s)
+  [START] TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns (0.004 s)
+  [START] TestAccessibilityProviderRefreshesButtonSemanticProperties
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderRefreshesButtonSemanticProperties (0.004 s)
+  [START] TestAccessibilityDisabledPanelDisablesDescendantControlsAndActions
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDisabledPanelDisablesDescendantControlsAndActions (0.116 s)
+  [START] TestAccessibilityDisabledPanelBlocksTreeAndGridItemActions
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDisabledPanelBlocksTreeAndGridItemActions (0.010 s)
+  [START] TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeModelGetterCanReplaceItsRootDuringSnapshotBuild (0.006 s)
+  [START] TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridModelGetterCanReplaceItsRootDuringSnapshotBuild (0.005 s)
+  [START] TestAccessibilityTreeModelGetterCanReplaceItsModelDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeModelGetterCanReplaceItsModelDuringSnapshotBuild (0.006 s)
+  [START] TestAccessibilityGridModelGetterCanReplaceItsModelDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridModelGetterCanReplaceItsModelDuringSnapshotBuild (0.005 s)
+  [START] TestAccessibilityGridPointHitModelGetterCanReplaceItsModelDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridPointHitModelGetterCanReplaceItsModelDuringSnapshotBuild (0.005 s)
+  [START] TestAccessibilityFocusedTreeModelLookupCanReplaceItsRootDuringSnapshotBuild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityFocusedTreeModelLookupCanReplaceItsRootDuringSnapshotBuild (0.005 s)
+  [START] TestAccessibilityProviderRefreshesLabelAssociations
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderRefreshesLabelAssociations (0.006 s)
+  [START] TestAccessibilityProviderExposesDirectSemanticRootControls
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesDirectSemanticRootControls (0.004 s)
+  [START] TestAccessibilityPanelRootIdentitySurvivesSiblingChangesForClient
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityPanelRootIdentitySurvivesSiblingChangesForClient (0.173 s)
+  [START] TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach (0.004 s)
+  [START] TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse (0.003 s)
+  [START] TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree (0.006 s)
+  [START] TestAccessibilityDirectSemanticRootTreeSelectionMatchesUiAutomationClientTree
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDirectSemanticRootTreeSelectionMatchesUiAutomationClientTree (0.004 s)
+  [START] TestAccessibilityProviderReportsFocusedControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderReportsFocusedControl (0.004 s)
+  [START] TestAccessibilityProviderMasksPasswordTextFieldValue
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderMasksPasswordTextFieldValue (0.003 s)
+  [START] TestAccessibilityProviderExposesMaskedRevealButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesMaskedRevealButton (0.003 s)
+  [START] TestAccessibilityProviderExposesTextPatternForTextField
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTextPatternForTextField (0.119 s)
+  [START] TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry (0.110 s)
+  [START] TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest (0.108 s)
+  [START] TestAccessibilityTextRangeFromPointDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeFromPointDispatchesToWindowThread (0.194 s)
+  [START] TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry (0.109 s)
+  [START] TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeometry (0.115 s)
+  [START] TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeometry (0.110 s)
+  [START] TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualLineGeometry (0.116 s)
+  [START] TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines (0.113 s)
+  [START] TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread (0.292 s)
+  [START] TestAccessibilityTextRangeLineDispatchPreservesConcurrentEndpointChanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeLineDispatchPreservesConcurrentEndpointChanges (0.249 s)
+  [START] TestAccessibilityNativeTextRangeTracksFreshDocumentAndEnclosingElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityNativeTextRangeTracksFreshDocumentAndEnclosingElement (0.004 s)
+  [START] TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread (0.195 s)
+  [START] TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.108 s)
+  [START] TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.108 s)
+  [START] TestAccessibilityEditableComboBoxSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityEditableComboBoxSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.112 s)
+  [START] TestAccessibilityProviderExposesTextPatternForEditableComboBox
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTextPatternForEditableComboBox (0.107 s)
+  [START] TestAccessibilityTextRangeSelectDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeSelectDispatchesToWindowThread (0.199 s)
+  [START] TestAccessibilityTimedOutTextRangeSelectDoesNotExecuteLater
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTimedOutTextRangeSelectDoesNotExecuteLater (0.236 s)
+  [START] TestAccessibilityTakenTextRangeSelectExecutesOnlyOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTakenTextRangeSelectExecutesOnlyOnce (0.230 s)
+  [START] TestAccessibilityDestroyWithPendingDispatchReturnsCancelled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDestroyWithPendingDispatchReturnsCancelled (0.109 s)
+  [START] TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread (0.186 s)
+  [START] TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageAlive
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageAlive (0.140 s)
+  [START] TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget
+    [TRACE] attached host dtor: begin
+10k-row completed snapshot rebuild: uncapped 1714 us; capped 441 us
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget (0.008 s)
+  [START] TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree
+Accessibility resolution: Navigate (245 buttons) examined 6.8374 on average, 18 at most, over 246 calls
+    [TRACE] attached host dtor: begin
+Accessibility resolution: Navigate (1,960 buttons) examined 6.91229 on average, 22 at most, over 1961 calls
+Accessibility resolution: GetPropertyValue (1,960 buttons) examined 3.45765 on average, 15 at most, over 1960 calls
+Accessibility resolution: get_BoundingRectangle (1,960 buttons) examined 3.44796 on average, 11 at most, over 1960 calls
+Accessibility resolution: GetPatternProvider (1,960 buttons) examined 3.45765 on average, 15 at most, over 1960 calls
+Accessibility resolution: event path (1,960 buttons) examined 16.9561 on average, 17 at most, over 1960 calls
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree (0.011 s)
+  [START] TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords (0.005 s)
+  [START] TestAccessibilityProviderExposesTreeAndGridMetadata
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTreeAndGridMetadata (0.003 s)
+  [START] TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder (0.004 s)
+  [START] TestAccessibilityTreeItemsReportClippedViewportVisibility
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeItemsReportClippedViewportVisibility (0.003 s)
+  [START] TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns (0.003 s)
+  [START] TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState (0.004 s)
+  [START] TestAccessibilityTreeMultiSelectRaisesSelectionEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectRaisesSelectionEvents (9.666 s)
+  [START] TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow (9.616 s)
+  [START] TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable (0.004 s)
+  [START] TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue (0.239 s)
+  [START] TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues (0.378 s)
+  [START] TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport
+UIA scrolled (0, 0), cell 0,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+    [TRACE] attached host dtor: begin
+UIA scrolled (0, 0), cell 1,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (64, 40), cell 1,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+UIA scrolled (64, 40), cell 2,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 0), cell 2,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 0), cell 3,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 0,0: bounds (-31972, -31919) 100 x 64, visible part (-31972, -31919) 100 x 64, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 0,1: bounds (-31872, -31919) 208 x 64, visible part (-31872, -31919) 208 x 64, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 1,0: bounds (-31972, -31855) 100 x 54, visible part (-31972, -31855) 100 x 54, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 1,1: bounds (-31872, -31855) 208 x 54, visible part (-31872, -31855) 208 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 2,0: bounds (-31972, -31919) 20 x 64, visible part (-31972, -31919) 20 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 2,1: bounds (-31952, -31919) 288 x 64, visible part (-31952, -31919) 288 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 3,0: bounds (-31972, -31855) 20 x 54, visible part (-31972, -31855) 20 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 3,1: bounds (-31952, -31855) 288 x 54, visible part (-31952, -31855) 288 x 54, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 0,0: bounds (-31972, -31919) 308 x 31, visible part (-31972, -31919) 308 x 31, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 1,0: bounds (-31972, -31888) 308 x 64, visible part (-31972, -31888) 308 x 64, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 2,0: bounds (-31972, -31824) 308 x 23, visible part (-31972, -31824) 308 x 23, whole cell 400 x 64 DIP
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport (0.258 s)
+  [START] TestAccessibilityProviderExposesGridRowSelectionPatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesGridRowSelectionPatterns (0.005 s)
+  [START] TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivate
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivate (0.020 s)
+  [START] TestAccessibilityGridCellFocusChoosesTheInspectedColumn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridCellFocusChoosesTheInspectedColumn (0.004 s)
+  [START] TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":0,"operations":128,"microseconds":94426.5,"queryMicroseconds":102.5,"totalMicroseconds":94529.2,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+    [TRACE] attached host dtor: begin
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":1,"operations":128,"microseconds":2834.3,"queryMicroseconds":85.3,"totalMicroseconds":2919.8,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":2,"operations":128,"microseconds":2567.1,"queryMicroseconds":67.4,"totalMicroseconds":2634.6,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":3,"operations":128,"microseconds":2567.6,"queryMicroseconds":56.7,"totalMicroseconds":2624.4,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":4,"operations":128,"microseconds":2572.7,"queryMicroseconds":56.6,"totalMicroseconds":2629.4,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":5,"operations":128,"microseconds":2635.1,"queryMicroseconds":45.4,"totalMicroseconds":2680.6,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":6,"operations":128,"microseconds":2540.4,"queryMicroseconds":34.6,"totalMicroseconds":2575.1,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":0,"operations":128,"microseconds":114.5,"queryMicroseconds":28.9,"totalMicroseconds":143.5,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":1,"operations":128,"microseconds":111.8,"queryMicroseconds":26.9,"totalMicroseconds":138.7,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":2,"operations":128,"microseconds":118.1,"queryMicroseconds":48.4,"totalMicroseconds":166.5,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":3,"operations":128,"microseconds":395.9,"queryMicroseconds":43.2,"totalMicroseconds":439.2,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":4,"operations":128,"microseconds":112.9,"queryMicroseconds":26.6,"totalMicroseconds":139.5,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":5,"operations":128,"microseconds":110.2,"queryMicroseconds":24.8,"totalMicroseconds":135,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":6,"operations":128,"microseconds":110.1,"queryMicroseconds":30.8,"totalMicroseconds":140.9,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost (0.157 s)
+  [START] TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh (0.005 s)
+  [START] TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath (0.004 s)
+  [START] TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement (0.020 s)
+  [START] TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot (0.005 s)
+  [START] TestAccessibilityPostedPublicationDoesNotReachAReattachedHost
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityPostedPublicationDoesNotReachAReattachedHost (0.005 s)
+  [START] TestGridUiaPatternSupportsBoundedOffscreenGetItem
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternSupportsBoundedOffscreenGetItem (0.091 s)
+  [START] TestGridUiaPatternStopsWhenCellReadReplacesItsControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsWhenCellReadReplacesItsControl (0.004 s)
+  [START] TestGridUiaPatternStopsWhenCellReadShrinksItsModel
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsWhenCellReadShrinksItsModel (0.003 s)
+  [START] TestGridUiaPatternRetriesSupersededSameAddressCapture
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternRetriesSupersededSameAddressCapture (0.003 s)
+  [START] TestGridUiaPatternStopsWhenCellReadNotifiesSameModel
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsWhenCellReadNotifiesSameModel (0.004 s)
+  [START] TestGridUiaPatternStopsPointHitsAfterModelReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsPointHitsAfterModelReplacement (0.003 s)
+  [START] TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment (0.003 s)
+  [START] TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation (0.004 s)
+  [START] TestGridUiaPatternPreservesAssignmentDuringRowNavigation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternPreservesAssignmentDuringRowNavigation (0.005 s)
+  [START] TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary (0.003 s)
+  [START] TestFormAccessibilityWindowPropertiesAndStableEditor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPropertiesAndStableEditor (0.111 s)
+  [START] TestFormAccessibilityEmbeddedPropertiesAndStableEditor
+  [DONE] TestFormAccessibilityEmbeddedPropertiesAndStableEditor (0.016 s)
+  [START] TestFormAccessibilityWindowLabelLifetimeAndReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowLabelLifetimeAndReplacement (3.348 s)
+  [START] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement
+  [DONE] TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement (3.178 s)
+  [START] TestFormAccessibilityWindowPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA publication] embedded=0 preparations=0..0 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPresentationEventsAreIdempotent (2.280 s)
+  [START] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent
+    [UIA arrivals] capacity=1024 storageBytes=32800 callbackData=numeric-only clock=GetTickCount64
+    [form UIA publication] embedded=1 preparations=1..2 listening=1..1
+    [form UIA owner] attempts=5 properties=30005,30013,30026,30025,30103, truncated=0
+  [DONE] TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent (2.282 s)
+  [START] TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback (1.237 s)
+  [START] TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback
+  [DONE] TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback (1.153 s)
+  [START] TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement (3.716 s)
+  [START] TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement
+  [DONE] TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement (3.481 s)
+  [START] TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure (0.005 s)
+  [START] TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping (0.004 s)
+  [START] TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren (0.004 s)
+  [START] TestAccessibilityProviderExposesGridCellToggleAndRangePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesGridCellToggleAndRangePatterns (0.028 s)
+  [START] TestAccessibilityProviderExposesSliderRangeValuePattern
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesSliderRangeValuePattern (0.006 s)
+  [START] TestAccessibilityProviderExposesSplitterRangeValuePattern
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesSplitterRangeValuePattern (0.005 s)
+  [START] TestAccessibilityProviderCreationUsesBoundedTokenTransport
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderCreationUsesBoundedTokenTransport (0.082 s)
+  [START] TestAccessibilityRangeValueChangesReachSubscribedClient
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityRangeValueChangesReachSubscribedClient (0.021 s)
+  [START] TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke (0.005 s)
+[DONE] Accessibility (107.736 s)
+All DxUi tests passed.

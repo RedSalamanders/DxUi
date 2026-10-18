@@ -237,6 +237,19 @@ required allocations before publishing; allocation failure preserves the full
 transaction state. Default, moved-from and fully deleted snapshots are empty
 queryable values. The node representation stays private behind shared ownership.
 
+`SourceSnapshot::ChangedRangeFrom(previous)` returns a conservative replacement
+interval with bounds in both immutable snapshots. Recent edits, transient
+previews, undo/redo and copied-document branches use bounded numeric metadata;
+the latest 96 edits are always tracked, with at most 128 retained. Missing
+history or reset falls back to the complete source. Returned boundaries are
+safe for `Slice`, including newly joined CRLF. Queries allocate nothing and change
+no shared cache. Numeric pages keep no old source buffers alive. This source
+service supports the planned incremental preparation; whole-document projection/
+layout and shared scheduling are still separate work.
+Whole-text IME previews are narrowed to their changed prefix/suffix interval
+before replacing source. Shared fragments are compared without materializing old
+text; scalar and CRLF edges remain intact and unchanged buffers stay shared.
+
 The v0 grammar handles ATX headings, paired strong/emphasis/strike/code, nesting
 and paragraphs. Unknown/incomplete syntax remains editable source. Source and
 rich projections carry source/display mapping and explicit revision/mode. Hidden
@@ -369,3 +382,11 @@ complete source/selection/revision/history. Borrowed-input tests destroy or muta
 caller buffers after return and verify that document content survives. Exact observations and descriptive
 edit/read/backward-query timings are in the packet. Incremental/shared
 preparation, full Markdown/extensions and the performance/manual gates stay open.
+
+The [bounded source-change qualification](../Measurements/RichText/2026-10-18-source-changes/README.md)
+retains all 57 ordinary x64 suite successes, six cross/native build profiles,
+original failures and unchanged fixed operation methods. Source-change queries
+allocate zero C++ bytes; localized transient previews retain about 23 KB in the
+fixed 4,096-preview fixture. Numeric metadata has an explicit 188,664-byte history
+fixture cost. These are functional/resource observations. Incremental geometry,
+shared preparation and frame-performance acceptance remain open in the plan.

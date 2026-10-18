@@ -1,0 +1,122 @@
+{
+  "afterArtifact": "263B3E7218897AB61ADD62D2B784F4C549F6B84EFA53B0AC9B565D0B01C5BD9B",
+  "classification": "descriptive-within-process-operation-trials",
+  "beforeSource": "8FF24243850627EEAFE981A0031CEE873A7E02274BD9BA38667C546E6AE0A98F",
+  "beforePerformanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Release-c61dfdf4426a4e709aad571575264ef0.json",
+  "beforeArtifact": "FA220141B608446F7364CA94E874F5EA3172D5CD47A5D0E667F02A61A6BA0204",
+  "afterPerformanceReport": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\Performance-x64-Release-e54cc51c584d4c7a92eef4fc6df8c49c.json",
+  "afterSource": "3FEED65870EA98787EAC461CCB7AA6BA1CD9E5BC73C21684AB650B873517BAC4",
+  "limitations": "One fresh native process per source, five fixed trials inside each. The baseline expected-fails a new capability oracle after its timing trials. No same-binary controls, quiet-host proof or timing acceptance. Resource limits and measured bodies are unchanged.",
+  "after": {
+    "backward": [
+      {
+        "trial": 0,
+        "elapsedMs": 18.1376
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 18.3848
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 18.7574
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 18.8054
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 20.4713
+      }
+    ],
+    "edit": [
+      {
+        "trial": 0,
+        "elapsedMs": 16.6668
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 16.6573
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 16.6739
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 16.6932
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 16.986
+      }
+    ],
+    "backwardMedianMs": 18.7574,
+    "editMedianMs": 16.6739,
+    "lookupMedianMs": 0.527,
+    "lookup": [
+      0.5365,
+      0.527,
+      0.5296,
+      0.5244,
+      0.5248
+    ]
+  },
+  "before": {
+    "backward": [
+      {
+        "trial": 0,
+        "elapsedMs": 18.2838
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 18.7813
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 18.2505
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 18.3636
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 18.2803
+      }
+    ],
+    "edit": [
+      {
+        "trial": 0,
+        "elapsedMs": 15.7147
+      },
+      {
+        "trial": 1,
+        "elapsedMs": 15.7165
+      },
+      {
+        "trial": 2,
+        "elapsedMs": 15.7163
+      },
+      {
+        "trial": 3,
+        "elapsedMs": 15.6931
+      },
+      {
+        "trial": 4,
+        "elapsedMs": 15.6953
+      }
+    ],
+    "backwardMedianMs": 18.2838,
+    "editMedianMs": 15.7147,
+    "lookupMedianMs": 0.5189,
+    "lookup": [
+      0.5259,
+      0.5181,
+      0.5189,
+      0.5152,
+      0.5212
+    ]
+  }
+}

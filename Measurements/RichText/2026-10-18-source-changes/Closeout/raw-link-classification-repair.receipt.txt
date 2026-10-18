@@ -1,0 +1,8 @@
+{
+  "files": [
+    "Raw/README.Draft.md.receipt.txt",
+    "Raw/README.Final.md.receipt.txt"
+  ],
+  "classification": "raw-source-extension-repair",
+  "reason": "Original draft Markdown files refer to the packet-root sibling study. Preserve their exact bytes as receipt.txt so documentation validation does not interpret raw draft links from the Raw folder."
+}

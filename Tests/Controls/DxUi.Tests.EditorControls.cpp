@@ -2,6 +2,7 @@
 #include "Controls.Tests.DxUiTestMovedControls.h"
 #include "Scope.Tests.RichDocument.h"
 #include "Scope.Tests.RichMarkdown.h"
+#include "Scope.Tests.RichSourceChanges.h"
 #include "Scope.Tests.RichTextEditor.h"
 #include "Scope.Tests.RichTextInput.h"
 #include "Scope.Tests.RichTextLayout.h"
@@ -1931,6 +1932,7 @@ void RunEditorControlTests()
     RunRichDocumentTests();
     RunTextElementTests();
     RunTextElementMovementTests();
+    RunRichSourceChangeTests();
     RunRichMarkdownTests();
     RunRichTextLayoutTests();
     RunRichTextEditorTests();

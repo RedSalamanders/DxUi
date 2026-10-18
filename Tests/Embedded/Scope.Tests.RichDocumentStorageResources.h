@@ -163,3 +163,144 @@ static void TestRichDocumentAllocationFailureAtomicity()
         std::cout << "rich source allocation-failure operation=" << operation << " sweptRequests=" << requests << '\n';
     }
 }
+
+static void TestRichSourceChangeAllocationBudget()
+{
+    using namespace DxUi::RichText;
+    std::wstring input(4096u, L'a');
+    Document document(input);
+    const auto previous = document.Snapshot();
+    // No intermediate preview snapshot is retained by this test or undo/redo.
+    for (size_t index = 0u; index < 64u; ++index)
+    {
+        input.insert(input.begin(), L'x');
+        document.ReplaceTransient(std::wstring_view(input), {0u, 0u});
+    }
+    const auto current     = document.Snapshot();
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    size_t calls = 0u, bytes = 0u;
+    bool correct = true;
+    {
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        for (size_t query = 0u; query < 512u; ++query)
+        {
+            const auto change = current.ChangedRangeFrom(previous);
+            correct = correct && change.kind == SourceChangeKind::TrackedEdits && change.begin == 0u && change.previousEnd == 0u && change.currentEnd == 64u;
+        }
+        countAllocations = false;
+        calls            = allocations;
+        bytes            = allocationBytes;
+    }
+    std::cout << "rich source change queries=512 previews=64 CppAllocations=" << calls << " CppRequestedBytes=" << bytes << '\n';
+    Check(correct && ! document.CanUndo() && ! document.CanRedo(), "numeric change metadata survives retired transient previews without creating history");
+    Check(calls == 0u && bytes == 0u, "immutable source change queries request no C++ heap storage");
+}
+
+static void TestRichSourceChangeTransientStorageBudget()
+{
+    std::wstring input(8192u, L'a');
+    const auto oldCounting = countLiveBytes;
+    const auto oldBytes    = liveBytes;
+    ptrdiff_t retained = 0, released = 0;
+    bool correct = false;
+    {
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countLiveBytes = oldCounting;
+            liveBytes      = oldBytes;
+        });
+        liveBytes          = 0;
+        countLiveBytes     = true;
+        {
+            DxUi::RichText::Document document(input);
+            for (size_t index = 0u; index < 4096u; ++index)
+            {
+                input[0] = index % 2u ? L'a' : L'b';
+                document.ReplaceTransient(std::wstring_view(input), {0u, 0u});
+            }
+            correct  = document.Text() == input && ! document.CanUndo() && ! document.CanRedo();
+            retained = liveBytes;
+        }
+        released       = liveBytes;
+        countLiveBytes = false;
+    }
+    std::cout << "rich transient metadata units=8192 previews=4096 retainedCppBytes=" << retained << " releasedDelta=" << released << '\n';
+    Check(correct, "transient metadata preserves the last independently prepared source without history");
+    Check(retained >= 0 && retained <= 256 * 1024 && released == 0, "bounded edit pages retain no chain of old preview buffers and release every tracked byte");
+}
+
+static void TestRichSourceChangeRolloverFailureAtomicity()
+{
+    using namespace DxUi::RichText;
+    Document baseline(std::wstring(1024u, L'a'));
+    for (size_t index = 0u; index < 32u; ++index)
+        baseline.Replace(0u, 0u, L"x", {0u, 0u});
+    baseline.SetSelection({3u, 7u});
+    const auto expected = baseline.Text();
+    const auto revision = baseline.Revision();
+    const auto previous = baseline.Snapshot();
+    const auto replace  = [](Document& candidate) { candidate.Replace(10u, 10u, L"journal rollover insertion", {0u, 0u}); };
+    size_t requests     = 0u;
+    {
+        Document candidate     = baseline;
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        replace(candidate);
+        countAllocations = false;
+        requests         = allocations;
+    }
+    Check(requests > 0u && requests < 64u, "journal rollover has a finite observed allocation schedule");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        Document candidate = baseline;
+        bool rejected      = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                replace(candidate);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && candidate.Text() == expected && candidate.GetSelection() == Selection{3u, 7u} && candidate.Revision() == revision &&
+                  candidate.CanUndo() && ! candidate.CanRedo() && candidate.Snapshot().ChangedRangeFrom(previous).kind == SourceChangeKind::Unchanged,
+              "failed page sealing publishes neither source, history, selection, revision nor phantom change metadata");
+        Document left = candidate, right = baseline;
+        for (size_t undo = 0u; undo <= Document::MaximumHistory; ++undo)
+        {
+            const bool a = left.Undo(), b = right.Undo();
+            Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every undo entry survives failed journal rollover");
+            if (! a)
+                break;
+        }
+        for (size_t redo = 0u; redo <= Document::MaximumHistory; ++redo)
+        {
+            const bool a = left.Redo(), b = right.Redo();
+            Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every redo entry survives failed journal rollover");
+            if (! a)
+                break;
+        }
+    }
+    std::cout << "rich source page-rollover sweptRequests=" << requests << '\n';
+}

@@ -29,6 +29,18 @@ bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept;
 std::wstring DecodeUtf8(std::string_view bytes);
 std::string EncodeUtf8(std::wstring_view text);
 
+enum class SourceChangeKind
+{
+    Unchanged,
+    TrackedEdits,
+    FullReplacement
+};
+struct SourceChangeRange
+{
+    SourceChangeKind kind = SourceChangeKind::FullReplacement;
+    std::size_t begin{}, previousEnd{}, currentEnd{};
+};
+
 // A revision shares immutable buffers and balanced piece-tree paths with background
 // jobs. Editing never changes an earlier snapshot. No HWND, graphics or worker
 // ownership.
@@ -43,14 +55,20 @@ public:
     // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.
     bool IsBoundary(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
+    // A conservative replacement interval, safe for Slice in both snapshots.
+    // Tracked ranges may include unchanged text; missing bounded ancestry falls
+    // back to the whole source. Queries allocate nothing and mutate no cache.
+    SourceChangeRange ChangedRangeFrom(const SourceSnapshot& previous) const noexcept;
 
 private:
     struct PieceTreeNode;
-    std::shared_ptr<const PieceTreeNode> state_;
-    explicit SourceSnapshot(std::shared_ptr<const PieceTreeNode> state) : state_(std::move(state))
+    struct Revision;
+    std::shared_ptr<const Revision> state_;
+    explicit SourceSnapshot(std::shared_ptr<const Revision> state) : state_(std::move(state))
     {
     }
     wchar_t CharacterAt(std::size_t offset) const noexcept;
+    const PieceTreeNode* RootNode() const noexcept;
     friend class Document;
 };
 

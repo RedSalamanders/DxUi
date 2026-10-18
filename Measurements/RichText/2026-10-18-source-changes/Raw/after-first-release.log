@@ -1,0 +1,174 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  RELEASE  /  X64  /  REBUILD  ⚡                   │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\rich-text-core-d2\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichTextLayout.cpp
+  DxUi.RichTextEditor.cpp
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  Generating Code...
+  Compiling...
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.TextElements.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.lib
+  InteractiveLease.Tests.Runner.cpp
+  Embedded.Tests.Embedded.cpp
+  Scope.Tests.RichDocument.cpp
+  Main.cpp
+  Foundation.Tests.Foundation.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  Scope.Tests.RichSourceChanges.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.InteractiveLease.exe
+  Scope.Tests.RichMarkdown.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.EmbeddedTests.exe
+  Scope.Tests.RichTextLayout.cpp
+  Scope.Tests.RichTextEditor.cpp
+  Scope.Tests.RichTextInput.cpp
+  Scope.Tests.RichTextAccessibility.cpp
+  DxUi.Tests.Accessibility.cpp
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  Scope.Tests.HostControlRegressions.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Scope.Tests.TextElements.cpp
+  Scope.Tests.TextElementMovement.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 03:09
+Output: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\
+Log: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Release-03e00b99d9da4acca46ad86dca12b251.log
+========================================
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2366.04 completed offscreen FPS; p95 0.5789 ms; private 27594752 bytes
+Complex UI clean round 2: 2635.74 completed offscreen FPS; p95 0.4483 ms; private 27279360 bytes
+Complex UI clean round 3: 2621.85 completed offscreen FPS; p95 0.4417 ms; private 27860992 bytes
+Complex UI clean round 4: 2489.17 completed offscreen FPS; p95 0.4697 ms; private 28196864 bytes
+Complex UI clean round 5: 2596.56 completed offscreen FPS; p95 0.4897 ms; private 28180480 bytes
+Complex UI dirty round 1: 643.867 completed offscreen FPS; p95 1.7607 ms; private 29360128 bytes
+Complex UI dirty round 2: 657.638 completed offscreen FPS; p95 1.6889 ms; private 29646848 bytes
+Complex UI dirty round 3: 650.504 completed offscreen FPS; p95 1.7426 ms; private 29515776 bytes
+Complex UI dirty round 4: 651.944 completed offscreen FPS; p95 1.8046 ms; private 29564928 bytes
+Complex UI dirty round 5: 662.65 completed offscreen FPS; p95 1.6619 ms; private 29540352 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\Performance-x64-Release-d52c4c46a4af4c39a14323637bec081b.json
+Running EditorControls (x64 Release)
+PASS EditorControls (0 capability skips recorded)
+Running Embedded (x64 Release)
+FAIL Embedded exited with code 1
+Unicode17 bulk commands units=49152 elements=16384 CppAllocations=0 CppRequestedBytes=0
+rich UTF8 rejection inputBytes=65537 decoderCppRequestedBytes=0
+rich UTF8 rejection inputBytes=196609 decoderCppRequestedBytes=0
+rich fragmented storage units=12288 edits=4096 retainedCppBytes=1400710 releasedDelta=0
+rich same-content edit CppAllocations=0 CppRequestedBytes=0
+rich source allocation-failure operation=0 sweptRequests=13
+rich source allocation-failure operation=1 sweptRequests=4
+rich source allocation-failure operation=2 sweptRequests=5
+rich source allocation-failure operation=3 sweptRequests=2
+rich source allocation-failure operation=4 sweptRequests=2
+rich source change queries=512 previews=64 CppAllocations=0 CppRequestedBytes=0
+FAIL: numeric change metadata survives retired transient previews without creating history
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\test.ps1:265
+Line |
+ 265 |  … es.Count) { throw "DxUi failed suites: $($failures -join '; '). See . …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | DxUi failed suites: Embedded exited with code 1. See .build/logs and .build/reports.
