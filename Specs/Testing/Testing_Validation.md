@@ -42,6 +42,13 @@ The activation helper MUST preserve its 800 ms polling deadline while servicing 
 A sent callback can outlast the polling interval, so this deadline is not a hard callback bound. The native
 watchdog and existing foreground checks, grants, authorization and bounded attempts remain required.
 
+Menu hover-switch validation retains its 180 ms pointer-only guard and 900 ms explicit-hover discovery guard.
+The pending-paint regression must establish a bounded stream of popup paints and observe the requested root
+inside the same 900 ms guard. Its unchanged-library counterfactual must retain the failed assertion, queued
+hover, active paint backlog and absence of callback entry. Bounded UI/driver trace storage uses the synchronous
+borrowed diagnostic sink; records retain phase names, relative times and query outcomes rather than desktop
+identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
+
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
 allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2

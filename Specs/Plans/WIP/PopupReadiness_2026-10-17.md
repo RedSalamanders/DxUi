@@ -34,6 +34,97 @@ assertions retain their existing limits. This does not change performance thresh
 
 ## Local evidence
 
+### ARM64 Debug hover-switch follow-up (18 October 2026)
+
+PR #84's first-attempt main run [39072493730](https://github.com/RedSalamanders/DxUi/actions/runs/39072493730),
+at `51ef9f292418d7c11fa1058b897ee84d52674106`, fails the 73rd Menu case,
+`TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar`, in native ARM64 Debug. The explicit hover post
+succeeds, but the existing 900 ms discovery wait does not find a visible owned `Plugins one` popup. The first
+72 cases complete; later Menu cases do not execute. The healthy-state and initialization regressions pass
+before this distinct assertion. NativeTextInput completes 165/165 cases, and all eight enabled consumer checks
+pass. The other five native profiles pass. The aggregate correctly rejects the failed native matrix.
+
+Successful posting proves queueing, and the failed discovery does not identify dispatch, callback acceptance,
+replacement creation, visibility, dismissal or text-query failure. Retain the original untraced receipt and
+diagnose those boundaries before attributing it. The shared ARM64 lease has restored foreground/pointer and
+unrecorded initial focus; `focus=none` is not evidence that focus caused the hover failure.
+
+- [x] Capture bounded UI/driver phase traces through the existing synchronous borrowed diagnostics sink,
+  including hover sequence acceptance, replacement preparation and discovery outcomes, without desktop identities.
+- [x] Establish a source-reachable cause, repair that boundary and add a deterministic regression/counterfactual.
+- [x] Rerun affected noninteractive checks, explicitly agreed x64 Menu diagnostics/full suites and all ARM64 builds.
+- [x] Reconcile the source-specific result and remaining native ARM64 observation against ConsumerUiQualification.
+
+The 180 ms pointer-only guard, 900 ms explicit-hover guard, probe deadlines, watchdogs, restore rules and all
+performance thresholds remain unchanged. Shared qualification checkboxes and `qualified=false` stay unchanged.
+The trace is test infrastructure; it does not change public behavior or gallery pixels.
+
+The controlled Release counterfactual freezes the new trace/regression source and links the unchanged `51ef9f29`
+library. The original overlapping-popup case passes, while the new
+`TestMenuBarHoverMessageSwitchesRootWithPopupPaintPending` reproduces the original hover-switch assertion.
+Its existing peek hook keeps popup paint pending for at most 1,500 ms, armed before the unchanged 180 ms
+pointer-only guard. The trace records 136 paint injections, a successful hover post and no hover callback entry. Discovery
+continues to answer with the old root's text: 57 discovery calls, longest text probe 9 ms, zero dropped trace
+records, and a live old popup at the failed hover guard. The configured guard stays 900 ms; the recorded wait
+is 915.018 ms including polling overhead. The failing receipt and verified restoring lease remain retained.
+
+This proves a source-reachable starvation path: the modal loop fetches input, then pending popup paint, then
+falls back to the general queue; registered menu-bar hover was missing from the prioritized input set.
+Continuous paint can therefore prevent its already queued message from reaching the callback. The repair adds
+only that exact registered message after the existing mouse/key checks and before paint. Registration failure
+cannot turn into a zero-through-zero queue peek. Sequence, callback acceptance, lifetime checks and cleanup stay
+unchanged. The deterministic test uses the existing hook and does not add a production tracing API.
+
+Each trace has separate single-writer UI/driver channels of 64 fixed records, relative times and static phase
+labels, coalesced discovery flags and an explicit dropped count. Storage is allocated before opening the menu;
+borrowed diagnostic text, HWNDs, coordinates and foreground identities are not retained. Phase rows print only
+after failure, after the menu returns and the driver joins; successful cases print a bounded summary. The exact
+same regression source is used on both sides of the controlled library comparison. These observations establish
+the controlled path, not which path the original untraced native ARM64 failure took.
+
+With only the production priority check changed, the identical frozen regression source passes both focused
+Release cases, including the pending-paint assertion and its nonzero-injection requirement. Both traces report
+zero dropped records and the receipt reports zero capability skips. The repaired lease completes with foreground
+and focus unchanged and pointer restored. The private packet retains the failing and passing executables,
+source hashes, filtered receipts and logs separately; a passing focused case does not replace full-suite evidence.
+
+The pre-change raw Release benchmark receipt and first post-change standalone receipt use the same benchmark
+hash, fixture and machine, with verifiable v2 identities, but are unpaired observations. Clean/dirty FPS medians
+are 2,419.65/606.272 before and 2,377.09/605.074 after. The ordinary comparator retains `advice-required` flags:
+clean frame-p95 0.4993 to 0.5458 ms (+9.31%), clean composition CPU-p95 0.0118 to 0.0134 ms (+13.56%), and dirty
+composition CPU-p95 0.0186 to 0.0268 ms (+44.09%). Process-memory changes stay within the existing 2% band and
+exact allocation/surface budgets hold. These flags remain unresolved; neither FPS proximity nor source inspection
+establishes non-regression. The original benchmark executable from this new baseline run was not separately
+archived before rebuilding, so its raw receipt is retained without claiming independently rehashable original
+binary retention. Later candidate repeats cannot repair that gap or qualify the trusted policy.
+
+Two predeclared repeats after all builds complete retain the same candidate executable/source/benchmark hashes
+and verifiable identities. Repeat 1 remains `advice-required` for clean frame-p95 (+6.63%) and dirty composition
+CPU-p95 (+17.74%); repeat 2 is `within-noise-budget`. Both raw runs and comparisons are retained alongside the
+first flagged sample. No build owned by this run competes with these standalone observations, but continuous
+host-load admission and stable matched controls are absent. The later within-budget sample neither attributes
+nor waives the first two flags. Performance qualification, the original memory uncertainty and all other HOLDs
+remain open; fresh retained base/candidate controls and independent policy review remain the owning ledger's work.
+
+The repaired hover candidate passes all 19 noninteractive suites and all 110 full Menu cases in each x64
+profile. The audit binds all 60 native suite receipts to the executable hashes, balances named-test markers,
+requires both hover cases exactly once per full Menu run and reports zero capability skips. Both ASan phases
+detect the isolated intentional instrumentation fault separately from the passing ordinary suites. All three
+full leases preserve or restore foreground/focus/pointer under the approved 30-second automatic Start policy.
+
+| Hover candidate local profile | Noninteractive suites | Full Menu |
+| --- | --- | --- |
+| Debug | 19/19 pass, zero skips | 110/110 cases pass, zero skips |
+| Release | 19/19 pass, zero skips | 110/110 cases pass, zero skips |
+| ASan Debug | 19/19 pass, zero skips | 110/110 cases pass, zero skips |
+
+All three ARM64 configurations also build. A separate PE audit verifies all 30 executable outputs across the
+six configurations have the requested target architecture; it establishes no ARM64 execution. Fresh exact-source
+native ARM64 Debug observation remains required before source-specific native acceptance. If the assertion
+recurs, retain this bounded trace to distinguish queued input, callback/sequence rejection, replacement creation,
+visibility, discovery response and dismissal. Keep the original untraced ARM64 failure and the earlier untraced
+healthy-probe failure open; neither is retrospectively attributed by this controlled regression.
+
 The unchanged `1c1eb10b` x64 Release baseline was built and measured before copying the repair into an isolated
 checkout. Its library-source fingerprint is `C02AFF7704D4193463D40370AE852AFA549031F351515D542CB4E8CB605C1BB6`;
 the candidate's first receipt has that same fingerprint and benchmark hash. The retained baseline dirty-round
@@ -140,7 +231,8 @@ restoration or unchanged foreground, focus and pointer states. The focused pass 
 suite receipt. The original oversized-popup case completes successfully in all three full profiles. No code,
 deadline or threshold changed between these runs; the Debug full/focused receipts bind the same executable hash.
 
-This changes test infrastructure only. Library, benchmark, public behavior and gallery pixels are unchanged;
+The earlier visibility/dispatch-readiness changes above affect test infrastructure only; the 18 October
+hover follow-up additionally changes modal input priority. Neither changes gallery pixels or usage APIs;
 no gallery regeneration is needed. No baseline, policy, investigation band, exact budget or allocation ceiling is
 changed. All existing performance-policy, ARM64 opt-in resource, physical input/device-removal, real IME/AT/touch
 and consumer acceptance gates remain open. Source-specific functional repair does not close shared qualification.
