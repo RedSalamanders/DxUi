@@ -1158,7 +1158,8 @@ __declspec(noinline) static int RunFunctionalTests()
 {
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1179,6 +1180,8 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichDocumentGeometryFailureAtomicity(true);
             TestRichDocumentGeometryFailureAtomicity(true, true);
         }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection")
+            TestRichFlatProjectionFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
         else
@@ -1197,11 +1200,31 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichDocumentSameContentAllocationBudget();
         return 0;
     }
-    if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
     {
+        if (__argc != 4 && __argc != 5)
+        {
+            std::fputs("Boundary diagnostic requires output, Off|On and optional Default|CallingThread.\n", stderr);
+            return 1;
+        }
         const std::wstring_view timers(__wargv[3]);
-        Check(timers == L"Off" || timers == L"On", "boundary diagnostic timer mode");
-        ComplexUiBoundaries::Run(__wargv[2], timers == L"On");
+        if (timers != L"Off" && timers != L"On")
+        {
+            std::fputs("Unknown boundary diagnostic timer mode.\n", stderr);
+            return 1;
+        }
+        std::optional<ComplexUiBoundaries::WarpRasterMode> mode;
+        if (__argc == 5)
+        {
+            auto parsed = ComplexUiBoundaries::WarpRasterMode::Default;
+            if (! ComplexUiBoundaries::TryParseRasterMode(__wargv[4], parsed))
+            {
+                std::fputs("Unknown boundary diagnostic WARP raster mode.\n", stderr);
+                return 1;
+            }
+            mode = parsed;
+        }
+        ComplexUiBoundaries::Run(__wargv[2], timers == L"On", mode);
         return 0;
     }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
@@ -1321,6 +1344,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichSourceChangeRolloverFailureAtomicity();
     TestRichProjectionMappingAndUnchangedAllocationBudget();
     TestRichSnapshotSliceAllocationFailureAtomicity();
+    ComplexUiBoundaries::TestDevicePolicies();
+    TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();
     TestRichProjectionMaximumSourceStorageBudget();

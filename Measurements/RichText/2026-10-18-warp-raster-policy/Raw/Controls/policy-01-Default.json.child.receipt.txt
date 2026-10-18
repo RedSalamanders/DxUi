@@ -1,0 +1,22 @@
+{
+  "processId": 3504,
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+  "arguments": [
+    "--benchmark-complex-ui-boundaries",
+    "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-warp-threading-20261018\\Controls\\policy-01-Default.json",
+    "On",
+    "Default"
+  ],
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2",
+  "startedUtc": "2026-10-18T09:39:07.8061520Z",
+  "completedUtc": "2026-10-18T09:39:08.4215018Z",
+  "timeoutSeconds": 120.0,
+  "drainTimeoutSeconds": 5.0,
+  "exitCode": 0,
+  "timedOut": false,
+  "terminationError": "",
+  "drainError": "",
+  "pipeCharacterLimit": 1048576,
+  "stdoutTruncated": false,
+  "stderrTruncated": false
+}

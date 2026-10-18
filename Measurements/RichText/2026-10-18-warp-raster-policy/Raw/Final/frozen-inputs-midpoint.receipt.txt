@@ -1,0 +1,6 @@
+{
+  "verifiedUtc": "2026-10-18T09:23:11.0515257Z",
+  "fileCount": 11,
+  "allMatched": true,
+  "classification": "Mid-matrix identity check, not final qualification"
+}

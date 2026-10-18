@@ -437,7 +437,10 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
     DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
-    DXUI_RUN_TEST(TestRichTextEditorRetainedPreparationFixedTrials);
+    // Repeated timing is an explicit diagnostic. Ordinary native behavior is
+    // independently covered below; Debug/ASan need not repeat five timing trials.
+    if (GetDxUiTestFilter().active)
+        DXUI_RUN_TEST(TestRichTextEditorRetainedPreparationFixedTrials);
     DXUI_RUN_TEST(TestRichTextEditorNativeChunkReuseAndRetirement);
     DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
 }

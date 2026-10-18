@@ -449,4 +449,45 @@ preserves four same-binary observer controls and 1,280 clear/readback frames.
 All captures match, but 17–25 ms query p95 cannot resolve 0.45–0.57 ms frame p95;
 none of 35 acquisition brackets fits inside a frame. There is no Map wait-reason
 or scheduler-delay conclusion. The Windows trace-policy refusal and performance
-HOLD remain open; a separate documented WARP threading diagnostic is planned.
+HOLD remain open. The separate WARP threading diagnostic is explicit:
+
+```powershell
+./performance-profile.ps1 -Configuration Release -SkipBuild -BoundaryTimers On -WarpRasterMode CallingThread -OutputPath .build/reports/warp-calling.json
+```
+
+Use `-WarpRasterMode Default` for a fresh comparison. The v2 report binds requested
+and actual device flags. Omitting this option retains v1. The option requires
+boundary diagnostics; it changes no library/canonical device default. CallingThread
+names the requested SDK raster policy. Device-reported flags do not prove actual
+application-main-thread execution or isolate scheduler latency.
+
+The five repeated native preparation timing trials are now opt-in through
+`test.ps1 -Suites EditorControls -Tests TestRichTextEditorRetainedPreparationFixedTrials`.
+Ordinary reuse/retirement/geometry/input tests remain enabled; the timing body is
+unchanged. Its explicit Release run passes all five trials against the preserved
+binary. The first collector used the ordinary receipt name and failed after the
+native run passed; the filtered receipt/log and all samples were recovered without
+a native rerun. Both the collector failure and recovery remain retained.
+
+The [WARP policy packet](../Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
+retains all 57 ordinary x64 successes, six build profiles, six isolated Debug/ASan
+probes, full tooling/format checks, four native CLI refusals and legacy v1 smoke.
+All 11 changed inputs match their frozen start/end hashes. Flat Project passes
+21 allocation points in Release and 29 in Debug/ASan; no flat-helper defect was
+reproduced under this compiler, and its value API remains unchanged.
+
+The fixed Default/CallingThread/CallingThread/Default study preserves 1,280 frames
+and four byte-identical populated captures. First full-work-window p95 is
+0.7756/4.5538/4.6896/0.4622 ms, respectively. Map still accounts for about 99.6%
+of the p95 frame in both CallingThread runs. Requested/actual flags are 32/32
+and 40/40, but the intervention does not isolate application-main-thread work or
+scheduler delay. Selected-image counters also record compiler activity during
+the study; they cannot establish a quiet host or attribute individual frames.
+Keep all windows/outliers and the original HOLD. This is a complex-UI diagnostic,
+not a rich-editor edit-throughput or baseline/candidate acceptance result.
+
+The unchanged explicit native preparation trial now has initial/edit medians of
+683.7/66,413.6 ms on this shared host. These observations retain the same library
+fingerprint as the prior guarded geometry; no causal speed/regression conclusion
+follows. Exact retained line placement/drawing, shared preparation and the full
+Markdown/extension engine remain active implementation work.

@@ -1,0 +1,34 @@
+{
+  "elapsedSeconds": 275.2133052,
+  "attempted": 2,
+  "scheduled": 2,
+  "results": [
+    {
+      "exitCode": 0,
+      "processId": 97876,
+      "timedOut": false,
+      "drained": true,
+      "arguments": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1",
+        "-Platform",
+        "x64",
+        "-Configuration",
+        "Debug"
+      ],
+      "name": "build"
+    },
+    {
+      "exitCode": 0,
+      "processId": 61968,
+      "timedOut": false,
+      "drained": true,
+      "arguments": [
+        "--test-rich-flat-projection"
+      ],
+      "name": "flat-projection"
+    }
+  ]
+}

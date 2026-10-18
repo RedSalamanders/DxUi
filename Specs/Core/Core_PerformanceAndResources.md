@@ -431,8 +431,15 @@ not occupancy, ready latency, scheduler events or GPU time. In the retained stud
 all 35 brackets exceed/cross native frame boundaries: 17–25 ms query p95 cannot
 resolve 0.45–0.57 ms frame p95. Empty Map histograms mean unavailable evidence.
 Same-binary observer controls do not establish stable overhead or close HOLD.
-A WARP calling-thread rasterization experiment is a separate future diagnostic;
-it changes work placement and must not change canonical/library device defaults.
+Explicit `-WarpRasterMode Default|CallingThread` with `-BoundaryTimers` selects
+`dxui-complex-ui-boundaries-v2`. Its requested and actual device flags must match
+the selected policy; an absent/contradictory policy cannot be accepted as v1.
+CallingThread uses the documented WARP profiling flag, with no canonical/library
+device default change. Omitting the option preserves the v1 command/report. This
+intervention changes work placement/runtime behavior and cannot by itself measure
+  scheduler latency. Device-reported flags prove the accepted request, not actual
+  application-main-thread execution. Keep native qualification and raw results in
+  the rich-text plan; the observed CallingThread runs remain Map dominated.
 
 The shared Unicode 17 grapheme walker retains constant numeric state and requests
 no C++ heap storage. Prepared rich navigation and password mask indexing walk

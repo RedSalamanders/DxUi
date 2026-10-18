@@ -1,12 +1,79 @@
 #pragma once
 
 #include "Scope.Tests.ComplexUiProfiling.h"
+#include <optional>
 
 // This separate diagnostic varies commands in a completed clean WARP frame. It never
 // changes the canonical acceptance fixture, and its CPU intervals are not GPU timings.
 namespace ComplexUiBoundaries
 {
 inline constexpr size_t kFrames = 40u;
+enum class WarpRasterMode
+{
+    Default,
+    CallingThread
+};
+inline bool TryParseRasterMode(std::wstring_view value, WarpRasterMode& result) noexcept
+{
+    if (value == L"Default")
+        result = WarpRasterMode::Default;
+    else if (value == L"CallingThread")
+        result = WarpRasterMode::CallingThread;
+    else
+        return false;
+    return true;
+}
+inline UINT RequestedDeviceFlags(WarpRasterMode mode) noexcept
+{
+    return D3D11_CREATE_DEVICE_BGRA_SUPPORT | (mode == WarpRasterMode::CallingThread ? D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS : 0u);
+}
+inline HRESULT CreateDiagnosticTarget(GraphicsFixture& graphics, WarpRasterMode mode) noexcept
+{
+    if (mode == WarpRasterMode::Default)
+        return graphics.Create(); // Preserve the shared fixture and all canonical device defaults.
+    if (mode != WarpRasterMode::CallingThread)
+        return E_INVALIDARG;
+    // The documented WARP profiling flag moves rasterization onto the calling
+    // thread. It changes execution policy; it is not a scheduler-delay timer.
+    RETURN_IF_FAILED(D3D11CreateDevice(nullptr,
+                                       D3D_DRIVER_TYPE_WARP,
+                                       nullptr,
+                                       RequestedDeviceFlags(mode),
+                                       nullptr,
+                                       0,
+                                       D3D11_SDK_VERSION,
+                                       graphics.device.put(),
+                                       nullptr,
+                                       graphics.context.put()));
+    return graphics.Resize(graphics.width, graphics.height);
+}
+inline void TestDevicePolicies()
+{
+    auto parsed = WarpRasterMode::CallingThread;
+    Check(TryParseRasterMode(L"Default", parsed) && parsed == WarpRasterMode::Default, "default WARP diagnostic mode parses");
+    Check(! TryParseRasterMode(L"SingleThreaded", parsed) && parsed == WarpRasterMode::Default, "invalid WARP mode leaves the caller value unchanged");
+    Check(TryParseRasterMode(L"CallingThread", parsed) && parsed == WarpRasterMode::CallingThread, "calling-thread WARP mode parses");
+    GraphicsFixture invalid;
+    Check(CreateDiagnosticTarget(invalid, static_cast<WarpRasterMode>(99)) == E_INVALIDARG && ! invalid.device, "invalid WARP policy creates no device");
+    std::vector<uint8_t> expected;
+    for (const auto mode : {WarpRasterMode::Default, WarpRasterMode::CallingThread})
+    {
+        GraphicsFixture graphics;
+        graphics.width  = 64u;
+        graphics.height = 32u;
+        Hr(CreateDiagnosticTarget(graphics, mode), "diagnostic WARP device policy");
+        Check(graphics.device->GetCreationFlags() == RequestedDeviceFlags(mode), "WARP device reports its requested creation flags");
+        graphics.Bind();
+        std::vector<uint8_t> pixels;
+        Hr(graphics.Read(pixels), "diagnostic WARP policy completion/readback");
+        Check(pixels.size() == 64u * 32u * 4u && pixels[0] == 22u && pixels[1] == 17u && pixels[2] == 14u && pixels[3] == 255u,
+              "both WARP policies execute and complete the expected BGRA clear");
+        if (expected.empty())
+            expected = pixels;
+        else
+            Check(pixels == expected, "calling-thread and default WARP clear pixels match exactly");
+    }
+}
 struct Frame
 {
     std::array<int64_t, 9> qpc{};
@@ -26,7 +93,7 @@ inline int64_t Counter() noexcept
     return value.QuadPart;
 }
 
-__declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers)
+__declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std::optional<WarpRasterMode> rasterMode = std::nullopt)
 {
     const auto windows = std::make_unique<std::array<Window, 8>>();
     LARGE_INTEGER frequency{};
@@ -35,9 +102,11 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers)
     Check(GetThreadTimes(GetCurrentThread(), &creation, &exit, &kernel, &user), "boundary diagnostic main-thread creation identity");
     const auto creation100ns = ComplexUiProfiling::FileTimeValue(creation);
     GraphicsFixture gpu;
-    gpu.width  = 1280u;
-    gpu.height = 720u;
-    Hr(gpu.Create(), "boundary diagnostic WARP device");
+    gpu.width       = 1280u;
+    gpu.height      = 720u;
+    const auto mode = rasterMode.value_or(WarpRasterMode::Default);
+    Hr(CreateDiagnosticTarget(gpu, mode), "boundary diagnostic WARP device");
+    Check(gpu.device->GetCreationFlags() == RequestedDeviceFlags(mode), "boundary diagnostic actual device flags");
     ComplexUiScene scene;
     Hr(scene.Initialize(gpu.device.get()), "boundary diagnostic synthetic scene");
     D3D11_TEXTURE2D_DESC descriptor{};
@@ -133,8 +202,9 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers)
           "boundary hidden view releases surface and does no work");
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "boundary output file");
-    output << std::setprecision(17)
-           << "{\"schema\":1,\"fixture\":\"dxui-complex-ui-boundaries-v1\",\"classification\":\"diagnostic-only\",\"renderer\":\"WARP\","
+    const auto schema = rasterMode ? 2 : 1;
+    output << std::setprecision(17) << "{\"schema\":" << schema << ",\"fixture\":\"dxui-complex-ui-boundaries-v" << schema
+           << "\",\"classification\":\"diagnostic-only\",\"renderer\":\"WARP\","
               "\"scenario\":\"Default\",\"heapSampling\":false,\"width\":1280,\"height\":720,\"dpi\":96,\"controls\":83,\"modelRows\":1000,"
               "\"warmFrames\":200,\"probeFrames\":320,\"hiddenPreparations\":0,\"hiddenComposites\":0,\"hiddenSurfaceBytes\":0,"
            << "\"compiler\":" << _MSC_FULL_VER << ",\"iteratorDebugLevel\":" << _ITERATOR_DEBUG_LEVEL << ",\"pointerBits\":" << sizeof(void*) * 8u
@@ -148,8 +218,11 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers)
               "frame end. "
               "Interior edges are zero when timers are off. Controls omit clear and/or composition; preparation, binding and one-pixel completion remain.\","
               "\"schedulingScope\":\"Per-window main/process cumulative counters are sampled outside frames. QPC edges permit external ETW alignment; no "
-              "scheduler-delay, GPU-duration or dedicated-host attribution.\","
-              "\"windows\":[";
+              "scheduler-delay, GPU-duration or dedicated-host attribution.\",";
+    if (rasterMode)
+        output << "\"warpRasterMode\":\"" << (mode == WarpRasterMode::CallingThread ? "CallingThread" : "Default")
+               << "\",\"requestedDeviceFlags\":" << RequestedDeviceFlags(mode) << ",\"deviceCreationFlags\":" << gpu.device->GetCreationFlags() << ',';
+    output << "\"windows\":[";
     for (size_t index = 0u; index < windows->size(); ++index)
     {
         if (index)

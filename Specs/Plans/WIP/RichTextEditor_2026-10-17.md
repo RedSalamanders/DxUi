@@ -999,19 +999,23 @@ by Windows policy; the existing performance HOLD stays open.
 
 Continue implementation in this order:
 
-- [ ] Investigate legacy flat Projection/default/move/copy failure safety in
+- [x] Investigate legacy flat Projection/default/move/copy failure safety in
   isolated native children before claiming a defect. Preserve an original passing
   sweep if the compiler's NRVO avoids the suspected flat-helper failure. A private
   constructor/probe draft is uncompiled and is not implemented support.
-- [ ] Move the five repeated native timing trials behind explicit diagnostic
+- [x] Move the five repeated native timing trials behind explicit diagnostic
   selection, preserving their body and final Release artifact/sample bindings.
   Independent behavior/resource tests remain ordinary. This removes roughly
   280/530 seconds of descriptive repetition from Debug/ASan iteration without
   reducing behavior coverage or changing the canonical acceptance fixture.
-- [ ] Implement a separate bounded WARP default/calling-thread-rasterization
+- [x] Implement a separate bounded WARP default/calling-thread-rasterization
   diagnostic using the documented SDK flag; test both policies and exact captures.
   Preserve default library/canonical device creation. Work placement/runtime
   changes are not a measurement of scheduler latency by themselves.
+- [ ] Measure independent whole-DirectWrite callback baselines, caret/range line
+  placement and accumulation at 13/18/18.1 DIP, maximum newlines, wrapped/mixed
+  fonts, RTL and fractional origins before selecting a retained-line adapter.
+  The private raw-baseline draft is uncompiled and is not implemented support.
 - [ ] Finish exact retained line placement/drawing where the current compatibility
   path rebuilds a whole layout; retain independent geometry and pixel oracles.
 - [ ] Integrate shared/cooperative preparation under existing host ownership,
@@ -1035,3 +1039,82 @@ post-archive dependency validation reports 32 paths over the 150-character
 consumer restore limit. Compact aliases retain original path mappings and every
 byte hash; all five post-archive validators then pass. This packaging repair does
 not change native source, results or performance acceptance.
+
+### WARP execution-policy follow-through in progress
+
+The diagnostic source now supports explicit Default/CallingThread raster modes
+under a v2 boundary report, while absent mode preserves v1. CallingThread uses
+the documented SDK profiling flag; GraphicsFixture, the canonical benchmark
+closure, judges, thresholds and library device defaults remain unchanged.
+Native requested/actual flags and exact capture equality must be validated before
+interpreting the intervention. Schema/runner tests reject missing/contradictory
+policies and preserve existing output on invalid option combinations. Alternate
+PowerShell option casing is normalized before native dispatch. All 141 portable
+profiling fixtures pass; this does not substitute for native execution.
+
+Repeated timing is selected explicitly by its existing named test; the measured
+body remains unchanged and independent ordinary behavior cases remain enabled.
+An isolated flat Project fault sweep has been added to test the existing helper
+before selecting a fix. Do not assume optional NRVO caused a failure until the
+owned original diagnostic proves it. The constructor draft remains private and
+uncompiled; no supporting API/source compatibility change has been adopted.
+Next: native Debug build/original probe, then source-frozen scoped qualification,
+bounded CLI/refusal cases and fresh WARP execution-policy controls.
+
+The original flat helper passes all 29 observed Debug allocation points. Its root
+build and isolated child both exit zero in 275.213 seconds; complete source,
+streams, build identity and exact executable hash are retained. The library
+fingerprint remains 4927C4EE with no src/include/build/dependency diff. Do not call
+the named-return hypothesis a reproduced defect. Keep the sweep as ordinary
+coverage and retain aggregate/value API compatibility; the private constructor
+draft is not adopted. Native device-policy/CLI/profile qualification follows.
+
+Preliminary owned Debug diagnostics validate both native device policies against
+the original-probe artifact: requested/actual flags are 32/32 and 40/40, and both
+populated captures exactly match SHA-256 6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD.
+Both children exit zero with complete drained streams. This is Debug smoke
+coverage, not a root suite result or Release timing/acceptance. Full qualification
+now freezes all source/test/spec/doc inputs across the declared profile matrix.
+
+### Qualified WARP-policy diagnostic and explicit timing selection
+
+The [policy packet](../../../Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
+binds the unchanged library fingerprint 4927C4EE and canonical fixture E9DE4125.
+All six build profiles and 57 ordinary x64 suite runs pass, with zero skips.
+Six isolated Debug/ASan children pass clear, copy/normal/forced-whole geometry
+and flat projection sweeps. Flat Project covers 21 allocation points in Release
+and 29 in Debug/ASan; no flat-helper defect is reproduced under this compiler.
+The fourteen-operation matrix takes 2,828.066 seconds. All eleven changed inputs
+match at start/end, and twenty-eight exact binary/runtime/symbol files remain
+private. Full five-validator/tooling qualification and formatter 22.1.3 pass.
+The value API and the unadopted private constructor draft remain unchanged.
+
+Ordinary EditorControls logs in all profiles exclude the five timing trials;
+independent native/embedded behavior/resource tests remain enabled. The explicit
+Release selection passes its original five-trial body (SHA-256 38F50730), with
+initial/edit medians 683.7/66,413.6 ms. Its first collector incorrectly read the
+ordinary receipt name and fails after the root/native child exits zero. Preserve
+that source, exception and child result. The filtered receipt/log and all five
+samples are recovered without a native rerun; this evidence-only recovery does
+not turn the original collector into a passing operation. These shared-host
+times do not establish a speed change or regression.
+
+Four malformed native requests return the expected failure before report/capture
+output. Legacy v1 with an absent policy still binds the original three arguments,
+zero-allocation/no-op/hidden invariants and identical populated capture. The
+separate fixed Default/CallingThread/CallingThread/Default study completes four
+fresh children in 129.766 seconds, preserving all 1,280 frames and identical PNGs.
+Requested/device-reported flags match 32/32 and 40/40. The first full-work-window
+p95 values are 0.7756/4.5538/4.6896/0.4622 ms. Both CallingThread runs remain about
+99.6% Map at that p95 frame; they do not isolate application-main-thread execution
+or scheduler delay. Mode names describe the requested SDK policy, not measured
+thread ownership. Preserve every window/outlier; do not subtract window costs.
+
+Selected-image snapshots outside the complete study record compiler activity
+(one matching compiler gains 152.109 CPU seconds), without paths, command lines
+or interventions. They cannot establish a quiet host, ownership or frame-level
+attribution. Kernel tracing remains unavailable and the original HOLD stays open.
+No library/canonical device, judge, threshold, baseline or consumer pin changes.
+Continue the independent retained-line probe, exact retained drawing, shared
+preparation and full syntax/semantic/editing implementation. D2a/D4a/D4c/D4d/D5
+remain active; this is a supporting diagnostic component, not overall completion.

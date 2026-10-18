@@ -1,0 +1,915 @@
+{
+  "limitations": "Two fresh processes per policy do not establish stability or an accepted baseline/candidate comparison. Device policy changes work placement/runtime behavior; component costs cannot be inferred by subtracting windows. CPU time counters are quantized and are not simultaneous.",
+  "analyzerSha256": "D44B5A33CB29D93343A0CD1866F82E17479AC6913AD54BDEBF7695B2183DDD9E",
+  "classification": "Descriptive same-binary execution-policy controls; no scheduler-latency, GPU-duration or acceptance verdict",
+  "cases": [
+    {
+      "windows": [
+        {
+          "window": 0,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 1,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 2,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 3,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 4,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 5,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 6,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 7,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        }
+      ],
+      "mode": "Default",
+      "rawSha256": "11A650396734EF258DBF258DDD2E5CF468F72BEE99E3F06689ABCC9370AB48D9",
+      "index": 1,
+      "actualFlags": 32,
+      "requestedFlags": 32,
+      "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "report": "synthetic-0.json"
+    },
+    {
+      "windows": [
+        {
+          "window": 0,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 1,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 2,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 3,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 4,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 5,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 6,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 7,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        }
+      ],
+      "mode": "CallingThread",
+      "rawSha256": "DEE11105AD4373A958FEF9A7A8B325C7C1B5E66DFCBCE799DD1747F8D0010C07",
+      "index": 2,
+      "actualFlags": 40,
+      "requestedFlags": 40,
+      "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "report": "synthetic-1.json"
+    },
+    {
+      "windows": [
+        {
+          "window": 0,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 1,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 2,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 3,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 4,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 5,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 6,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 7,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        }
+      ],
+      "mode": "CallingThread",
+      "rawSha256": "DEE11105AD4373A958FEF9A7A8B325C7C1B5E66DFCBCE799DD1747F8D0010C07",
+      "index": 3,
+      "actualFlags": 40,
+      "requestedFlags": 40,
+      "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "report": "synthetic-2.json"
+    },
+    {
+      "windows": [
+        {
+          "window": 0,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 1,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 2,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 3,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 4,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 5,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": false
+        },
+        {
+          "window": 6,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": false,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        },
+        {
+          "window": 7,
+          "maximumMs": 8.0,
+          "mapShareAtFrameP95Percent": 12.5,
+          "p95Frame": 37,
+          "frameP95Ms": 8.0,
+          "frameCount": 40,
+          "composite": true,
+          "cpu": {
+            "main": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 1000.0,
+              "cpuMs": 0.03
+            },
+            "process": {
+              "timesAvailable": true,
+              "cyclesAvailable": true,
+              "cycles": 2000.0,
+              "cpuMs": 0.06
+            }
+          },
+          "mapP95Ms": 1.0,
+          "windowElapsedMs": 4000.0,
+          "frameMedianMs": 8.0,
+          "clear": true
+        }
+      ],
+      "mode": "Default",
+      "rawSha256": "11A650396734EF258DBF258DDD2E5CF468F72BEE99E3F06689ABCC9370AB48D9",
+      "index": 4,
+      "actualFlags": 32,
+      "requestedFlags": 32,
+      "captureSha256": "6DF197E22101D1A71DAE8DFF1354B5B357D16E7E58D6EED74EA85BD14F9000BD",
+      "report": "synthetic-3.json"
+    }
+  ]
+}

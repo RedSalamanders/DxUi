@@ -1,0 +1,11 @@
+{
+  "expectedMapMs": 1,
+  "testSha256": "69042F018F4FB0DFFD718F9D7528A7AA7AD251D0EBD8814B6E2A9B17C9720E88",
+  "classification": "Synthetic arithmetic/negative integrity fixtures, not native observations",
+  "expectedMainCpuMs": 0.03,
+  "frames": 1280,
+  "windows": 32,
+  "tamperRejected": true,
+  "expectedFrameMs": 8,
+  "analyzerSha256": "D44B5A33CB29D93343A0CD1866F82E17479AC6913AD54BDEBF7695B2183DDD9E"
+}

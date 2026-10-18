@@ -1,0 +1,26 @@
+{
+  "classification": "Original frozen ordinary receipts; explicit timing is separate",
+  "profiles": [
+    {
+      "skips": 0,
+      "repeatedTimingAbsent": true,
+      "nonzeroExits": 0,
+      "ordinarySuites": 19,
+      "profile": "x64-Debug"
+    },
+    {
+      "skips": 0,
+      "repeatedTimingAbsent": true,
+      "nonzeroExits": 0,
+      "ordinarySuites": 19,
+      "profile": "x64-Release"
+    },
+    {
+      "skips": 0,
+      "repeatedTimingAbsent": true,
+      "nonzeroExits": 0,
+      "ordinarySuites": 19,
+      "profile": "x64-ASan-Debug"
+    }
+  ]
+}

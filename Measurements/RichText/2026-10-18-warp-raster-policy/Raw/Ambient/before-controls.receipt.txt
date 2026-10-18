@@ -1,0 +1,64 @@
+{
+  "endedUtc": "2026-10-18T09:38:34.3448942Z",
+  "rows": [
+    {
+      "createdUtc": "2026-10-18T09:36:44.2262636Z",
+      "name": "cl",
+      "processId": 93756,
+      "cpuSeconds": 115.6875
+    },
+    {
+      "createdUtc": "2026-10-18T09:38:10.9808514Z",
+      "name": "cl",
+      "processId": 37748,
+      "cpuSeconds": 23.078125
+    },
+    {
+      "createdUtc": "2026-10-18T09:13:06.2907402Z",
+      "name": "MSBuild",
+      "processId": 96276,
+      "cpuSeconds": 0.78125
+    },
+    {
+      "createdUtc": "2026-10-18T09:13:06.2908102Z",
+      "name": "MSBuild",
+      "processId": 101404,
+      "cpuSeconds": 0.921875
+    },
+    {
+      "createdUtc": "2026-10-18T09:13:06.2909414Z",
+      "name": "MSBuild",
+      "processId": 106480,
+      "cpuSeconds": 0.859375
+    },
+    {
+      "createdUtc": "2026-10-18T09:13:06.2912179Z",
+      "name": "MSBuild",
+      "processId": 50292,
+      "cpuSeconds": 0.84375
+    },
+    {
+      "createdUtc": "2026-10-18T09:13:06.2912920Z",
+      "name": "MSBuild",
+      "processId": 93196,
+      "cpuSeconds": 0.96875
+    },
+    {
+      "createdUtc": "2026-10-18T09:35:39.4675588Z",
+      "name": "MSBuild",
+      "processId": 91884,
+      "cpuSeconds": 0.703125
+    },
+    {
+      "createdUtc": "2026-10-18T09:37:02.6917950Z",
+      "name": "MSBuild",
+      "processId": 38960,
+      "cpuSeconds": 0.78125
+    }
+  ],
+  "errors": [],
+  "startedUtc": "2026-10-18T09:38:34.2401089Z",
+  "classification": "Read-only selected-image counters outside the complete native study; no frame attribution, ownership inference or quiet-host proof",
+  "excluded": "No command lines, paths, thread snapshots, process suspension, priority/affinity changes or process termination.",
+  "sourceSha256": "E6822BFE26ED3451F72B95D89D9240C58E781F52C4AB5F4510C2560D1ADF76FF"
+}

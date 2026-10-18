@@ -1,0 +1,16 @@
+{
+  "expectedFrameMs": 8,
+  "variedMapP95Ms": 36,
+  "windows": 64,
+  "frames": 2560,
+  "tamperRejected": true,
+  "testSha256": "3803D8ED3D24C0334932F00A593EB424EC425AF873F0B3A924D734237156E642",
+  "analyzerSha256": "D44B5A33CB29D93343A0CD1866F82E17479AC6913AD54BDEBF7695B2183DDD9E",
+  "variedP95Frame": 2,
+  "classification": "Synthetic arithmetic/negative integrity fixtures, not native observations",
+  "variedP95Ms": 38,
+  "expectedMapMs": 1,
+  "variedMedianMs": 20,
+  "sameFrameMapMs": 1,
+  "expectedMainCpuMs": 0.03
+}

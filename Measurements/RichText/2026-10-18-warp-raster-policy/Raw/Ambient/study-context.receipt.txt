@@ -1,0 +1,44 @@
+{
+  "before": "2026-10-18T09:38:34.2401089Z",
+  "after": "2026-10-18T09:41:01.3698114Z",
+  "matched": [
+    {
+      "pid": 93756,
+      "name": "cl",
+      "cpuDeltaSeconds": 152.109375
+    },
+    {
+      "pid": 96276,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.140625
+    },
+    {
+      "pid": 101404,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.125
+    },
+    {
+      "pid": 106480,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.078125
+    },
+    {
+      "pid": 50292,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.125
+    },
+    {
+      "pid": 93196,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.109375
+    },
+    {
+      "pid": 91884,
+      "name": "MSBuild",
+      "cpuDeltaSeconds": 0.0
+    }
+  ],
+  "firstCount": 9,
+  "lastCount": 9,
+  "limits": "Selected-image snapshots are not a quiet-host or per-frame attribution proof."
+}

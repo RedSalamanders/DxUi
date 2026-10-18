@@ -4,6 +4,7 @@
 .PARAMETER Heap Include bounded process-local heap accounting outside frame windows. Run paired fresh heap-off/on processes to identify observer effects.
 .PARAMETER SkipBuild Reuse only an exact successful current v2 build. Both before/after identities and the diagnostic helper closure are verified.
 .PARAMETER BoundaryTimers Select the separate Default-only clear/composition/readback diagnostic, with interior QPC timers Off or On. Cannot combine with Heap.
+.PARAMETER WarpRasterMode Explicit Default or CallingThread WARP execution policy for the separate v2 boundary diagnostic. Requires BoundaryTimers; canonical device creation is unchanged.
 #>
 [CmdletBinding()]
 param(
@@ -12,18 +13,21 @@ param(
     [ValidateSet('Default','MultilineGrid')][string] $Scenario = 'Default',
     [switch] $Heap,
     [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
+    [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '',
     [string] $OutputPath = '',
     [switch] $SkipBuild
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
+if ($WarpRasterMode -and -not $BoundaryTimers) { throw 'WARP raster mode requires boundary diagnostics.' }
 $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Profiling diagnostics require native execution matching the requested architecture.'
 }
 if (-not $OutputPath) {
     $kind = if ($BoundaryTimers) { "Boundaries-$BoundaryTimers" } elseif ($Heap) { 'Heap' } else { 'NoHeap' }
+    if ($WarpRasterMode) { $kind += "-$WarpRasterMode" }
     $OutputPath = Join-Path $PSScriptRoot ".build/reports/Profiling-$Scenario-$Platform-$Configuration-$kind.json"
 }
 $OutputPath = [IO.Path]::GetFullPath($OutputPath)
@@ -43,7 +47,7 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1') -Platform $Platform -Configuration $Configuration
     if ($LASTEXITCODE -ne 0) { throw "Profiling build failed with exit code $LASTEXITCODE." }
 }
-Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -BoundaryTimers $BoundaryTimers -OutputPath $OutputPath
+Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -BoundaryTimers $BoundaryTimers -WarpRasterMode $WarpRasterMode -OutputPath $OutputPath
 Write-Host "Diagnostic report: $OutputPath"
 Write-Host "Exact native bytes: $OutputPath.raw.json"
 Write-Host 'Diagnostic only; no acceptance or policy verdict.'

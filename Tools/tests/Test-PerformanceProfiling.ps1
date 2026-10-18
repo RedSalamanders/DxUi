@@ -264,8 +264,8 @@ foreach ($mode in @('signature-only','wrong-width','truncated','no-IDAT','traili
 
 # Shims are deliberately synthetic unit evidence; real v2 receipt/build correctness is covered by
 # PerformancePolicy tests and subsequent coordinated native runs, never established by this fixture.
-function New-BoundaryReport([bool] $Timers = $true) {
-    return [ordered]@{ schema=1; fixture='dxui-complex-ui-boundaries-v1'; classification='diagnostic-only'; renderer='WARP';
+function New-BoundaryReport([bool] $Timers = $true, [string] $WarpRasterMode = '') {
+    $report=[ordered]@{ schema=1; fixture='dxui-complex-ui-boundaries-v1'; classification='diagnostic-only'; renderer='WARP';
         scenario='Default'; heapSampling=$false; boundaryTimers=$Timers; width=1280; height=720; dpi=96; controls=83; modelRows=1000;
         warmFrames=200; probeFrames=320; hiddenPreparations=0; hiddenComposites=0; hiddenSurfaceBytes=0; pointerBits=64; iteratorDebugLevel=0;
         compiler=194435217; processId=42; mainThreadId=17; mainThreadCreation100ns=12345; fixedDiagnosticStorageBytes=32000;
@@ -280,6 +280,12 @@ function New-BoundaryReport([bool] $Timers = $true) {
                     @{cppAllocations=0; qpc=@($frameStart; for ($edge=1; $edge -lt 8; $edge++) { if ($Timers) { $frameStart+$edge } else { 0 } }; $frameStart+9)}
                 }) }
         }) }
+    if ($WarpRasterMode) {
+        $report.schema=2; $report.fixture='dxui-complex-ui-boundaries-v2'; $report.warpRasterMode=$WarpRasterMode
+        $report.requestedDeviceFlags=if ($WarpRasterMode -ceq 'CallingThread') { 40 } else { 32 }
+        $report.deviceCreationFlags=$report.requestedDeviceFlags
+    }
+    return $report
 }
 Import-Module $modulePath -Force
 foreach ($timers in @($false,$true)) {
@@ -317,6 +323,33 @@ Invoke-TestCase 'boundary unavailable CPU telemetry is explicit and cannot masqu
 Invoke-TestCase 'boundary disabled timers must remain zero' {
     $report=New-BoundaryReport $false; $report.windows[0].frames[0].qpc[1]=1
     Assert-Throws { Assert-BoundaryReport $report -Timers $false } 'disabled observer'
+}
+foreach ($mode in @('Default','CallingThread')) {
+    foreach ($timers in @($false,$true)) {
+        Invoke-TestCase "v2 boundary schema binds explicit WARP policy $mode with timers=$timers" {
+            $report=New-BoundaryReport $timers $mode
+            Assert-Equal 'complete' (Assert-BoundaryReport $report -Timers $timers -WarpRasterMode $mode -ProcessId 42) 'explicit native policy'
+        }
+    }
+}
+foreach ($case in @(
+    @{Name='wrong schema'; Change={param($r) $r.schema=1}},
+    @{Name='wrong fixture'; Change={param($r) $r.fixture='dxui-complex-ui-boundaries-v1'}},
+    @{Name='wrong mode'; Change={param($r) $r.warpRasterMode='Default'}},
+    @{Name='wrong requested flags'; Change={param($r) $r.requestedDeviceFlags=32}},
+    @{Name='wrong actual flags'; Change={param($r) $r.deviceCreationFlags=32}},
+    @{Name='unreported policy'; Change={param($r) $r.Remove('warpRasterMode')}},
+    @{Name='unreported requested flags'; Change={param($r) $r.Remove('requestedDeviceFlags')}},
+    @{Name='unreported actual flags'; Change={param($r) $r.Remove('deviceCreationFlags')}}
+)) {
+    Invoke-TestCase ("v2 boundary policy rejects " + $case.Name) {
+        $report=New-BoundaryReport $true 'CallingThread'; & $case.Change $report
+        Assert-Throws { Assert-BoundaryReport $report -Timers $true -WarpRasterMode CallingThread } $case.Name
+    }
+}
+Invoke-TestCase 'v1 boundary report cannot hide an undeclared device policy' {
+    $report=New-BoundaryReport; $report['warpRasterMode']='CallingThread'
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true } 'undeclared execution policy'
 }
 
 function New-ProfilingRunnerFixture([string] $Root, [string] $Mode = 'valid', [bool] $Heap = $false) {
@@ -461,7 +494,32 @@ foreach ($timers in @('Off','On')) {
         $child=Get-FixtureJson $root '.build/reports/profile.json.child.json'
         Assert-Equal '--benchmark-complex-ui-boundaries' $child.arguments[0] 'separate native dispatch'
         Assert-Equal $timers $child.arguments[2] 'interior timing switch'
+        Assert-Equal 3 $child.arguments.Count 'legacy mode does not acquire a raster policy argument'
     }
+}
+foreach ($mode in @('Default','CallingThread')) {
+    Invoke-FixtureCase "public v2 boundary runner binds and canonicalizes $mode" {
+        param($root)
+        $output=New-ProfilingRunnerFixture $root
+        Set-FixtureJson $root 'native.json' (New-BoundaryReport $true $mode)
+        & (Join-Path $root 'performance-profile.ps1') -Configuration Release -SkipBuild -BoundaryTimers on -WarpRasterMode $mode.ToLowerInvariant() -OutputPath $output
+        $receipt=Get-FixtureJson $root '.build/reports/profile.json'
+        Assert-Equal 'dxui-complex-ui-boundaries-v2' $receipt.fixture 'explicit policy fixture'
+        Assert-Equal $mode $receipt.warpRasterMode 'native execution policy retained'
+        $child=Get-FixtureJson $root '.build/reports/profile.json.child.json'
+        Assert-Equal 4 $child.arguments.Count 'explicit policy argument inventory'
+        Assert-Equal 'On' $child.arguments[2] 'alternate timer casing normalized'
+        Assert-Equal $mode $child.arguments[3] 'alternate WARP policy casing normalized'
+    }
+}
+Invoke-FixtureCase 'WARP mode requires boundaries before any identity or output mutation' {
+    param($root)
+    $output=New-ProfilingRunnerFixture $root
+    Set-FixtureFile $root '.build/reports/profile.json' 'preserve original'
+    Assert-Throws { Invoke-ProfilingMeasurement -Root $root -Platform x64 -Configuration Release -Scenario Default -Heap $false -WarpRasterMode CallingThread -OutputPath $output } 'direct boundary requirement'
+    Assert-Throws { & (Join-Path $root 'performance-profile.ps1') -SkipBuild -WarpRasterMode Default -OutputPath $output } 'public boundary requirement'
+    Assert-Equal 'preserve original' ([IO.File]::ReadAllText($output)) 'invalid option preserves existing output'
+    Assert-True (-not (Test-Path (Join-Path $root 'calls.txt'))) 'invalid option starts no identity/child work'
 }
 Invoke-FixtureCase 'boundary runner rejects heap and foreign scenarios before touching source or stale reports' {
     param($root)

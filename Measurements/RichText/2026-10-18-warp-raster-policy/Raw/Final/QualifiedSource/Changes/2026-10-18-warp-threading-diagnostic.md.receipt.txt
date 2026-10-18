@@ -1,0 +1,2 @@
+- Add an explicit WARP calling-thread rasterization boundary diagnostic with requested/actual device-policy validation, preserve the legacy diagnostic and canonical device defaults, and make repeated rich-editor timing trials opt-in.
+  Add portable policy/schema/refusal tests, native device/readback checks and an isolated original flat-projection allocation probe; scheduler attribution and full feature acceptance remain tracked separately.

@@ -1,0 +1,42 @@
+[CmdletBinding()]param([string]$Root,[string]$OutputDirectory)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+if(Test-Path -LiteralPath $OutputDirectory){throw 'Fresh explicit-trial output required.'}
+New-Item -ItemType Directory -Path $OutputDirectory|Out-Null
+$executable=Join-Path $Root '.build/x64/Release/DxUi.ControlTests.exe'
+$hash=(Get-FileHash -LiteralPath $executable).Hash
+$method='TestRichTextEditorRetainedPreparationFixedTrials'
+$started=[datetime]::UtcNow
+$arguments=@('-NoProfile','-NonInteractive','-File',(Join-Path $Root 'test.ps1'),'-Platform','x64','-Configuration','Release',
+ '-Suites','EditorControls','-Tests',$method,'-SkipBuild','-SkipTooling','-TestTimeout','600')
+@{classification='Explicit diagnostic selection of unchanged five-trial body; not acceptance or a causal speed comparison';
+ nativeExecutable=$executable;nativeSha256=$hash;arguments=$arguments;wrapperBudgetSeconds=660;perNativeTestBudgetSeconds=600;
+ sourceSha256=(Get-FileHash $PSCommandPath).Hash;startedUtc=$started.ToString('o')}|
+ ConvertTo-Json -Depth 12|Set-Content (Join-Path $OutputDirectory 'plan.receipt.txt')
+$start=[Diagnostics.ProcessStartInfo]::new((Get-Command pwsh).Source)
+$start.WorkingDirectory=$Root;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+foreach($argument in $arguments){$start.ArgumentList.Add($argument)}
+$process=[Diagnostics.Process]::Start($start)
+try{
+ $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$timedOut=-not$process.WaitForExit(660000)
+ if($timedOut){$process.Kill($true);[void]$process.WaitForExit(5000)}
+ $drained=[Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdout,$stderr),5000)
+ if($drained){[IO.File]::WriteAllText((Join-Path $OutputDirectory 'runner.log'),$stdout.GetAwaiter().GetResult());[IO.File]::WriteAllText((Join-Path $OutputDirectory 'runner.err'),$stderr.GetAwaiter().GetResult())}
+ $code=if($process.HasExited){$process.ExitCode}else{$null}
+ @{exitCode=$code;processId=$process.Id;timedOut=$timedOut;drained=$drained;elapsedSeconds=([datetime]::UtcNow-$started).TotalSeconds}|
+  ConvertTo-Json|Set-Content (Join-Path $OutputDirectory 'completion.receipt.txt')
+ if($code -ne 0 -or $timedOut -or -not$drained){throw 'Explicit timing selection failed.'}
+}finally{$process.Dispose()}
+if((Get-FileHash $executable).Hash -cne $hash){throw 'Explicit diagnostic artifact changed.'}
+$path=Join-Path $Root '.build/reports/EditorControls-x64-Release.json'
+$receipt=Get-Content $path -Raw|ConvertFrom-Json -AsHashtable -Depth 32
+if($receipt.exitCode -ne 0 -or $receipt.sha256 -cne $hash -or @($receipt.tests).Count -ne 1 -or $receipt.tests[0] -cne $method -or
+ $receipt.skips.Count -or [datetime]$receipt.completedUtc -lt $started){throw 'Root receipt did not execute exactly the selected diagnostic.'}
+Copy-Item -LiteralPath $path -Destination (Join-Path $OutputDirectory 'selected-native.receipt.txt')
+Copy-Item -LiteralPath (Join-Path $Root '.build/logs/test-EditorControls-x64-Release.log') -Destination (Join-Path $OutputDirectory 'selected-native.log')
+Copy-Item -LiteralPath $receipt.performanceReport -Destination (Join-Path $OutputDirectory 'canonical-diagnostic.receipt.txt')
+if(Test-Path -LiteralPath ($receipt.performanceReport+'.comparison.json')){
+ Copy-Item -LiteralPath ($receipt.performanceReport+'.comparison.json') -Destination (Join-Path $OutputDirectory 'canonical-comparison.receipt.txt')
+}
+& (Join-Path $Root '.build/reports/rich-warp-threading-20261018/Compare-NativeTrials.ps1') -Root $Root -OutputDirectory $OutputDirectory
+Write-Host 'The unchanged five-trial body executes only by explicit selection; original samples and root bindings retained.'

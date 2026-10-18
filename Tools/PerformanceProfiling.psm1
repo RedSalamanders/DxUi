@@ -259,13 +259,26 @@ function Assert-ProfilingReport {
 function Assert-BoundaryReport {
     [CmdletBinding()]
     param([Parameter(Mandatory)] $Receipt, [bool] $Timers,
-        [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release', [int] $ProcessId)
+        [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release', [int] $ProcessId,
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
     Assert-ProfilingObject $Receipt 'report'
-    foreach ($pair in @(@('schema',1),@('fixture','dxui-complex-ui-boundaries-v1'),@('classification','diagnostic-only'),@('renderer','WARP'),
+    if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
+    $schema=if ($WarpRasterMode) { 2 } else { 1 }
+    foreach ($pair in @(@('schema',$schema),@('fixture',"dxui-complex-ui-boundaries-v$schema"),@('classification','diagnostic-only'),@('renderer','WARP'),
             @('scenario','Default'),@('heapSampling',$false),@('boundaryTimers',$Timers),@('width',1280),@('height',720),@('dpi',96),
             @('controls',83),@('modelRows',1000),@('warmFrames',200),@('probeFrames',320),@('hiddenPreparations',0),@('hiddenComposites',0),
             @('hiddenSurfaceBytes',0),@('pointerBits',64),@('iteratorDebugLevel',$(if ($Configuration -eq 'Release') { 0 } else { 2 })))) {
         Assert-ProfilingExact $Receipt $pair[0] $pair[1] 'report'
+    }
+    if ($WarpRasterMode) {
+        # Exact SDK creation flags: BGRA support, plus the opt-in WARP profiling
+        # flag for calling-thread rasterization. Neither is a library default change.
+        $expectedFlags=if ($WarpRasterMode -ceq 'CallingThread') { 40 } else { 32 }
+        Assert-ProfilingExact $Receipt 'warpRasterMode' $WarpRasterMode 'report'
+        Assert-ProfilingExact $Receipt 'requestedDeviceFlags' $expectedFlags 'report'
+        Assert-ProfilingExact $Receipt 'deviceCreationFlags' $expectedFlags 'report'
+    } elseif ($Receipt.Contains('warpRasterMode') -or $Receipt.Contains('requestedDeviceFlags') -or $Receipt.Contains('deviceCreationFlags')) {
+        throw 'Invalid boundary report: undeclared WARP execution policy in a v1 report.'
     }
     foreach ($key in @('compiler','processId','mainThreadId','mainThreadCreation100ns','fixedDiagnosticStorageBytes')) {
         Assert-ProfilingNumber $Receipt $key 'report' -Integer
@@ -462,8 +475,15 @@ function Invoke-ProfilingMeasurement {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [string] $Platform, [string] $Configuration,
         [ValidateSet('Default','MultilineGrid')][string] $Scenario, [bool] $Heap, [Parameter(Mandatory)][string] $OutputPath,
-        [ValidateSet('','Off','On')][string] $BoundaryTimers = '')
+        [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
+    # PowerShell ValidateSet accepts alternate casing; native arguments have an
+    # exact spelling. Normalize before constructing commands or validating output.
+    $Scenario=if ($Scenario -ieq 'Default') { 'Default' } else { 'MultilineGrid' }
+    if ($BoundaryTimers) { $BoundaryTimers=if ($BoundaryTimers -ieq 'On') { 'On' } else { 'Off' } }
+    if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
     if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
+    if ($WarpRasterMode -and -not $BoundaryTimers) { throw 'WARP raster mode requires boundary diagnostics.' }
     $OutputPath = [IO.Path]::GetFullPath($OutputPath)
     if ([IO.Path]::GetExtension($OutputPath) -ine '.json') { throw 'Profiling output must name a JSON report.' }
     $rootPrefix = [IO.Path]::GetFullPath($Root) + [IO.Path]::DirectorySeparatorChar
@@ -482,6 +502,7 @@ function Invoke-ProfilingMeasurement {
     try {
         $arguments = if ($BoundaryTimers) { @('--benchmark-complex-ui-boundaries',$OutputPath,$BoundaryTimers) }
             else { @('--benchmark-complex-ui-profile',$OutputPath,$Scenario,$(if ($Heap) { 'On' } else { 'Off' })) }
+        if ($WarpRasterMode) { $arguments += $WarpRasterMode }
         $child = Invoke-OwnedProfilingProcess -Executable $exe -WorkingDirectory $Root -Arguments $arguments
         [IO.File]::WriteAllText(($OutputPath + '.log'), ($child.stdout + $child.stderr), [Text.UTF8Encoding]::new($false))
         $metadata = [ordered]@{}
@@ -501,7 +522,7 @@ function Invoke-ProfilingMeasurement {
         Assert-PerformanceMeasurementState -Before $before -After $after
         Assert-PerformanceBuildAttestation -Root $Root -Platform $Platform -Configuration $Configuration -State $after
         $receipt = [Text.UTF8Encoding]::new($false, $true).GetString($bytes) | ConvertFrom-Json -AsHashtable -Depth 32
-        $completeness = if ($BoundaryTimers) { Assert-BoundaryReport -Receipt $receipt -Timers ($BoundaryTimers -eq 'On') -Configuration $Configuration -ProcessId $child.processId }
+        $completeness = if ($BoundaryTimers) { Assert-BoundaryReport -Receipt $receipt -Timers ($BoundaryTimers -eq 'On') -Configuration $Configuration -ProcessId $child.processId -WarpRasterMode $WarpRasterMode }
             else { Assert-ProfilingReport -Receipt $receipt -Scenario $Scenario -Heap $Heap -Configuration $Configuration -ProcessId $child.processId }
         if ((Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash -cne $rawHash) { throw 'Profiling native bytes changed during validation.' }
         if ((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash -cne $captureHash) { throw 'Profiling capture bytes changed during validation.' }

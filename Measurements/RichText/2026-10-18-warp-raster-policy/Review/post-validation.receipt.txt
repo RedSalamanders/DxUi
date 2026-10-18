@@ -1,0 +1,22 @@
+[
+  {
+    "exitCode": 0,
+    "validator": "skills"
+  },
+  {
+    "exitCode": 1,
+    "validator": "specs"
+  },
+  {
+    "exitCode": 0,
+    "validator": "dependencies"
+  },
+  {
+    "exitCode": 0,
+    "validator": "test-port"
+  },
+  {
+    "exitCode": 0,
+    "validator": "build-matrix"
+  }
+]

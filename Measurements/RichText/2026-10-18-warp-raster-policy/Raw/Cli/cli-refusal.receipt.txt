@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "expectedMessage": true,
+      "exitCode": 1,
+      "processId": 49076,
+      "name": "missing-timer",
+      "timedOut": false,
+      "drained": true,
+      "noNativeReportOrCapture": true,
+      "arguments": [
+        "--benchmark-complex-ui-boundaries",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-warp-threading-20261018\\Cli\\missing-timer.json"
+      ]
+    },
+    {
+      "expectedMessage": true,
+      "exitCode": 1,
+      "processId": 23720,
+      "name": "unknown-timer",
+      "timedOut": false,
+      "drained": true,
+      "noNativeReportOrCapture": true,
+      "arguments": [
+        "--benchmark-complex-ui-boundaries",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-warp-threading-20261018\\Cli\\unknown-timer.json",
+        "Unknown"
+      ]
+    },
+    {
+      "expectedMessage": true,
+      "exitCode": 1,
+      "processId": 96152,
+      "name": "unknown-mode",
+      "timedOut": false,
+      "drained": true,
+      "noNativeReportOrCapture": true,
+      "arguments": [
+        "--benchmark-complex-ui-boundaries",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-warp-threading-20261018\\Cli\\unknown-mode.json",
+        "On",
+        "SingleThreaded"
+      ]
+    },
+    {
+      "expectedMessage": true,
+      "exitCode": 1,
+      "processId": 41084,
+      "name": "extra-argument",
+      "timedOut": false,
+      "drained": true,
+      "noNativeReportOrCapture": true,
+      "arguments": [
+        "--benchmark-complex-ui-boundaries",
+        "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-warp-threading-20261018\\Cli\\extra-argument.json",
+        "On",
+        "Default",
+        "Extra"
+      ]
+    }
+  ],
+  "scheduled": 4,
+  "executableSha256": "97E3848DE9BAD623939099C8DD6EDCE036ADBD392C7FE1EB39210EACBDF58AC0",
+  "classification": "Owned native invalid-argument tests; no render, benchmark or scheduler acceptance",
+  "attempted": 4,
+  "childBudgetSeconds": 30,
+  "elapsedSeconds": 0.1841782
+}

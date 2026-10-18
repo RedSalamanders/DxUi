@@ -250,3 +250,68 @@ static void TestRichProjectionMaximumSourceStorageBudget()
               "maximum newline/unique-line projection is bounded to sixteen MiB, shares adjacent equal lines and releases all bytes");
     }
 }
+
+static bool RichProjectionValuesEqual(const DxUi::RichText::Projection& left, const DxUi::RichText::Projection& right) noexcept
+{
+    return left.source == right.source && left.text == right.text && left.sourceToDisplay == right.sourceToDisplay && left.revision == right.revision &&
+           left.mode == right.mode && left.units.size() == right.units.size() &&
+           std::equal(
+               left.units.begin(), left.units.end(), right.units.begin(), [](const auto& a, const auto& b) { return a.start == b.start && a.end == b.end; }) &&
+           left.runs.size() == right.runs.size() && std::equal(left.runs.begin(), left.runs.end(), right.runs.begin(), [](const auto& a, const auto& b) {
+        return a.start == b.start && a.length == b.length && a.flags == b.flags && a.heading == b.heading;
+    });
+}
+static void TestRichFlatProjectionFailureAtomicity(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    const std::wstring seed = L"# Heading\r\n**bold** a\u0301 \U0001f600 `code`\ntrailing text";
+    Document document(seed);
+    const auto snapshot = document.Snapshot();
+    const auto revision = document.Revision();
+    const auto expected = Project(snapshot, revision, ViewMode::Rich);
+    size_t requests     = 0u;
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const auto observed           = Project(snapshot, revision, ViewMode::Rich);
+        countAllocations              = false;
+        requests                      = allocations;
+        Check(RichProjectionValuesEqual(observed, expected), "measured flat projection preserves all owned fields");
+    }
+    Check(requests > 0u && requests < 4096u, "flat projection has a finite observed C++ allocation schedule");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        if (trace)
+        {
+            std::fprintf(stderr, "rich flat projection failure-point=%zu\n", failure);
+            std::fflush(stderr);
+        }
+        bool rejected = false, unexpectedlyCompleted = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                const auto observed   = Project(snapshot, revision, ViewMode::Rich);
+                unexpectedlyCompleted = RichProjectionValuesEqual(observed, expected);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && ! unexpectedlyCompleted && document.Revision() == revision && snapshot.Text() == seed && document.Text() == seed,
+              "flat projection allocation failure preserves its immutable source and document");
+        Check(RichProjectionValuesEqual(Project(snapshot, revision, ViewMode::Rich), expected), "flat projection retry reproduces the complete owned value");
+    }
+    std::cout << "rich flat projection allocation-failure sweptRequests=" << requests << '\n';
+}
