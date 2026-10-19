@@ -223,6 +223,18 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     const auto sourceLines = editor->GetSourceVisualLineRanges(host);
     const std::array<std::pair<std::size_t, std::size_t>, 4u> expectedLines{{{0u, 3u}, {3u, 5u}, {5u, 8u}, {8u, 8u}}};
     Check(sourceLines && std::ranges::equal(*sourceLines, expectedLines), "native/embedded line-unit publication has no phantom EOL-only source line");
+    for (const auto sourceText : {L"&amp;", L"&fjlig;", L"![alt](local)"})
+    {
+        editor->SetText(sourceText);
+        prepare();
+        editor->SetSelection({1u, 1u});
+        Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 0u,
+              "native/embedded Left from an interior atomic source ACP reaches its leading boundary");
+        editor->SetSelection({1u, 1u});
+        Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection().caret == std::wstring_view(sourceText).size() &&
+                  editor->GetText() == sourceText && ! editor->CanUndo(),
+              "native/embedded Right reaches the trailing atomic boundary without source/history mutation");
+    }
 }
 template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
 {

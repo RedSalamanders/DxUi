@@ -252,5 +252,14 @@ inline void SourceCaretSites()
     checkLines(L"**a**\r\n\r\nb", {{0u, 7u}, {7u, 9u}, {9u, 10u}});
     checkLines(L"\r\n\r\n", {{0u, 2u}, {2u, 4u}, {4u, 4u}});
     checkLines(L"", {{0u, 0u}});
+    for (const auto sourceText : {L"&amp;", L"&fjlig;", L"![alt](local)"})
+    {
+        const auto atomicDocument = RichSemanticDocumentTests::Build(sourceText);
+        geometry.Begin(factory.get(), atomicDocument, options);
+        Complete(geometry);
+        Check(geometry.StepSource(1u, MarkdownNoNode, false).position == 0u &&
+                  geometry.StepSource(1u, MarkdownNoNode, true).position == std::wstring_view(sourceText).size(),
+              "raw interior entity/image ACPs move to the atomic source boundary in either direction");
+    }
 }
 } // namespace RichSemanticGeometryTests

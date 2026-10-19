@@ -630,6 +630,17 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
     const auto& box   = *state.boxes[index];
     const auto& map   = state.document->Map();
     auto display      = std::clamp(map.ToDisplay(source), box.paragraph.display.first, box.paragraph.display.last);
+    if (! box.sourceCaret && ! forwards)
+    {
+        const auto spans = map.Spans();
+        const auto token = std::upper_bound(spans.begin(), spans.end(), display, [](auto offset, const auto& span) { return offset < span.display.last; });
+        // A legal raw ACP can be inside an atomic token whose leading projection
+        // is already its first display stop. Left still reaches its leading raw
+        // source boundary instead of stalling at that projected display stop.
+        if (token != spans.end() && (token->kind == DisplaySpanKind::Transformed || token->kind == DisplaySpanKind::Object) && token->source.first < source &&
+            source < token->source.last)
+            return {token->source.first, index};
+    }
     if (! box.sourceCaret)
         while (forwards ? display < box.paragraph.display.last : display > box.paragraph.display.first)
         {
