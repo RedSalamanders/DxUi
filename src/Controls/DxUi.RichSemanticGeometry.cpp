@@ -838,6 +838,19 @@ bool PreparedSemanticGeometry::IsCellSourceSite(std::size_t source, std::size_t 
     const auto& box   = *state.boxes[state.SourceBox(source, site)];
     return box.sourceCaret && box.paragraph.table != MarkdownNoNode;
 }
+std::size_t PreparedSemanticGeometry::SourceSyntaxNode(std::size_t source, std::size_t site) const
+{
+    const auto& state = Current();
+    return state.boxes[state.SourceBox(source, site)]->paragraph.syntaxNode;
+}
+std::size_t PreparedSemanticGeometry::SourceSiteForSyntaxNode(std::size_t node) const
+{
+    const auto& state = Current();
+    for (std::size_t i = 0u; i < state.boxes.size(); ++i)
+        if (! state.boxes[i]->markerOnly && state.boxes[i]->paragraph.syntaxNode == node)
+            return i;
+    return MarkdownNoNode;
+}
 std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleSourceRange(float top, float bottom) const
 {
     const auto& state = Current();

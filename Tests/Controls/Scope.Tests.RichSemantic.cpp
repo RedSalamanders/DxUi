@@ -28,6 +28,31 @@ void TestRichSemanticNativeRetainedTransactions()
                                               [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source transaction"); });
     });
 }
+void TestRichMarkdownStructuralListsAndHeadings()
+{
+    RichSemanticTests::Run(RichCommandTests::ListsAndHeadings);
+}
+void TestRichMarkdownStructuralInlineTasksLinks()
+{
+    RichSemanticTests::Run(RichCommandTests::InlineTasksLinks);
+}
+void TestRichMarkdownStructuralTables()
+{
+    RichSemanticTests::Run(RichCommandTests::Tables);
+}
+void TestRichMarkdownStructuralGuardsAndDeletion()
+{
+    RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
+}
+void TestRichMarkdownNativeStructuralCommands()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::StructuralCommands(window.Host(),
+                                                    [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native structural command"); });
+    });
+}
 } // namespace
 void RunRichSemanticTests()
 {
@@ -36,4 +61,9 @@ void RunRichSemanticTests()
     DXUI_RUN_TEST(TestRichSemanticTransactionOracles);
     DXUI_RUN_TEST(TestRichSemanticTransactionRejections);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedTransactions);
+    DXUI_RUN_TEST(TestRichMarkdownStructuralListsAndHeadings);
+    DXUI_RUN_TEST(TestRichMarkdownStructuralInlineTasksLinks);
+    DXUI_RUN_TEST(TestRichMarkdownStructuralTables);
+    DXUI_RUN_TEST(TestRichMarkdownStructuralGuardsAndDeletion);
+    DXUI_RUN_TEST(TestRichMarkdownNativeStructuralCommands);
 }

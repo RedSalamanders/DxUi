@@ -3,6 +3,167 @@
 
 // Included after this process's isolated allocation counters. Do not instrument
 // the canonical benchmark or Windows/driver allocations with this fixture.
+static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "command host failure graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "command host failure owner");
+    std::wstring source(L"- [ ] ");
+    source.append(128u, L'x');
+    auto root    = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "command host failure preparation");
+    auto& host = view.Controls();
+    host.SetFocusControl(editor, false);
+    editor->SetSelection({8u, 8u});
+    Check(host.HasActiveNativeTextInputSession(), "embedded/native shared text-service session is active");
+    NativeTextInputState available{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+    Check(host.TryReadNativeTextInputState(editor, available) && available.text == source, "command guard starts from a current text-service cache");
+    NativeTextInputState unavailable{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+    bool read = true;
+    {
+        const auto old      = failAllocationAfter;
+        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = old; });
+        failAllocationAfter = 0u;
+        read                = host.TryReadNativeTextInputState(editor, unavailable);
+    }
+    Check(! read && host.TryReadNativeTextInputState(editor, available) && available.text == source,
+          "cache-copy allocation failure returns unavailable without terminating or changing the cache");
+    std::size_t constructorRequests = 0u;
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        NativeTextInputState local{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        countAllocations    = false;
+        constructorRequests = allocations;
+    }
+    MarkdownCommandRequest request;
+    request.command              = MarkdownCommand::ToggleTask;
+    const auto original          = editor->Snapshot();
+    const auto revision          = editor->Revision();
+    const auto selection         = editor->GetSelection();
+    const auto plan              = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
+    MarkdownCommandStatus result = MarkdownCommandStatus::Changed;
+    {
+        const auto old      = failAllocationAfter;
+        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = old; });
+        failAllocationAfter = constructorRequests;
+        result              = editor->ApplyMarkdownCommand(plan);
+    }
+    Check(result == MarkdownCommandStatus::Unavailable && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision &&
+              editor->GetSelection() == selection && ! editor->CanUndo(),
+          "structural command fails closed when current composition state cannot be read");
+    Check(editor->ApplyMarkdownCommand(plan) == MarkdownCommandStatus::Changed && editor->Undo() && editor->Snapshot().IsSameRevision(original),
+          "guard failure can retry once and undo exactly");
+    std::cout << "rich command host cache failure: guardCtorRequests=" << constructorRequests << " sourcePreserved=1 retryUndo=1\n";
+}
+static void TestRichMarkdownCommandFailureAtomicity()
+{
+    using namespace DxUi::RichText;
+    const auto countRequests = [](auto&& operation)
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        operation();
+        countAllocations = false;
+        return allocations;
+    };
+    for (unsigned scenario = 0u; scenario < 10u; ++scenario)
+    {
+        const std::wstring_view spelling = scenario < 2u ? L"- a\n- b\n" : scenario < 7u ? L"**abc** &copy;" : L"a | b\n- | -\nx | y";
+        MarkdownCommandRequest request;
+        request.command           = scenario == 0u   ? MarkdownCommand::IndentList
+                                    : scenario == 1u ? MarkdownCommand::SetList
+                                    : scenario == 2u ? MarkdownCommand::SetHeading
+                                    : scenario == 3u ? MarkdownCommand::ToggleStyle
+                                    : scenario == 4u ? MarkdownCommand::SetLink
+                                    : scenario == 5u ? MarkdownCommand::ToggleTask
+                                    : scenario == 7u ? MarkdownCommand::InsertTableColumn
+                                    : scenario == 8u ? MarkdownCommand::DeleteTableRow
+                                                     : MarkdownCommand::SetTableCell;
+        request.listKind          = MarkdownListKind::Ordered;
+        request.style             = MarkdownTextStyle::Code;
+        request.destination       = L"target";
+        request.text              = L"new";
+        const Selection selection = scenario < 2u    ? Selection{6u, 6u}
+                                    : scenario == 3u ? Selection{0u, 14u}
+                                    : scenario >= 7u ? Selection{16u, 16u}
+                                                     : Selection{2u, 5u};
+        const auto seed           = [&](Document& document)
+        {
+            document.Replace(0u, 0u, L"x", {});
+            document.Undo();
+            document.SetSelection(selection);
+        };
+        const auto invoke = [&](Document& document, const auto& syntax)
+        {
+            if (scenario == 6u)
+            {
+                const auto plan = BuildMarkdownDeletion(document.Snapshot(), document.Revision(), syntax, selection, std::array{MarkdownRange{2u, 5u}});
+                ApplyMarkdownCommand(document, plan);
+            }
+            else
+            {
+                const auto plan = BuildMarkdownCommand(document.Snapshot(), document.Revision(), syntax, selection, request);
+                ApplyMarkdownCommand(document, plan);
+            }
+        };
+        Document measure(spelling);
+        seed(measure);
+        const auto analysis = RichCommandTests::Parse(measure);
+        const auto requests = countRequests([&] { invoke(measure, analysis); });
+        Check(requests > 0u && requests < 2048u, "bounded structural staging and transaction allocations");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            Document document(spelling);
+            seed(document);
+            const auto syntax   = RichCommandTests::Parse(document);
+            const auto snapshot = document.Snapshot();
+            const auto revision = document.Revision();
+            const auto undo = document.CanUndo(), redo = document.CanRedo();
+            bool rejected = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    invoke(document, syntax);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && document.Snapshot().IsSameRevision(snapshot) && document.Revision() == revision && document.GetSelection() == selection &&
+                      document.CanUndo() == undo && document.CanRedo() == redo && syntax->Source() == spelling,
+                  "every structural allocation failure preserves source, selection, undo/redo and analysis");
+        }
+        std::cout << "rich command allocation scenario=" << scenario << " sweptRequests=" << requests << '\n';
+    }
+}
 static void TestRichSemanticFailureAndStorageBudgets()
 {
     using namespace DxUi::RichText;

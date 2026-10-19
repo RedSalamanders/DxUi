@@ -43,10 +43,11 @@ work or start a worker.
 The document supplies a source/display map, style runs, semantic roles and ordered
 paragraph/table-cell metadata. Its source remains exact; code/escape/entity
 normalization has token-level edit affinities. Tables include padded cells;
-task markers and image alternatives are atomic objects. HTML remains literal in
-this preparation API, and links/images retain inert metadata without loading or
-executing anything. The retained rendering opt-in consumes this data separately;
-structural commands and structured UIA remain open. Admission limits combined syntax
+task markers and image alternatives are atomic objects. HTML uses the bounded
+native subset below with whole-leaf literal fallback. Links/images retain inert
+metadata without loading or executing anything. The retained rendering opt-in
+consumes this data separately; source-exact structural commands follow below;
+structured UIA remains open. Admission limits combined syntax
 nodes to 32,768 and geometry paragraphs to 4,096, alongside the bounded model/map.
 
 Include `DxUi/DxUi.h`. The same control works under native `ControlHost`
@@ -815,11 +816,75 @@ The [native presentation qualification packet](../Measurements/RichText/2026-10-
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
-Padded-cell materialization, structural joins and formatting cleanup,
-interactive task/link commands and structured/style UIA remain active M4 work. Math, Mermaid,
+Source-exact structural editing is described below. Structured/style UIA remains
+active M4f work. Math, Mermaid,
 footnotes/front matter and physical IME/AT/platform/performance gates stay open.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
 branch's interactive semantic preview. It uses the sample application's existing
 device, host loop and text-service bridge. `--rich-text --output image.png`
 captures the same scene without desktop takeover. Consumer pins are unchanged.
+
+## Source-exact structural commands (M4e)
+
+Include `DxUi/RichTextCommands.h` for the reusable Unicode command planner. It
+consumes an existing current `MarkdownSyntax` and owns its replacement strings;
+it never reparses, advances preparation or calls a host. A plan binds the exact
+snapshot, revision, syntax and directional source selection. Apply it once
+through the existing atomic source transaction. Untouched spelling and mixed
+line endings remain exact; one undo/redo restores the complete original/result,
+including backward selections. A stale revision stays stale after undo returns
+to the same spelling. Planning, capacity and allocation failures change no source,
+selection or history. Identical and navigation-only operations add no history.
+
+```cpp
+using namespace DxUi::RichText;
+MarkdownCommandRequest request;
+request.command = MarkdownCommand::SetHeading;
+request.headingLevel = 2;
+auto status = editor->ExecuteMarkdownCommand(request);
+// Changed, Unchanged, or Unavailable for an incompatible/currently pending target.
+```
+
+The retained API requires explicit semantic rendering in Rich view, an editable
+control and current published analysis. `ApplyMarkdownCommand(plan)` also checks
+the current syntax owner; it does not revive a plan from a replaced publication.
+Composition blocks structural commands. Pending analysis never triggers an inline
+parse: explicit commands report Unavailable; hardware Enter can still insert a
+raw CRLF. Source view, TSF imports and programmatic replacements retain exact raw
+replacement semantics. Pure plans have no host binding and are also usable with
+`BuildMarkdownCommand` / `ApplyMarkdownCommand(Document&, plan)`.
+
+| Command family | Source behavior |
+| --- | --- |
+| Lists | Enter continues the owned bullet/ordered marker and padding, increments its ordinal and resets a continued task to `[ ]`. Empty items exit one level. SetList changes only selected sibling markers/tasks; None removes their own list prefixes. Existing ordered numbering is preserved unless listStart is supplied. Indent needs a previous sibling; Outdent removes one proven ancestor indentation. Continuations and child indentation move with changed marker width, including 9 to 10. Untouched siblings are never renumbered. |
+| Joins | Backspace/Delete at compatible paragraph boundaries joins plain paragraphs or sibling items with one paragraph each. It removes the owned boundary/prefix and inserts one space. At the first item, Backspace exits a list level. Incompatible nested/opaque/table subtrees are rejected. |
+| Headings | SetHeading accepts levels 0 through 6; zero removes heading syntax. Existing ATX marker spelling/closing trivia and setext underlines are edited locally. Converting a multi-line body to ATX adds a heading marker to each affected physical content line. Empty source/container sites can start a heading. A task paragraph cannot simultaneously become an ATX heading. |
+| Styles | ToggleStyle supports strong, emphasis, GFM strike and code. It unwraps an enclosing Markdown style or splits an existing style around a partial selection. New non-code styles retain existing syntax and outside whitespace; literal punctuation is escaped when the changed delimiter context would reinterpret it. Code conversion uses resolved Unicode text, chooses a sufficient backtick fence, and escapes punctuation on removal so literal code stays literal. This deliberately reserializes the affected body; untouched text and exact undo remain preserved. Cross-line code wrapping, partial multiline-code removal, images/HTML conversion, clipped nested/atomic tokens and ambiguous neighboring literal delimiters are unavailable. |
+| Links | SetLink creates/updates an inert inline link with encoded Unicode metadata; RemoveLink unwraps its label without changing reference definitions. A validated native HTML anchor updates only raw href/title values, preserving tag case, quote choice, attribute order and spacing. Removing it deletes only its opening/closing tags; an opening HTML-block anchor is unavailable because unlinking it would reinterpret a literal block body. The existing URI policy applies. No link activation or resource fetch is added. |
+| Tasks | ToggleTask changes the checkbox state character, retaining the original marker, spaces and label. Multiple selected existing tasks invert independently; converting mixed items to tasks preserves existing states. CommonMark without TaskLists rejects the command. Pointer press stages a plan; matching release inside the checkbox commits once. Capture/focus loss, leaving the checkbox, source/layout replacement and stale selection cancel the gesture. |
+| Tables | InsertTable creates a bounded GFM scaffold at an empty site or over a selected single-line paragraph. Insert/DeleteTableRow and Insert/DeleteTableColumn preserve unaffected cell bytes, escapes, edge pipes, alignment markers and EOLs. Deleting a header promotes the next body row while retaining the separator; deleting the last row/column removes the table. SetTableCell accepts raw single-line Markdown with escaped pipes. Missing padded cells materialize only the necessary delimiters/cells. Next/PreviousTableCell retain separate native affinity at equal ACPs; Tab from the final cell appends one row. |
+
+Table commands admit at most 64 columns, 256 body rows and 4,096 declared cells,
+within the existing 64 Ki UTF-16 source cap. `targetCell` is an optional index in
+the exact plan syntax, required to distinguish padded cells sharing an ACP.
+Creating cells/rows uses the local EOL (then the document's first EOL, then CRLF).
+Marker widths use parser tab columns. Transformations that would relocate owned marker tabs across stops are unavailable. Ambiguous partially consumed tabs, missing lazy container prefixes, mixed opaque
+selections, incompatible/mixed list targets and invalid metadata are rejected
+as a whole. A command is not a general Markdown document reformatter.
+Removing a task prefix also rejects a literal label that would become a block
+marker. Metadata and deletion fragment requests are bounded before staging.
+
+In semantic Rich view, Enter continues a list or inserts a table row; Shift+Enter
+inserts a raw newline. Tab/Shift+Tab first navigate cells or indent/outdent an
+eligible list, otherwise the host retains ordinary focus traversal. Ctrl+B/I
+toggle styles, Ctrl+Enter toggles tasks, and Ctrl+Z/Y retain transaction history.
+Typing a literal pipe/backslash in an empty/padded cell escapes it and uses the
+focused cell's real source insertion. Visual deletion removes empty owned
+Markdown/validated inline HTML wrappers only when their complete body is deleted;
+raw TSF/programmatic replacement does not run cleanup.
+
+The sample toolbar exercises all these families with the same retained API.
+Structured UIA children/styles/actions, extended Markdown, physical IME/AT,
+native ARM64 execution, consumer adoption and the D4c performance HOLD remain
+separate gates. M4e qualification receipts will be linked after validation.

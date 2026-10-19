@@ -16,8 +16,17 @@ code and image alternatives. This mode enables the same text-service bridge as
 their own caret geometry. Measured hanging markers align wrapped/continuation
 text; links are underlined and keep inert destinations. The bounded native HTML
 subset preserves original source; unsupported CSS/markup retains a literal leaf.
-Table materialization and other structural commands remain pending; text edits
-still apply to exact raw source ACPs. Add `--output image.png` for a deterministic
+The two toolbar rows exercise lists/indentation, heading conversion, Markdown
+styles, inert link/unlink, tasks, table creation and row/column edits through the
+retained source-exact API. The sample Link action uses an inert `#sample` target.
+Select a compatible paragraph/item/cell first; unavailable actions explain that
+target requirement. Enter continues a list or inserts a table row; Tab/Shift+Tab
+navigates cells or indents/outdents lists, otherwise it traverses focus normally.
+Ctrl+B/I toggles styles, Ctrl+Enter toggles tasks and Ctrl+Z/Y restores exact
+source history. Task press/release toggles the source checkbox; dragging away
+cancels it. Typing in padded cells materializes the focused cell only. All raw
+text services retain exact source ACPs; structured/style accessibility remains
+pending. Add `--output image.png` for a deterministic
 capture that drains cooperative preparation without taking desktop focus.
 
 This project references one DxUi project. External release consumers use the exact-pin props/targets documented in

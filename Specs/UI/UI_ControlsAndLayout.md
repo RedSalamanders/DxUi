@@ -1027,11 +1027,11 @@ list markers and padding are generated. Destinations/titles are inert metadata;
 no resource fetch, script, DOM or implicit navigation follows. The current pure
 builder uses the bounded native HTML policy below, with balanced validation and
 source-preserving literal fallback. Rendering, source caret sites,
-structural commands and structured accessibility remain separate M4d/f work.
+structural commands are specified in M4e below; structured accessibility remains M4f work.
 
 These pure primitives remain independent of graphics. The explicit retained
-rendering preview below consumes them; complete source caret sites, structural
-commands and semantic UIA remain M4 work. Profile-only analysis keeps v0 rendering.
+rendering preview below consumes them. M4e adds source-exact structural editing;
+semantic UIA remains M4f work. Profile-only analysis keeps v0 rendering.
 
 ### Retained semantic rendering preview (M4d)
 
@@ -1050,7 +1050,7 @@ indentation, equal-width table columns with declared physical alignment, RTL
 column placement, quote/rule lines and code/image/cell outlines. Destinations are
 inert; images display their owned alternative, not downloaded media. Links use
 native underlining in inherited text ink. Generated list/task markers are preview
-text; their interactive structural commands remain open.
+text; M4e task gestures commit exact source checkbox edits through the host.
 Every host turn bounds SDK calls and metadata events independently. Layout,
 row placement, source line indexing and element bounds must complete before one
 publication; input/paint/geometry queries never drain staging. No HWND, worker,
@@ -1105,7 +1105,7 @@ recovery semantics. Fenced/inline code and image alternatives retain their exist
 literal ownership. Empty balanced HTML records a real interior insertion site;
 typing changes exact source between the retained tag pairs in one undo transaction.
 Semantic roles/styles do not replace raw TSF/UIA ACPs. Link invocation and full
-structural/style accessibility remain M4e/f.
+structural commands follow M4e below; style accessibility remains M4f.
 
 Selection, composition, text-service rectangles and source-range scrolling use
 the map's actual fragments, including atomic transformed/object spans. Hidden
@@ -1136,12 +1136,12 @@ overflow selects exact source fallback once for that immutable syntax.
 Collapsed visual deletion expands a source caret inside a transformed/object
 token to the complete owned token and commits mapped fragments in one source
 transaction. Programmatic replacement and TSF retain exact raw ACPs. Generated
-separators do not imply a structural join command: list/quote continuation joins,
-empty-format cleanup and padded-cell materialization remain M4e. An empty cell
+separators require the explicit compatible M4e join policy. M4e owns
+empty-format cleanup and padded-cell materialization. An empty cell
 scaffold has no owned token to delete; an empty physical source line uses raw
 Unicode graphemes and whole CRLF for ordinary deletion. Typing and text-service
-imports retain exact source replacement semantics, including a padded cell's
-real row-end ACP. Pending geometry uses
+imports retain exact source replacement semantics. Semantic typing at a padded
+site instead materializes the selected cell at its real row-end ACP. Pending geometry uses
 exact source graphemes rather than applying v0 grammar to another dialect.
 
 A semantic length/admission rejection records the exact immutable syntax owner,
@@ -1173,3 +1173,64 @@ behaviors, Unicode edge identities, prefix-work/resource/failure predicates,
 57 ordinary x64 scope obligations, six builds and 324 exact raster pairs pass.
 Inline/extension/semantic acceptance stays open. ARM64 is compile-only; source
 limits and indivisible-work caveats above remain normative.
+
+### Source-exact structural editing (M4e)
+
+`RichTextCommands.h` MUST build owned immutable command plans from current syntax,
+snapshot/revision and directional source selection without parsing, advancing
+preparation or calling a host. Applying a plan MUST validate those exact source
+and selection identities and commit all replacements through the M4b transaction.
+Unchanged source bytes and EOLs remain exact. One undo/redo restores source and
+selection. Rejection/allocation/capacity failure preserves source, revision,
+selection, undo and redo. Identical edits and cell navigation add no history.
+
+The retained Execute/ApplyMarkdownCommand API requires editable semantic Rich
+view and current analysis; composition/pending analysis/incompatible targets
+return Unavailable. Stale plans throw before mutation. No command synchronously
+reparses or prepares native geometry. Changes publish through existing host text
+services and may reenter/retire their owner; no continuation may touch a retired
+owner. Pure command plans carry no host binding.
+
+List commands continue/exit markers, change selected sibling list kinds,
+indent/outdent one level, and join compatible single-paragraph siblings/plain
+paragraphs. They MUST preserve unaffected sibling numbering, task spelling,
+labels and line endings. Marker digit-width changes move owned continuation/
+child indentation. Nested ambiguous tabs, missing lazy prefixes and incompatible
+subtrees reject the whole command. Heading levels 0..6 edit ATX/setext markers;
+ATX conversion prefixes each affected physical content line, with empty source
+sites admitted and task/heading conflicts rejected.
+
+Style commands own Markdown strong/emphasis/strike/code delimiters, preserve
+existing nested syntax and safe spelling, protecting literal punctuation from
+altered delimiter/block contexts, and split enclosing styles around
+partial selections. Code conversion MUST use resolved source-unit values and
+escape punctuation when removing code so literal text stays literal. New
+cross-line code spans, partial multiline-code removal and image/HTML conversion
+are unavailable. Link commands own only label wrappers/metadata; reference
+definitions remain untouched. Validated native anchors preserve quote/case/
+attribute trivia when changing href/title. Removing an opening HTML-block anchor
+MUST be rejected because it would reinterpret the literal block body. Marker
+deltas use tab columns; relocating an owned marker tab across stops is
+unavailable. Destinations obey the native inert
+URI policy. Task commands edit only state units for existing tasks, invert each
+selected task, or insert task markers where permitted by the explicit dialect.
+Removing task syntax MUST reject a literal label that would be reinterpreted as
+another block marker; it must not silently reformat that label.
+
+GFM table commands create/remove tables, insert/delete rows/columns and edit or
+navigate cells. Unaffected cell/escape/alignment/pipe/EOL spelling MUST survive.
+Header deletion promotes the first body row while retaining the delimiter row;
+last row/column deletion removes the table. Padded cells materialize only the
+missing raw delimiters/cells at their real row end; targetCell indexes the exact
+syntax to disambiguate equal ACPs. Navigation keeps native visual affinity;
+forward navigation from the last cell appends a row. Limits are 64 columns,
+256 body rows, 4,096 declared cells and the existing 64 Ki UTF-16 source cap.
+New structure uses local EOL, then first document EOL, then CRLF. Cell source
+must be single-line Unicode with escaped pipes and no dangling escape.
+
+Semantic visual deletion MUST remove empty owned Markdown/validated inline
+HTML wrappers only when their complete body is deleted, recursively. Block HTML
+wrappers remain outside this cleanup. Raw programmatic/TSF replacement MUST NOT
+apply this semantic cleanup policy. Unsupported mixed opaque targets reject
+atomically. These operations do not provide general Markdown reformatting,
+structured UIA publication, extension rendering or consumer qualification.

@@ -21,7 +21,7 @@ Unicode preview/cancel/commit, one undo/redo, hide/reflow and stale-result rejec
 apply identically in native and embedded hosts. Equal-ACP affinity remains valid
 for padded cells; ordinary marker boundaries must not add invisible arrow stops
 or move a logical Left forward/Right backward. Structured link/HTML children,
-style attributes and invocation remain separate M4e/f work.
+style attributes and invocation remain separate M4f work.
 Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
 anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
@@ -846,6 +846,35 @@ the events left are dropped once the host is disconnected (or an embedded view's
 longer the one published at its path, and never reach an element that is gone. The providers that raise them never touch a
 control.
 
+M4e structural commands use the same atomic source transaction and native/
+embedded host synchronization. TSF and UIA TextPattern MUST expose complete
+committed raw Markdown, hidden syntax and CRLF ACPs, never intermediate edits or
+display coordinates. Source and directional selection publish once. Current
+composition blocks semantic commands; source imports/preview/cancel/commit keep
+their existing exact transaction policy. Pending analysis MUST NOT be drained
+from input. If an active text-service session's cached state cannot be copied,
+structural commands MUST return Unavailable without mutating source/history.
+TryReadNativeTextInputState returning false leaves its output unspecified; callers
+MUST ignore it. Its allocation-failure path MUST NOT construct a new aggregate.
+Hardware Enter falls back to raw CRLF if no current structural plan
+is available. Shift+Enter always keeps that raw replacement behavior.
+
+In semantic Rich view Ctrl+B/I toggle Markdown styles and Ctrl+Enter toggles
+tasks. Enter continues/exits lists or inserts table rows. Tab/Shift+Tab first
+navigate a current table cell or indent/outdent an eligible list; otherwise they
+MUST return control to host focus traversal. Padded-cell navigation retains a
+revision-local visual site, including multiple cells at one raw ACP. Literal
+pipe/backslash typing in empty/padded cells escapes source spelling. Source view
+and raw TSF replacements do not acquire this structural policy.
+
+A task press MUST stage an immutable current source plan without editing text.
+Only matching release inside its checkbox can apply it. Leaving the rectangle,
+capture/focus loss, source/layout/binding retirement or stale selection cancels
+the gesture. Capture release is a reentrancy boundary; lifetime, binding and
+interaction revision are rechecked before application. Links remain inert.
+Structured semantic children/actions/styles remain M4f; no physical IME/AT or
+ARM64 runtime qualification follows from synthetic transport/client tests.
+
 RichTextEditor's explicit M4d semantic rendering preview keeps TSF/UIA document
 text, selection, history and composition offsets in exact raw UTF-16 source ACPs.
 Range rectangles use actual mapped glyph fragments; hidden-only ranges remain
@@ -859,8 +888,8 @@ not another Markdown dialect's v0 projection. Exact document Home/End includes
 trailing raw trivia. A collapsed visual delete from inside a transformed/object
 source token removes its complete owned token through one undoable source plan;
 programmatic replacement and imported text-service state retain exact ACPs.
-Generated separators require explicit structural joining; complete structural
-commands, semantic UIA children/format attributes
+Generated separators use the explicit compatible M4e joining policy; semantic
+UIA children/format attributes
 and physical IME/AT qualification remain open in M4 and the existing platform gates.
 
 M4d.2 source caret geometry distinguishes empty/trailing/container-only lines and
@@ -874,7 +903,8 @@ source and creates no history entry. Explicit source
 selection or source/mode/profile replacement clears it. Caret-only boxes do not
 give hidden/generated source ranges selection rectangles. Empty physical-line
 deletion respects raw Unicode graphemes and CRLF; empty cell scaffolding owns no
-deletable token. Structural table materialization/joining remains M4e. Synthetic
+deletable token. M4e semantic typing/commands materialize the focused padded
+cell without virtual ACPs; raw imports retain exact source replacement. Synthetic
 composition transport and in-process UIA clients complement the separate physical
 IME/assistive-technology qualification gates.
 

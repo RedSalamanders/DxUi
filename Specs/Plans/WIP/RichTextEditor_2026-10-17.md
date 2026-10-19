@@ -1807,6 +1807,20 @@ cannot close D4c.
       update supported capabilities and normative/usage/design-system docs.
 - [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
   with source-exact history and read-only/disabled/stale/reentrant coverage.
+  - [x] Define owned immutable plans bound to snapshot, syntax and selection;
+    preserve untouched source/EOLs and commit once through the M4b transaction.
+  - [x] Implement list continuation/exit, list kind, indent/outdent and compatible
+    paragraph/list joins, without renumbering unrelated items.
+  - [x] Implement heading conversion, inline style/link edits, empty-wrapper
+    deletion cleanup and GFM task state changes with exact raw ownership.
+  - [x] Implement table creation, row/column changes, cell source edits and
+    navigation, including padded-cell materialization and last-cell row creation.
+  - [x] Route retained commands and semantic keyboard editing through shared host
+    services; reject stale/opaque/incompatible targets without inline preparation.
+  - [ ] Add independent pure/native/embedded oracles, actual UIA transport checks,
+    allocation-failure/reentrancy tests and required profile/resource qualification.
+  - [ ] Update normative/usage/design/sample docs and reviewed evidence; retain
+    performance warnings and leave M4f/g, M5/M6 and physical/platform gates open.
 - [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
   UIA, preserving source ACPs for TSF/TextPattern. Test real in-process clients,
   format/range children, actions, bounds and provider retirement.
@@ -2351,3 +2365,30 @@ source-exact structural commands, M4f acknowledged semantic/style UIA and M4g
 whole-stage acceptance. M5/M6, physical IME/AT, native ARM64 execution, consumer
 adoption and controlled performance gates remain open. No foreground suite,
 consumer pin update, merge or performance acceptance is claimed; D4c remains HOLD.
+
+### M4e implementation checkpoint (2026-10-19)
+
+Owned command plans and retained routing are implemented; whole-slice
+qualification is pending. Shared exact source/history and semantic-value oracles
+cover all command families, Unicode, mixed EOLs, literal delimiters, code/link
+table escaping, padded cells, bounded promotion and incompatible targets.
+Native retained and actual UIA transport tests, embedded equivalents, task
+gestures/retirement/RTL, reentrancy and source-service guards are in the suites.
+
+Debug builds and focused native tests passed during implementation. The isolated
+core allocation sweep passed 447 observed requests across ten representative
+planning/apply scenarios; the shared host cache-copy/command guard failure and
+retry/undo test also passed. A first Debug sweep terminated in an allocating
+noexcept MSVC string move; the failing executable/PDB/log and symbolized stack
+are retained, and fallible string construction/append replaced that path.
+Two failed-build markers were archived before removal after the build guard
+rejected them. All five validators and tooling tests passed; formatting uses the
+pinned clang-format 22.1.3. These focused receipts are not final qualification.
+
+Freeze the implementation commit, run the guarded x64 Debug/Release/ASan Debug
+EditorControls/Embedded/Accessibility/TextField/MultilineText scopes and all
+three ARM64 builds, retain ASan detection, audit exact artifacts, run the retained
+Default diagnostic, review/publish actual sample/five-theme captures and update
+this checkpoint with reviewed evidence before closing M4e. Private evidence is
+`.build/reports/rich-structural-m4e-20261019`. M4f/g, M5/M6, physical IME/AT,
+native ARM64 execution, consumers and the D4c HOLD stay open.

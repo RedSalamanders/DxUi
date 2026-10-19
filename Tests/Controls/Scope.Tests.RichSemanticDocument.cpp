@@ -5,6 +5,10 @@
 
 namespace
 {
+void TestRichSemanticDocumentStructuralStyleValues()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
+}
 void TestRichSemanticDocumentDirectedValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
@@ -58,6 +62,7 @@ void TestRichSemanticDocumentPinnedSourceCases()
 } // namespace
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticDocumentStructuralStyleValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);

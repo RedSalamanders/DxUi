@@ -667,6 +667,28 @@ void SourceTransactionClient(bool embedded, bool semanticRendering = false)
     Require(fixture.editor->Undo() && notifications == 2u, "client transaction has one undo entry");
     fixture.Publish();
     Require(client.DocumentText(editor) == original.Text() && ! fixture.editor->CanUndo(), "one undo restores both client-visible source replacements");
+    if (semanticRendering)
+    {
+        fixture.editor->SetSelection({7u, 2u});
+        const auto structuralMark = client.Mark();
+        RichText::MarkdownCommandRequest request;
+        request.command = RichText::MarkdownCommand::ToggleStyle;
+        Require(fixture.editor->ExecuteMarkdownCommand(request) == RichText::MarkdownCommandStatus::Changed && notifications == 3u,
+                "native/embedded structural command notifies once before UIA publication");
+        fixture.Publish();
+        Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                 [&]
+        {
+            const auto events = client.DistinctSince(structuralMark);
+            return std::ranges::any_of(events, [](const auto& event) { return event.id == UIA_Text_TextChangedEventId && event.automationId == EditorId; });
+        }),
+                "actual application UIA client receives structural command event");
+        Require(client.DocumentText(editor) == L"alpha\r\nbeta" && client.TextSelectionText(editor) == L"alpha" && client.TextCaretPosition(editor) == 0u,
+                "UIA structural selection exposes exact raw source and backward caret after marker removal");
+        Require(fixture.editor->Undo(), "UIA structural one-step undo");
+        fixture.Publish();
+        Require(client.DocumentText(editor) == original.Text() && ! fixture.editor->CanUndo(), "UIA undo restores hidden source spelling");
+    }
 }
 void TestRichTextAccessibilityWindowSourceTransactionClient()
 {

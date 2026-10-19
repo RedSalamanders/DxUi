@@ -68,5 +68,10 @@ within the bounded viewport, plus measured ancestor list gutters. Native marker
 and body share a first baseline and RTL mirrors the leading column. Empty/trailing/container-only source lines have
 caret boxes with the same typography/indentation; empty/padded cells retain
 distinct visual affinity without adding source text or selection ink. No palette
-token changes. Structural commands and semantic style accessibility remain pending;
+token changes. M4e source-exact commands reuse existing host focus/capture and
+transaction visuals: task toggles commit on matching release, empty/padded cell
+typing materializes only the focused cell, and Tab returns to host traversal when
+no list/table command applies. The standalone sample adds two rows of standard
+buttons with readable action/status labels, without changing control tokens or
+the gallery tile's resting appearance. Semantic style accessibility remains pending;
 the static HTML preview is design guidance, never native rendering evidence.

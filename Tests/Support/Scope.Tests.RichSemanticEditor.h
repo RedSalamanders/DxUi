@@ -7,6 +7,165 @@ namespace RichSemanticEditorTests
 using namespace DxUi;
 using namespace DxUi::RichText;
 using RichSemanticTests::Check;
+template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&& prepare)
+{
+    auto root    = std::make_unique<RichTextEditor>(L"word");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    host.SetFocusControl(editor, false);
+    std::size_t notifications = 0u;
+    editor->SetOnTextChanged([&] { ++notifications; });
+    const auto exact = [&](std::wstring_view source, Selection selection, MarkdownCommandRequest request, std::wstring_view expected)
+    {
+        editor->SetText(std::wstring(source));
+        prepare();
+        editor->SetSelection(selection);
+        const auto old   = editor->Snapshot();
+        const auto count = notifications;
+        Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Changed && editor->GetText() == expected && notifications == count + 1u,
+              "retained command publishes complete source once in both hosts");
+        Check(editor->Undo() && editor->Snapshot().IsSameRevision(old) && editor->GetSelection() == selection && ! editor->CanUndo(),
+              "retained command one exact undo");
+        Check(editor->Redo() && editor->GetText() == expected && ! editor->CanRedo(), "retained command one redo");
+        prepare();
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetSemanticDocument()->Map().Source() == expected,
+              "retained command re-prepares through owner scheduling");
+    };
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::SetList;
+    exact(L"word", {0u, 4u}, request, L"- word");
+    request.command      = MarkdownCommand::SetHeading;
+    request.headingLevel = 2u;
+    exact(L"word", {2u, 2u}, request, L"## word");
+    request.command = MarkdownCommand::ToggleStyle;
+    exact(L"word", {4u, 0u}, request, L"**word**");
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"target";
+    exact(L"word", {0u, 4u}, request, L"[word](<target>)");
+    request.command = MarkdownCommand::ToggleTask;
+    exact(L"- [ ] word\n", {8u, 8u}, request, L"- [x] word\n");
+    request.command = MarkdownCommand::SetTableCell;
+    request.text    = L"new";
+    exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | new");
+    editor->SetText(L"- item\n");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    Check(editor->OnChar(host, L'\r', 0u) && editor->GetText() == L"- item\n- \n", "semantic Enter continues list through ControlHost input");
+    Check(editor->Undo(), "keyboard list continuation is undoable");
+    prepare();
+    editor->SetText(L"word");
+    prepare();
+    editor->SetSelection({4u, 0u});
+    Check(editor->OnKeyDown(host, 'B', MK_CONTROL) && editor->GetText() == L"**word**" && editor->GetSelection() == Selection{6u, 2u},
+          "Ctrl+B uses source-exact formatting and backward selection");
+    Check(editor->Undo(), "keyboard style undo");
+    prepare();
+    editor->SetText(L"- a\n- b\n");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText() == L"- a\n  - b\n", "Tab indents an eligible list before host traversal");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_TAB, MK_SHIFT) && editor->GetText() == L"- a\n- b\n", "Shift+Tab outdents list");
+    editor->SetText(L"word");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(! editor->OnKeyDown(host, VK_TAB, 0u), "ordinary paragraph Tab remains host traversal");
+    editor->SetText(L"a | b | c\n- | - | -\nx\n");
+    prepare();
+    const auto syntax = editor->GetMarkdownSyntax();
+    std::vector<std::size_t> cells(0u);
+    for (std::size_t i = 0u; i < syntax->Nodes().size(); ++i)
+        if (syntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            cells.push_back(i);
+    editor->SetSelection({editor->GetText().size() - 1u, editor->GetText().size() - 1u});
+    request.command    = MarkdownCommand::NextTableCell;
+    request.targetCell = cells[3u];
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unchanged && ! editor->CanUndo(),
+          "table navigation stores visual affinity without source history");
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && ! editor->CanUndo(), "Tab crosses two padded cells sharing one raw ACP");
+    Check(editor->OnChar(host, L'|', 0u) && editor->GetText() == L"a | b | c\n- | - | -\nx |  | \\|\n",
+          "typing materializes only the focused padded cell and escapes a literal pipe");
+    editor->SetText(L"- [ ] task\n");
+    prepare();
+    const auto bounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);
+    Check(bounds && ! bounds->empty(), "task marker has an actual native checkbox hit rectangle");
+    const D2D1_POINT_2F point{(bounds->front().left + bounds->front().right) * .5f, (bounds->front().top + bounds->front().bottom) * .5f};
+    const auto count = notifications;
+    Check(editor->OnMouseDown(host, point, false, 0u) && editor->GetText() == L"- [ ] task\n", "task press stages a plan without mutating source");
+    Check(editor->OnMouseUp(host, point, false, 0u) && editor->GetText() == L"- [x] task\n" && notifications == count + 1u,
+          "matching task release commits one source transaction");
+    editor->Undo();
+    prepare();
+    Check(editor->OnMouseDown(host, point, false, 0u), "task cancellation press");
+    host.ResetInteractionState();
+    editor->OnMouseUp(host, point, false, 0u);
+    Check(editor->GetText() == L"- [ ] task\n", "capture loss cancels task gesture");
+    host.ReleaseMouseCapture();
+    host.SetFocusControl(editor, false);
+    Check(editor->OnMouseDown(host, point, false, 0u), "task drag cancellation press");
+    editor->OnMouseMove(host, {point.x + 300.f, point.y}, 0u);
+    editor->OnMouseUp(host, point, false, 0u);
+    Check(editor->GetText() == L"- [ ] task\n", "leaving checkbox cancels the source command");
+    prepare();
+    Check(editor->OnMouseDown(host, point, false, 0u), "task layout retirement press");
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    editor->OnMouseUp(host, point, false, 0u);
+    Check(editor->GetText() == L"- [ ] task\n", "native/embedded layout retirement cancels staged task plan");
+    prepare();
+    const auto rtlBounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);
+    Check(rtlBounds && ! rtlBounds->empty(), "RTL task checkbox has native hit geometry");
+    const D2D1_POINT_2F rtlPoint{(rtlBounds->front().left + rtlBounds->front().right) * .5f, (rtlBounds->front().top + rtlBounds->front().bottom) * .5f};
+    Check(editor->OnMouseDown(host, rtlPoint, false, 0u) && editor->OnMouseUp(host, rtlPoint, false, 0u) && editor->GetText() == L"- [x] task\n",
+          "native/embedded RTL task release edits the clicked source marker");
+    editor->Undo();
+    editor->SetFlowDirection(FlowDirection::LeftToRight);
+    prepare();
+    Check(editor->OnMouseDown(host, point, false, 0u), "task source replacement press");
+    editor->SetText(L"- [ ] replacement\n");
+    const auto replacementRevision = editor->Revision();
+    editor->OnMouseUp(host, point, false, 0u);
+    Check(editor->GetText() == L"- [ ] replacement\n" && editor->Revision() == replacementRevision,
+          "source replacement cancels task release without a second edit");
+    editor->SetText(L"- [ ] task\n");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    const auto staged = BuildMarkdownCommand(
+        editor->Snapshot(), editor->Revision(), editor->GetMarkdownSyntax(), editor->GetSelection(), {.command = MarkdownCommand::ToggleTask});
+    editor->SetSelection({7u, 7u});
+    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->ApplyMarkdownCommand(staged); }, "retained stale selection rejects plan");
+    editor->SetReadOnly(true);
+    request         = {};
+    request.command = MarkdownCommand::ToggleTask;
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable, "readonly rejects structural commands");
+    editor->SetReadOnly(false);
+    editor->SetEnabled(false);
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable, "disabled rejects structural commands");
+    editor->SetEnabled(true);
+    prepare();
+    editor->SetViewMode(ViewMode::Source);
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable, "source mode keeps structural commands opt-in");
+    editor->SetViewMode(ViewMode::Rich);
+    prepare();
+    editor->SetText(L"pending");
+    editor->SetSelection({7u, 7u});
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable, "unpublished analysis is never synchronously reparsed by a command");
+    Check(editor->OnChar(host, L'\r', 0u) && editor->GetText() == L"pending\r\n", "pending semantic analysis preserves hardware Enter via raw source fallback");
+    editor->SetText(L"- [ ] task");
+    prepare();
+    editor->SetSelection({8u, 8u});
+    editor->SetOnTextChanged([&] { editor->Undo(); });
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Changed && editor->GetText() == L"- [ ] task",
+          "reentrant undo sees a complete structural transaction");
+    editor->SetOnTextChanged({});
+    prepare();
+    editor->SetOnTextChanged([&] { host.SetRoot(std::make_unique<Label>(L"replacement")); });
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Changed && dynamic_cast<Label*>(host.GetRoot()),
+          "structural command callback can retire its owner without a stale continuation");
+    prepare();
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";

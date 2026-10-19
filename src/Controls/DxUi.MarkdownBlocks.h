@@ -1,4 +1,5 @@
 #pragma once
+#include "DxUi.MarkdownTableCells.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
 
@@ -363,42 +364,7 @@ class MarkdownBlocks
     MarkdownExtensions extensions_;
     std::vector<MarkdownRange> Cells(MarkdownRange line) const
     {
-        while (line.last > line.first && (source_[line.last - 1u] == L'\n' || source_[line.last - 1u] == L'\r'))
-            --line.last;
-        while (line.first < line.last && Space(source_[line.first]))
-            ++line.first;
-        while (line.last > line.first && Space(source_[line.last - 1u]))
-            --line.last;
-        if (line.first < line.last && source_[line.first] == L'|')
-            ++line.first;
-        if (line.last > line.first && source_[line.last - 1u] == L'|')
-        {
-            auto back = line.last - 1u;
-            while (back > line.first && source_[back - 1u] == L'\\')
-                --back;
-            if ((line.last - 1u - back) % 2u == 0u)
-                --line.last;
-        }
-        std::vector<MarkdownRange> cells(0u);
-        auto first = line.first;
-        for (auto i = first; i <= line.last; ++i)
-        {
-            if (i < line.last && source_[i] == L'\\' && i + 1u < line.last)
-            {
-                ++i;
-                continue;
-            }
-            if (i != line.last && source_[i] != L'|')
-                continue;
-            auto begin = first, end = i;
-            while (begin < end && Space(source_[begin]))
-                ++begin;
-            while (end > begin && Space(source_[end - 1u]))
-                --end;
-            cells.push_back({begin, end});
-            first = i + 1u;
-        }
-        return cells;
+        return MarkdownTableCells(source_, line);
     }
     void TableRow(std::size_t table, MarkdownContentLine line, const std::vector<MarkdownAlignment>& alignment, bool header)
     {

@@ -41,6 +41,8 @@ public:
     SourceCaretHit SourceLineBoundary(std::size_t sourceOffset, std::size_t site, bool end) const;
     bool IsEmptySourceSite(std::size_t sourceOffset, std::size_t site) const;
     bool IsCellSourceSite(std::size_t sourceOffset, std::size_t site) const;
+    std::size_t SourceSyntaxNode(std::size_t sourceOffset, std::size_t site) const;
+    std::size_t SourceSiteForSyntaxNode(std::size_t node) const;
     std::pair<std::size_t, std::size_t> VisibleSourceRange(float top, float bottom) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     std::vector<D2D1_RECT_F> SourceRange(MarkdownRange source) const;

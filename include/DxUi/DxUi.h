@@ -5,6 +5,7 @@
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
+#include "RichTextCommands.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -2853,6 +2854,11 @@ public:
                           std::span<const RichText::SourceEdit> edits,
                           RichText::Selection after);
     bool ToggleFormatting(std::wstring_view marker);
+    // Opt-in semantic editing: current CPU analysis is required; commands never
+    // advance preparation. Plans also guard syntax identity and source selection.
+    // Read-only/disabled/source-view/pending/composing targets are unavailable.
+    RichText::MarkdownCommandStatus ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request);
+    RichText::MarkdownCommandStatus ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan);
     bool Undo();
     bool Redo();
     [[nodiscard]] bool CanUndo() const noexcept;

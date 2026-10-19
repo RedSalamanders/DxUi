@@ -46,6 +46,8 @@ struct RichTextEditor::State
     // Native visual affinity only. Several padded cells share a real source ACP;
     // this identity never enters Document selection, TSF text or undo records.
     size_t sourceCaretSite = RichText::MarkdownNoNode;
+    std::shared_ptr<const RichText::MarkdownCommandPlan> taskPressPlan;
+    D2D1_RECT_F taskPressRect{};
 };
 
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
@@ -198,6 +200,61 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     Changed(changed);
     return changed;
 }
+RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan)
+{
+    using namespace RichText;
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich)
+        return MarkdownCommandStatus::Unavailable;
+    const auto syntax = GetMarkdownSyntax();
+    if (! syntax)
+        return MarkdownCommandStatus::Unavailable;
+    if (syntax != plan.Syntax())
+        throw std::invalid_argument("Stale Markdown command syntax publication");
+    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host->TryReadNativeTextInputState(this, input);
+        if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return MarkdownCommandStatus::Unavailable;
+    }
+    auto site = MarkdownNoNode;
+    if (plan.AfterCell() != MarkdownNoNode)
+    {
+        auto* host           = GetHost();
+        const auto* geometry = _state->layout.SemanticGeometry();
+        if (! host || ! LayoutIsCurrent(*host) || ! geometry)
+            return MarkdownCommandStatus::Unavailable;
+        site = geometry->SourceSiteForSyntaxNode(plan.AfterCell());
+    }
+    const bool changed = RichText::ApplyMarkdownCommand(_state->document, plan);
+    if (! plan.IsApplicable())
+        return MarkdownCommandStatus::Unavailable;
+    _state->sourceCaretSite = changed ? MarkdownNoNode : site;
+    Changed(changed);
+    // Changed may have retired this owner or undone the transaction. No member
+    // access follows it; the result describes this committed attempt.
+    return changed ? MarkdownCommandStatus::Changed : MarkdownCommandStatus::Unchanged;
+}
+RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request)
+{
+    using namespace RichText;
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich)
+        return MarkdownCommandStatus::Unavailable;
+    const auto syntax = GetMarkdownSyntax();
+    if (! syntax)
+        return MarkdownCommandStatus::Unavailable;
+    auto resolved = request;
+    if (resolved.targetCell == MarkdownNoNode && request.command >= MarkdownCommand::InsertTableRow && request.command <= MarkdownCommand::PreviousTableCell)
+        if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
+            if (const auto* geometry = _state->layout.SemanticGeometry())
+            {
+                const auto node = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
+                if (node < syntax->Nodes().size() && syntax->Nodes()[node].block.kind == MarkdownBlockKind::TableCell)
+                    resolved.targetCell = node;
+            }
+    const auto plan = BuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved);
+    return ApplyMarkdownCommand(plan);
+}
 bool RichTextEditor::Undo()
 {
     if (! Editable() || ! _state->document.Undo())
@@ -228,6 +285,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
+        _state->taskPressPlan.reset();
         _state->sourceCaretSite = RichText::MarkdownNoNode;
         // Reject stale queries immediately, but retain bounded immutable chunks
         // for the next owner-thread preparation. Host/font/visibility retirement
@@ -295,6 +353,7 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
 }
 void RichTextEditor::RetireLayout() const noexcept
 {
+    _state->taskPressPlan.reset();
     if (_state->layout.HasPendingPreparation())
         ++_state->cancelledPreparations;
     _state->layout.Clear();
@@ -999,12 +1058,43 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
         return false;
     const auto selection = GetSelection();
     if (selection.Start() != selection.End())
+    {
+        if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+            if (const auto syntax = GetMarkdownSyntax())
+            {
+                const std::array ranges{RichText::MarkdownRange{selection.Start(), selection.End()}};
+                const auto plan = RichText::BuildMarkdownDeletion(Snapshot(), Revision(), syntax, selection, ranges);
+                return ApplyMarkdownCommand(plan) == RichText::MarkdownCommandStatus::Changed;
+            }
         return ReplaceSelection({});
+    }
+    if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+        if (const auto document = GetSemanticDocument())
+        {
+            const auto& map = document->Map();
+            for (const auto& node : document->Syntax()->Nodes())
+            {
+                if (node.block.kind != RichText::MarkdownBlockKind::Paragraph || selection.caret < node.block.content.first ||
+                    selection.caret > node.block.content.last)
+                    continue;
+                const auto edge    = backwards && node.firstInline != RichText::MarkdownNoNode ? document->Syntax()->Inlines()[node.firstInline].source.first
+                                     : backwards                                               ? node.block.content.first
+                                                                                               : node.block.content.last;
+                const auto visible = map.ToSource(map.ToDisplay(edge), backwards ? RichText::MappingAffinity::Leading : RichText::MappingAffinity::Trailing);
+                if (selection.caret != visible)
+                    continue;
+                RichText::MarkdownCommandRequest request;
+                request.command = backwards ? RichText::MarkdownCommand::JoinBackward : RichText::MarkdownCommand::JoinForward;
+                if (ExecuteMarkdownCommand(request) == RichText::MarkdownCommandStatus::Changed)
+                    return true;
+                break;
+            }
+        }
     if (LayoutIsCurrent(host))
         if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsEmptySourceSite(selection.caret, _state->sourceCaretSite))
         {
             // A visual cell scaffold owns no raw token to delete. Structural
-            // table joining/materialization belongs to M4e. Empty physical lines
+            // empty-cell erasure is not a column-deletion command. Empty physical lines
             // instead use exact raw graphemes, including indivisible CRLF.
             if (geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
                 return false;
@@ -1043,11 +1133,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
             const auto ranges = map.SourceRanges({range.first, range.second});
             if (ranges.empty())
                 return false; // Generated separators need an explicit structural join command (M4e).
-            std::vector<RichText::SourceEdit> edits(0u);
-            edits.reserve(ranges.size());
-            for (const auto source : ranges)
-                edits.push_back({source, {}});
-            return ApplySourceEdits(Snapshot(), Revision(), edits, {ranges.front().first, ranges.front().first});
+            const auto plan = RichText::BuildMarkdownDeletion(Snapshot(), Revision(), document->Syntax(), selection, ranges);
+            return ApplyMarkdownCommand(plan) == RichText::MarkdownCommandStatus::Changed;
         }
     }
     if (! LayoutIsCurrent(host))
@@ -1073,7 +1160,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     Changed(changed);
     return changed;
 }
-bool RichTextEditor::OnChar(ControlHost&, wchar_t character, UINT modifiers) noexcept
+bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept
 {
     try
     {
@@ -1101,12 +1188,46 @@ bool RichTextEditor::OnChar(ControlHost&, wchar_t character, UINT modifiers) noe
         {
             _state->pendingLeadSurrogate = 0;
             if (character == L'\r')
+            {
+                if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! ModifiersContainShift(modifiers))
+                {
+                    RichText::MarkdownCommandRequest request;
+                    request.command = RichText::MarkdownCommand::InsertParagraph;
+                    if (LayoutIsCurrent(host))
+                        if (const auto* geometry = _state->layout.SemanticGeometry())
+                        {
+                            const auto node = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
+                            if (const auto syntax = GetMarkdownSyntax();
+                                syntax && node < syntax->Nodes().size() && syntax->Nodes()[node].block.kind == RichText::MarkdownBlockKind::TableCell)
+                            {
+                                request.command    = RichText::MarkdownCommand::InsertTableRow;
+                                request.targetCell = node;
+                            }
+                        }
+                    if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
+                        return true;
+                }
                 text = L"\r\n";
+            }
             else if (character >= L' ' && character != L'\x7f')
                 text.assign(1, character);
             else
                 return false; // Tab is host traversal; control characters never enter the source.
         }
+        if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && LayoutIsCurrent(host))
+            if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(GetSelection().caret, _state->sourceCaretSite))
+            {
+                RichText::MarkdownCommandRequest request;
+                request.command    = RichText::MarkdownCommand::SetTableCell;
+                request.targetCell = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
+                if (text == L"|")
+                    text = L"\\|";
+                else if (text == L"\\")
+                    text = L"\\\\";
+                request.text = text;
+                static_cast<void>(ExecuteMarkdownCommand(request));
+                return true;
+            }
         static_cast<void>(ReplaceSelection(std::move(text)));
         return true;
     }
@@ -1160,13 +1281,43 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 }
                 case 'Z': static_cast<void>(shift ? Redo() : Undo()); return true;
                 case 'Y': static_cast<void>(Redo()); return true;
-                case 'B': static_cast<void>(ToggleFormatting(L"**")); return true;
-                case 'I': static_cast<void>(ToggleFormatting(L"*")); return true;
+                case 'B':
+                case 'I':
+                    if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+                    {
+                        RichText::MarkdownCommandRequest request;
+                        request.command = RichText::MarkdownCommand::ToggleStyle;
+                        request.style   = key == 'B' ? RichText::MarkdownTextStyle::Strong : RichText::MarkdownTextStyle::Emphasis;
+                        static_cast<void>(ExecuteMarkdownCommand(request));
+                    }
+                    else
+                        static_cast<void>(ToggleFormatting(key == 'B' ? L"**" : L"*"));
+                    return true;
+                case VK_RETURN:
+                    if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+                    {
+                        RichText::MarkdownCommandRequest request;
+                        request.command = RichText::MarkdownCommand::ToggleTask;
+                        static_cast<void>(ExecuteMarkdownCommand(request));
+                        return true;
+                    }
+                    break;
                 default: break;
             }
         }
         switch (key)
         {
+            case VK_TAB:
+                if (! control && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+                {
+                    RichText::MarkdownCommandRequest request;
+                    request.command = shift ? RichText::MarkdownCommand::PreviousTableCell : RichText::MarkdownCommand::NextTableCell;
+                    if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
+                        return true;
+                    request.command = shift ? RichText::MarkdownCommand::OutdentList : RichText::MarkdownCommand::IndentList;
+                    return ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable;
+                }
+                return false;
             case VK_BACK:
             case VK_DELETE: static_cast<void>(Erase(host, key == VK_BACK)); return true;
             case VK_LEFT:
@@ -1181,6 +1332,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 if (! _state->dragging)
                     return false;
                 _state->dragging = false;
+                _state->taskPressPlan.reset();
                 host.ReleaseMouseCapture();
                 return true;
             case VK_RETURN: return Editable(); // WM_CHAR / DispatchCharacter performs the one insertion.
@@ -1237,8 +1389,39 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             host.GetFocusControl() != this)
             return true;
         const auto source = HitSource(host, point);
-        _state->dragging  = true;
+        std::shared_ptr<const RichText::MarkdownCommandPlan> taskPlan;
+        D2D1_RECT_F taskRect{};
+        if (Editable() && ! ModifiersContainShift(modifiers))
+            if (const auto* semantic = _state->layout.SemanticGeometry())
+            {
+                const auto& document = semantic->Document();
+                const auto viewport  = TextViewport();
+                for (std::size_t i = 0u; i < document.Elements().size(); ++i)
+                {
+                    const auto& element = document.Elements()[i];
+                    if (element.role != RichText::SemanticRole::Task)
+                        continue;
+                    auto bounds = semantic->ElementBounds(i);
+                    if (! bounds)
+                        continue;
+                    bounds->left += viewport.left;
+                    bounds->right += viewport.left;
+                    bounds->top += viewport.top - _state->scrollDip;
+                    bounds->bottom += viewport.top - _state->scrollDip;
+                    if (point.x < bounds->left || point.x > bounds->right || point.y < bounds->top || point.y > bounds->bottom)
+                        continue;
+                    RichText::MarkdownCommandRequest request;
+                    request.command = RichText::MarkdownCommand::ToggleTask;
+                    taskPlan        = std::make_shared<const RichText::MarkdownCommandPlan>(
+                        RichText::BuildMarkdownCommand(Snapshot(), Revision(), document.Syntax(), RichText::Selection{source, source}, request));
+                    taskRect = *bounds;
+                    break;
+                }
+            }
+        _state->dragging = true;
         _state->document.SetSelection({ModifiersContainShift(modifiers) ? GetSelection().anchor : source, source});
+        _state->taskPressPlan = std::move(taskPlan);
+        _state->taskPressRect = taskRect;
         host.CaptureMouse(this);
         if (! lifetime.expired() && GetHost() == &host)
             SelectionChanged();
@@ -1285,6 +1468,14 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
     {
         if (! _state->dragging || ! IsEnabled())
             return false;
+        if (_state->taskPressPlan)
+        {
+            const auto rect = _state->taskPressRect;
+            if (point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom)
+                _state->taskPressPlan.reset();
+            else
+                return true;
+        }
         const auto viewport = TextViewport();
         if (point.y < viewport.top || point.y > viewport.bottom)
         {
@@ -1301,12 +1492,25 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
         return false;
     }
 }
-bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F, bool rightButton, UINT) noexcept
+bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
     if (rightButton || ! _state->dragging)
         return false;
-    _state->dragging = false;
+    _state->dragging       = false;
+    const auto lifetime    = GetLifetimeToken();
+    const auto plan        = std::exchange(_state->taskPressPlan, {});
+    const auto rect        = _state->taskPressRect;
+    const auto interaction = host.GetInteractionRevision();
     host.ReleaseMouseCapture();
+    if (plan && ! lifetime.expired() && GetHost() == &host && host.GetInteractionRevision() == interaction && point.x >= rect.left && point.x <= rect.right &&
+        point.y >= rect.top && point.y <= rect.bottom)
+        try
+        {
+            static_cast<void>(ApplyMarkdownCommand(*plan));
+        }
+        catch (const std::exception&)
+        { /* Stale/rebound gestures make no source edit. */
+        }
     return true;
 }
 bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta, UINT) noexcept
@@ -1377,10 +1581,12 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
     _state->dragging = false;
+    _state->taskPressPlan.reset();
     SelectionChanged();
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
     _state->dragging = false;
+    _state->taskPressPlan.reset();
 }
 } // namespace DxUi

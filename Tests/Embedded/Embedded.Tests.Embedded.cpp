@@ -1178,7 +1178,9 @@ __declspec(noinline) static int RunFunctionalTests()
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1215,6 +1217,14 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichFlatProjectionFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures")
             TestRichSemanticGeometryFailureBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-failures")
+            TestRichMarkdownCommandFailureAtomicity();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "command host failure WARP device");
+            TestRichMarkdownCommandHostFailureAtomicity(gpu);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures")
         {
             GraphicsFixture gpu;
@@ -1397,8 +1407,15 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
     RichSemanticTests::Run(RichSemanticTests::TransactionRejections);
+    RichSemanticTests::Run(RichCommandTests::ListsAndHeadings);
+    RichSemanticTests::Run(RichCommandTests::InlineTasksLinks);
+    RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
+    RichSemanticTests::Run(TestRichMarkdownCommandFailureAtomicity);
+    RichSemanticTests::Run([&] { TestRichMarkdownCommandHostFailureAtomicity(gpu); });
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
@@ -1418,6 +1435,8 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
+            RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
+                                                        [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded structural commands"); });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
             RichSemanticEditorTests::RenderingAdmissionFallback(

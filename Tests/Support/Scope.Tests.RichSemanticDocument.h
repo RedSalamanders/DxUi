@@ -328,3 +328,94 @@ inline void SchedulingAndAdmission()
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
 }
 } // namespace RichSemanticDocumentTests
+
+namespace RichSemanticDocumentTests
+{
+inline void StructuralStyleValues()
+{
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const std::wstring_view spelling : {L"word",
+                                                 L" a ",
+                                                 L"a**b",
+                                                 L"a*b",
+                                                 L"a~~b",
+                                                 L"**a** **b**",
+                                                 L"&copy;",
+                                                 L"\\*literal\\*",
+                                                 L"\U0001f600\u0301",
+                                                 L"**# heading**",
+                                                 L"**- item**",
+                                                 L"**1. item**"})
+            for (const auto style : {MarkdownTextStyle::Strong, MarkdownTextStyle::Emphasis, MarkdownTextStyle::Strikethrough, MarkdownTextStyle::Code})
+            {
+                Document document(spelling);
+                document.SetSelection({0u, spelling.size()});
+                MarkdownCommandRequest request;
+                request.command   = MarkdownCommand::ToggleStyle;
+                request.style     = style;
+                const auto before = Build(spelling, profile);
+                const auto plan   = BuildMarkdownCommand(
+                    document.Snapshot(), document.Revision(), RichCommandTests::Parse(document, profile), document.GetSelection(), request);
+                if (profile == MarkdownProfile::CommonMark0312 && style == MarkdownTextStyle::Strikethrough)
+                {
+                    Check(! plan.IsApplicable(), "strike style respects dialect admission");
+                    continue;
+                }
+                Check(plan.IsApplicable() && ApplyMarkdownCommand(document, plan), "semantic style oracle exercises a committed change");
+                const auto after = Build(document.Text(), profile);
+                Check(before->Map().Display() == after->Map().Display(),
+                      "independent semantic lowering preserves Unicode value through literal punctuation, encoded text and block-like prefixes");
+                if (spelling == L"word")
+                {
+                    const auto flags = style == MarkdownTextStyle::Strong          ? Bold
+                                       : style == MarkdownTextStyle::Emphasis      ? Italic
+                                       : style == MarkdownTextStyle::Strikethrough ? Strike
+                                                                                   : Code;
+                    Check(std::ranges::any_of(after->Runs(), [&](const auto& run) { return (run.flags & flags) != 0u; }),
+                          "new style changes actual semantic flags, not merely source delimiters");
+                }
+            }
+    for (const std::wstring_view spelling : {L"a]b", L"a[b", L"&copy;", L"**label**"})
+    {
+        Document document(spelling);
+        document.SetSelection({spelling.size(), 0u});
+        MarkdownCommandRequest request;
+        request.command     = MarkdownCommand::SetLink;
+        request.destination = L"#target";
+        const auto plan = BuildMarkdownCommand(document.Snapshot(), document.Revision(), RichCommandTests::Parse(document), document.GetSelection(), request);
+        Check(plan.IsApplicable() && ApplyMarkdownCommand(document, plan), "link source conversion admitted");
+        const auto after = Build(document.Text());
+        Check(Build(spelling)->Map().Display() == after->Map().Display() &&
+                  std::ranges::any_of(after->Elements(),
+                                      [](const auto& element) { return element.role == SemanticRole::Link && element.destination == L"#target"; }),
+              "literal brackets and encoded labels retain visible Unicode and create an actual inert semantic link");
+    }
+    Document table(L"a\\|b | next\n- | -\n");
+    table.SetSelection({0u, 4u});
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Code;
+    const auto plan = BuildMarkdownCommand(table.Snapshot(), table.Revision(), RichCommandTests::Parse(table), table.GetSelection(), request);
+    Check(ApplyMarkdownCommand(table, plan) && table.Text() == L"`a\\|b` | next\n- | -\n", "code conversion inside a table retains raw pipe escaping");
+    Check(Build(table.Text())->Map().Display() == Build(L"a\\|b | next\n- | -\n")->Map().Display(),
+          "code table conversion preserves actual visible cell values");
+    table.SetSelection({0u, 6u});
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"/a|b";
+    const auto link     = BuildMarkdownCommand(table.Snapshot(), table.Revision(), RichCommandTests::Parse(table), table.GetSelection(), request);
+    Check(ApplyMarkdownCommand(table, link) && table.Text() == L"[`a\\|b`](</a&#124;b>) | next\n- | -\n", "link metadata cannot create a table separator");
+    Document html(L"<a href='#target'>*word* &copy;</a>");
+    html.SetSelection({20u, 20u});
+    request.command   = MarkdownCommand::RemoveLink;
+    const auto unlink = BuildMarkdownCommand(html.Snapshot(), html.Revision(), RichCommandTests::Parse(html), html.GetSelection(), request);
+    Check(ApplyMarkdownCommand(html, unlink) && html.Text() == L"*word* &copy;" &&
+              Build(html.Text())->Map().Display() == Build(L"<a href='#target'>*word* &copy;</a>")->Map().Display(),
+          "native inline unlink retains its existing Markdown semantics and raw label spelling");
+    Document block(L"<a href='#target'>\n*word* &copy;\n</a>\n");
+    const auto original = block.Snapshot();
+    block.SetSelection({20u, 20u});
+    const auto opaque = BuildMarkdownCommand(original, block.Revision(), RichCommandTests::Parse(block), block.GetSelection(), request);
+    Check(! opaque.IsApplicable() && ! ApplyMarkdownCommand(block, opaque) && block.Snapshot().IsSameRevision(original),
+          "unlink rejects an opening HTML-block anchor rather than reinterpreting a literal body as Markdown");
+}
+} // namespace RichSemanticDocumentTests

@@ -1,9 +1,23 @@
 #pragma once
 #include <DxUi/RichSemantic.h>
+#include <DxUi/RichTextCommands.h>
 #include <array>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+
+namespace RichCommandTests
+{
+using namespace DxUi::RichText;
+inline std::shared_ptr<const MarkdownSyntax> Parse(const Document& document, MarkdownProfile profile = MarkdownProfile::Gfm029)
+{
+    MarkdownParser parser;
+    parser.Begin(document.Snapshot(), document.Revision(), profile);
+    while (parser.HasPendingPreparation())
+        parser.Advance(113u);
+    return parser.Published();
+}
+} // namespace RichCommandTests
 
 // Shared independent coordinate/transaction oracles run in both native and
 // supplied-device test processes. No prepared layout or provider internals.
@@ -201,3 +215,257 @@ inline void TransactionRejections()
     Check(join.Text() == L"aX\nb" && join.Revision() == joinRevision, "join failure is atomic");
 }
 } // namespace RichSemanticTests
+
+namespace RichCommandTests
+{
+using RichSemanticTests::Check;
+using RichSemanticTests::Reject;
+inline void Exact(std::wstring_view source,
+                  Selection before,
+                  MarkdownCommandRequest request,
+                  std::wstring_view expected,
+                  std::optional<Selection> after = std::nullopt,
+                  MarkdownProfile profile        = MarkdownProfile::Gfm029)
+{
+    Document document(source);
+    document.SetSelection(before);
+    const auto snapshot = document.Snapshot(), syntaxSnapshot = snapshot;
+    const auto revision = document.Revision();
+    const auto syntax   = Parse(document, profile);
+    const auto plan     = BuildMarkdownCommand(snapshot, revision, syntax, before, request);
+    Check(plan.IsApplicable(), "structural command admitted");
+    Check(document.Snapshot().IsSameRevision(snapshot) && document.GetSelection() == before && ! document.CanUndo(), "planning is read-only");
+    const auto changed = ApplyMarkdownCommand(document, plan);
+    if (document.Text() != expected)
+    {
+        std::wcerr << L"command=" << static_cast<int>(request.command) << L" expected=[" << expected << L"] actual=[" << document.Text() << L"]\n";
+    }
+    Check(document.Text() == expected && changed == (source != expected), "independent literal structural source oracle");
+    Check(! after || document.GetSelection() == *after, "exact forward/backward structural selection");
+    Check(syntax->Source() == source && syntaxSnapshot.Text() == source, "old source and analysis remain immutable");
+    const auto result = Parse(document, profile);
+    Check(result && result->Source() == expected, "independent result parse accepts exact command output");
+    if (changed)
+    {
+        const auto committed          = document.Snapshot();
+        const auto committedSelection = document.GetSelection();
+        Check(document.Undo() && document.Snapshot().IsSameRevision(snapshot) && document.GetSelection() == before && ! document.CanUndo(),
+              "one undo restores all spelling and selection");
+        Check(document.Redo() && document.Snapshot().IsSameRevision(committed) && document.GetSelection() == committedSelection && ! document.CanRedo(),
+              "one redo restores complete command");
+    }
+    else
+        Check(! document.CanUndo(), "selection-only or identical command does not add history");
+}
+inline void ListsAndHeadings()
+{
+    MarkdownCommandRequest request;
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        request.command = MarkdownCommand::InsertParagraph;
+        Exact(L"> 9) alpha\r\n", {10u, 10u}, request, L"> 9) alpha\r\n> 10) \r\n", Selection{18u, 18u}, profile);
+        Exact(L"9. abc\n   tail\n", {4u, 4u}, request, L"9. a\n10. bc\n    tail\n", std::nullopt, profile);
+        Exact(L"9.\titem\n\tmore\n", {7u, 7u}, request, L"9.\titem\n10.\t\n\tmore\n", std::nullopt, profile);
+        Exact(L"- \n", {2u, 2u}, request, L"\n", Selection{0u, 0u}, profile);
+        Exact(L"- parent\n\n  - \n", {14u, 14u}, request, L"- parent\n\n- \n", std::nullopt, profile);
+        Exact(L"```\n- raw\n```", {9u, 9u}, request, L"```\n- raw\n\n```", std::nullopt, profile);
+        request.command = MarkdownCommand::IndentList;
+        Exact(L"- a\n- b\n- c\n", {12u, 4u}, request, L"- a\n  - b\n  - c\n", std::nullopt, profile);
+        request.command = MarkdownCommand::OutdentList;
+        Exact(L"- a\n  + b\n", {8u, 8u}, request, L"- a\n+ b\n", std::nullopt, profile);
+        Exact(L"> - first\r\n>   continuation\n", {5u, 5u}, request, L"> first\r\n> continuation\n", std::nullopt, profile);
+        request.command   = MarkdownCommand::SetList;
+        request.listKind  = MarkdownListKind::Ordered;
+        request.listStart = 7u;
+        Exact(L"alpha\r\nbeta\n", {0u, 12u}, request, L"7. alpha\r\n8. beta\n", std::nullopt, profile);
+        Exact(L"- a\n  next\n- b\n", {2u, 2u}, request, L"7. a\n   next\n- b\n", std::nullopt, profile);
+        Exact(L"-\titem\n\tmore\n", {3u, 3u}, request, L"7. item\n   more\n", std::nullopt, profile);
+        request.listStart.reset();
+        Exact(L"09) a\n", {4u, 4u}, request, L"09) a\n", std::nullopt, profile);
+        request.command = MarkdownCommand::JoinBackward;
+        Exact(L"- **a**\n- b\n", {10u, 10u}, request, L"- **a** b\n", Selection{7u, 7u}, profile);
+        request.command = MarkdownCommand::JoinForward;
+        Exact(L"a\r\n\r\nb", {1u, 1u}, request, L"a b", Selection{1u, 1u}, profile);
+        request.command      = MarkdownCommand::SetHeading;
+        request.headingLevel = 2u;
+        Exact(L"", {}, request, L"## ", Selection{3u, 3u}, profile);
+        Exact(L">\n", {1u, 1u}, request, L">## \n", std::nullopt, profile);
+        for (unsigned level = 1u; level <= 6u; ++level)
+        {
+            request.headingLevel = level;
+            Exact(L"> title\r\n", {3u, 3u}, request, L"> " + std::wstring(level, L'#') + L" title\r\n", std::nullopt, profile);
+        }
+        request.headingLevel = 3u;
+        Exact(L"Title\r\n===\r\n", {3u, 3u}, request, L"### Title\r\n", std::nullopt, profile);
+        request.headingLevel = 2u;
+        Exact(L"Title\n===\n", {3u, 3u}, request, L"Title\n---\n", std::nullopt, profile);
+        request.headingLevel = 0u;
+        Exact(L"  ## title ###  \n", {7u, 7u}, request, L"  title   \n", std::nullopt, profile);
+    }
+}
+inline void InlineTasksLinks()
+{
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    for (const auto style : {MarkdownTextStyle::Strong, MarkdownTextStyle::Emphasis, MarkdownTextStyle::Strikethrough})
+    {
+        request.style             = style;
+        const std::wstring marker = style == MarkdownTextStyle::Strong ? L"**" : style == MarkdownTextStyle::Emphasis ? L"*" : L"~~";
+        Exact(L"word", {4u, 0u}, request, marker + L"word" + marker, Selection{marker.size() + 4u, marker.size()});
+        const auto source = marker + L"abc" + marker;
+        Exact(source, {marker.size() + 1u, marker.size() + 2u}, request, marker + L"a" + marker + L"b" + marker + L"c" + marker);
+        Exact(source, {marker.size() + 1u, marker.size() + 1u}, request, L"abc");
+    }
+    request.style = MarkdownTextStyle::Code;
+    Exact(L"&copy; **bold**", {0u, 15u}, request, L"`\u00a9 bold`", Selection{1u, 7u});
+    Exact(L"`*foo* &copy;`", {2u, 2u}, request, L"\\*foo\\* \\&copy\\;");
+    Exact(L"\\`", {0u, 2u}, request, L"`` ` ``", Selection{3u, 4u});
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"https://example.invalid/?x=1&y=2";
+    request.title       = L"A \"quote\"";
+    Exact(L"**word**", {8u, 0u}, request, L"[**word**](<https://example.invalid/?x=1&amp;y=2> \"A &quot;quote&quot;\")", Selection{9u, 1u});
+    request.destination = L"next";
+    request.title       = L"title";
+    Exact(L"<A  TITLE='old' HREF = \"old\">word</A>", {30u, 30u}, request, L"<A  TITLE='title' HREF = \"next\">word</A>");
+    request.command = MarkdownCommand::RemoveLink;
+    Exact(L"[label][ref]\n\n[ref]: target\n", {2u, 2u}, request, L"label\n\n[ref]: target\n", Selection{0u, 5u});
+    Exact(L"<a href='old'>word</a>", {15u, 15u}, request, L"word");
+    request.command = MarkdownCommand::ToggleTask;
+    Exact(L"> + [X] task\r\n", {10u, 10u}, request, L"> + [ ] task\r\n");
+    Exact(L"- [ ] task\n", {8u, 8u}, request, L"- [x] task\n");
+    Exact(L"word", {2u, 2u}, request, L"- [ ] word");
+    Exact(L"- [x] a\n- [ ] b\n", {0u, 16u}, request, L"- [ ] a\n- [x] b\n");
+    request.command = MarkdownCommand::InsertParagraph;
+    Exact(L"> 9) [x] alpha\r\n", {14u, 14u}, request, L"> 9) [x] alpha\r\n> 10) [ ] \r\n");
+    request.command  = MarkdownCommand::SetList;
+    request.listKind = MarkdownListKind::Unordered;
+    Exact(L"- [x] **word**\n", {8u, 8u}, request, L"- **word**\n");
+}
+inline void Tables()
+{
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::InsertTable;
+    Exact(L"", {}, request, L"| | |\r\n| --- | --- |\r\n| | |", Selection{2u, 2u});
+    request.command = MarkdownCommand::InsertTableRow;
+    Exact(L"a | b\r\n:- | -:\r\nx | y", {0u, 0u}, request, L"a | b\r\n:- | -:\r\n| | |\r\nx | y");
+    request.command = MarkdownCommand::DeleteTableRow;
+    Exact(L"a | b\n- | -\nx | y\nz | q\n", {12u, 12u}, request, L"a | b\n- | -\nz | q\n");
+    Exact(L"| a | b |\n| :- | -: |\n| x | y |\n", {2u, 2u}, request, L"| x | y |\n| :- | -: |\n");
+    request.command = MarkdownCommand::InsertTableColumn;
+    Exact(L"| a | b |\n| :- | -: |\n| x |\n", {6u, 6u}, request, L"| a |  | b |\n| :- | --- | -: |\n| x |  |\n");
+    request.command = MarkdownCommand::DeleteTableColumn;
+    Exact(L"| a | b |\n| :- | -: |\n| x | y |\n", {2u, 2u}, request, L"| b |\n| -: |\n| y |\n");
+    request.command = MarkdownCommand::SetTableCell;
+    request.text    = L"**new**\\|value";
+    Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | **new**\\|value\n");
+    Document padded(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |\r\n");
+    const auto syntax = Parse(padded);
+    std::vector<std::size_t> cells(0u);
+    for (std::size_t i = 0u; i < syntax->Nodes().size(); ++i)
+        if (syntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            cells.push_back(i);
+    Check(cells.size() == 6u, "padded oracle contains six declared cells");
+    request.targetCell = cells.back();
+    request.text       = L"new";
+    Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |  | new |\r\n");
+    request.targetCell = MarkdownNoNode;
+    request.command    = MarkdownCommand::NextTableCell;
+    Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y\n| | |", Selection{20u, 20u});
+    request.command = MarkdownCommand::PreviousTableCell;
+    Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y", Selection{12u, 12u});
+}
+inline void GuardsAndDeletion()
+{
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    Document document(L"**alpha**\r\n");
+    document.SetSelection({2u, 7u});
+    const auto syntax   = Parse(document);
+    const auto source   = document.Snapshot();
+    const auto revision = document.Revision();
+    const auto plan     = BuildMarkdownCommand(source, revision, syntax, document.GetSelection(), request);
+    document.SetSelection({7u, 2u});
+    Reject<std::invalid_argument>([&] { ApplyMarkdownCommand(document, plan); }, "direction/selection staleness rejects the whole plan");
+    document.SetSelection({2u, 7u});
+    document.Replace(2u, 3u, L"A", {2u, 7u});
+    document.Undo();
+    Reject<std::invalid_argument>([&] { ApplyMarkdownCommand(document, plan); }, "undo returning to same spelling does not revive old revision");
+    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(document.Snapshot(), document.Revision(), syntax, document.GetSelection(), request); },
+                                  "stale analysis never reparsed by command");
+    for (const auto command : {MarkdownCommand::ToggleTask, MarkdownCommand::InsertTable})
+    {
+        Document plain(L"word");
+        const auto analysis = Parse(plain, MarkdownProfile::CommonMark0312);
+        request.command     = command;
+        Check(! BuildMarkdownCommand(plain.Snapshot(), plain.Revision(), analysis, {}, request).IsApplicable(),
+              "GFM commands respect explicit CommonMark profile");
+    }
+    request.command      = MarkdownCommand::SetHeading;
+    request.headingLevel = 2u;
+    Document mixed(L"word\n\n```\ncode\n```\n");
+    mixed.SetSelection({0u, mixed.Text().size()});
+    Check(! BuildMarkdownCommand(mixed.Snapshot(), mixed.Revision(), Parse(mixed), mixed.GetSelection(), request).IsApplicable(),
+          "mixed opaque selection rejects atomically");
+    request.headingLevel = 7u;
+    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); }, "invalid heading rejected");
+    Document unfinished(L"```\n");
+    request.headingLevel = 2u;
+    Check(! BuildMarkdownCommand(unfinished.Snapshot(), unfinished.Revision(), Parse(unfinished), {4u, 4u}, request).IsApplicable(),
+          "empty EOF inside an unclosed fence is opaque");
+    Document literal(L"`abc`");
+    request.command = MarkdownCommand::ToggleStyle;
+    Check(! BuildMarkdownCommand(literal.Snapshot(), literal.Revision(), Parse(literal), {2u, 3u}, request).IsApplicable(),
+          "non-code style cannot mutate literal code interiors");
+    Document tabs(L"1. a\n2.\tb\n");
+    request.command = MarkdownCommand::IndentList;
+    Check(! BuildMarkdownCommand(tabs.Snapshot(), tabs.Revision(), Parse(tabs), {8u, 8u}, request).IsApplicable(),
+          "indentation rejects marker tabs whose new stop would change descendants");
+    const std::wstring oversized(Document::MaximumUnits + 1u, L'x');
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = oversized;
+    Reject<std::length_error>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); },
+                              "unbounded borrowed metadata rejected before staging");
+    Document ambiguousTask(L"- [x] - literal\n");
+    MarkdownCommandRequest list;
+    list.command = MarkdownCommand::SetList;
+    Check(! BuildMarkdownCommand(ambiguousTask.Snapshot(), ambiguousTask.Revision(), Parse(ambiguousTask), {8u, 8u}, list).IsApplicable(),
+          "removing task syntax rejects a label that would become another block marker");
+    std::wstring overflow(L"a | b\n- | -\n");
+    for (unsigned cell = 0u; cell < 65u; ++cell)
+    {
+        if (cell)
+            overflow += L" | ";
+        overflow += L'x';
+    }
+    overflow += L'\n';
+    Document largePromotion(overflow);
+    MarkdownCommandRequest table;
+    table.command = MarkdownCommand::DeleteTableRow;
+    Reject<std::length_error>([&] { BuildMarkdownCommand(largePromotion.Snapshot(), largePromotion.Revision(), Parse(largePromotion), {}, table); },
+                              "promoting ignored overflow fields cannot bypass declared table command limits");
+    const std::vector<MarkdownRange> fragments(SourceDisplayMap::MaximumSpans + 1u);
+    Reject<std::length_error>([&] { BuildMarkdownDeletion(source, revision, syntax, {2u, 7u}, fragments); },
+                              "deletion fragment amplification rejected before staging");
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"javascript:alert(1)";
+    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); },
+                                  "active link destination rejected before mutation");
+    Document maximum(std::wstring(Document::MaximumUnits, L'x'));
+    maximum.SetSelection({0u, 1u});
+    request.command = MarkdownCommand::ToggleStyle;
+    Reject<std::length_error>([&] { BuildMarkdownCommand(maximum.Snapshot(), maximum.Revision(), Parse(maximum), maximum.GetSelection(), request); },
+                              "command capacity checked before apply");
+    for (const std::wstring_view spelling : {L"**[abc](target)**", L"<b><a href='target'>abc</a></b>"})
+    {
+        Document deleting(spelling);
+        const auto at = spelling.find(L"abc");
+        deleting.SetSelection({at + 3u, at});
+        const auto old      = deleting.Snapshot();
+        const auto analysis = Parse(deleting);
+        const std::array ranges{MarkdownRange{at, at + 3u}};
+        const auto deletion = BuildMarkdownDeletion(old, deleting.Revision(), analysis, deleting.GetSelection(), ranges);
+        Check(ApplyMarkdownCommand(deleting, deletion) && deleting.Text().empty(), "whole visual body recursively cleans owned formatting/link wrappers");
+        Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "cleanup restores exact original spelling in one undo");
+    }
+}
+} // namespace RichCommandTests
