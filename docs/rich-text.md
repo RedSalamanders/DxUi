@@ -30,6 +30,24 @@ source text store and notifies once after a committed source change. No-op plans
 may silently update selection. These primitives do not change the retained
 editor's v0 pixels or complete semantic Markdown editing.
 
+`DxUi/RichSemanticDocument.h` adds the pure `SemanticBuilder` preview under M4
+qualification. Begin with an immutable `MarkdownParser::Published()` result,
+then advance a bounded number of block/inline events on each preparation turn.
+`Published()` retains the previous complete result while work is pending;
+consumers must check its syntax source/revision/profile before treating it as
+current. Cancel preserves that publication; Clear releases builder ownership.
+Held documents remain immutable. Queries and coalesced requests do not advance
+work or start a worker.
+
+The document supplies a source/display map, style runs, semantic roles and ordered
+paragraph/table-cell metadata. Its source remains exact; code/escape/entity
+normalization has token-level edit affinities. Tables include padded cells;
+task markers and image alternatives are atomic objects. HTML remains literal in
+this preparation API, and links/images retain inert metadata without loading or
+executing anything. This API does not yet connect those values to retained pixels,
+structural commands or structured UIA. Admission currently limits combined syntax
+nodes to 32,768 and geometry paragraphs to 4,096, alongside the bounded model/map.
+
 Include `DxUi/DxUi.h`. The same control works under native `ControlHost`
 and supplied-device `EmbeddedHost::Controls()`:
 

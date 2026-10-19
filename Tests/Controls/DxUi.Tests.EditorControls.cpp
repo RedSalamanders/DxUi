@@ -5,6 +5,7 @@
 #include "Scope.Tests.RichMarkdown.h"
 #include "Scope.Tests.RichProjectionBlocks.h"
 #include "Scope.Tests.RichSemantic.h"
+#include "Scope.Tests.RichSemanticDocument.h"
 #include "Scope.Tests.RichSourceChanges.h"
 #include "Scope.Tests.RichTextEditor.h"
 #include "Scope.Tests.RichTextInput.h"
@@ -1938,6 +1939,7 @@ void RunEditorControlTests()
     RunRichSourceChangeTests();
     RunRichMarkdownTests();
     RunRichSemanticTests();
+    RunRichSemanticDocumentTests();
     RunRichProjectionBlockTests();
     RunRichTextLayoutTests();
     RunRichDocumentLayoutTests();

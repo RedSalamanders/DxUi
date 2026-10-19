@@ -165,6 +165,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Scope.Tests.RichDocumentStorageResources.h"
 #include "Scope.Tests.RichGeometryResources.h"
 #include "Scope.Tests.RichProjectionResources.h"
+#include "Scope.Tests.RichSemanticDocumentResources.h"
 #include "Scope.Tests.RichSemanticResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
@@ -1386,6 +1387,9 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
     RichSemanticTests::Run(RichSemanticTests::TransactionRejections);
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
+    RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
+    RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     {
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;

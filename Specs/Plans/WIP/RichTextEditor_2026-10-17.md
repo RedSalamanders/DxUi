@@ -1848,3 +1848,44 @@ line joins need explicit M4d/e tests; a scalar display endpoint alone cannot
 represent all such source editing sites. Keep these as active implementation
 requirements, rather than silently claiming that pure token mapping finishes
 structural editing.
+
+### M4c active implementation
+
+RichSemanticDocument/Builder and the private RichSemanticValues helper are now
+implemented in the owned source tree and under first-pass testing. They do not
+activate retained semantic pixels. The planned 32,768 combined syntax-node and
+4,096 geometry-paragraph limits fail before SDK allocation. Added tests include
+independent directed display/source examples, dense graph/style/mapping checks,
+cooperative scheduling/coalescing/cancellation/retirement and sparse-table/leaf
+admission. A separate pinned-source test covers all 1,324 parser inputs, explicitly
+rejecting inputs outside existing Document admission. Embedded tests add complete
+and pending-Begin allocation sweeps, idle/retire checks and a maximum plain-source
+storage fixture. No result is claimed until these new tests actually pass.
+
+Keep the following M4d/e decisions active when integrating this data:
+- Native source caret sites must cover empty/trailing/container-only lines and
+  exact document Home/End independently of hidden glyph intervals. An empty
+  Markdown semantic paragraph is not automatically an editable source line.
+- Visual deletion of a normalized code/paragraph line join may require removing
+  stripped continuation prefixes in one source transaction. Deleting only a
+  decoded newline's raw units can expose a previously hidden quote/list prefix.
+- A legal source ACP inside a transformed/object token needs an explicit atomic
+  keyboard-delete rule. Programmatic source replacement and source TSF snapshots
+  retain their existing exact-source contract.
+- Generated marker/spacing hits use content insertion anchors; they must not
+  insert a character between a task's closing bracket and required whitespace.
+- Semantic admission/work failure must leave source editing usable, preserve
+  publication pairing and avoid automatic retry loops; define and test source
+  fallback/error status before enabling the retained renderer.
+
+M4c first-pass Release evidence: complete EditorControls and Embedded passed,
+alongside the separate three-case focused run. All 1,324 pinned source cases
+constructed legal semantic maps (zero failures or source-admission exclusions).
+The embedded builder passed all 198 observed complete-preparation allocation
+failures and five pending-Begin failures. Coalescing/publication/retirement made
+zero C++ allocations. The maximum plain-source publication retained 1,442,955
+additional tracked bytes and released zero net bytes. This fixture excludes its
+already held syntax and all SDK/GPU/process storage. Logs, native receipts,
+executables, symbols, library and hashes are retained under
+`.build/reports/rich-semantic-m4-20261019/M4cRelease`. Debug/ASan and later native
+integration qualification are still pending; M4c stays unchecked for now.

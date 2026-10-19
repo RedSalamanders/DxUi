@@ -56,6 +56,19 @@ staging; failures must leave held maps and complete Document state unchanged.
 The source transaction materializes its enclosing changed interval once and
 preserves all untouched gaps. It introduces no worker, timer or idle polling.
 
+SemanticBuilder additionally bounds the combined syntax graph to 32,768 nodes and
+geometry paragraphs to 4,096 before native SDK work. It traverses block/inline
+events cooperatively. Normalization, one value's tokenization, one image alternative
+and final map/index construction remain indivisible bounded preparation work.
+Ordered markers use one sibling pass, without repeated prefix walks. Every
+resolved value must match its normalized source tokens before publication; a
+mismatch rejects staged work. Failure sweeps cover complete preparation and
+replacing a pending request. Coalesced requests, publication reads and retirement
+allocate nothing. The maximum plain-source fixture must retain at most eight MiB
+of additional tracked C++ storage and release it completely, with its syntax held
+outside the accounting window. This is a named fixture bound, not an all-input,
+parser, process, SDK or GPU bound. General pathological capacity remains M6.
+
 Status: normative current contract
 Last reviewed: 2026-10-18
 

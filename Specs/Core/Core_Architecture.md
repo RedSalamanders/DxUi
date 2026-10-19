@@ -41,6 +41,12 @@ coordinates and fragment queries, and snapshot-guarded source edit staging.
 It owns no host/device/worker. It does not relax v0 Projection's ordered-unit
 invariants or activate semantic rendering. Structural adapters must commit its
 edit plans through their existing editable/lifetime/notification guards.
+RichSemanticDocument stages immutable semantic roles, style runs, paragraph/cell
+metadata and exact value-token maps from completed MarkdownSyntax. Its builder
+is an owner-serialized CPU preparation service with event budgets, cancellation,
+coalescing and failure-atomic publication. It owns no graphics or scheduling
+resource. This separate preparation preview does not activate the native renderer
+or change source text-store coordinates; native semantic integration remains M4d/f.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.

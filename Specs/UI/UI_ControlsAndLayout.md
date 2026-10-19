@@ -989,6 +989,46 @@ adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
 preserves the pure helper's single history entry and exact source coordinates.
 
+### Semantic document preparation (M4c work in progress)
+
+RichSemanticDocument.h defines an immutable SemanticDocument and an owner-serialized
+SemanticBuilder. This component is under implementation/qualification; it does
+not enable the retained renderer. Begin retains immutable MarkdownSyntax; Advance
+resumes block/inline events and publishes one complete map, style partition,
+role graph and ordered geometry-paragraph metadata. Held publications remain
+immutable. Identical syntax ownership coalesces; a different syntax object with
+an equal numeric revision remains a different request. Failed Begin preserves a
+previous pending request; failed work retires staging and preserves publication.
+Cancel keeps publication; Clear releases builder ownership without invalidating
+held documents. No worker, graphics object, HWND or timer belongs to this service.
+
+Admission bounds the combined block/inline graph to 32,768 nodes and geometry
+paragraphs to 4,096, in addition to Document and SourceDisplayMap capacities.
+These are preview admission limits, not larger-document or all-input latency
+qualification. Raw parser NUL remains outside Document/semantic admission.
+Each event is counted; leaf normalization, value tokenization, image alternative
+flattening and final map/index construction are bounded indivisible operations,
+not hard time deadlines. Empty/padded cells use generated content; amplification
+must fail before SDK work. Ordered list numbering visits each sibling once.
+
+Every resolved Text/Code/Html value must be reproduced from normalized source
+tokens before publishing its interior map. Literal URL labels retain contextual
+entity/escape spelling; ordinary Text decodes lexical references/escapes. Code
+retains opaque spelling, normalizes line endings to spaces and hides its fences
+and standard trimmed spaces. Removed container prefixes stay outside glyph spans.
+Virtual tab columns are generated, not duplicated source ownership. Soft breaks
+become flow spaces and hard breaks become line breaks. Generic source fragments
+do not by themselves implement grammar-aware line joining or empty-format cleanup.
+
+The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
+links, images, task objects and rules. Cells retain header/alignment/row/column
+metadata. Source task markers and image alternatives are atomic source objects;
+list markers and padding are generated. Destinations/titles are inert metadata;
+no resource fetch, script, DOM or implicit navigation follows. The current pure
+builder keeps HTML literal; any later native safe subset needs explicit policy,
+balanced validation and source-preserving fallback. Rendering, source caret sites,
+structural commands and structured accessibility remain separate M4d/f work.
+
 These pure primitives do not enable semantic pixels, structural commands or UIA
 roles. Their retained-control integration and corresponding qualification remain
 M4 work in the active plan; existing profile-only analysis keeps v0 rendering.
