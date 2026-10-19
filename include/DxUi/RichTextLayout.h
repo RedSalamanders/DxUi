@@ -85,11 +85,17 @@ private:
     friend class PreparedDocumentLayout;
     friend class Detail::PreparedSemanticGeometry;
     std::pair<float, float> DrawingVerticalBounds() const;
+    std::pair<float, float> HorizontalTextBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f, bool semanticDisplay = false);
+    void PrepareOwned(IDWriteFactory* factory,
+                      Projection& projection,
+                      const LayoutOptions& options,
+                      float verticalOrigin = 0.0f,
+                      bool semanticDisplay = false,
+                      bool marker          = false);
     // Private identity layout for already bounded semantic display, not a model
     // capacity increase or a replacement for its nonmonotonic document map.
-    void PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options);
+    void PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker = false);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;

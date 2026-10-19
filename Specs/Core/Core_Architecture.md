@@ -34,8 +34,8 @@ indivisible, and geometry has explicit whole SDK fallbacks.
 The opt-in lossless parser separately publishes block/inline forests, resolved
 global references and configurable GFM metadata. It owns Unicode 17 folding and
 character-class tables generated offline from pinned licensed data. Its semantic
-strings/raw source enclosures do not satisfy the forthcoming M4 editing-coordinate
-contract; the v0 projection remains the active renderer until that gate passes.
+strings/raw source enclosures are metadata; editing coordinates use the explicit
+SourceDisplayMap contract. The v0 projection remains the default renderer.
 RichSemantic adds an independent immutable span map with nonmonotonic primary
 coordinates and fragment queries, and snapshot-guarded source edit staging.
 It owns no host/device/worker. It does not relax v0 Projection's ordered-unit
@@ -45,8 +45,19 @@ RichSemanticDocument stages immutable semantic roles, style runs, paragraph/cell
 metadata and exact value-token maps from completed MarkdownSyntax. Its builder
 is an owner-serialized CPU preparation service with event budgets, cancellation,
 coalescing and failure-atomic publication. It owns no graphics or scheduling
-resource. This separate preparation preview does not activate the native renderer
-or change source text-store coordinates; native semantic integration remains M4d/f.
+resource. This CPU service alone does not activate rendering or change source
+text-store coordinates. RichTextEditor's explicit semantic preview consumes its
+immutable publication; complete structural/style accessibility remains M4f.
+The semantic builder validates the bounded native HTML policy before hiding any
+tag in a leaf. Its character-reference adapter calls the syntax lexer's existing
+pinned decoder. Markdown style state and active HTML anchor ownership remain
+separate, including when their delimiters cross. Unsupported markup publishes
+literal normalized leaf contents while retaining exact raw source.
+Native geometry measures marker prefixes without wrapping, computes shared list
+gutters, then stages marker/body layouts on one first baseline. Both are counted
+against native admission and SDK budgets. Ancestor list gutters apply to loose
+continuations, nested blocks and tables. Marker/caret sites are geometry identity,
+never source ACPs; all source movement preserves logical direction across boxes.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.

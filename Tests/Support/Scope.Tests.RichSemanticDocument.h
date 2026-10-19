@@ -73,7 +73,7 @@ inline void CheckGraph(const SemanticDocument& document)
     for (const auto& run : document.Runs())
     {
         Check(styled <= map.Display().size() && run.start == styled && run.length > 0u && run.length <= map.Display().size() - styled &&
-                  ! (run.flags & ~(Bold | Italic | Code | Strike)) && run.heading <= 6u,
+                  ! (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) && run.heading <= 6u,
               "semantic styles partition the complete display");
         styled += run.length;
     }
@@ -145,6 +145,134 @@ inline void DirectedValues()
         std::find_if(links->Elements().begin(), links->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Image; });
     Check(image != links->Elements().end() && image->name == L"a b" && image->destination == L"local" && image->title == L"pic",
           "atomic image alternative retains editable source, accessible name and inert destination/title");
+}
+inline void NativeHtmlAndLinkPresentation()
+{
+    struct TagStyle
+    {
+        std::wstring_view name;
+        unsigned flags;
+    };
+    constexpr TagStyle tagStyles[] = {
+        {L"b", Bold}, {L"strong", Bold}, {L"i", Italic}, {L"em", Italic}, {L"u", Underline}, {L"s", Strike}, {L"del", Strike}, {L"code", Code}, {L"span", 0u}};
+    for (const auto& tag : tagStyles)
+    {
+        const auto document = Build(std::wstring(L"one <") + std::wstring(tag.name) + L">x</" + std::wstring(tag.name) + L">\n");
+        Check(document->Map().Display() == L"one x\n", "every accepted inline style tag has an independent display oracle");
+        const auto run = std::find_if(
+            document->Runs().begin(), document->Runs().end(), [](const auto& value) { return value.start <= 4u && 4u < value.start + value.length; });
+        Check(run != document->Runs().end() && run->flags == tag.flags, "each native style alias maps to its declared style flags");
+        CheckGraph(*document);
+    }
+    for (unsigned level = 1u; level <= 6u; ++level)
+    {
+        const auto digit    = static_cast<wchar_t>(L'0' + level);
+        const auto document = Build(std::wstring(L"<h") + digit + L">heading</h" + digit + L">\n");
+        Check(document->Map().Display() == L"heading\n" && document->Elements()[1u].role == SemanticRole::Heading &&
+                  document->Elements()[1u].heading == level && document->Runs().front().heading == level,
+              "all six native HTML heading levels retain explicit native role/style metadata");
+    }
+    for (const auto destination : {L"http://example.invalid", L"mailto:a@example.invalid", L"relative/path#part", L"#fragment", L""})
+    {
+        const auto document = Build(std::wstring(L"one <a title='hint' href='") + destination + L"'>label</a>\n");
+        Check(document->Map().Display() == L"one label\n", "supported HTML URI forms and title-before-href stay inert native text");
+    }
+    for (const auto breakTag : {L"<br>", L"<br/>", L"<br />", L"<BR />"})
+        Check(Build(std::wstring(L"one") + breakTag + L"two\n")->Map().Display() == L"one\ntwo\n", "all declared void-break spellings have one native LF");
+    Check(Build(L"<div>text</div>\n")->Map().Display() == L"text\n", "a single div wrapper uses native paragraph content");
+    Check(Build(L"one <A HREF='#x' TITLE='hint'>label</A>\n")->Map().Display() == L"one label\n",
+          "native HTML tag/attribute names use ASCII case-insensitive matching");
+    struct Example
+    {
+        std::wstring_view source, display;
+    };
+    constexpr Example examples[] = {{L"one <b>bold &amp; **nested**</b> end\n", L"one bold & nested end\n"},
+                                    {L"*a <b>b</b> c*\n", L"a b c\n"},
+                                    {L"<p>native <strong>bold</strong><br/>line &fjlig;</p>\r\n", L"native bold\nline fj\n"},
+                                    {L"<h2>Title <i>x</i></h2>\n", L"Title x\n"},
+                                    {L"<pre>a &amp;\r\n  b</pre>\n", L"a &\n  b\n"},
+                                    {L"one <a href='https://example.invalid?q=1&amp;x=2' title='A &quot;B&quot;'>go **now**</a>\n", L"one go now\n"},
+                                    {L"a <U>u</U><s>s</s><del>d</del><code>c</code><span>x</span><br>z\n", L"a usdcx\nz\n"},
+                                    {L"<b></b>\n", L" \n"},
+                                    {L"<p></p>\n", L" \n"},
+                                    {L"<script>alert(1)</script>\n", L"<script>alert(1)</script>\n"},
+                                    {L"one <b>**x**</i> end\n", L"one <b>**x**</i> end\n"},
+                                    {L"one <b>ok</b> <span class='x'>**literal**</span>\n", L"one <b>ok</b> <span class='x'>**literal**</span>\n"},
+                                    {L"<div><p>nested block</p></div>\n", L"<div><p>nested block</p></div>\n"},
+                                    {L"[MD](local) and <a href='data:text/plain,hi'>bad</a>\n", L"[MD](local) and <a href='data:text/plain,hi'>bad</a>\n"},
+                                    {L"<p>**HTML block text**</p>\n", L"**HTML block text**\n"},
+                                    {L"<p>a  b\r\n c</p>\n", L"a  b\n c\n"},
+                                    {L"<p>&lt;script&gt;x&lt;/script&gt;</p>\n", L"<script>x</script>\n"},
+                                    {L"one <a href='#x'>*x</a> ![alt](local)*\n", L"one x [image: alt]\n"},
+                                    {L"one <a href='#x'>*x</a> [tail](local)*\n", L"one x tail\n"}};
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (std::size_t index = 0u; index < std::size(examples); ++index)
+        {
+            const auto document = Build(examples[index].source, profile);
+            if (document->Map().Display() != examples[index].display)
+                std::wcerr << L"native HTML example=" << index << L" profile=" << static_cast<unsigned>(profile) << L" expected=" << examples[index].display
+                           << L" actual=" << document->Map().Display() << L'\n';
+            Check(document->Map().Source() == examples[index].source && document->Map().Display() == examples[index].display,
+                  "native HTML independent literal/value oracle and exact raw source");
+            CheckGraph(*document);
+        }
+    const auto styles  = Build(L"*a <b>b</b> c* <u>d</u> [go](local)\n");
+    const auto flagsAt = [&](std::size_t at)
+    {
+        for (const auto& run : styles->Runs())
+            if (run.start <= at && at < run.start + run.length)
+                return run.flags;
+        return 0u;
+    };
+    Check(flagsAt(0u) == Italic && flagsAt(2u) == (Italic | Bold) && flagsAt(4u) == Italic && flagsAt(6u) == Underline && flagsAt(8u) == Link,
+          "HTML style closure and Markdown style inheritance are independent; links are explicit underlined roles");
+    const auto anchor = Build(examples[5u].source);
+    const auto link =
+        std::find_if(anchor->Elements().begin(), anchor->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Link; });
+    Check(link != anchor->Elements().end() && link->name == L"go now" && link->destination == L"https://example.invalid?q=1&x=2" && link->title == L"A \"B\"",
+          "HTML anchors retain decoded inert destination/title and resolved label");
+    const auto opening = examples[5u].source.find(L"<a"), label = examples[5u].source.find(L"go");
+    Check(anchor->Map().DisplayRanges({opening, label}).empty(), "validated HTML tags/attributes have no source selection glyphs");
+    const auto entity = Build(L"<p>&fjlig; &#x1f600; &NotEqualTilde;</p>\n");
+    RichSemanticTests::CheckRanges(entity->Map().SourceRanges({0u, 2u}), {{3u, 10u}}, "HTML two-scalar entity owns its exact atomic raw token");
+    for (const auto unsafe : {L"javascript&#x3a;alert(1)", L"vbscript:x", L"data:x", L"java&#10;script:x", L"file:///x", L"https://a b"})
+    {
+        const std::wstring source = std::wstring(L"one <b>ok</b> <a href='") + unsafe + L"'>link</a>\n";
+        Check(Build(source)->Map().Display() == source, "unsupported/obfuscated HTML destinations reject the whole leaf without partial tag hiding");
+    }
+    for (const auto invalid : {L"one <b onclick='x'>x</b>\n",
+                               L"one <b/>x\n",
+                               L"one </br>x\n",
+                               L"one <a href='x' href='y'>x</a>\n",
+                               L"one <a href=x>x</a>\n",
+                               L"one <b>x\n",
+                               L"one <!-- c -->x\n",
+                               L"one <a href='x'>[nested](y)</a>\n",
+                               L"[<a href='x'>nested</a>](y)\n"})
+        Check(Build(invalid)->Map().Display() == invalid, "malformed/active/nested-anchor HTML is literal atomically");
+    std::wstring deep = L"one ";
+    for (unsigned i = 0u; i < 33u; ++i)
+        deep += L"<b>";
+    deep += L"x";
+    for (unsigned i = 0u; i < 33u; ++i)
+        deep += L"</b>";
+    deep += L"\n";
+    Check(Build(deep)->Map().Display() == deep, "native HTML nesting admission has a literal fallback");
+    deep.erase(4u, 3u);
+    deep.erase(deep.size() - 5u, 4u);
+    Check(Build(deep)->Map().Display() == L"one x\n", "the exact supported HTML nesting depth is admitted");
+    std::wstring many = L"one ";
+    for (unsigned i = 0u; i < 4096u; ++i)
+        many += L"<br>";
+    many += L"\n";
+    Check(Build(many)->Map().Display() == std::wstring(L"one ") + std::wstring(4096u, L'\n'), "the exact native HTML tag-count bound is admitted");
+    many.insert(many.size() - 1u, L"<br>");
+    Check(Build(many)->Map().Display() == many, "native HTML tag overflow retains the whole leaf literally");
+    const auto whitespace = Build(L"<p>a  b\r\n c</p>\n");
+    RichSemanticTests::CheckRanges(whitespace->Map().SourceRanges({4u, 5u}), {{7u, 9u}}, "native HTML normalized line ending owns its exact raw CRLF");
+    const auto empty = Build(L"<p><b></b></p>\n");
+    Check(empty->Paragraphs()[0u].emptyInsertion == 6u && empty->Map().DisplayRanges({0u, empty->Map().Source().size()}).empty(),
+          "empty balanced HTML has a real interior source insertion without generated selection glyphs");
 }
 inline void SchedulingAndAdmission()
 {

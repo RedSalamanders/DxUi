@@ -9,11 +9,13 @@ enum class ViewMode
 };
 enum Style : unsigned
 {
-    Regular = 0,
-    Bold    = 1,
-    Italic  = 2,
-    Code    = 4,
-    Strike  = 8
+    Regular   = 0,
+    Bold      = 1,
+    Italic    = 2,
+    Code      = 4,
+    Strike    = 8,
+    Underline = 16,
+    Link      = 32 // Inert semantic link presentation, never an activation request.
 };
 struct StyleRun
 {

@@ -1399,10 +1399,13 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticTests::TransactionRejections);
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
+    RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
+    RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
@@ -1421,6 +1424,9 @@ __declspec(noinline) static int RunFunctionalTests()
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); });
             RichSemanticEditorTests::SourceCaretSites(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
+            RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded hanging markers and HTML preparation");
+            });
         });
         transactionView.Detach();
     }

@@ -16,6 +16,14 @@ void TestRichSemanticGeometrySourceCaretSites()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
 }
+void TestRichSemanticGeometryHangingMarkersLinksAndHtml()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
+}
+void TestRichSemanticGeometryLinkRasterOracle()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+}
 void TestRichSemanticNativeSourceCaretSites()
 {
     AttachedHostWindow window;
@@ -23,6 +31,15 @@ void TestRichSemanticNativeSourceCaretSites()
     {
         RichSemanticEditorTests::SourceCaretSites(window.Host(),
                                                   [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source caret sites"); });
+    });
+}
+void TestRichSemanticNativeHangingMarkersLinksAndHtml()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::HangingMarkersLinksAndHtml(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native hanging markers and HTML"); });
     });
 }
 void TestRichSemanticNativeRetainedRendering()
@@ -46,7 +63,10 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);
+    DXUI_RUN_TEST(TestRichSemanticGeometryHangingMarkersLinksAndHtml);
+    DXUI_RUN_TEST(TestRichSemanticGeometryLinkRasterOracle);
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
+    DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

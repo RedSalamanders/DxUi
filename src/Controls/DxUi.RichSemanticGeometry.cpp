@@ -15,7 +15,7 @@ struct SemanticBox
     float x{}, y{}, width{}, height{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
-    bool caretOnly{};
+    bool caretOnly{}, markerOnly{};
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -140,7 +140,7 @@ struct PreparedSemanticGeometry::State
             const float dy        = y < frame.top ? frame.top - y : y > frame.bottom ? y - frame.bottom : 0.0f;
             const float dx        = x < frame.left ? frame.left - x : x > frame.right ? x - frame.right : 0.0f;
             const double distance = static_cast<double>(dy) * 100000.0 + static_cast<double>(dx);
-            if (distance < best)
+            if (distance < best || (distance == best && boxes[chosen]->markerOnly && ! boxes[i]->markerOnly))
             {
                 chosen = i;
                 best   = distance;
@@ -155,6 +155,7 @@ struct PreparedSemanticGeometry::Preparation
     {
         IndexElements,
         CountSites,
+        MarkerLayouts,
         Layouts,
         RowPlacement,
         SourceLines,
@@ -163,16 +164,73 @@ struct PreparedSemanticGeometry::Preparation
         Publish
     };
     explicit Preparation(std::shared_ptr<const SemanticDocument> document, IDWriteFactory* factory, const LayoutOptions& options)
-        : state(std::make_unique<State>(std::move(document), factory, options))
+        : state(std::make_unique<State>(std::move(document), factory, options)),
+          markers(state->document->Paragraphs().size()),
+          gutters(state->document->Syntax()->Nodes().size(), 0.0f)
     {
     }
     std::unique_ptr<State> state;
+    std::vector<std::unique_ptr<SemanticBox>> markers;
+    std::vector<float> gutters;
     Phase phase = Phase::IndexElements;
     std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{};
     float y{}, rowHeight{};
     bool rowActive{};
-    std::size_t emptyLine{}, plannedBoxes{};
+    std::size_t emptyLine{}, plannedBoxes{}, markerIndex{}, lastLayoutCalls{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
+    static bool SplitMarker(const SemanticParagraph& paragraph) noexcept
+    {
+        return paragraph.markerOwner != MarkdownNoNode && paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd < paragraph.display.last;
+    }
+    float Gutter(const SemanticParagraph& content) const
+    {
+        float result      = 0.0f;
+        const auto& nodes = state->document->Syntax()->Nodes();
+        auto node         = content.syntaxNode;
+        // Container indentation already caps at 64 levels. Marker columns use
+        // the same bounded ancestor walk and are clamped again to the viewport.
+        for (unsigned depth = 0u; node != MarkdownNoNode && depth < 64u; ++depth, node = nodes[node].parent)
+            if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
+                result += gutters[nodes[node].parent];
+        if (! std::isfinite(result))
+            throw std::overflow_error("Nonfinite semantic marker gutter");
+        return result;
+    }
+    bool MeasureMarkerOne()
+    {
+        const auto paragraphs = state->document->Paragraphs();
+        if (markerIndex == paragraphs.size())
+        {
+            phase = Phase::Layouts;
+            return false;
+        }
+        const auto index    = markerIndex++;
+        const auto& content = paragraphs[index];
+        if (content.markerOwner == MarkdownNoNode)
+            return false;
+        if (content.markerEnd <= content.display.first || content.markerEnd > content.display.last)
+            throw std::logic_error("Invalid semantic marker prefix");
+        auto box                    = std::make_unique<SemanticBox>();
+        box->paragraph              = content;
+        box->paragraph.display.last = content.markerEnd;
+        auto options                = state->options;
+        // Native no-wrap measurement is separate from the body's width. Its
+        // cached metrics retain the natural advance even for an unusual font.
+        options.widthDip      = std::max(options.widthDip, options.fontSizeDip * 32.0f);
+        options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
+        Projection projection{
+            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+        IdentityProjection(*state->document, box->paragraph.display, projection);
+        box->layout.PrepareSemanticOwned(state->factory.get(), projection, options, true);
+        const auto width = box->layout.HorizontalTextBounds().second;
+        if (! std::isfinite(width) || width < 0.0f)
+            throw std::overflow_error("Nonfinite semantic marker width");
+        const auto list = state->document->Syntax()->Nodes()[content.markerOwner].parent;
+        gutters[list]   = std::max(gutters[list], width);
+        box->height     = box->layout.Height();
+        markers[index]  = std::move(box);
+        return true;
+    }
     std::size_t SourceFirst(const SemanticParagraph& content) const
     {
         const auto& nodes = state->document->Syntax()->Nodes();
@@ -189,6 +247,7 @@ struct PreparedSemanticGeometry::Preparation
     }
     void LayoutOne()
     {
+        lastLayoutCalls       = 0u;
         auto& next            = *state;
         const auto paragraphs = next.document->Paragraphs();
         const auto emptyLines = next.document->Syntax()->EmptyLines();
@@ -248,11 +307,17 @@ struct PreparedSemanticGeometry::Preparation
         }
         if (next.boxes.size() == SemanticDocument::MaximumParagraphs)
             throw std::length_error("Semantic native paragraph/caret-site capacity exceeded");
-        auto box         = std::make_unique<SemanticBox>();
+        auto marker      = consumeParagraph ? std::move(markers[paragraph]) : nullptr;
+        const bool split = marker && SplitMarker(content);
+        if (split)
+            content.display.first = content.markerEnd;
+        auto box         = marker && ! split ? std::move(marker) : std::make_unique<SemanticBox>();
         box->paragraph   = content;
         box->caretOnly   = caretOnly;
         box->sourceCaret = caretLine;
         const auto& node = next.document->Syntax()->Nodes()[content.syntaxNode];
+        if (content.emptyInsertion != MarkdownNoNode)
+            box->sourceCaret = MarkdownEmptyLine{node.block.source, content.emptyInsertion, content.syntaxNode, content.indent};
         if (! box->sourceCaret && node.block.content.first == node.block.content.last)
         {
             box->sourceCaret = MarkdownEmptyLine{table ? node.block.content : node.block.source, node.block.content.first, content.syntaxNode, content.indent};
@@ -271,12 +336,13 @@ struct PreparedSemanticGeometry::Preparation
                 box->sourceCaret->insertion = insertion;
             }
         }
-        const bool rtl        = next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
-        const float indent    = std::min(next.options.widthDip - 1.0f, static_cast<float>(std::min(content.indent, 64u)) * 16.0f);
-        box->x                = rtl ? 0.0f : indent;
-        box->y                = y;
-        box->width            = next.options.widthDip - indent;
-        LayoutOptions options = next.options;
+        const bool rtl         = next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        const float baseIndent = static_cast<float>(std::min(content.indent, 64u)) * 16.0f;
+        const float indent     = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
+        box->x                 = rtl ? 0.0f : indent;
+        box->y                 = y;
+        box->width             = next.options.widthDip - indent;
+        LayoutOptions options  = next.options;
         if (table)
         {
             if (! content.columns || content.column >= content.columns)
@@ -302,16 +368,53 @@ struct PreparedSemanticGeometry::Preparation
                 options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         }
         options.widthDip = std::max(1.0f, box->width);
-        Projection projection{
-            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-        IdentityProjection(*next.document, content.display, projection);
-        box->layout.PrepareSemanticOwned(next.factory.get(), projection, options);
-        box->height = box->layout.Height();
-        box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        if (! box->layout.Ready())
+        {
+            Projection projection{
+                std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+            IdentityProjection(*next.document, content.display, projection);
+            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options);
+            lastLayoutCalls = 1u;
+        }
+        box->height  = box->layout.Height();
+        box->frame   = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        float bottom = box->frame.bottom;
+        if (content.markerOwner != MarkdownNoNode && ! split && consumeParagraph)
+        {
+            const auto [left, width] = box->layout.HorizontalTextBounds();
+            const auto actualLeft    = rtl ? next.options.widthDip - indent : indent - width;
+            box->x                   = actualLeft - left;
+            box->width               = width;
+            box->frame               = D2D1::RectF(actualLeft, box->y, actualLeft + width, box->y + box->height);
+        }
+        if (marker)
+        {
+            // Two real layouts share one first baseline. The marker column is
+            // measured once per list, so 9./10., tasks and continuation leaves
+            // agree on the same text edge in either reading direction.
+            const auto [left, width] = marker->layout.HorizontalTextBounds();
+            const auto markerLines = marker->layout.LineMetrics(), bodyLines = box->layout.LineMetrics();
+            const float markerBaseline = markerLines.empty() ? 0.0f : markerLines.front().baseline;
+            const float bodyBaseline   = bodyLines.empty() ? 0.0f : bodyLines.front().baseline;
+            const float baseline       = std::max(markerBaseline, bodyBaseline);
+            marker->markerOnly         = true;
+            marker->y                  = y + baseline - markerBaseline;
+            box->y                     = y + baseline - bodyBaseline;
+            box->frame.top             = box->y;
+            box->frame.bottom          = box->y + box->height;
+            const auto actualLeft      = rtl ? next.options.widthDip - indent : indent - width;
+            marker->x                  = actualLeft - left;
+            marker->width              = width;
+            marker->frame              = D2D1::RectF(actualLeft, marker->y, actualLeft + width, marker->y + marker->height);
+            bottom                     = std::max(marker->frame.bottom, box->frame.bottom);
+            Union(next.bounds[content.element], marker->frame);
+            next.glyphBoxes.push_back(next.boxes.size());
+            next.boxes.push_back(std::move(marker));
+        }
         if (table)
             rowHeight = std::max(rowHeight, box->height);
         else
-            y = AddHeight(y, box->height + 8.0f);
+            y = AddHeight(bottom, 8.0f);
         if (consumeParagraph)
             ++paragraph;
         if (consumeEmptyLine)
@@ -328,7 +431,8 @@ struct PreparedSemanticGeometry::Preparation
         {
             auto& box = *next.boxes[rowPlacement++];
             const float cellWidth =
-                (next.options.widthDip - std::min(next.options.widthDip - 1.0f, static_cast<float>(std::min(box.paragraph.indent, 64u)) * 16.0f)) /
+                (next.options.widthDip -
+                 std::min(next.options.widthDip - 1.0f, static_cast<float>(std::min(box.paragraph.indent, 64u)) * 16.0f + Gutter(box.paragraph))) /
                 static_cast<float>(box.paragraph.columns);
             box.frame                          = D2D1::RectF(box.x - 6.0f, y, box.x - 6.0f + cellWidth, y + rowHeight + 12.0f);
             next.bounds[box.paragraph.element] = box.frame;
@@ -394,29 +498,44 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.paragraph == paragraphs.size() && work.emptyLine == lines.size())
                 {
                     work.paragraph = work.emptyLine = 0u;
-                    work.phase                      = Preparation::Phase::Layouts;
+                    work.phase                      = Preparation::Phase::MarkerLayouts;
                     continue;
                 }
+                std::size_t additional = 1u;
                 if (work.emptyLine < lines.size() &&
                     (work.paragraph == paragraphs.size() || lines[work.emptyLine].source.first <= work.SourceFirst(paragraphs[work.paragraph])))
                 {
                     if (work.paragraph < paragraphs.size() && paragraphs[work.paragraph].syntaxNode == lines[work.emptyLine].owner)
+                    {
+                        if (Preparation::SplitMarker(paragraphs[work.paragraph]))
+                            ++additional;
                         ++work.paragraph;
+                    }
                     ++work.emptyLine;
                 }
                 else
+                {
+                    if (Preparation::SplitMarker(paragraphs[work.paragraph]))
+                        ++additional;
                     ++work.paragraph;
-                if (++work.plannedBoxes > SemanticDocument::MaximumParagraphs)
+                }
+                work.plannedBoxes += additional;
+                if (work.plannedBoxes > SemanticDocument::MaximumParagraphs)
                     throw std::length_error("Semantic native paragraph/caret-site admission exceeded");
+            }
+            else if (work.phase == Preparation::Phase::MarkerLayouts)
+            {
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    break;
+                if (work.MeasureMarkerOne())
+                    ++result.layoutsPrepared;
             }
             else if (work.phase == Preparation::Phase::Layouts)
             {
                 if (result.layoutsPrepared == budget.maximumLayouts)
                     break;
-                const auto oldCount = work.state->boxes.size();
                 work.LayoutOne();
-                if (work.state->boxes.size() != oldCount)
-                    ++result.layoutsPrepared;
+                result.layoutsPrepared += work.lastLayoutCalls;
             }
             else if (work.phase == Preparation::Phase::RowPlacement)
                 work.PlaceRowOne();
@@ -437,6 +556,12 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     continue;
                 }
                 const auto& box = *prepared.boxes[work.lineBox];
+                if (box.markerOnly)
+                {
+                    ++work.lineBox;
+                    work.lineOffset = 0u;
+                    continue; // Its body's first line owns the same raw prefix.
+                }
                 if (box.sourceCaret && box.paragraph.table == MarkdownNoNode)
                 {
                     const auto& line = *box.sourceCaret;
@@ -656,15 +781,38 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
             if (forwards ? result > source : result < source)
                 return {result, index};
         }
-    if ((forwards && index + 1u == state.boxes.size()) || (! forwards && ! index))
-        return {source, index};
-    const auto neighbor = forwards ? index + 1u : index - 1u;
-    const auto& target  = *state.boxes[neighbor];
-    if (target.sourceCaret)
-        return {target.sourceCaret->insertion, neighbor};
-    return {map.ToSource(forwards ? target.paragraph.display.first : target.paragraph.display.last,
-                         forwards ? MappingAffinity::Leading : MappingAffinity::Trailing),
-            neighbor};
+    auto neighbor = index;
+    while (forwards ? neighbor + 1u < state.boxes.size() : neighbor > 0u)
+    {
+        neighbor           = forwards ? neighbor + 1u : neighbor - 1u;
+        const auto& target = *state.boxes[neighbor];
+        if (target.sourceCaret)
+        {
+            const auto insertion = target.sourceCaret->insertion;
+            // Equal ACPs are meaningful only for explicit visual source sites,
+            // such as padded cells. Generated marker anchors must not reverse
+            // direction or add an invisible extra arrow stop between layouts.
+            if (forwards ? insertion >= source : insertion <= source)
+                return {insertion, neighbor};
+            continue;
+        }
+        auto position = forwards ? target.paragraph.display.first : target.paragraph.display.last;
+        auto raw      = map.ToSource(position, forwards ? MappingAffinity::Leading : MappingAffinity::Trailing);
+        if (forwards ? raw > source : raw < source)
+            return {raw, neighbor};
+        while (forwards ? position < target.paragraph.display.last : position > target.paragraph.display.first)
+        {
+            const auto local = position - target.paragraph.display.first;
+            const auto next  = target.paragraph.display.first + (forwards ? target.layout.NextCluster(local) : target.layout.PreviousCluster(local));
+            if (next == position)
+                break;
+            position = map.SnapDisplayBoundary(next, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
+            raw      = map.ToSource(position, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
+            if (forwards ? raw > source : raw < source)
+                return {raw, neighbor};
+        }
+    }
+    return {source, index};
 }
 SourceCaretHit PreparedSemanticGeometry::SourceLineBoundary(std::size_t source, std::size_t site, bool end) const
 {

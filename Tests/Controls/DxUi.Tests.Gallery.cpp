@@ -1080,9 +1080,10 @@ void AddComboItems(ComboBox& combo)
         field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
     }
     {
-        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / semantic preview", 2u, 340.0f);
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / semantic preview", 2u, 480.0f);
         auto* editor    = scene.root->AddChild<RichTextEditor>(
-            L"# Owned Unicode\r\n\r\n**Bold**, *italic*, `code`, ~~strike~~ and &amp;.\r\n\r\n"
+            L"# Owned Unicode\r\n\r\n**Bold**, *italic*, `code`, ~~strike~~, [link](local) and <u>HTML</u> &amp;.\r\n\r\n"
+            L"9. A hanging marker keeps wrapped text aligned with the first text column.\n10. Both items share a text edge.\n\n"
             L"| Language | Text |\n| :--- | ---: |\n| Greek | \u03b2 |\n| Japanese | \u65e5\u672c\u8a9e \U0001f600 |\n\n> Source-preserving semantic preview");
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
         editor->SetMarkdownRenderingEnabled(true);

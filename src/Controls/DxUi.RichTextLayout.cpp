@@ -73,6 +73,7 @@ struct PreparedLayout::State
     std::vector<DWRITE_LINE_METRICS> lineMetrics;
     float height{};
     float drawingTop{}, drawingBottom{};
+    float textLeft{}, textWidth{};
     float verticalOrigin{};
     UINT32 textOffset{};
     bool positionedExactly = true;
@@ -137,11 +138,12 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options)
+void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker)
 {
-    PrepareOwned(factory, projection, options, 0.0f, true);
+    PrepareOwned(factory, projection, options, 0.0f, true, marker);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin, bool semanticDisplay)
+void PreparedLayout::PrepareOwned(
+    IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin, bool semanticDisplay, bool marker)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -173,7 +175,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
     for (const auto& run : projection.runs)
     {
         if (run.start > projection.text.size() || run.length > projection.text.size() - run.start || run.heading > 6 ||
-            (run.flags & ~(Bold | Italic | Code | Strike)) || ! IsEditBoundary(projection.text, run.start) ||
+            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) || ! IsEditBoundary(projection.text, run.start) ||
             ! IsEditBoundary(projection.text, run.start + run.length))
             throw std::invalid_argument("Invalid rich-text style range");
     }
@@ -190,7 +192,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
                                     options.locale.c_str(),
                                     format.put()),
           "CreateTextFormat");
-    Check(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
+    Check(format->SetWordWrapping(marker ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
     wil::com_ptr<IDWriteTextLayout> layout;
@@ -224,6 +226,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
             Check(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range), "SetFontStyle");
         if (run.flags & Strike)
             Check(layout->SetStrikethrough(TRUE, range), "SetStrikethrough");
+        if (run.flags & (Underline | Link))
+            Check(layout->SetUnderline(TRUE, range), "SetUnderline");
         if (run.flags & Code)
             Check(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range), "SetFontFamilyName");
         if (run.heading)
@@ -268,6 +272,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
     next->height            = metrics.height;
     next->drawingTop        = drawingTop;
     next->drawingBottom     = drawingBottom;
+    next->textLeft          = metrics.left;
+    next->textWidth         = metrics.widthIncludingTrailingWhitespace;
     next->verticalOrigin    = verticalOrigin;
     next->textOffset        = textOffset;
     next->positionedExactly = positionedExactly;
@@ -303,6 +309,12 @@ std::span<const DWRITE_LINE_METRICS> PreparedLayout::LineMetrics() const
     if (! state_)
         throw std::logic_error("Unprepared rich-text line metrics");
     return state_->lineMetrics;
+}
+std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
+{
+    if (! state_)
+        throw std::logic_error("Unprepared rich-text horizontal metrics");
+    return {state_->textLeft, state_->textWidth};
 }
 float PreparedLayout::VerticalOrigin() const noexcept
 {

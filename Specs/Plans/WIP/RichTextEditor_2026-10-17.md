@@ -1788,6 +1788,23 @@ cannot close D4c.
       profiles/resources, review gallery and record evidence before closeout.
   - [ ] M4d.3: Hanging marker indentation, link presentation and the explicitly
     validated native HTML subset with source-preserving literal fallback.
+    - [x] Measure generated markers through bounded native preparation; align
+      wrapped/continuation text in a shared list gutter, including tasks, nested
+      containers, RTL and narrow widths, with one coherent source geometry.
+    - [x] Underline Markdown/native HTML links in inherited theme text ink;
+      preserve destination/title as inert metadata and exact source ACPs.
+    - [x] Validate balanced attribute-free b/strong/i/em/u/s/del/code/span and
+      br tags, quoted href/title anchors, and at most one outer p/div/h1-h6/pre
+      wrapper in an HTML block. Decode character references with the existing
+      parser decoder. Reject unknown tags/attributes, malformed/crossed/deep
+      nesting and unsafe URI schemes atomically to whole-leaf literal display.
+      Keep Markdown semantics within valid inline HTML; block HTML text does
+      not become Markdown. No DOM, scripts, fetch, CSS or implicit navigation.
+    - [x] Add independent native/embedded semantic, coordinate, interaction,
+      client, raster, cancellation/capacity and allocation-failure tests.
+    - [ ] Freeze and qualify required runtime/build profiles, resource probes,
+      baseline/candidate diagnostics, validators/format, sample and five themes;
+      update supported capabilities and normative/usage/design-system docs.
 - [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
   with source-exact history and read-only/disabled/stale/reentrant coverage.
 - [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
@@ -2193,3 +2210,50 @@ M5/M6, physical IME/AT/foreground, native ARM64 runtime, consumer adoption and
 performance acceptance remain open. No foreground suites or consumer pin changes
 were made. D4c remains HOLD; diagnostic timings cannot establish causality or
 close the separate acceptance gate.
+### M4d.3 implementation checkpoint (qualification pending)
+
+The unchanged `8fb5ccbe` baseline was rebuilt after an initial SkipBuild identity
+refusal. Retain `baseline-fresh.log`, Default receipt and actual Release artifacts
+under `.build/reports/rich-semantic-m4d3-20261019`; no prior HOLD baseline changed.
+The implementation follows the explicit native subset now owned by the UI layout
+contract. It adds no browser, resource loader, device, HWND, worker or timer.
+Private marker measurement/body staging share admission and work budgets; link
+underlining uses inherited ink. Raw source, original EOLs, history and text-store
+ACPs remain authoritative. Block-only marker rows retain their existing policy.
+
+The first build failed /WX shadowing and the second found two missing modifier
+arguments in new test calls; both are corrected. A third attempt refused old
+compiler `unsuccessfulbuild` markers before MSBuild. Their exact paths/hashes and
+files are archived individually in `failed-build-markers`; no validator was
+weakened. Build4 and initial focused checks passed. A separate public-API CPU
+probe then proved an image inherited a closed HTML anchor when emphasis crossed
+its closing tag. `AnchorOwnershipBefore` retains its actual executable/PDB/lib,
+source and output (`allChildrenFitParents=0`). The builder now resolves active
+HTML ownership when creating real elements, with new independent image/link
+regressions. The rebuilt probe reports `allChildrenFitParents=1`.
+
+Build5 passed the new filters and both real native/embedded UIA clients, including
+empty balanced HTML. Isolated geometry/query failure probes passed. Its ordinary
+embedded run exposed an existing source-zero Left oracle at the new marker/body
+boundary. Preserve `NavigationBefore` and `embedded-attempt5.log`; the corrected
+neighbor walk filters direction and skips generated/equal ordinary stops while
+retaining equal-ACP explicit padded sites. Existing and strengthened all-legal-ACP
+navigation cases remain unchanged as judges.
+
+Build6 complete EditorControls and Embedded pass. The embedded run reports 26,180
+checks, 637 semantic document failure points plus 16 pending Begin points, 853
+geometry failures and 82 query failures (v0 rectangles/lines 12/9, semantic 58/3).
+Coalescing/scalar queries/retirement and 1,000 warm composites allocate zero tracked
+C++ storage. Maximum plain semantic retention is 1,443,371 bytes, parser retention/
+replacement peak 14,551,132 / 31,561,451 bytes, each released to its initial tracked
+total, within unchanged limits. These are preliminary Debug C++ observations,
+not SDK/driver memory, causal timing or final profile/platform qualification.
+Final positive tag-alias/heading/URI/break coverage, documentation and minor
+private-helper cleanup precede the frozen qualification below.
+
+The final component gate still requires the frozen nine x64 scope/profile runs,
+ASan detection, three ARM64 builds, full validation/tooling and pinned format,
+current fault/resource evidence, five reviewed/published themes, actual sample
+capture and retained baseline/candidate diagnostics. Keep M4d.3 unchecked until
+those complete. M4e/f/g, M5/M6 and physical/platform/consumer gates remain open;
+D4c stays HOLD without a rebaseline or acceptance/merge claim.

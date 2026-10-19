@@ -1,4 +1,5 @@
 #include "DxUi.MarkdownBlocks.h"
+#include "DxUi.MarkdownCharacterReference.h"
 #include "DxUi.MarkdownEntityData.h"
 #include "DxUi.MarkdownInlines.h"
 #include "DxUi.TextElements.h"
@@ -129,6 +130,11 @@ bool CharacterReference(std::wstring_view source, std::size_t first, MarkdownLex
 }
 
 } // namespace
+
+bool Detail::DecodeMarkdownCharacterReference(std::wstring_view input, std::size_t first, MarkdownLexeme& token) noexcept
+{
+    return CharacterReference(input, first, token);
+}
 
 MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions)
     : source_(ValidateSource(source, profile)),

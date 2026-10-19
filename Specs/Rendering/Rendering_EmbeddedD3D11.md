@@ -6,8 +6,12 @@ geometry/raster publication and never advances during Composite, source reads
 or UIA queries. Hiding, either zero dimension, detach/root retirement or resource
 replacement cancels the pending owner job. Immutable published source-only
 analysis may survive geometry changes and retained readers may outlive a view.
-Analysis adds no HWND, worker, timer, device or swap chain. The current stage
-does not change v0 formatted pixels or implement a semantic Markdown renderer.
+Analysis adds no HWND, worker, timer, device or swap chain. Analysis alone keeps
+v0 formatted pixels; the separate explicit semantic preview uses the same owner
+turns for CPU lowering, no-wrap marker measurement, body/cell/caret geometry and
+raster preparation. Its bounded native HTML policy uses owned text/role metadata
+and existing brushes, with no DOM or resource loading. Composition consumes only
+the acknowledged cached surface and adds no layout, allocation or periodic work.
 Block-tree preparation uses the same owner traversal. Snapshot ancestry and node
 reconciliation belong to source preparation, never Composite. Equal source in a
 second view has a separate document identity; geometry-only changes may retain a

@@ -13,6 +13,10 @@ void TestRichSemanticDocumentSchedulingAndAdmission()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
 }
+void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+}
 void TestRichSemanticDocumentPinnedSourceCases()
 {
     using namespace DxUi::RichText;
@@ -55,6 +59,7 @@ void TestRichSemanticDocumentPinnedSourceCases()
 void RunRichSemanticDocumentTests()
 {
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);
+    DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDocumentPinnedSourceCases);
 }

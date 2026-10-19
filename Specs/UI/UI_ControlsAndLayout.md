@@ -1025,8 +1025,8 @@ links, images, task objects and rules. Cells retain header/alignment/row/column
 metadata. Source task markers and image alternatives are atomic source objects;
 list markers and padding are generated. Destinations/titles are inert metadata;
 no resource fetch, script, DOM or implicit navigation follows. The current pure
-builder keeps HTML literal; any later native safe subset needs explicit policy,
-balanced validation and source-preserving fallback. Rendering, source caret sites,
+builder uses the bounded native HTML policy below, with balanced validation and
+source-preserving literal fallback. Rendering, source caret sites,
 structural commands and structured accessibility remain separate M4d/f work.
 
 These pure primitives remain independent of graphics. The explicit retained
@@ -1048,13 +1048,64 @@ separate: a completed semantic document can precede its SDK layouts.
 The backend stages independent paragraph/cell DirectWrite layouts, styles,
 indentation, equal-width table columns with declared physical alignment, RTL
 column placement, quote/rule lines and code/image/cell outlines. Destinations are
-inert; images display their owned alternative, not downloaded media. HTML stays
-literal under the current policy. Generated list/task markers are preview text;
-their interactive structural commands and the validated HTML subset remain open.
+inert; images display their owned alternative, not downloaded media. Links use
+native underlining in inherited text ink. Generated list/task markers are preview
+text; their interactive structural commands remain open.
 Every host turn bounds SDK calls and metadata events independently. Layout,
 row placement, source line indexing and element bounds must complete before one
 publication; input/paint/geometry queries never drain staging. No HWND, worker,
 timer, graphics device or scheduler belongs to this backend.
+
+#### Native markers, links and HTML (M4d.3)
+
+Native no-wrap prefix measurement establishes a shared maximum marker advance
+per list. Ordinary marker/body layouts share a first baseline; wrapped lines and
+loose continuation paragraphs retain the body's leading text edge. Nested list
+gutters accumulate with the existing bounded container indentation, mirror for
+RTL and apply to nested table frames/clips as well as glyphs. Existing standalone
+marker rows before first-child list/table/code/HTML/rule blocks remain explicit.
+Marker and body layouts count separately toward the 4,096 native layout ceiling.
+Generated marker ink has no owned source selection glyphs. Native movement across
+boxes preserves logical direction; equal ACPs are separate stops only for explicit
+source sites such as padded cells. Home on a text body uses its text edge;
+Ctrl+Home retains the exact raw document start.
+
+Only the following native HTML subset is projected. Tag and attribute names use
+ASCII case-insensitive matching; opening/closing tag identities must balance.
+
+| Form | Native behavior and validation |
+| --- | --- |
+| b, strong, i, em, u, s, del, code, span | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. |
+| a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
+| br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
+| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |
+
+One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
+tags, comments/declarations, attributes (including class/style/events), malformed,
+crossed or unclosed tags, depth/tag overflow, overlapping Markdown/native anchors
+and ineligible HTML destinations reject the complete leaf before any tag is
+hidden. The resulting leaf contents use literal monospaced presentation after
+ordinary outer Markdown container normalization. This is a local literal policy;
+the retained backend can still report Semantic. SourceFallback is reserved for
+the existing whole-document/native-admission path.
+
+HTML destination eligibility allows http, https and mailto schemes plus empty,
+relative and fragment values. Decode references first, then reject ASCII spaces,
+C0/C1 controls, quotes, angle brackets, backslashes and other schemes. These values
+remain inert metadata: the control resolves no URL, opens no resource and makes
+no network request. Other HTML structures, including HTML lists/tables/images,
+remain literal; their Markdown counterparts retain their native behavior.
+
+Valid inline HTML preserves surrounding Markdown inline semantics. HTML-block
+contents preserve normalized whitespace/EOLs and treat Markdown spelling as text.
+Character references use the pinned syntax decoder and atomic raw token ownership;
+decoded markup characters remain text and are never scanned again as tags. This
+policy implements native text presentation, without browser DOM/CSS layout or
+recovery semantics. Fenced/inline code and image alternatives retain their existing
+literal ownership. Empty balanced HTML records a real interior insertion site;
+typing changes exact source between the retained tag pairs in one undo transaction.
+Semantic roles/styles do not replace raw TSF/UIA ACPs. Link invocation and full
+structural/style accessibility remain M4e/f.
 
 Selection, composition, text-service rectangles and source-range scrolling use
 the map's actual fragments, including atomic transformed/object spans. Hidden
@@ -1079,7 +1130,7 @@ affinity. It survives same-source reflow/retirement and unchanged text-service
 synchronization; source replacement, explicit selection or mode/profile changes
 clear it. It never becomes document text, a virtual ACP or an undo entry.
 Noncollapsed source range bounds still contain only owned glyph fragments.
-All native paragraphs/cells/caret boxes together share the 4,096-layout ceiling;
+All native marker/body/paragraph/cell/caret layouts share the 4,096-layout ceiling;
 overflow selects exact source fallback once for that immutable syntax.
 
 Collapsed visual deletion expands a source caret inside a transformed/object

@@ -809,7 +809,8 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bo
     Hr(second.Attach(graphics), "rich-text second view");
     std::wstring source = L"# Owned Unicode\r\n**bold** \u03b2 \U0001f600 a\u0301\n\u05d0\u05d1\u05d2\nlast";
     if (semanticRendering)
-        source += L"\n\n>\r\n- \r\n\n| a | b |\n| - | - |\n| value |\n";
+        source = L"9. [link](local)\n10. <b>native</b>\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n" + source +
+                 L"\n\n>\r\n- \r\n\n| a | b |\n| - | - |\n| value |\n";
     auto a       = std::make_unique<RichTextEditor>(source);
     auto b       = std::make_unique<RichTextEditor>(source);
     auto* editor = a.get();

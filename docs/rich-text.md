@@ -653,7 +653,8 @@ cache-validity or geometry-generation key; also check the source revision/profil
 HTML blocks remain exact opaque source. A later semantic stage will map an
 explicit safe subset to our native renderer. No browser DOM, script execution,
 event handler execution or automatic remote loading is introduced. Unsupported
-HTML remains editable source; the current formatted view is still the v0 preview.
+HTML remains editable source. Analysis alone retains the v0 preview; the explicit
+semantic rendering option uses the bounded native HTML policy below.
 
 The native tests preserve all 652 CommonMark and 672 GFM original example inputs
 and check all named entity values against independently transcribed standard data.
@@ -706,7 +707,8 @@ its math/Mermaid/footnote/front-matter stage. Published inline indices belong to
 one revision; stable block IDs do not validate reference-dependent semantics.
 Reference edits re-resolve links even when the referring paragraph is unchanged.
 
-Values decode ordinary escapes/entities, while code and raw HTML stay literal.
+Values decode ordinary escapes/entities. Code stays literal; semantic HTML uses
+the explicit validated native subset below with whole-leaf literal fallback.
 Extended autolinks retain their own literal entity/backslash spelling. Unicode
 17 full default case folding resolves labels without normalization or OS locale
 dependence. ASCII label whitespace, P versus P/S punctuation and inline declaration
@@ -757,14 +759,16 @@ can be ready before native geometry; neither getter advances preparation.
 The preview displays resolved Unicode values, styles, headings, quote/list
 indentation, rules, code/image outlines and equal-width table cells with declared
 alignment and RTL columns. Images show their alternative; destinations remain
-inert and HTML stays literal. Selection, composition rectangles and scrolling
+inert. Links are underlined in inherited theme text ink. Validated native HTML
+uses the policy below. Selection, composition rectangles and scrolling
 use mapped source fragments. Text services and UIA still expose exact source
 ACPs, including hidden Markdown and original line endings.
 
 Admission overflow uses exact source geometry once and reports SourceFallback;
 it preserves source, requested view, selection and history. A new source/profile
 request can retry. The existing source limit remains 65,536 UTF-16 units;
-semantic admission adds 4,096 native paragraphs/cells/caret boxes and 32,768 elements. These are
+semantic admission adds 4,096 native layouts (including separate marker/body layouts,
+cells and caret boxes) and 32,768 elements. These are
 preview bounds, not large-document latency or performance qualification.
 
 Empty, trailing and container-only source lines have distinct prepared caret
@@ -781,9 +785,34 @@ records the native/embedded scenarios, nine x64 scope passes, three ARM64 builds
 fault/resource observations and actual sample capture. The separate performance
 HOLD remains open, including the retained clean-frame diagnostic warning.
 
-Padded-cell materialization, structural joins
-and formatting cleanup, interactive task commands, link styling, safe HTML
-formatting and structured/style UIA remain active M4 work. Math, Mermaid,
+List markers are measured with native no-wrap layouts. A shared maximum gutter
+aligns 9./10. siblings, wrapped text and loose continuations; nested lists/tables
+inherit ancestor gutters. RTL mirrors placement. Marker and body share their first
+baseline; block-only items retain their existing standalone marker rows. Marker
+ink stays outside source selection ownership and adds no synthetic arrow stop.
+
+The native HTML subset accepts balanced attribute-free b/strong/i/em/u/s/del/code/
+span tags, br/br / breaks, and anchors with exactly one quoted href plus optional
+quoted title. One outer p/div/h1-h6/pre wrapper is allowed in an HTML block.
+References use the parser's pinned decoder; decoded tag-looking text stays text.
+Inline HTML preserves Markdown inline semantics. HTML-block text preserves
+normalized whitespace and treats Markdown spelling literally. Empty balanced
+wrappers have a real interior raw insertion, so typing retains both tag pairs.
+
+Unknown/active tags or attributes, CSS/class/events, malformed/unbalanced/crossed
+tags, nested/sibling block wrappers, overlapping Markdown/HTML anchors, more than
+32 open tags or 4,096 total tags retain the complete normalized leaf contents in
+literal code ink. No valid prefix is partly hidden. This local policy can still
+report Semantic; whole-document capacity failures report SourceFallback.
+HTML href values allow http/https/mailto and relative/fragment/empty values after
+reference decoding, with ASCII spaces/C0/C1 controls, quotes/angle brackets,
+backslashes and other schemes rejected. Destinations stay inert: clicks place a
+caret, double-clicks select source text, and the control opens no URL/resource.
+HTML lists/tables/images and DOM/CSS recovery/layout remain outside this subset.
+Their supported Markdown counterparts retain native rendering.
+
+Padded-cell materialization, structural joins and formatting cleanup,
+interactive task/link commands and structured/style UIA remain active M4 work. Math, Mermaid,
 footnotes/front matter and physical IME/AT/platform/performance gates stay open.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current

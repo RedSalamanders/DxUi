@@ -37,7 +37,7 @@ struct SemanticElement
     unsigned heading{};
     MarkdownTask task{};
     MarkdownAlignment alignment{};
-    bool tableHeader{};
+    bool tableHeader{}, nativeHtml{};
     std::size_t rows{}, columns{};
     std::wstring name, destination, title;
 };
@@ -47,10 +47,15 @@ struct SemanticParagraph
     std::size_t element{}, syntaxNode{}, table = MarkdownNoNode, row{}, column{}, columns{};
     unsigned indent{}, flags{}, heading{};
     MarkdownAlignment alignment{};
+    // Native preparation measures a shared gutter per List. The generated
+    // prefix retains its original display ownership and syntax ListItem owner.
+    std::size_t markerEnd{}, markerOwner = MarkdownNoNode;
+    std::size_t emptyInsertion = MarkdownNoNode;
 };
 // One immutable semantic publication. Raw source remains in Syntax(); rendered
-// values never replace source ACPs. HTML is editable literal text, with no DOM,
-// scripts, remote fetching or implicit navigation. Images are atomic alternatives.
+// values never replace source ACPs. Only the documented balanced native HTML
+// subset is projected; other HTML stays literal. There is no DOM, script,
+// remote fetching or implicit navigation. Images are atomic alternatives.
 class SemanticDocument
 {
 public:

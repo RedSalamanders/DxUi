@@ -28,6 +28,9 @@ The `--rich-text` mode uses a 980x720 canvas and the sample's text-service bridg
 Its headings/styles, tables, quotes, tasks, code and image alternatives use the
 current library's opt-in semantic renderer. Empty/trailing/container-only lines
 and empty/padded cells retain native caret sites without changing raw source.
+The scene also shows measured 9./10. hanging list columns, underlined inert links,
+the validated native HTML text subset and whole-leaf literal CSS fallback.
+HTML tags and original mixed EOLs remain raw editable source.
 Table materialization, structural commands and semantic style UIA remain in the
 active plan. Add `--output image.png` for a deterministic headless capture.
 

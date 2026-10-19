@@ -1,4 +1,4 @@
-#include "DxUi.RichSemanticValues.h"
+#include "DxUi.RichSemanticHtml.h"
 #include <optional>
 
 namespace DxUi::RichText
@@ -28,6 +28,8 @@ struct SemanticBuilder::Preparation
     std::shared_ptr<SemanticDocument> document;
     Detail::SemanticOutput output;
     Detail::SemanticValue normalized;
+    Detail::NativeHtmlPlan html;
+    std::size_t htmlDisplayFirst{};
     std::vector<Visit> visits;
     std::vector<std::size_t> tails;
     std::vector<unsigned> ordinals;
@@ -131,6 +133,45 @@ struct SemanticBuilder::Preparation
         }
         return std::wstring(result);
     }
+    void HtmlTag(const Detail::NativeHtmlTag& tag, std::size_t parent, unsigned flags, unsigned heading)
+    {
+        if (tag.kind == Detail::NativeHtmlKind::A)
+        {
+            if (tag.closing)
+            {
+                if (html.linkElement == MarkdownNoNode)
+                    throw std::logic_error("Native HTML anchor close has no owner");
+                CloseElement(html.linkElement);
+                html.linkElement = MarkdownNoNode;
+            }
+            else
+            {
+                const auto element                       = Element(SemanticRole::Link, {tag.source.first, html.tags[tag.mate].source.last}, parent);
+                document->elements_[element].destination = tag.destination;
+                document->elements_[element].title       = tag.title;
+                html.linkElement                         = element;
+            }
+        }
+        html.flags   = tag.flagsAfter;
+        html.heading = tag.headingAfter;
+        if (tag.kind == Detail::NativeHtmlKind::Br)
+            output.Emit(L"\n", tag.source, DisplaySpanKind::Transformed, flags | html.flags, html.heading ? html.heading : heading);
+    }
+    void HtmlBlock(const Visit& visit)
+    {
+        std::size_t at = 0u;
+        for (const auto& tag : html.tags)
+        {
+            const auto first = std::max(at, html.bodyFirst), last = std::min(tag.first, html.bodyLast);
+            if (first < last)
+                Detail::NativeHtmlText(normalized, first, last, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+            HtmlTag(tag, visit.element, visit.flags, visit.heading);
+            at = tag.last;
+        }
+        const auto first = std::max(at, html.bodyFirst);
+        if (first < html.bodyLast)
+            Detail::NativeHtmlText(normalized, first, html.bodyLast, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+    }
     void Inline(Visit visit)
     {
         const auto& node = document->syntax_->Inlines()[visit.node];
@@ -145,18 +186,29 @@ struct SemanticBuilder::Preparation
             sibling.node = node.nextSibling;
             visits.push_back(sibling);
         }
-        auto flags = visit.flags;
+        auto markdownFlags = visit.flags;
         switch (node.kind)
         {
-            case MarkdownInlineKind::Strong: flags |= Bold; break;
-            case MarkdownInlineKind::Emphasis: flags |= Italic; break;
-            case MarkdownInlineKind::Strikethrough: flags |= Strike; break;
+            case MarkdownInlineKind::Strong: markdownFlags |= Bold; break;
+            case MarkdownInlineKind::Emphasis: markdownFlags |= Italic; break;
+            case MarkdownInlineKind::Strikethrough: markdownFlags |= Strike; break;
+            case MarkdownInlineKind::Link: markdownFlags |= Link; break;
             default: break;
         }
-        auto parent = visit.parent;
+        if (node.kind == MarkdownInlineKind::Html && html.valid)
+        {
+            HtmlTag(html.At(node.source), visit.parent, markdownFlags, visit.heading);
+            return;
+        }
+        const auto flags = markdownFlags | html.flags;
+        auto parent      = visit.parent;
         if (node.kind == MarkdownInlineKind::Link || node.kind == MarkdownInlineKind::Image)
         {
-            const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, node.source, parent);
+            // A Markdown style container can cross an HTML anchor boundary.
+            // Resolve its current native owner only when creating an element;
+            // never capture a temporary HTML anchor in the style visit stack.
+            const auto owner   = html.linkElement == MarkdownNoNode ? parent : html.linkElement;
+            const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, node.source, owner);
             document->elements_[element].destination = node.destination;
             document->elements_[element].title       = node.title;
             if (node.kind == MarkdownInlineKind::Image)
@@ -184,7 +236,9 @@ struct SemanticBuilder::Preparation
             auto child   = visit;
             child.node   = node.firstChild;
             child.parent = parent;
-            child.flags  = flags;
+            // Native HTML style is traversal state, not inherited Markdown
+            // state: a closing tag inside an emphasis node must end its style.
+            child.flags = markdownFlags;
             visits.push_back(child);
             return;
         }
@@ -295,6 +349,11 @@ struct SemanticBuilder::Preparation
             if (visit.paragraph != MarkdownNoNode)
             {
                 auto& paragraph = document->paragraphs_[visit.paragraph];
+                if (html.valid && output.text.size() == htmlDisplayFirst)
+                {
+                    paragraph.emptyInsertion = html.emptyInsertion;
+                    output.Generated(L" ", html.emptyInsertion, visit.flags, visit.heading);
+                }
                 if (output.text.size() == paragraph.display.first)
                     output.Generated(L" ", node.block.content.first, visit.flags, visit.heading);
                 paragraph.display.last = output.text.size();
@@ -325,8 +384,7 @@ struct SemanticBuilder::Preparation
         if (node.block.kind == MarkdownBlockKind::ListItem || node.block.kind == MarkdownBlockKind::BlockQuote)
             ++visit.indent;
         visit.heading = node.block.heading;
-        if (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode ||
-            node.block.kind == MarkdownBlockKind::HtmlBlock)
+        if (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode)
             visit.flags |= Code;
         if (node.tableHeader)
             visit.flags |= Bold;
@@ -351,6 +409,8 @@ struct SemanticBuilder::Preparation
             const auto paragraph = Paragraph(visit, visit.element);
             Marker(visit.node, node.block.content.first, visit.flags, visit.heading);
             document->paragraphs_[paragraph].display.last = output.text.size();
+            document->paragraphs_[paragraph].markerEnd    = output.text.size();
+            document->paragraphs_[paragraph].markerOwner  = visit.node;
             output.Generated(L"\n", node.block.content.first);
         }
         auto close  = visit;
@@ -358,9 +418,60 @@ struct SemanticBuilder::Preparation
         if (Leaf(node.block.kind))
         {
             Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
+            if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+                html.Block(normalized);
+            else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode)
+                html.Inline(syntax, node, normalized);
+            else
+                html.Reset();
+            document->elements_[visit.element].nativeHtml = html.valid;
+            if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+            {
+                if (! html.valid)
+                    visit.flags |= Code;
+                else if (html.wrapper)
+                {
+                    const auto kind = *html.wrapper;
+                    if (Detail::HtmlHeading(kind))
+                    {
+                        visit.heading                              = Detail::HtmlHeading(kind);
+                        document->elements_[visit.element].role    = SemanticRole::Heading;
+                        document->elements_[visit.element].heading = visit.heading;
+                    }
+                    else if (kind == Detail::NativeHtmlKind::Pre)
+                        document->elements_[visit.element].role = SemanticRole::Code;
+                    else
+                        document->elements_[visit.element].role = SemanticRole::Paragraph;
+                }
+            }
+            close           = visit;
+            close.close     = true;
             close.paragraph = Paragraph(visit, visit.element);
             Prefix(visit, visit.element);
-            if (node.firstInline != MarkdownNoNode)
+            auto& paragraph = document->paragraphs_[close.paragraph];
+            if (output.text.size() > paragraph.display.first)
+            {
+                paragraph.markerEnd = output.text.size();
+                for (auto owner = node.parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
+                    if (nodes[owner].block.kind == MarkdownBlockKind::ListItem)
+                    {
+                        paragraph.markerOwner = owner;
+                        break;
+                    }
+            }
+            htmlDisplayFirst = output.text.size();
+            if (html.present && ! html.valid)
+            {
+                Detail::SemanticValue literal;
+                if (node.block.kind != MarkdownBlockKind::HtmlBlock && node.firstInline != MarkdownNoNode)
+                    Detail::SliceSemanticValue(normalized, {syntax.Inlines()[node.firstInline].source.first, node.block.source.last}, literal);
+                else
+                    literal = normalized;
+                output.Value(literal, visit.flags | Code, visit.heading);
+            }
+            else if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+                HtmlBlock(visit);
+            else if (node.firstInline != MarkdownNoNode)
             {
                 visits.push_back(close);
                 auto inlineVisit       = visit;
@@ -370,7 +481,7 @@ struct SemanticBuilder::Preparation
                 visits.push_back(inlineVisit);
                 return;
             }
-            if (node.block.kind == MarkdownBlockKind::ThematicBreak)
+            else if (node.block.kind == MarkdownBlockKind::ThematicBreak)
                 output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
             else
                 output.Value(normalized, visit.flags, visit.heading);

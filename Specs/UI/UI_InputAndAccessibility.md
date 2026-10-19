@@ -9,6 +9,19 @@ acknowledged embedded text snapshot must never acquire unrelated current glyph
 bounds. Structured Markdown accessibility/semantic anchors require their separate
 implementation and qualification. The raw parser accepting NUL does not change
 the editor/text-store admission contract.
+Opt-in native HTML and hanging marker presentation preserve that same source
+contract. Underlined Markdown/HTML links retain inert destination/title metadata;
+clicking places a caret and double-clicking selects source text. Neither action
+navigates or creates a text/history transaction. Validated tag/attribute ranges
+have no source glyph rectangles but remain searchable/selectable raw TextPattern
+text. HTML references and br tags are atomic visual source tokens; TSF imports
+still use exact raw ACPs. An empty balanced HTML leaf has a real insertion between
+its opening/closing tags, with no generated text or virtual ACP in the model.
+Unicode preview/cancel/commit, one undo/redo, hide/reflow and stale-result rejection
+apply identically in native and embedded hosts. Equal-ACP affinity remains valid
+for padded cells; ordinary marker boundaries must not add invisible arrow stops
+or move a logical Left forward/Right backward. Structured link/HTML children,
+style attributes and invocation remain separate M4e/f work.
 Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
 anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose

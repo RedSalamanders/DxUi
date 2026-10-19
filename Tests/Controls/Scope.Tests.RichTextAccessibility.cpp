@@ -740,6 +740,72 @@ void TestRichTextAccessibilityWindowSourceCaretSitesClient()
 {
     SourceCaretSitesClient(false);
 }
+void NativeHtmlAndMarkersClient(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    const std::wstring source = L"9. [Markdown](local)\r\n10. <b>native</b>\r\n\r\n<p><a href='#target' title='hint'>label</a><br/>&fjlig;</p>\r\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0 && client.DocumentText(editor) == source, "real UIA client sees complete raw HTML/list/link source rather than native display");
+    const auto label = source.find(L"label");
+    fixture.editor->SetSelection({label, label + 5u});
+    fixture.Publish();
+    Require(client.TextSelectionText(editor) == L"label", "native HTML link selection retains exact source text in the actual client");
+    fixture.editor->SetSelection({label, label});
+    fixture.Publish();
+    const auto caret = fixture.editor->TryGetTextInputCaretRect(*fixture.controls, label);
+    Require(caret.has_value(), "native HTML client caret geometry exists");
+    const auto point    = D2D1::Point2F(caret->left + .1f, caret->top + (caret->bottom - caret->top) * .5f);
+    const auto toScreen = [&](D2D1_POINT_2F location)
+    {
+        if (embedded)
+            return POINT{static_cast<LONG>(std::lround(location.x - 32000.0f)), static_cast<LONG>(std::lround(location.y - 32000.0f))};
+        return ClientPointToScreenForTest(fixture.Hwnd(),
+                                          {static_cast<LONG>(std::lround(fixture.window->Host().DipsToPixels(location.x))),
+                                           static_cast<LONG>(std::lround(fixture.window->Host().DipsToPixels(location.y)))},
+                                          "native HTML client source point");
+    };
+    Require(client.TextCaretPosition(editor) == label && client.TextPositionFromPoint(editor, toScreen(point)) == label,
+            "actual UIA caret and RangeFromPoint share native HTML source geometry");
+    const auto revision = fixture.editor->Revision();
+    Require(fixture.editor->OnMouseDoubleClick(*fixture.controls, point, false, 0u), "double-click native HTML link label");
+    fixture.Publish();
+    Require(client.TextSelectionText(editor) == L"label" && client.DocumentText(editor) == source && fixture.editor->Revision() == revision &&
+                ! fixture.editor->CanUndo(),
+            "HTML link double-click selects its raw label without activation/source mutation");
+    fixture.editor->SetSelection({0u, 0u});
+    fixture.Publish();
+    RequireSucceeded(client.ExecuteTextRangeCommand(editor, L"href='#target'", UiaTest::TextRangeCommand::AddToSelection),
+                     "select hidden HTML destination through actual TextPattern");
+    fixture.Publish();
+    Require(client.TextSelectionText(editor) == L"href='#target'", "hidden HTML attributes remain searchable/selectable raw UIA source");
+    RequireSucceeded(client.ExecuteTextRangeCommand(editor, L"label", UiaTest::TextRangeCommand::ScrollToTop), "scroll native HTML label source range");
+    fixture.Publish();
+    Require(client.DocumentText(editor) == source && ! fixture.editor->CanUndo(), "native HTML source-range scrolling preserves source/history");
+    const std::wstring empty = L"<p><b></b></p>\n";
+    fixture.editor->SetText(empty);
+    fixture.Publish();
+    fixture.editor->SetSelection({6u, 6u});
+    fixture.Publish();
+    const auto emptyCaret = fixture.editor->TryGetTextInputCaretRect(*fixture.controls, 6u);
+    Require(emptyCaret.has_value(), "empty native HTML client caret geometry exists");
+    const auto emptyPoint = D2D1::Point2F(emptyCaret->left, emptyCaret->top + (emptyCaret->bottom - emptyCaret->top) * .5f);
+    Require(fixture.editor->OnMouseDoubleClick(*fixture.controls, emptyPoint, false, 0u), "double-click empty native HTML insertion");
+    fixture.Publish();
+    Require(client.DocumentText(editor) == empty && client.TextCaretPosition(editor) == 6u &&
+                client.TextPositionFromPoint(editor, toScreen(emptyPoint)) == 6u && client.TextSelectionText(editor).empty() && ! fixture.editor->CanUndo(),
+            "real native/embedded client observes the interior empty HTML insertion with no invented source/history");
+}
+void TestRichTextAccessibilityWindowNativeHtmlAndMarkersClient()
+{
+    NativeHtmlAndMarkersClient(false);
+}
+void TestRichTextAccessibilityEmbeddedNativeHtmlAndMarkersClient()
+{
+    EmbeddedCase(NativeHtmlAndMarkersClient);
+}
 void TestRichTextAccessibilityEmbeddedSourceCaretSitesClient()
 {
     EmbeddedCase(SourceCaretSitesClient);
@@ -1013,6 +1079,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticRenderingClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticRenderingClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceCaretSitesClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowNativeHtmlAndMarkersClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedNativeHtmlAndMarkersClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceCaretSitesClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionCommands);

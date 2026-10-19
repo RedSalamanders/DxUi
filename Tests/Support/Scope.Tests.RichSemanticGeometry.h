@@ -2,7 +2,9 @@
 #include "../../src/Controls/DxUi.RichSemanticGeometry.h"
 #include "Scope.Tests.RichSemanticDocument.h"
 #include <cmath>
+#include <wil/resource.h>
 #include <wil/result.h>
+#include <wincodec.h>
 
 namespace RichSemanticGeometryTests
 {
@@ -26,6 +28,187 @@ inline void Complete(PreparedSemanticGeometry& geometry)
         Check(++steps < 100000u, "semantic geometry finishes its bounded staging graph");
     }
     Check(geometry.Ready(), "semantic geometry publishes one complete ready state");
+}
+inline void LinkRasterOracle()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    auto factory      = Factory();
+    const auto pixels = [&](std::wstring_view source, bool reference, bool underline)
+    {
+        constexpr UINT width = 128u, height = 48u, stride = width * 4u;
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(.2f, .4f, .7f), brush.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        if (reference)
+        {
+            // Independent SDK oracle: literal label, explicitly declared font,
+            // dimensions and underline, without the semantic builder/layout adapter.
+            wil::com_ptr<IDWriteTextFormat> format;
+            THROW_IF_FAILED(factory->CreateTextFormat(
+                L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", format.put()));
+            wil::com_ptr<IDWriteTextLayout> layout;
+            THROW_IF_FAILED(factory->CreateTextLayout(L"label", 5u, format.get(), static_cast<float>(width), 1000000.0f, layout.put()));
+            THROW_IF_FAILED(layout->SetUnderline(underline ? TRUE : FALSE, {0u, 5u}));
+            target->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout.get(), brush.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        }
+        else
+        {
+            PreparedSemanticGeometry geometry;
+            LayoutOptions options;
+            options.widthDip = static_cast<float>(width);
+            geometry.Begin(factory.get(), RichSemanticDocumentTests::Build(source), options);
+            Complete(geometry);
+            geometry.Draw(target.get(), brush.get(), brush.get(), D2D1::Point2F(0.0f, 0.0f), 0.0f, static_cast<float>(height));
+        }
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> result(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(result.size()), result.data()));
+        return std::vector<BYTE>(result);
+    };
+    const auto expected = pixels({}, true, true), plain = pixels({}, true, false);
+    Check(expected != plain, "independent native SDK underline has visible pixels");
+    for (const auto source : {L"[label](local)", L"<p><a href='#target'>label</a></p>", L"<u>label</u>"})
+        Check(pixels(source, false, false) == expected, "Markdown link, HTML anchor and underline exactly match declared SDK pixels and inherited text ink");
+    Check(pixels(L"label", false, false) == plain, "ordinary text remains unchanged by native link presentation");
+}
+inline void HangingMarkersLinksAndHtml()
+{
+    auto factory = Factory();
+    for (const bool rtl : {false, true})
+    {
+        const std::wstring word = rtl ? L"\u05d0\u05d1\u05d2" : L"word";
+        std::wstring source     = L"9. ";
+        const auto first        = source.size();
+        for (unsigned i = 0u; i < 18u; ++i)
+            source += word + L" ";
+        const auto firstEnd = source.size();
+        source += L"\n10. ";
+        const auto second = source.size();
+        source += word + L"\n\n    ";
+        const auto continuation = source.size();
+        source += word + L"\n\n    - ";
+        const auto nested = source.size();
+        source += word + L"\n";
+        const auto document = RichSemanticDocumentTests::Build(source);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip         = 200.0f;
+        options.readingDirection = rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto lines = geometry.SourceRange({first, firstEnd});
+        Check(lines.size() > 1u, "list body wraps through native geometry");
+        const auto edge = [&](const auto& rectangle) { return rtl ? rectangle.right : rectangle.left; };
+        for (const auto& line : lines)
+            Check(std::abs(edge(line) - edge(lines.front())) < .15f, "wrapped list text retains its measured leading gutter");
+        const auto secondRange       = geometry.SourceRange({second, second + word.size()});
+        const auto continuationRange = geometry.SourceRange({continuation, continuation + word.size()});
+        const auto nestedRange       = geometry.SourceRange({nested, nested + word.size()});
+        Check(! secondRange.empty() && ! continuationRange.empty() && ! nestedRange.empty(),
+              "list sibling, continuation and nested text have owned native glyphs");
+        Check(std::abs(edge(secondRange.front()) - edge(lines.front())) < .15f && std::abs(edge(continuationRange.front()) - edge(lines.front())) < .15f,
+              "9./10. siblings and loose continuation paragraphs share the list's maximum measured marker column");
+        Check(rtl ? edge(nestedRange.front()) < edge(lines.front()) : edge(nestedRange.front()) > edge(lines.front()),
+              "nested list text adds the ancestor marker column in either direction");
+        Check(geometry.SourceRange({0u, 3u}).empty(), "generated marker ink has no owned source-selection glyphs");
+        for (auto raw : {first, second, continuation, nested})
+        {
+            const auto caret = geometry.SourceCaret(raw);
+            const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+            Check(hit.position == raw, "list text leading caret and real point hit agree on its source ACP");
+        }
+        const auto generation = geometry.Generation();
+        options.widthDip      = 80.0f;
+        geometry.Begin(factory.get(), document, options);
+        bool measured = false;
+        for (unsigned turn = 0u; turn < 10000u && ! measured; ++turn)
+            measured = geometry.Advance({1u, 1u}).layoutsPrepared != 0u;
+        Check(measured && geometry.Ready() && geometry.Generation() == generation,
+              "a measured marker remains staged while the old coherent geometry is published");
+        geometry.Cancel();
+        Check(geometry.Generation() == generation, "marker preparation cancellation preserves publication");
+        options.widthDip = 1.0f;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto narrow = geometry.SourceCaret(first);
+        Check(std::isfinite(narrow.x) && std::isfinite(narrow.y) && narrow.height > 0.0f, "narrow gutters keep finite native insertion geometry");
+    }
+    {
+        const std::wstring tableSource = L"- body\n\n  | left | right |\n  | :--- | ---: |\n  | a | b |\n";
+        const auto table               = RichSemanticDocumentTests::Build(tableSource);
+        PreparedSemanticGeometry nestedTable;
+        LayoutOptions placement;
+        placement.widthDip = 300.0f;
+        nestedTable.Begin(factory.get(), table, placement);
+        Complete(nestedTable);
+        const auto textEdge = nestedTable.SourceCaret(tableSource.find(L"body")).x;
+        const auto left = tableSource.find(L"left"), right = tableSource.find(L"right");
+        const auto leftInk = nestedTable.SourceRange({left, left + 4u}), rightInk = nestedTable.SourceRange({right, right + 5u});
+        Check(! leftInk.empty() && ! rightInk.empty() && std::abs(leftInk.front().left - textEdge - 6.0f) < .15f &&
+                  std::abs(rightInk.back().right - 294.0f) < .15f,
+              "nested table text inherits the measured list gutter and declared physical alignment");
+        const auto element =
+            std::find_if(table->Elements().begin(), table->Elements().end(), [](const auto& value) { return value.role == SemanticRole::Table; });
+        Check(element != table->Elements().end(), "nested table source is a real semantic table");
+        const auto bounds = nestedTable.ElementBounds(static_cast<std::size_t>(element - table->Elements().begin()));
+        Check(bounds && std::abs(bounds->left - textEdge) < .15f && std::abs(bounds->right - 300.0f) < .15f,
+              "table frame/clip placement uses the same measured content width as its glyphs");
+    }
+    const std::wstring source = L"- [x] task <b>bold</b> [go](local)\n\n<p><a href='https://example.invalid'>link</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip = 300.0f;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    const auto task = source.find(L"[x]"), bold = source.find(L"bold"), link = source.find(L"link</a>"), entity = source.find(L"&fjlig;"),
+               empty = source.find(L"<p><b></b></p>") + 6u;
+    Check(! geometry.SourceRange({task, task + 3u}).empty() && geometry.SourceRange({source.find(L"<b>"), source.find(L"<b>") + 3u}).empty(),
+          "task object keeps real marker-column geometry while native HTML tags stay hidden");
+    Check(! geometry.SourceRange({bold, bold + 4u}).empty() && ! geometry.SourceRange({link, link + 4u}).empty(),
+          "styled and linked Unicode source has native range geometry");
+    const auto entityRect = geometry.SourceRange({entity, entity + 7u});
+    Check(! entityRect.empty(), "HTML reference geometry owns its original raw token");
+    const auto caret = geometry.SourceCaret(empty);
+    const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+    Check(hit.position == empty && geometry.IsEmptySourceSite(empty, hit.site), "an empty native HTML wrapper has a real interior caret and point hit");
+    const auto units = geometry.SourceLines();
+    for (std::size_t i = 1u; i < units.size(); ++i)
+        Check(units[i - 1u].second == units[i].first, "marker splitting and native HTML retain gap-free raw source line units");
+    std::wstring many;
+    for (unsigned item = 0u; item < 2049u; ++item)
+        many += L"- text\n";
+    const auto overflow = RichSemanticDocumentTests::Build(many);
+    geometry.Begin(factory.get(), overflow, options);
+    std::size_t sdkCalls = 0u;
+    RichSemanticTests::Reject<std::length_error>(
+        [&]
+    {
+        while (geometry.Pending())
+            sdkCalls += geometry.Advance({1u, 7u}).layoutsPrepared;
+    },
+        "marker and body layouts both participate in native admission");
+    Check(sdkCalls == 0u && geometry.Ready() && &geometry.Document() == document.get(),
+          "marker admission rejects before SDK work and retains the old publication");
 }
 inline void ParagraphsTablesAndSourceRanges()
 {
@@ -236,6 +419,10 @@ inline void SourceCaretSites()
         geometry.Begin(factory.get(), prefixed, options);
         Complete(geometry);
         Check(geometry.StepSource(0u, MarkdownNoNode, false).position == 0u, "source-zero Left never follows a generated marker anchor forward into content");
+        for (std::size_t raw = 0u; raw <= std::wstring_view(sourceText).size(); ++raw)
+            if (IsEditBoundary(sourceText, raw))
+                Check(geometry.StepSource(raw, MarkdownNoNode, false).position <= raw && geometry.StepSource(raw, MarkdownNoNode, true).position >= raw,
+                      "every legal source ACP preserves logical arrow direction across marker and body boxes");
     }
     const auto checkLines = [&](std::wstring_view text, std::initializer_list<std::pair<std::size_t, std::size_t>> expected)
     {

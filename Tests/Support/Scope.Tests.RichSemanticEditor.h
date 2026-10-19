@@ -98,6 +98,106 @@ struct SourceCaretEditorFixture final : RichTextEditor
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
 };
+template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"9. first list item wraps naturally with [link](local)\r\n10. second list item\r\n\r\n<p><b>Native</b> <a href='#target' "
+                                L"title='hint'>label</a><br/>&fjlig;</p>\r\n";
+    auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto document = editor->GetSemanticDocument();
+    const auto revision = editor->Revision();
+    Check(document && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && document->Map().Source() == source,
+          "native/embedded owner publishes native HTML and marker geometry against exact source");
+    const auto tag = source.find(L"<a"), label = source.find(L"label"), entity = source.find(L"&fjlig;");
+    Check(editor->TryGetTextInputRangeRects(host, tag, label)->empty(), "native/embedded validated HTML destination attributes own no source glyphs");
+    const auto rectangles = editor->TryGetTextInputRangeRects(host, label, label + 5u);
+    Check(rectangles && ! rectangles->empty(), "native HTML link label has acknowledged native source rectangles");
+    const auto caret = editor->TryGetTextInputCaretRect(host, label);
+    Check(caret.has_value(), "link text has a real source ACP caret");
+    const auto point = D2D1::Point2F(caret->left + .2f, caret->top + (caret->bottom - caret->top) * .5f);
+    Check(editor->OnMouseDown(host, point, false, 0u), "click native HTML link label");
+    static_cast<void>(editor->OnMouseUp(host, point, false, 0u));
+    prepare();
+    Check(editor->GetSelection().caret == label && editor->Revision() == revision && editor->GetText() == source && ! editor->CanUndo(),
+          "link click is exact caret placement without navigation or source/history mutation");
+    editor->SetSelection({entity + 2u, entity + 2u});
+    Check(editor->OnKeyDown(host, VK_DELETE, 0u) && editor->GetText() == source.substr(0u, entity) + source.substr(entity + 7u),
+          "native HTML reference deletion owns the complete original token");
+    Check(editor->Undo() && editor->GetText() == source, "one undo restores HTML entity spelling and tags");
+    prepare();
+    const auto lineBreak = source.find(L"<br/>");
+    editor->SetSelection({lineBreak + 1u, lineBreak + 1u});
+    Check(editor->OnKeyDown(host, VK_DELETE, 0u) && editor->GetText() == source.substr(0u, lineBreak) + source.substr(lineBreak + 5u),
+          "native HTML break deletion owns its complete original tag");
+    Check(editor->Undo() && editor->GetText() == source, "one undo restores the native HTML break tag");
+    prepare();
+    editor->SetSelection({label, label});
+    TextInputState original;
+    Check(editor->ExportTextInputState(original) && original.text == source, "text transport exports exact HTML source, not resolved display");
+    auto preview = original;
+    preview.text.insert(label, L"\u6771\u4eac");
+    preview.caretIndex = label + 2u;
+    Check(editor->ImportTextInputState(host, preview, false), "Unicode preview in native HTML link source");
+    prepare();
+    Check(! editor->CanUndo() && editor->GetText() == preview.text &&
+              editor->GetSemanticDocument()->Map().Display().find(L"\u6771\u4eaclabel") != std::wstring_view::npos,
+          "transient HTML label preview preserves syntax and carries no history");
+    Check(editor->ImportTextInputState(host, original, false), "cancel HTML source preview");
+    prepare();
+    Check(editor->GetText() == source && ! editor->CanUndo(), "cancel restores source-exact HTML without history");
+    Check(editor->ImportTextInputState(host, preview, true), "commit Unicode HTML source preview");
+    prepare();
+    Check(editor->Undo() && editor->GetText() == source && ! editor->CanUndo(), "one undo restores source and HTML boundaries after commit");
+    prepare();
+    Check(editor->Redo() && editor->GetText() == preview.text, "redo reapplies the one raw source transaction");
+    prepare();
+    editor->Undo();
+    prepare();
+    editor->SetReadOnly(true);
+    const auto unchanged = editor->GetText();
+    static_cast<void>(editor->OnChar(host, L'X', 0u));
+    Check(editor->GetText() == unchanged, "read-only native HTML rejects typing");
+    editor->SetReadOnly(false);
+    editor->SetEnabled(false);
+    static_cast<void>(editor->OnChar(host, L'X', 0u));
+    Check(editor->GetText() == unchanged, "disabled native HTML rejects typing");
+    editor->SetEnabled(true);
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    Check(! editor->TryGetTextInputRangeRects(host, label, label + 5u)->empty(), "RTL reflow retains native HTML raw source geometry");
+    editor->SetVisible(false);
+    prepare();
+    Check(! editor->DebugGetState().layoutReady, "hidden native HTML retires marker and body SDK layouts");
+    editor->SetVisible(true);
+    prepare();
+    editor->SetViewMode(ViewMode::Source);
+    prepare();
+    Check(! editor->TryGetTextInputRangeRects(host, tag, tag + 2u)->empty(), "source mode displays original native HTML tags");
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetFlowDirection(FlowDirection::LeftToRight);
+    editor->SetText(L"<p style='color:red'>**literal**</p>\n");
+    Check(! editor->TryGetTextInputCaretRect(host, 1u), "source replacement rejects stale native HTML geometry immediately");
+    prepare();
+    Check(editor->GetSemanticDocument()->Map().Display() == editor->GetText() && document->Map().Source() == source,
+          "unsupported CSS keeps the whole leaf literal and old CPU publications remain immutable");
+    editor->SetText(L"<p><b></b></p>\n");
+    prepare();
+    const auto empty = editor->TryGetTextInputCaretRect(host, 6u);
+    Check(empty.has_value(), "empty native HTML has an interior insertion site in both hosts");
+    const auto emptyPoint = D2D1::Point2F(empty->left, empty->top + (empty->bottom - empty->top) * .5f);
+    Check(editor->OnMouseDoubleClick(host, emptyPoint, false, 0u) && editor->GetSelection() == Selection{6u, 6u} && ! editor->CanUndo(),
+          "empty native HTML double-click preserves exact source insertion/history");
+    Check(editor->OnChar(host, L'X', 0u) && editor->GetText() == L"<p><b>X</b></p>\n",
+          "typing at the empty native HTML site preserves both tag pairs and the raw source insertion");
+    prepare();
+    Check(editor->GetSemanticDocument()->Map().Display() == L"X\n" && editor->Undo() && editor->GetText() == L"<p><b></b></p>\n",
+          "empty native HTML typing resolves normally and is exactly one source undo");
+    prepare();
+}
 template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"\r\n>\r\n> >\n- \r\n\r\n";
@@ -273,6 +373,20 @@ template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, P
     prepare();
     Check(editor->DebugGetState().preparationAdvances == nativeAdvances && ! editor->CanUndo(),
           "native caret admission rejection is not retried by idle owner turns");
+    std::wstring markers;
+    for (unsigned item = 0u; item < 2049u; ++item)
+        markers += L"- text\n";
+    editor->SetText(markers);
+    prepare();
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady &&
+              editor->GetText() == markers && ! editor->CanUndo(),
+          "admitted CPU paragraphs fall back once when native marker plus body layouts exceed capacity");
+    const auto markerAdvances = editor->DebugGetState().preparationAdvances;
+    prepare();
+    Check(editor->DebugGetState().preparationAdvances == markerAdvances, "marker/body admission fallback has no idle retry loop");
+    editor->SetText(L"- admitted\n");
+    prepare();
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "new source retries marker/body admission normally");
 }
 template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepare)
 {

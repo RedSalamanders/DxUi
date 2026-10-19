@@ -13,7 +13,9 @@ Use `--rich-text` for a 980x720 editable Unicode CommonMark/GFM semantic preview
 with headings, styles, tables (including empty/padded cells), quotes, tasks,
 code and image alternatives. This mode enables the same text-service bridge as
 `--text-input`; the switches are mutually exclusive. Empty source lines retain
-their own caret geometry. HTML stays literal and destinations stay inert.
+their own caret geometry. Measured hanging markers align wrapped/continuation
+text; links are underlined and keep inert destinations. The bounded native HTML
+subset preserves original source; unsupported CSS/markup retains a literal leaf.
 Table materialization and other structural commands remain pending; text edits
 still apply to exact raw source ACPs. Add `--output image.png` for a deterministic
 capture that drains cooperative preparation without taking desktop focus.

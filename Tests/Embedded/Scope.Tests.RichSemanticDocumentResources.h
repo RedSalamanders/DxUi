@@ -7,7 +7,9 @@ static void TestRichSemanticDocumentFailureAndStorageBudgets(bool trace = false)
     const auto oldSyntax = RichSemanticDocumentTests::Parse(L"previous\n");
     const auto syntax    = RichSemanticDocumentTests::Parse(L"# staged &fjlig;\r\n\r\n> - [x] **nested *styles*** and \x0060 a\r\n>   b \x0060\n\n"
                                                             L"| first | second | third |\n| :--- | :---: | ---: |\n| [link](local) | ![alt *text*](image) |\n\n"
-                                                            L"3. ordered\n4. next\n\n<script>raw &amp;</script>\n\n    literal &amp;\n");
+                                                            L"3. ordered\n4. next\n\n<script>raw &amp;</script>\n\n    literal &amp;\n\n"
+                                                            L"<p><a href='https://example.invalid?q=1&amp;x=2' title='hint'><b>HTML</b></a><br/>&fjlig;</p>\n\n"
+                                                            L"one <b>**inline**</b> and <span class='unsupported'>literal</span>\n");
     const auto finish    = [](SemanticBuilder& builder, const MarkdownSyntax& input) { return RichSemanticDocumentTests::Complete(builder, input); };
     const auto count     = [](auto&& operation)
     {

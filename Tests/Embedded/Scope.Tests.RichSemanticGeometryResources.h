@@ -4,7 +4,8 @@
 static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool trace = false)
 {
     using namespace DxUi;
-    const std::wstring source = L"**alpha**\r\n[link](local) &amp; ![alt](image)\r\n";
+    const std::wstring source =
+        L"**alpha**\r\n[link](local) &amp; ![alt](image)\r\n\n9. task <b>bold</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n";
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "query failure borrowed graphics");
     for (const bool semantic : {false, true})
@@ -76,7 +77,8 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
     auto factory        = RichSemanticGeometryTests::Factory();
     const auto previous = RichSemanticDocumentTests::Build(L"previous\n");
     const auto candidate =
-        RichSemanticDocumentTests::Build(L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n");
+        RichSemanticDocumentTests::Build(L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n9. "
+                                         L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
     size_t requests  = 0u;

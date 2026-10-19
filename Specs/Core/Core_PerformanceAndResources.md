@@ -744,7 +744,7 @@ The [cooperative preparation record](../../Measurements/RichText/2026-10-18-coop
 
 The opt-in M4d semantic path uses the same host turns with separate bounded CPU
 semantic events (default 4,096), SDK layout calls (4) and geometry metadata events
-(4,096). Its graph is bounded by 4,096 native paragraphs/cells/caret boxes and 32,768
+(4,096). Its graph is bounded by 4,096 native layouts (markers, bodies, cells and caret boxes) and 32,768
 elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
 or final map construction remains indivisible. It retains at most a published
 and staged native geometry graph; source edits currently rebuild semantic leaves
@@ -762,5 +762,16 @@ metadata during its bounded source scan/copy. Replacement avoids geometric
 vector-growth peaks; the existing 24 MiB retained/32 MiB parser replacement-peak
 ceilings remain unchanged. Native caret-box counts are preflighted cooperatively
 before SDK calls, including row-wide ordering for padded cells.
+Marker measurement is a separate cooperative owner phase after admission and
+before body placement. Every real no-wrap marker layout and body layout consumes
+one SDK call; a source paragraph may therefore require two native layouts. Cached
+native advances establish the maximum gutter per list, with a bounded 64-level
+ancestor walk. Publication, scalar navigation and composition perform no marker
+measurement. Cancelling a partial marker pass retains the previous publication.
+Native HTML validation permits at most 4,096 tags and 32 simultaneous opening
+tags in one leaf. Validation/attribute decoding and block text projection remain
+bounded indivisible leaf CPU work. Policy rejection chooses literal leaf contents;
+allocation/SDK errors retain the existing failure contract. These bounds do not
+establish hard latency, browser layout equivalence or large-document acceptance.
 Resource/failure sweeps and all-current renderer qualification remain M4g work;
 earlier sealed parser/v0 packets do not establish semantic rendering performance.

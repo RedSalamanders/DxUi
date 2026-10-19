@@ -58,10 +58,14 @@ performance, native ARM foreground/resource, physical-input and consumer gates s
 
 The RichTextEditor M4d preview uses an explicit semantic rendering option. Its
 populated gallery tile and static component preview show resolved styles and a
-Unicode table. Table/code/image outlines, quote strokes and rules reuse the caret
+Unicode table, measured hanging list columns and underlined inert links. The
+validated native HTML text subset reuses existing styles; unsupported markup
+keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
+selected text ink with no fixed blue or new theme color. Table/code/image outlines, quote strokes and rules reuse the caret
 ink role; selection keeps the existing selected-text/fill roles in every theme.
 Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
-within the bounded viewport. Empty/trailing/container-only source lines have
+within the bounded viewport, plus measured ancestor list gutters. Native marker
+and body share a first baseline and RTL mirrors the leading column. Empty/trailing/container-only source lines have
 caret boxes with the same typography/indentation; empty/padded cells retain
 distinct visual affinity without adding source text or selection ink. No palette
 token changes. Structural commands and semantic style accessibility remain pending;
