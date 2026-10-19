@@ -43,6 +43,9 @@ struct RichTextEditor::State
     wchar_t pendingLeadSurrogate = 0;
     std::optional<uint64_t> blinkEpoch;
     std::optional<float> preferredCaretX;
+    // Native visual affinity only. Several padded cells share a real source ACP;
+    // this identity never enters Document selection, TSF text or undo records.
+    size_t sourceCaretSite = RichText::MarkdownNoNode;
 };
 
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
@@ -54,7 +57,8 @@ RichTextEditor::~RichTextEditor() noexcept = default;
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
-    _state->scrollDip = 0;
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
+    _state->scrollDip       = 0;
     RetireLayout();
     SelectionChanged();
 }
@@ -73,6 +77,7 @@ uint64_t RichTextEditor::Revision() const noexcept
 void RichTextEditor::SetSelection(RichText::Selection selection)
 {
     _state->document.SetSelection(selection);
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
     SelectionChanged();
 }
 RichText::Selection RichTextEditor::GetSelection() const noexcept
@@ -85,7 +90,8 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         throw std::invalid_argument("Invalid rich-text view mode");
     if (_state->mode == mode)
         return;
-    _state->mode = mode;
+    _state->mode            = mode;
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
     RetireLayout();
     SelectionChanged();
 }
@@ -101,6 +107,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
     if (_state->markdownProfile == profile)
         return;
     _state->markdown.Clear();
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
     if (! profile)
@@ -125,6 +132,7 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
     if (_state->markdownRendering == enabled)
         return;
     _state->markdownRendering = enabled;
+    _state->sourceCaretSite   = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
     RetireLayout();
@@ -185,7 +193,8 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
 {
     if (! Editable())
         return false;
-    const bool changed = RichText::ApplySourceEdits(_state->document, expectedSource, expectedRevision, edits, after);
+    const bool changed      = RichText::ApplySourceEdits(_state->document, expectedSource, expectedRevision, edits, after);
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
     Changed(changed);
     return changed;
 }
@@ -219,6 +228,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
+        _state->sourceCaretSite = RichText::MarkdownNoNode;
         // Reject stale queries immediately, but retain bounded immutable chunks
         // for the next owner-thread preparation. Host/font/visibility retirement
         // still releases the complete graph through RetireLayout/Clear.
@@ -452,6 +462,21 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretScroll();
         return S_OK;
     }
+    catch (const std::length_error&)
+    {
+        // Native caret scaffolding shares the paragraph/cell admission ceiling.
+        // Reject this syntax once, then prepare exact source geometry next turn.
+        if (state.markdownRendering && state.mode == RichText::ViewMode::Rich && state.semanticRejected != GetMarkdownSyntax())
+        {
+            state.semanticRejected = GetMarkdownSyntax();
+            state.semantic.Clear();
+            state.layout.Invalidate();
+            state.requestActive = false;
+            return S_FALSE;
+        }
+        state.layout.Invalidate();
+        return E_FAIL;
+    }
     catch (const std::bad_alloc&)
     {
         state.layout.Invalidate();
@@ -485,7 +510,7 @@ void RichTextEditor::UpdateCaretScroll() const
     const float height  = std::max(0.0f, viewport.bottom - viewport.top);
     if (state.revealCaret)
     {
-        const auto caret = state.layout.Caret(state.layout.ToDisplay(state.document.GetSelection().caret));
+        const auto caret = state.layout.SourceCaret(state.document.GetSelection().caret, state.sourceCaretSite);
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -574,13 +599,12 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
             return false;
         RequireCurrentLayout(host);
         const auto& projection = _state->layout;
-        const auto first       = projection.ToDisplay(sourceStart);
         const auto rectangles  = projection.SourceRange(sourceStart, sourceEnd);
         // Hidden-only syntax has no painted extent to reveal. Do not jump to
         // an offscreen marker's anchor or fabricate a visible rectangle.
         if (sourceStart != sourceEnd && rectangles.empty())
             return true;
-        const auto caret = _state->layout.Caret(first);
+        const auto caret = _state->layout.SourceCaret(sourceStart, sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode);
         float top        = caret.y;
         float bottom     = caret.y + caret.height;
         if (! rectangles.empty())
@@ -623,10 +647,8 @@ std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(c
     try
     {
         RequireCurrentLayout(host);
-        const auto viewport      = TextViewport();
-        const auto [first, last] = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
-        const auto& projection   = _state->layout;
-        return std::pair{projection.ToSource(first), projection.ToSource(last, true)};
+        const auto viewport = TextViewport();
+        return _state->layout.VisibleSourceRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
     }
     catch (const std::exception&)
     {
@@ -647,7 +669,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
     try
     {
         RequireCurrentLayout(host);
-        const auto caret    = _state->layout.Caret(_state->layout.ToDisplay(sourceIndex));
+        const auto caret    = _state->layout.SourceCaret(sourceIndex, sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode);
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
         // screen transport clip it to the same prepared text viewport.
@@ -700,8 +722,7 @@ std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& h
     {
         RequireCurrentLayout(host);
         const auto viewport = TextViewport();
-        const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
-        return _state->layout.ToSource(hit.position, hit.trailing);
+        return _state->layout.HitTestSource(point.x - viewport.left, point.y - viewport.top + _state->scrollDip).position;
     }
     catch (const std::exception&)
     {
@@ -727,6 +748,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     const RichText::Selection selection{state.selectionAnchorIndex.value_or(state.caretIndex), state.caretIndex};
     // Hosts restore entry source before a notifying commit. Preview updates,
     // cancellation and selection-only imports preserve both undo and redo.
+    const auto previousSelection = GetSelection();
     bool changed;
     try
     {
@@ -740,6 +762,8 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
         return false;
     }
     _state->dragging = false;
+    if (changed || selection != previousSelection)
+        _state->sourceCaretSite = RichText::MarkdownNoNode;
     if (notifyChange)
         Changed(changed, false);
     else
@@ -811,7 +835,7 @@ void RichTextEditor::Paint(ControlHost& host) const
     }
     if (HasFocus() && IsEnabled() && state.caretVisible)
     {
-        const auto caret = state.layout.Caret(projection.ToDisplay(selection.caret));
+        const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
         const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
         context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
     }
@@ -843,9 +867,10 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
 {
     RequireCurrentLayout(host);
-    const auto viewport = TextViewport();
-    const auto hit      = _state->layout.HitTest(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
-    return _state->layout.ToSource(hit.position, hit.trailing);
+    const auto viewport     = TextViewport();
+    const auto hit          = _state->layout.HitTestSource(point.x - viewport.left, point.y - viewport.top + _state->scrollDip);
+    _state->sourceCaretSite = hit.site;
+    return hit.position;
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
 {
@@ -892,6 +917,44 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         SetSelection({source, source});
         return;
     }
+    if (const auto* geometry = state.layout.SemanticGeometry())
+    {
+        RichText::Detail::SourceCaretHit target{selection.caret, state.sourceCaretSite};
+        if (byWord && (key == VK_HOME || key == VK_END))
+            target = {key == VK_HOME ? 0u : state.document.Length()};
+        else if (! byWord && (key == VK_LEFT || key == VK_RIGHT))
+            target = geometry->StepSource(selection.caret, state.sourceCaretSite, key == VK_RIGHT);
+        else if (key == VK_HOME || key == VK_END)
+            target = geometry->SourceLineBoundary(selection.caret, state.sourceCaretSite, key == VK_END);
+        else if (key != VK_LEFT && key != VK_RIGHT)
+        {
+            const auto caret     = geometry->SourceCaret(selection.caret, state.sourceCaretSite);
+            preferredX           = state.preferredCaretX.value_or(caret.x);
+            const bool down      = key == VK_DOWN || key == VK_NEXT;
+            const bool page      = key == VK_NEXT || key == VK_PRIOR;
+            const float distance = page ? std::max(caret.height, TextViewport().bottom - TextViewport().top) : caret.height;
+            target               = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance : -distance));
+            // Preserve wrapped SDK lines; only a spacing tie needs a second
+            // probe across the 8-DIP block gap or 12-DIP table-row padding.
+            if (! page && std::abs(geometry->SourceCaret(target.position, target.site).y - caret.y) < .01f)
+                target = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance + 12.0f : -distance - 12.0f));
+        }
+        else
+        {
+            const auto display = byWord && key == VK_LEFT ? FindPreviousWordBoundary(projection.DisplayText(), position)
+                                                          : FindNextWordBoundary(projection.DisplayText(), position);
+            target             = {projection.ToSource(display)};
+        }
+        state.document.SetSelection({extend ? selection.anchor : target.position, target.position});
+        state.sourceCaretSite      = target.site;
+        state.pendingLeadSurrogate = 0;
+        state.preferredCaretX      = preferredX;
+        state.revealCaret          = true;
+        state.caretVisible         = true;
+        state.blinkEpoch.reset();
+        RequestInvalidate();
+        return;
+    }
     switch (key)
     {
         case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
@@ -936,6 +999,21 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     const auto selection = GetSelection();
     if (selection.Start() != selection.End())
         return ReplaceSelection({});
+    if (LayoutIsCurrent(host))
+        if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsEmptySourceSite(selection.caret, _state->sourceCaretSite))
+        {
+            // A visual cell scaffold owns no raw token to delete. Structural
+            // table joining/materialization belongs to M4e. Empty physical lines
+            // instead use exact raw graphemes, including indivisible CRLF.
+            if (geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
+                return false;
+            const auto source  = Snapshot();
+            const auto first   = backwards ? StepToPreviousTextElement(source.Text(), selection.caret) : selection.caret;
+            const auto last    = backwards ? selection.caret : StepToNextTextElement(source.Text(), selection.caret);
+            const bool changed = _state->document.Replace(first, last, L"", {first, first});
+            Changed(changed);
+            return changed;
+        }
     if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
     {
         if (const auto document = GetSemanticDocument())
@@ -1203,7 +1281,8 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
             _state->revealCaret = false;
         }
         const auto source = HitSource(host, point);
-        SetSelection({GetSelection().anchor, source});
+        _state->document.SetSelection({GetSelection().anchor, source});
+        SelectionChanged();
         return true;
     }
     catch (const std::exception&)

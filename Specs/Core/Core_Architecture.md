@@ -172,3 +172,10 @@ and brushes synchronously. The CPU builder remains independent of graphics.
 Both paths use ControlHost owner turns, resource/typography/binding identities,
 retirement and scheduling. No new worker, HWND, device or timer is introduced.
 Consumers must rebuild matching headers/library; their pinned source is unchanged.
+
+M4d.2 adds parser-owned `MarkdownEmptyLine` source trivia and a semantic element's
+revision-local syntax-node index within this same source-coordinated API scope.
+The native geometry backend maintains separate source-order caret boxes and a
+display-order glyph index: generated markers and hidden source can make those
+orders differ. Site affinity is private native state, never a document ACP or
+history coordinate. Both indexes publish together after bounded preparation.

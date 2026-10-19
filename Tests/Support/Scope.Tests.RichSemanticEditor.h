@@ -77,8 +77,10 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
     editor->SetText(L"a\n\nb");
     prepare();
     editor->SetSelection({1u, 1u});
-    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection().caret == 3u,
-          "Right crosses a generated paragraph separator to the next content anchor");
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection().caret == 2u,
+          "Right visits an empty physical source line before the next content anchor");
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection().caret == 3u, "Right leaves the empty source line for the next paragraph");
+    Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 2u, "Left revisits the empty source line");
     Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 1u, "Left crosses the separator to the previous paragraph end");
     editor->SetSelection({4u, 4u});
     Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 3u,
@@ -86,6 +88,128 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
     editor->SetMarkdownAnalysisProfile(std::nullopt);
     Check(! editor->IsMarkdownRenderingEnabled() && ! editor->GetSemanticDocument() && document->Map().Source() == original,
           "clearing the dialect disables semantic rendering and held results remain immutable");
+    prepare();
+}
+// Expose the protected text-service import seam for deterministic composition
+// transport tests. Physical IME/foreground qualification remains separate.
+struct SourceCaretEditorFixture final : RichTextEditor
+{
+    using RichTextEditor::ImportTextInputState;
+    using RichTextEditor::RichTextEditor;
+};
+template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"\r\n>\r\n> >\n- \r\n\r\n";
+    auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto revision = editor->Revision();
+    const auto syntax   = editor->GetMarkdownSyntax();
+    Check(syntax && syntax->EmptyLines().size() == 6u, "retained source caret fixture includes empty, nested-container and trailing lines");
+    float previousY = -1.0f;
+    for (const auto& line : syntax->EmptyLines())
+    {
+        editor->SetSelection({line.insertion, line.insertion});
+        const auto caret = editor->TryGetTextInputCaretRect(host, line.insertion);
+        Check(caret && caret->top > previousY && caret->bottom > caret->top, "native/embedded source caret sites have distinct text-service bounds");
+        const auto hit = editor->TryHitTestTextInputPoint(host, D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f));
+        Check(hit && *hit == line.insertion, "native/embedded empty caret bounds and text-service hit testing agree in raw ACPs");
+        previousY = caret->top;
+    }
+    Check(editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
+          "placing every source caret preserves text, revision and history");
+    Check(editor->OnKeyDown(host, VK_HOME, MK_CONTROL) && editor->GetSelection().caret == 0u, "document Home preserves exact raw zero");
+    Check(editor->OnKeyDown(host, VK_DOWN, 0u) && editor->GetSelection().caret == syntax->EmptyLines()[1u].insertion, "Down visits the next empty quote line");
+    Check(editor->OnKeyDown(host, VK_UP, 0u) && editor->GetSelection().caret == 0u, "Up returns to the leading empty line");
+    editor->SetSelection({source.size(), source.size()});
+    Check(editor->OnChar(host, L'X', 0u) && editor->GetText() == source + L"X", "typing at the trailing caret inserts at the exact source EOF");
+    prepare();
+    Check(editor->Undo() && editor->GetText() == source && ! editor->CanUndo(), "trailing caret insertion is one exact-source undo step");
+    prepare();
+    Check(editor->Redo() && editor->GetText() == source + L"X", "trailing caret insertion redoes without invented blank source");
+    prepare();
+
+    const std::wstring table = L"| a | b | c |\n| - | - | - |\n| value |\n";
+    editor->SetText(table);
+    prepare();
+    const auto value    = table.find(L"value");
+    const auto bounds   = editor->TryGetTextInputRangeRects(host, value, value + 5u);
+    const auto viewport = editor->TryGetTextInputViewportRect();
+    Check(bounds && ! bounds->empty() && viewport, "retained padded-cell fixture has current native geometry");
+    const float width = viewport->right - viewport->left;
+    const auto point  = D2D1::Point2F(viewport->left + width * .5f, bounds->front().top + 5.0f);
+    Check(editor->OnMouseDown(host, point, false, 0u), "native/embedded pointer chooses a padded cell");
+    static_cast<void>(editor->OnMouseUp(host, point, false, 0u));
+    const auto anchor = table.rfind(L'\n');
+    Check(editor->GetSelection() == Selection{anchor, anchor}, "padded cell exposes the raw row-end selection rather than a virtual ACP");
+    const auto first = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(first && editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{anchor, anchor},
+          "Right changes padded-cell affinity without changing raw selection");
+    const auto second = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(second && second->left > first->left + width * .2f, "equal-ACP padded cells have visibly different retained carets");
+    Check(editor->GetText() == table && ! editor->CanUndo(), "clicking and navigating padded cells does not materialize source or history");
+    Check(editor->OnKeyDown(host, VK_HOME, 0u) && editor->OnKeyDown(host, VK_END, 0u), "padded-cell Home and End are handled");
+    const auto stillSecond = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(stillSecond && std::abs(stillSecond->left - second->left) < .1f, "padded-cell Home/End keep visual affinity");
+    TextInputState input;
+    Check(host.TryReadTextInputState(editor, input) && input.text == table && input.caretIndex == anchor,
+          "TSF state contains exact source and the real padded-cell ACP");
+    Check(editor->ImportTextInputState(host, input, false), "selection-only text-service synchronization accepts the active source caret");
+    const auto synchronized = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(synchronized && std::abs(synchronized->left - second->left) < .1f, "unchanged TSF synchronization preserves padded-cell affinity");
+    editor->SetReadOnly(true);
+    static_cast<void>(editor->OnChar(host, L'Z', 0u));
+    Check(editor->GetText() == table && ! editor->CanUndo(), "read-only padded caret cannot insert text");
+    editor->SetReadOnly(false);
+    editor->SetVisible(false);
+    Check(! editor->TryGetTextInputCaretRect(host, anchor), "hidden source caret geometry is unavailable");
+    editor->SetVisible(true);
+    prepare();
+    const auto restored = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(restored && std::abs(restored->left - second->left) < .1f, "geometry retirement and recreation preserve same-source cell affinity");
+    editor->SetEnabled(false);
+    static_cast<void>(editor->OnChar(host, L'Z', 0u));
+    Check(! editor->OnMouseDown(host, point, false, 0u) && editor->GetText() == table && ! editor->CanUndo(),
+          "disabled padded-cell sites accept neither pointer placement nor typing");
+    editor->SetEnabled(true);
+    static_cast<void>(editor->OnKeyDown(host, VK_BACK, 0u));
+    Check(editor->GetText() == table && ! editor->CanUndo(), "a generated empty-cell caret never deletes an unrelated owned cell token");
+    editor->SetViewMode(ViewMode::Source);
+    prepare();
+    Check(editor->TryGetTextInputCaretRect(host, anchor).has_value() && editor->GetText() == table && ! editor->CanUndo(),
+          "source view preserves exact text and provides ordinary raw source caret geometry");
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L">\r\n\r\n");
+    Check(! editor->TryGetTextInputCaretRect(host, 1u), "source replacement immediately rejects stale cell affinity and geometry");
+    prepare();
+    const auto entry = editor->GetText();
+    editor->SetSelection({1u, 1u});
+    TextInputState originalInput;
+    Check(host.TryReadTextInputState(editor, originalInput), "export empty quote source state");
+    auto preview = originalInput;
+    preview.text.insert(1u, L"\u6771\u4eac");
+    preview.caretIndex = 3u;
+    Check(editor->ImportTextInputState(host, preview, false), "text-service preview inserts Unicode at an exact empty quote ACP");
+    prepare();
+    Check(editor->GetText() == L">\u6771\u4eac\r\n\r\n" && ! editor->CanUndo(),
+          "transient source preview preserves container spelling and CRLF without history");
+    Check(editor->ImportTextInputState(host, originalInput, false), "text-service cancellation restores empty source site");
+    prepare();
+    Check(editor->GetText() == entry && ! editor->CanUndo() && editor->TryGetTextInputCaretRect(host, 1u),
+          "cancel restores the raw empty caret without an undo entry");
+    Check(editor->ImportTextInputState(host, preview, true), "text-service commit applies exact Unicode source once");
+    prepare();
+    Check(editor->Undo() && editor->GetText() == entry && ! editor->CanUndo(), "one undo restores the empty container after text-service commit");
+    prepare();
+    editor->SetText(L"\r\n\r\n");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"\r\n", "empty physical-line Backspace deletes exactly one whole raw CRLF");
+    prepare();
+    Check(editor->Undo() && editor->GetText() == L"\r\n\r\n", "empty-line Backspace is one reversible raw source edit");
     prepare();
 }
 template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
@@ -109,6 +233,14 @@ template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, P
     prepare();
     Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetSemanticDocument()->Map().Display() == L"admitted\n",
           "a new source revision retries and leaves the explicit source fallback");
+    editor->SetText(std::wstring(SemanticDocument::MaximumParagraphs + 1u, L'\n'));
+    prepare();
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady,
+          "native empty-caret scaffolding shares the bounded paragraph admission ceiling and falls back to exact source");
+    const auto nativeAdvances = editor->DebugGetState().preparationAdvances;
+    prepare();
+    Check(editor->DebugGetState().preparationAdvances == nativeAdvances && ! editor->CanUndo(),
+          "native caret admission rejection is not retried by idle owner turns");
 }
 template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepare)
 {

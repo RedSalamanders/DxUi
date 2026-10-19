@@ -8,6 +8,7 @@ namespace RichSemanticGeometryTests
 {
 using namespace DxUi::RichText;
 using DxUi::RichText::Detail::PreparedSemanticGeometry;
+using DxUi::RichText::Detail::SourceCaretHit;
 using RichSemanticTests::Check;
 inline wil::com_ptr<IDWriteFactory> Factory()
 {
@@ -102,5 +103,112 @@ inline void AtomicNavigationAndCancellation()
     Check(geometry.Caret(0u).height > 0.0f && geometry.HitTest(0.0f, 0.0f).position == 0u,
           "empty semantic document has an SDK caret without invented source text");
     RichSemanticTests::Reject<std::out_of_range>([&] { geometry.Range(0u, 1u); }, "semantic range bound validation");
+}
+inline void SourceCaretSites()
+{
+    auto factory = Factory();
+    LayoutOptions options;
+    options.widthDip = 360.0f;
+    std::wstring source(0u, L' ');
+    std::vector<std::size_t> insertions(0u);
+    const std::array<std::pair<std::wstring_view, std::wstring_view>, 6u> lines{
+        {{L"", L"\r\n"}, {L" \t", L"\r"}, {L">", L"\r\n"}, {L"> >", L"\n"}, {L"- ", L"\r\n"}, {L"", L"\n"}}};
+    for (const auto& [body, eol] : lines)
+    {
+        insertions.push_back(source.size() + body.size());
+        source.append(body);
+        source.append(eol);
+    }
+    source.append(L"text\r\n");
+    insertions.push_back(source.size());
+    const auto document = RichSemanticDocumentTests::Build(source);
+    Check(document->Syntax()->EmptyLines().size() == insertions.size(), "block recognizer preserves physical empty/container/trailing source sites");
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    float previousY = -1.0f;
+    for (std::size_t i = 0u; i < insertions.size(); ++i)
+    {
+        const auto& line = document->Syntax()->EmptyLines()[i];
+        Check(line.insertion == insertions[i] && IsEditBoundary(source, line.insertion) && line.owner < document->Syntax()->Nodes().size(),
+              "source caret metadata retains exact admitted raw ACPs and current container owners");
+        const auto caret = geometry.SourceCaret(line.insertion);
+        Check(caret.height > 0.0f && caret.y > previousY, "every empty/container/trailing physical source line has distinct native vertical geometry");
+        const auto hit = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+        Check(hit.position == line.insertion && hit.site != MarkdownNoNode, "empty source caret and pointer hit round-trip without invented source units");
+        const auto boundary = geometry.SourceLineBoundary(line.insertion, hit.site, true);
+        Check(boundary.position == line.insertion && boundary.site == hit.site, "Home/End preserve the empty visual line affinity");
+        Check(geometry.SourceRange({line.source.first, line.source.last}).empty(), "empty caret scaffolding contributes no source-selection glyphs");
+        if (i == 2u || i == 3u)
+            Check(caret.x >= 16.0f * static_cast<float>(i - 1u), "empty nested quotes retain parsed container indentation");
+        previousY = caret.y;
+    }
+    const auto partitions = geometry.SourceLines();
+    Check(! partitions.empty() && partitions.front().first == 0u && partitions.back() == std::pair{source.size(), source.size()},
+          "source line units include the final raw insertion line");
+    for (std::size_t i = 1u; i < partitions.size(); ++i)
+        Check(partitions[i - 1u].second == partitions[i].first, "empty visual source lines retain ordered gap-free ACP partitions");
+    RichSemanticTests::Reject<std::out_of_range>([&] { geometry.SourceCaret(1u); }, "source caret rejects the interior of a CRLF pair");
+
+    const std::wstring table = L"| a | b | c |\n| - | - | - |\n| value |\n";
+    const auto cells         = RichSemanticDocumentTests::Build(table);
+    for (const bool rtl : {false, true})
+    {
+        options.readingDirection = rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+        geometry.Begin(factory.get(), cells, options);
+        Complete(geometry);
+        const auto anchor = table.rfind(L'\n');
+        std::array<SourceCaretHit, 2u> hits{};
+        for (std::size_t column = 1u; column < 3u; ++column)
+        {
+            const auto physical  = rtl ? 2u - column : column;
+            const auto valueRect = geometry.SourceRange({table.find(L"value"), table.find(L"value") + 5u});
+            hits[column - 1u]    = geometry.HitTestSource((static_cast<float>(physical) + .5f) * 120.0f, valueRect.front().top + 5.0f);
+            Check(hits[column - 1u].position == anchor, "padded cells expose the real end-of-row ACP in both flow directions");
+        }
+        Check(hits[0].site != hits[1].site, "padded cells with equal raw ACPs have distinct native site identities");
+        const auto first = geometry.SourceCaret(anchor, hits[0].site), second = geometry.SourceCaret(anchor, hits[1].site);
+        Check(std::abs(first.x - second.x) > 100.0f && std::abs(first.y - second.y) < .1f,
+              "padded cell affinity disambiguates caret geometry without text mutation");
+        const auto next = geometry.StepSource(anchor, hits[0].site, true);
+        Check(next.position == anchor && next.site == hits[1].site, "logical Right can move between padded cells without changing the raw ACP");
+        const auto previous = geometry.StepSource(anchor, hits[1].site, false);
+        Check(previous.position == anchor && previous.site == hits[0].site, "logical Left reverses an equal-ACP cell move");
+        auto narrower     = options;
+        narrower.widthDip = 240.0f;
+        geometry.Begin(factory.get(), cells, narrower);
+        Complete(geometry);
+        const auto reflowed = geometry.SourceCaret(anchor, hits[1].site);
+        Check(reflowed.height > 0.0f && geometry.HitTestSource(reflowed.x, reflowed.y + reflowed.height * .5f).site == hits[1].site,
+              "same-source reflow retains equal-ACP cell identity across layout widths");
+    }
+    for (const auto text : {L"", L"[ref]: local", L"```\n\n\n```\n", L"```\n\n", L"#\n", L"-\n", L">\n"})
+    {
+        const auto special = RichSemanticDocumentTests::Build(text);
+        geometry.Begin(factory.get(), special, options);
+        Complete(geometry);
+        Check(geometry.SourceCaret(std::wstring_view(text).size()).height > 0.0f && geometry.BoxCount() > 0u,
+              "empty/hidden/code/heading/marker documents retain a source EOF caret");
+        if (std::wstring_view(text) == L"```\n\n")
+            Check(special->Syntax()->EmptyLines().empty() && geometry.BoxCount() == 1u, "unclosed code-body blank lines do not acquire duplicate scaffolding");
+    }
+    const auto previousDocument   = &geometry.Document();
+    const auto previousGeneration = geometry.Generation();
+    const auto overflow           = RichSemanticDocumentTests::Build(std::wstring(SemanticDocument::MaximumParagraphs + 1u, L'\n'));
+    geometry.Begin(factory.get(), overflow, options);
+    std::size_t sdkCalls = 0u;
+    bool rejected        = false;
+    try
+    {
+        while (geometry.Pending())
+            sdkCalls += geometry.Advance({1u, 3u}).layoutsPrepared;
+    }
+    catch (const std::length_error&)
+    {
+        rejected = true;
+    }
+    Check(rejected && sdkCalls == 0u && geometry.Ready() && ! geometry.Pending() && &geometry.Document() == previousDocument &&
+              geometry.Generation() == previousGeneration,
+          "caret-site admission rejects before SDK calls and preserves the prior complete native publication");
 }
 } // namespace RichSemanticGeometryTests

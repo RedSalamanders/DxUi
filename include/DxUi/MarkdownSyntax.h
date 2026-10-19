@@ -2,6 +2,7 @@
 #include <DxUi/RichDocument.h>
 #include <array>
 #include <optional>
+#include <span>
 
 namespace DxUi::RichText
 {
@@ -117,6 +118,15 @@ struct MarkdownContentLine
     MarkdownRange source;
     unsigned leadingSpaces{}; // Unconsumed columns of a partially consumed tab.
 };
+// A physical line accepted as empty after the block recognizer consumed its
+// container prefixes. This is source trivia, not a semantic text node. Offsets
+// include the original EOL; insertion is before it. Owner is revision-local.
+struct MarkdownEmptyLine
+{
+    MarkdownRange source;
+    std::size_t insertion{}, owner{};
+    unsigned indent{};
+};
 struct MarkdownNode
 {
     // MSVC Debug's default/move vector constructors are noexcept but allocate
@@ -182,6 +192,7 @@ public:
     // Node zero is the document. Follow firstChild/nextSibling for source order;
     // finalizing reference definitions can append nodes after their siblings.
     const std::vector<MarkdownNode>& Nodes() const noexcept;
+    std::span<const MarkdownEmptyLine> EmptyLines() const noexcept;
     std::uint64_t DocumentIdentity() const noexcept;
     MarkdownBlockStatistics BlockStatistics() const noexcept;
     const std::vector<MarkdownLexeme>& Lexemes() const noexcept;
@@ -204,6 +215,7 @@ private:
     std::vector<MarkdownBlock> blocks_;
     std::vector<MarkdownLexeme> lexemes_;
     std::vector<MarkdownNode> nodes_;
+    std::vector<MarkdownEmptyLine> emptyLines_;
     std::vector<MarkdownInline> inlines_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;

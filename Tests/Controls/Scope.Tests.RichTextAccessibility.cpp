@@ -684,6 +684,58 @@ void TestRichTextAccessibilityEmbeddedSemanticRenderingClient()
 {
     EmbeddedCase([](bool embedded) { SourceTransactionClient(embedded, true); });
 }
+void SourceCaretSitesClient(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    const std::wstring source = L"\r\n>\r\n- \r\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0 && client.DocumentText(editor) == source, "real UIA client reaches exact empty-container source");
+    const auto screenPoint = [&](D2D1_POINT_2F point)
+    {
+        if (embedded)
+            return POINT{static_cast<LONG>(std::lround(point.x - 32000.0f)), static_cast<LONG>(std::lround(point.y - 32000.0f))};
+        return ClientPointToScreenForTest(fixture.Hwnd(),
+                                          {static_cast<LONG>(std::lround(fixture.window->Host().DipsToPixels(point.x))),
+                                           static_cast<LONG>(std::lround(fixture.window->Host().DipsToPixels(point.y)))},
+                                          "empty source UIA point transport");
+    };
+    for (const auto& line : fixture.editor->GetMarkdownSyntax()->EmptyLines())
+    {
+        fixture.editor->SetSelection({line.insertion, line.insertion});
+        fixture.Publish();
+        const auto caret = fixture.editor->TryGetTextInputCaretRect(*fixture.controls, line.insertion);
+        Require(caret.has_value(), "empty source UIA caret has current geometry");
+        const auto point = screenPoint(D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f));
+        Require(client.TextCaretPosition(editor) == line.insertion && client.TextPositionFromPoint(editor, point) == line.insertion,
+                "real native/embedded UIA caret and RangeFromPoint preserve exact empty-line ACPs");
+    }
+    const std::wstring table = L"| a | b | c |\n| - | - | - |\n| value |\n";
+    fixture.editor->SetText(table);
+    fixture.Publish();
+    const auto viewport   = fixture.editor->TryGetTextInputViewportRect();
+    const auto value      = table.find(L"value");
+    const auto rectangles = fixture.editor->TryGetTextInputRangeRects(*fixture.controls, value, value + 5u);
+    Require(viewport && rectangles && ! rectangles->empty(), "padded UIA cell fixture has native glyph bounds");
+    const auto point = D2D1::Point2F(viewport->left + (viewport->right - viewport->left) * .8f, rectangles->front().top + 5.0f);
+    Require(fixture.editor->OnMouseDown(*fixture.controls, point, false, 0u), "choose last padded UIA cell");
+    static_cast<void>(fixture.editor->OnMouseUp(*fixture.controls, point, false, 0u));
+    fixture.Publish();
+    Require(client.DocumentText(editor) == table && client.TextCaretPosition(editor) == table.rfind(L'\n') &&
+                client.TextPositionFromPoint(editor, screenPoint(point)) == table.rfind(L'\n') && ! fixture.editor->CanUndo(),
+            "real UIA client observes source-exact padded cell text, caret and pointer with unchanged history");
+}
+void TestRichTextAccessibilityWindowSourceCaretSitesClient()
+{
+    SourceCaretSitesClient(false);
+}
+void TestRichTextAccessibilityEmbeddedSourceCaretSitesClient()
+{
+    EmbeddedCase(SourceCaretSitesClient);
+}
 void TestRichTextAccessibilityEmbeddedClientNavigationAndEvents()
 {
     EmbeddedCase(ClientNavigationAndEvents);
@@ -952,6 +1004,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceTransactionClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticRenderingClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticRenderingClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceCaretSitesClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceCaretSitesClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSearchCommands);

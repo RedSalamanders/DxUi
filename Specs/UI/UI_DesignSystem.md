@@ -61,6 +61,8 @@ populated gallery tile and static component preview show resolved styles and a
 Unicode table. Table/code/image outlines, quote strokes and rules reuse the caret
 ink role; selection keeps the existing selected-text/fill roles in every theme.
 Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
-within the bounded viewport. No palette token changes. Structural commands,
-empty/padded source caret sites and semantic style accessibility remain pending;
+within the bounded viewport. Empty/trailing/container-only source lines have
+caret boxes with the same typography/indentation; empty/padded cells retain
+distinct visual affinity without adding source text or selection ink. No palette
+token changes. Structural commands and semantic style accessibility remain pending;
 the static HTML preview is design guidance, never native rendering evidence.

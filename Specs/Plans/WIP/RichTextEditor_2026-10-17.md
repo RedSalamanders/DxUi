@@ -1778,6 +1778,14 @@ cannot close D4c.
     component qualification. Full M4d remains open for the next substeps.
   - [ ] M4d.2: Distinct source caret sites for empty/trailing/container-only lines
     and padded cells, preserving exact source TSF/selection/history semantics.
+    - [x] Implement parser-owned empty-line source trivia and native caret boxes,
+      keeping generated/hidden syntax pixel-empty for source range queries.
+    - [x] Implement revision-local visual affinity for equal-ACP empty/padded
+      cells; route pointer, keyboard, scrolling and text-service caret geometry.
+    - [x] Add directed shared native/embedded and real UIA client tests, exact
+      Unicode preview/cancel/commit/history and raw CRLF deletion scenarios.
+    - [ ] Execute focused tests/fault probes, fix failures, qualify required
+      profiles/resources, review gallery and record evidence before closeout.
   - [ ] M4d.3: Hanging marker indentation, link presentation and the explicitly
     validated native HTML subset with source-preserving literal fallback.
 - [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,

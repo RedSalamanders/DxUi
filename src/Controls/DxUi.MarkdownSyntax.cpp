@@ -138,6 +138,7 @@ MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision,
       blocks_(0u),
       lexemes_(0u),
       nodes_(0u),
+      emptyLines_(0u),
       inlines_(0u)
 {
 }
@@ -164,6 +165,10 @@ const std::vector<MarkdownBlock>& MarkdownSyntax::Blocks() const noexcept
 const std::vector<MarkdownNode>& MarkdownSyntax::Nodes() const noexcept
 {
     return nodes_;
+}
+std::span<const MarkdownEmptyLine> MarkdownSyntax::EmptyLines() const noexcept
+{
+    return emptyLines_;
 }
 std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
 {
@@ -323,7 +328,7 @@ struct MarkdownParser::Preparation
         if (! node.identity)
             node.identity = nextIdentity++;
     }
-    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->extensions_};
+    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_};
     Detail::MarkdownInlines inlines{syntax->source_, syntax->profile_, syntax->extensions_, syntax->nodes_, syntax->inlines_, CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};

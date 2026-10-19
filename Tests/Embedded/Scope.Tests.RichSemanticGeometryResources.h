@@ -76,7 +76,7 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
     auto factory        = RichSemanticGeometryTests::Factory();
     const auto previous = RichSemanticDocumentTests::Build(L"previous\n");
     const auto candidate =
-        RichSemanticDocumentTests::Build(L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> - [x] [label](local) and ![alt](image)\n");
+        RichSemanticDocumentTests::Build(L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
     size_t requests  = 0u;
@@ -139,6 +139,17 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
         geometry.Begin(factory.get(), candidate, options);
         geometry.Caret(0u);
         geometry.HitTest(4.0f, 4.0f);
+        geometry.SourceCaret(0u);
+        const auto sourceHit = geometry.HitTestSource(4.0f, 4.0f);
+        geometry.StepSource(sourceHit.position, sourceHit.site, true);
+        geometry.SourceLineBoundary(sourceHit.position, sourceHit.site, true);
+        geometry.VisibleSourceRange(0.0f, geometry.Height());
+        for (const auto& line : candidate->Syntax()->EmptyLines())
+        {
+            const auto caret = geometry.SourceCaret(line.insertion);
+            const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+            geometry.SourceCaret(hit.position, hit.site);
+        }
         geometry.SourceLines();
     }
     geometry.Clear();

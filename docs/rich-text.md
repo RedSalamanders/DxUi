@@ -764,10 +764,24 @@ ACPs, including hidden Markdown and original line endings.
 Admission overflow uses exact source geometry once and reports SourceFallback;
 it preserves source, requested view, selection and history. A new source/profile
 request can retry. The existing source limit remains 65,536 UTF-16 units;
-semantic admission adds 4,096 paragraphs/cells and 32,768 elements. These are
+semantic admission adds 4,096 native paragraphs/cells/caret boxes and 32,768 elements. These are
 preview bounds, not large-document latency or performance qualification.
 
-Empty/container-only source caret sites, padded-cell editing, structural joins
+Empty, trailing and container-only source lines have distinct prepared caret
+sites. `MarkdownSyntax::EmptyLines()` exposes their exact raw source/EOL ranges,
+insertion ACPs and revision-local container owners. Code-body blank lines reuse
+the code layout. Empty/padded table cells retain visual affinity even when they
+share the same real row-end ACP. Clicking, navigation and same-source reflow do
+not modify source or add undo entries. Hidden/generated source ranges still
+have no selection glyph rectangles. Empty physical-line deletion uses raw
+Unicode graphemes/whole CRLF; a cell scaffold owns no token to delete.
+
+Padded-cell materialization, structural joins
 and formatting cleanup, interactive task commands, link styling, safe HTML
 formatting and structured/style UIA remain active M4 work. Math, Mermaid,
 footnotes/front matter and physical IME/AT/platform/performance gates stay open.
+
+Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
+branch's interactive semantic preview. It uses the sample application's existing
+device, host loop and text-service bridge. `--rich-text --output image.png`
+captures the same scene without desktop takeover. Consumer pins are unchanged.

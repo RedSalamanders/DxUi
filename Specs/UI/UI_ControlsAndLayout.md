@@ -1061,14 +1061,33 @@ the map's actual fragments, including atomic transformed/object spans. Hidden
 syntax receives no glyph rectangle. Source line units partition raw ACPs in
 document order, including original EOLs/trivia; cells have their own wrapped line
 units. A wrapping atomic object remains one source unit rather than overlapping
-intervals. This does not yet provide distinct native source caret sites for all
-empty/container-only lines or padded cells. That requirement remains active.
+intervals. Source caret sites are separate from glyph ownership. The block
+recognizer records physically empty and container-only lines with their exact
+raw source/EOL range, insertion ACP and current container owner. The native
+backend cooperatively merges empty caret boxes with semantic paragraphs/cells;
+code-body empty lines reuse their existing SDK geometry. A definitions-only or
+empty document still has a native caret, and source EOF has its trailing line.
+An empty list marker reuses its marker paragraph instead of adding a second row.
+
+Empty and padded cells retain native visual site affinity when several sites
+share one raw row-end ACP. Pointer placement, logical Left/Right, Home/End,
+vertical navigation, caret scrolling and text-service caret bounds use that
+affinity. It survives same-source reflow/retirement and unchanged text-service
+synchronization; source replacement, explicit selection or mode/profile changes
+clear it. It never becomes document text, a virtual ACP or an undo entry.
+Noncollapsed source range bounds still contain only owned glyph fragments.
+All native paragraphs/cells/caret boxes together share the 4,096-layout ceiling;
+overflow selects exact source fallback once for that immutable syntax.
 
 Collapsed visual deletion expands a source caret inside a transformed/object
 token to the complete owned token and commits mapped fragments in one source
 transaction. Programmatic replacement and TSF retain exact raw ACPs. Generated
 separators do not imply a structural join command: list/quote continuation joins,
-empty-format cleanup and padded-cell editing remain M4e. Pending geometry uses
+empty-format cleanup and padded-cell materialization remain M4e. An empty cell
+scaffold has no owned token to delete; an empty physical source line uses raw
+Unicode graphemes and whole CRLF for ordinary deletion. Typing and text-service
+imports retain exact source replacement semantics, including a padded cell's
+real row-end ACP. Pending geometry uses
 exact source graphemes rather than applying v0 grammar to another dialect.
 
 A semantic length/admission rejection records the exact immutable syntax owner,

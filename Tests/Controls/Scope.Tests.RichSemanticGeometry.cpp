@@ -12,6 +12,19 @@ void TestRichSemanticGeometryAtomicNavigationAndCancellation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
 }
+void TestRichSemanticGeometrySourceCaretSites()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
+}
+void TestRichSemanticNativeSourceCaretSites()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::SourceCaretSites(window.Host(),
+                                                  [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source caret sites"); });
+    });
+}
 void TestRichSemanticNativeRetainedRendering()
 {
     AttachedHostWindow window;
@@ -32,6 +45,8 @@ void RunRichSemanticGeometryTests()
 {
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
+    DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);
+    DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

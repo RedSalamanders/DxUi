@@ -11,6 +11,8 @@ class MarkdownBlocks
     using Kind = MarkdownBlockKind;
     std::wstring_view source_;
     std::vector<MarkdownNode>& nodes_;
+    std::vector<MarkdownEmptyLine>& emptyLines_;
+    unsigned containerIndent_{};
     std::vector<std::size_t> open_, tails_, previousSibling_;
     std::vector<bool> blank_;
     std::size_t leaf_ = MarkdownNoNode;
@@ -518,6 +520,8 @@ class MarkdownBlocks
     void PopContainer()
     {
         const auto closing = open_.back();
+        if (nodes_[closing].block.kind == Kind::BlockQuote || nodes_[closing].block.kind == Kind::ListItem)
+            --containerIndent_;
         open_.pop_back();
         nodes_[closing].block.source.last = acceptedEnd_;
         ++statistics_.containerFinalizations;
@@ -774,9 +778,14 @@ class MarkdownBlocks
     }
 
 public:
-    MarkdownBlocks(std::wstring_view source, MarkdownProfile profile, std::vector<MarkdownNode>& nodes, MarkdownExtensions extensions)
+    MarkdownBlocks(std::wstring_view source,
+                   MarkdownProfile profile,
+                   std::vector<MarkdownNode>& nodes,
+                   std::vector<MarkdownEmptyLine>& emptyLines,
+                   MarkdownExtensions extensions)
         : source_(source),
           nodes_(nodes),
+          emptyLines_(emptyLines),
           open_(0u),
           tails_(0u),
           previousSibling_(0u),
@@ -919,6 +928,7 @@ public:
         if (empty)
         {
             CloseLeaf();
+            emptyLines_.push_back({{first, end}, bodyEnd, open_.back(), containerIndent_});
             blank_[open_.back()] = true;
             Extend();
             return;
@@ -950,6 +960,7 @@ public:
                 CloseLeaf();
                 const auto quote = Add(Kind::BlockQuote, open_.back());
                 open_.push_back(quote);
+                ++containerIndent_;
                 cursor = trimmed;
                 cursor.Take();
                 if (! cursor.Empty() && Space(cursor.Peek()))
@@ -980,6 +991,7 @@ public:
                 const auto item            = Add(Kind::ListItem, list);
                 nodes_[item].contentIndent = marker.indent;
                 open_.push_back(item);
+                ++containerIndent_;
                 cursor = marker.content;
                 continue;
             }
@@ -994,6 +1006,7 @@ public:
         trimmed.Trim();
         if (trimmed.Empty())
         {
+            emptyLines_.push_back({{first, end}, bodyEnd, open_.back(), containerIndent_});
             Extend();
             return;
         }
@@ -1109,6 +1122,9 @@ public:
     }
     void Finish()
     {
+        const bool trailingInLeaf =
+            leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
+            (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode || nodes_[leaf_].block.kind == Kind::HtmlBlock);
         CloseLeaf();
         for (const auto container : open_)
         {
@@ -1137,6 +1153,12 @@ public:
                 nodes_[remap[i]] = node;
         }
         nodes_.resize(count);
+        for (auto& line : emptyLines_)
+            line.owner = remap[line.owner];
+        // The final source insertion line is real even when no block node owns
+        // text there. Do not copy code-body blank lines: Content handled those.
+        if (! trailingInLeaf && (source_.empty() || source_.back() == L'\r' || source_.back() == L'\n'))
+            emptyLines_.push_back({{source_.size(), source_.size()}, source_.size(), 0u, 0u});
     }
     MarkdownBlockStatistics Statistics() const noexcept
     {

@@ -22,6 +22,7 @@ struct App
     DxUi::TextInputServices textServices;
     std::shared_ptr<EmbeddedTextClient> textClient;
     bool textInput = false;
+    bool richText  = false;
     ~App()
     {
         ClearText();
@@ -254,7 +255,7 @@ struct App
         AdjustWindowRectEx(&bounds, style, FALSE, 0);
         window.reset(CreateWindowExW(0,
                                      wc.lpszClassName,
-                                     L"DxUi - supplied Direct3D device",
+                                     richText ? L"DxUi - Unicode RichTextEditor semantic preview" : L"DxUi - supplied Direct3D device",
                                      style,
                                      CW_USEDEFAULT,
                                      CW_USEDEFAULT,
@@ -322,6 +323,7 @@ int wmain(int argc, wchar_t** argv)
     {
         bool complex          = false;
         bool textInput        = false;
+        bool richText         = false;
         const wchar_t* output = nullptr;
         for (int i = 1; i < argc; ++i)
         {
@@ -329,18 +331,26 @@ int wmain(int argc, wchar_t** argv)
                 complex = true;
             else if (std::wstring_view(argv[i]) == L"--text-input" && ! textInput)
                 textInput = true;
+            else if (std::wstring_view(argv[i]) == L"--rich-text" && ! richText)
+                richText = true;
             else if (std::wstring_view(argv[i]) == L"--output" && ! output && i + 1 < argc)
                 output = argv[++i];
             else
             {
-                std::wcerr << L"Usage: DxUi.EmbeddedControls [--complex-ui | --text-input] [--output image.png]\n";
+                std::wcerr << L"Usage: DxUi.EmbeddedControls [--complex-ui | --text-input | --rich-text] [--output image.png]\n";
                 return 2;
             }
         }
-        if (complex && textInput)
+        if ((complex && (textInput || richText)) || (textInput && richText))
             return 2;
         App app;
-        app.textInput = textInput;
+        app.textInput = textInput || richText;
+        app.richText  = richText;
+        if (richText)
+        {
+            app.gpu.width  = 980;
+            app.gpu.height = 720;
+        }
         if (textInput)
             app.gpu.height = 340;
         if (complex)
@@ -352,10 +362,20 @@ int wmain(int argc, wchar_t** argv)
         if (FAILED(app.gpu.Create()))
             return 1;
         const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
-        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks) : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput)))
+        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)
+                           : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput, richText)))
             return 1;
         if (output)
         {
+            // Headless capture has no message pump to drain cooperative preparation.
+            if (richText)
+            {
+                for (unsigned turn = 0; turn < 1024u && app.scene.rich->GetMarkdownRenderingStatus() != DxUi::MarkdownRenderingStatus::Semantic; ++turn)
+                    if (FAILED(app.Render()))
+                        return 1;
+                if (app.scene.rich->GetMarkdownRenderingStatus() != DxUi::MarkdownRenderingStatus::Semantic)
+                    return 1;
+            }
             if (FAILED(app.Render()))
                 return 1;
             if (textInput)

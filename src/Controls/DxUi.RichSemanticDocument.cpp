@@ -317,6 +317,7 @@ struct SemanticBuilder::Preparation
         if (node.block.kind == MarkdownBlockKind::BlankLine || node.block.kind == MarkdownBlockKind::ReferenceDefinition)
             return;
         visit.element                                  = Element(BlockRole(node.block.kind), node.block.source, visit.parent, node.identity);
+        document->elements_[visit.element].syntaxNode  = visit.node;
         document->elements_[visit.element].heading     = node.block.heading;
         document->elements_[visit.element].alignment   = node.alignment;
         document->elements_[visit.element].tableHeader = node.tableHeader;

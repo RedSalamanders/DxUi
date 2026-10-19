@@ -108,12 +108,11 @@ public:
     }
     std::size_t ChunkCount() const noexcept
     {
-        return activeSemantic_ && semantic_.Ready() ? semantic_.Document().Paragraphs().size() : v0_.ChunkCount();
+        return activeSemantic_ ? semantic_.BoxCount() : v0_.ChunkCount();
     }
     LayoutPreparation LastPreparation() const noexcept
     {
-        return activeSemantic_ && semantic_.Ready() ? LayoutPreparation{semantic_.Document().Paragraphs().size(), 0u, SourceLength(), 0u, 0u, 0u}
-                                                    : v0_.LastPreparation();
+        return activeSemantic_ && semantic_.Ready() ? LayoutPreparation{semantic_.BoxCount(), 0u, SourceLength(), 0u, 0u, 0u} : v0_.LastPreparation();
     }
     bool UsesWholeGeometry() const noexcept
     {
@@ -130,6 +129,24 @@ public:
     CaretGeometry Caret(std::size_t display) const
     {
         return activeSemantic_ ? semantic_.Caret(display) : v0_.Caret(display);
+    }
+    CaretGeometry SourceCaret(std::size_t source, std::size_t site = MarkdownNoNode) const
+    {
+        return activeSemantic_ ? semantic_.SourceCaret(source, site) : v0_.Caret(v0_.ToDisplay(source));
+    }
+    SourceCaretHit HitTestSource(float x, float y) const
+    {
+        if (activeSemantic_)
+            return semantic_.HitTestSource(x, y);
+        const auto hit = v0_.HitTest(x, y);
+        return {v0_.ToSource(hit.position, hit.trailing)};
+    }
+    std::pair<std::size_t, std::size_t> VisibleSourceRange(float top, float bottom) const
+    {
+        if (activeSemantic_)
+            return semantic_.VisibleSourceRange(top, bottom);
+        const auto range = v0_.VisibleRange(top, bottom);
+        return {v0_.ToSource(range.first), v0_.ToSource(range.second, true)};
     }
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const
     {

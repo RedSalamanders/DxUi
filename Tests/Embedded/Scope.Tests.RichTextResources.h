@@ -805,11 +805,13 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bo
     size_t requests = 0;
     Hr(first.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "rich-text first view");
     Hr(second.Attach(graphics), "rich-text second view");
-    const std::wstring source = L"# Owned Unicode\r\n**bold** \u03b2 \U0001f600 a\u0301\n\u05d0\u05d1\u05d2\nlast";
-    auto a                    = std::make_unique<RichTextEditor>(source);
-    auto b                    = std::make_unique<RichTextEditor>(source);
-    auto* editor              = a.get();
-    auto* other               = b.get();
+    std::wstring source = L"# Owned Unicode\r\n**bold** \u03b2 \U0001f600 a\u0301\n\u05d0\u05d1\u05d2\nlast";
+    if (semanticRendering)
+        source += L"\n\n>\r\n- \r\n\n| a | b |\n| - | - |\n| value |\n";
+    auto a       = std::make_unique<RichTextEditor>(source);
+    auto b       = std::make_unique<RichTextEditor>(source);
+    auto* editor = a.get();
+    auto* other  = b.get();
     if (semanticRendering)
     {
         a->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);

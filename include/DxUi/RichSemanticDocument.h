@@ -33,6 +33,7 @@ struct SemanticElement
     MarkdownRange source, display, taskMarker;
     std::size_t parent = MarkdownNoNode, firstChild = MarkdownNoNode, nextSibling = MarkdownNoNode;
     std::uint64_t blockIdentity{};
+    std::size_t syntaxNode = MarkdownNoNode;
     unsigned heading{};
     MarkdownTask task{};
     MarkdownAlignment alignment{};

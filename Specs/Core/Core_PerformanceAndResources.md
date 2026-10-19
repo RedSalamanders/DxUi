@@ -744,7 +744,7 @@ The [cooperative preparation record](../../Measurements/RichText/2026-10-18-coop
 
 The opt-in M4d semantic path uses the same host turns with separate bounded CPU
 semantic events (default 4,096), SDK layout calls (4) and geometry metadata events
-(4,096). Its graph is bounded by 4,096 semantic paragraphs/cells and 32,768
+(4,096). Its graph is bounded by 4,096 native paragraphs/cells/caret boxes and 32,768
 elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
 or final map construction remains indivisible. It retains at most a published
 and staged native geometry graph; source edits currently rebuild semantic leaves

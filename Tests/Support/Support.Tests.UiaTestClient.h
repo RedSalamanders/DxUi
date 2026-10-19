@@ -875,6 +875,29 @@ public:
         });
     }
 
+    // Ask through the real text client, then count its exact UTF-16 source
+    // prefix. Character-unit movement would collapse CRLF and supplementary ACPs.
+    [[nodiscard]] size_t TextPositionFromPoint(ElementId field, POINT point)
+    {
+        return Ask<size_t>("a source text position at a screen point",
+                           [field, point](Session& session, size_t& position)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> hit, document;
+            RETURN_IF_FAILED(pattern->RangeFromPoint(point, hit.put()));
+            RETURN_IF_FAILED(pattern->get_DocumentRange(document.put()));
+            RETURN_IF_FAILED(document->MoveEndpointByRange(TextPatternRangeEndpoint_End, hit.get(), TextPatternRangeEndpoint_Start));
+            wil::unique_bstr prefix;
+            RETURN_IF_FAILED(document->GetText(-1, prefix.put()));
+            position = SysStringLen(prefix.get());
+            return S_OK;
+        });
+    }
+
     // What a Selection pattern reports as selected in `container`.
     [[nodiscard]] std::vector<ElementId> Selection(ElementId container)
     {

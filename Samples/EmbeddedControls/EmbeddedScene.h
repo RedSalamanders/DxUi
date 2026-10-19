@@ -6,12 +6,13 @@
 struct EmbeddedScene
 {
     DxUi::EmbeddedHost view;
-    DxUi::Toggle* toggle  = nullptr;
-    DxUi::Slider* slider  = nullptr;
-    DxUi::TextField* text = nullptr;
-    bool enabled          = true;
-    double intensity      = 65;
-    HRESULT Initialize(ID3D11Device* device, DxUi::EmbeddedCallbacks callbacks = {}, bool textInput = false)
+    DxUi::Toggle* toggle       = nullptr;
+    DxUi::Slider* slider       = nullptr;
+    DxUi::TextField* text      = nullptr;
+    DxUi::RichTextEditor* rich = nullptr;
+    bool enabled               = true;
+    double intensity           = 65;
+    HRESULT Initialize(ID3D11Device* device, DxUi::EmbeddedCallbacks callbacks = {}, bool textInput = false, bool richText = false)
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
@@ -19,7 +20,30 @@ struct EmbeddedScene
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);
-        auto root     = std::make_unique<DxUi::Panel>();
+        auto root = std::make_unique<DxUi::Panel>();
+        if (richText)
+        {
+            auto* caption = root->AddChild<DxUi::Label>(L"Unicode Markdown semantic preview - click to edit; Ctrl+Z / Ctrl+Y for history");
+            caption->SetBounds(D2D1::RectF(24, 12, 950, 44));
+            rich = root->AddChild<DxUi::RichTextEditor>();
+            rich->SetBounds(D2D1::RectF(24, 52, 950, 690));
+            rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::Gfm029);
+            rich->SetMarkdownRenderingEnabled(true);
+            rich->SetText(L"# Owned Unicode rich text\r\n\r\n"
+                          L"Edit **bold**, *italic*, ~~deleted~~ and `code`. Entities: &amp; &copy;.\r\n\r\n"
+                          L"## Tables and Unicode\r\n\r\n"
+                          L"| Feature | Example | Status |\r\n| :--- | :---: | ---: |\r\n"
+                          L"| Unicode | \u6771\u4eac \u03b1\u03b2 \U0001f642 | Ready |\r\n"
+                          L"| Empty cell | | Editable |\r\n| Padded cells |\r\n\r\n"
+                          L"> A quote with **emphasis** and a [literal link](https://example.com).\r\n\r\n"
+                          L"- First item\r\n- [x] A checked task\r\n- [ ] An unchecked task\r\n\r\n"
+                          L"```cpp\r\n// Source spelling and Unicode are preserved.\r\nconst auto message = L\"Hello\";\r\n```\r\n\r\n"
+                          L"An image alternative: ![small example](example.png)\r\n\r\n"
+                          L"HTML remains literal: <span>editable source</span>.\r\n\r\n"
+                          L">\r\n\r\n- \r\n\r\n");
+            view.Controls().SetRoot(std::move(root));
+            return S_OK;
+        }
         auto* heading = root->AddChild<DxUi::Label>(L"Control playground");
         heading->SetBounds(D2D1::RectF(24, 16, 430, 50));
         toggle = root->AddChild<DxUi::Toggle>(L"Enable effect");

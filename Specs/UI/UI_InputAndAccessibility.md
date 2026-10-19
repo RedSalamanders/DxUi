@@ -847,8 +847,20 @@ trailing raw trivia. A collapsed visual delete from inside a transformed/object
 source token removes its complete owned token through one undoable source plan;
 programmatic replacement and imported text-service state retain exact ACPs.
 Generated separators require explicit structural joining; complete structural
-commands, empty/padded source caret sites, semantic UIA children/format attributes
+commands, semantic UIA children/format attributes
 and physical IME/AT qualification remain open in M4 and the existing platform gates.
+
+M4d.2 source caret geometry distinguishes empty/trailing/container-only lines and
+empty/padded cells without adding source characters. TextPattern2, TSF selections
+and RangeFromPoint continue to expose exact raw UTF-16 ACPs. Native visual site
+affinity disambiguates equal-ACP cells for painting and text-service caret bounds;
+an unchanged source/selection synchronization retains it. Explicit source
+selection or source/mode/profile replacement clears it. Caret-only boxes do not
+give hidden/generated source ranges selection rectangles. Empty physical-line
+deletion respects raw Unicode graphemes and CRLF; empty cell scaffolding owns no
+deletable token. Structural table materialization/joining remains M4e. Synthetic
+composition transport and in-process UIA clients complement the separate physical
+IME/assistive-technology qualification gates.
 
 The control that called a native publish treats it as a reentrancy boundary too: before touching itself again or
 calling a pending delegate, it checks that its lifetime survived the publish. Tree and Grid selection helpers that
