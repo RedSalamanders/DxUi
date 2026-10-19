@@ -173,6 +173,15 @@ struct PreparedSemanticGeometry::Preparation
     bool rowActive{};
     std::size_t emptyLine{}, plannedBoxes{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
+    std::size_t SourceFirst(const SemanticParagraph& content) const
+    {
+        const auto& nodes = state->document->Syntax()->Nodes();
+        const auto& node  = nodes[content.syntaxNode];
+        // Padded cells may be anchored after their row's EOL. Order every cell
+        // by the physical row start, so an EOF/blank caret can never split a
+        // table row between its real and generated cells.
+        return content.table == MarkdownNoNode ? node.block.source.first : nodes[node.parent].block.source.first;
+    }
     void FinishRow()
     {
         rowPlacement = rowStart;
@@ -213,8 +222,7 @@ struct PreparedSemanticGeometry::Preparation
             content          = paragraphs[paragraph];
             consumeParagraph = true;
         }
-        if (emptyLine < emptyLines.size() &&
-            (paragraph == paragraphs.size() || emptyLines[emptyLine].source.first <= next.document->Syntax()->Nodes()[content.syntaxNode].block.source.first))
+        if (emptyLine < emptyLines.size() && (paragraph == paragraphs.size() || emptyLines[emptyLine].source.first <= SourceFirst(content)))
         {
             caretLine        = emptyLines[emptyLine];
             consumeEmptyLine = true;
@@ -390,8 +398,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     continue;
                 }
                 if (work.emptyLine < lines.size() &&
-                    (work.paragraph == paragraphs.size() ||
-                     lines[work.emptyLine].source.first <= work.state->document->Syntax()->Nodes()[paragraphs[work.paragraph].syntaxNode].block.source.first))
+                    (work.paragraph == paragraphs.size() || lines[work.emptyLine].source.first <= work.SourceFirst(paragraphs[work.paragraph])))
                 {
                     if (work.paragraph < paragraphs.size() && paragraphs[work.paragraph].syntaxNode == lines[work.emptyLine].owner)
                         ++work.paragraph;

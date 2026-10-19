@@ -181,6 +181,26 @@ inline void SourceCaretSites()
         const auto reflowed = geometry.SourceCaret(anchor, hits[1].site);
         Check(reflowed.height > 0.0f && geometry.HitTestSource(reflowed.x, reflowed.y + reflowed.height * .5f).site == hits[1].site,
               "same-source reflow retains equal-ACP cell identity across layout widths");
+        geometry.Begin(factory.get(), cells, options);
+        geometry.Cancel();
+        Check(geometry.SourceCaret(anchor, hits[1].site).x == reflowed.x, "cancelled reflow retains the previous complete source caret site");
+        geometry.Invalidate();
+        RichSemanticTests::Reject<std::logic_error>([&] { geometry.SourceCaret(anchor, hits[1].site); },
+                                                    "invalidated source caret sites reject stale geometry");
+        geometry.Begin(factory.get(), cells, narrower);
+        Complete(geometry);
+    }
+    for (const auto suffix : {L"\r\n", L"\r", L""})
+    {
+        const std::wstring ending     = std::wstring(L"| a | b | c |\r\n| - | - | - |\r\n| value |") + suffix;
+        const auto documentWithEnding = RichSemanticDocumentTests::Build(ending);
+        geometry.Begin(factory.get(), documentWithEnding, options);
+        Complete(geometry);
+        const auto value      = ending.find(L"value");
+        const auto rectangles = geometry.SourceRange({value, value + 5u});
+        const auto hit        = geometry.HitTestSource(180.0f, rectangles.front().top + 5.0f);
+        Check(hit.position == ending.size() - std::wstring_view(suffix).size() && IsEditBoundary(ending, hit.position),
+              "padded cell insertion is before whole CRLF/CR or exact un-terminated row EOF");
     }
     for (const auto text : {L"", L"[ref]: local", L"```\n\n\n```\n", L"```\n\n", L"#\n", L"-\n", L">\n"})
     {
