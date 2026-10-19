@@ -1,0 +1,229 @@
+[WATCHDOG] each test may run 600 s; a test that outlives it ends the run with exit code 124
+[START] NewControls
+  [START] TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest
+  [DONE] TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest (0.002 s)
+  [START] TestMutableCallbackCaptureStatePersistsForRadioControls
+  [DONE] TestMutableCallbackCaptureStatePersistsForRadioControls (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForPageIndicator
+  [DONE] TestMutableCallbackCaptureStatePersistsForPageIndicator (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForSliderCallbacks
+  [DONE] TestMutableCallbackCaptureStatePersistsForSliderCallbacks (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks
+  [DONE] TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks (0.755 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents
+  [DONE] TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTabControlReorder
+  [DONE] TestMutableCallbackCaptureStatePersistsForTabControlReorder (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTagPicker
+  [DONE] TestMutableCallbackCaptureStatePersistsForTagPicker (0.000 s)
+  [START] TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail
+  [DONE] TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail (0.001 s)
+  [START] TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely
+  [DONE] TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely (0.001 s)
+  [START] TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely
+  [DONE] TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely (0.000 s)
+  [START] TestTabControlCloseCallbacksCanReplaceRootSafely
+  [DONE] TestTabControlCloseCallbacksCanReplaceRootSafely (0.001 s)
+  [START] TestButtonVariantDefaultIsStandard
+  [DONE] TestButtonVariantDefaultIsStandard (0.000 s)
+  [START] TestButtonVariantRoundtripsAllValues
+  [DONE] TestButtonVariantRoundtripsAllValues (0.000 s)
+  [START] TestButtonVariantPaintPathsHandleMissingDeviceContext
+  [DONE] TestButtonVariantPaintPathsHandleMissingDeviceContext (0.001 s)
+  [START] TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion
+  [DONE] TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion (0.000 s)
+  [START] TestButtonDisclosureChevronAnimatesAfterAHiddenChange
+  [DONE] TestButtonDisclosureChevronAnimatesAfterAHiddenChange (0.000 s)
+  [START] TestButtonDisclosureChevronPausesAcrossATickGap
+  [DONE] TestButtonDisclosureChevronPausesAcrossATickGap (0.000 s)
+  [START] TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit
+  [DONE] TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit (0.000 s)
+  [START] TestSelectorButtonChromeUsesStableCurrentValueTreatment
+  [DONE] TestSelectorButtonChromeUsesStableCurrentValueTreatment (0.000 s)
+  [START] TestButtonChromeCustomStylePreservesOverlayMetrics
+  [DONE] TestButtonChromeCustomStylePreservesOverlayMetrics (0.000 s)
+  [START] TestHyperlinkButtonClickInvokesCallback
+  [DONE] TestHyperlinkButtonClickInvokesCallback (0.000 s)
+  [START] TestDropDownButtonKeyboardActivationInvokesDropDownCallback
+  [DONE] TestDropDownButtonKeyboardActivationInvokesDropDownCallback (0.000 s)
+  [START] TestSelectorButtonUsesOneWholeSurfaceFlyoutAction
+  [DONE] TestSelectorButtonUsesOneWholeSurfaceFlyoutAction (0.000 s)
+  [START] TestButtonSuppressesTooltipThatRepeatsVisibleLabel
+  [DONE] TestButtonSuppressesTooltipThatRepeatsVisibleLabel (0.000 s)
+  [START] TestNonInteractiveControlCanHostSupplementalTooltip
+  [DONE] TestNonInteractiveControlCanHostSupplementalTooltip (0.000 s)
+  [START] TestDropDownButtonMnemonicInvokesDropDownCallback
+  [DONE] TestDropDownButtonMnemonicInvokesDropDownCallback (0.000 s)
+  [START] TestDropDownButtonCallbackCanReplaceRootSafely
+  [DONE] TestDropDownButtonCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestButtonMouseClickReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestButtonMouseClickReleasesHostCaptureBeforeCallback (0.044 s)
+  [START] TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback (0.006 s)
+  [START] TestButtonMouseLeaveClearsPressedState
+  [DONE] TestButtonMouseLeaveClearsPressedState (0.000 s)
+  [START] TestCheckboxIndeterminateDefaultIsFalse
+  [DONE] TestCheckboxIndeterminateDefaultIsFalse (0.000 s)
+  [START] TestCheckboxIndeterminateRoundtrips
+  [DONE] TestCheckboxIndeterminateRoundtrips (0.000 s)
+  [START] TestCheckboxIndeterminatePaintHandlesMissingDeviceContext
+  [DONE] TestCheckboxIndeterminatePaintHandlesMissingDeviceContext (0.208 s)
+  [START] TestRadioButtonsAddItemCreatesChildren
+  [DONE] TestRadioButtonsAddItemCreatesChildren (0.000 s)
+  [START] TestRadioButtonsSetSelectedIndexUpdatesState
+  [DONE] TestRadioButtonsSetSelectedIndexUpdatesState (0.000 s)
+  [START] TestRadioButtonClickSelectsAndDeselectsOthers
+  [DONE] TestRadioButtonClickSelectsAndDeselectsOthers (0.000 s)
+  [START] TestRadioButtonSelectionChangedCanReplaceRootSafely
+  [DONE] TestRadioButtonSelectionChangedCanReplaceRootSafely (0.000 s)
+  [START] TestRadioButtonPaintHandlesMissingDeviceContext
+  [DONE] TestRadioButtonPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestProgressBarDefaultState
+  [DONE] TestProgressBarDefaultState (0.000 s)
+  [START] TestProgressBarValueRoundtrips
+  [DONE] TestProgressBarValueRoundtrips (0.000 s)
+  [START] TestProgressBarRangeRoundtrips
+  [DONE] TestProgressBarRangeRoundtrips (0.000 s)
+  [START] TestProgressBarIndeterminateRoundtrips
+  [DONE] TestProgressBarIndeterminateRoundtrips (0.000 s)
+  [START] TestProgressBarExplicitTrackHeightRoundtrips
+  [DONE] TestProgressBarExplicitTrackHeightRoundtrips (0.000 s)
+  [START] TestProgressBarIndeterminateRequestsAnimationWhenAttached
+  [DONE] TestProgressBarIndeterminateRequestsAnimationWhenAttached (0.000 s)
+  [START] TestProgressBarPaintHandlesMissingDeviceContext
+  [DONE] TestProgressBarPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled
+  [DONE] TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled (0.000 s)
+  [START] TestProgressBarReducedMotionRestsIndeterminateSegment
+  [DONE] TestProgressBarReducedMotionRestsIndeterminateSegment (0.000 s)
+  [START] TestProgressBarRightToLeftMirrorsMovingSegment
+  [DONE] TestProgressBarRightToLeftMirrorsMovingSegment (0.000 s)
+  [START] TestProgressBarIndeterminateTickSurvivesClockReset
+  [DONE] TestProgressBarIndeterminateTickSurvivesClockReset (0.000 s)
+  [START] TestSliderSmallestStepStillMoves
+  [DONE] TestSliderSmallestStepStillMoves (0.000 s)
+  [START] TestPageIndicatorDefaultState
+  [DONE] TestPageIndicatorDefaultState (0.000 s)
+  [START] TestPageIndicatorPageCountAndSelectionRoundtrip
+  [DONE] TestPageIndicatorPageCountAndSelectionRoundtrip (0.000 s)
+  [START] TestPageIndicatorClickSelectsPage
+  [DONE] TestPageIndicatorClickSelectsPage (0.000 s)
+  [START] TestPageIndicatorKeyboardNavigatesAndStopsAtEnds
+  [DONE] TestPageIndicatorKeyboardNavigatesAndStopsAtEnds (0.000 s)
+  [START] TestPageIndicatorSetSelectedIndexDoesNotFireCallback
+  [DONE] TestPageIndicatorSetSelectedIndexDoesNotFireCallback (0.000 s)
+  [START] TestPageIndicatorSinglePageIsNotHittable
+  [DONE] TestPageIndicatorSinglePageIsNotHittable (0.000 s)
+  [START] TestPageIndicatorPaintHandlesMissingDeviceContext
+  [DONE] TestPageIndicatorPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestPageIndicatorSelectionCallbackCanReplaceRootSafely
+  [DONE] TestPageIndicatorSelectionCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestSliderDefaultState
+  [DONE] TestSliderDefaultState (0.000 s)
+  [START] TestSliderTouchFriendlyGeometry
+  [DONE] TestSliderTouchFriendlyGeometry (0.000 s)
+  [START] TestSliderTallControlDoesNotHitFarFromTrack
+  [DONE] TestSliderTallControlDoesNotHitFarFromTrack (0.000 s)
+  [START] TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo
+  [DONE] TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo (0.000 s)
+  [START] TestSliderKeyboardAndPointerInputUpdatesValue
+  [DONE] TestSliderKeyboardAndPointerInputUpdatesValue (0.000 s)
+  [START] TestSliderVerticalAndRightToLeftGeometryMirrors
+  [DONE] TestSliderVerticalAndRightToLeftGeometryMirrors (0.000 s)
+  [START] TestSliderPaintHandlesMissingDeviceContext
+  [DONE] TestSliderPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestSliderSetValueSnapsDisplayedPosition
+  [DONE] TestSliderSetValueSnapsDisplayedPosition (0.000 s)
+  [START] TestSliderAcknowledgementStopsPendingAnimation
+  [DONE] TestSliderAcknowledgementStopsPendingAnimation (0.000 s)
+  [START] TestSliderRejectsNonFiniteRangeAndSteps
+  [DONE] TestSliderRejectsNonFiniteRangeAndSteps (0.000 s)
+  [START] TestSliderRangeAndStepSettersKeepDependentValuesValid
+  [DONE] TestSliderRangeAndStepSettersKeepDependentValuesValid (0.000 s)
+  [START] TestSliderOffCenterGrabAndCancel
+  [DONE] TestSliderOffCenterGrabAndCancel (0.000 s)
+  [START] TestToolbarAddButtonCreatesChildren
+  [DONE] TestToolbarAddButtonCreatesChildren (0.000 s)
+  [START] TestToolbarButtonHoverShowsTooltip
+  [DONE] TestToolbarButtonHoverShowsTooltip (0.000 s)
+  [START] TestToolbarButtonClickFiresCallback
+  [DONE] TestToolbarButtonClickFiresCallback (0.000 s)
+  [START] TestToolbarPaintHandlesMissingDeviceContext
+  [DONE] TestToolbarPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestMenuBarSetItemsRoundtrips
+  [DONE] TestMenuBarSetItemsRoundtrips (0.000 s)
+  [START] TestMenuBarClickInvokesOpenCallback
+  [DONE] TestMenuBarClickInvokesOpenCallback (0.001 s)
+  [START] TestMenuBarHoverMoveCallbackCanRetireRoot
+  [DONE] TestMenuBarHoverMoveCallbackCanRetireRoot (0.001 s)
+  [START] TestMenuBarHoverLeaveCallbackCanRetireRoot
+  [DONE] TestMenuBarHoverLeaveCallbackCanRetireRoot (0.001 s)
+  [START] TestMenuBarHoverCallbackCanReplaceItself
+  [DONE] TestMenuBarHoverCallbackCanReplaceItself (0.000 s)
+  [START] TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback (0.040 s)
+  [START] TestMenuBarKeyboardNavigationOpensSelectedItem
+  [DONE] TestMenuBarKeyboardNavigationOpensSelectedItem (0.202 s)
+  [START] TestMenuBarMnemonicOpensMatchingItem
+  [DONE] TestMenuBarMnemonicOpensMatchingItem (0.001 s)
+  [START] TestFlowDirectionInheritanceRoundtrips
+  [DONE] TestFlowDirectionInheritanceRoundtrips (0.000 s)
+  [START] TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges
+  [DONE] TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges (0.000 s)
+  [START] TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys
+  [DONE] TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys (0.001 s)
+  [START] TestMenuBarCompactDensityKeepsUsableItemHeight
+  [DONE] TestMenuBarCompactDensityKeepsUsableItemHeight (0.001 s)
+  [START] TestTabControlSelectionShowsOnlyTheActivePage
+  [DONE] TestTabControlSelectionShowsOnlyTheActivePage (0.001 s)
+  [START] TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader
+  [DONE] TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader (0.001 s)
+  [START] TestTabControlCloseButtonRemovesTabsAndInvokesCallback
+  [DONE] TestTabControlCloseButtonRemovesTabsAndInvokesCallback (0.001 s)
+  [START] TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings
+  [DONE] TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings (0.001 s)
+  [START] TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling
+  [DONE] TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling (0.001 s)
+  [START] TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling
+  [DONE] TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling (0.001 s)
+  [START] TestTabControlOverflowButtonsAndWheelScroll
+  [DONE] TestTabControlOverflowButtonsAndWheelScroll (0.001 s)
+  [START] TestTabControlHeaderDividerExposesPaintableGeometry
+  [DONE] TestTabControlHeaderDividerExposesPaintableGeometry (0.001 s)
+  [START] TestTabControlKeyboardNavigationHonorsRightToLeft
+  [DONE] TestTabControlKeyboardNavigationHonorsRightToLeft (0.001 s)
+  [START] TestStatusStripTextRoundtrips
+  [DONE] TestStatusStripTextRoundtrips (0.000 s)
+  [START] TestStatusStripMultiSectionSetup
+  [DONE] TestStatusStripMultiSectionSetup (0.000 s)
+  [START] TestStatusStripRightAlignedLeadingEllipsisSections
+  [DONE] TestStatusStripRightAlignedLeadingEllipsisSections (0.000 s)
+  [START] TestStatusStripBlendWithWindowBackgroundRoundtrips
+  [DONE] TestStatusStripBlendWithWindowBackgroundRoundtrips (0.000 s)
+  [START] TestStatusStripPaintHandlesMissingDeviceContext
+  [DONE] TestStatusStripPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestTagPickerAddsRemovesAndDedupesOptions
+  [DONE] TestTagPickerAddsRemovesAndDedupesOptions (0.001 s)
+  [START] TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture
+  [DONE] TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture (0.000 s)
+  [START] TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture
+  [DONE] TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture (0.001 s)
+  [START] TestTagPickerSelectionCallbackCanReplaceItself
+  [DONE] TestTagPickerSelectionCallbackCanReplaceItself (0.000 s)
+  [START] TestSmokeOverlayDefaultIsFalse
+  [DONE] TestSmokeOverlayDefaultIsFalse (0.000 s)
+  [START] TestSmokeOverlayRoundtrips
+  [DONE] TestSmokeOverlayRoundtrips (0.000 s)
+  [START] TestSetSystemBackdropReturnsFalseWithoutHwnd
+  [DONE] TestSetSystemBackdropReturnsFalseWithoutHwnd (0.000 s)
+[DONE] NewControls (1.293 s)
+All DxUi tests passed.

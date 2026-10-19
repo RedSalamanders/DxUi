@@ -1,0 +1,202 @@
+[
+  {
+    "Hash": "1A1589562C1C0D56A93F5FDAF41950405982537EA13EF54003722BE0CC1E8F57",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Accessibility-x64-Debug.json"
+  },
+  {
+    "Hash": "B91D2565CCC78207A699DC854E5F7AB1E23090EB6985DFE952678DA55A1CDAF2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Animation-x64-Debug.json"
+  },
+  {
+    "Hash": "287A38C642791D253F6C42F14A2F170FD066DCDA56CB0CC404D857246FA61ADD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\ComboBox-x64-Debug.json"
+  },
+  {
+    "Hash": "A7BEA3B2F13264527AC0A8D245C26510EB80A24C2694F1D4EAE75AC069F3F2AE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Control-x64-Debug.json"
+  },
+  {
+    "Hash": "FF859E20BBE76991522ABFE4C3109144F262DFD862F16FFB0A6EEF0C012327A9",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\driver.log"
+  },
+  {
+    "Hash": "47E5F923C88B0C21E46FCE2B5E3CAC08AECA3AAD52B27701645401841C6FD369",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "10E3B887492725CA1171FD3E848794E45EC07656ADA3D3C442D5B664147B73B4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "EC538FFC7928B66A98954087A9DF58DED224EB857F1F91FB5813A2BB4724A0DA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "Hash": "FADB536DFC54362207CC66B80E6ED7726EB4E7A7C00ED17AC690A1F315A9E8B5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.EmbeddedControls.pdb"
+  },
+  {
+    "Hash": "9AE561911DCE1A60BE16F7B33E94C20FDCE79BD54082812D06220A2E19EAA137",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "887D29F265A8DDDB42C20024F61F5F93D87D6887896136617C39A0E84E6DE8A2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "74FA7002980394749D42E8567FD534A96A0C5F25BEB2B616D898267F07362606",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "C7FA81F7564CF00B86B78A36AA56DA7342B135B19689041E7600C79D31CF7A98",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "6E0D600E5EAC5739DEC36C85F122BB92354B827FC9FC180E2E8CF2B55A37EC5A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\DxUi.lib"
+  },
+  {
+    "Hash": "0C09ECCD834A93B63E48FA50CAE569A962C562FBDBAF10720F0FEED21C1B8A80",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\EditorControls-x64-Debug.json"
+  },
+  {
+    "Hash": "55614F99D8FBB40811D4266FB71FC949A59576549F071DB344193964774C0450",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Embedded-x64-Debug.json"
+  },
+  {
+    "Hash": "E57A6CCC1A91C4F92866B6482E9B710790AFB2A78E3871157F055A5F75BDB949",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Foundation-x64-Debug.json"
+  },
+  {
+    "Hash": "2252FF2C3C6F3446D969AB21BB6614DD84BB2FD82047AACE3C187349448F45E2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Grid-x64-Debug.json"
+  },
+  {
+    "Hash": "1C6C76E0BD43248692092C0F0ACAC88DA663560E2E4812EB97B7EBC98308D023",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\InteractiveLease-x64-Debug.json"
+  },
+  {
+    "Hash": "408F1397A780B5FDBF7B360C3520D518FB881F4848FE237CECFDBF7708E639DA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\MenuExitLifetime-x64-Debug.json"
+  },
+  {
+    "Hash": "E61A29078495C5DB650C134EB98BA09430DA5C2E5085DF4B382332131E550774",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\MultilineText-x64-Debug.json"
+  },
+  {
+    "Hash": "2D6718FE411987DCEA36195AF4DD22DC97C9BEF51812406E81AA7A0DBECAEB2C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\NewControls-x64-Debug.json"
+  },
+  {
+    "Hash": "FEAE0E07D83FC63B4096C5C88437B572B14088195B01AFE1F7EBC39384BFFB33",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Performance-x64-Debug-1fe74829303a4139a33b5e56ccb0ec74.json"
+  },
+  {
+    "Hash": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Performance-x64-Debug-1fe74829303a4139a33b5e56ccb0ec74.json.comparison.json"
+  },
+  {
+    "Hash": "39EBBA90A3088F48893DC8979B13A3087510C0B94B6566CB0ADC374A995ABB2E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\ReadOnly-x64-Debug.json"
+  },
+  {
+    "Hash": "50C37A2E1320C0EF7F80BA2964A3A4237E972ADE88B05B357DB18FB8B7F80663",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Rendering-x64-Debug.json"
+  },
+  {
+    "Hash": "AFEDC33C974036487F00E9B196991F87335AE7C9F4D2C0DA10ACF2398AFC0085",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Accessibility-x64-Debug.log"
+  },
+  {
+    "Hash": "CA4F4B0B4F57E81F2A9D86600D7AE80D121D72F596069C6AC7FDF9D8753799C3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Animation-x64-Debug.log"
+  },
+  {
+    "Hash": "16B6E8E9A08322CFB123A1B78292D5E3AFCDE15D3922C1C4A7AC52D20281244C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-ComboBox-x64-Debug.log"
+  },
+  {
+    "Hash": "32F534D435FF17180E62F24C5FCEC1CA6B3557C5F66E137BE6652D293ED457EE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Control-x64-Debug.log"
+  },
+  {
+    "Hash": "A48BC9D34EFDA89F710BB2A842245BD61A17CE0D926068926503B5B1020F46B4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-EditorControls-x64-Debug.log"
+  },
+  {
+    "Hash": "07121ADEA56FBB7BD7547639F0EF204A62F58A9472B01FE2B4FCAD488B2EDCEF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Embedded-x64-Debug.log"
+  },
+  {
+    "Hash": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Foundation-x64-Debug.log"
+  },
+  {
+    "Hash": "2343919BEFC828FCDAD6681954B52A2AD3A51BAFE9FDF6057E93D0740805E0C2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Grid-x64-Debug.log"
+  },
+  {
+    "Hash": "3CA0F0DAF5AC3DEBA75ED36CA0998ABA95D671923CDAF0E2FB420EE3713592AD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-InteractiveLease-x64-Debug.log"
+  },
+  {
+    "Hash": "D8B3F123180762C69C468AA631B74510039A0F5B89356769E7C6C22A3144232D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-MenuExitLifetime-x64-Debug.log"
+  },
+  {
+    "Hash": "06E2873893D869675B0A93A84419BD4BD843AE62E6673164D88FBF8574646999",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-MultilineText-x64-Debug.log"
+  },
+  {
+    "Hash": "E41BC1E2ED95232B1DC968D59BBA3C0988F3FB38AF524F3F9EEA0807290570CA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-NewControls-x64-Debug.log"
+  },
+  {
+    "Hash": "99996FAC1C90EFEFE1FD451708CFCAE1741CA673DDA9B0041CDC8CF93556EA5D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-ReadOnly-x64-Debug.log"
+  },
+  {
+    "Hash": "6D868671D19CCA3D85D4B35DD5C836A4750AE0AA7C6DDEFC85EA79D8D61844D7",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Rendering-x64-Debug.log"
+  },
+  {
+    "Hash": "1BFFCCD2EDA8A1F0A9282D33E5486F6E852571E9B5D6052926B209ACB492FDB2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-TextField-x64-Debug.log"
+  },
+  {
+    "Hash": "4C4F1BA440B08798526C66A1130F1084711E85DED32A297F88707E8B6F5C26EA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Theme-x64-Debug.log"
+  },
+  {
+    "Hash": "0E3F94B6AC2C081CE7BED4413F26BFFC1039300F723F1078B94D8217321E266C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Tooltip-x64-Debug.log"
+  },
+  {
+    "Hash": "F86E2BAAAB966043557C3346C2CC46E242D5FF2E4E2AB363FDB5FB822E4AC4FD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-Tree-x64-Debug.log"
+  },
+  {
+    "Hash": "3E7235BCFD2B794957AAF6E77DABD76B152A17A360BEC2FCC9269B3CA832F266",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\test-WindowHost-x64-Debug.log"
+  },
+  {
+    "Hash": "CB8591BFC37615262C25BB3690C0564A5CD3D73406CE9EC372B0BAA8EA15E467",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\TextField-x64-Debug.json"
+  },
+  {
+    "Hash": "1AEA6FD8C6F0971E27FF7B2CBB3F1BC7579BADB393521EADE55916CDC9AC15B5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Theme-x64-Debug.json"
+  },
+  {
+    "Hash": "481BE8A706E1969B99C6D0BFB6F2D365455FD0B62EAB21A47AF33A1673DE25C7",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Tooltip-x64-Debug.json"
+  },
+  {
+    "Hash": "17AD4AFE5269EAFF350F7AD2068F4EABF062CD6A9E8E0744004AF64E6F4A0A9B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\Tree-x64-Debug.json"
+  },
+  {
+    "Hash": "9C974231656745B462256B679021973E528A7347D9B9F4CFC198ECB7CE7DAA5D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\x64-Debug\\WindowHost-x64-Debug.json"
+  }
+]

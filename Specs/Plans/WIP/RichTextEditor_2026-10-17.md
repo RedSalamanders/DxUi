@@ -2484,11 +2484,49 @@ No consumer pin, push or merge is included.
 - [x] Add geometry and native/embedded retained regressions for sibling columns,
   single-task state changes, wrapping, fonts/sizes, RTL, exact click targets and
   check/uncheck undo. Show both task states in the sample and gallery fixtures.
-- [ ] Qualify the correction through required runtime/build/resource profiles,
+- [x] Qualify the correction through required runtime/build/resource profiles,
   validators/format, retained before/after diagnostic and actual themed captures.
-- [ ] Publish reviewed evidence and update this checkpoint. D4c remains HOLD;
+- [x] Publish reviewed evidence and update this checkpoint. D4c remains HOLD;
   M4f/g, physical/foreground/native ARM64 runtime and consumer gates stay open.
 
 Private correction evidence is `.build/reports/rich-task-alignment-20261019`.
 The pre-fix baseline and failing probe are retained; neither counts as candidate
 qualification. The existing M4e packet remains immutable historical evidence.
+
+The alignment correction is complete at `5bc432845cf29683b2121101130085f153d8bda7`;
+see the [reviewed task-alignment packet](../../../Measurements/RichText/2026-10-19-task-alignment/README.md).
+All 57 ordinary scope/profile runs passed across x64 Debug, Release and ASan
+Debug, with zero capability skips. ASan's isolated detection passed. All three
+ARM64 builds passed, remaining compile-only. Fresh parallel ARM64 Debug/Release
+compilation used separate platform output/intermediate/attestation paths; all
+18 archived binary/library/PDB hashes match the final matrix exactly. The audit
+rehashed 184 archived files and bound all 57 receipts to their executables.
+All five validators, complete tooling tests and pinned clang-format 22.1.3 passed.
+
+The new geometry and native retained alignment tests completed in every x64
+profile; embedded shared equivalents passed. They cover both states, one-task
+and mixed lists, body fonts/sizes, RTL, wrapping, source carets, stable pointer
+targets and check/uncheck with exact undo. Existing actual UIA, raster,
+allocation-failure, WARP/device-loss and clean/dirty/hidden suites passed. The
+embedded logs report 26,900 checks in Debug/ASan and 19,728 in Release, with
+1,000 warm composites and zero tracked C++ allocations in each. These are bounded
+observations, excluding SDK/driver/GPU/process memory and all-input latency.
+
+The actual Release sample exposes both states near the top. The sample, five
+full theme sheets, all five native-scale RichTextEditor tiles and generic
+embedded example were visually reviewed. A publication guard rejected four
+full sheets with changed unrelated slider halos/tooltip presentation. Their
+final published versions were reviewed again; every RichTextEditor region is
+pixel-identical to its first reviewed capture. Initial receipts, changed-pixel
+bounds and final hashes are preserved. The small task detail is an explicitly
+unscaled crop bound to its unchanged parent capture.
+
+The retained single Default before/after diagnostic returned `advice-required`
+(exit 1): clean frame p95 0.4696 to 0.5122 ms (+9.07%), private bytes 26,890,240
+to 27,783,168 (+3.32%), private peak 26,972,160 to 27,824,128 (+3.16%), and working
+set 40,656,896 to 41,521,152 (+2.13%). This unpaired clear/blocking-readback
+observation establishes neither causality nor performance acceptance. No
+rebaseline or passing-repeat substitution was made. D4c remains HOLD pending
+the separately controlled paired/scheduler work and advice on any confirmed
+degradation. M4f/g, physical/foreground/native ARM64 runtime and consumer gates
+remain open. No consumer pin, push or merge is included in this correction.

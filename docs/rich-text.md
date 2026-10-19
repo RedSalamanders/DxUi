@@ -794,6 +794,9 @@ ink stays outside source selection ownership and adds no synthetic arrow stop.
 Task checkboxes use `Segoe UI Symbol` for both states, avoiding color-emoji
 fallback and keeping their bullet column, hit box and text stable when toggled.
 This affects owned task glyphs only; body text and list numbers keep their fonts.
+The [task-alignment evidence](../Measurements/RichText/2026-10-19-task-alignment/README.md)
+includes source/interaction regressions, native captures, profile receipts and
+the unresolved performance diagnostic.
 
 The native HTML subset accepts balanced attribute-free b/strong/i/em/u/s/del/code/
 span tags, br/br / breaks, and anchors with exactly one quoted href plus optional

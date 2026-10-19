@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "5bc432845cf29683b2121101130085f153d8bda7",
+  "archivedArtifactsVerified": 184,
+  "ordinaryScopeReceipts": 57,
+  "zeroCapabilitySkips": true,
+  "executableHashesMatch": true,
+  "directedTaskAlignmentAndRasterTestsCompleted": true,
+  "asanDetectionArtifactMatches": true,
+  "freshArm64ArtifactBindings": 18,
+  "arm64": "Three compile-only builds; native runtime remains unqualified",
+  "auditedUtc": "2026-10-19T20:01:21.2580764Z"
+}

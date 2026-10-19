@@ -1,0 +1,5 @@
+{
+  "Algorithm": "SHA256",
+  "Hash": "8C3624A22619553A426A23C633BD357DFC2E2C8BDFC4B5263370A229D52B4C22",
+  "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Before\\DxUi.lib"
+}

@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "5bc432845cf29683b2121101130085f153d8bda7",
+  "sourceDirty": false,
+  "command": "DxUi.EmbeddedControls.exe --rich-text --output rich-text-tasks.png",
+  "platform": "x64",
+  "configuration": "Release",
+  "width": 980,
+  "height": 720,
+  "executableSha256": "3E32A8ABF4A7A4E9478ECF2D97C2D9BC68DB39618B2CCFC32E71156F07DAD90B",
+  "imageSha256": "70B1FB4A4403E0658292618D07BF8F37680A59144D61F4661B53C325FEA31AF0",
+  "capturedUtc": "2026-10-19T19:44:03.8906039Z"
+}

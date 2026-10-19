@@ -1,0 +1,42 @@
+[
+  {
+    "Hash": "5141D8306E75F44673DC6C8A56A8CAB648FE2044116EC3EC9B9F4F0C65766BC3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\driver.log"
+  },
+  {
+    "Hash": "FD854651DD5DB5206D63A1CAC7DB8CF0BB8032DA596604A129947C276BFC6A71",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "881DB5F1EAB6EBCD670D75DAF30CDA6E1F40AE8F1A1AC43821A86581CDE19B8F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "E13B093CAFC5BBC19D4FE4C83AF880846517D0DB07D62E187E3C9FAA2F4F9F62",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "Hash": "FDF3C14710F4E20193B4E54E14DFDABBB4279A76B64C690C85C90461EABB506C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.EmbeddedControls.pdb"
+  },
+  {
+    "Hash": "102B08130D45BC7B525CA413D491A3496D38551DA645EB532234A85B2D37BB04",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "AB9528C46E01D82B4BD56D760D995ED6411E246106A6D96D8E1BB83EE6B099B5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "ABAF1237A829F237D3914C8FE2C2022D5DC5E58B591F7A512ADA4439B470D505",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "4D07D2DC8939F050B8A5FA98C445C8492567DAC37A18BD5A254DE73B21FFCC8A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "33F03E4358359EE42AF9F3669F9EF57F4B1C51B77416E6F8F96763C074C3D5B9",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-task-alignment-20261019\\Qualification\\ARM64-Release\\DxUi.lib"
+  }
+]

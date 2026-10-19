@@ -1,0 +1,161 @@
+{
+  "qualifiedSourceCommit": "5bc432845cf29683b2121101130085f153d8bda7",
+  "nativeInputsChanged": false,
+  "unexpectedTrackedPaths": [],
+  "unexpectedUntrackedPaths": [],
+  "metadataOnly": true,
+  "currentNativeArtifactsRehashed": 25,
+  "artifacts": [
+    {
+      "profile": "x64-Debug",
+      "file": "DxUi.lib",
+      "sha256": "6E0D600E5EAC5739DEC36C85F122BB92354B827FC9FC180E2E8CF2B55A37EC5A",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Debug",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "74FA7002980394749D42E8567FD534A96A0C5F25BEB2B616D898267F07362606",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Debug",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "47E5F923C88B0C21E46FCE2B5E3CAC08AECA3AAD52B27701645401841C6FD369",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Debug",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "9AE561911DCE1A60BE16F7B33E94C20FDCE79BD54082812D06220A2E19EAA137",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Release",
+      "file": "DxUi.lib",
+      "sha256": "9A7B7FCEBF5CCE964462D46F44F72FEEF59CE60FC0BA4E66CAF3C615542DE00C",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Release",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "5D0FF73C1B2E6EC3057CA2FA5C138708EBE6D921C1D7044DE1BE42B670A3AB3B",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Release",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "178FE6E3CAA1AA0E9B207D042DCA22F2271779410755D95C99E79CD8BBEBB1D3",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Release",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "DB67647DE507C2DA2F27343CEEAC06637F4DC5FF6E6F2DD8DE589CFE313F9B88",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-ASanDebug",
+      "file": "DxUi.lib",
+      "sha256": "2F507DA74791F1770F3C61769DC619E97205BA1AF506CA4A161552F1DBE82EA9",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-ASanDebug",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "94AC48352D0B1420A4FF797A4FB3ADDFB90F94D2B4326FB13120D4751DF9476A",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-ASanDebug",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "CAD77C917C407FDF41D9BEF3B86B1C3C9AB157295C384E31CA6F41D496BF57F5",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-ASanDebug",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "AB52BD90497DC46E38CC3240CD2D18BACB951244E5495C10640D42B1A8FE95CA",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Debug",
+      "file": "DxUi.lib",
+      "sha256": "8717B488D664578B19AACF6AC48FC515ABA9C9F038CCE3305DDF65B59F82E628",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Debug",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "9B4995B590705B50304C23299A60ACFD249A3024D3AFE9F862D2CA8E5F653507",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Debug",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "C7FA8DDE921AB80D7C698DFD3D1585485537C02400A2231C7F796F8A29AFAB79",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Debug",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "C085661B39457E8C991C752D6E6BFDC12C3339CCB0C88F3D3014ECCCB860F912",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Release",
+      "file": "DxUi.lib",
+      "sha256": "33F03E4358359EE42AF9F3669F9EF57F4B1C51B77416E6F8F96763C074C3D5B9",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Release",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "ABAF1237A829F237D3914C8FE2C2022D5DC5E58B591F7A512ADA4439B470D505",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Release",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "FD854651DD5DB5206D63A1CAC7DB8CF0BB8032DA596604A129947C276BFC6A71",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-Release",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "102B08130D45BC7B525CA413D491A3496D38551DA645EB532234A85B2D37BB04",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-ASanDebug",
+      "file": "DxUi.lib",
+      "sha256": "A44C26066E9502CA7922C450A7417931C85F603C8F7FA8C899557A677ED72E51",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-ASanDebug",
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "84236D28E7A0AF76C841D390B09D0C3E6FD2B5D3878252EA73825E0037C11EC9",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-ASanDebug",
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "8DF6BDA18D7584F40DDC177077BD091814346937D2C85EF3A6A14813CE2F06B5",
+      "archiveMatches": true
+    },
+    {
+      "profile": "ARM64-ASanDebug",
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "E8A1EEC064C49EB25926946705D726FA162F7E5053CAF5BEFB5EEBF153EA79E6",
+      "archiveMatches": true
+    },
+    {
+      "profile": "x64-Release",
+      "file": "DxUi.EmbeddedControls.exe",
+      "sha256": "3E32A8ABF4A7A4E9478ECF2D97C2D9BC68DB39618B2CCFC32E71156F07DAD90B",
+      "archiveMatches": true
+    }
+  ],
+  "auditedUtc": "2026-10-19T20:05:46.9772991Z"
+}

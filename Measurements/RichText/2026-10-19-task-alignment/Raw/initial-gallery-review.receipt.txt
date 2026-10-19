@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "5bc432845cf29683b2121101130085f153d8bda7",
+  "sourceDirty": false,
+  "fullSheetsReviewed": 5,
+  "sampleReviewed": true,
+  "nativeScaleTaskRegionsReviewed": true,
+  "genericEmbeddedReviewed": true,
+  "reviewedUtc": "2026-10-19T19:45:41.7973079Z",
+  "controlExecutableSha256": "178FE6E3CAA1AA0E9B207D042DCA22F2271779410755D95C99E79CD8BBEBB1D3",
+  "sampleExecutableSha256": "3E32A8ABF4A7A4E9478ECF2D97C2D9BC68DB39618B2CCFC32E71156F07DAD90B",
+  "sampleImageSha256": "70B1FB4A4403E0658292618D07BF8F37680A59144D61F4661B53C325FEA31AF0",
+  "images": [
+    {
+      "file": "theme-controls-dark.png",
+      "sha256": "E09C30FB0FC970156B8FA1BEAF4A37EEA66EA5F962632FE37FE3BB9448913D26",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-light.png",
+      "sha256": "F1AACE29402DD7997FF414A3A246C51E0CAA1020DEB2EE6CBE32F987FF19AF04",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-high-contrast.png",
+      "sha256": "461B35EC2907AB96924E45E87377DA1EF0A0E8AD0A4319175BC92086EDB00B46",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-rainbow-dark.png",
+      "sha256": "4AF17E4A56520D26FCD39D7582B14CD5188229294BD95170AFB8656AA8CB4984",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-rainbow-light.png",
+      "sha256": "2716C709CF3D3DBC703CEF8927ADD71D0468D79A1A07008E3A1EAB78558F48A6",
+      "reviewed": true
+    },
+    {
+      "file": "embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "reviewed": true
+    }
+  ],
+  "notes": [
+    "Reviewed all five actual full themed sheets, all five native-scale RichTextEditor tiles, actual rich-text sample and the generic embedded example.",
+    "Checked/unchecked bullets, checkbox columns and text align with inherited monochrome ink in dark, light, high contrast and both rainbow themes.",
+    "The gallery retains ordered hanging markers, Unicode table cells, link underlines and the quote inside the control frame without new clipping or overlap.",
+    "The rich-text sample exposes both task states near the top. Content continuing below its viewport is intentionally scrollable.",
+    "Native-scale tile and sample-detail crops are identified as derived. Their raw source PNGs and hashes remain preserved."
+  ]
+}
