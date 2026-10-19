@@ -1954,3 +1954,14 @@ the next candidate uses the next content's leading affinity, adds shared
 native/embedded paragraph-crossing regressions and prevents retired layout-engine
 publications from colliding in the retained generation counter. Fresh candidate
 qualification is required after those corrections.
+
+The frozen `0758311a65aeae6971b430f75c4020df94f90fdd` candidate passed all three
+Release scopes, and Debug EditorControls/Accessibility. Debug Embedded exited 3
+at the new geometry allocation sweep. Inspection identified an implicitly default
+constructed source-line vector: MSVC Debug's noexcept constructor allocates its
+iterator proxy, terminating rather than unwinding an injected allocation failure.
+The correction uses the fallible empty-size constructor, including the affected
+retained line-query/edit-plan locals. The existing complete geometry failure sweep
+is the regression test. Preserve M4dQualification, its failed Debug binary/PDB/
+library/logs/receipt and the passing Release archive; restart current qualification
+against the corrected commit without treating this failure as a passing result.

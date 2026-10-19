@@ -532,7 +532,7 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
     {
         RequireCurrentLayout(host);
         const auto& projection = _state->layout;
-        std::vector<std::pair<size_t, size_t>> ranges;
+        std::vector<std::pair<size_t, size_t>> ranges(0u);
         if (const auto* semantic = projection.SemanticGeometry())
         {
             const auto lines = semantic->SourceLines();
@@ -962,7 +962,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
             const auto ranges = map.SourceRanges({range.first, range.second});
             if (ranges.empty())
                 return false; // Generated separators need an explicit structural join command (M4e).
-            std::vector<RichText::SourceEdit> edits;
+            std::vector<RichText::SourceEdit> edits(0u);
             edits.reserve(ranges.size());
             for (const auto source : ranges)
                 edits.push_back({source, {}});

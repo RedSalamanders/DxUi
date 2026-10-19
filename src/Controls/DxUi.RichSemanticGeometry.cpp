@@ -70,7 +70,8 @@ struct PreparedSemanticGeometry::State
           factory(writeFactory),
           options(inputOptions),
           boxes(0u),
-          bounds(document->Elements().size())
+          bounds(document->Elements().size()),
+          sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
     }
     std::shared_ptr<const SemanticDocument> document;
