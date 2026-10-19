@@ -1068,6 +1068,9 @@ backend cooperatively merges empty caret boxes with semantic paragraphs/cells;
 code-body empty lines reuse their existing SDK geometry. A definitions-only or
 empty document still has a native caret, and source EOF has its trailing line.
 An empty list marker reuses its marker paragraph instead of adding a second row.
+Source line units retain the preceding line's closing syntax/EOL, the empty
+physical line's complete original EOL, and one final empty EOF unit. A trailing
+caret site must not create an additional unit containing only leftover EOL text.
 
 Empty and padded cells retain native visual site affinity when several sites
 share one raw row-end ACP. Pointer placement, logical Left/Right, Home/End,

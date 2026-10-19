@@ -237,5 +237,20 @@ inline void SourceCaretSites()
         Complete(geometry);
         Check(geometry.StepSource(0u, MarkdownNoNode, false).position == 0u, "source-zero Left never follows a generated marker anchor forward into content");
     }
+    const auto checkLines = [&](std::wstring_view text, std::initializer_list<std::pair<std::size_t, std::size_t>> expected)
+    {
+        const auto lineDocument = RichSemanticDocumentTests::Build(text);
+        geometry.Begin(factory.get(), lineDocument, options);
+        Complete(geometry);
+        Check(std::ranges::equal(geometry.SourceLines(), expected),
+              "source line units attach original EOLs to their line and expose exactly one empty EOF unit");
+    };
+    checkLines(L"a\n", {{0u, 2u}, {2u, 2u}});
+    checkLines(L"a\r\n", {{0u, 3u}, {3u, 3u}});
+    checkLines(L"a\n\nb", {{0u, 2u}, {2u, 3u}, {3u, 4u}});
+    checkLines(L"a\r\n\r\nb\r\n", {{0u, 3u}, {3u, 5u}, {5u, 8u}, {8u, 8u}});
+    checkLines(L"**a**\r\n\r\nb", {{0u, 7u}, {7u, 9u}, {9u, 10u}});
+    checkLines(L"\r\n\r\n", {{0u, 2u}, {2u, 4u}, {4u, 4u}});
+    checkLines(L"", {{0u, 0u}});
 }
 } // namespace RichSemanticGeometryTests

@@ -440,7 +440,22 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (box.sourceCaret && box.paragraph.table == MarkdownNoNode)
                 {
                     const auto& line = *box.sourceCaret;
-                    if (line.source.last > work.sourceLineStart || line.source.first == map.Source().size())
+                    // Keep hidden closing syntax and EOL with the preceding
+                    // mapped line, rather than creating an EOL-only line unit.
+                    if (! prepared.sourceLines.empty() && line.source.first > work.sourceLineStart)
+                    {
+                        prepared.sourceLines.back().second = line.source.first;
+                        work.sourceLineStart               = line.source.first;
+                    }
+                    if (line.source.first == map.Source().size() && line.source.last == map.Source().size())
+                    {
+                        if (prepared.sourceLines.empty())
+                            prepared.sourceLines.emplace_back(0u, map.Source().size());
+                        else
+                            prepared.sourceLines.back().second = map.Source().size();
+                        // Finalization adds the single empty EOF unit below.
+                    }
+                    else if (line.source.last > work.sourceLineStart)
                         prepared.sourceLines.emplace_back(work.sourceLineStart, line.source.last);
                     work.sourceLineStart = std::max(work.sourceLineStart, line.source.last);
                     ++work.lineBox;

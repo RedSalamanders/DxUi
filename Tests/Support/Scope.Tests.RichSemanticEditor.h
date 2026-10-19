@@ -218,6 +218,11 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 0u && editor->OnKeyDown(host, VK_LEFT, MK_CONTROL) &&
               editor->GetSelection().caret == 0u,
           "Left and word-Left at raw document zero never jump forward through a generated marker anchor");
+    editor->SetText(L"a\r\n\r\nb\r\n");
+    prepare();
+    const auto sourceLines = editor->GetSourceVisualLineRanges(host);
+    const std::array<std::pair<std::size_t, std::size_t>, 4u> expectedLines{{{0u, 3u}, {3u, 5u}, {5u, 8u}, {8u, 8u}}};
+    Check(sourceLines && std::ranges::equal(*sourceLines, expectedLines), "native/embedded line-unit publication has no phantom EOL-only source line");
 }
 template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
 {
