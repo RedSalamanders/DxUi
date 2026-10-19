@@ -1,0 +1,13 @@
+Markdown entity data: 2125 independently pinned records verified.
+Markdown entity data: 2125 independently pinned records verified.
+Markdown entity data: 2125 independently pinned records verified.
+Markdown preservation vectors: 652 CommonMark, 672 GFM, 2125 independent entity values.
+Markdown preservation vectors: 652 CommonMark, 672 GFM, 2125 independent entity values.
+Markdown preservation vectors: 652 CommonMark, 672 GFM, 2125 independent entity values.
+ok   offline reproducibility, read-only checks and stale/missing output for Tools/Generate-MarkdownEntityData.ps1
+ok   all data and license pins fail closed for Tools/Generate-MarkdownEntityData.ps1
+ok   offline reproducibility, read-only checks and stale/missing output for Tools/Generate-MarkdownTestData.ps1
+ok   all data and license pins fail closed for Tools/Generate-MarkdownTestData.ps1
+ok   offline reproducibility, read-only checks and stale/missing output for Tools/Generate-MarkdownUnicodeData.ps1
+ok   all data and license pins fail closed for Tools/Generate-MarkdownUnicodeData.ps1
+Markdown data generation: 6 of 6 passed

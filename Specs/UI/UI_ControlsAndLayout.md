@@ -829,11 +829,12 @@ Block recognition includes nested quotes and ordered/bullet lists, empty items,
 lazy continuation, interruption precedence, tight/loose lists, indented/fenced
 code, ATX/setext headings, thematic breaks, paragraphs and multiline reference
 definitions. Reference label/destination/title ranges and prefix-stripped lines
-remain exact source; Unicode label folding and link resolution are M3 work.
+remain exact source; global label folding and resolution follow the block pass.
 The pinned dialect's seven HTML-block forms are opaque literal source, with
 container/EOF termination and their appropriate closing/blank-line conditions.
 CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
-Inline precedence, GFM extension blocks and full semantic output remain pending.
+Resolved inline forests and GFM extension metadata are implemented in M3; its
+bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/2026-10-18-markdown-inlines/README.md); semantic rendering/editing remains pending.
 BlockStatistics records deterministic prefix-inspection and container-finalization
 work. Indentation lookahead stops at its required threshold; a line's marker
 metadata rejects incompatible thematic suffixes without rescanning each nested
@@ -852,22 +853,31 @@ identity; changed kinds, reparented nodes, lost ancestry and newly created nodes
 receive new identities. Deleted identities are not resurrected from an unbounded
 syntax history. At edit boundaries prefer an exact surviving prefix/suffix node,
 then a compatible enclosing node; deleting its first/last scalar must not replace
-the identity of a paragraph which remains present. String Begin uses deterministic
+the identity of a paragraph which remains present. Distinct generated missing
+table cells can share one empty source range: reconcile equal keys in their
+source traversal order, consuming each prior identity at most once. Unchanged
+cells retain distinct identities across unrelated edits and undo/redo.
+String Begin uses deterministic
 common-prefix/suffix mapping and
 cannot infer which equal paragraph an external caller removed. Profile changes
 may replace node identities; Clear explicitly starts a new document namespace.
 
-Every result carries its requested CommonMark0312, Gfm029 or RichMarkdown target
-and source revision. These remain separate targets, not full conformance claims.
+Every result carries its CommonMark0312, Gfm029 or RichMarkdown target, extension
+options and source revision. M3 supplies base inline parsing and specified GFM
+extensions; RichMarkdown math/Mermaid/footnotes/front matter and semantic native
+rendering/editing remain later gates.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
-unpaired surrogates. Equal source/revision/profile/change requests coalesce.
+unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
+matching, consistently with normalized inline text; exact Source() stays intact.
+This parser behavior does not admit NUL through Document or native text services.
+Equal source/revision/profile/change requests coalesce.
 Snapshot admission uses bounded source materialization and tracked change queries;
 unchanged completed snapshots avoid materialization. Invalid/failed Begin keeps
 the old request; failed Advance cancels staging and keeps the prior publication.
 One staged and one published syntax are retained. Source/lexical scanning, root
 partitioning and identity indexing/reconciliation resume at stored cursors.
 Zero budget does no work. Budgets count steps: physical-line transitions,
-paragraph-reference finalization, tree compaction, comparisons and allocations
+paragraph-reference finalization, construct lookahead, emphasis resolution, sorting, comparisons and allocations
 remain bounded indivisible work, not per-character or wall-clock guarantees.
 Lexical candidates cover ASCII escapes, semicolon named/numeric references,
 line endings and NUL replacement. Code/HTML/link/delimiter context must resolve
@@ -878,6 +888,54 @@ The intended native formatted renderer uses an explicit safe supported subset;
 scripts, event attributes and automatic remote resource loading do not execute.
 Unsupported/active HTML stays visible editable source. There is no browser DOM.
 This stage supplies syntax metadata and does not implement semantic HTML display.
+
+### Resolved inline and GFM analysis
+
+`MarkdownSyntax::Inlines()` is a dense immutable forest rooted by each leaf's
+`firstInline`. It resolves ASCII escapes/entities, Unicode punctuation flanking,
+emphasis/strong and the rule of three, exact-length code spans, inline/reference
+links, nested-link exclusion, image alternatives, URI/email autolinks, inline
+HTML and soft/hard breaks. Code and HTML remain opaque to entity/escape decoding.
+Code values normalize physical line endings to spaces and apply the standard
+single leading/trailing-space rule. Exact source spelling is retained separately.
+
+`MarkdownExtensions` defaults to None for CommonMark and All for Gfm029 and
+RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks
+and TagFilter; unknown bits and CommonMark/GFM-option combinations are rejected
+atomically. Options participate in request coalescing/publication identity.
+GFM tables are recognized before cell inlines, retain alignment/header metadata,
+unescape cell pipes even in code, pad missing cells and retain ignored excess
+source. Task metadata belongs to the list item, requires its first paragraph
+and marker whitespace, and does not yet supply an interactive checkbox command.
+Strike requires two tildes under this pinned profile.
+If reference extraction removes an entire candidate paragraph, clear the active
+leaf before processing the table delimiter line. A definition-only paragraph
+cannot serve as a header or be extended/extracted again after retirement.
+
+Extended autolinks respect bracket/code/HTML ownership, consume URL interiors
+before remaining emphasis, and retain literal entity/escape spelling inside the
+URL. Text surrounding them is contextually decoded. Opaque Html values carry
+`filteredHtmlOpeners`: UTF-16 value offsets whose '<' is filtered by the GFM
+tagfilter rule. This is metadata, not sanitization or a browser execution API.
+Tagfilter matches complete names followed by GFM ASCII whitespace (including VT),
+`>` or `/>`; a slash followed by other text is not a tag terminator.
+
+Label comparison uses locale-independent full default Unicode 17 case folding,
+without Unicode normalization. First definition in source order wins. CommonMark
+collapses label spaces/tabs/line endings; legacy GFM also includes VT/FF under
+its ASCII-whitespace definition. CommonMark treats Unicode P/S as punctuation;
+strict GFM uses ASCII punctuation plus Unicode P. Inline declaration rules also
+remain dialect-specific. The pinned GFM printed short-comment expectations are
+retained even where adjacent older prose differs. Strict extended domains require
+a period/nonempty segments and reject underscores in their final two segments;
+Unicode letter/number domains are recognized from pinned data.
+
+Inline indices are revision-local; block identities do not validate inline
+semantics. Any reference edit reparses dependent inlines even when the referring
+paragraph's source/identity did not change. `value`, `destination` and `title`
+are semantic strings; even Text can contain decoded escapes/entities. `source`
+is the enclosing raw span, not an interior ACP map. M4 must provide transformed,
+generated/repeated/object editing affinities before renderer integration.
 
 `LexemeSourceAnchor` keeps transformed-value leading/trailing affinity explicit,
 including a named reference producing two Unicode scalars. Original spelling

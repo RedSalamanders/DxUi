@@ -358,6 +358,121 @@ class MarkdownBlocks
         return type <= 5u && text.find(end) != std::wstring_view::npos;
     }
     MarkdownProfile sourceProfile_;
+    MarkdownExtensions extensions_;
+    std::vector<MarkdownRange> Cells(MarkdownRange line) const
+    {
+        while (line.last > line.first && (source_[line.last - 1u] == L'\n' || source_[line.last - 1u] == L'\r'))
+            --line.last;
+        while (line.first < line.last && Space(source_[line.first]))
+            ++line.first;
+        while (line.last > line.first && Space(source_[line.last - 1u]))
+            --line.last;
+        if (line.first < line.last && source_[line.first] == L'|')
+            ++line.first;
+        if (line.last > line.first && source_[line.last - 1u] == L'|')
+        {
+            auto back = line.last - 1u;
+            while (back > line.first && source_[back - 1u] == L'\\')
+                --back;
+            if ((line.last - 1u - back) % 2u == 0u)
+                --line.last;
+        }
+        std::vector<MarkdownRange> cells(0u);
+        auto first = line.first;
+        for (auto i = first; i <= line.last; ++i)
+        {
+            if (i < line.last && source_[i] == L'\\' && i + 1u < line.last)
+            {
+                ++i;
+                continue;
+            }
+            if (i != line.last && source_[i] != L'|')
+                continue;
+            auto begin = first, end = i;
+            while (begin < end && Space(source_[begin]))
+                ++begin;
+            while (end > begin && Space(source_[end - 1u]))
+                --end;
+            cells.push_back({begin, end});
+            first = i + 1u;
+        }
+        return cells;
+    }
+    void TableRow(std::size_t table, MarkdownContentLine line, const std::vector<MarkdownAlignment>& alignment, bool header)
+    {
+        const auto row            = Add(Kind::TableRow, table);
+        nodes_[row].tableHeader   = header;
+        nodes_[row].block.source  = {header ? nodes_[table].block.source.first : lineFirst_, line.source.last};
+        nodes_[row].block.content = line.source;
+        const auto cells          = Cells(line.source);
+        for (std::size_t i = 0; i < alignment.size(); ++i)
+        {
+            const auto range          = i < cells.size() ? cells[i] : MarkdownRange{nodes_[row].block.content.last, nodes_[row].block.content.last};
+            const auto cell           = Add(Kind::TableCell, row);
+            nodes_[cell].alignment    = alignment[i];
+            nodes_[cell].tableHeader  = header;
+            nodes_[cell].block.source = nodes_[cell].block.content = range;
+            nodes_[cell].lines.push_back({range, 0u});
+        }
+    }
+    bool StartTable(Cursor cursor, std::size_t bodyEnd)
+    {
+        if (! HasMarkdownExtension(extensions_, MarkdownExtensions::Tables) || leaf_ == MarkdownNoNode || nodes_[leaf_].block.kind != Kind::Paragraph ||
+            cursor.Indent() > 3u)
+            return false;
+        const auto rest = cursor.Rest();
+        if (rest.find_first_not_of(L" |:-\t") != std::wstring_view::npos || rest.find(L'-') == std::wstring_view::npos)
+            return false;
+        References(leaf_);
+        if (nodes_[leaf_].parent == MarkdownNoNode)
+        {
+            // An all-definition paragraph was replaced by reference nodes.
+            // It supplies no table header and must never receive another line
+            // or be extracted again through its retired parent sentinel.
+            leaf_ = MarkdownNoNode;
+            return false;
+        }
+        if (nodes_[leaf_].lines.size() != 1u)
+            return false;
+        const auto header = nodes_[leaf_].lines.front();
+        if (rest.find(L'|') == std::wstring_view::npos &&
+            source_.substr(header.source.first, header.source.last - header.source.first).find(L'|') == std::wstring_view::npos)
+            return false;
+        const auto delimiter = Cells({cursor.offset, bodyEnd});
+        if (Cells(header.source).size() != delimiter.size())
+            return false;
+        std::vector<MarkdownAlignment> alignment(0u);
+        for (const auto range : delimiter)
+        {
+            auto text       = source_.substr(range.first, range.last - range.first);
+            const bool left = text.starts_with(L':'), right = text.ends_with(L':');
+            if (left)
+                text.remove_prefix(1u);
+            if (right && ! text.empty())
+                text.remove_suffix(1u);
+            if (text.empty() || text.find_first_not_of(L'-') != std::wstring_view::npos)
+                return false;
+            alignment.push_back(left    ? right ? MarkdownAlignment::Center : MarkdownAlignment::Left
+                                : right ? MarkdownAlignment::Right
+                                        : MarkdownAlignment::None);
+        }
+        const auto table                 = leaf_;
+        nodes_[table].block.kind         = Kind::Table;
+        nodes_[table].block.source.last  = lineEnd_;
+        nodes_[table].block.content.last = bodyEnd;
+        TableRow(table, header, alignment, true);
+        return true;
+    }
+    void ContinueTable(Cursor cursor)
+    {
+        std::vector<MarkdownAlignment> alignment(0u);
+        const auto header = nodes_[leaf_].firstChild;
+        for (auto cell = nodes_[header].firstChild; cell != MarkdownNoNode; cell = nodes_[cell].nextSibling)
+            alignment.push_back(nodes_[cell].alignment);
+        TableRow(leaf_, {{cursor.offset, lineEnd_}, cursor.remaining}, alignment, false);
+        nodes_[leaf_].block.source.last  = lineEnd_;
+        nodes_[leaf_].block.content.last = lineEnd_;
+    }
     std::size_t Add(Kind kind, std::size_t parent)
     {
         const auto index = nodes_.size();
@@ -427,18 +542,17 @@ class MarkdownBlocks
         }
         leaf_ = MarkdownNoNode;
     }
-    static bool White(wchar_t c) noexcept
+    bool ReferenceSpace(wchar_t c) const noexcept
     {
-        return c == L' ' || c == L'\t' || c == L'\r' || c == L'\n' || c == L'\f' || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a) || c == 0x202f ||
-               c == 0x205f || c == 0x3000;
+        return Space(c) || c == L'\r' || c == L'\n' || (sourceProfile_ == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
     }
     // Reference syntax is resolved only at the beginning of a paragraph. Keep
-    // exact source spans; Unicode label folding/link resolution is M3 work.
+    // exact source spans; global Unicode folding/link resolution follows blocks.
     struct Reference
     {
         std::size_t end{}, labelFirst{}, labelEnd{}, destinationFirst{}, destinationEnd{}, titleFirst{}, titleEnd{};
     };
-    static Reference ReferenceAt(std::wstring_view text, std::size_t first)
+    Reference ReferenceAt(std::wstring_view text, std::size_t first) const
     {
         Reference result;
         auto i = first;
@@ -453,7 +567,7 @@ class MarkdownBlocks
         {
             if (text[i] == L'[' || (text[i] == L'\n' && i + 1u < text.size() && text[i + 1u] == L'\n'))
                 return {};
-            nonblank = nonblank || ! (Space(text[i]) || text[i] == L'\n' || text[i] == L'\r');
+            nonblank = nonblank || ! ReferenceSpace(text[i]);
             if (text[i] == L'\\' && i + 1u < text.size() && (text[i + 1u] == L'[' || text[i + 1u] == L']' || text[i + 1u] == L'\\'))
             {
                 ++i;
@@ -470,12 +584,12 @@ class MarkdownBlocks
             return {};
         auto skip = [&](bool newline)
         {
-            while (i < text.size() && Space(text[i]))
+            while (i < text.size() && ReferenceSpace(text[i]) && text[i] != L'\n')
                 ++i;
             if (newline && i < text.size() && text[i] == L'\n')
             {
                 ++i;
-                while (i < text.size() && Space(text[i]))
+                while (i < text.size() && ReferenceSpace(text[i]) && text[i] != L'\n')
                     ++i;
             }
         };
@@ -501,11 +615,11 @@ class MarkdownBlocks
         {
             result.destinationFirst = i;
             unsigned depth          = 0;
-            while (i < text.size() && ! White(text[i]))
+            while (i < text.size() && ! ReferenceSpace(text[i]))
             {
                 if (text[i] < 0x20 || text[i] == 0x7f)
                     return {};
-                if (text[i] == L'\\' && i + 1u < text.size() && ! White(text[i + 1u]))
+                if (text[i] == L'\\' && i + 1u < text.size() && ! ReferenceSpace(text[i + 1u]))
                 {
                     i += 2u;
                     continue;
@@ -525,14 +639,14 @@ class MarkdownBlocks
             result.destinationEnd = i;
         }
         const auto afterDestination = i;
-        while (i < text.size() && Space(text[i]))
+        while (i < text.size() && ReferenceSpace(text[i]) && text[i] != L'\n')
             ++i;
         const bool nextLine     = i < text.size() && text[i] == L'\n';
         const auto withoutTitle = i == text.size() ? i : nextLine ? i + 1u : 0u;
         if (nextLine)
         {
             ++i;
-            while (i < text.size() && Space(text[i]))
+            while (i < text.size() && ReferenceSpace(text[i]) && text[i] != L'\n')
                 ++i;
         }
         if (i > afterDestination && i < text.size() && (text[i] == L'\'' || text[i] == L'"' || text[i] == L'('))
@@ -557,7 +671,7 @@ class MarkdownBlocks
             if (valid)
             {
                 ++i;
-                while (i < text.size() && Space(text[i]))
+                while (i < text.size() && ReferenceSpace(text[i]) && text[i] != L'\n')
                     ++i;
                 valid = i == text.size() || text[i] == L'\n';
             }
@@ -660,14 +774,15 @@ class MarkdownBlocks
     }
 
 public:
-    MarkdownBlocks(std::wstring_view source, MarkdownProfile profile, std::vector<MarkdownNode>& nodes)
+    MarkdownBlocks(std::wstring_view source, MarkdownProfile profile, std::vector<MarkdownNode>& nodes, MarkdownExtensions extensions)
         : source_(source),
           nodes_(nodes),
           open_(0u),
           tails_(0u),
           previousSibling_(0u),
           blank_(0u),
-          sourceProfile_(profile)
+          sourceProfile_(profile),
+          extensions_(extensions)
     {
         Add(Kind::Document, MarkdownNoNode);
         nodes_[0].block.source  = {0u, source.size()};
@@ -805,6 +920,24 @@ public:
         {
             CloseLeaf();
             blank_[open_.back()] = true;
+            Extend();
+            return;
+        }
+        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Table)
+        {
+            const auto marker = ListMarker(cursor);
+            if (Thematic(cursor) || Atx(cursor) || Fence(cursor) || HtmlStart(cursor, false) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
+                marker.valid)
+                CloseLeaf();
+            else
+            {
+                ContinueTable(trimmed);
+                Extend();
+                return;
+            }
+        }
+        if (StartTable(cursor, bodyEnd))
+        {
             Extend();
             return;
         }

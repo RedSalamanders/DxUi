@@ -1,0 +1,33 @@
+warning: in the working copy of 'Specs/Core/Core_Architecture.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'Specs/Plans/WIP/RichTextEditor_2026-10-17.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'Specs/Rendering/Rendering_EmbeddedD3D11.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'Specs/UI/UI_ControlsAndLayout.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'Tests/native-test-files.json', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'Tools/Generate-MarkdownTestData.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Tools/tests/Test-MarkdownData.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'capabilities.json', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/rich-text.md', CRLF will be replaced by LF the next time Git touches it
+Qualification: x64-Debug-build
+Qualification: x64-Debug-markdown-probe
+Qualification: x64-Debug-layout-clear-probe
+Qualification: x64-Debug-geometry-probe
+Qualification: x64-Debug-flat-projection-probe
+Qualification: x64-Debug
+Qualification: x64-ASan-Debug-build
+Qualification: x64-ASan-Debug-markdown-probe
+Qualification: x64-ASan-Debug-layout-clear-probe
+Qualification: x64-ASan-Debug-geometry-probe
+Qualification: x64-ASan-Debug-flat-projection-probe
+Qualification: x64-ASan-Debug
+Qualification: x64-Release-build
+Qualification: x64-Release-markdown-probe
+Qualification: x64-Release-layout-clear-probe
+Qualification: x64-Release-geometry-probe
+Qualification: x64-Release-flat-projection-probe
+Qualification: x64-Release
+Qualification: ARM64-Debug
+Qualification: ARM64-Release
+Qualification: ARM64-ASan-Debug
+Preserved 74 private qualified artifact files.
+Full validation and pinned formatting passed.
+M3 root qualification complete: 57 ordinary scopes, six builds, 12 probes, exact artifacts and full tooling.

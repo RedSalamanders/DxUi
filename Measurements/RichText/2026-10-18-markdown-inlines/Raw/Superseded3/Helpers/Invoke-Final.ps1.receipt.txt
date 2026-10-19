@@ -1,0 +1,58 @@
+[CmdletBinding()]param([Parameter(Mandatory)][string]$Root)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$work=Join-Path $Root '.build/reports/rich-markdown-inline-20261018'
+$final=Join-Path $work 'Final'
+if(Test-Path -LiteralPath $final){throw 'Never overwrite a qualification attempt'}
+New-Item -ItemType Directory -Path $final|Out-Null
+$inputs=@()
+$paths=@(git -C $Root diff HEAD --name-only)+@(git -C $Root ls-files --others --exclude-standard)
+foreach($relative in $paths|Sort-Object -Unique){
+    $source=Join-Path $Root $relative
+    if(-not(Test-Path -LiteralPath $source -PathType Leaf)){throw "Missing input $relative"}
+    $target=Join-Path $final ('Source/'+$relative)
+    New-Item -ItemType Directory -Path (Split-Path $target) -Force|Out-Null
+    Copy-Item -LiteralPath $source -Destination $target
+    $inputs+=@{path=$relative;sha256=(Get-FileHash -LiteralPath $source).Hash}
+}
+@{baseCommit=(git -C $Root rev-parse HEAD);startedUtc=[datetime]::UtcNow.ToString('o');files=$inputs;
+    note='Fresh frozen M3 qualification: 57 complete ordinary x64 scopes, six root builds and 12 isolated probes. No prior diagnostic is promoted or reused. Frame performance and native ARM64/physical IME/AT acceptance remain open.'}|
+    ConvertTo-Json -Depth 8|Set-Content (Join-Path $final 'qualified-inputs.receipt.txt')
+$helpers=@('Invoke-Final.ps1','Invoke-Qualification.ps1','Capture-QualifiedArtifacts.ps1','Invoke-ToolingQualification.ps1')
+$helperRecords=@(foreach($name in $helpers){
+    $file=Join-Path $work $name;$target=Join-Path $final ('Helpers/'+$name)
+    New-Item -ItemType Directory -Path (Split-Path $target) -Force|Out-Null
+    Copy-Item -LiteralPath $file -Destination $target
+    @{name=$name;sha256=(Get-FileHash -LiteralPath $file).Hash}
+})
+$helperRecords|ConvertTo-Json|Set-Content (Join-Path $final 'helpers.receipt.txt')
+$completed=$false
+try {
+    & (Join-Path $work 'Invoke-Qualification.ps1') -Root $Root -OutputDirectory $final
+    foreach($input in $inputs){if((Get-FileHash -LiteralPath (Join-Path $Root $input.path)).Hash -cne $input.sha256){throw "Frozen input changed: $($input.path)"}}
+    $expectedSource=$null;$verified=@()
+    foreach($configuration in @('Debug','Release','ASan Debug')){
+        $profile=Join-Path $final ('x64-'+$configuration.Replace(' ','-'))
+        foreach($scope in @('Foundation','Embedded','Grid','Theme','Control','MenuExitLifetime','NewControls','EditorControls','TextField','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost','InteractiveLease')){
+            $receipt=Get-Content (Join-Path $profile ($scope+'-x64-'+$configuration+'.json')) -Raw|ConvertFrom-Json
+            if($receipt.exitCode -ne 0 -or $receipt.skips.Count -or $receipt.PSObject.Properties.Name -contains 'tests'){throw "Incomplete ordinary suite $configuration/$scope"}
+            if((Get-FileHash -LiteralPath $receipt.executable).Hash -cne $receipt.sha256){throw "Successful artifact changed: $configuration/$scope"}
+            $performance=Get-Content -LiteralPath $receipt.performanceReport -Raw|ConvertFrom-Json
+            if($null -eq $expectedSource){$expectedSource=$performance.sourceFingerprint}
+            if($performance.sourceFingerprint -cne $expectedSource){throw 'Qualified source fingerprints differ'}
+            $verified+=@{scope=$scope;configuration=$configuration;sha256=$receipt.sha256;sourceFingerprint=$performance.sourceFingerprint}
+        }
+    }
+    if($verified.Count -ne 57){throw 'Missing scope obligation'}
+    @{sourceFingerprint=$expectedSource;ordinaryScopeCount=$verified.Count;scopes=$verified;files=$inputs}|ConvertTo-Json -Depth 9|
+        Set-Content (Join-Path $final 'qualified-source.receipt.txt')
+    & (Join-Path $work 'Capture-QualifiedArtifacts.ps1') -Root $Root -OutputDirectory (Join-Path $work 'FinalArtifacts') -ExpectedSource $expectedSource
+    & (Join-Path $work 'Invoke-ToolingQualification.ps1') -Root $Root -OutputDirectory $final
+    foreach($input in $inputs){if((Get-FileHash -LiteralPath (Join-Path $Root $input.path)).Hash -cne $input.sha256){throw "Input changed during tooling: $($input.path)"}}
+    foreach($helper in $helperRecords){if((Get-FileHash -LiteralPath (Join-Path $work $helper.name)).Hash -cne $helper.sha256){throw 'Qualification helper changed'}}
+    $completed=$true
+    Write-Host 'M3 root qualification complete: 57 ordinary scopes, six builds, 12 probes, exact artifacts and full tooling.'
+} finally {
+    @{completed=$completed;completedUtc=[datetime]::UtcNow.ToString('o');sourceInputCount=$inputs.Count}|
+        ConvertTo-Json|Set-Content (Join-Path $final 'closeout.receipt.txt')
+}

@@ -1,5 +1,6 @@
 #include "DxUi.MarkdownBlocks.h"
 #include "DxUi.MarkdownEntityData.h"
+#include "DxUi.MarkdownInlines.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <atomic>
@@ -20,6 +21,15 @@ void ValidateProfile(MarkdownProfile profile)
 {
     if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
         throw std::invalid_argument("Unknown Markdown profile");
+}
+MarkdownExtensions ValidateExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+{
+    ValidateProfile(profile);
+    const auto result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None : MarkdownExtensions::All);
+    if ((static_cast<unsigned>(result) & ~static_cast<unsigned>(MarkdownExtensions::All)) ||
+        (profile == MarkdownProfile::CommonMark0312 && result != MarkdownExtensions::None))
+        throw std::invalid_argument("Invalid Markdown extensions for this profile");
+    return result;
 }
 std::wstring_view ValidateSource(std::wstring_view text, MarkdownProfile profile)
 {
@@ -120,13 +130,15 @@ bool CharacterReference(std::wstring_view source, std::size_t first, MarkdownLex
 
 } // namespace
 
-MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile)
+MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions)
     : source_(ValidateSource(source, profile)),
       revision_(revision),
       profile_(profile),
+      extensions_(extensions),
       blocks_(0u),
       lexemes_(0u),
-      nodes_(0u)
+      nodes_(0u),
+      inlines_(0u)
 {
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
@@ -140,6 +152,10 @@ std::uint64_t MarkdownSyntax::Revision() const noexcept
 MarkdownProfile MarkdownSyntax::Profile() const noexcept
 {
     return profile_;
+}
+MarkdownExtensions MarkdownSyntax::Extensions() const noexcept
+{
+    return extensions_;
 }
 const std::vector<MarkdownBlock>& MarkdownSyntax::Blocks() const noexcept
 {
@@ -160,6 +176,10 @@ MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
     return lexemes_;
+}
+const std::vector<MarkdownInline>& MarkdownSyntax::Inlines() const noexcept
+{
+    return inlines_;
 }
 std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
 {
@@ -187,10 +207,10 @@ std::size_t MarkdownSyntax::LexemeSourceAnchor(std::size_t index, std::size_t va
 
 struct MarkdownParser::Preparation
 {
-    explicit Preparation(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile)
+    explicit Preparation(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions)
         // The private constructor prevents exposing unparsed mutable shells.
         // shared_ptr owns immediately and deletes on control-block failure too.
-        : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile)))
+        : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions)))
     {
     }
     std::shared_ptr<MarkdownSyntax> syntax;
@@ -198,7 +218,9 @@ struct MarkdownParser::Preparation
     std::optional<SourceSnapshot> snapshot;
     std::optional<SourceChangeRange> change;
     using NodeKey = std::tuple<std::uint64_t, std::size_t, std::size_t, MarkdownBlockKind>;
-    std::map<NodeKey, std::size_t> oldNodes;
+    // Generated missing table cells can have identical empty source ranges.
+    // Preserve their insertion order and consume each old identity only once.
+    std::multimap<NodeKey, std::size_t> oldNodes;
     std::size_t commonFirst{}, commonOldEnd{}, commonNewEnd{}, identityCursor{}, oldIndexCursor{};
     std::uint64_t nextIdentity = 1u;
     bool identitiesComplete{};
@@ -284,7 +306,11 @@ struct MarkdownParser::Preparation
                 const bool parent = node.parent == MarkdownNoNode
                                         ? old.parent == MarkdownNoNode
                                         : old.parent != MarkdownNoNode && syntax->nodes_[node.parent].identity == previous->Nodes()[old.parent].identity;
-                return parent ? old.identity : std::uint64_t{};
+                if (! parent)
+                    return std::uint64_t{};
+                const auto identity = old.identity;
+                oldNodes.erase(found);
+                return identity;
             };
             node.identity = reuseIdentity(first, last);
             // At a deletion boundary a surviving suffix/prefix and an edited
@@ -297,9 +323,10 @@ struct MarkdownParser::Preparation
         if (! node.identity)
             node.identity = nextIdentity++;
     }
-    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_};
+    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->extensions_};
+    Detail::MarkdownInlines inlines{syntax->source_, syntax->profile_, syntax->extensions_, syntax->nodes_, syntax->inlines_, CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
-    bool blocksComplete{}, lexemesComplete{}, rootsComplete{};
+    bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
     void ScanBlockUnit()
     {
         const auto& source = syntax->source_;
@@ -437,32 +464,34 @@ void MarkdownParser::Clear() noexcept
     nextNodeIdentity_ = 1u;
     publishedSource_.reset();
 }
-void MarkdownParser::Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile)
+void MarkdownParser::Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
-    BeginSource(source, revision, profile, std::nullopt);
+    BeginSource(source, revision, profile, ValidateExtensions(profile, extensions), std::nullopt);
 }
-void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile)
+void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
-    ValidateProfile(profile);
-    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
-    if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile)
+    const auto enabled = ValidateExtensions(profile, extensions);
+    const auto change  = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile &&
+        published_->Extensions() == enabled)
     {
         Cancel();
         publishedSource_ = source;
         return;
     }
     const auto flat = source.Text();
-    BeginSource(flat, revision, profile, change);
+    BeginSource(flat, revision, profile, enabled, change);
     if (preparation_)
         preparation_->snapshot = source;
     else
         publishedSource_ = source;
 }
-void MarkdownParser::BeginSource(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<SourceChangeRange> change)
+void MarkdownParser::BeginSource(
+    std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<SourceChangeRange> change)
 {
     ValidateProfile(profile);
     const auto same = [&](const auto& syntax)
-    { return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Source() == source; };
+    { return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions && syntax->Source() == source; };
     const auto sameChange = [](const auto& a, const auto& b)
     { return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd); };
     if (preparation_ && same(preparation_->syntax) && sameChange(preparation_->change, change))
@@ -472,7 +501,7 @@ void MarkdownParser::BeginSource(std::wstring_view source, std::uint64_t revisio
         Cancel();
         return;
     }
-    auto staged         = std::make_unique<Preparation>(source, revision, profile);
+    auto staged         = std::make_unique<Preparation>(source, revision, profile, extensions);
     staged->change      = change;
     const auto document = documentIdentity_ ? documentIdentity_ : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
     staged->SetPrevious(published_, document, nextNodeIdentity_);
@@ -496,6 +525,8 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
                 pending.RootUnit();
             else if (! pending.lexemesComplete)
                 pending.ScanLexicalUnit();
+            else if (! pending.inlinesComplete)
+                pending.inlinesComplete = pending.inlines.Step();
             else if (! pending.identitiesComplete)
                 pending.IdentityUnit();
             else

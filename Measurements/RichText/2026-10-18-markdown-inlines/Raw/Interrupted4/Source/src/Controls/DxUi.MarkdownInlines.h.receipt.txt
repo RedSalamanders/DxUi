@@ -1,0 +1,1389 @@
+#pragma once
+#include "DxUi.MarkdownUnicodeData.h"
+#include "DxUi.TextElements.h"
+#include <DxUi/MarkdownSyntax.h>
+#include <algorithm>
+#include <array>
+#include <iterator>
+#include <stdexcept>
+
+namespace DxUi::RichText::Detail
+{
+// Owned Unicode inline recognizer. The block pass must finish before global
+// references are collected. No decoding is applied inside code or raw HTML.
+class MarkdownInlines
+{
+    using Kind             = MarkdownInlineKind;
+    using ReferenceDecoder = bool (*)(std::wstring_view, std::size_t, MarkdownLexeme&) noexcept;
+    std::wstring_view source_;
+    MarkdownProfile profile_;
+    MarkdownExtensions extensions_;
+    std::vector<MarkdownNode>& blocks_;
+    std::vector<MarkdownInline>& nodes_;
+    ReferenceDecoder referenceDecoder_;
+    struct Reference
+    {
+        Reference() : label(0u, L' '), destination(0u, L' '), title(0u, L' ')
+        {
+        }
+        Reference(const Reference&)            = default;
+        Reference& operator=(const Reference&) = default;
+        std::wstring label, destination, title;
+        std::size_t source{};
+    };
+    struct Delimiter
+    {
+        std::size_t node{}, length{}, previous = MarkdownNoNode, next = MarkdownNoNode;
+        wchar_t marker{};
+        bool open{}, close{};
+    };
+    struct Bracket
+    {
+        std::size_t node{}, offset{}, delimiter = MarkdownNoNode;
+        bool image{}, active = true, nested{};
+    };
+    struct AutolinkVisit
+    {
+        std::size_t node, parent;
+    };
+    std::vector<Reference> references_;
+    std::vector<Delimiter> delimiters_;
+    std::vector<Bracket> brackets_;
+    std::vector<AutolinkVisit> autolinkWalk_;
+    std::vector<std::size_t> previous_, offsets_, backtickNext_;
+    std::wstring text_;
+    std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
+    std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
+    std::size_t lastLiteral_ = MarkdownNoNode, compactCursor_{}, compactCount_{};
+    unsigned compactPhase_{};
+    std::size_t inlineFirst_{}, inlineLimit_{};
+    std::size_t autolinkDelimiter_ = MarkdownNoNode, underscoreOpen_{};
+    bool autolinkBoundary_{}, emailBoundary_{};
+    bool referencesComplete_{}, leafActive_{}, autolinksActive_{};
+
+    static bool AsciiLetter(wchar_t c) noexcept
+    {
+        return (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z');
+    }
+    static bool Digit(wchar_t c) noexcept
+    {
+        return c >= L'0' && c <= L'9';
+    }
+    static bool AsciiPunctuation(wchar_t c) noexcept
+    {
+        return (c >= L'!' && c <= L'/') || (c >= L':' && c <= L'@') || (c >= L'[' && c <= L'`') || (c >= L'{' && c <= L'~');
+    }
+    static bool SourceSpace(wchar_t c) noexcept
+    {
+        return c == L' ' || c == L'\t' || c == L'\n' || c == L'\r';
+    }
+    static bool GfmSpace(wchar_t c) noexcept
+    {
+        return SourceSpace(c) || c == L'\v' || c == L'\f';
+    }
+    bool GrammarSpace(wchar_t c) const noexcept
+    {
+        return SourceSpace(c) || (profile_ == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
+    }
+    template <std::size_t N> static bool Contains(const MarkdownUnicodeData::Range (&ranges)[N], std::uint32_t scalar) noexcept
+    {
+        const auto* entry = std::lower_bound(std::begin(ranges), std::end(ranges), scalar, [](const auto& range, auto value) { return range.last < value; });
+        return entry != std::end(ranges) && entry->first <= scalar;
+    }
+    static std::uint32_t Scalar(std::wstring_view text, std::size_t offset) noexcept
+    {
+        const auto c = static_cast<std::uint32_t>(text[offset]);
+        return IsUtf16LeadSurrogate(text[offset]) && offset + 1u < text.size()
+                   ? 0x10000u + ((c - 0xd800u) << 10u) + static_cast<std::uint32_t>(text[offset + 1u]) - 0xdc00u
+                   : c;
+    }
+    static bool White(std::uint32_t c) noexcept
+    {
+        return c == 0u || c == 9u || c == 10u || c == 12u || c == 13u || Contains(MarkdownUnicodeData::kSpace, c);
+    }
+    bool Punctuation(std::uint32_t c) const noexcept
+    {
+        // CommonMark 0.31.2 added Unicode symbols; strict GFM retains its older
+        // wording: ASCII punctuation plus Unicode general category P.
+        return Contains(MarkdownUnicodeData::kPunctuation, c) &&
+               (profile_ != MarkdownProfile::Gfm029 || c < 128u || ! Contains(MarkdownUnicodeData::kSymbol, c));
+    }
+    static void AppendScalar(std::wstring& result, std::uint32_t scalar)
+    {
+        if (scalar < 0x10000u)
+            result.push_back(static_cast<wchar_t>(scalar));
+        else
+        {
+            scalar -= 0x10000u;
+            result.push_back(static_cast<wchar_t>(0xd800u + (scalar >> 10u)));
+            result.push_back(static_cast<wchar_t>(0xdc00u + (scalar & 1023u)));
+        }
+    }
+    std::wstring FoldLabel(std::wstring_view text) const
+    {
+        std::wstring result(0u, L' ');
+        bool space = false;
+        for (std::size_t i = 0; i < text.size(); i = StepToNextCodePoint(text, i))
+        {
+            const auto scalar = Scalar(text, i);
+            if (scalar < 128u && GrammarSpace(static_cast<wchar_t>(scalar)))
+            {
+                space = ! result.empty();
+                continue;
+            }
+            if (space)
+                result.push_back(L' ');
+            space = false;
+            const auto* entry =
+                std::lower_bound(std::begin(MarkdownUnicodeData::kFold), std::end(MarkdownUnicodeData::kFold), scalar, [](const auto& candidate, auto wanted) {
+                return candidate.scalar < wanted;
+            });
+            if (entry != std::end(MarkdownUnicodeData::kFold) && entry->scalar == scalar)
+                for (unsigned j = 0; j < entry->count; ++j)
+                    AppendScalar(result, entry->mapped[j]);
+            else
+                AppendScalar(result, scalar);
+        }
+        return result;
+    }
+    std::wstring Decode(std::wstring_view input) const
+    {
+        std::wstring result(0u, L' ');
+        for (std::size_t i = 0; i < input.size();)
+        {
+            MarkdownLexeme entity;
+            if (input[i] == L'&' && referenceDecoder_(input, i, entity))
+            {
+                result.append(entity.value.data(), entity.valueLength);
+                i = entity.source.last;
+            }
+            else if (input[i] == L'\\' && i + 1u < input.size() && AsciiPunctuation(input[i + 1u]))
+            {
+                result.push_back(input[i + 1u]);
+                i += 2u;
+            }
+            else
+            {
+                result.push_back(input[i] ? input[i] : L'\ufffd');
+                ++i;
+            }
+        }
+        return result;
+    }
+    std::wstring Fragment(const MarkdownNode& block, MarkdownRange range) const
+    {
+        std::wstring result(0u, L' ');
+        for (const auto& line : block.lines)
+            for (auto i = std::max(line.source.first, range.first); i < std::min(line.source.last, range.last); ++i)
+            {
+                if (source_[i] == L'\r')
+                {
+                    result.push_back(L'\n');
+                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                        ++i;
+                }
+                else
+                    result.push_back(source_[i]);
+            }
+        return result;
+    }
+    void CollectReference()
+    {
+        const auto& block = blocks_[referenceCursor_++];
+        if (block.block.kind != MarkdownBlockKind::ReferenceDefinition)
+            return;
+        references_.emplace_back();
+        auto& reference       = references_.back();
+        reference.label       = FoldLabel(Fragment(block, block.label));
+        reference.destination = Decode(Fragment(block, block.destination));
+        reference.title       = Decode(Fragment(block, block.title));
+        reference.source      = block.block.source.first;
+    }
+    const Reference* Lookup(std::wstring_view label) const
+    {
+        if (label.empty())
+            return nullptr;
+        std::size_t characters = 0;
+        for (std::size_t i = 0; i < label.size(); i = StepToNextCodePoint(label, i))
+            if (++characters > 999u)
+                return nullptr;
+        const auto folded = FoldLabel(label);
+        if (folded.empty())
+            return nullptr;
+        const auto entry = std::lower_bound(
+            references_.begin(), references_.end(), folded, [](const auto& reference, const auto& wanted) { return reference.label < wanted; });
+        return entry != references_.end() && entry->label == folded ? &*entry : nullptr;
+    }
+    MarkdownRange Range(std::size_t first, std::size_t last) const noexcept
+    {
+        return {offsets_[first],
+                last > first ? offsets_[last - 1u] + (text_[last - 1u] == L'\n' && offsets_[last - 1u] + 1u < source_.size() &&
+                                                              source_[offsets_[last - 1u]] == L'\r' && source_[offsets_[last - 1u] + 1u] == L'\n'
+                                                          ? 2u
+                                                          : 1u)
+                             : offsets_[first]};
+    }
+    std::size_t Append(Kind kind, std::size_t first, std::size_t last, std::wstring_view value = {}, bool mergeText = true)
+    {
+        const auto range = Range(first, last);
+        if (kind == Kind::Text && mergeText && tail_ != MarkdownNoNode && tail_ == lastLiteral_ && nodes_[tail_].source.last == range.first)
+        {
+            nodes_[tail_].value.append(value);
+            nodes_[tail_].source.last = range.last;
+            return tail_;
+        }
+        const auto index = nodes_.size();
+        nodes_.emplace_back();
+        previous_.push_back(tail_);
+        auto& node  = nodes_.back();
+        node.kind   = kind;
+        node.source = range;
+        node.value  = value;
+        if (tail_ == MarkdownNoNode)
+            root_ = index;
+        else
+            nodes_[tail_].nextSibling = index;
+        tail_        = index;
+        lastLiteral_ = kind == Kind::Text && mergeText ? index : MarkdownNoNode;
+        return index;
+    }
+    void FilterHtml(std::size_t index)
+    {
+        if (! HasMarkdownExtension(extensions_, MarkdownExtensions::TagFilter))
+            return;
+        auto& node                               = nodes_[index];
+        const auto raw                           = std::wstring_view(node.value);
+        constexpr std::wstring_view disallowed[] = {L"title", L"textarea", L"style", L"xmp", L"iframe", L"noembed", L"noframes", L"script", L"plaintext"};
+        for (std::size_t i = 0u; i < raw.size(); ++i)
+        {
+            if (raw[i] != L'<')
+                continue;
+            auto first = i + 1u;
+            if (first < raw.size() && raw[first] == L'/')
+                ++first;
+            for (const auto tag : disallowed)
+            {
+                if (first + tag.size() >= raw.size())
+                    continue;
+                bool equal = true;
+                for (std::size_t j = 0; j < tag.size(); ++j)
+                {
+                    auto c = raw[first + j];
+                    if (c >= L'A' && c <= L'Z')
+                        c = static_cast<wchar_t>(c + 32);
+                    if (c != tag[j])
+                    {
+                        equal = false;
+                        break;
+                    }
+                }
+                const auto boundary = first + tag.size();
+                const bool end =
+                    GfmSpace(raw[boundary]) || raw[boundary] == L'>' || (raw[boundary] == L'/' && boundary + 1u < raw.size() && raw[boundary + 1u] == L'>');
+                if (equal && end)
+                {
+                    node.filteredHtmlOpeners.push_back(i);
+                    break;
+                }
+            }
+        }
+    }
+    void OpaqueHtmlBlock()
+    {
+        const auto index = nodes_.size();
+        nodes_.emplace_back();
+        previous_.push_back(MarkdownNoNode);
+        auto& block       = blocks_[blockCursor_++];
+        block.firstInline = index;
+        auto& node        = nodes_[index];
+        node.kind         = Kind::Html;
+        node.source       = block.block.source;
+        for (const auto& line : block.lines)
+        {
+            node.value.append(line.leadingSpaces, L' ');
+            for (auto i = line.source.first; i < line.source.last; ++i)
+            {
+                if (source_[i] == L'\r')
+                {
+                    node.value.push_back(L'\n');
+                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                        ++i;
+                }
+                else
+                    node.value.push_back(source_[i] ? source_[i] : L'\ufffd');
+            }
+        }
+        if (! node.value.empty() && node.value.back() != L'\n')
+            node.value.push_back(L'\n');
+        FilterHtml(index);
+    }
+    bool Compact()
+    {
+        // Delimiter/bracket shells are staging only. Publish a dense semantic
+        // forest; each marking, index and copy transition is separately budgeted.
+        if (! compactPhase_)
+        {
+            previous_.assign(nodes_.size(), MarkdownNoNode);
+            offsets_.clear();
+            compactCursor_ = 0u;
+            compactPhase_  = 1u;
+        }
+        else if (compactPhase_ == 1u)
+        {
+            if (compactCursor_ < blocks_.size())
+            {
+                const auto root = blocks_[compactCursor_++].firstInline;
+                if (root != MarkdownNoNode)
+                    offsets_.push_back(root);
+            }
+            else
+            {
+                compactPhase_  = 2u;
+                compactCursor_ = 0u;
+            }
+        }
+        else if (compactPhase_ == 2u)
+        {
+            if (! offsets_.empty())
+            {
+                const auto index = offsets_.back();
+                offsets_.pop_back();
+                if (previous_[index] != MarkdownNoNode)
+                    throw std::logic_error("Inline tree edge is not unique");
+                previous_[index] = 0u;
+                if (nodes_[index].firstChild != MarkdownNoNode)
+                    offsets_.push_back(nodes_[index].firstChild);
+                if (nodes_[index].nextSibling != MarkdownNoNode)
+                    offsets_.push_back(nodes_[index].nextSibling);
+            }
+            else
+                compactPhase_ = 3u;
+        }
+        else if (compactPhase_ == 3u)
+        {
+            if (compactCursor_ < nodes_.size())
+            {
+                auto& entry = previous_[compactCursor_++];
+                if (entry != MarkdownNoNode)
+                    entry = compactCount_++;
+            }
+            else
+            {
+                compactPhase_  = 4u;
+                compactCursor_ = 0u;
+            }
+        }
+        else if (compactPhase_ == 4u)
+        {
+            if (compactCursor_ < blocks_.size())
+            {
+                auto& root = blocks_[compactCursor_++].firstInline;
+                if (root != MarkdownNoNode)
+                    root = previous_[root];
+            }
+            else
+            {
+                compactPhase_  = 5u;
+                compactCursor_ = 0u;
+            }
+        }
+        else if (compactCursor_ < nodes_.size())
+        {
+            const auto index = compactCursor_++, target = previous_[index];
+            if (target == MarkdownNoNode)
+                return false;
+            if (target != index)
+                nodes_[target] = nodes_[index];
+            auto& node = nodes_[target];
+            if (node.firstChild != MarkdownNoNode)
+                node.firstChild = previous_[node.firstChild];
+            if (node.nextSibling != MarkdownNoNode)
+                node.nextSibling = previous_[node.nextSibling];
+        }
+        else
+        {
+            nodes_.resize(compactCount_);
+            return true;
+        }
+        return false;
+    }
+    void Remove(std::size_t index)
+    {
+        const auto next = nodes_[index].nextSibling, previous = previous_[index];
+        if (previous == MarkdownNoNode)
+            root_ = next;
+        else
+            nodes_[previous].nextSibling = next;
+        if (next == MarkdownNoNode)
+            tail_ = previous;
+        else
+            previous_[next] = previous;
+        nodes_[index].nextSibling = MarkdownNoNode;
+    }
+    void RemoveDelimiter(std::size_t index) noexcept
+    {
+        auto& delimiter = delimiters_[index];
+        if (delimiter.previous != MarkdownNoNode)
+            delimiters_[delimiter.previous].next = delimiter.next;
+        else
+            delimiterHead_ = delimiter.next;
+        if (delimiter.next != MarkdownNoNode)
+            delimiters_[delimiter.next].previous = delimiter.previous;
+        else
+            delimiterTail_ = delimiter.previous;
+    }
+    void Emphasis(std::size_t bottom)
+    {
+        // Six failed-opener floors per marker distinguish whether the closer
+        // can also open and its length modulo three. The CommonMark rule of
+        // three rejects ambiguous matches; floors avoid rescanning failed runs.
+        std::array<std::array<std::size_t, 6>, 3> lower;
+        for (auto& marker : lower)
+            marker.fill(bottom);
+        auto closer = bottom == MarkdownNoNode ? delimiterHead_ : delimiters_[bottom].next;
+        while (closer != MarkdownNoNode)
+        {
+            const auto close = delimiters_[closer];
+            if (! close.close)
+            {
+                closer = close.next;
+                continue;
+            }
+            const auto marker   = close.marker == L'*' ? 0u : close.marker == L'_' ? 1u : 2u;
+            const auto category = (close.open ? 3u : 0u) + close.length % 3u;
+            auto opener         = close.previous;
+            while (opener != bottom && opener != MarkdownNoNode)
+            {
+                if (lower[marker][category] != MarkdownNoNode && opener <= lower[marker][category])
+                {
+                    opener = bottom;
+                    break;
+                }
+                const auto& open = delimiters_[opener];
+                const bool odd   = close.marker != L'~' && (close.open || open.close) && (close.length + open.length) % 3u == 0u &&
+                                   (close.length % 3u != 0u || open.length % 3u != 0u);
+                if (open.marker == close.marker && open.open && ! odd && (close.marker != L'~' || open.length == close.length))
+                    break;
+                opener = open.previous;
+            }
+            if (opener == bottom || opener == MarkdownNoNode)
+            {
+                lower[marker][category] = close.previous;
+                const auto index        = closer;
+                closer                  = close.next;
+                if (! close.open)
+                    RemoveDelimiter(index);
+                continue;
+            }
+            auto& open          = delimiters_[opener];
+            const auto use      = close.marker == L'~' ? close.length : open.length >= 2u && close.length >= 2u ? 2u : 1u;
+            const auto openNode = open.node, closeNode = close.node;
+            const auto first = nodes_[openNode].nextSibling, last = previous_[closeNode];
+            const auto wrapper = nodes_.size();
+            nodes_.emplace_back();
+            previous_.push_back(openNode);
+            nodes_[wrapper].kind         = close.marker == L'~' ? Kind::Strikethrough : use == 2u ? Kind::Strong : Kind::Emphasis;
+            nodes_[wrapper].source       = {nodes_[openNode].source.last - use, nodes_[closeNode].source.first + use};
+            nodes_[wrapper].firstChild   = first;
+            nodes_[wrapper].nextSibling  = closeNode;
+            nodes_[openNode].nextSibling = wrapper;
+            previous_[closeNode]         = wrapper;
+            previous_[first]             = MarkdownNoNode;
+            nodes_[last].nextSibling     = MarkdownNoNode;
+            auto between                 = open.next;
+            while (between != closer)
+            {
+                const auto next = delimiters_[between].next;
+                RemoveDelimiter(between);
+                between = next;
+            }
+            open.length -= use;
+            delimiters_[closer].length -= use;
+            nodes_[openNode].value.resize(open.length);
+            nodes_[openNode].source.last -= use;
+            nodes_[closeNode].value.erase(0u, use);
+            nodes_[closeNode].source.first += use;
+            if (! open.length)
+            {
+                Remove(openNode);
+                RemoveDelimiter(opener);
+            }
+            if (! delimiters_[closer].length)
+            {
+                const auto next = delimiters_[closer].next;
+                Remove(closeNode);
+                RemoveDelimiter(closer);
+                closer = next;
+            }
+        }
+        auto remove = bottom == MarkdownNoNode ? delimiterTail_ : delimiters_[bottom].next;
+        if (bottom == MarkdownNoNode)
+            while (remove != MarkdownNoNode)
+            {
+                const auto previous = delimiters_[remove].previous;
+                RemoveDelimiter(remove);
+                remove = previous;
+            }
+        else
+            while (remove != MarkdownNoNode)
+            {
+                const auto next = delimiters_[remove].next;
+                RemoveDelimiter(remove);
+                remove = next;
+            }
+    }
+    void StartLeaf()
+    {
+        const auto& block = blocks_[blockCursor_];
+        text_.clear();
+        offsets_.clear();
+        delimiters_.clear();
+        brackets_.clear();
+        cursor_ = 0u;
+        root_ = tail_ = delimiterTail_ = delimiterHead_ = lastLiteral_ = MarkdownNoNode;
+        for (const auto& line : block.lines)
+        {
+            for (unsigned space = 0; space < line.leadingSpaces; ++space)
+            {
+                text_.push_back(L' ');
+                offsets_.push_back(line.source.first);
+            }
+            for (auto i = line.source.first; i < line.source.last; ++i)
+            {
+                // Table row splitting precedes inline parsing: an escaped pipe
+                // loses its backslash even inside a code span.
+                if (block.block.kind == MarkdownBlockKind::TableCell && source_[i] == L'\\' && i + 1u < line.source.last && source_[i + 1u] == L'|')
+                    ++i;
+                offsets_.push_back(i);
+                if (source_[i] == L'\r')
+                {
+                    text_.push_back(L'\n');
+                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                        ++i;
+                }
+                else
+                    text_.push_back(source_[i] ? source_[i] : L'\ufffd');
+            }
+        }
+        const bool taskWhitespace =
+            text_.size() > 3u && GfmSpace(text_[3]) && (text_[3] != L'\n' || text_.find_first_not_of(L" \t\r\n", 4u) != std::wstring::npos);
+        while (! text_.empty() && SourceSpace(text_.back()))
+        {
+            text_.pop_back();
+            offsets_.pop_back();
+        }
+        offsets_.push_back(block.block.content.last);
+        // Index equal-length backtick runs once, so unmatched runs cannot cause
+        // repeated scans over an entire paragraph.
+        backtickNext_.assign(text_.size(), MarkdownNoNode);
+        std::vector<std::size_t> last(text_.size() + 1u, MarkdownNoNode);
+        for (std::size_t end = text_.size(); end > 0u;)
+        {
+            if (text_[end - 1u] != L'`')
+            {
+                --end;
+                continue;
+            }
+            auto first = end - 1u;
+            while (first > 0u && text_[first - 1u] == L'`')
+                --first;
+            const auto length    = end - first;
+            backtickNext_[first] = last[length];
+            last[length]         = first;
+            end                  = first;
+        }
+        // GFM task markers apply only to the first paragraph of a list item.
+        if (HasMarkdownExtension(extensions_, MarkdownExtensions::TaskLists) && block.block.kind == MarkdownBlockKind::Paragraph &&
+            block.parent != MarkdownNoNode && blocks_[block.parent].block.kind == MarkdownBlockKind::ListItem &&
+            blocks_[block.parent].firstChild == blockCursor_ && text_.size() >= 3u && text_[0] == L'[' && text_[2] == L']' &&
+            (GfmSpace(text_[1]) || text_[1] == L'x' || text_[1] == L'X') && taskWhitespace)
+        {
+            blocks_[block.parent].task = GfmSpace(text_[1]) ? MarkdownTask::Unchecked : MarkdownTask::Checked;
+            cursor_                    = 3u;
+            while (cursor_ < text_.size() && GfmSpace(text_[cursor_]))
+                ++cursor_;
+        }
+        leafActive_ = true;
+    }
+    void SkipSpace(std::wstring_view text, std::size_t& i) const noexcept
+    {
+        while (i < text.size() && GrammarSpace(text[i]))
+            ++i;
+    }
+    bool InlineLink(std::size_t& end, std::wstring& destination, std::wstring& title) const
+    {
+        auto i = end;
+        if (i == text_.size() || text_[i++] != L'(')
+            return false;
+        SkipSpace(text_, i);
+        auto first = i;
+        if (i < text_.size() && text_[i] == L'<')
+        {
+            first = ++i;
+            while (i < text_.size() && text_[i] != L'>')
+            {
+                if (text_[i] == L'\n' || text_[i] == L'<')
+                    return false;
+                if (text_[i] == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                    ++i;
+                ++i;
+            }
+            if (i == text_.size())
+                return false;
+            destination = Decode(std::wstring_view(text_).substr(first, i - first));
+            ++i;
+        }
+        else
+        {
+            unsigned depth = 0;
+            while (i < text_.size())
+            {
+                const auto c = text_[i];
+                if (c <= L' ' || c == 127)
+                    break;
+                if (c == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                {
+                    i += 2u;
+                    continue;
+                }
+                if (c == L'(')
+                    ++depth;
+                if (c == L')')
+                {
+                    if (! depth)
+                        break;
+                    --depth;
+                }
+                ++i;
+            }
+            if (depth)
+                return false;
+            destination = Decode(std::wstring_view(text_).substr(first, i - first));
+        }
+        const auto afterDestination = i;
+        SkipSpace(text_, i);
+        if (i > afterDestination && i < text_.size() && (text_[i] == L'\'' || text_[i] == L'"' || text_[i] == L'('))
+        {
+            const auto open = text_[i++], close = open == L'(' ? L')' : open;
+            first = i;
+            while (i < text_.size() && text_[i] != close)
+            {
+                if (open == L'(' && text_[i] == L'(')
+                    return false;
+                if (text_[i] == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                    ++i;
+                ++i;
+            }
+            if (i == text_.size())
+                return false;
+            title = Decode(std::wstring_view(text_).substr(first, i - first));
+            ++i;
+            SkipSpace(text_, i);
+        }
+        if (i == text_.size() || text_[i] != L')')
+            return false;
+        end = i + 1u;
+        return true;
+    }
+    bool CloseBracket()
+    {
+        if (brackets_.empty())
+            return false;
+        const auto bracket = brackets_.back();
+        brackets_.pop_back();
+        if (! bracket.active)
+            return false;
+        auto end = cursor_ + 1u;
+        std::wstring destination(0u, L' '), title(0u, L' ');
+        bool found = InlineLink(end, destination, title);
+        if (! found)
+        {
+            end                        = cursor_ + 1u;
+            const Reference* reference = nullptr;
+            bool explicitLabel         = false;
+            if (end < text_.size() && text_[end] == L'[')
+            {
+                auto last = end + 1u;
+                while (last < text_.size() && text_[last] != L']' && text_[last] != L'[')
+                {
+                    if (text_[last] == L'\\' && last + 1u < text_.size() && AsciiPunctuation(text_[last + 1u]))
+                        ++last;
+                    ++last;
+                }
+                if (last < text_.size() && text_[last] == L']')
+                {
+                    explicitLabel    = last > end + 1u;
+                    const auto label = explicitLabel ? std::wstring_view(text_).substr(end + 1u, last - end - 1u)
+                                                     : std::wstring_view(text_).substr(bracket.offset + (bracket.image ? 2u : 1u),
+                                                                                       cursor_ - bracket.offset - (bracket.image ? 2u : 1u));
+                    reference        = Lookup(label);
+                    if (reference)
+                        end = last + 1u;
+                }
+            }
+            if (! reference && ! explicitLabel && ! bracket.nested)
+                reference =
+                    Lookup(std::wstring_view(text_).substr(bracket.offset + (bracket.image ? 2u : 1u), cursor_ - bracket.offset - (bracket.image ? 2u : 1u)));
+            if (reference)
+            {
+                destination = reference->destination;
+                title       = reference->title;
+                found       = true;
+            }
+        }
+        if (! brackets_.empty())
+            brackets_.back().nested = true;
+        if (! found)
+            return false;
+        Emphasis(bracket.delimiter);
+        const auto first = nodes_[bracket.node].nextSibling;
+        if (first != MarkdownNoNode)
+        {
+            nodes_[tail_].nextSibling = MarkdownNoNode;
+            previous_[first]          = MarkdownNoNode;
+        }
+        auto& node = nodes_[bracket.node];
+        node.kind  = bracket.image ? Kind::Image : Kind::Link;
+        node.value.clear();
+        node.destination = destination;
+        node.title       = title;
+        node.firstChild  = first;
+        node.nextSibling = MarkdownNoNode;
+        node.source      = Range(bracket.offset, end);
+        tail_            = bracket.node;
+        if (! bracket.image)
+            for (auto& earlier : brackets_)
+                if (! earlier.image)
+                    earlier.active = false;
+        cursor_ = end;
+        return true;
+    }
+    static bool Email(std::wstring_view text, bool extended) noexcept
+    {
+        std::size_t at = 0u;
+        while (at < text.size() && text[at] != L'@')
+        {
+            if (! AsciiLetter(text[at]) && ! Digit(text[at]) &&
+                std::wstring_view(extended ? L".-_+" : L".!#$%&'*+-/=?^_`{|}~").find(text[at]) == std::wstring_view::npos)
+                return false;
+            ++at;
+        }
+        if (! at || at + 1u >= text.size())
+            return false;
+        std::size_t label = 0u, dots = 0u;
+        for (auto i = at + 1u; i <= text.size(); ++i)
+        {
+            if (i == text.size() || text[i] == L'.')
+            {
+                if (! label || label > 63u || text[i - 1u] == L'-')
+                    return false;
+                label = 0u;
+                if (i < text.size())
+                    ++dots;
+            }
+            else
+            {
+                if ((! AsciiLetter(text[i]) && ! Digit(text[i]) && text[i] != L'-' && ! (extended && text[i] == L'_')) || (! label && text[i] == L'-'))
+                    return false;
+                ++label;
+            }
+        }
+        return ! extended || (dots && (AsciiLetter(text.back()) || Digit(text.back())));
+    }
+    bool AngleAutolink()
+    {
+        const auto end = text_.find(L'>', cursor_ + 1u);
+        if (end == std::wstring::npos)
+            return false;
+        const auto content = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
+        const auto colon   = content.find(L':');
+        bool uri           = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
+        if (uri)
+        {
+            for (std::size_t i = 1u; i < colon; ++i)
+                if (! AsciiLetter(content[i]) && ! Digit(content[i]) && content[i] != L'+' && content[i] != L'.' && content[i] != L'-')
+                    uri = false;
+            for (const auto c : content)
+                if (c <= L' ' || c == L'<' || c == 127)
+                    uri = false;
+        }
+        const bool email = ! uri && Email(content, false);
+        if (! uri && ! email)
+            return false;
+        const auto link          = Append(Kind::Link, cursor_, end + 1u);
+        nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
+        const auto child         = nodes_.size();
+        nodes_.emplace_back();
+        previous_.push_back(MarkdownNoNode);
+        nodes_[child].kind      = Kind::Text;
+        nodes_[child].source    = Range(cursor_ + 1u, end);
+        nodes_[child].value     = content;
+        nodes_[link].firstChild = child;
+        for (auto& bracket : brackets_)
+            if (! bracket.image)
+                bracket.active = false;
+        cursor_ = end + 1u;
+        return true;
+    }
+    std::size_t HtmlEnd() const noexcept
+    {
+        const auto input = std::wstring_view(text_).substr(cursor_);
+        auto terminated  = [&](std::wstring_view prefix, std::wstring_view suffix)
+        {
+            if (! input.starts_with(prefix))
+                return std::size_t{};
+            const auto end = input.find(suffix, prefix.size());
+            return end == std::wstring_view::npos ? 0u : end + suffix.size();
+        };
+        if (input.starts_with(L"<!--"))
+        {
+            const auto length = terminated(L"<!--", L"-->");
+            if (input.starts_with(L"<!-->"))
+                return 5u;
+            if (input.starts_with(L"<!--->"))
+                return 6u;
+            return length;
+        }
+        if (input.starts_with(L"<?"))
+            return terminated(L"<?", L"?>");
+        if (input.starts_with(L"<![CDATA["))
+            return terminated(L"<![CDATA[", L"]]>");
+        if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
+        {
+            const auto end = input.find(L'>', 3u);
+            return end == std::wstring_view::npos ? 0u : end + 1u;
+        }
+        if (input.size() > 2u && input[1] == L'!' && input[2] >= L'A' && input[2] <= L'Z')
+        {
+            auto i = 3u;
+            while (i < input.size() && input[i] >= L'A' && input[i] <= L'Z')
+                ++i;
+            if (i == input.size() || ! GrammarSpace(input[i]))
+                return 0u;
+            const auto end = input.find(L'>', i);
+            return end == std::wstring_view::npos ? 0u : end + 1u;
+        }
+        std::size_t i      = 1u;
+        const bool closing = i < input.size() && input[i] == L'/';
+        if (closing)
+            ++i;
+        if (i == input.size() || ! AsciiLetter(input[i]))
+            return 0u;
+        ++i;
+        while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || input[i] == L'-'))
+            ++i;
+        while (i < input.size())
+        {
+            const auto first = i;
+            SkipSpace(input, i);
+            if (i == input.size())
+                return 0u;
+            if (input[i] == L'>')
+                return i + 1u;
+            if (! closing && input[i] == L'/' && i + 1u < input.size() && input[i + 1u] == L'>')
+                return i + 2u;
+            if (closing || i == first || ! (AsciiLetter(input[i]) || input[i] == L'_' || input[i] == L':'))
+                return 0u;
+            ++i;
+            while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || std::wstring_view(L"_.:-").find(input[i]) != std::wstring_view::npos))
+                ++i;
+            const auto afterName = i;
+            SkipSpace(input, i);
+            if (i == input.size() || input[i] != L'=')
+            {
+                i = afterName;
+                continue;
+            }
+            ++i;
+            SkipSpace(input, i);
+            if (i == input.size())
+                return 0u;
+            if (input[i] == L'\'' || input[i] == L'"')
+            {
+                const auto quote = input[i++];
+                while (i < input.size() && input[i] != quote)
+                    ++i;
+                if (i == input.size())
+                    return 0u;
+                ++i;
+            }
+            else
+            {
+                const auto start = i;
+                while (i < input.size() && ! GrammarSpace(input[i]) && input[i] != L'>')
+                {
+                    if (std::wstring_view(L"\"'=<>`").find(input[i]) != std::wstring_view::npos)
+                        return 0u;
+                    ++i;
+                }
+                if (i == start)
+                    return 0u;
+            }
+        }
+        return 0u;
+    }
+    bool ExtendedAutolink()
+    {
+        const auto rest     = std::wstring_view(text_).substr(cursor_, inlineLimit_ - cursor_);
+        const bool boundary = autolinkBoundary_;
+        const auto starts   = [&](std::wstring_view scheme)
+        {
+            if (rest.size() < scheme.size())
+                return false;
+            for (std::size_t i = 0; i < scheme.size(); ++i)
+            {
+                auto c = rest[i];
+                if (c >= L'A' && c <= L'Z')
+                    c = static_cast<wchar_t>(c + 32);
+                if (c != scheme[i])
+                    return false;
+            }
+            return true;
+        };
+        std::size_t scheme = 0u;
+        if (boundary)
+        {
+            if (starts(L"https://"))
+                scheme = 8u;
+            else if (starts(L"http://"))
+                scheme = 7u;
+            else if (starts(L"ftp://"))
+                scheme = 6u;
+            else if (starts(L"www."))
+                scheme = 4u;
+        }
+        std::size_t length = 0u;
+        bool email         = false;
+        if (scheme)
+        {
+            auto hostEnd = scheme == 4u ? 0u : scheme;
+            while (hostEnd < rest.size())
+            {
+                const auto scalar = Scalar(rest, hostEnd);
+                if (! Contains(MarkdownUnicodeData::kAlphanumeric, scalar) && scalar != L'_' && scalar != L'-' && scalar != L'.')
+                    break;
+                hostEnd = StepToNextCodePoint(rest, hostEnd);
+            }
+            auto domain = rest.substr(scheme == 4u ? 0u : scheme, hostEnd - (scheme == 4u ? 0u : scheme));
+            while (domain.ends_with(L'.'))
+                domain.remove_suffix(1u);
+            const auto dot   = domain.rfind(L'.');
+            const auto prior = dot == std::wstring_view::npos ? dot : domain.substr(0u, dot).rfind(L'.');
+            if (dot == std::wstring_view::npos || domain.starts_with(L'.') || domain.find(L"..") != std::wstring_view::npos ||
+                domain.substr(prior == std::wstring_view::npos ? 0u : prior + 1u).find(L'_') != std::wstring_view::npos)
+                return false;
+            length = hostEnd;
+            while (length < rest.size() && ! White(Scalar(rest, length)) && rest[length] != L'<')
+                ++length;
+            while (length && std::wstring_view(L"?!.,:*_~").find(rest[length - 1u]) != std::wstring_view::npos)
+                --length;
+            if (length && rest[length - 1u] == L')')
+            {
+                std::size_t opens = 0u, closes = 0u;
+                for (std::size_t i = 0; i < length; ++i)
+                {
+                    if (rest[i] == L'(')
+                        ++opens;
+                    else if (rest[i] == L')')
+                        ++closes;
+                }
+                while (length && rest[length - 1u] == L')' && closes > opens)
+                {
+                    --length;
+                    --closes;
+                }
+            }
+            if (length && rest[length - 1u] == L';')
+            {
+                auto i = length - 1u;
+                while (i && (AsciiLetter(rest[i - 1u]) || Digit(rest[i - 1u])))
+                    --i;
+                if (i && rest[i - 1u] == L'&' && i < length - 1u)
+                    length = i - 1u;
+            }
+        }
+        else
+        {
+            if (! emailBoundary_)
+                return false;
+            while (length < rest.size() &&
+                   (AsciiLetter(rest[length]) || Digit(rest[length]) || std::wstring_view(L".-_+@").find(rest[length]) != std::wstring_view::npos))
+                ++length;
+            while (length && rest[length - 1u] == L'.')
+                --length;
+            if (underscoreOpen_)
+                while (length && rest[length - 1u] == L'_')
+                    --length;
+            if (! Email(rest.substr(0u, length), true))
+                return false;
+            email = true;
+        }
+        if (! length)
+            return false;
+        const auto link          = Append(Kind::Link, cursor_, cursor_ + length);
+        nodes_[link].destination = email          ? std::wstring(L"mailto:") + std::wstring(rest.substr(0u, length))
+                                   : scheme == 4u ? std::wstring(L"http://") + std::wstring(rest.substr(0u, length))
+                                                  : std::wstring(rest.substr(0u, length));
+        const auto child         = nodes_.size();
+        nodes_.emplace_back();
+        previous_.push_back(MarkdownNoNode);
+        nodes_[child].kind      = Kind::Text;
+        nodes_[child].value     = rest.substr(0u, length);
+        nodes_[child].source    = Range(cursor_, cursor_ + length);
+        nodes_[link].firstChild = child;
+        cursor_ += length;
+        return true;
+    }
+    std::size_t NormalizedOffset(std::size_t raw) const noexcept
+    {
+        return static_cast<std::size_t>(std::lower_bound(offsets_.begin(), offsets_.end(), raw) - offsets_.begin());
+    }
+    void DelimiterHistory(std::size_t raw, std::optional<MarkdownRange> consumed = std::nullopt)
+    {
+        // Source-ordered cursor: autolinks retire only delimiter runs they own.
+        // Runs outside a URL remain on the ordinary emphasis stack. The small
+        // underscore balance permits _mail@example.org_ without accepting an
+        // otherwise invalid email domain ending in an unmatched underscore.
+        while (autolinkDelimiter_ != MarkdownNoNode && nodes_[delimiters_[autolinkDelimiter_].node].source.last <= raw)
+        {
+            const auto index     = autolinkDelimiter_;
+            const auto delimiter = delimiters_[index];
+            const auto range     = nodes_[delimiter.node].source;
+            autolinkDelimiter_   = delimiter.next;
+            if (consumed && range.first >= consumed->first && range.last <= consumed->last)
+            {
+                RemoveDelimiter(index);
+                continue;
+            }
+            if (delimiter.marker != L'_')
+                continue;
+            auto remaining = delimiter.length;
+            if (delimiter.close)
+            {
+                const auto used = std::min(underscoreOpen_, remaining);
+                underscoreOpen_ -= used;
+                remaining -= used;
+            }
+            if (delimiter.open && remaining)
+            {
+                underscoreOpen_ += remaining;
+                if (range.last == raw)
+                    emailBoundary_ = true;
+            }
+        }
+    }
+    void AutolinkSplice(std::size_t link, std::size_t first, std::size_t last, std::size_t& current, std::size_t parent)
+    {
+        const auto range = nodes_[link].source;
+        while (nodes_[current].source.last <= range.first)
+            current = nodes_[current].nextSibling;
+        const auto beginNode = current;
+        auto endNode         = current;
+        while (nodes_[endNode].source.last < range.last)
+            endNode = nodes_[endNode].nextSibling;
+        const auto oldFirst = nodes_[beginNode].source.first, oldLast = nodes_[endNode].source.last;
+        const auto before = previous_[beginNode], after = nodes_[endNode].nextSibling;
+        auto prefix = before;
+        if (oldFirst < range.first)
+        {
+            nodes_[beginNode].value       = Decode(std::wstring_view(text_).substr(NormalizedOffset(oldFirst), first - NormalizedOffset(oldFirst)));
+            nodes_[beginNode].source.last = range.first;
+            prefix                        = beginNode;
+        }
+        if (prefix != MarkdownNoNode)
+            nodes_[prefix].nextSibling = link;
+        else if (parent != MarkdownNoNode)
+            nodes_[parent].firstChild = link;
+        else
+            blocks_[blockCursor_].firstInline = link;
+        previous_[link] = prefix;
+        current         = after;
+        if (range.last < oldLast)
+        {
+            const auto end = NormalizedOffset(oldLast);
+            current        = Append(Kind::Text, last, end, Decode(std::wstring_view(text_).substr(last, end - last)));
+        }
+        nodes_[tail_].nextSibling = after;
+        if (after != MarkdownNoNode)
+            previous_[after] = tail_;
+    }
+    std::size_t ResolveAutolinks(AutolinkVisit visit)
+    {
+        // Brackets/code/HTML already own their contents. Outside them, scan a
+        // whole contiguous text region BEFORE emphasis: www.example.org*a*
+        // belongs to the URL through its interior '*a', with only the trailing
+        // '*' excluded. Splice links while preserving untouched delimiter nodes.
+        auto regionEnd = visit.node;
+        while (nodes_[regionEnd].nextSibling != MarkdownNoNode && nodes_[nodes_[regionEnd].nextSibling].kind == Kind::Text)
+            regionEnd = nodes_[regionEnd].nextSibling;
+        const auto originalNext = nodes_[regionEnd].nextSibling;
+        const auto first = NormalizedOffset(nodes_[visit.node].source.first), last = NormalizedOffset(nodes_[regionEnd].source.last);
+        inlineFirst_ = cursor_ = first;
+        inlineLimit_           = last;
+        auto current           = visit.node;
+        autolinkBoundary_      = ! first || White(Scalar(text_, StepToPreviousCodePoint(text_, first))) ||
+                                 std::wstring_view(L"*_~(").find(text_[first - 1u]) != std::wstring_view::npos;
+        emailBoundary_         = true;
+        while (cursor_ < last)
+        {
+            DelimiterHistory(offsets_[cursor_]);
+            const auto at = cursor_;
+            root_ = tail_ = lastLiteral_ = MarkdownNoNode;
+            if (ExtendedAutolink())
+            {
+                const auto link = root_;
+                AutolinkSplice(link, at, cursor_, current, visit.parent);
+                DelimiterHistory(nodes_[link].source.last, nodes_[link].source);
+                autolinkBoundary_ = emailBoundary_ = false;
+                continue;
+            }
+            MarkdownLexeme entity;
+            std::uint32_t previous = Scalar(text_, cursor_);
+            if (text_[cursor_] == L'&' && referenceDecoder_(text_, cursor_, entity))
+            {
+                previous = entity.valueLength >= 2u && IsUtf16TrailSurrogate(entity.value[entity.valueLength - 1u])
+                               ? Scalar(std::wstring_view(entity.value.data(), entity.valueLength), entity.valueLength - 2u)
+                               : entity.value[entity.valueLength - 1u];
+                cursor_  = entity.source.last;
+            }
+            else if (text_[cursor_] == L'\\' && cursor_ + 1u < last && AsciiPunctuation(text_[cursor_ + 1u]))
+            {
+                previous = text_[cursor_ + 1u];
+                cursor_ += 2u;
+            }
+            else
+                cursor_ = StepToNextCodePoint(text_, cursor_);
+            autolinkBoundary_ =
+                White(previous) || (previous < 128u && std::wstring_view(L"*_~(").find(static_cast<wchar_t>(previous)) != std::wstring_view::npos);
+            emailBoundary_ = previous >= 128u || (! AsciiLetter(static_cast<wchar_t>(previous)) && ! Digit(static_cast<wchar_t>(previous)) &&
+                                                  std::wstring_view(L".-_+").find(static_cast<wchar_t>(previous)) == std::wstring_view::npos);
+        }
+        return originalNext;
+    }
+    void Scan()
+    {
+        const auto first = cursor_;
+        const auto c     = text_[first];
+        if (c == L'`')
+        {
+            auto end = first;
+            while (end < text_.size() && text_[end] == L'`')
+                ++end;
+            const auto close = backtickNext_[first];
+            if (close != MarkdownNoNode)
+            {
+                auto value = text_.substr(end, close - end);
+                std::replace(value.begin(), value.end(), L'\n', L' ');
+                if (value.size() >= 2u && value.front() == L' ' && value.back() == L' ' && value.find_first_not_of(L' ') != std::wstring::npos)
+                    value = value.substr(1u, value.size() - 2u);
+                cursor_ = close + end - first;
+                Append(Kind::Code, first, cursor_, value);
+                return;
+            }
+            cursor_ = end;
+            Append(Kind::Text, first, end, std::wstring_view(text_).substr(first, end - first));
+            return;
+        }
+        if (c == L'<' && AngleAutolink())
+            return;
+        if (c == L'<')
+            if (const auto length = HtmlEnd())
+            {
+                cursor_ += length;
+                const auto node = Append(Kind::Html, first, cursor_, std::wstring_view(text_).substr(first, length));
+                FilterHtml(node);
+                return;
+            }
+        if (c == L'\\' && first + 1u < text_.size())
+        {
+            if (AsciiPunctuation(text_[first + 1u]))
+            {
+                cursor_ += 2u;
+                Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first + 1u, 1u));
+                return;
+            }
+            if (text_[first + 1u] == L'\n')
+            {
+                cursor_ += 2u;
+                Append(Kind::HardBreak, first, cursor_);
+                return;
+            }
+        }
+        if (c == L'&')
+        {
+            MarkdownLexeme entity;
+            if (referenceDecoder_(text_, first, entity))
+            {
+                cursor_ = entity.source.last;
+                Append(Kind::Text, first, cursor_, std::wstring_view(entity.value.data(), entity.valueLength));
+                return;
+            }
+        }
+        if (c == L'\n')
+        {
+            auto start = first;
+            while (start && (text_[start - 1u] == L' ' || text_[start - 1u] == L'\t'))
+                --start;
+            auto spaces = first;
+            while (spaces && text_[spaces - 1u] == L' ')
+                --spaces;
+            if (tail_ != MarkdownNoNode && nodes_[tail_].kind == Kind::Text && nodes_[tail_].source.last > offsets_[start])
+            {
+                auto& node      = nodes_[tail_];
+                const auto trim = node.source.last - std::max(node.source.first, offsets_[start]);
+                node.value.resize(node.value.size() - trim);
+                node.source.last -= trim;
+                if (node.value.empty())
+                    Remove(tail_);
+            }
+            ++cursor_;
+            Append(first - spaces >= 2u ? Kind::HardBreak : Kind::SoftBreak, start, cursor_);
+            return;
+        }
+        if (c == L'[' || (c == L'!' && first + 1u < text_.size() && text_[first + 1u] == L'['))
+        {
+            const bool image = c == L'!';
+            cursor_ += image ? 2u : 1u;
+            const auto node = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first), false);
+            brackets_.push_back({node, first, delimiterTail_, image});
+            return;
+        }
+        if (c == L']' && CloseBracket())
+            return;
+        if (c == L'*' || c == L'_' || (c == L'~' && HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough)))
+        {
+            while (cursor_ < text_.size() && text_[cursor_] == c)
+                ++cursor_;
+            const auto length = cursor_ - first;
+            const auto node   = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, length), false);
+            if (c == L'~' && length != 2u)
+                return;
+            const auto before = first ? Scalar(text_, StepToPreviousCodePoint(text_, first)) : 0u;
+            const auto after  = cursor_ < text_.size() ? Scalar(text_, cursor_) : 0u;
+            const bool left   = ! White(after) && (! Punctuation(after) || White(before) || Punctuation(before));
+            const bool right  = ! White(before) && (! Punctuation(before) || White(after) || Punctuation(after));
+            const bool open   = c == L'_' ? left && (! right || Punctuation(before)) : left;
+            const bool close  = c == L'_' ? right && (! left || Punctuation(after)) : right;
+            const auto index  = delimiters_.size();
+            delimiters_.push_back({node, length, delimiterTail_, MarkdownNoNode, c, open, close});
+            if (delimiterTail_ != MarkdownNoNode)
+                delimiters_[delimiterTail_].next = index;
+            else
+                delimiterHead_ = index;
+            delimiterTail_ = index;
+            return;
+        }
+        cursor_ = StepToNextCodePoint(text_, first);
+        Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first));
+    }
+
+public:
+    MarkdownInlines(std::wstring_view source,
+                    MarkdownProfile profile,
+                    MarkdownExtensions extensions,
+                    std::vector<MarkdownNode>& blocks,
+                    std::vector<MarkdownInline>& inlines,
+                    ReferenceDecoder decoder)
+        : source_(source),
+          profile_(profile),
+          extensions_(extensions),
+          blocks_(blocks),
+          nodes_(inlines),
+          referenceDecoder_(decoder),
+          references_(0u),
+          delimiters_(0u),
+          brackets_(0u),
+          autolinkWalk_(0u),
+          previous_(0u),
+          offsets_(0u),
+          backtickNext_(0u),
+          text_(0u, L' ')
+    {
+    }
+    bool Step()
+    {
+        if (! referencesComplete_)
+        {
+            if (referenceCursor_ < blocks_.size())
+                CollectReference();
+            else
+            {
+                std::sort(references_.begin(), references_.end(), [](const auto& a, const auto& b) {
+                    return a.label != b.label ? a.label < b.label : a.source < b.source;
+                });
+                referencesComplete_ = true;
+            }
+            return false;
+        }
+        if (leafActive_)
+        {
+            if (autolinksActive_)
+            {
+                if (! autolinkWalk_.empty())
+                {
+                    const auto visit = autolinkWalk_.back();
+                    autolinkWalk_.pop_back();
+                    auto next        = nodes_[visit.node].nextSibling;
+                    const auto child = nodes_[visit.node].firstChild;
+                    const auto kind  = nodes_[visit.node].kind;
+                    if (kind == Kind::Text)
+                        next = ResolveAutolinks(visit);
+                    if (next != MarkdownNoNode)
+                        autolinkWalk_.push_back({next, visit.parent});
+                    if (child != MarkdownNoNode && (kind == Kind::Emphasis || kind == Kind::Strong || kind == Kind::Strikethrough))
+                        autolinkWalk_.push_back({child, visit.node});
+                }
+                else
+                {
+                    root_ = blocks_[blockCursor_].firstInline;
+                    tail_ = root_;
+                    if (tail_ != MarkdownNoNode)
+                        while (nodes_[tail_].nextSibling != MarkdownNoNode)
+                            tail_ = nodes_[tail_].nextSibling;
+                    Emphasis(MarkdownNoNode);
+                    blocks_[blockCursor_].firstInline = root_;
+                    ++blockCursor_;
+                    leafActive_ = autolinksActive_ = false;
+                }
+            }
+            else if (cursor_ < text_.size())
+                Scan();
+            else
+            {
+                blocks_[blockCursor_].firstInline = root_;
+                if (HasMarkdownExtension(extensions_, MarkdownExtensions::Autolinks))
+                {
+                    autolinksActive_ = true;
+                    autolinkWalk_.clear();
+                    autolinkDelimiter_ = delimiterHead_;
+                    underscoreOpen_    = 0u;
+                    if (root_ != MarkdownNoNode)
+                        autolinkWalk_.push_back({root_, MarkdownNoNode});
+                }
+                else
+                {
+                    Emphasis(MarkdownNoNode);
+                    blocks_[blockCursor_].firstInline = root_;
+                    ++blockCursor_;
+                    leafActive_ = false;
+                }
+            }
+            return false;
+        }
+        if (blockCursor_ == blocks_.size())
+            return Compact();
+        const auto kind = blocks_[blockCursor_].block.kind;
+        if (kind == MarkdownBlockKind::HtmlBlock)
+        {
+            OpaqueHtmlBlock();
+            return false;
+        }
+        if (kind == MarkdownBlockKind::Paragraph || kind == MarkdownBlockKind::AtxHeading || kind == MarkdownBlockKind::SetextHeading ||
+            kind == MarkdownBlockKind::TableCell)
+            StartLeaf();
+        else
+            ++blockCursor_;
+        return false;
+    }
+};
+} // namespace DxUi::RichText::Detail

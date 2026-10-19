@@ -1,0 +1,167 @@
+# Working prototype v0
+
+Reusable source now lives in DxUi::RichText; local RichText headers only forward.
+Application hosting/persistence/scheduling remain in src/app and app tests here.
+This is a functional prototype, not a complete Rich Edit replacement or a
+CommonMark/GFM-conformant editor. The full accepted scope remains in
+Specs/RichMarkdownControl.md and the active WIP checklist.
+
+## Build and run
+
+```powershell
+.\restore-dxui.ps1 -SourceRepository 'Z:\src\DxUi'
+.\build.ps1 -Configuration Debug -Test
+.\build.ps1 -Configuration Release -Test
+.\build.ps1 -Configuration AsanDebug -Test
+.\build-dxui-x64-Release\Release\RichEditRebuild.exe
+.\build-dxui-x64-Release\Release\RichEditRebuild.exe C:\path\document.md
+```
+
+Optional `-OutputRoot <absolute-directory>` keeps every build outside the source
+volume. D2 outputs use build-dxui-<platform>-<profile> to keep old prototype binaries
+separate. Exact linked-archive build receipts belong to the D2 qualification;
+older E/Z outputs are historical. The E volume later filled, so use a Z output root.
+
+Optional `-OfficeReferenceDll <absolute installed DLL path>` adds Office
+reference/parity tests. Build discovers Visual Studio, uses separate outputs,
+records timestamped receipts, and stages the exact compiler ASan runtime.
+Restore creates a consumer-owned immutable checkout of Dependencies/DxUi.lock.json;
+builds default to that checkout. Existing source checkouts are validated, never
+reset or silently updated. -DxUiRoot is an optional exact-clean-pin override. The
+ASan runner requires an isolated heap-use-after-free diagnosis before accepting
+its four application-owned suites; reference DLL internals are not instrumented by us.
+The selected compiler's `clang_rt.asan_dynamic-x86_64.dll` (or ARM64 equivalent)
+is copied beside the executables; keep it beside a copied ASan test/app. A plain
+Release build does not require this sanitizer runtime. Missing runtime lookup
+fails configuration instead of producing a known unusable test directory.
+All CTest cases have a 20-second timeout and startup-error dialogs are suppressed.
+
+Use File/Open, Save/Save As, Ctrl+O/S; F6 or View switches source/formatted mode.
+The expanded [feature laboratory](../samples/FeatureShowcase.md) covers Unicode,
+bidirectional text, formatting/edit/history/read-only exercises, blocks, links,
+tables, tasks, HTML and source-visible math/Mermaid/footnote/front-matter examples.
+Open it with:
+
+```powershell
+.\build-dxui-x64-Release\Release\RichEditRebuild.exe .\samples\FeatureShowcase.md
+```
+
+The document labels supported v0 rendering separately from parser-analysis and
+future rendering/structural editing. It uses reserved `.invalid` destinations and
+local image placeholders; the control never automatically fetches these resources.
+It does not update the consumer's DxUi pin or claim physical IME/AT qualification.
+
+Select and type; Ctrl+B/I or Format toggles bold/italic/code. Ctrl+Z/Y performs
+undo/redo. Arrow/Home/End/Up/Down navigate prepared layout; Shift extends a
+selection; drag selects; wheel scrolls. Read-only permits selection/copy and
+blocks user mutations. The application asks before discarding unsaved source.
+Only UTF-8 files/Unicode control text are accepted; no legacy ANSI path exists.
+
+## Actual supported behavior
+
+- Immutable piece-table snapshots, UTF-16 positions, monotonic revisions, atomic
+  replacements, source/selection undo/redo and a 128-entry history bound.
+- 64 Ki UTF-16 source limit; invalid UTF-8/UTF-16, embedded NUL and scalar/CRLF-
+  splitting edits are rejected. UTF-8 BOM and mixed line endings survive saves.
+- v0 rich grammar: line-leading ATX headings followed by a space; paired strong,
+  emphasis, code spans and strikeout; nested styles to a bounded depth. This is
+  deliberately not a claim of CommonMark delimiter/escape/block conformance.
+- Source/formatted views share source/history. Supported markers hide only in
+  formatted mode. Per-unit source/display maps preserve leading/trailing
+  affinities. Unsupported syntax remains visible and editable; nothing is dropped.
+- One formatting command is one Markdown source transaction. Editing selected
+  content inside a supported span keeps its surrounding markers.
+- DirectWrite mixed-font/style/heading layout, wrapping, fallback, real glyph
+  metrics, caret/range hit tests and Direct2D color-font drawing.
+- Own Unicode HWND: no hidden Edit/RichEdit child, no production Microsoft editing
+  DLL, and no Office/LineServices/PTS calls. Reference/parity executables alone
+  load the installed DLLs in separate processes.
+- Coalesced event-driven parse worker: one pending and one completed result;
+  revision/mode/request checks reject stale publication. Character insertion
+  updates source immediately while parsing catches up. File I/O is worker-based
+  in the app. Async open refuses to overwrite edits made after its request.
+- Atomic same-directory UTF-8 save with flush, failed-save source retention,
+  Unicode clipboard handlers, read-only state, and deterministic WIC PNG capture.
+  Clipboard currently transfers selected Markdown source as CF_UNICODETEXT; rich
+  RTF/HTML and a separate visible-text copy policy remain pending.
+
+The reusable model/projection/layout is compiled only into DxUi.lib and owns no HWND/device/swap chain. The
+standalone host supplies native presentation. Future DxUi migration must replace
+its per-instance worker/fixed theme with the existing host/shared services.
+
+## Tests and evidence
+
+Canonical DxUi EditorControls tests compare 1,000 randomized edits against an independent string
+oracle and cover snapshots/history/bounds/invalid encoding. Projection tests
+cover hidden delimiters, nesting, literal code, incomplete input, source mapping,
+localized editing and formatting undo, backwards anchor/caret preservation and
+empty-heading affinity. Layout tests use actual DirectWrite,
+including surrogate/combining clusters, Hebrew/mixed text, selection geometry,
+heading size and actual bold glyph advances. Worker tests cover supersession and
+pending destruction. File tests cover byte identity and safe failures. Native
+hidden-window tests cover own class/no Microsoft engine, modes, scalar input,
+rapid backspace, read-only/format/undo/redo, GETTEXT truncation, resize, viewport
+scroll limits, AltGr command separation, leading-marker typing and capture.
+The app smoke covers async save/reopen, stale/failed open and rendered output.
+Optional Office parity checks compare a small explicit set of accepted semantics.
+
+Capture without taking the desktop:
+
+```powershell
+Start-Process '.\build-dxui-x64-Release\Release\RichEditRebuild.exe' `
+  -ArgumentList '--capture','C:\absolute\capture.png' -WindowStyle Hidden -Wait
+```
+
+The capture is actual offscreen Direct2D/WIC output, not an image mockup.
+Validation receipts and source/binary identities are retained under validation/.
+
+## Open gates
+
+Complete CommonMark/GFM parsing and lossless syntax tree, code blocks, links,
+images, lists/tasks/tables/raw-HTML policy, math, Mermaid, footnotes and front
+matter rendering/editing are pending. No formula/diagram rendering claim follows
+from showing their literal source. Large-document incremental parsing, piece-tree
+indexing, viewport virtualization, large history budgets and measured latency
+qualification remain pending.
+
+Navigation currently follows DirectWrite logical clusters; complete visual bidi
+caret affinity and Unicode grapheme semantics are unqualified. If Backspace or
+Delete outruns parsing, its fallback protects scalars/CRLF but does not establish
+complete grapheme deletion. Other geometry-based gestures wait for current
+layout. Before the first rich projection, character insertion falls back to
+source positions; a complete pending-input semantic queue remains a future gate.
+Arbitrary rich selections across multiple hidden marker boundaries need
+semantic transaction refinement; simple span editing is the tested scope.
+
+TSF/IME/reconversion, UIA/MSAA, screen-reader qualification, rich clipboard formats,
+clipboard failure injection/OS integration, drag/drop, autoscroll, search, printing,
+full device-loss recovery, high-contrast/theming/zoom, external-file conflict
+handling and recovery are not closed. Native clipboard and file dialogs/unsaved
+prompts need manual user-session checks. Window/app destruction drains workers
+outside callbacks; blocking storage cancellation and complete wrong-thread/
+callback-retirement qualification remain future work. ARM64 Debug/Release/ASan
+cross-builds pass; native ARM64 runtime and
+DxUi integration are separate unclosed gates.
+
+## D2 linked-core qualification
+
+The reusable model/projection/layout implementation and its behavior suites now
+live only in DxUi. The prototype has four native application suites (worker,
+file, native control, application), three reference probes, a small Office parity
+check and a generated-project ownership check: nine tests in the optional Office
+Debug/Release profile. The ASan runner executes four native application suites
+and a separate deliberate heap-use-after-free probe. Canonical DxUi executes its
+ten named core scenarios inside EditorControls, plus the broader normal suites.
+
+Build tooling matches the pinned compiler, host architecture, Windows SDK, CRT
+and standard, and exposes only Debug/Release or the dedicated ASan Debug mapping.
+ARM64 cross-builds do not imply native execution; -Test rejects a mismatched
+host before any probe can launch. The exact-pin ownership test rejects direct
+canonical cpp compilation even when the pinned checkout is inside this project.
+
+The first /sdl-enabled application probe produced access-violation because its
+direct-delete pattern poisoned the pointer. That failed receipt is retained.
+The corrected probe follows the canonical DxUi ownership-reset/borrowed-alias
+pattern and requires the specific heap-use-after-free diagnosis. Arbitrary
+crashes still fail verification. Unsupported ASan Release configuration, direct
+core cpp enumeration, and cross-host runtime attempts are rejected explicitly.

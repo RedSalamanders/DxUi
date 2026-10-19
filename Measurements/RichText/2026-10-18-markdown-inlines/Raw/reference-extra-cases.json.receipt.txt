@@ -1,0 +1,26 @@
+[
+  {
+    "name": "entity interior",
+    "source": "http://a.com/?x=&amp;y=2\n"
+  },
+  {
+    "name": "entity boundary",
+    "source": "&#32;http://a.com\n"
+  },
+  {
+    "name": "escape interior",
+    "source": "http://a.com/a\\*b\n"
+  },
+  {
+    "name": "escaped amp",
+    "source": "http://a.com/?x=\\&amp;y\n"
+  },
+  {
+    "name": "emoji domain",
+    "source": "https://😀.example/path\n"
+  },
+  {
+    "name": "marked Unicode domain",
+    "source": "https://é.example/path\n"
+  }
+]

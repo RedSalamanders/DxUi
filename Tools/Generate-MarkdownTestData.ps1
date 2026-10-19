@@ -24,14 +24,14 @@ function Literal([string]$Text){
 $common=@(Get-Content (Join-Path $InputDirectory 'corpora/CommonMark-0.31.2-spec.json') -Raw|ConvertFrom-Json)
 $gfm=[Collections.Generic.List[string]]::new()
 $gfmBlocks=[Collections.Generic.List[object]]::new();$section='';$html=[Text.StringBuilder]::new()
-$state='outside';$delimiter='';$markdown=[Text.StringBuilder]::new()
+$state='outside';$delimiter='';$extensions='';$markdown=[Text.StringBuilder]::new()
 foreach($line in [IO.File]::ReadAllLines((Join-Path $InputDirectory 'corpora/GFM-0.29.0.gfm.13-spec.txt'))){
     if($state -eq 'outside'){
         if($line -match '^#{1,6} (.+)$'){$section=$Matches[1]}
-        if($line -match '^(`{32,}) example(?: .*)?$'){$delimiter=$Matches[1];$state='markdown';[void]$markdown.Clear();[void]$html.Clear()}
+        if($line -match '^(`{32,}) example(.*)$'){$delimiter=$Matches[1];$extensions=$Matches[2].Trim();$state='markdown';[void]$markdown.Clear();[void]$html.Clear()}
     }elseif($state -eq 'markdown'){
         if($line -ceq '.'){$state='html'}else{[void]$markdown.Append($line.Replace([string][char]0x2192,"`t")).Append("`n")}
-    }elseif($line -ceq $delimiter){$gfm.Add($markdown.ToString());$gfmBlocks.Add(@{section=$section;html=$html.ToString();number=$gfm.Count});$state='outside'}
+    }elseif($line -ceq $delimiter){$gfm.Add($markdown.ToString());$gfmBlocks.Add(@{section=$section;html=$html.ToString();number=$gfm.Count;extensions=$extensions});$state='outside'}
     else{[void]$html.Append($line.Replace([string][char]0x2192,"`t")).Append("`n")}
 }
 if($state -cne 'outside' -or $common.Count -ne 652 -or $gfm.Count -ne 672){throw 'Incomplete original Markdown corpus.'}
@@ -48,15 +48,15 @@ inline constexpr std::wstring_view kCommonMark[] = {
 '@)
 foreach($example in $common){[void]$output.AppendLine(('    {0},' -f (Literal $example.markdown)))}
 [void]$output.AppendLine('};')
-[void]$output.AppendLine('struct BlockExample { std::size_t number; std::wstring_view section, html; };')
+[void]$output.AppendLine('struct BlockExample { std::size_t number; std::wstring_view section, html, extensions; };')
 [void]$output.AppendLine('inline constexpr BlockExample kCommonMarkBlocks[] = {')
-foreach($example in $common){[void]$output.AppendLine(('    {{{0}u, {1}, {2}}},' -f $example.example,(Literal $example.section),(Literal $example.html)))}
+foreach($example in $common){[void]$output.AppendLine(('    {{{0}u, {1}, {2}, L""}},' -f $example.example,(Literal $example.section),(Literal $example.html)))}
 [void]$output.AppendLine('};')
 [void]$output.AppendLine('inline constexpr std::wstring_view kGfm[] = {')
 foreach($example in $gfm){[void]$output.AppendLine(('    {0},' -f (Literal $example)))}
 [void]$output.AppendLine('};')
 [void]$output.AppendLine('inline constexpr BlockExample kGfmBlocks[] = {')
-foreach($example in $gfmBlocks){[void]$output.AppendLine(('    {{{0}u, {1}, {2}}},' -f $example.number,(Literal $example.section),(Literal $example.html)))}
+foreach($example in $gfmBlocks){[void]$output.AppendLine(('    {{{0}u, {1}, {2}, {3}}},' -f $example.number,(Literal $example.section),(Literal $example.html),(Literal $example.extensions)))}
 [void]$output.AppendLine('};')
 [void]$output.AppendLine('struct Entity { std::wstring_view source, expected; };')
 [void]$output.AppendLine('inline constexpr Entity kEntities[] = {')

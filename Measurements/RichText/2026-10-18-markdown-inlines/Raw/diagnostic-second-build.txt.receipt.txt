@@ -1,0 +1,70 @@
+
+  ControlCatalog.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.EditorControls.cpp
+  DxUi.Forms.cpp
+  DxUi.Grid.cpp
+  DxUi.Layout.cpp
+  DxUi.MarkdownSyntax.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.RichTextEditor.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  Compiling...
+  DxUi.cpp
+  NativeMenuInterop.cpp
+  TextClipboard.cpp
+  TextInputServices.cpp
+  Embedded.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.lib
+  DxUi.Tests.Accessibility.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  Compiling...
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.Forms.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.HostControlRegressions.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.RichDocument.cpp
+  Scope.Tests.RichDocumentLayout.cpp
+  Scope.Tests.RichMarkdown.cpp
+  Scope.Tests.RichProjectionBlocks.cpp
+  Scope.Tests.RichSourceChanges.cpp
+  Scope.Tests.RichTextAccessibility.cpp
+  Scope.Tests.RichTextEditor.cpp
+  Scope.Tests.RichTextInput.cpp
+  Scope.Tests.RichTextLayout.cpp
+  Scope.Tests.TextElementMovement.cpp
+  Scope.Tests.TextElements.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.ControlTests.exe

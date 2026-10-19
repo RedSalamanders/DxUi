@@ -1,0 +1,29 @@
+[
+  {
+    "released": 0,
+    "profile": "x64-Debug",
+    "peak": 26318285,
+    "idle": 0,
+    "requests": 771,
+    "admission": 32,
+    "retained": 11929557
+  },
+  {
+    "released": 0,
+    "profile": "x64-ASan-Debug",
+    "peak": 26318285,
+    "idle": 0,
+    "requests": 771,
+    "admission": 32,
+    "retained": 11929557
+  },
+  {
+    "released": 0,
+    "profile": "x64-Release",
+    "peak": 26317605,
+    "idle": 0,
+    "requests": 273,
+    "admission": 11,
+    "retained": 11929389
+  }
+]

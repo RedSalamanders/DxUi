@@ -1,0 +1,2247 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestLosslessMarkdownIndependentSemanticCorpora
+SEMANTIC CM 15 [Backslash escapes]
+INPUT:
+\\*emphasis*
+EXPECTED:
+<p>\<em>emphasis</em></p>
+ACTUAL:
+<p>\*emphasis*</p>
+
+SEMANTIC CM 37 [Entity and numeric character references]
+INPUT:
+&#42;foo&#42;
+*foo*
+EXPECTED:
+<p>*foo*
+<em>foo</em></p>
+ACTUAL:
+<p>*foo*
+*foo*</p>
+
+SEMANTIC CM 56 [Thematic breaks]
+INPUT:
+ *-*
+EXPECTED:
+<p><em>-</em></p>
+ACTUAL:
+<p>*-*</p>
+
+SEMANTIC CM 66 [ATX headings]
+INPUT:
+# foo *bar* \*baz\*
+EXPECTED:
+<h1>foo <em>bar</em> *baz*</h1>
+ACTUAL:
+<h1>foo *bar* *baz*</h1>
+
+SEMANTIC CM 80 [Setext headings]
+INPUT:
+Foo *bar*
+=========
+
+Foo *bar*
+---------
+EXPECTED:
+<h1>Foo <em>bar</em></h1>
+<h2>Foo <em>bar</em></h2>
+ACTUAL:
+<h1>Foo *bar*</h1>
+<h2>Foo *bar*</h2>
+
+SEMANTIC CM 81 [Setext headings]
+INPUT:
+Foo *bar
+baz*
+====
+EXPECTED:
+<h1>Foo <em>bar
+baz</em></h1>
+ACTUAL:
+<h1>Foo *bar
+baz*</h1>
+
+SEMANTIC CM 82 [Setext headings]
+INPUT:
+  Foo *bar
+baz*	
+====
+EXPECTED:
+<h1>Foo <em>bar
+baz</em></h1>
+ACTUAL:
+<h1>Foo *bar
+baz*</h1>
+
+SEMANTIC CM 148 [HTML blocks]
+INPUT:
+<table><tr><td>
+<pre>
+**Hello**,
+
+_world_.
+</pre>
+</td></tr></table>
+EXPECTED:
+<table><tr><td>
+<pre>
+**Hello**,
+<p><em>world</em>.
+</pre></p>
+</td></tr></table>
+ACTUAL:
+<table><tr><td>
+<pre>
+**Hello**,
+<p>_world_.
+</pre></p>
+</td></tr></table>
+
+SEMANTIC CM 152 [HTML blocks]
+INPUT:
+<DIV CLASS="foo">
+
+*Markdown*
+
+</DIV>
+EXPECTED:
+<DIV CLASS="foo">
+<p><em>Markdown</em></p>
+</DIV>
+ACTUAL:
+<DIV CLASS="foo">
+<p>*Markdown*</p>
+</DIV>
+
+SEMANTIC CM 155 [HTML blocks]
+INPUT:
+<div>
+*foo*
+
+*bar*
+EXPECTED:
+<div>
+*foo*
+<p><em>bar</em></p>
+ACTUAL:
+<div>
+*foo*
+<p>*bar*</p>
+
+SEMANTIC CM 167 [HTML blocks]
+INPUT:
+<del>
+
+*foo*
+
+</del>
+EXPECTED:
+<del>
+<p><em>foo</em></p>
+</del>
+ACTUAL:
+<del>
+<p>*foo*</p>
+</del>
+
+SEMANTIC CM 168 [HTML blocks]
+INPUT:
+<del>*foo*</del>
+EXPECTED:
+<p><del><em>foo</em></del></p>
+ACTUAL:
+<p><del>*foo*</del></p>
+
+SEMANTIC CM 176 [HTML blocks]
+INPUT:
+<style>p{color:red;}</style>
+*foo*
+EXPECTED:
+<style>p{color:red;}</style>
+<p><em>foo</em></p>
+ACTUAL:
+<style>p{color:red;}</style>
+<p>*foo*</p>
+
+SEMANTIC CM 177 [HTML blocks]
+INPUT:
+<!-- foo -->*bar*
+*baz*
+EXPECTED:
+<!-- foo -->*bar*
+<p><em>baz</em></p>
+ACTUAL:
+<!-- foo -->*bar*
+<p>*baz*</p>
+
+SEMANTIC CM 188 [HTML blocks]
+INPUT:
+<div>
+
+*Emphasized* text.
+
+</div>
+EXPECTED:
+<div>
+<p><em>Emphasized</em> text.</p>
+</div>
+ACTUAL:
+<div>
+<p>*Emphasized* text.</p>
+</div>
+
+SEMANTIC CM 350 [Emphasis and strong emphasis]
+INPUT:
+*foo bar*
+EXPECTED:
+<p><em>foo bar</em></p>
+ACTUAL:
+<p>*foo bar*</p>
+
+SEMANTIC CM 355 [Emphasis and strong emphasis]
+INPUT:
+foo*bar*
+EXPECTED:
+<p>foo<em>bar</em></p>
+ACTUAL:
+<p>foo*bar*</p>
+
+SEMANTIC CM 356 [Emphasis and strong emphasis]
+INPUT:
+5*6*78
+EXPECTED:
+<p>5<em>6</em>78</p>
+ACTUAL:
+<p>5*6*78</p>
+
+SEMANTIC CM 357 [Emphasis and strong emphasis]
+INPUT:
+_foo bar_
+EXPECTED:
+<p><em>foo bar</em></p>
+ACTUAL:
+<p>_foo bar_</p>
+
+SEMANTIC CM 364 [Emphasis and strong emphasis]
+INPUT:
+foo-_(bar)_
+EXPECTED:
+<p>foo-<em>(bar)</em></p>
+ACTUAL:
+<p>foo-_(bar)_</p>
+
+SEMANTIC CM 369 [Emphasis and strong emphasis]
+INPUT:
+*(*foo*)*
+EXPECTED:
+<p><em>(<em>foo</em>)</em></p>
+ACTUAL:
+<p>*(*foo*)*</p>
+
+SEMANTIC CM 370 [Emphasis and strong emphasis]
+INPUT:
+*foo*bar
+EXPECTED:
+<p><em>foo</em>bar</p>
+ACTUAL:
+<p>*foo*bar</p>
+
+SEMANTIC CM 373 [Emphasis and strong emphasis]
+INPUT:
+_(_foo_)_
+EXPECTED:
+<p><em>(<em>foo</em>)</em></p>
+ACTUAL:
+<p>_(_foo_)_</p>
+
+SEMANTIC CM 376 [Emphasis and strong emphasis]
+INPUT:
+_foo_bar_baz_
+EXPECTED:
+<p><em>foo_bar_baz</em></p>
+ACTUAL:
+<p>_foo_bar_baz_</p>
+
+SEMANTIC CM 377 [Emphasis and strong emphasis]
+INPUT:
+_(bar)_.
+EXPECTED:
+<p><em>(bar)</em>.</p>
+ACTUAL:
+<p>_(bar)_.</p>
+
+SEMANTIC CM 378 [Emphasis and strong emphasis]
+INPUT:
+**foo bar**
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>**foo bar**</p>
+
+SEMANTIC CM 381 [Emphasis and strong emphasis]
+INPUT:
+foo**bar**
+EXPECTED:
+<p>foo<strong>bar</strong></p>
+ACTUAL:
+<p>foo**bar**</p>
+
+SEMANTIC CM 382 [Emphasis and strong emphasis]
+INPUT:
+__foo bar__
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>__foo bar__</p>
+
+SEMANTIC CM 389 [Emphasis and strong emphasis]
+INPUT:
+__foo, __bar__, baz__
+EXPECTED:
+<p><strong>foo, <strong>bar</strong>, baz</strong></p>
+ACTUAL:
+<p>__foo, __bar__, baz__</p>
+
+SEMANTIC CM 390 [Emphasis and strong emphasis]
+INPUT:
+foo-__(bar)__
+EXPECTED:
+<p>foo-<strong>(bar)</strong></p>
+ACTUAL:
+<p>foo-__(bar)__</p>
+
+SEMANTIC CM 393 [Emphasis and strong emphasis]
+INPUT:
+*(**foo**)*
+EXPECTED:
+<p><em>(<strong>foo</strong>)</em></p>
+ACTUAL:
+<p>*(**foo**)*</p>
+
+SEMANTIC CM 394 [Emphasis and strong emphasis]
+INPUT:
+**Gomphocarpus (*Gomphocarpus physocarpus*, syn.
+*Asclepias physocarpa*)**
+EXPECTED:
+<p><strong>Gomphocarpus (<em>Gomphocarpus physocarpus</em>, syn.
+<em>Asclepias physocarpa</em>)</strong></p>
+ACTUAL:
+<p>**Gomphocarpus (*Gomphocarpus physocarpus*, syn.
+*Asclepias physocarpa*)**</p>
+
+SEMANTIC CM 395 [Emphasis and strong emphasis]
+INPUT:
+**foo "*bar*" foo**
+EXPECTED:
+<p><strong>foo &quot;<em>bar</em>&quot; foo</strong></p>
+ACTUAL:
+<p>**foo &quot;*bar*&quot; foo**</p>
+
+SEMANTIC CM 396 [Emphasis and strong emphasis]
+INPUT:
+**foo**bar
+EXPECTED:
+<p><strong>foo</strong>bar</p>
+ACTUAL:
+<p>**foo**bar</p>
+
+SEMANTIC CM 399 [Emphasis and strong emphasis]
+INPUT:
+_(__foo__)_
+EXPECTED:
+<p><em>(<strong>foo</strong>)</em></p>
+ACTUAL:
+<p>_(__foo__)_</p>
+
+SEMANTIC CM 402 [Emphasis and strong emphasis]
+INPUT:
+__foo__bar__baz__
+EXPECTED:
+<p><strong>foo__bar__baz</strong></p>
+ACTUAL:
+<p>__foo__bar__baz__</p>
+
+SEMANTIC CM 403 [Emphasis and strong emphasis]
+INPUT:
+__(bar)__.
+EXPECTED:
+<p><strong>(bar)</strong>.</p>
+ACTUAL:
+<p>__(bar)__.</p>
+
+SEMANTIC CM 404 [Emphasis and strong emphasis]
+INPUT:
+*foo [bar](/url)*
+EXPECTED:
+<p><em>foo <a href="/url">bar</a></em></p>
+ACTUAL:
+<p>*foo <a href="/url">bar</a>*</p>
+
+SEMANTIC CM 405 [Emphasis and strong emphasis]
+INPUT:
+*foo
+bar*
+EXPECTED:
+<p><em>foo
+bar</em></p>
+ACTUAL:
+<p>*foo
+bar*</p>
+
+SEMANTIC CM 406 [Emphasis and strong emphasis]
+INPUT:
+_foo __bar__ baz_
+EXPECTED:
+<p><em>foo <strong>bar</strong> baz</em></p>
+ACTUAL:
+<p>_foo __bar__ baz_</p>
+
+SEMANTIC CM 407 [Emphasis and strong emphasis]
+INPUT:
+_foo _bar_ baz_
+EXPECTED:
+<p><em>foo <em>bar</em> baz</em></p>
+ACTUAL:
+<p>_foo _bar_ baz_</p>
+
+SEMANTIC CM 408 [Emphasis and strong emphasis]
+INPUT:
+__foo_ bar_
+EXPECTED:
+<p><em><em>foo</em> bar</em></p>
+ACTUAL:
+<p>__foo_ bar_</p>
+
+SEMANTIC CM 409 [Emphasis and strong emphasis]
+INPUT:
+*foo *bar**
+EXPECTED:
+<p><em>foo <em>bar</em></em></p>
+ACTUAL:
+<p>*foo *bar**</p>
+
+SEMANTIC CM 410 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar** baz*
+EXPECTED:
+<p><em>foo <strong>bar</strong> baz</em></p>
+ACTUAL:
+<p>*foo **bar** baz*</p>
+
+SEMANTIC CM 411 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar**baz*
+EXPECTED:
+<p><em>foo<strong>bar</strong>baz</em></p>
+ACTUAL:
+<p>*foo**bar**baz*</p>
+
+SEMANTIC CM 412 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar*
+EXPECTED:
+<p><em>foo**bar</em></p>
+ACTUAL:
+<p>*foo**bar*</p>
+
+SEMANTIC CM 413 [Emphasis and strong emphasis]
+INPUT:
+***foo** bar*
+EXPECTED:
+<p><em><strong>foo</strong> bar</em></p>
+ACTUAL:
+<p>***foo** bar*</p>
+
+SEMANTIC CM 414 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar***
+EXPECTED:
+<p><em>foo <strong>bar</strong></em></p>
+ACTUAL:
+<p>*foo **bar***</p>
+
+SEMANTIC CM 415 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar***
+EXPECTED:
+<p><em>foo<strong>bar</strong></em></p>
+ACTUAL:
+<p>*foo**bar***</p>
+
+SEMANTIC CM 416 [Emphasis and strong emphasis]
+INPUT:
+foo***bar***baz
+EXPECTED:
+<p>foo<em><strong>bar</strong></em>baz</p>
+ACTUAL:
+<p>foo***bar***baz</p>
+
+SEMANTIC CM 417 [Emphasis and strong emphasis]
+INPUT:
+foo******bar*********baz
+EXPECTED:
+<p>foo<strong><strong><strong>bar</strong></strong></strong>***baz</p>
+ACTUAL:
+<p>foo******bar*********baz</p>
+
+SEMANTIC CM 418 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar *baz* bim** bop*
+EXPECTED:
+<p><em>foo <strong>bar <em>baz</em> bim</strong> bop</em></p>
+ACTUAL:
+<p>*foo **bar *baz* bim** bop*</p>
+
+SEMANTIC CM 419 [Emphasis and strong emphasis]
+INPUT:
+*foo [*bar*](/url)*
+EXPECTED:
+<p><em>foo <a href="/url"><em>bar</em></a></em></p>
+ACTUAL:
+<p>*foo <a href="/url"><em>bar</em></a>*</p>
+
+SEMANTIC CM 422 [Emphasis and strong emphasis]
+INPUT:
+**foo [bar](/url)**
+EXPECTED:
+<p><strong>foo <a href="/url">bar</a></strong></p>
+ACTUAL:
+<p>**foo <a href="/url">bar</a>**</p>
+
+SEMANTIC CM 423 [Emphasis and strong emphasis]
+INPUT:
+**foo
+bar**
+EXPECTED:
+<p><strong>foo
+bar</strong></p>
+ACTUAL:
+<p>**foo
+bar**</p>
+
+SEMANTIC CM 424 [Emphasis and strong emphasis]
+INPUT:
+__foo _bar_ baz__
+EXPECTED:
+<p><strong>foo <em>bar</em> baz</strong></p>
+ACTUAL:
+<p>__foo _bar_ baz__</p>
+
+SEMANTIC CM 425 [Emphasis and strong emphasis]
+INPUT:
+__foo __bar__ baz__
+EXPECTED:
+<p><strong>foo <strong>bar</strong> baz</strong></p>
+ACTUAL:
+<p>__foo __bar__ baz__</p>
+
+SEMANTIC CM 426 [Emphasis and strong emphasis]
+INPUT:
+____foo__ bar__
+EXPECTED:
+<p><strong><strong>foo</strong> bar</strong></p>
+ACTUAL:
+<p>____foo__ bar__</p>
+
+SEMANTIC CM 427 [Emphasis and strong emphasis]
+INPUT:
+**foo **bar****
+EXPECTED:
+<p><strong>foo <strong>bar</strong></strong></p>
+ACTUAL:
+<p>**foo **bar****</p>
+
+SEMANTIC CM 428 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar* baz**
+EXPECTED:
+<p><strong>foo <em>bar</em> baz</strong></p>
+ACTUAL:
+<p>**foo *bar* baz**</p>
+
+SEMANTIC CM 429 [Emphasis and strong emphasis]
+INPUT:
+**foo*bar*baz**
+EXPECTED:
+<p><strong>foo<em>bar</em>baz</strong></p>
+ACTUAL:
+<p>**foo*bar*baz**</p>
+
+SEMANTIC CM 430 [Emphasis and strong emphasis]
+INPUT:
+***foo* bar**
+EXPECTED:
+<p><strong><em>foo</em> bar</strong></p>
+ACTUAL:
+<p>***foo* bar**</p>
+
+SEMANTIC CM 431 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar***
+EXPECTED:
+<p><strong>foo <em>bar</em></strong></p>
+ACTUAL:
+<p>**foo *bar***</p>
+
+SEMANTIC CM 432 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar **baz**
+bim* bop**
+EXPECTED:
+<p><strong>foo <em>bar <strong>baz</strong>
+bim</em> bop</strong></p>
+ACTUAL:
+<p>**foo *bar **baz**
+bim* bop**</p>
+
+SEMANTIC CM 433 [Emphasis and strong emphasis]
+INPUT:
+**foo [*bar*](/url)**
+EXPECTED:
+<p><strong>foo <a href="/url"><em>bar</em></a></strong></p>
+ACTUAL:
+<p>**foo <a href="/url"><em>bar</em></a>**</p>
+
+SEMANTIC CM 437 [Emphasis and strong emphasis]
+INPUT:
+foo *\**
+EXPECTED:
+<p>foo <em>*</em></p>
+ACTUAL:
+<p>foo ***</p>
+
+SEMANTIC CM 438 [Emphasis and strong emphasis]
+INPUT:
+foo *_*
+EXPECTED:
+<p>foo <em>_</em></p>
+ACTUAL:
+<p>foo *_*</p>
+
+SEMANTIC CM 440 [Emphasis and strong emphasis]
+INPUT:
+foo **\***
+EXPECTED:
+<p>foo <strong>*</strong></p>
+ACTUAL:
+<p>foo *****</p>
+
+SEMANTIC CM 441 [Emphasis and strong emphasis]
+INPUT:
+foo **_**
+EXPECTED:
+<p>foo <strong>_</strong></p>
+ACTUAL:
+<p>foo **_**</p>
+
+SEMANTIC CM 442 [Emphasis and strong emphasis]
+INPUT:
+**foo*
+EXPECTED:
+<p>*<em>foo</em></p>
+ACTUAL:
+<p>**foo*</p>
+
+SEMANTIC CM 443 [Emphasis and strong emphasis]
+INPUT:
+*foo**
+EXPECTED:
+<p><em>foo</em>*</p>
+ACTUAL:
+<p>*foo**</p>
+
+SEMANTIC CM 444 [Emphasis and strong emphasis]
+INPUT:
+***foo**
+EXPECTED:
+<p>*<strong>foo</strong></p>
+ACTUAL:
+<p>***foo**</p>
+
+SEMANTIC CM 445 [Emphasis and strong emphasis]
+INPUT:
+****foo*
+EXPECTED:
+<p>***<em>foo</em></p>
+ACTUAL:
+<p>****foo*</p>
+
+SEMANTIC CM 446 [Emphasis and strong emphasis]
+INPUT:
+**foo***
+EXPECTED:
+<p><strong>foo</strong>*</p>
+ACTUAL:
+<p>**foo***</p>
+
+SEMANTIC CM 447 [Emphasis and strong emphasis]
+INPUT:
+*foo****
+EXPECTED:
+<p><em>foo</em>***</p>
+ACTUAL:
+<p>*foo****</p>
+
+SEMANTIC CM 449 [Emphasis and strong emphasis]
+INPUT:
+foo _\__
+EXPECTED:
+<p>foo <em>_</em></p>
+ACTUAL:
+<p>foo ___</p>
+
+SEMANTIC CM 450 [Emphasis and strong emphasis]
+INPUT:
+foo _*_
+EXPECTED:
+<p>foo <em>*</em></p>
+ACTUAL:
+<p>foo _*_</p>
+
+SEMANTIC CM 452 [Emphasis and strong emphasis]
+INPUT:
+foo __\___
+EXPECTED:
+<p>foo <strong>_</strong></p>
+ACTUAL:
+<p>foo _____</p>
+
+SEMANTIC CM 453 [Emphasis and strong emphasis]
+INPUT:
+foo __*__
+EXPECTED:
+<p>foo <strong>*</strong></p>
+ACTUAL:
+<p>foo __*__</p>
+
+SEMANTIC CM 454 [Emphasis and strong emphasis]
+INPUT:
+__foo_
+EXPECTED:
+<p>_<em>foo</em></p>
+ACTUAL:
+<p>__foo_</p>
+
+SEMANTIC CM 455 [Emphasis and strong emphasis]
+INPUT:
+_foo__
+EXPECTED:
+<p><em>foo</em>_</p>
+ACTUAL:
+<p>_foo__</p>
+
+SEMANTIC CM 456 [Emphasis and strong emphasis]
+INPUT:
+___foo__
+EXPECTED:
+<p>_<strong>foo</strong></p>
+ACTUAL:
+<p>___foo__</p>
+
+SEMANTIC CM 457 [Emphasis and strong emphasis]
+INPUT:
+____foo_
+EXPECTED:
+<p>___<em>foo</em></p>
+ACTUAL:
+<p>____foo_</p>
+
+SEMANTIC CM 458 [Emphasis and strong emphasis]
+INPUT:
+__foo___
+EXPECTED:
+<p><strong>foo</strong>_</p>
+ACTUAL:
+<p>__foo___</p>
+
+SEMANTIC CM 459 [Emphasis and strong emphasis]
+INPUT:
+_foo____
+EXPECTED:
+<p><em>foo</em>___</p>
+ACTUAL:
+<p>_foo____</p>
+
+SEMANTIC CM 460 [Emphasis and strong emphasis]
+INPUT:
+**foo**
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>**foo**</p>
+
+SEMANTIC CM 461 [Emphasis and strong emphasis]
+INPUT:
+*_foo_*
+EXPECTED:
+<p><em><em>foo</em></em></p>
+ACTUAL:
+<p>*_foo_*</p>
+
+SEMANTIC CM 462 [Emphasis and strong emphasis]
+INPUT:
+__foo__
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>__foo__</p>
+
+SEMANTIC CM 463 [Emphasis and strong emphasis]
+INPUT:
+_*foo*_
+EXPECTED:
+<p><em><em>foo</em></em></p>
+ACTUAL:
+<p>_*foo*_</p>
+
+SEMANTIC CM 464 [Emphasis and strong emphasis]
+INPUT:
+****foo****
+EXPECTED:
+<p><strong><strong>foo</strong></strong></p>
+ACTUAL:
+<p>****foo****</p>
+
+SEMANTIC CM 465 [Emphasis and strong emphasis]
+INPUT:
+____foo____
+EXPECTED:
+<p><strong><strong>foo</strong></strong></p>
+ACTUAL:
+<p>____foo____</p>
+
+SEMANTIC CM 466 [Emphasis and strong emphasis]
+INPUT:
+******foo******
+EXPECTED:
+<p><strong><strong><strong>foo</strong></strong></strong></p>
+ACTUAL:
+<p>******foo******</p>
+
+SEMANTIC CM 467 [Emphasis and strong emphasis]
+INPUT:
+***foo***
+EXPECTED:
+<p><em><strong>foo</strong></em></p>
+ACTUAL:
+<p>***foo***</p>
+
+SEMANTIC CM 468 [Emphasis and strong emphasis]
+INPUT:
+_____foo_____
+EXPECTED:
+<p><em><strong><strong>foo</strong></strong></em></p>
+ACTUAL:
+<p>_____foo_____</p>
+
+SEMANTIC CM 469 [Emphasis and strong emphasis]
+INPUT:
+*foo _bar* baz_
+EXPECTED:
+<p><em>foo _bar</em> baz_</p>
+ACTUAL:
+<p>*foo _bar* baz_</p>
+
+SEMANTIC CM 470 [Emphasis and strong emphasis]
+INPUT:
+*foo __bar *baz bim__ bam*
+EXPECTED:
+<p><em>foo <strong>bar *baz bim</strong> bam</em></p>
+ACTUAL:
+<p>*foo __bar *baz bim__ bam*</p>
+
+SEMANTIC CM 471 [Emphasis and strong emphasis]
+INPUT:
+**foo **bar baz**
+EXPECTED:
+<p>**foo <strong>bar baz</strong></p>
+ACTUAL:
+<p>**foo **bar baz**</p>
+
+SEMANTIC CM 472 [Emphasis and strong emphasis]
+INPUT:
+*foo *bar baz*
+EXPECTED:
+<p>*foo <em>bar baz</em></p>
+ACTUAL:
+<p>*foo *bar baz*</p>
+
+SEMANTIC CM 478 [Emphasis and strong emphasis]
+INPUT:
+*a `*`*
+EXPECTED:
+<p><em>a <code>*</code></em></p>
+ACTUAL:
+<p>*a <code>*</code>*</p>
+
+SEMANTIC CM 479 [Emphasis and strong emphasis]
+INPUT:
+_a `_`_
+EXPECTED:
+<p><em>a <code>_</code></em></p>
+ACTUAL:
+<p>_a <code>_</code>_</p>
+
+SEMANTIC CM 516 [Links]
+INPUT:
+[link *foo **bar** `#`*](/uri)
+EXPECTED:
+<p><a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a></p>
+ACTUAL:
+<p><a href="/uri">link *foo **bar** <code>#</code>*</a></p>
+
+SEMANTIC CM 519 [Links]
+INPUT:
+[foo *[bar [baz](/uri)](/uri)*](/uri)
+EXPECTED:
+<p>[foo <em>[bar <a href="/uri">baz</a>](/uri)</em>](/uri)</p>
+ACTUAL:
+<p>[foo *[bar <a href="/uri">baz</a>](/uri)*](/uri)</p>
+
+SEMANTIC CM 523 [Links]
+INPUT:
+*foo [bar* baz]
+EXPECTED:
+<p><em>foo [bar</em> baz]</p>
+ACTUAL:
+<p>*foo [bar* baz]</p>
+
+SEMANTIC CM 530 [Links]
+INPUT:
+[link *foo **bar** `#`*][ref]
+
+[ref]: /uri
+EXPECTED:
+<p><a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a></p>
+ACTUAL:
+<p><a href="/uri">link *foo **bar** <code>#</code>*</a></p>
+
+SEMANTIC CM 533 [Links]
+INPUT:
+[foo *bar [baz][ref]*][ref]
+
+[ref]: /uri
+EXPECTED:
+<p>[foo <em>bar <a href="/uri">baz</a></em>]<a href="/uri">ref</a></p>
+ACTUAL:
+<p>[foo *bar <a href="/uri">baz</a>*]<a href="/uri">ref</a></p>
+
+SEMANTIC CM 554 [Links]
+INPUT:
+[*foo* bar][]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><a href="/url" title="title"><em>foo</em> bar</a></p>
+ACTUAL:
+<p><a href="/url" title="title">*foo* bar</a></p>
+
+SEMANTIC CM 558 [Links]
+INPUT:
+[*foo* bar]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><a href="/url" title="title"><em>foo</em> bar</a></p>
+ACTUAL:
+<p><a href="/url" title="title">*foo* bar</a></p>
+
+SEMANTIC CM 559 [Links]
+INPUT:
+[[*foo* bar]]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p>[<a href="/url" title="title"><em>foo</em> bar</a>]</p>
+ACTUAL:
+<p>[<a href="/url" title="title">*foo* bar</a>]</p>
+
+SEMANTIC CM 573 [Images]
+INPUT:
+![foo *bar*]
+
+[foo *bar*]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC CM 576 [Images]
+INPUT:
+![foo *bar*][]
+
+[foo *bar*]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC CM 577 [Images]
+INPUT:
+![foo *bar*][foobar]
+
+[FOOBAR]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC CM 585 [Images]
+INPUT:
+![*foo* bar][]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><img src="/url" alt="foo bar" title="title" /></p>
+ACTUAL:
+<p><img src="/url" alt="*foo* bar" title="title" /></p>
+
+SEMANTIC CM 589 [Images]
+INPUT:
+![*foo* bar]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><img src="/url" alt="foo bar" title="title" /></p>
+ACTUAL:
+<p><img src="/url" alt="*foo* bar" title="title" /></p>
+
+SEMANTIC CM 626 [Raw HTML]
+INPUT:
+foo <!--> foo -->
+
+foo <!---> foo -->
+EXPECTED:
+<p>foo <!--> foo --&gt;</p>
+<p>foo <!---> foo --&gt;</p>
+ACTUAL:
+<p>foo <!--> foo --></p>
+<p>foo <!---> foo --></p>
+
+SEMANTIC CM 638 [Hard line breaks]
+INPUT:
+*foo  
+bar*
+EXPECTED:
+<p><em>foo<br />
+bar</em></p>
+ACTUAL:
+<p>*foo<br />
+bar*</p>
+
+SEMANTIC CM 639 [Hard line breaks]
+INPUT:
+*foo\
+bar*
+EXPECTED:
+<p><em>foo<br />
+bar</em></p>
+ACTUAL:
+<p>*foo<br />
+bar*</p>
+
+SEMANTIC GFM 26 [Thematic breaks]
+INPUT:
+ *-*
+EXPECTED:
+<p><em>-</em></p>
+ACTUAL:
+<p>*-*</p>
+
+SEMANTIC GFM 36 [ATX headings]
+INPUT:
+# foo *bar* \*baz\*
+EXPECTED:
+<h1>foo <em>bar</em> *baz*</h1>
+ACTUAL:
+<h1>foo *bar* *baz*</h1>
+
+SEMANTIC GFM 50 [Setext headings]
+INPUT:
+Foo *bar*
+=========
+
+Foo *bar*
+---------
+EXPECTED:
+<h1>Foo <em>bar</em></h1>
+<h2>Foo <em>bar</em></h2>
+ACTUAL:
+<h1>Foo *bar*</h1>
+<h2>Foo *bar*</h2>
+
+SEMANTIC GFM 51 [Setext headings]
+INPUT:
+Foo *bar
+baz*
+====
+EXPECTED:
+<h1>Foo <em>bar
+baz</em></h1>
+ACTUAL:
+<h1>Foo *bar
+baz*</h1>
+
+SEMANTIC GFM 52 [Setext headings]
+INPUT:
+  Foo *bar
+baz*	
+====
+EXPECTED:
+<h1>Foo <em>bar
+baz</em></h1>
+ACTUAL:
+<h1>Foo *bar
+baz*</h1>
+
+SEMANTIC GFM 118 [HTML blocks]
+INPUT:
+<table><tr><td>
+<pre>
+**Hello**,
+
+_world_.
+</pre>
+</td></tr></table>
+EXPECTED:
+<table><tr><td>
+<pre>
+**Hello**,
+<p><em>world</em>.
+</pre></p>
+</td></tr></table>
+ACTUAL:
+<table><tr><td>
+<pre>
+**Hello**,
+<p>_world_.
+</pre></p>
+</td></tr></table>
+
+SEMANTIC GFM 122 [HTML blocks]
+INPUT:
+<DIV CLASS="foo">
+
+*Markdown*
+
+</DIV>
+EXPECTED:
+<DIV CLASS="foo">
+<p><em>Markdown</em></p>
+</DIV>
+ACTUAL:
+<DIV CLASS="foo">
+<p>*Markdown*</p>
+</DIV>
+
+SEMANTIC GFM 125 [HTML blocks]
+INPUT:
+<div>
+*foo*
+
+*bar*
+EXPECTED:
+<div>
+*foo*
+<p><em>bar</em></p>
+ACTUAL:
+<div>
+*foo*
+<p>*bar*</p>
+
+SEMANTIC GFM 137 [HTML blocks]
+INPUT:
+<del>
+
+*foo*
+
+</del>
+EXPECTED:
+<del>
+<p><em>foo</em></p>
+</del>
+ACTUAL:
+<del>
+<p>*foo*</p>
+</del>
+
+SEMANTIC GFM 138 [HTML blocks]
+INPUT:
+<del>*foo*</del>
+EXPECTED:
+<p><del><em>foo</em></del></p>
+ACTUAL:
+<p><del>*foo*</del></p>
+
+SEMANTIC GFM 140 [HTML blocks]
+INPUT:
+<script type="text/javascript">
+// JavaScript example
+
+document.getElementById("demo").innerHTML = "Hello JavaScript!";
+</script>
+okay
+EXPECTED:
+<script type="text/javascript">
+// JavaScript example
+
+document.getElementById("demo").innerHTML = "Hello JavaScript!";
+</script>
+<p>okay</p>
+ACTUAL:
+&lt;script type="text/javascript">
+// JavaScript example
+
+document.getElementById("demo").innerHTML = "Hello JavaScript!";
+&lt;/script>
+<p>okay</p>
+
+SEMANTIC GFM 141 [HTML blocks]
+INPUT:
+<style
+  type="text/css">
+h1 {color:red;}
+
+p {color:blue;}
+</style>
+okay
+EXPECTED:
+<style
+  type="text/css">
+h1 {color:red;}
+
+p {color:blue;}
+</style>
+<p>okay</p>
+ACTUAL:
+&lt;style
+  type="text/css">
+h1 {color:red;}
+
+p {color:blue;}
+&lt;/style>
+<p>okay</p>
+
+SEMANTIC GFM 142 [HTML blocks]
+INPUT:
+<style
+  type="text/css">
+
+foo
+EXPECTED:
+<style
+  type="text/css">
+
+foo
+ACTUAL:
+&lt;style
+  type="text/css">
+
+foo
+
+SEMANTIC GFM 145 [HTML blocks]
+INPUT:
+<style>p{color:red;}</style>
+*foo*
+EXPECTED:
+<style>p{color:red;}</style>
+<p><em>foo</em></p>
+ACTUAL:
+&lt;style>p{color:red;}&lt;/style>
+<p>*foo*</p>
+
+SEMANTIC GFM 146 [HTML blocks]
+INPUT:
+<!-- foo -->*bar*
+*baz*
+EXPECTED:
+<!-- foo -->*bar*
+<p><em>baz</em></p>
+ACTUAL:
+<!-- foo -->*bar*
+<p>*baz*</p>
+
+SEMANTIC GFM 147 [HTML blocks]
+INPUT:
+<script>
+foo
+</script>1. *bar*
+EXPECTED:
+<script>
+foo
+</script>1. *bar*
+ACTUAL:
+&lt;script>
+foo
+&lt;/script>1. *bar*
+
+SEMANTIC GFM 157 [HTML blocks]
+INPUT:
+<div>
+
+*Emphasized* text.
+
+</div>
+EXPECTED:
+<div>
+<p><em>Emphasized</em> text.</p>
+</div>
+ACTUAL:
+<div>
+<p>*Emphasized* text.</p>
+</div>
+
+SEMANTIC GFM 200 [Tables (extension)]
+INPUT:
+| f\|oo  |
+| ------ |
+| b `\|` az |
+| b **\|** im |
+EXPECTED:
+<table>
+<thead>
+<tr>
+<th>f|oo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>b <code>|</code> az</td>
+</tr>
+<tr>
+<td>b <strong>|</strong> im</td>
+</tr>
+</tbody>
+</table>
+ACTUAL:
+<table>
+<thead>
+<tr>
+<th>f|oo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>b <code>|</code> az</td>
+</tr>
+<tr>
+<td>b **|** im</td>
+</tr>
+</tbody>
+</table>
+
+SEMANTIC GFM 311 [Backslash escapes]
+INPUT:
+\\*emphasis*
+EXPECTED:
+<p>\<em>emphasis</em></p>
+ACTUAL:
+<p>\*emphasis*</p>
+
+SEMANTIC GFM 333 [Entity and numeric character references]
+INPUT:
+&#42;foo&#42;
+*foo*
+EXPECTED:
+<p>*foo*
+<em>foo</em></p>
+ACTUAL:
+<p>*foo*
+*foo*</p>
+
+SEMANTIC GFM 360 [Emphasis and strong emphasis]
+INPUT:
+*foo bar*
+EXPECTED:
+<p><em>foo bar</em></p>
+ACTUAL:
+<p>*foo bar*</p>
+
+SEMANTIC GFM 364 [Emphasis and strong emphasis]
+INPUT:
+foo*bar*
+EXPECTED:
+<p>foo<em>bar</em></p>
+ACTUAL:
+<p>foo*bar*</p>
+
+SEMANTIC GFM 365 [Emphasis and strong emphasis]
+INPUT:
+5*6*78
+EXPECTED:
+<p>5<em>6</em>78</p>
+ACTUAL:
+<p>5*6*78</p>
+
+SEMANTIC GFM 366 [Emphasis and strong emphasis]
+INPUT:
+_foo bar_
+EXPECTED:
+<p><em>foo bar</em></p>
+ACTUAL:
+<p>_foo bar_</p>
+
+SEMANTIC GFM 373 [Emphasis and strong emphasis]
+INPUT:
+foo-_(bar)_
+EXPECTED:
+<p>foo-<em>(bar)</em></p>
+ACTUAL:
+<p>foo-_(bar)_</p>
+
+SEMANTIC GFM 378 [Emphasis and strong emphasis]
+INPUT:
+*(*foo*)*
+EXPECTED:
+<p><em>(<em>foo</em>)</em></p>
+ACTUAL:
+<p>*(*foo*)*</p>
+
+SEMANTIC GFM 379 [Emphasis and strong emphasis]
+INPUT:
+*foo*bar
+EXPECTED:
+<p><em>foo</em>bar</p>
+ACTUAL:
+<p>*foo*bar</p>
+
+SEMANTIC GFM 382 [Emphasis and strong emphasis]
+INPUT:
+_(_foo_)_
+EXPECTED:
+<p><em>(<em>foo</em>)</em></p>
+ACTUAL:
+<p>_(_foo_)_</p>
+
+SEMANTIC GFM 385 [Emphasis and strong emphasis]
+INPUT:
+_foo_bar_baz_
+EXPECTED:
+<p><em>foo_bar_baz</em></p>
+ACTUAL:
+<p>_foo_bar_baz_</p>
+
+SEMANTIC GFM 386 [Emphasis and strong emphasis]
+INPUT:
+_(bar)_.
+EXPECTED:
+<p><em>(bar)</em>.</p>
+ACTUAL:
+<p>_(bar)_.</p>
+
+SEMANTIC GFM 387 [Emphasis and strong emphasis]
+INPUT:
+**foo bar**
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>**foo bar**</p>
+
+SEMANTIC GFM 390 [Emphasis and strong emphasis]
+INPUT:
+foo**bar**
+EXPECTED:
+<p>foo<strong>bar</strong></p>
+ACTUAL:
+<p>foo**bar**</p>
+
+SEMANTIC GFM 391 [Emphasis and strong emphasis]
+INPUT:
+__foo bar__
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>__foo bar__</p>
+
+SEMANTIC GFM 398 [Emphasis and strong emphasis]
+INPUT:
+__foo, __bar__, baz__
+EXPECTED:
+<p><strong>foo, bar, baz</strong></p>
+ACTUAL:
+<p>__foo, __bar__, baz__</p>
+
+SEMANTIC GFM 399 [Emphasis and strong emphasis]
+INPUT:
+foo-__(bar)__
+EXPECTED:
+<p>foo-<strong>(bar)</strong></p>
+ACTUAL:
+<p>foo-__(bar)__</p>
+
+SEMANTIC GFM 402 [Emphasis and strong emphasis]
+INPUT:
+*(**foo**)*
+EXPECTED:
+<p><em>(<strong>foo</strong>)</em></p>
+ACTUAL:
+<p>*(**foo**)*</p>
+
+SEMANTIC GFM 403 [Emphasis and strong emphasis]
+INPUT:
+**Gomphocarpus (*Gomphocarpus physocarpus*, syn.
+*Asclepias physocarpa*)**
+EXPECTED:
+<p><strong>Gomphocarpus (<em>Gomphocarpus physocarpus</em>, syn.
+<em>Asclepias physocarpa</em>)</strong></p>
+ACTUAL:
+<p>**Gomphocarpus (*Gomphocarpus physocarpus*, syn.
+*Asclepias physocarpa*)**</p>
+
+SEMANTIC GFM 404 [Emphasis and strong emphasis]
+INPUT:
+**foo "*bar*" foo**
+EXPECTED:
+<p><strong>foo &quot;<em>bar</em>&quot; foo</strong></p>
+ACTUAL:
+<p>**foo &quot;*bar*&quot; foo**</p>
+
+SEMANTIC GFM 405 [Emphasis and strong emphasis]
+INPUT:
+**foo**bar
+EXPECTED:
+<p><strong>foo</strong>bar</p>
+ACTUAL:
+<p>**foo**bar</p>
+
+SEMANTIC GFM 408 [Emphasis and strong emphasis]
+INPUT:
+_(__foo__)_
+EXPECTED:
+<p><em>(<strong>foo</strong>)</em></p>
+ACTUAL:
+<p>_(__foo__)_</p>
+
+SEMANTIC GFM 411 [Emphasis and strong emphasis]
+INPUT:
+__foo__bar__baz__
+EXPECTED:
+<p><strong>foo__bar__baz</strong></p>
+ACTUAL:
+<p>__foo__bar__baz__</p>
+
+SEMANTIC GFM 412 [Emphasis and strong emphasis]
+INPUT:
+__(bar)__.
+EXPECTED:
+<p><strong>(bar)</strong>.</p>
+ACTUAL:
+<p>__(bar)__.</p>
+
+SEMANTIC GFM 413 [Emphasis and strong emphasis]
+INPUT:
+*foo [bar](/url)*
+EXPECTED:
+<p><em>foo <a href="/url">bar</a></em></p>
+ACTUAL:
+<p>*foo <a href="/url">bar</a>*</p>
+
+SEMANTIC GFM 414 [Emphasis and strong emphasis]
+INPUT:
+*foo
+bar*
+EXPECTED:
+<p><em>foo
+bar</em></p>
+ACTUAL:
+<p>*foo
+bar*</p>
+
+SEMANTIC GFM 415 [Emphasis and strong emphasis]
+INPUT:
+_foo __bar__ baz_
+EXPECTED:
+<p><em>foo <strong>bar</strong> baz</em></p>
+ACTUAL:
+<p>_foo __bar__ baz_</p>
+
+SEMANTIC GFM 416 [Emphasis and strong emphasis]
+INPUT:
+_foo _bar_ baz_
+EXPECTED:
+<p><em>foo <em>bar</em> baz</em></p>
+ACTUAL:
+<p>_foo _bar_ baz_</p>
+
+SEMANTIC GFM 417 [Emphasis and strong emphasis]
+INPUT:
+__foo_ bar_
+EXPECTED:
+<p><em><em>foo</em> bar</em></p>
+ACTUAL:
+<p>__foo_ bar_</p>
+
+SEMANTIC GFM 418 [Emphasis and strong emphasis]
+INPUT:
+*foo *bar**
+EXPECTED:
+<p><em>foo <em>bar</em></em></p>
+ACTUAL:
+<p>*foo *bar**</p>
+
+SEMANTIC GFM 419 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar** baz*
+EXPECTED:
+<p><em>foo <strong>bar</strong> baz</em></p>
+ACTUAL:
+<p>*foo **bar** baz*</p>
+
+SEMANTIC GFM 420 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar**baz*
+EXPECTED:
+<p><em>foo<strong>bar</strong>baz</em></p>
+ACTUAL:
+<p>*foo**bar**baz*</p>
+
+SEMANTIC GFM 421 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar*
+EXPECTED:
+<p><em>foo**bar</em></p>
+ACTUAL:
+<p>*foo**bar*</p>
+
+SEMANTIC GFM 422 [Emphasis and strong emphasis]
+INPUT:
+***foo** bar*
+EXPECTED:
+<p><em><strong>foo</strong> bar</em></p>
+ACTUAL:
+<p>***foo** bar*</p>
+
+SEMANTIC GFM 423 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar***
+EXPECTED:
+<p><em>foo <strong>bar</strong></em></p>
+ACTUAL:
+<p>*foo **bar***</p>
+
+SEMANTIC GFM 424 [Emphasis and strong emphasis]
+INPUT:
+*foo**bar***
+EXPECTED:
+<p><em>foo<strong>bar</strong></em></p>
+ACTUAL:
+<p>*foo**bar***</p>
+
+SEMANTIC GFM 425 [Emphasis and strong emphasis]
+INPUT:
+foo***bar***baz
+EXPECTED:
+<p>foo<em><strong>bar</strong></em>baz</p>
+ACTUAL:
+<p>foo***bar***baz</p>
+
+SEMANTIC GFM 426 [Emphasis and strong emphasis]
+INPUT:
+foo******bar*********baz
+EXPECTED:
+<p>foo<strong>bar</strong>***baz</p>
+ACTUAL:
+<p>foo******bar*********baz</p>
+
+SEMANTIC GFM 427 [Emphasis and strong emphasis]
+INPUT:
+*foo **bar *baz* bim** bop*
+EXPECTED:
+<p><em>foo <strong>bar <em>baz</em> bim</strong> bop</em></p>
+ACTUAL:
+<p>*foo **bar *baz* bim** bop*</p>
+
+SEMANTIC GFM 428 [Emphasis and strong emphasis]
+INPUT:
+*foo [*bar*](/url)*
+EXPECTED:
+<p><em>foo <a href="/url"><em>bar</em></a></em></p>
+ACTUAL:
+<p>*foo <a href="/url"><em>bar</em></a>*</p>
+
+SEMANTIC GFM 431 [Emphasis and strong emphasis]
+INPUT:
+**foo [bar](/url)**
+EXPECTED:
+<p><strong>foo <a href="/url">bar</a></strong></p>
+ACTUAL:
+<p>**foo <a href="/url">bar</a>**</p>
+
+SEMANTIC GFM 432 [Emphasis and strong emphasis]
+INPUT:
+**foo
+bar**
+EXPECTED:
+<p><strong>foo
+bar</strong></p>
+ACTUAL:
+<p>**foo
+bar**</p>
+
+SEMANTIC GFM 433 [Emphasis and strong emphasis]
+INPUT:
+__foo _bar_ baz__
+EXPECTED:
+<p><strong>foo <em>bar</em> baz</strong></p>
+ACTUAL:
+<p>__foo _bar_ baz__</p>
+
+SEMANTIC GFM 434 [Emphasis and strong emphasis]
+INPUT:
+__foo __bar__ baz__
+EXPECTED:
+<p><strong>foo bar baz</strong></p>
+ACTUAL:
+<p>__foo __bar__ baz__</p>
+
+SEMANTIC GFM 435 [Emphasis and strong emphasis]
+INPUT:
+____foo__ bar__
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>____foo__ bar__</p>
+
+SEMANTIC GFM 436 [Emphasis and strong emphasis]
+INPUT:
+**foo **bar****
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p>**foo **bar****</p>
+
+SEMANTIC GFM 437 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar* baz**
+EXPECTED:
+<p><strong>foo <em>bar</em> baz</strong></p>
+ACTUAL:
+<p>**foo *bar* baz**</p>
+
+SEMANTIC GFM 438 [Emphasis and strong emphasis]
+INPUT:
+**foo*bar*baz**
+EXPECTED:
+<p><strong>foo<em>bar</em>baz</strong></p>
+ACTUAL:
+<p>**foo*bar*baz**</p>
+
+SEMANTIC GFM 439 [Emphasis and strong emphasis]
+INPUT:
+***foo* bar**
+EXPECTED:
+<p><strong><em>foo</em> bar</strong></p>
+ACTUAL:
+<p>***foo* bar**</p>
+
+SEMANTIC GFM 440 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar***
+EXPECTED:
+<p><strong>foo <em>bar</em></strong></p>
+ACTUAL:
+<p>**foo *bar***</p>
+
+SEMANTIC GFM 441 [Emphasis and strong emphasis]
+INPUT:
+**foo *bar **baz**
+bim* bop**
+EXPECTED:
+<p><strong>foo <em>bar <strong>baz</strong>
+bim</em> bop</strong></p>
+ACTUAL:
+<p>**foo *bar **baz**
+bim* bop**</p>
+
+SEMANTIC GFM 442 [Emphasis and strong emphasis]
+INPUT:
+**foo [*bar*](/url)**
+EXPECTED:
+<p><strong>foo <a href="/url"><em>bar</em></a></strong></p>
+ACTUAL:
+<p>**foo <a href="/url"><em>bar</em></a>**</p>
+
+SEMANTIC GFM 446 [Emphasis and strong emphasis]
+INPUT:
+foo *\**
+EXPECTED:
+<p>foo <em>*</em></p>
+ACTUAL:
+<p>foo ***</p>
+
+SEMANTIC GFM 447 [Emphasis and strong emphasis]
+INPUT:
+foo *_*
+EXPECTED:
+<p>foo <em>_</em></p>
+ACTUAL:
+<p>foo *_*</p>
+
+SEMANTIC GFM 449 [Emphasis and strong emphasis]
+INPUT:
+foo **\***
+EXPECTED:
+<p>foo <strong>*</strong></p>
+ACTUAL:
+<p>foo *****</p>
+
+SEMANTIC GFM 450 [Emphasis and strong emphasis]
+INPUT:
+foo **_**
+EXPECTED:
+<p>foo <strong>_</strong></p>
+ACTUAL:
+<p>foo **_**</p>
+
+SEMANTIC GFM 451 [Emphasis and strong emphasis]
+INPUT:
+**foo*
+EXPECTED:
+<p>*<em>foo</em></p>
+ACTUAL:
+<p>**foo*</p>
+
+SEMANTIC GFM 452 [Emphasis and strong emphasis]
+INPUT:
+*foo**
+EXPECTED:
+<p><em>foo</em>*</p>
+ACTUAL:
+<p>*foo**</p>
+
+SEMANTIC GFM 453 [Emphasis and strong emphasis]
+INPUT:
+***foo**
+EXPECTED:
+<p>*<strong>foo</strong></p>
+ACTUAL:
+<p>***foo**</p>
+
+SEMANTIC GFM 454 [Emphasis and strong emphasis]
+INPUT:
+****foo*
+EXPECTED:
+<p>***<em>foo</em></p>
+ACTUAL:
+<p>****foo*</p>
+
+SEMANTIC GFM 455 [Emphasis and strong emphasis]
+INPUT:
+**foo***
+EXPECTED:
+<p><strong>foo</strong>*</p>
+ACTUAL:
+<p>**foo***</p>
+
+SEMANTIC GFM 456 [Emphasis and strong emphasis]
+INPUT:
+*foo****
+EXPECTED:
+<p><em>foo</em>***</p>
+ACTUAL:
+<p>*foo****</p>
+
+SEMANTIC GFM 458 [Emphasis and strong emphasis]
+INPUT:
+foo _\__
+EXPECTED:
+<p>foo <em>_</em></p>
+ACTUAL:
+<p>foo ___</p>
+
+SEMANTIC GFM 459 [Emphasis and strong emphasis]
+INPUT:
+foo _*_
+EXPECTED:
+<p>foo <em>*</em></p>
+ACTUAL:
+<p>foo _*_</p>
+
+SEMANTIC GFM 461 [Emphasis and strong emphasis]
+INPUT:
+foo __\___
+EXPECTED:
+<p>foo <strong>_</strong></p>
+ACTUAL:
+<p>foo _____</p>
+
+SEMANTIC GFM 462 [Emphasis and strong emphasis]
+INPUT:
+foo __*__
+EXPECTED:
+<p>foo <strong>*</strong></p>
+ACTUAL:
+<p>foo __*__</p>
+
+SEMANTIC GFM 463 [Emphasis and strong emphasis]
+INPUT:
+__foo_
+EXPECTED:
+<p>_<em>foo</em></p>
+ACTUAL:
+<p>__foo_</p>
+
+SEMANTIC GFM 464 [Emphasis and strong emphasis]
+INPUT:
+_foo__
+EXPECTED:
+<p><em>foo</em>_</p>
+ACTUAL:
+<p>_foo__</p>
+
+SEMANTIC GFM 465 [Emphasis and strong emphasis]
+INPUT:
+___foo__
+EXPECTED:
+<p>_<strong>foo</strong></p>
+ACTUAL:
+<p>___foo__</p>
+
+SEMANTIC GFM 466 [Emphasis and strong emphasis]
+INPUT:
+____foo_
+EXPECTED:
+<p>___<em>foo</em></p>
+ACTUAL:
+<p>____foo_</p>
+
+SEMANTIC GFM 467 [Emphasis and strong emphasis]
+INPUT:
+__foo___
+EXPECTED:
+<p><strong>foo</strong>_</p>
+ACTUAL:
+<p>__foo___</p>
+
+SEMANTIC GFM 468 [Emphasis and strong emphasis]
+INPUT:
+_foo____
+EXPECTED:
+<p><em>foo</em>___</p>
+ACTUAL:
+<p>_foo____</p>
+
+SEMANTIC GFM 469 [Emphasis and strong emphasis]
+INPUT:
+**foo**
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>**foo**</p>
+
+SEMANTIC GFM 470 [Emphasis and strong emphasis]
+INPUT:
+*_foo_*
+EXPECTED:
+<p><em><em>foo</em></em></p>
+ACTUAL:
+<p>*_foo_*</p>
+
+SEMANTIC GFM 471 [Emphasis and strong emphasis]
+INPUT:
+__foo__
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>__foo__</p>
+
+SEMANTIC GFM 472 [Emphasis and strong emphasis]
+INPUT:
+_*foo*_
+EXPECTED:
+<p><em><em>foo</em></em></p>
+ACTUAL:
+<p>_*foo*_</p>
+
+SEMANTIC GFM 473 [Emphasis and strong emphasis]
+INPUT:
+****foo****
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>****foo****</p>
+
+SEMANTIC GFM 474 [Emphasis and strong emphasis]
+INPUT:
+____foo____
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>____foo____</p>
+
+SEMANTIC GFM 475 [Emphasis and strong emphasis]
+INPUT:
+******foo******
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p>******foo******</p>
+
+SEMANTIC GFM 476 [Emphasis and strong emphasis]
+INPUT:
+***foo***
+EXPECTED:
+<p><em><strong>foo</strong></em></p>
+ACTUAL:
+<p>***foo***</p>
+
+SEMANTIC GFM 477 [Emphasis and strong emphasis]
+INPUT:
+_____foo_____
+EXPECTED:
+<p><em><strong>foo</strong></em></p>
+ACTUAL:
+<p>_____foo_____</p>
+
+SEMANTIC GFM 478 [Emphasis and strong emphasis]
+INPUT:
+*foo _bar* baz_
+EXPECTED:
+<p><em>foo _bar</em> baz_</p>
+ACTUAL:
+<p>*foo _bar* baz_</p>
+
+SEMANTIC GFM 479 [Emphasis and strong emphasis]
+INPUT:
+*foo __bar *baz bim__ bam*
+EXPECTED:
+<p><em>foo <strong>bar *baz bim</strong> bam</em></p>
+ACTUAL:
+<p>*foo __bar *baz bim__ bam*</p>
+
+SEMANTIC GFM 480 [Emphasis and strong emphasis]
+INPUT:
+**foo **bar baz**
+EXPECTED:
+<p>**foo <strong>bar baz</strong></p>
+ACTUAL:
+<p>**foo **bar baz**</p>
+
+SEMANTIC GFM 481 [Emphasis and strong emphasis]
+INPUT:
+*foo *bar baz*
+EXPECTED:
+<p>*foo <em>bar baz</em></p>
+ACTUAL:
+<p>*foo *bar baz*</p>
+
+SEMANTIC GFM 487 [Emphasis and strong emphasis]
+INPUT:
+*a `*`*
+EXPECTED:
+<p><em>a <code>*</code></em></p>
+ACTUAL:
+<p>*a <code>*</code>*</p>
+
+SEMANTIC GFM 488 [Emphasis and strong emphasis]
+INPUT:
+_a `_`_
+EXPECTED:
+<p><em>a <code>_</code></em></p>
+ACTUAL:
+<p>_a <code>_</code>_</p>
+
+SEMANTIC GFM 491 [Strikethrough (extension)]
+INPUT:
+~~Hi~~ Hello, world!
+EXPECTED:
+<p><del>Hi</del> Hello, world!</p>
+ACTUAL:
+<p>~~Hi~~ Hello, world!</p>
+
+SEMANTIC GFM 524 [Links]
+INPUT:
+[link *foo **bar** `#`*](/uri)
+EXPECTED:
+<p><a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a></p>
+ACTUAL:
+<p><a href="/uri">link *foo **bar** <code>#</code>*</a></p>
+
+SEMANTIC GFM 527 [Links]
+INPUT:
+[foo *[bar [baz](/uri)](/uri)*](/uri)
+EXPECTED:
+<p>[foo <em>[bar <a href="/uri">baz</a>](/uri)</em>](/uri)</p>
+ACTUAL:
+<p>[foo *[bar <a href="/uri">baz</a>](/uri)*](/uri)</p>
+
+SEMANTIC GFM 531 [Links]
+INPUT:
+*foo [bar* baz]
+EXPECTED:
+<p><em>foo [bar</em> baz]</p>
+ACTUAL:
+<p>*foo [bar* baz]</p>
+
+SEMANTIC GFM 538 [Links]
+INPUT:
+[link *foo **bar** `#`*][ref]
+
+[ref]: /uri
+EXPECTED:
+<p><a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a></p>
+ACTUAL:
+<p><a href="/uri">link *foo **bar** <code>#</code>*</a></p>
+
+SEMANTIC GFM 541 [Links]
+INPUT:
+[foo *bar [baz][ref]*][ref]
+
+[ref]: /uri
+EXPECTED:
+<p>[foo <em>bar <a href="/uri">baz</a></em>]<a href="/uri">ref</a></p>
+ACTUAL:
+<p>[foo *bar <a href="/uri">baz</a>*]<a href="/uri">ref</a></p>
+
+SEMANTIC GFM 562 [Links]
+INPUT:
+[*foo* bar][]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><a href="/url" title="title"><em>foo</em> bar</a></p>
+ACTUAL:
+<p><a href="/url" title="title">*foo* bar</a></p>
+
+SEMANTIC GFM 566 [Links]
+INPUT:
+[*foo* bar]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><a href="/url" title="title"><em>foo</em> bar</a></p>
+ACTUAL:
+<p><a href="/url" title="title">*foo* bar</a></p>
+
+SEMANTIC GFM 567 [Links]
+INPUT:
+[[*foo* bar]]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p>[<a href="/url" title="title"><em>foo</em> bar</a>]</p>
+ACTUAL:
+<p>[<a href="/url" title="title">*foo* bar</a>]</p>
+
+SEMANTIC GFM 581 [Images]
+INPUT:
+![foo *bar*]
+
+[foo *bar*]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC GFM 584 [Images]
+INPUT:
+![foo *bar*][]
+
+[foo *bar*]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC GFM 585 [Images]
+INPUT:
+![foo *bar*][foobar]
+
+[FOOBAR]: train.jpg "train & tracks"
+EXPECTED:
+<p><img src="train.jpg" alt="foo bar" title="train &amp; tracks" /></p>
+ACTUAL:
+<p><img src="train.jpg" alt="foo *bar*" title="train &amp; tracks" /></p>
+
+SEMANTIC GFM 593 [Images]
+INPUT:
+![*foo* bar][]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><img src="/url" alt="foo bar" title="title" /></p>
+ACTUAL:
+<p><img src="/url" alt="*foo* bar" title="title" /></p>
+
+SEMANTIC GFM 597 [Images]
+INPUT:
+![*foo* bar]
+
+[*foo* bar]: /url "title"
+EXPECTED:
+<p><img src="/url" alt="foo bar" title="title" /></p>
+ACTUAL:
+<p><img src="/url" alt="*foo* bar" title="title" /></p>
+
+SEMANTIC GFM 616 [Autolinks]
+INPUT:
+< http://foo.bar >
+EXPECTED:
+<p>&lt; http://foo.bar &gt;</p>
+ACTUAL:
+<p>&lt; <a href="http://foo.bar">http://foo.bar</a> &gt;</p>
+
+SEMANTIC GFM 619 [Autolinks]
+INPUT:
+http://example.com
+EXPECTED:
+<p>http://example.com</p>
+ACTUAL:
+<p><a href="http://example.com">http://example.com</a></p>
+
+SEMANTIC GFM 620 [Autolinks]
+INPUT:
+foo@bar.example.com
+EXPECTED:
+<p>foo@bar.example.com</p>
+ACTUAL:
+<p><a href="mailto:foo@bar.example.com">foo@bar.example.com</a></p>
+
+SEMANTIC GFM 644 [Raw HTML]
+INPUT:
+foo <!-- this is a --
+comment - with hyphens -->
+EXPECTED:
+<p>foo <!-- this is a --
+comment - with hyphens --></p>
+ACTUAL:
+<p>foo &lt;!-- this is a --
+comment - with hyphens --&gt;</p>
+
+SEMANTIC GFM 645 [Raw HTML]
+INPUT:
+foo <!--> foo -->
+
+foo <!---> foo -->
+EXPECTED:
+<p>foo <!--> foo --&gt;</p>
+<p>foo <!---> foo --&gt;</p>
+ACTUAL:
+<p>foo &lt;!--&gt; foo --&gt;</p>
+<p>foo &lt;!---&gt; foo --&gt;</p>
+
+SEMANTIC GFM 658 [Hard line breaks]
+INPUT:
+*foo  
+bar*
+EXPECTED:
+<p><em>foo<br />
+bar</em></p>
+ACTUAL:
+<p>*foo<br />
+bar*</p>
+
+SEMANTIC GFM 659 [Hard line breaks]
+INPUT:
+*foo\
+bar*
+EXPECTED:
+<p><em>foo<br />
+bar</em></p>
+ACTUAL:
+<p>*foo<br />
+bar*</p>
+
+Independent original semantic expectations: 1324; failures: 242
+FAILED: all original pinned CommonMark and strict GFM semantic expectations

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.21)
+project(MarkdownTableReferenceProbe LANGUAGES CXX)
+add_executable(MarkdownTableReferenceProbe main.cpp "${DXUI_SOURCE}/src/Controls/DxUi.MarkdownSyntax.cpp")
+target_include_directories(MarkdownTableReferenceProbe PRIVATE "${DXUI_INCLUDE}")
+target_compile_options(MarkdownTableReferenceProbe PRIVATE /std:c++latest /utf-8 /W4 /fsanitize=address /Zi)
+target_link_options(MarkdownTableReferenceProbe PRIVATE /INCREMENTAL:NO /DEBUG)
+target_link_libraries(MarkdownTableReferenceProbe PRIVATE "${DXUI_ARCHIVE}" dwrite d2d1 ole32)

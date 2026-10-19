@@ -1,0 +1,7 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestLosslessMarkdownIndependentSemanticCorpora
+Independent original semantic expectations: 1324; failures: 0
+  [DONE] TestLosslessMarkdownIndependentSemanticCorpora (0.007 s)
+[DONE] EditorControls (0.009 s)
+All DxUi tests passed.

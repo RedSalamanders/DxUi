@@ -5,8 +5,8 @@ The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
 `DxUi::RichTextEditor` preview described below. Its bounded source TSF/IME and
 UIA adapters are implemented in both hosts. Real IME/assistive-technology
-qualification and complete Markdown conformance remain separate
-integration gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+qualification, semantic Markdown rendering/editing and accepted extension
+qualification remain separate integration gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 
 ## Retained editor preview (D2c)
 
@@ -560,11 +560,12 @@ are preserved. The parser accepts raw NUL and supplies a replacement lexical
 value; the existing editor Document/codecs/text services still reject NUL.
 
 The three grammar targets are CommonMark0312, Gfm029 and RichMarkdown. They are
-keys for continued implementation, not complete conformance profiles yet. Lexical
+versioned grammar keys. The bounded base parser and specified GFM extensions pass
+the original semantic corpora; RichMarkdown's additional extensions remain pending. Lexical
 candidates include all 2,125 semicolon-terminated named references, bounded numeric
 references and ASCII punctuation escapes. A candidate inside code/HTML cannot be
-rendered by decoding it in isolation; full inline precedence remains
-pending. `LexemeSourceAnchor` expresses leading/trailing source affinity when one
+rendered by decoding it in isolation; use the resolved inline forest described
+below. `LexemeSourceAnchor` expresses leading/trailing source affinity when one
 reference expands to several UTF-16 units. It does not replace model edit-boundary
 checks or provide generated-object/footnote semantic anchors.
 
@@ -596,7 +597,9 @@ do not guarantee a wall-clock deadline. The 65,536-unit limit remains.
 Prefer the `Begin(SourceSnapshot, revision, profile)` overload when maintaining
 an edited document. The retained editor does so: tracked edit ranges distinguish
 which identical paragraph was removed. Node identities are scoped to one parser
-until Clear and reconciled under compatible parent identities. String Begin uses
+until Clear and reconciled under compatible parent identities. Generated missing
+table cells may share empty ranges; each consumes one prior identity in traversal
+order, retaining distinct IDs across unrelated edits and undo/redo. String Begin uses
 common-prefix/suffix mapping; deleted/reclassified/reparented nodes may acquire
 new IDs, and no unbounded syntax history is retained. Blocks are reparsed across
 the bounded source before reconciliation. Per-line transitions, paragraph
@@ -608,16 +611,16 @@ share a deferred accepted container end. These counters support regression tests
 and do not measure complete CPU time. Node identity is a logical handle, not a
 cache-validity or geometry-generation key; also check the source revision/profile.
 
-HTML blocks remain exact opaque source. Later inline/semantic stages will map an
+HTML blocks remain exact opaque source. A later semantic stage will map an
 explicit safe subset to our native renderer. No browser DOM, script execution,
 event handler execution or automatic remote loading is introduced. Unsupported
 HTML remains editable source; the current formatted view is still the v0 preview.
 
 The native tests preserve all 652 CommonMark and 672 GFM original example inputs
 and check all named entity values against independently transcribed standard data.
-Those are source/lexical tests, not full HTML conformance. Further work includes
-inline precedence, semantic rendering/editing,
-GFM extensions, math, Mermaid, footnotes/front matter and end-to-end NUL admission.
+The independent M3 semantic checks described below additionally compare every
+original expected HTML output. Semantic rendering/editing, math, Mermaid,
+footnotes/front matter and end-to-end NUL admission remain future work.
 Pinned inputs, attribution and offline generators are described in
 [ThirdParty/Markdown](../ThirdParty/Markdown/README.md). The control catalog,
 styles and existing gallery example remain unchanged; embedded exact-pixel tests
@@ -630,5 +633,66 @@ adds 568 independent pinned block-structure/code-content/ordered-start expectati
 conservative snapshot-based node IDs and native/embedded grammar/Unicode edge tests.
 All 57 ordinary x64 scope obligations, six root builds, eight isolated failure
 probes and 324 exact raster pairs pass. It retains the original failures and the
-MSVC Debug proxy-allocation fix. Full inline/GFM extensions, semantic rendering/
-editing and the original physical/platform/performance gates remain open.
+MSVC Debug proxy-allocation fix. That historical packet does not qualify later
+inline/GFM work, semantic rendering/editing or physical/platform/performance gates.
+
+## Resolved inlines and GFM extensions (M3)
+
+The owned parser now resolves emphasis/strong, code spans, escapes/entities,
+inline and global reference links, images, URI/email autolinks, raw HTML and
+line breaks. GFM options add tables with cell alignment, task metadata, two-tilde
+strike, extended autolinks and tagfilter metadata. The source always stays exact.
+This is opt-in analysis; the native formatted renderer is still v0.
+
+```cpp
+using namespace DxUi::RichText;
+MarkdownParser parser;
+parser.Begin(L"~~text~~ and [reference]\n\n[reference]: /local\n", 1,
+             MarkdownProfile::Gfm029); // All specified GFM extensions by default.
+// Call again on a later owner turn if preparation is still pending.
+parser.Advance(4096);
+if (auto syntax = parser.Published(); !parser.HasPendingPreparation() && syntax)
+{
+    const auto& inlines = syntax->Inlines();
+    // Each leaf's firstInline roots a dense firstChild/nextSibling forest.
+    // Semantic values and raw enclosures are not source/display editing maps.
+}
+```
+
+An optional fourth Begin argument selects `MarkdownExtensions` explicitly.
+CommonMark defaults to None and rejects GFM options; Gfm029 and RichMarkdown
+default to All. Request identity includes the options. RichMarkdown still awaits
+its math/Mermaid/footnote/front-matter stage. Published inline indices belong to
+one revision; stable block IDs do not validate reference-dependent semantics.
+Reference edits re-resolve links even when the referring paragraph is unchanged.
+
+Values decode ordinary escapes/entities, while code and raw HTML stay literal.
+Extended autolinks retain their own literal entity/backslash spelling. Unicode
+17 full default case folding resolves labels without normalization or OS locale
+dependence. ASCII label whitespace, P versus P/S punctuation and inline declaration
+rules preserve the requested dialect. Table cells unescape pipes before inlines;
+tasks expose state without an interactive checkbox command. Opaque Html values
+carry sorted `filteredHtmlOpeners`, pointing to '<' values filtered by GFM.
+This metadata is not sanitization or a browser preview API.
+
+The independent conformance test compares all 652 CommonMark and 672 original
+GFM expected HTML vectors, including each example's extension flags and both
+task vectors marked disabled by the original harness. Nine printed GFM examples
+flatten directly nested redundant strong tags; the test serializer preserves
+that output convention while the syntax retains every wrapper/source delimiter.
+Original standards and expected values are unchanged. Directed core/native/
+embedded tests also cover Unicode and profile boundaries, global reference
+edit/undo/redo, immutable old trees, option identity and deep iterative forests.
+The [sealed M3 qualification](../Measurements/RichText/2026-10-18-markdown-inlines/README.md)
+retains 57 fresh complete ordinary x64 scope/profile runs, six root builds,
+12 isolated probes, 324 exact raster pairs and full validation/format checks.
+Both hosts also verify padded-cell identity across edits/undo/redo. Parser-only
+raw NUL label replacement is tested under all three profiles; Document/codecs/
+text-service NUL admission stays deferred. ARM64 builds are compile-only.
+
+M4 still owns transformed/generated/object source maps, semantic native layout,
+structural editing and structured accessibility. M5 owns the accepted extensions;
+M6 and the existing gates own real capacity, physical/platform and performance
+acceptance. The current source limit stays 65,536 UTF-16 units. Advance budgets
+count operations; construct lookahead, stack resolution, sorting and allocations
+can inspect more than one character per step and are not wall-clock guarantees. Generated table padding can amplify columns times body rows; a general tree/storage capacity bound remains M6 work.

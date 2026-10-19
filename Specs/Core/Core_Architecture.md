@@ -31,6 +31,11 @@ is private behind the snapshot's existing shared ownership boundary.
 The v0 projection reuses physical-line blocks; retained geometry stages bounded
 chunks through shared owner preparation. Projection/index construction remains
 indivisible, and geometry has explicit whole SDK fallbacks.
+The opt-in lossless parser separately publishes block/inline forests, resolved
+global references and configurable GFM metadata. It owns Unicode 17 folding and
+character-class tables generated offline from pinned licensed data. Its semantic
+strings/raw source enclosures do not satisfy the forthcoming M4 editing-coordinate
+contract; the v0 projection remains the active renderer until that gate passes.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.

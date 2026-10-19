@@ -1,11 +1,14 @@
 #pragma once
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownInlines.h"
 
 static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
 {
     using namespace DxUi::RichText;
     const std::wstring source =
-        L"# staged\r\n> - nested\n>\n>   [a\nb]: /url 'title'\n\n<!-- raw -->\n" + std::wstring(512u, L'\n') + L"&NotEqualTilde; &#x1f600;";
+        L"# staged\r\n> - **nested *styles***\n>\n>   [a\nb]: /reference 'long title'\n\n"
+        L"| header | second | third |\n| --- | --- | --- |\n| `a\\|b` |\n\n- [x] ~~[a b]~~\n\nwww.example.invalid\n\n<script>raw</script>\n" +
+        std::wstring(L"\n[first]: /first 'first title'\n[second]: /second 'second title'\n| - |\n") + std::wstring(512u, L'\n') + L"&NotEqualTilde; &#x1f600;";
     Document sourceDocument(source);
     const auto sourceSnapshot = sourceDocument.Snapshot();
     const auto finish         = [](MarkdownParser& parser)
@@ -28,12 +31,12 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         });
         allocations = allocationBytes = 0u;
         countAllocations              = true;
-        parser.Begin(sourceSnapshot, 2u);
+        parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
         finish(parser);
         countAllocations = false;
         requests         = allocations;
     }
-    Check(requests > 0u && requests < 512u, "lossless parser has a finite observed allocation schedule including containers and references");
+    Check(requests > 0u && requests < 2048u, "finite observed schedule includes inline links/styles, tables, tasks, tagfilter and compaction");
     for (size_t failure = 0u; failure < requests; ++failure)
     {
         if (trace)
@@ -52,7 +55,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
             failAllocationAfter   = failure;
             try
             {
-                parser.Begin(sourceSnapshot, 2u);
+                parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
                 finish(parser);
             }
             catch (const std::bad_alloc&)
@@ -62,7 +65,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         }
         Check(rejected && parser.Published() == previous && previous->Source() == L"previous" && ! parser.HasPendingPreparation(),
               "failure at every Begin/Advance allocation preserves published source and retires staged work");
-        parser.Begin(sourceSnapshot, 2u);
+        parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
         finish(parser);
         Check(parser.Published()->Source() == source, "explicit retry after allocation failure succeeds");
     }
@@ -81,7 +84,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         });
         allocations = allocationBytes = 0u;
         countAllocations              = true;
-        parser.Begin(sourceSnapshot, 2u);
+        parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
         countAllocations = false;
         beginRequests    = allocations;
     }
@@ -106,7 +109,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
             failAllocationAfter   = failure;
             try
             {
-                parser.Begin(sourceSnapshot, 3u);
+                parser.Begin(sourceSnapshot, 3u, MarkdownProfile::Gfm029);
             }
             catch (const std::bad_alloc&)
             {
@@ -156,7 +159,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
     Check(retained >= 0 && retained <= 24 * 1024 * 1024 && released == 0, "maximum bounded syntax storage releases completely within 24 MiB C++ budget");
     Check(peak >= retained && peak <= 32 * 1024 * 1024, "old/staged maximum syntax replacement stays within 32 MiB peak C++ storage");
     MarkdownParser parser;
-    parser.Begin(sourceSnapshot, 1u);
+    parser.Begin(sourceSnapshot, 1u, MarkdownProfile::Gfm029);
     finish(parser);
     const auto oldCounting = countAllocations;
     const auto oldCalls = allocations, oldBytes = allocationBytes;
@@ -172,7 +175,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         countAllocations              = true;
         for (size_t repeat = 0u; repeat < 100u; ++repeat)
         {
-            parser.Begin(sourceSnapshot, 1u);
+            parser.Begin(sourceSnapshot, 1u, MarkdownProfile::Gfm029);
             static_cast<void>(parser.Published());
             parser.Advance(0u);
             parser.Cancel();
@@ -236,6 +239,64 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
         Check(editor->GetText() == scenario.source && ! editor->CanUndo() && independentEditor->GetMarkdownSyntax() == independentSyntax,
               "embedded block grammar retains exact source/history and isolates its second view");
     }
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        editor->SetMarkdownAnalysisProfile(profile);
+        for (const auto& scenario : MarkdownInlineTests::scenarios)
+        {
+            editor->SetText(std::wstring(scenario.source));
+            Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded inline/extension scenario");
+            const auto parsed = editor->GetMarkdownSyntax();
+            Check(parsed && MarkdownHtmlTests::Html(*parsed) == MarkdownInlineTests::Expected(scenario, profile),
+                  "embedded inline/extension semantics match independent expectations");
+            Check(editor->GetText() == scenario.source && ! editor->CanUndo() && independentEditor->GetMarkdownSyntax() == independentSyntax,
+                  "embedded inline analysis preserves source/history and isolates the other view");
+        }
+    }
+    editor->SetText(std::wstring(MarkdownInlineTests::paddedTable));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded padded table preparation");
+    const auto table = editor->GetMarkdownSyntax();
+    const auto cells = MarkdownInlineTests::TableCellIdentities(*table);
+    Check(cells.size() == 6u, "embedded table contains both missing body cells");
+    editor->SetSelection({editor->GetText().size(), editor->GetText().size()});
+    Check(editor->ReplaceSelection(L"outside\n"), "embedded edit outside padded table");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded padded table edit preparation");
+    Check(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+              MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells,
+          "embedded unrelated edit retains unique source-backed and padded cell identities");
+    Check(editor->Undo(), "embedded padded table unrelated edit undo");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded padded table undo preparation");
+    Check(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+              MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells,
+          "embedded undo retains distinct padded cell identities");
+    Check(editor->Redo(), "embedded padded table unrelated edit redo");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded padded table redo preparation");
+    Check(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+              MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells && MarkdownInlineTests::UniqueNodeIdentities(*table) &&
+              independentEditor->GetMarkdownSyntax() == independentSyntax,
+          "embedded redo, held snapshots and second view preserve independent identities");
+    editor->SetText(L"[reader]\n\n[reader]: /first\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded initial reference semantics");
+    const auto oldReference      = editor->GetMarkdownSyntax();
+    const auto referenceIdentity = oldReference->Nodes()[oldReference->Nodes()[0u].firstChild].identity;
+    const auto referenceAt       = editor->GetText().find(L"/first");
+    editor->SetSelection({referenceAt, referenceAt + 6u});
+    Check(editor->ReplaceSelection(L"/second"), "embedded global reference edit");
+    Check(! editor->GetMarkdownSyntax(), "embedded reference edit hides stale inline semantics");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded changed reference semantics");
+    const auto newReference = editor->GetMarkdownSyntax();
+    Check(MarkdownHtmlTests::Html(*newReference) == L"<p><a href=\"/second\">reader</a></p>\n" &&
+              newReference->Nodes()[newReference->Nodes()[0u].firstChild].identity == referenceIdentity,
+          "embedded stable block identity cannot retain old reference semantics");
+    Check(editor->Undo(), "embedded reference undo");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded reference undo preparation");
+    Check(MarkdownHtmlTests::Html(*editor->GetMarkdownSyntax()) == MarkdownHtmlTests::Html(*oldReference), "embedded undo re-resolves references");
+    Check(editor->Redo(), "embedded reference redo");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded reference redo preparation");
+    Check(MarkdownHtmlTests::Html(*editor->GetMarkdownSyntax()) == MarkdownHtmlTests::Html(*newReference) &&
+              MarkdownHtmlTests::Html(*oldReference) == L"<p><a href=\"/first\">reader</a></p>\n",
+          "embedded redo and immutable held reference tree");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
     editor->SetText(L"# heading\n\n> alpha\n\ntail\n");
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded identity initial tree");
     const auto oldTree      = editor->GetMarkdownSyntax();

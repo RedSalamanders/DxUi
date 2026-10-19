@@ -18,9 +18,10 @@ examples, their original notices and the earlier collection receipt. The JSON
 contains both CommonMark Markdown and expected HTML. GFM is the complete spec
 input from cmark-gfm 0.29.0.gfm.13, not the implementation. CommonMark/GFM corpus
 material is attributed to John MacFarlane and the CommonMark/GFM contributors
-under the included CC-BY-SA notices; the generated test source is a mechanical
-UTF-16 transcription of the original example inputs. GFM visible-tab arrows are decoded to tabs according to the upstream spec example convention; the original spec bytes are unchanged. HTML expectations remain
-in the originals for the future independent renderer/conformance gate.
+under the included CC-BY-SA notices; generated tests mechanically transcribe the
+original inputs, HTML expectations and extension flags into UTF-16. GFM visible-tab
+arrows are decoded to tabs according to the upstream convention; original bytes
+remain unchanged. These data are independent of the owned parser/serializer.
 
 Run these from the repository root; generation and checking need no network:
 
@@ -34,10 +35,31 @@ Both generators require exact data and license hashes before writing anything.
 The generated corpus header also carries each original example's section and
 expected HTML for an independent block-structure/code-content/list-start oracle.
 Those expectations come directly from the pinned standard inputs, not from the
-owned parser. Inline/full HTML conformance remains a later gate.
+owned parser. M3 uses every original expected HTML value for an independent
+semantic oracle. The generated header preserves per-example extension names;
+both task examples marked `disabled` by the original harness are retained and
+run with task parsing. The serializer preserves the printed GFM convention of
+flattening directly nested redundant strong HTML tags, without deleting syntax
+wrappers or changing original expectations.
 
 Tests cover deterministic regeneration, read-only verification, stale/missing
 output and every modified/missing input or notice. Native tests check lossless
 partitions of every original corpus input, all entity values and the selected
-block-section structural expectations. This does not establish full inline/HTML
-conformance or qualify the formatted renderer.
+block-section structural expectations. Full original semantic expectations,
+directed Unicode/version boundaries and native/embedded inline fixtures are now
+implemented; the active plan records their matrix qualification. These checks
+do not qualify the formatted renderer or semantic editing.
+
+M3 also uses original Unicode 17 `UnicodeData.txt` and `CaseFolding.txt` from the
+shared [Unicode data](../Unicode/README.md). The offline
+`Tools/Generate-MarkdownUnicodeData.ps1` verifies both data hashes and the Unicode
+license before emitting character classes and full default case-fold mappings.
+No foreign parser implementation is compiled into DxUi. A private, reference-only
+cmark-gfm 0.29.0.gfm.13 CLI was built at commit
+`587a12bb54d95ac37241377e6ddc93ea0e45439b` for supplemental observations.
+Its raw outputs and build failures remain evidence, not replacement golden data.
+The runtime accepts dotless/empty-segment domains and broader Unicode host
+characters, restricts task whitespace and does not fold VT/FF labels or filter VT
+tag boundaries as the adjacent specification prose describes. The strict owned grammar keeps the
+pinned specification's explicit domain/whitespace rules; these differences must
+remain recorded instead of silently broadening or excluding conformance cases.

@@ -1,0 +1,18 @@
+Cloning into 'Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13'...
+Note: switching to '587a12bb54d95ac37241377e6ddc93ea0e45439b'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+

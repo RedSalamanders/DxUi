@@ -1,0 +1,22 @@
+#include <DxUi/MarkdownSyntax.h>
+#include "Z:/src/DxUi-worktrees/rich-text-core-d2/Tests/Support/Scope.Tests.MarkdownHtml.h"
+#include "Z:/src/DxUi-worktrees/rich-text-core-d2/Tests/Support/Scope.Tests.MarkdownInlines.h"
+#include <iostream>
+int main()
+{
+    using namespace DxUi::RichText;
+    MarkdownParser parser;
+    const std::wstring source=std::wstring(L"[a")+wchar_t{}+L"b]: /url\n[a"+wchar_t{}+L"b]\n";
+    parser.Begin(source,1u,MarkdownProfile::CommonMark0312);
+    while(parser.HasPendingPreparation()) parser.Advance(1u);
+    const auto html=MarkdownHtmlTests::Html(*parser.Published());
+    if(html != L"<p><a href=\"/url\">a\ufffdb</a></p>\n") {std::cout<<"NUL label mismatch\n";return 24;}
+    std::cout<<"NUL label normalized; linked output length="<<html.size()<<'\n';
+    parser.Begin(MarkdownInlineTests::paddedTable,2u,MarkdownProfile::Gfm029);
+    while(parser.HasPendingPreparation()) parser.Advance(1u);
+    const auto ids=MarkdownInlineTests::TableCellIdentities(*parser.Published());
+    parser.Begin(MarkdownInlineTests::paddedTable,3u,MarkdownProfile::Gfm029);
+    while(parser.HasPendingPreparation()) parser.Advance(1u);
+    if(!MarkdownInlineTests::UniqueNodeIdentities(*parser.Published()) || MarkdownInlineTests::TableCellIdentities(*parser.Published()) != ids) return 23;
+    std::cout<<"All six table cells retain distinct identities\n";
+}

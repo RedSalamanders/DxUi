@@ -1,0 +1,12 @@
+{
+  "commit": "587a12bb54d95ac37241377e6ddc93ea0e45439b",
+  "sha256": "A6ABF28388EAD6151667D278ABBB051F107068B5C9E4E8DAEF4B6AED11A292AD",
+  "version": [
+    "cmark-gfm 0.29.0.gfm.13 - CommonMark with GitHub Flavored Markdown converter",
+    "(C) 2014-2016 John MacFarlane"
+  ],
+  "referenceOnly": true,
+  "productionLinked": false,
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\references\\cmark-gfm-0.29.0.gfm.13\\build\\src\\Release\\cmark-gfm.exe",
+  "sourceChanges": []
+}

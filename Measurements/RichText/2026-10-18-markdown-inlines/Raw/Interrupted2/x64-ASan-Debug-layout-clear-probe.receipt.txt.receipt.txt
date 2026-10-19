@@ -1,0 +1,9 @@
+{
+  "buildAttestationIdentity": "9014f33bb7aefc80d0487081db2854fb92e007181f77ceed502e82c6dc224be1",
+  "exitCode": 0,
+  "classification": "isolated diagnostic allocation sweep",
+  "sha256": "9D2EBCE9AB6E401EBB57559BDC3EC69220484AE96657F5FBDD65D7225F22E5BD",
+  "configuration": "ASan Debug",
+  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+  "argument": "--test-rich-layout-clear"
+}

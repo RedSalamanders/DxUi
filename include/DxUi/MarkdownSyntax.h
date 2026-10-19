@@ -5,14 +5,32 @@
 
 namespace DxUi::RichText
 {
-// Requested dialect, carried in every result. These names are grammar targets,
-// not a claim that the current block/lexical preparation passes either corpus.
+// Requested dialect, carried in every result. Parser conformance and native
+// semantic rendering/editing have separate qualification gates; see rich-text docs.
 enum class MarkdownProfile
 {
     CommonMark0312,
     Gfm029,
     RichMarkdown
 };
+enum class MarkdownExtensions : unsigned
+{
+    None          = 0u,
+    Tables        = 1u,
+    TaskLists     = 2u,
+    Strikethrough = 4u,
+    Autolinks     = 8u,
+    TagFilter     = 16u,
+    All           = 31u
+};
+constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept
+{
+    return static_cast<MarkdownExtensions>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+constexpr bool HasMarkdownExtension(MarkdownExtensions enabled, MarkdownExtensions feature) noexcept
+{
+    return (static_cast<unsigned>(enabled) & static_cast<unsigned>(feature)) != 0u;
+}
 struct MarkdownRange
 {
     std::size_t first{}, last{};
@@ -32,7 +50,10 @@ enum class MarkdownBlockKind
     ListItem,
     IndentedCode,
     HtmlBlock,
-    ReferenceDefinition
+    ReferenceDefinition,
+    Table,
+    TableRow,
+    TableCell
 };
 struct MarkdownBlock
 {
@@ -44,6 +65,50 @@ struct MarkdownBlock
     bool closed = true;
 };
 inline constexpr std::size_t MarkdownNoNode = static_cast<std::size_t>(-1);
+enum class MarkdownAlignment
+{
+    None,
+    Left,
+    Center,
+    Right
+};
+enum class MarkdownTask
+{
+    None,
+    Unchecked,
+    Checked
+};
+enum class MarkdownInlineKind
+{
+    Text,
+    SoftBreak,
+    HardBreak,
+    Code,
+    Emphasis,
+    Strong,
+    Strikethrough,
+    Link,
+    Image,
+    Html
+};
+// Resolved inline values, with original spelling retained in Source(). Indices
+// are revision-local. source encloses delimiters and any stripped line prefixes;
+// value/destination/title are semantic values, not an editing coordinate map.
+struct MarkdownInline
+{
+    MarkdownInline() : value(0u, L' '), destination(0u, L' '), title(0u, L' '), filteredHtmlOpeners(0u)
+    {
+    }
+    MarkdownInline(const MarkdownInline&)            = default;
+    MarkdownInline& operator=(const MarkdownInline&) = default;
+    MarkdownInlineKind kind{};
+    MarkdownRange source;
+    std::size_t firstChild = MarkdownNoNode, nextSibling = MarkdownNoNode;
+    std::wstring value, destination, title;
+    // UTF-16 offsets in an opaque Html value whose '<' is filtered by GFM.
+    // This is the tagfilter extension, not an HTML sanitizer or execution API.
+    std::vector<std::size_t> filteredHtmlOpeners;
+};
 // Tree indices are revision-local; identities belong to DocumentIdentity().
 // Container source ranges include their prefixes and overlap their descendants.
 // Blank trivia stays in Blocks()/Source(), rather than becoming semantic nodes.
@@ -69,7 +134,11 @@ struct MarkdownNode
     MarkdownRange label, destination, title;
     unsigned listStart{}, contentIndent{}, htmlType{};
     wchar_t listMarker{};
-    bool tight = true;
+    bool tight              = true;
+    std::size_t firstInline = MarkdownNoNode;
+    MarkdownAlignment alignment{};
+    MarkdownTask task{};
+    bool tableHeader{};
 };
 struct MarkdownBlockStatistics
 {
@@ -108,6 +177,7 @@ public:
     std::wstring_view Source() const noexcept;
     std::uint64_t Revision() const noexcept;
     MarkdownProfile Profile() const noexcept;
+    MarkdownExtensions Extensions() const noexcept;
     const std::vector<MarkdownBlock>& Blocks() const noexcept;
     // Node zero is the document. Follow firstChild/nextSibling for source order;
     // finalizing reference definitions can append nodes after their siblings.
@@ -115,6 +185,9 @@ public:
     std::uint64_t DocumentIdentity() const noexcept;
     MarkdownBlockStatistics BlockStatistics() const noexcept;
     const std::vector<MarkdownLexeme>& Lexemes() const noexcept;
+    // Dense semantic forest rooted by each leaf's firstInline. Opaque HTML
+    // blocks also have an Html value. Retired delimiter/bracket shells are gone.
+    const std::vector<MarkdownInline>& Inlines() const noexcept;
     std::wstring_view Slice(MarkdownRange range) const;
     std::wstring_view LexemeValue(std::size_t index) const;
     // Text has source-backed interior ACPs; transformed values have explicit
@@ -123,13 +196,15 @@ public:
     std::size_t LexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing = false) const;
 
 private:
-    explicit MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile);
+    explicit MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions);
     std::wstring source_;
     std::uint64_t revision_{};
     MarkdownProfile profile_{};
+    MarkdownExtensions extensions_{};
     std::vector<MarkdownBlock> blocks_;
     std::vector<MarkdownLexeme> lexemes_;
     std::vector<MarkdownNode> nodes_;
+    std::vector<MarkdownInline> inlines_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
     friend class MarkdownParser;
@@ -148,11 +223,12 @@ struct MarkdownAdvance
 };
 // Owned parser, no foreign implementation/dependency, worker, host or graphics.
 // Begin copies/validates bounded source. Advance resumes source/lexical cursors,
-// root partitions and identity-index/reconciliation steps. A physical-line
-// transition, paragraph-reference finalization and tree compaction are bounded
+// root partitions, reference/inline/autolink preparation, dense forest indexes
+// and block identity reconciliation. A physical-line transition, reference
+// finalization, construct lookahead and emphasis resolution are bounded
 // indivisible operations; they can inspect more than one source unit. Budgets
 // count steps, not character visits, allocator time or wall-clock deadlines.
-// Each revision reparses blocks, so container/fence/reference dependencies cannot
+// Each revision reparses blocks/inlines, so container/fence/reference dependencies cannot
 // inherit the older v0 projection's line-local reuse assumptions.
 class MarkdownParser
 {
@@ -166,11 +242,20 @@ public:
     // An identical pending/completed request coalesces. Equal revision numbers
     // with different source or profile are distinct requests. Failed Begin leaves
     // the previous request intact; failed Advance discards only staged work.
-    void Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile = MarkdownProfile::CommonMark0312);
+    // Defaults: no extensions for CommonMark; all specified GFM extensions for
+    // Gfm029/RichMarkdown. Explicit options also reproduce original spec vectors
+    // whose extension lists are per-example. CommonMark rejects GFM options.
+    void Begin(std::wstring_view source,
+               std::uint64_t revision,
+               MarkdownProfile profile                      = MarkdownProfile::CommonMark0312,
+               std::optional<MarkdownExtensions> extensions = std::nullopt);
     // Prefer snapshots for edits: tracked source ancestry distinguishes edits
     // among identical paragraphs. String callers use deterministic prefix/suffix
     // mapping; that fallback cannot recover which duplicate the caller deleted.
-    void Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile = MarkdownProfile::CommonMark0312);
+    void Begin(const SourceSnapshot& source,
+               std::uint64_t revision,
+               MarkdownProfile profile                      = MarkdownProfile::CommonMark0312,
+               std::optional<MarkdownExtensions> extensions = std::nullopt);
     MarkdownAdvance Advance(std::size_t maximumWorkUnits = 4096);
     bool HasPendingPreparation() const noexcept;
     std::shared_ptr<const MarkdownSyntax> Published() const noexcept;
@@ -183,6 +268,7 @@ private:
     std::shared_ptr<const MarkdownSyntax> published_;
     std::uint64_t documentIdentity_{}, nextNodeIdentity_ = 1u;
     std::optional<SourceSnapshot> publishedSource_;
-    void BeginSource(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<SourceChangeRange> change);
+    void BeginSource(
+        std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<SourceChangeRange> change);
 };
 } // namespace DxUi::RichText

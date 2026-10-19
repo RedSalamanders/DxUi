@@ -1,0 +1,25 @@
+MSBuild version 18.11.0-1.26427.13+9353559c2 for .NET Framework
+
+  1>Checking Build System
+  
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+    DxUi.vcxproj -> Z:\src\richedit\Dependencies\DxUi\7726d48e89b69c36e5b13018785e9309a6987743117ed87fcab0fe3182798287\x64\Release\DxUi.lib
+    DxUi pin verified: 302f3783a5d2ef60f201ca3abf508c1158fde039
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  inspect_rich_edit.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\inspect_rich_edit.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  richtext_app_support.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_app_support.lib
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  richtext_File_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_File_tests.exe
+  richtext_Worker_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_Worker_tests.exe
+  richtext_native.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_native.lib
+  richtext_ReferenceParity_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_ReferenceParity_tests.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Main.cpp
+  richtext_NativeControl_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_NativeControl_tests.exe
+  RichEditRebuild.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\RichEditRebuild.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt

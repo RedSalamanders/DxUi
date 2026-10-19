@@ -4,12 +4,14 @@ The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
 hard wall-clock bounds. Block transitions inspect one bounded physical line;
-reference finalization and tree compaction are indivisible bounded work. Each
-revision reparses block dependencies before identity reconciliation; this is not
+reference finalization, block-tree compaction, construct lookahead, emphasis resolution and sorting are
+indivisible bounded work. Each revision reparses block/inline dependencies before identity reconciliation; this is not
 incremental block reuse. Lexical reference recognition examines at most
 33 source units per candidate and uses a fixed sorted standard-data table.
 Native tests bound scanner/root/index/reconciliation steps by
-8 * (current source units + previous source units) + 16. This counts steps,
+16 * (current source units + previous source units) + 32. M3 adds global-reference,
+inline/autolink and dense-forest marking/index/copy passes to the earlier M2
+eight-step fixture bound. This counts steps,
 not all character visits inside block transitions. Prefix inspection fixtures
 independently check 128/512/4096 nested list levels
 and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
@@ -27,8 +29,14 @@ retry. No parser result changes the existing frame performance HOLD.
 MSVC Debug iterator proxies allocate even in default/noexcept STL container
 constructors. Parser staging and node values use explicit fallible zero-size
 construction and copies rather than noexcept allocator-backed container moves.
-The allocation sweep must cover admission, growth, reference extraction and
-compaction. Diagnostic children may emit bounded raw stack addresses on unexpected
+The allocation sweep must cover admission, growth, reference extraction, nested
+inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
+into runs rather than retaining one string per scalar. An 8,193-unit emphasis
+fixture publishes 2,049 nodes iteratively; a maximum plain paragraph has one Text
+value. The expanded mixed-feature fault fixture has an independently counted
+schedule below 2,048 requests (the M2 fixture's 512 ceiling covered fewer stages
+and constructs). Every observed request is still injected individually.
+Diagnostic children may emit bounded raw stack addresses on unexpected
 termination; ordinary suites and canonical benchmarks keep their normal path.
 
 Status: normative current contract

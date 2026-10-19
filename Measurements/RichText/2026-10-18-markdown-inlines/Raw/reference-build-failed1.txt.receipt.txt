@@ -1,0 +1,165 @@
+MSBuild version 18.11.0-1.26427.13+9353559c2 for .NET Framework
+
+  1>Checking Build System
+  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/src/CMakeLists.txt
+  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/src/CMakeLists.txt
+  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/extensions/CMakeLists.txt
+  cmark.c
+  node.c
+  iterator.c
+  blocks.c
+  inlines.c
+  scanners.c
+  cmark.c
+  core-extensions.c
+  table.c
+  node.c
+  utf8.c
+  iterator.c
+  strikethrough.c
+  buffer.c
+  blocks.c
+  autolink.c
+  references.c
+  inlines.c
+  tagfilter.c
+  footnotes.c
+  ext_scanners.c
+  scanners.c
+  map.c
+  tasklist.c
+  render.c
+  utf8.c
+  Generating Code...
+  man.c
+  buffer.c
+  xml.c
+  references.c
+  html.c
+  footnotes.c
+  commonmark.c
+  map.c
+  plaintext.c
+  render.c
+  latex.c
+  man.c
+  houdini_href_e.c
+  xml.c
+  libcmark-gfm-extensions_static.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\Release\cmark-gfm-extensions_static.lib
+  houdini_html_e.c
+  html.c
+  Generating Code...
+  commonmark.c
+  plaintext.c
+  latex.c
+  houdini_href_e.c
+  houdini_html_e.c
+  Generating Code...
+  Compiling...
+  houdini_html_u.c
+  cmark_ctype.c
+  arena.c
+  linked_list.c
+  syntax_extension.c
+  registry.c
+  plugin.c
+  Generating Code...
+  Compiling...
+  houdini_html_u.c
+  cmark_ctype.c
+  arena.c
+  linked_list.c
+  syntax_extension.c
+  registry.c
+  plugin.c
+  libcmark-gfm_static.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\src\Release\cmark-gfm_static.lib
+  Generating Code...
+     Creating library Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/build/src/Release/cmark-gfm.lib and object Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/build/src/Release/cmark-gfm.exp
+  libcmark-gfm.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\src\Release\cmark-gfm.dll
+  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/references/cmark-gfm-0.29.0.gfm.13/extensions/CMakeLists.txt
+  core-extensions.c
+  table.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/core-extensions.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/core-extensions.c')
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\core-extensions.c(20,6): warning C4273: 'cmark_gfm_core_extensions_ensure_registered': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(14,6):
+      see previous definition of 'cmark_gfm_core_extensions_ensure_registered'
+  
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/table.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/table.c')
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(878,10): warning C4273: 'cmark_gfm_extensions_get_table_columns': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(17,10):
+      see previous definition of 'cmark_gfm_extensions_get_table_columns'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(885,10): warning C4273: 'cmark_gfm_extensions_get_table_alignments': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(25,10):
+      see previous definition of 'cmark_gfm_extensions_get_table_alignments'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(892,5): warning C4273: 'cmark_gfm_extensions_set_table_columns': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(22,5):
+      see previous definition of 'cmark_gfm_extensions_set_table_columns'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(896,5): warning C4273: 'cmark_gfm_extensions_set_table_alignments': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(30,5):
+      see previous definition of 'cmark_gfm_extensions_set_table_alignments'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(902,5): warning C4273: 'cmark_gfm_extensions_get_table_row_is_header': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(33,5):
+      see previous definition of 'cmark_gfm_extensions_get_table_row_is_header'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\table.c(910,5): warning C4273: 'cmark_gfm_extensions_set_table_row_is_header': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(38,5):
+      see previous definition of 'cmark_gfm_extensions_set_table_row_is_header'
+  
+  strikethrough.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/strikethrough.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/strikethrough.c')
+  
+  autolink.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/autolink.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/autolink.c')
+  
+  tagfilter.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/tagfilter.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/tagfilter.c')
+  
+  ext_scanners.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/ext_scanners.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/ext_scanners.c')
+  
+  tasklist.c
+\command line(1,1): error C2220: the following warning is treated as an error [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/tasklist.c')
+  
+\command line(1,1): warning C5102: ignoring invalid command-line macro definition 'cmark-gfm' [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+  (compiling source file '../../extensions/tasklist.c')
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\tasklist.c(21,5): warning C4273: 'cmark_gfm_extensions_set_tasklist_item_checked': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(48,5):
+      see previous definition of 'cmark_gfm_extensions_set_tasklist_item_checked'
+  
+Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\tasklist.c(30,6): warning C4273: 'cmark_gfm_extensions_get_tasklist_item_checked': inconsistent dll linkage [Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\build\extensions\libcmark-gfm-extensions.vcxproj]
+      Z:\src\DxUi-worktrees\rich-text-core-d2\.build\references\cmark-gfm-0.29.0.gfm.13\extensions\cmark-gfm-core-extensions.h(41,6):
+      see previous definition of 'cmark_gfm_extensions_get_tasklist_item_checked'
+  
+  Generating Code...

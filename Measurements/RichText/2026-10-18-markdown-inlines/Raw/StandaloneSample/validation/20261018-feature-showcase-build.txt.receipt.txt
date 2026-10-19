@@ -1,0 +1,53 @@
+DxUi pin verified: 302f3783a5d2ef60f201ca3abf508c1158fde039
+-- Configuring done (0.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: Z:/src/richedit/build-dxui-x64-Release
+MSBuild version 18.11.0-1.26427.13+9353559c2 for .NET Framework
+
+  1>Checking Build System
+  
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+    DxUi.vcxproj -> Z:\src\richedit\Dependencies\DxUi\7726d48e89b69c36e5b13018785e9309a6987743117ed87fcab0fe3182798287\x64\Release\DxUi.lib
+    DxUi pin verified: 302f3783a5d2ef60f201ca3abf508c1158fde039
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  inspect_rich_edit.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\inspect_rich_edit.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  richtext_app_support.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_app_support.lib
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  richtext_File_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_File_tests.exe
+  richtext_Worker_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_Worker_tests.exe
+  richtext_native.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_native.lib
+  richtext_ReferenceParity_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_ReferenceParity_tests.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+  Main.cpp
+  richtext_NativeControl_tests.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\richtext_NativeControl_tests.exe
+  RichEditRebuild.vcxproj -> Z:\src\richedit\build-dxui-x64-Release\Release\RichEditRebuild.exe
+  Building Custom Rule Z:/src/richedit/CMakeLists.txt
+Test project Z:/src/richedit/build-dxui-x64-Release
+    Start 1: reference_windows_legacy
+1/9 Test #1: reference_windows_legacy .........   Passed    0.06 sec
+    Start 2: reference_windows_modern
+2/9 Test #2: reference_windows_modern .........   Passed    0.07 sec
+    Start 3: reference_office_modern
+3/9 Test #3: reference_office_modern ..........   Passed    0.11 sec
+    Start 4: dependency_single_archive
+4/9 Test #4: dependency_single_archive ........   Passed    1.14 sec
+    Start 5: owned_Worker
+5/9 Test #5: owned_Worker .....................   Passed    0.07 sec
+    Start 6: owned_File
+6/9 Test #6: owned_File .......................   Passed    0.10 sec
+    Start 7: owned_NativeControl
+7/9 Test #7: owned_NativeControl ..............   Passed    0.32 sec
+    Start 8: owned_Application
+8/9 Test #8: owned_Application ................   Passed    0.61 sec
+    Start 9: reference_prototype_parity
+9/9 Test #9: reference_prototype_parity .......   Passed    0.09 sec
+
+100% tests passed, 0 tests failed out of 9
+
+Total Test time (real) =   2.60 sec
+Artifacts: Z:\src\richedit\build-dxui-x64-Release/Release; receipts: Z:\src\richedit\validation\20261018-221100-984-x64-Release

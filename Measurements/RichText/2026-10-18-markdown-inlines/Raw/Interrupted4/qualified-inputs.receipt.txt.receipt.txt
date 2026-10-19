@@ -1,0 +1,123 @@
+{
+  "files": [
+    {
+      "sha256": "BBBFE8A5262139D39B8C9E4662303F7D07899A00FC893B5E6A885E2F2540C25E",
+      "path": "capabilities.json"
+    },
+    {
+      "sha256": "33ABBBD7E476C497398CAE0A537462A8EA88C9EC3F1DC4F857C66054CEC9024C",
+      "path": "Changes/2026-10-18-markdown-inlines.md"
+    },
+    {
+      "sha256": "064AA23A1FECE7FF325F926543CBDBA365A3EED7097374EDBF7FAD3EE5BB5689",
+      "path": "docs/rich-text.md"
+    },
+    {
+      "sha256": "5285E44B178B2DE007850ED56750551AD24CFB1FDD3E266D180120620E9A8F94",
+      "path": "include/DxUi/MarkdownSyntax.h"
+    },
+    {
+      "sha256": "0F9A62409B5EC3B8BEFED61FE4C18475CFEF9A860867BE1B5F8C290EF653EDC7",
+      "path": "Specs/Core/Core_Architecture.md"
+    },
+    {
+      "sha256": "B01CCF7B69112091FA094546E950AA38AAE97DAFBC5D6984CB69E4B3E3B7F798",
+      "path": "Specs/Core/Core_PerformanceAndResources.md"
+    },
+    {
+      "sha256": "4C69F764D4FBD4CC6EA4C12CBBF361129D1BA36BC82D0C1D9A717D48CB1E8AE0",
+      "path": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md"
+    },
+    {
+      "sha256": "6D97A1E1B59A8A06804B42880F679FF6340B1261AA57AFBE93D6D907AE4E2B72",
+      "path": "Specs/Rendering/Rendering_EmbeddedD3D11.md"
+    },
+    {
+      "sha256": "598B06B6F0585DA91DD2DAACD5DCE8100C58070E916526FBDE2925DBD5E91577",
+      "path": "Specs/Testing/Testing_Validation.md"
+    },
+    {
+      "sha256": "76B7DDECBC894871CD4FC58942F76F848205E6B7ECE3A2E6A9CFEA507318958E",
+      "path": "Specs/UI/UI_ControlsAndLayout.md"
+    },
+    {
+      "sha256": "D4BF665B1B4AC97B1EF2CB1F5C865FB584F1F85EBC7140FBB119007AB3CD7B04",
+      "path": "src/Controls/DxUi.MarkdownBlocks.h"
+    },
+    {
+      "sha256": "9718DDDEF0B99009268AEAF8FA441BA891CBBFD359085BB9FCC6DEBAC99D1AB1",
+      "path": "src/Controls/DxUi.MarkdownInlines.h"
+    },
+    {
+      "sha256": "81B2A37C72F0332387B7D62708D6E9A994E851A7376977F750E32DD8932510D9",
+      "path": "src/Controls/DxUi.MarkdownSyntax.cpp"
+    },
+    {
+      "sha256": "1E49EE2858300241526B6A257B44AA0C45D90B6ED35C43C900403AA449BCA262",
+      "path": "src/Controls/DxUi.MarkdownUnicodeData.h"
+    },
+    {
+      "sha256": "D617F056DF524BFC6EB76BBE990C7C83A5B594143E730C5D39F940F27861FC02",
+      "path": "Tests/Controls/Scope.Tests.MarkdownCorpus.h"
+    },
+    {
+      "sha256": "86BDB74379F41FB7EBD991E30A22FEC725C1DD0E1CDFFB83FD632ACE31D7E332",
+      "path": "Tests/Controls/Scope.Tests.RichMarkdown.cpp"
+    },
+    {
+      "sha256": "6B907AD7EB50111EE75234AC70EA80D54EFDD31A0285305380233A85C9F2912E",
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp"
+    },
+    {
+      "sha256": "1C990E67853E509EC1628FE8C782CFEE263879E2AD0306BB8D537A1CAF4D571D",
+      "path": "Tests/Embedded/Scope.Tests.RichTextResources.h"
+    },
+    {
+      "sha256": "83A6328B46CF1330A833F472193BBB59952AFBE34337F19C144ED312C32D0054",
+      "path": "Tests/native-test-files.json"
+    },
+    {
+      "sha256": "A4D40BE77823BBC132C571247CD85B49BBCA369281F10DAE4D7B102349149BAC",
+      "path": "Tests/Support/Scope.Tests.MarkdownHtml.h"
+    },
+    {
+      "sha256": "B415AFB134E3141F33F82EFBC6D8514F22D9A95A82B8A99F76C78976EB59793D",
+      "path": "Tests/Support/Scope.Tests.MarkdownInlines.h"
+    },
+    {
+      "sha256": "42E35878CB6B9C430C6CE81D63C0C4EC651239758AB6D2795A18D02B178A3254",
+      "path": "ThirdParty/Markdown/README.md"
+    },
+    {
+      "sha256": "FF8D8FEFBF123574205085D6714C36149EB946D717A0C585C27F0F4EF58C4183",
+      "path": "ThirdParty/Unicode/17.0.0/CaseFolding.txt"
+    },
+    {
+      "sha256": "BD0ADC2BB94E6FFB8C1A9A001D628F374598BA94E68F921EF2E397F93A8070B8",
+      "path": "ThirdParty/Unicode/17.0.0/markdown-collection.receipt.txt"
+    },
+    {
+      "sha256": "2E1EFC1DCB59C575EEDF5CCAE60F95229F706EE6D031835247D843C11D96470C",
+      "path": "ThirdParty/Unicode/17.0.0/UnicodeData.txt"
+    },
+    {
+      "sha256": "DDE4278E7487282DEF6EEE48399CF0B4FB3FA7201FA65B63390212BBCDB73AE5",
+      "path": "ThirdParty/Unicode/README.md"
+    },
+    {
+      "sha256": "A5152A57E427EB431F3806F0F4C761D14DD1F1A875ECC4C4A521B4D3D4DE67C7",
+      "path": "Tools/Generate-MarkdownTestData.ps1"
+    },
+    {
+      "sha256": "4FFE443EA631978550A2CDBF539E3EC9C468BE5E62D40471B2239407C9683D2D",
+      "path": "Tools/Generate-MarkdownUnicodeData.ps1"
+    },
+    {
+      "sha256": "770F670199FA6C717A35E11EE07005B9510A39EA5C5618212F3BB37B6C420FB1",
+      "path": "Tools/tests/Test-MarkdownData.ps1"
+    }
+  ],
+  "baseCommit": "7c0910ac2bd634e77e304ca5fbed4a0059333cee",
+  "startedUtc": "2026-10-19T02:09:37.3550727Z",
+  "note": "Fresh frozen M3 qualification: 57 complete ordinary x64 scopes, six root builds and 12 isolated probes. No prior diagnostic is promoted or reused. Frame performance and native ARM64/physical IME/AT acceptance remain open."
+}

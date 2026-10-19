@@ -1,0 +1,21 @@
+{
+  "elapsedSeconds": 319.692326,
+  "results": [
+    {
+      "exitCode": 0,
+      "drained": true,
+      "timedOut": false,
+      "processId": 74952,
+      "step": "validation-full"
+    },
+    {
+      "exitCode": 0,
+      "drained": true,
+      "timedOut": false,
+      "processId": 97416,
+      "step": "format-check"
+    }
+  ],
+  "scheduled": 2,
+  "attempted": 2
+}

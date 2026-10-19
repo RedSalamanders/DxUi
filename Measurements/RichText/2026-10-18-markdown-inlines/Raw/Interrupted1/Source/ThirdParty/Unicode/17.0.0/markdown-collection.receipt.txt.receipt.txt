@@ -1,0 +1,22 @@
+[
+  {
+    "file": "CaseFolding.txt",
+    "receiptUtc": "2026-10-18T20:48:04.5814978Z",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/CaseFolding.txt",
+    "license": "LICENSE.txt",
+    "bytes": 87539,
+    "sha256": "FF8D8FEFBF123574205085D6714C36149EB946D717A0C585C27F0F4EF58C4183",
+    "licenseSha256": "E7A93B009565CFCE55919A381437AC4DB883E9DA2126FA28B91D12732BC53D96",
+    "localCreationUtc": "2026-10-18T20:01:31.8550057Z"
+  },
+  {
+    "file": "UnicodeData.txt",
+    "receiptUtc": "2026-10-18T20:48:04.5859684Z",
+    "uri": "https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt",
+    "license": "LICENSE.txt",
+    "bytes": 2198209,
+    "sha256": "2E1EFC1DCB59C575EEDF5CCAE60F95229F706EE6D031835247D843C11D96470C",
+    "licenseSha256": "E7A93B009565CFCE55919A381437AC4DB883E9DA2126FA28B91D12732BC53D96",
+    "localCreationUtc": "2026-10-18T20:01:32.2310457Z"
+  }
+]

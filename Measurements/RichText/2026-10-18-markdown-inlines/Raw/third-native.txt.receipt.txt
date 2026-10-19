@@ -1,0 +1,9 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichTextEditorNativeInlineGrammarAndReferenceEdits
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeInlineGrammarAndReferenceEdits (0.941 s)
+[DONE] EditorControls (0.943 s)
+All DxUi tests passed.

@@ -1,6 +1,7 @@
 #include "Scope.Tests.RichTextEditor.h"
 #include "../../src/Controls/TextClipboard.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.RichMarkdown.h"
 #include <DxUi/ControlCatalog.h>
@@ -693,6 +694,67 @@ void TestRichTextEditorNativeBlockGrammarAndIdentity()
                 "native first/last scalar deletion retains the compatible paragraph identity");
     }
 }
+void TestRichTextEditorNativeInlineGrammarAndReferenceEdits()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        editor->SetMarkdownAnalysisProfile(profile);
+        for (const auto& scenario : MarkdownInlineTests::scenarios)
+        {
+            editor->SetText(std::wstring(scenario.source));
+            RenderEditor(window);
+            const auto syntax = editor->GetMarkdownSyntax();
+            Require(syntax && MarkdownHtmlTests::Html(*syntax) == MarkdownInlineTests::Expected(scenario, profile),
+                    "native inline/extension scenario matches independent expected semantics");
+            Require(editor->GetText() == scenario.source && ! editor->CanUndo(), "native inline analysis preserves exact source and history");
+        }
+    }
+    editor->SetText(std::wstring(MarkdownInlineTests::paddedTable));
+    RenderEditor(window);
+    const auto table = editor->GetMarkdownSyntax();
+    const auto cells = MarkdownInlineTests::TableCellIdentities(*table);
+    Require(cells.size() == 6u, "native three-column table contains both missing body cells");
+    editor->SetSelection({editor->GetText().size(), editor->GetText().size()});
+    Require(editor->ReplaceSelection(L"outside\n"), "native edit outside padded table");
+    RenderEditor(window);
+    Require(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+                MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells,
+            "native unrelated edit preserves unique source-backed and padded cell identities");
+    Require(editor->Undo(), "native padded table unrelated edit undo");
+    RenderEditor(window);
+    Require(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+                MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells,
+            "native undo retains distinct padded cell identities");
+    Require(editor->Redo(), "native padded table unrelated edit redo");
+    RenderEditor(window);
+    Require(MarkdownInlineTests::UniqueNodeIdentities(*editor->GetMarkdownSyntax()) &&
+                MarkdownInlineTests::TableCellIdentities(*editor->GetMarkdownSyntax()) == cells && MarkdownInlineTests::UniqueNodeIdentities(*table),
+            "native redo and held table snapshots retain distinct padded cell identities");
+    editor->SetText(L"[reader]\n\n[reader]: /first\n");
+    RenderEditor(window);
+    const auto before            = editor->GetMarkdownSyntax();
+    const auto paragraphIdentity = before->Nodes()[before->Nodes()[0u].firstChild].identity;
+    const auto at                = editor->GetText().find(L"/first");
+    editor->SetSelection({at, at + 6u});
+    Require(editor->ReplaceSelection(L"/second"), "native reference destination edit");
+    Require(! editor->GetMarkdownSyntax(), "reference edits immediately retire stale inline semantics");
+    RenderEditor(window);
+    const auto after = editor->GetMarkdownSyntax();
+    Require(MarkdownHtmlTests::Html(*after) == L"<p><a href=\"/second\">reader</a></p>\n" &&
+                after->Nodes()[after->Nodes()[0u].firstChild].identity == paragraphIdentity,
+            "unchanged paragraph identity cannot validate stale reference semantics");
+    Require(MarkdownHtmlTests::Html(*before) == L"<p><a href=\"/first\">reader</a></p>\n", "held native inline tree remains immutable");
+    Require(editor->Undo(), "native reference undo");
+    RenderEditor(window);
+    Require(MarkdownHtmlTests::Html(*editor->GetMarkdownSyntax()) == MarkdownHtmlTests::Html(*before), "native undo re-resolves global references");
+    Require(editor->Redo(), "native reference redo");
+    RenderEditor(window);
+    Require(MarkdownHtmlTests::Html(*editor->GetMarkdownSyntax()) == MarkdownHtmlTests::Html(*after), "native redo re-resolves global references");
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -783,4 +845,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
     DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);
     DXUI_RUN_TEST(TestRichTextEditorNativeBlockGrammarAndIdentity);
+    DXUI_RUN_TEST(TestRichTextEditorNativeInlineGrammarAndReferenceEdits);
 }

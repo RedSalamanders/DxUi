@@ -1,0 +1,6 @@
+{
+  "processId": 38736,
+  "reason": "Reviewed GFM tagfilter VT and slash-terminator boundary regressions require fixes; preserve this incomplete attempt.",
+  "commandLine": "\"C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe\" -Command \"try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n$env:TEMP='Z:\\DxUiPerfTemp\\uia-ranges'; $env:TMP=$env:TEMP; $env:MSBUILDDISABLENODEREUSE='1'; & .build/reports/rich-markdown-inline-20261018/Invoke-Final.ps1 -Root $PWD\"",
+  "interruptedUtc": "2026-10-18T20:53:15.3837635Z"
+}

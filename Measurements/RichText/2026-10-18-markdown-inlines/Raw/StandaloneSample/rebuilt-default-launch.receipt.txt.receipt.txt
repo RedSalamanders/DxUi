@@ -1,0 +1,14 @@
+{
+  "sampleSha256": "4C54C06FD29D249DF55EE31EADA9BDE470506903F7A045BE3EE3167F4F9A319A",
+  "tests": "9 of 9 application/reference tests passed",
+  "note": "Separate standalone sample evidence, using the existing exact pin and v0 renderer; no claim of semantic M4 rendering.",
+  "sampleSourceUnits": 7196,
+  "processId": 82840,
+  "sha256": "E8900BD40562BDCF55E70DBD0F5DC6EBDA05B498CD83582E44F98149E7017437",
+  "currentlyRunning": false,
+  "verifiedEarlier": "Rebuilt default document window observed responding; capture reviewed through application harness",
+  "currentWindowTitle": null,
+  "consumerPin": "302f3783a5d2ef60f201ca3abf508c1158fde039",
+  "executable": "Z:\\src\\richedit\\build-dxui-x64-Release\\Release\\RichEditRebuild.exe",
+  "recordedUtc": "2026-10-18T21:04:56.2048911Z"
+}

@@ -1,0 +1,41 @@
+param([string]$Root)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$draft=Join-Path $Root '.build/reports/rich-markdown-inline-20261018/PostQualificationDraft'
+function Rewrite([string]$Relative,[scriptblock]$Transform){
+ $file=Join-Path $draft $Relative
+ $text=[IO.File]::ReadAllText($file).Replace("`r`n","`n")
+ $result=& $Transform $text
+ if($result -ceq $text){throw "No draft change: $Relative"}
+ [IO.File]::WriteAllText($file,$result,[Text.UTF8Encoding]::new($false))
+}
+Rewrite 'README.md' {param($s)
+ $s=$s.Replace('Real IME/AT and complete Markdown conformance remain pending.','Real IME/AT, semantic Markdown rendering/editing and accepted extension qualification remain pending.')
+ $s.Replace("owned lossless container/leaf block-tree and`n  lexical analysis with cooperative preparation and opt-in RichTextEditor hosting;`n  complete CommonMark/GFM parsing and rendering remain in progress.","owned lossless Unicode block/inline parsing and configurable GFM analysis,`n  qualified against 1,324 original semantic expectations with cooperative preparation`n  and opt-in RichTextEditor hosting. Semantic native rendering/editing and the`n  accepted math/diagram extensions remain in progress; see [M3 evidence](Measurements/RichText/2026-10-18-markdown-inlines/README.md).")
+}
+Rewrite 'docs/controls.md' {param($s)
+ $s.Replace('Shared native/embedded source TSF/IME and Document/Text/Text2/TextEdit UIA adapters are implemented; real IME/AT qualification remains pending.', 'Opt into owned lossless CommonMark/GFM block/inline analysis with `SetMarkdownAnalysisProfile` and read immutable `GetMarkdownSyntax` results; semantic rendering/editing remains M4. Shared native/embedded source TSF/IME and Document/Text/Text2/TextEdit UIA adapters are implemented; real IME/AT qualification remains pending.')
+}
+Rewrite 'docs/rich-text.md' {param($s)
+ $s=$s.Replace("qualification and complete Markdown conformance remain separate`nintegration gates", "qualification, semantic Markdown rendering/editing and accepted extension`nqualification remain separate integration gates")
+ $s=$s.Replace("keys for continued implementation, not complete conformance profiles yet. Lexical", "versioned grammar keys. The bounded base parser and specified GFM extensions pass`nthe original semantic corpora; RichMarkdown's additional extensions remain pending. Lexical")
+ $s=$s.Replace("Those are source/lexical tests, not full HTML conformance. Further work includes`ninline precedence, semantic rendering/editing,`nGFM extensions, math, Mermaid, footnotes/front matter and end-to-end NUL admission.","The independent M3 semantic checks described below additionally compare every`noriginal expected HTML output. Semantic rendering/editing, math, Mermaid,`nfootnotes/front matter and end-to-end NUL admission remain future work.")
+ $s=$s.Replace("which identical paragraph was removed. Node identities are scoped to one parser`nuntil Clear and reconciled under compatible parent identities.","which identical paragraph was removed. Node identities are scoped to one parser`nuntil Clear and reconciled under compatible parent identities. Generated missing`ntable cells may share empty ranges; each consumes one prior identity in traversal`norder, retaining distinct IDs across unrelated edits and undo/redo.")
+ $s=$s.Replace("while (parser.HasPendingPreparation())`n    parser.Advance(4096); // Normally called by the existing owner scheduler.`n`nauto syntax = parser.Published();`nconst auto& inlines = syntax->Inlines();`n// Each leaf's firstInline roots a dense firstChild/nextSibling forest.`n// Semantic values and raw enclosures are not source/display editing maps.","// Call again on a later owner turn if preparation is still pending.`nparser.Advance(4096);`nif (auto syntax = parser.Published(); !parser.HasPendingPreparation() && syntax)`n{`n    const auto& inlines = syntax->Inlines();`n    // Each leaf's firstInline roots a dense firstChild/nextSibling forest.`n    // Semantic values and raw enclosures are not source/display editing maps.`n}")
+ $s=$s.Replace('The required qualification matrix remains tracked in the active plan.',"The [sealed M3 qualification](../Measurements/RichText/2026-10-18-markdown-inlines/README.md)`nretains 57 fresh complete ordinary x64 scope/profile runs, six root builds,`n12 isolated probes, 324 exact raster pairs and full validation/format checks.`nBoth hosts also verify padded-cell identity across edits/undo/redo. Parser-only`nraw NUL label replacement is tested under all three profiles; Document/codecs/`ntext-service NUL admission stays deferred. ARM64 builds are compile-only.")
+ $s
+}
+Rewrite 'Specs/UI/UI_ControlsAndLayout.md' {param($s)
+ $s.Replace("required profile qualification is tracked separately in the active plan.","bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/2026-10-18-markdown-inlines/README.md); semantic rendering/editing remains pending.")
+}
+Rewrite 'ThirdParty/Markdown/README.md' {param($s)
+ $s.Replace("characters, restricts task whitespace and does not fold VT/FF labels as the`nadjacent specification prose describes.","characters, restricts task whitespace and does not fold VT/FF labels or filter VT`ntag boundaries as the adjacent specification prose describes.")
+}
+Rewrite 'Specs/Plans/WIP/RichTextEditor_2026-10-17.md' {param($s)
+ $s=$s.Replace('Owned lossless Markdown base block-tree/lexical analysis and document-scoped node reconciliation are qualified as an opt-in bounded preview.', 'Owned lossless Unicode block/inline grammar, specified GFM metadata and document-scoped node reconciliation are qualified as opt-in bounded analysis against all 1,324 pinned semantic expectations.')
+ $s=$s.Replace('- [ ] M3: Complete inline precedence and delimiters, code spans, links/images,', '- [x] M3: Complete inline precedence and delimiters, code spans, links/images,')
+ $s=$s.Replace('  autolinks, safe raw HTML, line breaks and profile-specific GFM extensions.', '  autolinks, opaque raw HTML, line breaks and profile-specific GFM extensions.')
+ $s=$s.Replace("  pinned example, retaining every failure and version difference.","  pinned example, retaining every failure and version difference. All 1,324`n  original semantic outputs, 42 directed three-profile fixtures, unique padded`n  cell IDs, parser NUL labels and native/embedded edit/history checks pass.`n  All 57 fresh ordinary x64 scopes, six root builds, 12 probes, 324 exact raster`n  pairs and full validation/format pass. See the [sealed M3 evidence](../../../Measurements/RichText/2026-10-18-markdown-inlines/README.md).`n  Semantic native rendering/editing and the accepted extensions remain M4/M5.")
+ $s=$s.Replace('## M3 implementation and qualification in progress (2026-10-18)', '## M3 implementation and preserved qualification history (2026-10-18 to 2026-10-19)')
+ $s
+}

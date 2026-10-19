@@ -1,0 +1,12 @@
+param([string]$Root)
+$ErrorActionPreference='Stop'
+$work=Join-Path $Root '.build/reports/rich-markdown-inline-20261018/Final'
+$plan=Get-Content (Join-Path $work 'qualification-plan.receipt.txt') -Raw|ConvertFrom-Json
+$stage=@(Get-Content (Join-Path $Root '.build/reports/rich-markdown-inline-20261018-final-matrix-v5.log')|Where-Object {$_ -like 'Qualification:*'})[-1]
+$slot=Get-ChildItem -LiteralPath $work -Filter '*-started.receipt.txt'|Sort-Object LastWriteTimeUtc -Descending|Select-Object -First 1
+$details=Get-Content -LiteralPath $slot.FullName -Raw|ConvertFrom-Json
+$native=@(foreach($scope in @('Foundation','Embedded','Grid','Theme','Control','MenuExitLifetime','NewControls','EditorControls','TextField','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost','InteractiveLease')){
+ $file=Join-Path $Root ('.build/reports/'+$scope+'-'+$details.platform+'-'+$details.configuration+'.json')
+ if(Test-Path -LiteralPath $file){$r=Get-Content -LiteralPath $file -Raw|ConvertFrom-Json;if($r.PSObject.Properties.Name -contains 'completedUtc' -and [datetime]$r.completedUtc -ge [datetime]$details.startedUtc){[pscustomobject]@{suite=$scope;exit=$r.exitCode}}}
+})
+[pscustomobject]@{utc=[datetime]::UtcNow.ToString('o');elapsedMinutes=[math]::Round(([datetime]::UtcNow-[datetime]$plan.startedUtc).TotalMinutes,1);stage=$stage;freshNativeScopes=$native.Count;failedScopes=@($native|Where-Object exit -NE 0).Count;completed=(Test-Path -LiteralPath (Join-Path $work 'closeout.receipt.txt'))}|ConvertTo-Json

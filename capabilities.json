@@ -84,6 +84,7 @@
     "retained-rich-text-source-tsf-uia-v0",
     "bounded-markdown-root-lexical-analysis-preview",
     "bounded-markdown-block-tree-stable-identities-preview",
+    "bounded-markdown-inline-gfm-analysis-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",

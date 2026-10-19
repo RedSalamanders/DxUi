@@ -1,0 +1,566 @@
+[WATCHDOG] each test may run 600 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichDocumentPrototypeContracts
+  [DONE] TestRichDocumentPrototypeContracts (0.055 s)
+  [START] TestRichDocumentSlicesAndJoinedBoundaries
+  [DONE] TestRichDocumentSlicesAndJoinedBoundaries (0.000 s)
+  [START] TestRichDocumentCrossPieceUnicodeOracle
+  [DONE] TestRichDocumentCrossPieceUnicodeOracle (0.052 s)
+  [START] TestRichDocumentUnicodeCodecRejections
+  [DONE] TestRichDocumentUnicodeCodecRejections (0.000 s)
+  [START] TestRichDocumentFragmentedSnapshotOracle
+RichDocument fragmented lookup diagnostic: insertions=4096 units=24580 queries=8192 expected=5431 documentBytes=104 snapshotBytes=16 trialMs=10.205,9.1824,7.432,7.563,7.2358,
+  [DONE] TestRichDocumentFragmentedSnapshotOracle (0.312 s)
+  [START] TestRichDocumentConcurrentSnapshotReads
+  [DONE] TestRichDocumentConcurrentSnapshotReads (0.047 s)
+  [START] TestRichDocumentUtf8ExactAdmissionLimits
+  [DONE] TestRichDocumentUtf8ExactAdmissionLimits (0.007 s)
+  [START] TestRichDocumentFragmentedEditFixedTrials
+  [DONE] TestRichDocumentFragmentedEditFixedTrials (1.378 s)
+RichDocument edit trial=0 edits=4096 sourceUnits=12288 elapsedMs=273.68
+RichDocument edit trial=1 edits=4096 sourceUnits=12288 elapsedMs=232.608
+RichDocument edit trial=2 edits=4096 sourceUnits=12288 elapsedMs=233.732
+RichDocument edit trial=3 edits=4096 sourceUnits=12288 elapsedMs=284.99
+RichDocument edit trial=4 edits=4096 sourceUnits=12288 elapsedMs=272.518
+  [START] TestRichDocumentPersistentSplitMergeOracle
+  [DONE] TestRichDocumentPersistentSplitMergeOracle (4.562 s)
+  [START] TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins
+  [DONE] TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins (0.124 s)
+  [START] TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse
+  [DONE] TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse (3.760 s)
+  [START] TestRichDocumentBorrowedInputLifetime
+  [DONE] TestRichDocumentBorrowedInputLifetime (0.000 s)
+  [START] TestUnicode17DefaultGraphemeCorpus
+  [DONE] TestUnicode17DefaultGraphemeCorpus (0.007 s)
+  [START] TestTextElementBoundsMalformedAndLongContext
+  [DONE] TestTextElementBoundsMalformedAndLongContext (0.001 s)
+  [START] TestUnicode17BulkCharacterMovementOracle
+  [DONE] TestUnicode17BulkCharacterMovementOracle (0.014 s)
+  [START] TestTextElementBulkMovementFixedTrials
+  [DONE] TestTextElementBulkMovementFixedTrials (0.011 s)
+UIA bulk trial=0 sourceUnits=6144 elements=3072 forwardMs=0.9865 backwardMs=0.9801
+UIA bulk trial=1 sourceUnits=6144 elements=3072 forwardMs=0.9649 backwardMs=0.9556
+UIA bulk trial=2 sourceUnits=6144 elements=3072 forwardMs=0.964 backwardMs=0.9585
+UIA bulk trial=3 sourceUnits=6144 elements=3072 forwardMs=0.9654 backwardMs=1.1275
+UIA bulk trial=4 sourceUnits=6144 elements=3072 forwardMs=0.7728 backwardMs=1.0419
+  [START] TestTextElementBulkMovementMaximumSourceAndMalformedBounds
+  [DONE] TestTextElementBulkMovementMaximumSourceAndMalformedBounds (0.015 s)
+  [START] TestTextFieldInteriorAcpDeletion
+  [DONE] TestTextFieldInteriorAcpDeletion (1.118 s)
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+interior field multiline=0 key=8 resultUnits=2 validUtf16=1
+interior field multiline=0 key=46 resultUnits=2 validUtf16=1
+  [START] TestMultilineFieldInteriorAcpDeletion
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+interior field multiline=1 key=8 resultUnits=2 validUtf16=1
+interior field multiline=1 key=46 resultUnits=2 validUtf16=1
+  [DONE] TestMultilineFieldInteriorAcpDeletion (0.005 s)
+  [START] TestComboBoxInteriorAcpDeletion
+  [DONE] TestComboBoxInteriorAcpDeletion (0.005 s)
+  [START] TestUnicode17CollapsedDeletionCorpus
+  [DONE] TestUnicode17CollapsedDeletionCorpus (0.011 s)
+  [START] TestTextElementSingleBackwardFixedTrials
+  [DONE] TestTextElementSingleBackwardFixedTrials (1.265 s)
+UIA single-backward trial=0 sourceUnits=61440 queries=32 elapsedMs=248.058
+UIA single-backward trial=1 sourceUnits=61440 queries=32 elapsedMs=249.867
+UIA single-backward trial=2 sourceUnits=61440 queries=32 elapsedMs=271.981
+UIA single-backward trial=3 sourceUnits=61440 queries=32 elapsedMs=243.945
+UIA single-backward trial=4 sourceUnits=61440 queries=32 elapsedMs=249.289
+  [START] TestRichSourceChangeSingleTransactions
+  [DONE] TestRichSourceChangeSingleTransactions (0.000 s)
+  [START] TestRichSourceChangeLocalizedTransientPreviews
+  [DONE] TestRichSourceChangeLocalizedTransientPreviews (0.001 s)
+  [START] TestRichSourceChangeJoinedCrlfBounds
+  [DONE] TestRichSourceChangeJoinedCrlfBounds (0.000 s)
+  [START] TestRichSourceChangeUndoRedoAndBranches
+  [DONE] TestRichSourceChangeUndoRedoAndBranches (0.000 s)
+  [START] TestRichSourceChangeTransientPagesAndExpiry
+  [DONE] TestRichSourceChangeTransientPagesAndExpiry (0.043 s)
+  [START] TestRichSourceChangeIndependentUnicodeOracle
+  [DONE] TestRichSourceChangeIndependentUnicodeOracle (0.480 s)
+  [START] TestRichSourceChangeConcurrentEmptyAndMovedValues
+  [DONE] TestRichSourceChangeConcurrentEmptyAndMovedValues (0.012 s)
+  [START] TestRichMarkdownPrototypeContracts
+  [DONE] TestRichMarkdownPrototypeContracts (0.001 s)
+  [START] TestRichMarkdownSnapshotAndValidationContracts
+  [DONE] TestRichMarkdownSnapshotAndValidationContracts (0.000 s)
+  [START] TestRichMarkdownV0StylesCommandsAndMalformedMappings
+  [DONE] TestRichMarkdownV0StylesCommandsAndMalformedMappings (0.001 s)
+  [START] TestLosslessMarkdownOriginalCorporaPreservation
+  [DONE] TestLosslessMarkdownOriginalCorporaPreservation (0.617 s)
+  [START] TestLosslessMarkdownIndependentBlockCorpus
+independent block-section structural expectations: 568; failures: 0
+  [DONE] TestLosslessMarkdownIndependentBlockCorpus (0.292 s)
+  [START] TestLosslessMarkdownIndependentSemanticCorpora
+  [DONE] TestLosslessMarkdownIndependentSemanticCorpora (0.561 s)
+Independent original semantic expectations: 1324; failures: 0
+  [START] TestLosslessMarkdownInlineScenariosAndExtensionIdentity
+Directed inline scenarios: 42; profiles: 3
+  [DONE] TestLosslessMarkdownInlineScenariosAndExtensionIdentity (0.359 s)
+  [START] TestLosslessMarkdownBlockScenariosAndNodeIdentity
+  [DONE] TestLosslessMarkdownBlockScenariosAndNodeIdentity (0.019 s)
+  [START] TestLosslessMarkdownContentSpansAndDependencies
+  [DONE] TestLosslessMarkdownContentSpansAndDependencies (0.005 s)
+  [START] TestLosslessMarkdownNestedPrefixWorkIsBounded
+  [DONE] TestLosslessMarkdownNestedPrefixWorkIsBounded (0.265 s)
+  [START] TestLosslessMarkdownIdentityAtUnicodeParagraphEdges
+  [DONE] TestLosslessMarkdownIdentityAtUnicodeParagraphEdges (0.004 s)
+  [START] TestLosslessMarkdownHtmlRawNameAndVersionBoundaries
+  [DONE] TestLosslessMarkdownHtmlRawNameAndVersionBoundaries (0.006 s)
+  [START] TestLosslessMarkdownRootLeafBlocks
+  [DONE] TestLosslessMarkdownRootLeafBlocks (0.008 s)
+  [START] TestLosslessMarkdownFencedCodeBoundaries
+  [DONE] TestLosslessMarkdownFencedCodeBoundaries (0.001 s)
+  [START] TestLosslessMarkdownLexicalValuesAndAffinity
+  [DONE] TestLosslessMarkdownLexicalValuesAndAffinity (0.374 s)
+  [START] TestLosslessMarkdownSchedulingCancellationAndIdentity
+  [DONE] TestLosslessMarkdownSchedulingCancellationAndIdentity (0.060 s)
+  [START] TestRichProjectionCloneIsolation
+  [DONE] TestRichProjectionCloneIsolation (0.001 s)
+  [START] TestRichProjectionWholeSourceFixedTrials
+  [DONE] TestRichProjectionWholeSourceFixedTrials (10.143 s)
+RichProjection whole-initial trial=0 sourceUnits=30634 elapsedMs=12.923
+RichProjection whole-edits trial=0 edits=128 checksum=3528064 elapsedMs=1930.07
+RichProjection whole-initial trial=1 sourceUnits=30634 elapsedMs=14.8697
+RichProjection whole-edits trial=1 edits=128 checksum=3528064 elapsedMs=2003.12
+RichProjection whole-initial trial=2 sourceUnits=30634 elapsedMs=13.0782
+RichProjection whole-edits trial=2 edits=128 checksum=3528064 elapsedMs=2037.78
+RichProjection whole-initial trial=3 sourceUnits=30634 elapsedMs=13.7044
+RichProjection whole-edits trial=3 edits=128 checksum=3528064 elapsedMs=2029.6
+RichProjection whole-initial trial=4 sourceUnits=30634 elapsedMs=16.797
+RichProjection whole-edits trial=4 edits=128 checksum=3528064 elapsedMs=1986.16
+  [START] TestRichProjectionBlockFixedTrials
+RichProjection initial trial=0 sourceUnits=30634 blocks=1024 elapsedMs=77.2714
+  [DONE] TestRichProjectionBlockFixedTrials (1.124 s)
+RichProjection edits trial=0 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=58.2753
+RichProjection initial trial=1 sourceUnits=30634 blocks=1024 elapsedMs=105.158
+RichProjection edits trial=1 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=58.8306
+RichProjection initial trial=2 sourceUnits=30634 blocks=1024 elapsedMs=75.9768
+RichProjection edits trial=2 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=55.3461
+RichProjection initial trial=3 sourceUnits=30634 blocks=1024 elapsedMs=79.8251
+RichProjection edits trial=3 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=60.0867
+RichProjection initial trial=4 sourceUnits=30634 blocks=1024 elapsedMs=74.7278
+RichProjection edits trial=4 edits=128 rebuiltSourceUnits=11520 reusedBlocks=130688 elapsedMs=62.5608
+  [START] TestRichProjectionBlockFullEquivalence
+  [DONE] TestRichProjectionBlockFullEquivalence (0.007 s)
+  [START] TestRichProjectionBlockReuseAndLineJoins
+  [DONE] TestRichProjectionBlockReuseAndLineJoins (0.009 s)
+  [START] TestRichProjectionBlockUnicodeEditOracle
+  [DONE] TestRichProjectionBlockUnicodeEditOracle (0.223 s)
+  [START] TestRichProjectionBlockFallbackModesAndLifetime
+  [DONE] TestRichProjectionBlockFallbackModesAndLifetime (0.008 s)
+  [START] TestRichProjectionBlockMaximumSource
+  [DONE] TestRichProjectionBlockMaximumSource (0.767 s)
+  [START] TestRichProjectionBlockBranchesAndRetirement
+  [DONE] TestRichProjectionBlockBranchesAndRetirement (0.003 s)
+  [START] TestRichTextLayoutCopyMoveOwnership
+  [DONE] TestRichTextLayoutCopyMoveOwnership (0.002 s)
+  [START] TestRichTextLayoutTrailingEmptyLineBoundary
+  [DONE] TestRichTextLayoutTrailingEmptyLineBoundary (0.003 s)
+  [START] TestRichTextLayoutPrototypeContracts
+  [DONE] TestRichTextLayoutPrototypeContracts (0.003 s)
+  [START] TestRichTextLayoutOptionsFailureAtomicityAndRetirement
+  [DONE] TestRichTextLayoutOptionsFailureAtomicityAndRetirement (0.003 s)
+  [START] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement
+  [DONE] TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement (0.087 s)
+  [START] TestRichTextLayoutHostLocaleAndReadingDirection
+  [DONE] TestRichTextLayoutHostLocaleAndReadingDirection (0.001 s)
+  [START] TestRichTextLayoutUnicode17NavigationAndHitStops
+  [DONE] TestRichTextLayoutUnicode17NavigationAndHitStops (0.003 s)
+  [START] TestRichTextLayoutDeletionRangesAndRetirement
+  [DONE] TestRichTextLayoutDeletionRangesAndRetirement (0.001 s)
+  [START] TestRichDocumentLayoutWholeGeometryOracle
+  [DONE] TestRichDocumentLayoutWholeGeometryOracle (2.507 s)
+rich geometry oracle mode=0 width=80 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=80 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=417 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=417 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=80 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=80 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=417 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=417 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=80 direction=0 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=0 width=80 direction=1 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=0 width=417 direction=0 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=0 width=417 direction=1 sourceUnits=2205 endingUnits=1
+  [START] TestRichDocumentLayoutEditsAndFailurePublication
+rich geometry oracle mode=1 width=80 direction=0 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=1 width=80 direction=1 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=1 width=417 direction=0 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=1 width=417 direction=1 sourceUnits=2205 endingUnits=1
+rich geometry oracle mode=0 width=80 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=80 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=417 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=417 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=80 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=80 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=417 direction=0 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=1 width=417 direction=1 sourceUnits=2207 endingUnits=3
+rich geometry oracle mode=0 width=80 direction=0 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=0 width=80 direction=1 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=0 width=417 direction=0 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=0 width=417 direction=1 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=1 width=80 direction=0 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=1 width=80 direction=1 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=1 width=417 direction=0 sourceUnits=2215 endingUnits=11
+rich geometry oracle mode=1 width=417 direction=1 sourceUnits=2215 endingUnits=11
+  [DONE] TestRichDocumentLayoutEditsAndFailurePublication (2.152 s)
+  [START] TestRichDocumentLayoutHeightChangesRepositionSuffix
+  [DONE] TestRichDocumentLayoutHeightChangesRepositionSuffix (0.956 s)
+  [START] TestRichDocumentLayoutPrivateOriginsDoNotEnterProjection
+  [DONE] TestRichDocumentLayoutPrivateOriginsDoNotEnterProjection (0.077 s)
+  [START] TestRichDocumentLayoutLongHeightAndChunkBudget
+  [DONE] TestRichDocumentLayoutLongHeightAndChunkBudget (0.722 s)
+  [START] TestRichDocumentLayoutWarpRasterOracle
+  [DONE] TestRichDocumentLayoutWarpRasterOracle (18.854 s)
+rich positioned raster exactPairs=108 fontProfiles=6 directions=2 transforms=3 viewports=3
+  [START] TestRichDocumentLayoutBranchesOptionsAndCompaction
+  [DONE] TestRichDocumentLayoutBranchesOptionsAndCompaction (8.971 s)
+  [START] TestRichDocumentLayoutCooperativeBudgetsAndGeometry
+  [DONE] TestRichDocumentLayoutCooperativeBudgetsAndGeometry (1.305 s)
+  [START] TestRichDocumentLayoutCoalescingCancellationAndFailure
+  [DONE] TestRichDocumentLayoutCoalescingCancellationAndFailure (0.019 s)
+  [START] TestRichTextEditorTransactionsAndValidation
+  [DONE] TestRichTextEditorTransactionsAndValidation (0.001 s)
+  [START] TestRichTextEditorUnicodeCharacterTransactions
+  [DONE] TestRichTextEditorUnicodeCharacterTransactions (0.000 s)
+  [START] TestRichTextEditorFormattingAndModePreserveSource
+  [DONE] TestRichTextEditorFormattingAndModePreserveSource (0.001 s)
+  [START] TestRichTextEditorCallbackRetirementAndFailure
+  [DONE] TestRichTextEditorCallbackRetirementAndFailure (0.001 s)
+  [START] TestRichTextEditorNativeHostAndLayoutReuse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeHostAndLayoutReuse (0.173 s)
+  [START] TestRichTextEditorNativeUnicodeRoutingAndNavigation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeUnicodeRoutingAndNavigation (0.412 s)
+  [START] TestRichTextEditorClipboardAtomicityAndSourceContract
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorClipboardAtomicityAndSourceContract (0.007 s)
+  [START] TestRichTextEditorScrollAndHostClock
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorScrollAndHostClock (0.365 s)
+  [START] TestRichTextEditorCatalogAndRebinding
+  [DONE] TestRichTextEditorCatalogAndRebinding (0.001 s)
+  [START] TestRichTextEditorNativeChunkReuseAndRetirement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeChunkReuseAndRetirement (0.974 s)
+  [START] TestRichTextEditorNativeCompatibilityWorkIsReported
+    [TRACE] attached host dtor: begin
+rich native compatibility sourceUnits=26624 dpi=96 bodyFontSize=13 chunks=26 wholeGeometry=0 wholeRaster=0 preparedChunkSourceUnits=1040 wholeLayoutsPrepared=0 wholeLayoutSourceUnits=0
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeCompatibilityWorkIsReported (0.592 s)
+  [START] TestRichTextEditorNativeCooperativePreparation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeCooperativePreparation (1.215 s)
+  [START] TestRichTextEditorNativeMessageSchedulingAndFailure
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeMessageSchedulingAndFailure (1.016 s)
+  [START] TestRichTextEditorNativeHostVisibilityAndZeroHeight
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeHostVisibilityAndZeroHeight (3.478 s)
+  [START] TestRichTextEditorNativePreparationCanReplaceRoot
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativePreparationCanReplaceRoot (0.552 s)
+  [START] TestRichTextEditorNativeLosslessMarkdownPreparation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeLosslessMarkdownPreparation (1.088 s)
+  [START] TestRichTextEditorNativeBlockGrammarAndIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeBlockGrammarAndIdentity (0.780 s)
+  [START] TestRichTextEditorNativeInlineGrammarAndReferenceEdits
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextEditorNativeInlineGrammarAndReferenceEdits (1.508 s)
+  [START] TestRichTextTransientSourcePreservesHistory
+  [DONE] TestRichTextTransientSourcePreservesHistory (0.000 s)
+  [START] TestRichTextServiceValidationAndGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestRichTextServiceValidationAndGeometry (0.422 s)
+  [START] TestRichTextNativeImeCommitCancelAndRetirement
+  [DONE] TestRichTextNativeImeCommitCancelAndRetirement (0.001 s)
+  [START] TestRichTextEmbeddedCompositionRevisionsAndRebinding
+  [DONE] TestRichTextEmbeddedCompositionRevisionsAndRebinding (0.044 s)
+  [START] TestRichTextEmbeddedMappedGeometry
+  [DONE] TestRichTextEmbeddedMappedGeometry (0.141 s)
+  [START] TestRichTextEmbeddedPreviewRebinding
+  [DONE] TestRichTextEmbeddedPreviewRebinding (0.031 s)
+  [START] TestRichTextNativeTsfCompositionAndDisconnection
+  [DONE] TestRichTextNativeTsfCompositionAndDisconnection (0.002 s)
+  [START] TestSplitterDefaultState
+  [DONE] TestSplitterDefaultState (0.000 s)
+  [START] TestSplitterClampsToPaneMinimums
+  [DONE] TestSplitterClampsToPaneMinimums (0.000 s)
+  [START] TestSplitterHitBoundsCoverOnlySeparator
+  [DONE] TestSplitterHitBoundsCoverOnlySeparator (0.000 s)
+  [START] TestSplitterDragPreviewsCommitsAndCancels
+  [DONE] TestSplitterDragPreviewsCommitsAndCancels (0.001 s)
+  [START] TestSplitterKeyboardStepsAndCommits
+  [DONE] TestSplitterKeyboardStepsAndCommits (0.000 s)
+  [START] TestSplitterHorizontalOrientationAndCursors
+  [DONE] TestSplitterHorizontalOrientationAndCursors (0.000 s)
+  [START] TestSplitterDisabledAndRequestPosition
+  [DONE] TestSplitterDisabledAndRequestPosition (0.000 s)
+  [START] TestSplitterPaintHandlesMissingDeviceContext
+  [DONE] TestSplitterPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestSplitterChangeCallbackCanReplaceRootSafely
+  [DONE] TestSplitterChangeCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestSplitterMutableChangeCallbackRetainsState
+  [DONE] TestSplitterMutableChangeCallbackRetainsState (0.000 s)
+  [START] TestNumericStepperDefaultState
+  [DONE] TestNumericStepperDefaultState (0.000 s)
+  [START] TestNumericStepperParseAndFormat
+  [DONE] TestNumericStepperParseAndFormat (0.000 s)
+  [START] TestNumericStepperSetValueClampsSilently
+  [DONE] TestNumericStepperSetValueClampsSilently (0.000 s)
+  [START] TestNumericStepperNudgeAndButtonsCommit
+  [DONE] TestNumericStepperNudgeAndButtonsCommit (0.001 s)
+  [START] TestNumericStepperMutableChangeCallbackRetainsState
+  [DONE] TestNumericStepperMutableChangeCallbackRetainsState (0.001 s)
+  [START] TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels
+  [DONE] TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels (0.318 s)
+  [START] TestNumericStepperUnparseableEditRevertsAndDecimalsRound
+  [DONE] TestNumericStepperUnparseableEditRevertsAndDecimalsRound (0.001 s)
+  [START] TestNumericStepperEditsEndWithCommitOrCancel
+  [DONE] TestNumericStepperEditsEndWithCommitOrCancel (0.001 s)
+  [START] TestSplitterStaysInsideAnExtentBelowItsMinimums
+  [DONE] TestSplitterStaysInsideAnExtentBelowItsMinimums (0.000 s)
+  [START] TestNumericStepperDisabledAndLayout
+  [DONE] TestNumericStepperDisabledAndLayout (0.001 s)
+  [START] TestNumericStepperChangeCallbackCanReplaceRootSafely
+  [DONE] TestNumericStepperChangeCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestColorHelpers
+  [DONE] TestColorHelpers (0.000 s)
+  [START] TestColorPickerDefaultState
+  [DONE] TestColorPickerDefaultState (0.001 s)
+  [START] TestColorPickerSetColorSyncsChildrenSilently
+  [DONE] TestColorPickerSetColorSyncsChildrenSilently (0.001 s)
+  [START] TestColorPickerMutableChangeCallbackRetainsState
+  [DONE] TestColorPickerMutableChangeCallbackRetainsState (0.001 s)
+  [START] TestColorPickerFieldDragPreviewsAndOkCommits
+  [DONE] TestColorPickerFieldDragPreviewsAndOkCommits (0.002 s)
+  [START] TestColorPickerHueStripAndKeyboard
+  [DONE] TestColorPickerHueStripAndKeyboard (0.003 s)
+  [START] TestColorPickerCancelPaths
+  [DONE] TestColorPickerCancelPaths (0.004 s)
+  [START] TestColorPickerTypedComponentsAndHex
+  [DONE] TestColorPickerTypedComponentsAndHex (0.008 s)
+  [START] TestColorPickerTypingKeepsTheEditedField
+  [DONE] TestColorPickerTypingKeepsTheEditedField (0.004 s)
+  [START] TestNumericStepperStepButtonsCarryAutomationNames
+  [DONE] TestNumericStepperStepButtonsCarryAutomationNames (0.001 s)
+  [START] TestColorPickerCaptionSlotsFollowTheLabelWidths
+  [DONE] TestColorPickerCaptionSlotsFollowTheLabelWidths (0.001 s)
+  [START] TestColorPickerDisabledAndPaint
+  [DONE] TestColorPickerDisabledAndPaint (0.005 s)
+  [START] TestColorPickerCommitCallbackCanReplaceRootSafely
+  [DONE] TestColorPickerCommitCallbackCanReplaceRootSafely (0.003 s)
+  [START] TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace
+  [DONE] TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace (0.011 s)
+  [START] TestColorPickerReleasesItsGradientsWhenItsHostChanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestColorPickerReleasesItsGradientsWhenItsHostChanges (0.215 s)
+  [START] TestColorPickerMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestColorPickerMovedBetweenHostsMatchesAFreshOne (5.305 s)
+  [START] TestNumericStepperMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNumericStepperMovedBetweenHostsMatchesAFreshOne (1.783 s)
+  [START] TestTabControlMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTabControlMovedBetweenHostsMatchesAFreshOne (1.777 s)
+  [START] TestMenuBarMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarMovedBetweenHostsMatchesAFreshOne (1.786 s)
+  [START] TestTextFieldMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldMovedBetweenHostsMatchesAFreshOne (1.730 s)
+  [START] TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace
+  [DONE] TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace (0.001 s)
+  [START] TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace
+  [DONE] TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace (0.001 s)
+  [START] TestTreeMovedBetweenDensitiesMatchesAFreshOne
+  [DONE] TestTreeMovedBetweenDensitiesMatchesAFreshOne (0.002 s)
+  [START] TestGridMovedBetweenDensitiesMatchesAFreshOne
+  [DONE] TestGridMovedBetweenDensitiesMatchesAFreshOne (0.006 s)
+  [START] TestMovingAControlAnnouncesWhatItNowInheritsOnce
+  [DONE] TestMovingAControlAnnouncesWhatItNowInheritsOnce (0.002 s)
+  [START] TestPageHostInheritsItsControlParentFlowAndDensity
+  [DONE] TestPageHostInheritsItsControlParentFlowAndDensity (0.000 s)
+  [START] TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren (0.533 s)
+  [START] TestEditorControlsAreCatalogued
+  [DONE] TestEditorControlsAreCatalogued (0.003 s)
+  [START] TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed
+  [DONE] TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed (0.003 s)
+[DONE] EditorControls (90.147 s)
+All DxUi tests passed.

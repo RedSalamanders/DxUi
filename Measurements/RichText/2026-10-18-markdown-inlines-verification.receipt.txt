@@ -1,0 +1,40 @@
+{
+  "offline": {
+    "utc": "2026-10-19T03:02:00.7493135Z",
+    "version": 1,
+    "seal": "654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276",
+    "records": [
+      {
+        "output": "Verified M3 seal 654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276; frozen source, 57 ordinary x64 scope obligations, six builds, 12 failure probes, 324 exact raster pairs, standards/data and full tooling receipts. No native ARM64, physical IME/AT, complete semantic renderer/editing or frame-performance acceptance claim.",
+        "operation": "offline-exact-copy",
+        "passed": true
+      },
+      {
+        "message": "Packet file hash/length mismatch: Native/EditorControls-x64-Debug.receipt.txt",
+        "operation": "tamper-rejection",
+        "target": "Native/EditorControls-x64-Debug.receipt.txt",
+        "passed": true
+      },
+      {
+        "message": "Packet file hash/length mismatch: Raster/x64-Debug/profile-0-direction-0-variant-0-viewport-0-actual.png",
+        "operation": "tamper-rejection",
+        "target": "Raster/x64-Debug/profile-0-direction-0-variant-0-viewport-0-actual.png",
+        "passed": true
+      }
+    ],
+    "originalAndRestoredVerify": true
+  },
+  "packet": "Measurements/RichText/2026-10-18-markdown-inlines",
+  "verifiedUtc": "2026-10-19T03:02:43.1751329Z",
+  "classification": "Sealed exact-byte offline and Git-only replay; tamper rejection. Frozen compiled qualification and final repository validation remain separately identified.",
+  "version": 1,
+  "seal": "654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276",
+  "payloadFileCount": 3143,
+  "gitOnly": {
+    "archiveSha256": "45BAE23E906F2AE97F7E32E3A14BEF0542DB45784E5B346726C38E911C0E8B53",
+    "result": "Verified M3 seal 654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276; frozen source, 57 ordinary x64 scope obligations, six builds, 12 failure probes, 324 exact raster pairs, standards/data and full tooling receipts. No native ARM64, physical IME/AT, complete semantic renderer/editing or frame-performance acceptance claim.",
+    "seal": "654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276",
+    "stagedPacketTree": "c10f8c67bb181b664d84cfafe8a868f411ab537d",
+    "verifiedUtc": "2026-10-19T03:02:05.6411731Z"
+  }
+}

@@ -1,5 +1,7 @@
 #include "Scope.Tests.RichMarkdown.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownHtml.h"
+#include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
@@ -14,6 +16,7 @@ using namespace DxUi::RichText;
 using MarkdownBlockTests::BlockSignature;
 static_assert(! std::is_constructible_v<MarkdownSyntax, std::wstring_view>);
 static_assert(! std::is_copy_assignable_v<MarkdownSyntax>);
+void CheckInlineForest(const MarkdownSyntax& syntax);
 template <typename F> void Reject(F&& operation, const char* description)
 {
     bool rejected = false;
@@ -151,7 +154,7 @@ std::shared_ptr<const MarkdownSyntax> CompleteMarkdown(MarkdownParser& parser, s
 {
     const auto previousUnits = parser.Published() ? parser.Published()->Source().size() : 0u;
     std::size_t total        = 0u;
-    for (std::size_t turn = 0u; turn < Document::MaximumUnits * 8u + 16u; ++turn)
+    for (std::size_t turn = 0u; turn < Document::MaximumUnits * 16u + 32u; ++turn)
     {
         const auto advance = parser.Advance(budget);
         Require(advance.workUnits <= budget, "Markdown advance respects the supplied operation budget");
@@ -159,7 +162,7 @@ std::shared_ptr<const MarkdownSyntax> CompleteMarkdown(MarkdownParser& parser, s
         if (advance.status == MarkdownPreparationStatus::Complete)
         {
             const auto syntax = parser.Published();
-            Require(syntax && total <= (syntax->Source().size() + previousUnits) * 8u + 16u,
+            Require(syntax && total <= (syntax->Source().size() + previousUnits) * 16u + 32u,
                     "scanner/index steps resume with bounded work and atomically publish");
             return syntax;
         }
@@ -343,6 +346,168 @@ void TestLosslessMarkdownIndependentBlockCorpus()
     }
     std::cout << "independent block-section structural expectations: " << checked << "; failures: " << failures << '\n';
     Require(checked > 560u && failures == 0u, "every pinned CommonMark/GFM block-section example matches independent structural HTML expectations");
+}
+void TestLosslessMarkdownIndependentSemanticCorpora()
+{
+    std::size_t checked = 0, failures = 0;
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+    {
+        const auto expectations = profile == MarkdownProfile::CommonMark0312 ? std::span<const MarkdownCorpus::BlockExample>(MarkdownCorpus::kCommonMarkBlocks)
+                                                                             : std::span<const MarkdownCorpus::BlockExample>(MarkdownCorpus::kGfmBlocks);
+        const auto inputs       = profile == MarkdownProfile::CommonMark0312 ? std::span<const std::wstring_view>(MarkdownCorpus::kCommonMark)
+                                                                             : std::span<const std::wstring_view>(MarkdownCorpus::kGfm);
+        for (std::size_t i = 0; i < inputs.size(); ++i)
+        {
+            MarkdownParser parser;
+            auto extensions     = MarkdownExtensions::None;
+            const auto declared = expectations[i].extensions;
+            if (declared.find(L"table") != std::wstring_view::npos)
+                extensions = extensions | MarkdownExtensions::Tables;
+            if (declared.find(L"strikethrough") != std::wstring_view::npos)
+                extensions = extensions | MarkdownExtensions::Strikethrough;
+            if (declared.find(L"autolink") != std::wstring_view::npos)
+                extensions = extensions | MarkdownExtensions::Autolinks;
+            if (declared.find(L"tagfilter") != std::wstring_view::npos)
+                extensions = extensions | MarkdownExtensions::TagFilter;
+            // The original harness skips two 'disabled' task examples. Retain
+            // and execute both here with task recognition and the printed HTML.
+            if (declared.find(L"disabled") != std::wstring_view::npos)
+                extensions = extensions | MarkdownExtensions::TaskLists;
+            parser.Begin(inputs[i], 1u, profile, extensions);
+            while (parser.HasPendingPreparation())
+                parser.Advance(31u);
+            const auto syntax = parser.Published();
+            CheckInlineForest(*syntax);
+            const auto actual = MarkdownHtmlTests::Html(*syntax);
+            if (actual != expectations[i].html)
+            {
+                ++failures;
+                std::wcerr << L"SEMANTIC " << (profile == MarkdownProfile::CommonMark0312 ? L"CM " : L"GFM ") << expectations[i].number << L" ["
+                           << expectations[i].section << L"]\nINPUT:\n"
+                           << inputs[i] << L"EXPECTED:\n"
+                           << expectations[i].html << L"ACTUAL:\n"
+                           << actual << L"\n";
+            }
+            ++checked;
+        }
+    }
+    std::cout << "Independent original semantic expectations: " << checked << "; failures: " << failures << '\n';
+    Require(checked == 1324u && failures == 0u, "all original pinned CommonMark and strict GFM semantic expectations");
+}
+void CheckInlineForest(const MarkdownSyntax& syntax)
+{
+    const auto& inlines = syntax.Inlines();
+    std::vector<bool> seen(inlines.size());
+    struct Visit
+    {
+        std::size_t index;
+        MarkdownRange parent;
+    };
+    std::vector<Visit> pending;
+    for (const auto& block : syntax.Nodes())
+        if (block.firstInline != MarkdownNoNode)
+            pending.push_back({block.firstInline, block.block.source});
+    while (! pending.empty())
+    {
+        const auto visit = pending.back();
+        pending.pop_back();
+        Require(visit.index < inlines.size() && ! seen[visit.index], "published inline edges are bounded, unique and acyclic");
+        seen[visit.index] = true;
+        const auto& node  = inlines[visit.index];
+        Require(node.source.first >= visit.parent.first && node.source.first <= node.source.last && node.source.last <= visit.parent.last,
+                "inline values retain bounded raw source enclosures");
+        if (node.firstChild != MarkdownNoNode)
+            pending.push_back({node.firstChild, node.source});
+        if (node.nextSibling != MarkdownNoNode)
+            pending.push_back({node.nextSibling, {node.source.last, visit.parent.last}});
+        std::size_t previous = 0u;
+        for (const auto offset : node.filteredHtmlOpeners)
+        {
+            Require(node.kind == MarkdownInlineKind::Html && HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::TagFilter) && offset >= previous &&
+                        offset < node.value.size() && node.value[offset] == L'<',
+                    "tagfilter metadata points only to ordered opaque HTML openers");
+            previous = offset + 1u;
+        }
+    }
+    Require(std::all_of(seen.begin(), seen.end(), [](bool value) { return value; }), "no retired delimiter or bracket shells are published");
+}
+void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
+{
+    std::cout << "Directed inline scenarios: " << std::size(MarkdownInlineTests::scenarios) << "; profiles: 3\n";
+    MarkdownParser parser;
+    const wchar_t nulLabel[] = L"[a\0b]: /url\n[a\0b]\n";
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const std::wstring_view source(nulLabel, std::size(nulLabel) - 1u);
+        parser.Begin(source, 1u, profile);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        CheckMarkdownPartitions(*syntax, source);
+        Require(MarkdownHtmlTests::Html(*syntax) == L"<p><a href=\"/url\">a\ufffdb</a></p>\n",
+                "raw NUL is replaced consistently in reference definitions and inline label lookup");
+    }
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : MarkdownInlineTests::scenarios)
+        {
+            parser.Begin(scenario.source, 1u, profile);
+            const auto syntax = CompleteMarkdown(parser, 1u);
+            CheckMarkdownPartitions(*syntax, scenario.source);
+            CheckInlineForest(*syntax);
+            const auto actual = MarkdownHtmlTests::Html(*syntax);
+            if (actual != MarkdownInlineTests::Expected(scenario, profile))
+                std::wcerr << L"SCENARIO " << scenario.name << L" ACTUAL " << actual;
+            Require(actual == MarkdownInlineTests::Expected(scenario, profile),
+                    "resolved inline and extension scenario matches literal independent expectation");
+        }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        parser.Begin(MarkdownInlineTests::paddedTable, 2u, profile);
+        const auto before = CompleteMarkdown(parser, 1u);
+        const auto cells  = MarkdownInlineTests::TableCellIdentities(*before);
+        Require(cells.size() == 6u, "three-column table pads two missing body cells");
+        for (unsigned revision = 3u; revision <= 4u; ++revision)
+        {
+            parser.Begin(MarkdownInlineTests::paddedTable, revision, profile);
+            const auto after = CompleteMarkdown(parser, 1u);
+            CheckMarkdownPartitions(*after, MarkdownInlineTests::paddedTable);
+            Require(MarkdownInlineTests::UniqueNodeIdentities(*after) && MarkdownInlineTests::TableCellIdentities(*after) == cells,
+                    "same-range generated cells retain distinct stable identities across repeated revisions");
+        }
+        parser.Begin(std::wstring(MarkdownInlineTests::paddedTable) + L"outside\n", 5u, profile);
+        const auto edited = CompleteMarkdown(parser, 1u);
+        Require(MarkdownInlineTests::UniqueNodeIdentities(*edited) && MarkdownInlineTests::TableCellIdentities(*edited) == cells,
+                "an unrelated paragraph edit preserves every source-backed and padded cell identity");
+    }
+    parser.Begin(L"~~x~~", 7u, MarkdownProfile::Gfm029);
+    const auto all = CompleteMarkdown(parser);
+    parser.Begin(L"~~x~~", 7u, MarkdownProfile::Gfm029, MarkdownExtensions::None);
+    const auto disabled = CompleteMarkdown(parser);
+    Require(all != disabled && all->Extensions() == MarkdownExtensions::All && disabled->Extensions() == MarkdownExtensions::None &&
+                MarkdownHtmlTests::Html(*disabled) == L"<p>~~x~~</p>\n",
+            "extension options participate in same-revision request identity");
+    parser.Begin(L"pending", 8u, MarkdownProfile::Gfm029);
+    Reject([&] { parser.Begin(L"bad", 8u, MarkdownProfile::Gfm029, static_cast<MarkdownExtensions>(64u)); }, "unknown extension bits rejected");
+    Reject([&] { parser.Begin(L"bad", 8u, MarkdownProfile::CommonMark0312, MarkdownExtensions::All); }, "CommonMark cannot silently enable GFM extensions");
+    Require(CompleteMarkdown(parser)->Source() == L"pending", "invalid extension admission retains the preceding pending request");
+    const std::wstring flat(Document::MaximumUnits, L'x');
+    parser.Begin(flat, 9u);
+    const auto large = CompleteMarkdown(parser);
+    Require(large->Inlines().size() == 1u && large->Inlines()[0u].value == flat, "ordinary literal text coalesces without per-character retained strings");
+    const std::wstring nested = std::wstring(4096u, L'*') + L'x' + std::wstring(4096u, L'*');
+    parser.Begin(nested, 10u);
+    const auto deep = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*deep);
+    Require(deep->Inlines().size() == 2049u, "deep emphasis has a dense iterative forest without retired delimiter nodes");
+    const auto held = parser.Published();
+    std::wstring cancelSource;
+    for (unsigned i = 0; i < 1024u; ++i)
+        cancelSource += L"**a** ";
+    parser.Begin(cancelSource, 11u, MarkdownProfile::Gfm029);
+    parser.Advance(cancelSource.size() * 2u + 16u);
+    Require(parser.HasPendingPreparation() && parser.Published() == held, "inline staging never publishes partial forests");
+    parser.Cancel();
+    Require(parser.Published() == held && ! parser.HasPendingPreparation(), "inline cancellation retains the immutable previous publication");
+    parser.Begin(cancelSource, 12u, MarkdownProfile::Gfm029);
+    CheckInlineForest(*CompleteMarkdown(parser, 13u));
 }
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
@@ -679,7 +844,7 @@ void TestLosslessMarkdownSchedulingCancellationAndIdentity()
     std::size_t total = first.workUnits;
     while (parser.HasPendingPreparation())
         total += parser.Advance(17u).workUnits;
-    Require(total <= latest.size() * 8u + 16u && parser.Published()->Source() == latest,
+    Require(total <= latest.size() * 16u + 32u && parser.Published()->Source() == latest,
             "same pending request coalesces without restarting or quadratic hostile ampersand scans");
     const auto published = parser.Published();
     parser.Begin(latest, 2u);
@@ -711,6 +876,8 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestRichMarkdownV0StylesCommandsAndMalformedMappings);
     DXUI_RUN_TEST(TestLosslessMarkdownOriginalCorporaPreservation);
     DXUI_RUN_TEST(TestLosslessMarkdownIndependentBlockCorpus);
+    DXUI_RUN_TEST(TestLosslessMarkdownIndependentSemanticCorpora);
+    DXUI_RUN_TEST(TestLosslessMarkdownInlineScenariosAndExtensionIdentity);
     DXUI_RUN_TEST(TestLosslessMarkdownBlockScenariosAndNodeIdentity);
     DXUI_RUN_TEST(TestLosslessMarkdownContentSpansAndDependencies);
     DXUI_RUN_TEST(TestLosslessMarkdownNestedPrefixWorkIsBounded);

@@ -1,0 +1,38 @@
+{
+  "scheduledOperations": 21,
+  "profileBudgetSeconds": 1800,
+  "buildChildBudgetSeconds": 600,
+  "scheduled": 6,
+  "overallBudgetSeconds": 7200,
+  "profiles": [
+    {
+      "configuration": "Debug",
+      "platform": "x64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "platform": "x64"
+    },
+    {
+      "configuration": "Release",
+      "platform": "x64"
+    },
+    {
+      "configuration": "Debug",
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "Release",
+      "platform": "ARM64"
+    },
+    {
+      "configuration": "ASan Debug",
+      "platform": "ARM64"
+    }
+  ],
+  "probeChildBudgetSeconds": 180,
+  "notes": "Frozen compiled and prose inputs across all six profiles. Every x64 profile executes all 19 ordinary scopes freshly, with root builds and four isolated probes per profile. All 57 scope obligations are independently verified against source and artifact hashes. Explicit isolated Debug/Release/ASan Markdown/parser/storage and clear/copy/move/chunk/whole/flat failure sweeps precede ordinary suites and install the diagnostic-only terminate handler. ARM64 cross-builds do not imply native execution. Canonical reports stay unpaired diagnostics; original failed oracles and all samples remain retained.",
+  "perNativeTestTimeoutSeconds": 600,
+  "startedUtc": "2026-10-19T02:09:37.4073446Z",
+  "suiteChildBudgetSeconds": 1200
+}

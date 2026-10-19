@@ -8,7 +8,9 @@ $generators=@(
       pins=@('entities.json','LICENSE.txt')},
     @{script='Tools/Generate-MarkdownTestData.ps1';inputs='ThirdParty/Markdown';output='Tests/Controls/Scope.Tests.MarkdownCorpus.h';
       pins=@('corpora/CommonMark-0.31.2-spec.json','corpora/CommonMark-0.31.2-LICENSE.txt','corpora/GFM-0.29.0.gfm.13-spec.txt',
-             'corpora/GFM-0.29.0.gfm.13-COPYING.txt','whatwg-2026-10-18/entities.json','whatwg-2026-10-18/LICENSE.txt')}
+             'corpora/GFM-0.29.0.gfm.13-COPYING.txt','whatwg-2026-10-18/entities.json','whatwg-2026-10-18/LICENSE.txt')},
+    @{script='Tools/Generate-MarkdownUnicodeData.ps1';inputs='ThirdParty/Unicode/17.0.0';output='src/Controls/DxUi.MarkdownUnicodeData.h';
+      pins=@('CaseFolding.txt','UnicodeData.txt','LICENSE.txt')}
 )
 foreach($item in $generators){
     Invoke-FixtureCase "offline reproducibility, read-only checks and stale/missing output for $($item.script)" {

@@ -1,0 +1,9 @@
+
+Algorithm : SHA256
+Hash      : 324BB9C40E951AC7506F7DA8BC0C0206C910A29FAE0060D753623B61546AB922
+Path      : Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.ControlTests.exe
+
+Algorithm : SHA256
+Hash      : 5F137958C3DCCA383703E7D7A61B4CD4BD6B78D50C8A515259202E9B551D934C
+Path      : Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\Release\DxUi.EmbeddedTests.exe
+

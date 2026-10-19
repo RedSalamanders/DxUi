@@ -14,6 +14,13 @@ second view has a separate document identity; geometry-only changes may retain a
 completed pure syntax. Dependent fence/container edits must not reuse stale
 line-local block classifications.
 
+M3 reference/inline/extension preparation and dense forest publication share the
+same traversal. Analysis still contributes no rendered primitives or host/device
+resources. Native and embedded fixtures compare literal semantic expectations for
+each grammar family and re-resolve global references through edit/undo/redo while
+holding immutable older trees. A second embedded view retains independent syntax.
+The v0 pixel comparison remains required; M4 owns semantic renderer integration.
+
 Status: normative intended contract
 Last reviewed: 2026-10-17
 

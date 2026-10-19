@@ -1,0 +1,77 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestLosslessMarkdownIndependentSemanticCorpora
+SEMANTIC GFM 398 [Emphasis and strong emphasis]
+INPUT:
+__foo, __bar__, baz__
+EXPECTED:
+<p><strong>foo, bar, baz</strong></p>
+ACTUAL:
+<p><strong>foo, <strong>bar</strong>, baz</strong></p>
+
+SEMANTIC GFM 426 [Emphasis and strong emphasis]
+INPUT:
+foo******bar*********baz
+EXPECTED:
+<p>foo<strong>bar</strong>***baz</p>
+ACTUAL:
+<p>foo<strong><strong><strong>bar</strong></strong></strong>***baz</p>
+
+SEMANTIC GFM 434 [Emphasis and strong emphasis]
+INPUT:
+__foo __bar__ baz__
+EXPECTED:
+<p><strong>foo bar baz</strong></p>
+ACTUAL:
+<p><strong>foo <strong>bar</strong> baz</strong></p>
+
+SEMANTIC GFM 435 [Emphasis and strong emphasis]
+INPUT:
+____foo__ bar__
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p><strong><strong>foo</strong> bar</strong></p>
+
+SEMANTIC GFM 436 [Emphasis and strong emphasis]
+INPUT:
+**foo **bar****
+EXPECTED:
+<p><strong>foo bar</strong></p>
+ACTUAL:
+<p><strong>foo <strong>bar</strong></strong></p>
+
+SEMANTIC GFM 473 [Emphasis and strong emphasis]
+INPUT:
+****foo****
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p><strong><strong>foo</strong></strong></p>
+
+SEMANTIC GFM 474 [Emphasis and strong emphasis]
+INPUT:
+____foo____
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p><strong><strong>foo</strong></strong></p>
+
+SEMANTIC GFM 475 [Emphasis and strong emphasis]
+INPUT:
+******foo******
+EXPECTED:
+<p><strong>foo</strong></p>
+ACTUAL:
+<p><strong><strong><strong>foo</strong></strong></strong></p>
+
+SEMANTIC GFM 477 [Emphasis and strong emphasis]
+INPUT:
+_____foo_____
+EXPECTED:
+<p><em><strong>foo</strong></em></p>
+ACTUAL:
+<p><em><strong><strong>foo</strong></strong></em></p>
+
+Independent original semantic expectations: 1324; failures: 9
+FAILED: all original pinned CommonMark and strict GFM semantic expectations

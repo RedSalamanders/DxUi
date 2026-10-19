@@ -33,3 +33,26 @@ exclusions. Separate malformed-input, long-context, retained-editor and UIA case
 exercise the integration. This pin concerns logical grapheme segmentation. Word
 and sentence boundaries, normalization, visual bidi navigation, font shaping and
 physical IME/assistive-technology qualification have their own contracts.
+
+## Markdown character classes and reference labels
+
+M3 adds the original Unicode 17 `UnicodeData.txt` and `CaseFolding.txt`; their
+official URLs, original byte counts/hashes and collection metadata are in
+`17.0.0/markdown-collection.receipt.txt`. The same Unicode License V3 applies.
+The owned parser uses P/S (or legacy GFM P plus ASCII) punctuation, Zs whitespace,
+Unicode letter/number domain characters and full default C/F case folding.
+Turkic T mappings and Unicode normalization are not implicitly applied.
+UnicodeData First/Last range pairs are expanded as intervals, including CJK and
+supplementary letter ranges. Data is independent of Windows locale/version.
+
+```powershell
+./Tools/Generate-MarkdownUnicodeData.ps1
+./Tools/Generate-MarkdownUnicodeData.ps1 -Check
+./Tools/tests/Test-MarkdownData.ps1
+```
+
+Generation verifies both original data pins and the license. Tooling fixtures
+check byte reproduction, read-only checks, stale/missing output and every changed
+or missing data/license input. Directed parser and native/embedded cases cover
+multi-character folding, supplementary labels, normalization differences,
+punctuation, CJK URLs and profile-specific whitespace.

@@ -1,0 +1,3 @@
+
+  DxUi.MarkdownSyntax.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\x64\ASan Debug\DxUi.lib

@@ -1,0 +1,15 @@
+{
+  "startedUtc": "2026-10-18T20:07:52.0103452Z",
+  "processId": 27900,
+  "application": "build-dxui-x64-Release/Release/RichEditRebuild.exe",
+  "applicationSha256": "BF3882958F56D3D8A906AFDEC6E78BC3491A5EAB169EB0E6161CDC4B04C1112B",
+  "sample": "samples/FeatureShowcase.md",
+  "sampleSha256": "4C54C06FD29D249DF55EE31EADA9BDE470506903F7A045BE3EE3167F4F9A319A",
+  "sourceUnits": 7196,
+  "pin": "302f3783a5d2ef60f201ca3abf508c1158fde039",
+  "windowTitle": null,
+  "responding": null,
+  "note": "Existing Release application explicitly launched with the new UTF-8 document; no binary rebuild or consumer pin update. M3 syntax work is separate from v0 rendering.",
+  "verifiedWindowEarlier": "PID 27900: FeatureShowcase.md / Opened / Responding=True",
+  "laterProcessState": "Exited before receipt collection; reason not observed"
+}

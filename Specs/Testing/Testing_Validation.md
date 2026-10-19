@@ -13,6 +13,20 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
+0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
+example's declared extension flags; execute its two `disabled` task examples
+with task recognition instead of skipping them. The independent test serializer
+uses the owned AST and original expected outputs. Nine GFM printed expectations
+collapse directly nested redundant strong tags; record this HTML convention
+without discarding the source wrappers or changing the original expected data.
+Core tests validate a dense, bounded, acyclic inline forest, Unicode/version
+boundaries, cancellation, extension request identity and iterative deep nesting.
+Both retained hosts run the directed grammar fixtures and reference edit/history
+tests. Expanded fault probes must inject every observed admission/inline/extension
+allocation, including MSVC Debug proxies. Qualification still requires the normal
+native/build/tooling matrix; a focused diagnostic is not full qualification.
+
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
 unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;

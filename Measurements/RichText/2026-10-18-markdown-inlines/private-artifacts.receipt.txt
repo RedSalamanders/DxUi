@@ -1,0 +1,1007 @@
+[
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Baseline/DxUi.ControlTests.exe",
+    "bytes": 12032512,
+    "sha256": "324BB9C40E951AC7506F7DA8BC0C0206C910A29FAE0060D753623B61546AB922"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Baseline/DxUi.ControlTests.pdb",
+    "bytes": 67563520,
+    "sha256": "6C8067689787946F540F0977AE3025C37617CA560DAAFD1A2D554173AF110666"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Baseline/DxUi.EmbeddedTests.exe",
+    "bytes": 4567552,
+    "sha256": "5F137958C3DCCA383703E7D7A61B4CD4BD6B78D50C8A515259202E9B551D934C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Baseline/DxUi.EmbeddedTests.pdb",
+    "bytes": 28168192,
+    "sha256": "6BC3DD1BECDC38333DC3FABFEDCCB9571CBE29D0572AC0C127C536121E15290B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FifthFrozenArtifacts/DxUi.ControlTests.exe",
+    "bytes": 12251136,
+    "sha256": "E6C0FD2735613521D5F8D36E57B8996D8117063C37CBC47FFFF9536706DF4C79"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FifthFrozenArtifacts/DxUi.ControlTests.pdb",
+    "bytes": 102387712,
+    "sha256": "4A385D6CC125BBC560B398DBE33B0E70D10E76BEF6A3C6D817763FBADB174B63"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FifthFrozenArtifacts/DxUi.EmbeddedTests.exe",
+    "bytes": 4743680,
+    "sha256": "9ABCC6AE23DA817C5F8F554808A87622B95AC0712CCF96B684AB289A9E22DC58"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FifthFrozenArtifacts/DxUi.EmbeddedTests.pdb",
+    "bytes": 45895680,
+    "sha256": "A795362D144D79EC1B7A6930CE59F6C9D29A885D6BD8F49CD06CC364C1BC960A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/clang_rt.asan_dynamic-aarch64.dll",
+    "bytes": 2294448,
+    "sha256": "46261E83388D240D6CA57B24772209881D446B5CBCD65300423506D9286F515C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.ControlTests.exe",
+    "bytes": 33705984,
+    "sha256": "9B085A2CCAD06C1F7B32AE4C871BEC6A7CC9CA0A3D23C559E274819EAE9B8E23"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.ControlTests.pdb",
+    "bytes": 69414912,
+    "sha256": "418951C69A064588089DCCEE5C48B4002F5E9792A22A59438077CF22F2BC73D3"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 10833408,
+    "sha256": "D5DC718391DD0737323FFE6481E7BEAAA8FAE47BB3E4E05C78A6B97FC3EF2820"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 27660288,
+    "sha256": "FBB69000392B096801BBF40A4432E16996800DB3870F6AA47EA5FF07D4868145"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 13679104,
+    "sha256": "045938E26496D57E106D997F919D6742D2E6F41468F5C86F63AAAB9AC40D5E02"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 33239040,
+    "sha256": "496B5DFC084F76418CB41F32066A9A106080947F43D4A9F85491FFC39B23E771"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.FoundationTests.exe",
+    "bytes": 10626560,
+    "sha256": "54D2D9993F741FDE59B6FB0B5E4892A36BD305F4500CE625DD1A7776ABEFEE7F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.FoundationTests.pdb",
+    "bytes": 27234304,
+    "sha256": "8C7F240D13024DD3C112B03F0844313A0F9F027192A54E81A08D402F3B045BBA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.InteractiveLease.exe",
+    "bytes": 1896960,
+    "sha256": "E3A9538F64E950A472F4B38CED53933909089C7B67AC2F8C329BC34607A0EE7A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 5984256,
+    "sha256": "B8A3379A07096F0C8D47E950932746CD973209CB541F347B42C99E4BA63D7668"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.lib",
+    "bytes": 97175714,
+    "sha256": "70AC25923747B9A729EB3F64AAAAA4C2AB03DE1EC023DA268324CC435A8BCA33"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/ASan Debug/DxUi.pdb",
+    "bytes": 9228288,
+    "sha256": "2207A4D1EA8936012B66962CF9EBA7A18542AAEA1773A8B923B7326E0299CBB9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.ControlTests.exe",
+    "bytes": 36446208,
+    "sha256": "651F35EAF229001AD61F971FF81111B75F6A1D7DCDEF2C78EC61F72A690F8AF4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.ControlTests.pdb",
+    "bytes": 80220160,
+    "sha256": "87327F1D8B62708C845258F7D62791F0EDFBEAAB4201017A9BB076831C9E286C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 13372928,
+    "sha256": "300ED851EAF22D80B787D9477B044C774F6AA455330B2E4B7D90F823D8A168C5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 31305728,
+    "sha256": "6656FE6BF199843092E48E1129858F4771FE5C2CD3B120831424C5DC8E4F2349"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 16558592,
+    "sha256": "473636B1C9FC0665BB5678FB626840521F310E4BBC0DB6FD65EA8C084A29134C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 37761024,
+    "sha256": "F8CE642977ECD8AF3D2CB55A79A87561E66AF433C51BE0FC1CFA9959754BD2DB"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.FoundationTests.exe",
+    "bytes": 13101056,
+    "sha256": "03922EF95A56929697D66C027A76425535A9AB5914DEA3BE2667C557965A5060"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.FoundationTests.pdb",
+    "bytes": 30781440,
+    "sha256": "CAA22C790F66F7675A9368A7744BD0FC7A4C6165BBE1F25B44F77272A0ABCF61"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.InteractiveLease.exe",
+    "bytes": 2471936,
+    "sha256": "DCBBDDF642D2CCDD9E9E3789457C79EB929F7FAF11E71DF8FCF9723C041B83BC"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6672384,
+    "sha256": "E5DDA421E2E6BF0F552C71931381AF254AED4ED5EBC958B146DC7E25DEFDE20D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.lib",
+    "bytes": 112315328,
+    "sha256": "325DDE44CA203001762841085FB8CF9EBA746B2C99CA0E0676ECE375DC7E4260"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Debug/DxUi.pdb",
+    "bytes": 9105408,
+    "sha256": "D299309EA1141993CDD26E66266092FE0BA3D7BA818D98537D32C9979178B974"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.ControlTests.exe",
+    "bytes": 15479808,
+    "sha256": "3718A0B1F11E095803430C4B93A65554D49E9779236F550D01FB86EA6B7A46BB"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.ControlTests.pdb",
+    "bytes": 69988352,
+    "sha256": "717E1973B796A0A8BE44763E67F683D69DAE73D6A8AA85FF4DB9ECCFD13895D3"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.EmbeddedControls.exe",
+    "bytes": 4241920,
+    "sha256": "4152C2D09DAA68DA515D4FB0A522D5D4694CC1677F7611D09BD33B79968E7381"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.EmbeddedControls.pdb",
+    "bytes": 22941696,
+    "sha256": "39620D42562D4AE9696A5B8F586B842E060ED1E7240E7BCE84321C029DE431D6"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.EmbeddedTests.exe",
+    "bytes": 5698560,
+    "sha256": "3AD54B5166E1FD347A9CDD07565B6EB6B1CEE90FA1FDA62DE3896D403B4516E3"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.EmbeddedTests.pdb",
+    "bytes": 28479488,
+    "sha256": "0A0BB7E349420B145D407F4947EF03E9AEFDD679450B911E49871FB99E7605CD"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.FoundationTests.exe",
+    "bytes": 4112896,
+    "sha256": "C6EE21662DAC3463525D231B6685B31B81872FF3A799DE033EF081610631F761"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.FoundationTests.pdb",
+    "bytes": 22335488,
+    "sha256": "6530F390AA3BC422CD8E11D1329C5CFC393E74E22CFE44C515742013DFEBC32C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.InteractiveLease.exe",
+    "bytes": 968704,
+    "sha256": "3F3135E57537E41C4EF6190AC869B09830F0E156EDA0C26D5F1CA719747F5B56"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.InteractiveLease.pdb",
+    "bytes": 5902336,
+    "sha256": "2B59C4D59D1FFC281DEA8CECA6DA4CFB3A90843929345CE01B1F6192CCDC3A67"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.lib",
+    "bytes": 46766150,
+    "sha256": "F663C3F823E5D0097534872D2D3847D62566734F54675BCECF3E6F752D695796"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/ARM64/Release/DxUi.pdb",
+    "bytes": 8925184,
+    "sha256": "D1DB52D994C8695B5CE35459C2451E31251E6B27FF5E324A29589FEA82720B67"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.ControlTests.exe",
+    "bytes": 40621056,
+    "sha256": "882F8A19BEBF86379CF5A915E75E1C2590D0ACDE59C1D3AD2ABA8E636258DB1A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.ControlTests.pdb",
+    "bytes": 69758976,
+    "sha256": "70077CF3B180966491421D59D54493E68F3B338A722B3284A05F4D0E117FD228"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 14036480,
+    "sha256": "CB37B60567D7525A081E8146900873E500093A8E5E83BA086E6C4B06B54B6108"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 28061696,
+    "sha256": "27AD1FA05C5C2720450402E090F8B5A380037E421F23BBAFBA03E451199E5A75"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 17333248,
+    "sha256": "C6A63FD95F5221C7191EC54B759CA1ED661B8DC0706CA3B2370A0F559153AE0A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 33648640,
+    "sha256": "AB98DD6F06CFC2CBB608807C2B55D4F4559DF0428E70CABDA26AA79B43FFB98A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.FoundationTests.exe",
+    "bytes": 13805568,
+    "sha256": "204AD3016D91593FDD853B88CA78FBC97345C9C5C68BD548F9AD8C4D41E41028"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.FoundationTests.pdb",
+    "bytes": 27652096,
+    "sha256": "89B5CB5C431DF54AE768C1F06369F83E37586329B73F55E17D2E8A1E92FF61E7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.InteractiveLease.exe",
+    "bytes": 2356736,
+    "sha256": "3098D24722323CE2425E7D2454F115F0B245486E904DCFE72AD56774E3BA6BD7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6361088,
+    "sha256": "ED7DCCA55C72B38ADB08FF7FA40E0C000CF3D8A97E5FC01198DFE3F52168F871"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.lib",
+    "bytes": 111191066,
+    "sha256": "3E36A2308F97CE4B04048AD48DD7CAD36FA613CE5C135D8BE802E68A68CA299F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/ASan Debug/DxUi.pdb",
+    "bytes": 9228288,
+    "sha256": "29ADF3DD9BB608B36BB846D5B7E522EF5B8C5E55AC2F728131FD707A0B1204B2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.ControlTests.exe",
+    "bytes": 23887360,
+    "sha256": "B1E26F25DC99A23A8DA6AD8348AF73F7370C08D6533CD38C755B09B7318EDD0C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.ControlTests.pdb",
+    "bytes": 76115968,
+    "sha256": "F39CD74C18A4C53F1F52AB19DD1C98180E61A344826DC68006E54382CCE769A9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 8871424,
+    "sha256": "469C3BBECB9307C8ACBDCD933947FAAC4A926A6B60EF3DDFCF73B8B2149E9ACA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 29945856,
+    "sha256": "C3BFCBD8AFB65346495C32AB516BA4F9A2319ABB5E6AC3085B2FCE4696A65EC5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 10934784,
+    "sha256": "3149BCFA6891669EEF256F1ECD80F772EEFC435EF10A32F3A0785F91AE3C480C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 35966976,
+    "sha256": "97DFB97C71ABD060B56A401CD9E46F03A1D1E2949A9D47388E6025508A7CC6C5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.FoundationTests.exe",
+    "bytes": 8692224,
+    "sha256": "CABF07C078339CE06BC8DA8FC9D811260DFD9E47305DE9445C5753675724162D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.FoundationTests.pdb",
+    "bytes": 29446144,
+    "sha256": "42D08A42C0E1F78169B193797962760F560A044DB3C4293A0FA27F5F8207B29D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.InteractiveLease.exe",
+    "bytes": 1944576,
+    "sha256": "C2671358797C3041BD3469A66ED46BA0494F42A2B8F34A739229FC0932588E66"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6787072,
+    "sha256": "9F07170FC9B4FA4235A0AF2BD413889E053CB70F89B8C2C956B06B2B74BFCAE2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.lib",
+    "bytes": 101421058,
+    "sha256": "5421F6A855DCB32763898AD732E28E45B18166014C9C863DE37909BF4F6E6798"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Debug/DxUi.pdb",
+    "bytes": 9105408,
+    "sha256": "6BCA1ED33D4B01D8EBB637AFBF82D3509477F9BBCA033A32862CFC57034C9E3A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.ControlTests.exe",
+    "bytes": 12268032,
+    "sha256": "CF4921D6A4961534C69AA1E99DEF139CA3FED3C86BAB0AFBE35E81E072D3D05D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.ControlTests.pdb",
+    "bytes": 68407296,
+    "sha256": "15AC53AA50741DC32EBB76128E04E0A53E596C640FCE0D0EBDDAE0BEF57726DA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.EmbeddedControls.exe",
+    "bytes": 3641344,
+    "sha256": "FBB059BD41CF29A76D0A1A2F79EA8ECE7738E5C2B6D7534DBD4D3423B99AC8B0"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.EmbeddedControls.pdb",
+    "bytes": 23564288,
+    "sha256": "E99CCEF48FAAC90E8BA13954094AFD0CCC676832E81750424DBCBF8C6D19F546"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.EmbeddedTests.exe",
+    "bytes": 4753408,
+    "sha256": "4CF0CA498E2EEB5B084CAEA1CE6B3AFD4987E5091298B1D31D1EF16A2182E131"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.EmbeddedTests.pdb",
+    "bytes": 28880896,
+    "sha256": "EDA180D8C5767167BD6AB5FD95904C68C1430C31E9FF1958AEBD6303F62880A8"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.FoundationTests.exe",
+    "bytes": 3547648,
+    "sha256": "15664F8245F511A2ABD80A8E64C8E8BC46E644BEE2D9FD4D8429E74F6E146E2C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.FoundationTests.pdb",
+    "bytes": 22990848,
+    "sha256": "7A2D43220B89C3C65A6645431A7202C4556A6F2DF9C8A49D7BE2D965056D2F72"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.InteractiveLease.exe",
+    "bytes": 913920,
+    "sha256": "79CF610150725313ED9D3107EF40A000114AE7EAD4631EC15345657F4DEF86D2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.InteractiveLease.pdb",
+    "bytes": 6541312,
+    "sha256": "8000B22B09DC738AB4276624F449001FC66D9B71D17B6613B0ACBC0CCD668998"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.lib",
+    "bytes": 46761556,
+    "sha256": "8BAA3FD6E891CE4FF1167B5A7418A9C7D656A4E3ECCE3CDC6EC71BB1E2B6690C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FinalArtifacts/x64/Release/DxUi.pdb",
+    "bytes": 8925184,
+    "sha256": "BDA6A9702DD4613A2CF7950F65C0239AD4F4CE1059F5AA2C639D74FC76160D71"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FirstFailed/DxUi.ControlTests.exe",
+    "bytes": 12164096,
+    "sha256": "38C81BB008A252EE9699242838384A33D9E7FC38C5B88620B524B447882675C3"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FirstFailed/DxUi.ControlTests.pdb",
+    "bytes": 68128768,
+    "sha256": "EF2EE46448CC1897DF6C9955097ACAA9C4C19FA3ED9C62699F1BDE0F663405C4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FourthDiagnosticMixed/DxUi.ControlTests.exe",
+    "bytes": 12251136,
+    "sha256": "B0BBFE6E0ACC5875FFD68446E85CCB209CF2E4AB54E3E7CBE586199F1D83327F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FourthDiagnosticMixed/DxUi.ControlTests.pdb",
+    "bytes": 74665984,
+    "sha256": "A2E63364E9878C9382D4AA3D4CDD1623BCEFE1AD52636BE6B7141E76A4D16082"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FourthDiagnosticMixed/DxUi.EmbeddedTests.exe",
+    "bytes": 4743680,
+    "sha256": "596CD359174C8DCBDD1DD6114E5A21BE714D6CD2368ED98AF32B74CAF6918E7F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/FourthDiagnosticMixed/DxUi.EmbeddedTests.pdb",
+    "bytes": 30584832,
+    "sha256": "F43F5C6A8CFDB4B887AEE850DDCC43AAE26857391B0F579602D6E1345022BC28"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted2/PrivatePartialArtifacts/DxUi.ControlTests.exe",
+    "bytes": 40573952,
+    "sha256": "965562AE82C18ABF42BF8D3485EF89A13DB2AD5244C1C65BD42C3025753DCA87"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted2/PrivatePartialArtifacts/DxUi.ControlTests.pdb",
+    "bytes": 69701632,
+    "sha256": "D9AF7F6EBF63643BB6B2643D72A5E3B8CE25AD798F3DAA495E9CBBB4A9CB2D42"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted2/PrivatePartialArtifacts/DxUi.EmbeddedTests.exe",
+    "bytes": 17303040,
+    "sha256": "9D2EBCE9AB6E401EBB57559BDC3EC69220484AE96657F5FBDD65D7225F22E5BD"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted2/PrivatePartialArtifacts/DxUi.EmbeddedTests.pdb",
+    "bytes": 33615872,
+    "sha256": "8D20527E3D85C439C945FCDAB22658EFCDBB2069643F5676FBFDB67C59E8F8EA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted4/Artifacts/DxUi.ControlTests.exe",
+    "bytes": 23886336,
+    "sha256": "9B607B752C47AF8BC2F2785C008299393592563E6F6AFEF92B9085F3D6064868"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted4/Artifacts/DxUi.ControlTests.pdb",
+    "bytes": 76107776,
+    "sha256": "19572652065B4C21A674DB0FD30F49E2C16D14A0D068CA2C615696DBC697AE7B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted4/Artifacts/DxUi.EmbeddedTests.exe",
+    "bytes": 10934784,
+    "sha256": "11B6C3E186D581CFB873C3AC7EBA40B5EE790473C635258072E1E6B09134EDE2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted4/Artifacts/DxUi.EmbeddedTests.pdb",
+    "bytes": 35966976,
+    "sha256": "771ECD685DE6B5CF5F7B8CA9C65D3783C082586BB7F6AEC31091BFB2AC3CAD20"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Interrupted4/Artifacts/DxUi.lib",
+    "bytes": 101420986,
+    "sha256": "0F2D6C8B6BE8AAEADA451264D3D613C94294F577B002CB5B186028ADEE4E7D45"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/SecondFailed/DxUi.ControlTests.exe",
+    "bytes": 12196864,
+    "sha256": "B1481217A92402ECFF70E1F0BB3BB2CEF9EA94E18913E358739539083C07A287"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/SecondFailed/DxUi.ControlTests.pdb",
+    "bytes": 71667712,
+    "sha256": "C3E506CB82568984290AAD29BD9C33E3B7D81DD12265974B065792BE6D248505"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/clang_rt.asan_dynamic-aarch64.dll",
+    "bytes": 2294448,
+    "sha256": "46261E83388D240D6CA57B24772209881D446B5CBCD65300423506D9286F515C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.ControlTests.exe",
+    "bytes": 33669632,
+    "sha256": "6599F74FE99BF1A41E4E9180C668825B63784340934AC3B8259D0D8EC5E6407C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.ControlTests.pdb",
+    "bytes": 69365760,
+    "sha256": "1D2BC54C55A462EB94D767A364787FF66CA55D08BBF40BC70AEF7AFE1C7DB424"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 10825216,
+    "sha256": "93A736ED72592E283AE500CD9A827B53A5DFA3E5966F408F9A5DD9BC64D0DB9E"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 27627520,
+    "sha256": "392033BE0C71C820A654FE7B230A82DAD0CA6046FD4A0EC2C5CE6036D2B8964A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 13657600,
+    "sha256": "E2EA71814E17F6E40FB0B39CB262A582D1AFB2883E9FDDDA6C3330ACFE5D9122"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 33206272,
+    "sha256": "80DEDA2BC036101908F947C3B6CDDF9CE52AE46DD8B8CF5CE8E90617A985D961"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.FoundationTests.exe",
+    "bytes": 10617856,
+    "sha256": "93DAEAEF9EB752AC4AB9BA48B39FDBBDCE27E8BF335D4D6E1D820D40AAF7709A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.FoundationTests.pdb",
+    "bytes": 27201536,
+    "sha256": "CD833BAF3CBF14C474C3A0FC595D3DBE79EB2FACACB2BBEA41141009AE87BF4C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.InteractiveLease.exe",
+    "bytes": 1896960,
+    "sha256": "9A2936190F3D570D88531C3F0007DB51C9C69D43F5FC8D8FEEEA05649108B53F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 5984256,
+    "sha256": "67085965369E0631A5F80AE444543CF4D9188594BA66ED771D432934571D969B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.lib",
+    "bytes": 97118294,
+    "sha256": "E22E245C0DFCF3CD74C3A763373457C4C055C935089A154E8194438BF47128E1"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/ASan Debug/DxUi.pdb",
+    "bytes": 9228288,
+    "sha256": "DD6F9B4026972E018BC62F76344071BDB70A7B22177A3D00AD4322397FFE01DA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.ControlTests.exe",
+    "bytes": 36405248,
+    "sha256": "5743FEB478EEB718D4731FAC79B03D3F5882A4CEDCFD8B6CC909C4FEA491964C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.ControlTests.pdb",
+    "bytes": 80162816,
+    "sha256": "B8028B1823FB6011DD0E171ED0172D13377F5A673AFE060A6F8BC994CA405968"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 13362688,
+    "sha256": "31C880B1D5B2EF3AA4361D37CA554731D64B85D05D31A51BBDB23995B7F2A9D7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 31281152,
+    "sha256": "62C83634503982B10CB5DACFAB67073E06942D5C6383B353289DB995A1984E5C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 16535040,
+    "sha256": "51F120918917988A1DC69793DF26FCDD290E00228DD95CBBC67B896DCB321632"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 37720064,
+    "sha256": "57EE61261CAC408C5003AF8B53A6F2B7AB38EC6EABFA946E6A84F6CD63D190F4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.FoundationTests.exe",
+    "bytes": 13091328,
+    "sha256": "64C75F37BC6DF96C6E78CE51A6903E03B8C4A081E8E5922C522024C92293DD7E"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.FoundationTests.pdb",
+    "bytes": 30756864,
+    "sha256": "C998BF02DAF9869DBD784CAE9FA678612EE7050753605EC1EA52CD2548680A9C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.InteractiveLease.exe",
+    "bytes": 2471936,
+    "sha256": "2823A3D1D34ADF4CD2AAFCFD2FC5BF0BDB016618AA8FC9F82698F9EE8E3DEFE8"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6672384,
+    "sha256": "BE8422A7042A66A18491FB4971620009D7A313557853E47C7C6F9BB83CC7B5FD"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.lib",
+    "bytes": 112248872,
+    "sha256": "F7BABB8AE9A6E158EAC9E3FDD87D9E66BBFD43385DEC7F1BEF0FCB49CEE870E9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Debug/DxUi.pdb",
+    "bytes": 9105408,
+    "sha256": "F29FD51C9C398648ACDBD3549783DBF9EAD2519EE2875E053138F6D0FC77638B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.ControlTests.exe",
+    "bytes": 15463424,
+    "sha256": "CB97E973F6FF9BD1B896F1B8B6BB7AF7328E4725AB5172CF747C067BF983C679"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.ControlTests.pdb",
+    "bytes": 69931008,
+    "sha256": "F8B3C8FBDBEA8806C4CE7F2CBE01123E4521DC129B8B11B74B5DA4AF77D63AE4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.EmbeddedControls.exe",
+    "bytes": 4239872,
+    "sha256": "6B8790E73243FBBEBBBF8D6E30328F93211B1794AE42E65BCE376DE6E1768DF8"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.EmbeddedControls.pdb",
+    "bytes": 22933504,
+    "sha256": "EC0CDF4C6971A5C9B9AE3E6169698679B5AC606368CDEE621E108359AFB38393"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.EmbeddedTests.exe",
+    "bytes": 5689856,
+    "sha256": "FE69481C72AA8D524E79102DC96521F4984A3CB2A95F58CE79751C8AC9CF7FD4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.EmbeddedTests.pdb",
+    "bytes": 28438528,
+    "sha256": "51DA36FA5AAEA9384E60DE9B0E08FE576239C3A8C387F6BEFD1A4F071B67691A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.FoundationTests.exe",
+    "bytes": 4110848,
+    "sha256": "1A05245A46ED5212EC44C81B49DA9EC39412D6086D9F83028D49F1E8B47E6EDE"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.FoundationTests.pdb",
+    "bytes": 22319104,
+    "sha256": "A17E4A2A5DCB4170BAF1243DD59B5916D685709D031D4290238E652E882283C0"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.InteractiveLease.exe",
+    "bytes": 968704,
+    "sha256": "13E6E49E5E587C77074076F88276F41CD55B0D1AA1BB2293D2ECDED19E3C15DA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.InteractiveLease.pdb",
+    "bytes": 5902336,
+    "sha256": "DFD145402260C0628F1A3F109B558368EDBAA3FE66DB7B6CB5C0DE47B324D84D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.lib",
+    "bytes": 46751538,
+    "sha256": "04E3F0CF402FC3F27606F1AE4C238F90B5FFE52EFB13A94AA3D6497CA4350748"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/ARM64/Release/DxUi.pdb",
+    "bytes": 8925184,
+    "sha256": "D4016086E26CF4577C27F4A7D8C3BDC064633DEA34B3F7AF2A46D799C161CC15"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.ControlTests.exe",
+    "bytes": 40577024,
+    "sha256": "48F16802A6F4440C5C630FE1346D93949C73CC945D0FDFD2E186AAC29F687AAF"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.ControlTests.pdb",
+    "bytes": 69709824,
+    "sha256": "BEA7C9B3B4BA8D34D37C396EF600853B5B91ABC771DB20B1A73D067C11F665D7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 14025216,
+    "sha256": "30CA2D74344B4D20195B2E67BB427F40B74B929DB27CB18C96E6629B2A121DB7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 28037120,
+    "sha256": "5C2E1162A459C2C8947A5156694451F377DBC85262F8C5E20BACB8ED23E04B32"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 17307648,
+    "sha256": "7EB9BCB67F04504F72E86A378ECC9BB80E0AF13B2124D1DF8933A6948969FC76"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 33615872,
+    "sha256": "48BFA090D6A328AA661D475D0E2A14E19832C16323CFDC2AB1DA2AB38B2E6A2E"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.FoundationTests.exe",
+    "bytes": 13793792,
+    "sha256": "28B43FD619AF54D2030CAAB689788FAEE2D3D86A9CF1875BBA8F9934DA444EA2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.FoundationTests.pdb",
+    "bytes": 27619328,
+    "sha256": "7990076075DC084B9455E404A79F2DE49F4F22F46C36B42ACCE9CFBFA9ED1319"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.InteractiveLease.exe",
+    "bytes": 2356736,
+    "sha256": "EEF169571042ACA4A1BBB8FE155481F15C78701A93E23F2177CA0B75D63C64F9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6361088,
+    "sha256": "0E72723D768916B4B8E43C7AA626B663E467DC910636DDC1C3138F51FD6CCEA6"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.lib",
+    "bytes": 111125972,
+    "sha256": "D333CEBF3B235AD16D89D188D4665B89E12F11BCE4D9B3791855FC2948A3E8BA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/ASan Debug/DxUi.pdb",
+    "bytes": 9228288,
+    "sha256": "68DEB0116CC5B6E12281D43FF1E40F3EE13AA4E7CEC2C96C43C8670A838D3E89"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.ControlTests.exe",
+    "bytes": 23859712,
+    "sha256": "128D44EC7307FC21C9DE3020B01C9E4CDD43FAB0CBD64A30EF1F1A1088EF05A9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.ControlTests.pdb",
+    "bytes": 76050432,
+    "sha256": "3AC012234A16C8B81C3E01789C07E1E5644F29E60D6010DFB4E8CAA781E2F564"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.EmbeddedControls.exe",
+    "bytes": 8864768,
+    "sha256": "808BD5A8BA3324AB45B3CF33239BFB3C84E3C6CD9AD2EB1598C8B9F62DD9191B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.EmbeddedControls.pdb",
+    "bytes": 29921280,
+    "sha256": "4717D526054C1B7312A155740628B657ECCD84D2EC0EC65833E7F85EF6BDC664"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.EmbeddedTests.exe",
+    "bytes": 10919936,
+    "sha256": "A0E73CBC9FB9171F5D72BFB5DE83007E08FEE62872F2915BBD67FDAEB50FB6DF"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.EmbeddedTests.pdb",
+    "bytes": 35926016,
+    "sha256": "C0C809C8BD1CFA70C4854255FA735EA9AF88602DA65B06E9BD13558CF8B3F2D2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.FoundationTests.exe",
+    "bytes": 8687104,
+    "sha256": "AF90A6FA19E0DB679CE9A93C9F3066170010C48A2F85C65ABF70FE6F4A3552A6"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.FoundationTests.pdb",
+    "bytes": 29413376,
+    "sha256": "562EDA72703518205A96837BCFD4E664F008BD806AB845F8D716684C0B06E078"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.InteractiveLease.exe",
+    "bytes": 1944576,
+    "sha256": "38DB6C87AC19444E2D6B735D5D6CE11604172B7D4F005F5FD390DF899C787F2F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.InteractiveLease.pdb",
+    "bytes": 6787072,
+    "sha256": "33B4BBCB32BCE0B17C323EE702E818E778374BDEB6A2151EE53C3DB01590373B"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.lib",
+    "bytes": 101360916,
+    "sha256": "9CB095A1A37625193A128855888D2B1CE6BBF27617F58757494A69EEC4EB333C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Debug/DxUi.pdb",
+    "bytes": 9105408,
+    "sha256": "AF20D2DF2C56A2EDE48D9BCF74E1DEFD63DEEF73DF05CF67640AE216447FB2B9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.ControlTests.exe",
+    "bytes": 12254208,
+    "sha256": "24A738F28710320450BF66551C94E94BCE4E4DC5DAC3676DFD39FC98540A97BA"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.ControlTests.pdb",
+    "bytes": 68349952,
+    "sha256": "080CBAEB3E9324284C6C4285BFC6C01D9AFA1B046C59FF3294B2E107ECB3EA73"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.EmbeddedControls.exe",
+    "bytes": 3639808,
+    "sha256": "6F987E439DCCBF6DB73C616FE224C31B26EBEA12902557C9E0A3C05A450862E3"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.EmbeddedControls.pdb",
+    "bytes": 23564288,
+    "sha256": "61DF08E8C294C36CA35F3E319D6AE4599ECE5C632CD534C483F2055E147FDC1C"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.EmbeddedTests.exe",
+    "bytes": 4747264,
+    "sha256": "BCC070A0FE5C3E12555D8DB96396674368B431B8D7956D30C9C3B47F2268B69A"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.EmbeddedTests.pdb",
+    "bytes": 28848128,
+    "sha256": "03F7432187EFE6C8E269B59C2C33706B2F8C43DA1DB3DF301BF78A5C53C59049"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.FoundationTests.exe",
+    "bytes": 3545600,
+    "sha256": "06C26B6A17FD2B5C6CCB8C0B49E6CB8C561C34FC620E619CB75E4D715D927186"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.FoundationTests.pdb",
+    "bytes": 22982656,
+    "sha256": "20D308F10B2B56A6EF0105DCEC58743A9BF251529E5F4A8A7EC4C6047CE77252"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.InteractiveLease.exe",
+    "bytes": 913920,
+    "sha256": "969C6AED2C7DDC621A5C1CBD286289C93C60565DE2779D7E1AB99368D6CFED97"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.InteractiveLease.pdb",
+    "bytes": 6541312,
+    "sha256": "D61A2A877434A205EDEC4DF0C866C80718CF9FDC89343ABB851FBF149761572D"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.lib",
+    "bytes": 46746496,
+    "sha256": "20E25D044E4AB582A1D7618C7A5AB8B5EF415587F3E4EDC4545AC50C422C732E"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/Superseded3Artifacts/x64/Release/DxUi.pdb",
+    "bytes": 8925184,
+    "sha256": "2D8D49754243BC76D162E0B683191754561EFF314B0C5C19372F81D02602E1A2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/build/CMakeFiles/4.3.1-msvc1/CompilerIdCXX/CompilerIdCXX.exe",
+    "bytes": 15360,
+    "sha256": "ECEE225191A2D4DA986EC1C2B904D384CFE9B5FBE7DD89F68BF29B00AB2123BC"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/build/Debug/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/build/Debug/MarkdownTableReferenceProbe.exe",
+    "bytes": 2320384,
+    "sha256": "9B318AC0F6725BF0352AACC1B2F39BDFF9304FCDCC79CADB7ED07A8B749DF4A4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/build/Debug/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6475776,
+    "sha256": "65D981165221E776231C0C5CB05024F872BFBA7E75D378EE385D350D427A23A9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/build/MarkdownTableReferenceProbe.dir/Debug/vc145.pdb",
+    "bytes": 749568,
+    "sha256": "0C345D3D39431A2B98A72AD8FFBDF1B3BED9BFE48BCCAB326F28DA730ABB6164"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/fixed-build/CMakeFiles/4.3.1-msvc1/CompilerIdCXX/CompilerIdCXX.exe",
+    "bytes": 15360,
+    "sha256": "1446BB16D91C8F3E4B37AC6F7D668520B4908FE734FFDF2DFA05C107656615F5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/fixed-build/Debug/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/fixed-build/Debug/MarkdownTableReferenceProbe.exe",
+    "bytes": 2421248,
+    "sha256": "4CB9EC809E680CE67F8890206BAD1A81C200FB7606D02EDB0D7A1628C5C52CE7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/fixed-build/Debug/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6475776,
+    "sha256": "9549F277A055E6463CE5AAF2D673E448EE259F2379386A2977F4BE319FD6C6F5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/fixed-build/MarkdownTableReferenceProbe.dir/Debug/vc145.pdb",
+    "bytes": 864256,
+    "sha256": "8B65C91FAB7813EDA3B1DECDE40EF18DAF13E5D8FB48FE036EA0EB6E140119C7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/FixedArchive/DxUi.lib",
+    "bytes": 111125972,
+    "sha256": "530D9D19FEE5A8769B31E44E45ACE2191A974898718351455BFD32113D7340E7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/IdentityOldArtifacts/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/IdentityOldArtifacts/MarkdownTableReferenceProbe.exe",
+    "bytes": 2344960,
+    "sha256": "91A3AEC4ADCF26E33C994F889C1BC3EEFF0062C5F49A528E8C7BC91F6223F7E2"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/IdentityOldArtifacts/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6475776,
+    "sha256": "19010EF35670956EB28CA1C7C496F259B06C1A16972283BDA56E20E35B8AA767"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/NulOldArtifacts/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/NulOldArtifacts/MarkdownTableReferenceProbe.exe",
+    "bytes": 2421248,
+    "sha256": "4CB9EC809E680CE67F8890206BAD1A81C200FB7606D02EDB0D7A1628C5C52CE7"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/NulOldArtifacts/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6475776,
+    "sha256": "9549F277A055E6463CE5AAF2D673E448EE259F2379386A2977F4BE319FD6C6F5"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/OldArchive/DxUi.lib",
+    "bytes": 111125822,
+    "sha256": "9D903DBFC9942189249075697AB2C39BE70636B45AD282EF7096EFE67A5EA908"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/OldProbeArtifacts/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/OldProbeArtifacts/MarkdownTableReferenceProbe.exe",
+    "bytes": 2320384,
+    "sha256": "9B318AC0F6725BF0352AACC1B2F39BDFF9304FCDCC79CADB7ED07A8B749DF4A4"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/OldProbeArtifacts/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6475776,
+    "sha256": "65D981165221E776231C0C5CB05024F872BFBA7E75D378EE385D350D427A23A9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/source-fixed-build/CMakeFiles/4.3.1-msvc1/CompilerIdCXX/CompilerIdCXX.exe",
+    "bytes": 15360,
+    "sha256": "49B77A8BFFADF35302593533B3BF4910098DF5ABC5A70DE8131765A1CA48D0CC"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/source-fixed-build/Debug/clang_rt.asan_dynamic-x86_64.dll",
+    "bytes": 1881912,
+    "sha256": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/source-fixed-build/Debug/MarkdownTableReferenceProbe.exe",
+    "bytes": 2436096,
+    "sha256": "E36E245163138512E50B8A385336BA5ACAD991635BEA62E2E36EC0B92157AE1F"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/source-fixed-build/Debug/MarkdownTableReferenceProbe.pdb",
+    "bytes": 6213632,
+    "sha256": "35D551EC1549F5307F38BBCF79E7F3D860E6921EF52782E0F76FB14E02245FEF"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/TableReferenceProbe/source-fixed-build/MarkdownTableReferenceProbe.dir/Debug/vc145.pdb",
+    "bytes": 1216512,
+    "sha256": "660C58599042C3224FB7602B59A4E5A676E28115201D71F26CF83AE07EF63B19"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/ThirdFailed/DxUi.ControlTests.exe",
+    "bytes": 12228096,
+    "sha256": "DB112F6164973A687FF27BA04C6085BA0ADDD7991641BECD8B85748D8E5D8DA9"
+  },
+  {
+    "path": ".build/reports/rich-markdown-inline-20261018/ThirdFailed/DxUi.ControlTests.pdb",
+    "bytes": 73232384,
+    "sha256": "F9B31CDABD79D6435CD3B7978135F0D6E289B5B6D173E7E9AAB01C66386B123C"
+  }
+]

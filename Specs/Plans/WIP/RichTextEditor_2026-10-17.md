@@ -1,6 +1,6 @@
 # Owned Unicode rich-text editor
 
-Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Markdown base block-tree/lexical analysis and document-scoped node reconciliation are qualified as an opt-in bounded preview. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
+Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Unicode block/inline grammar, specified GFM metadata and document-scoped node reconciliation are qualified as opt-in bounded analysis against all 1,324 pinned semantic expectations. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
 Owner request: 2026-10-17. Starting revision:
 `9f848b6464f166aa89229b80cd0e2ac22dbed42b`.
 
@@ -58,11 +58,23 @@ tests and owning contract/docs updates before completion):
   [sealed M2 evidence](../../../Measurements/RichText/2026-10-18-markdown-blocks/README.md).
   Source stays capped at 65,536 UTF-16 units; line/reference/compaction work is
   indivisible, and full inline/extension/semantic/platform/performance gates remain.
-- [ ] M3: Complete inline precedence and delimiters, code spans, links/images,
-  autolinks, safe raw HTML, line breaks and profile-specific GFM extensions.
+- [x] M3: Complete inline precedence and delimiters, code spans, links/images,
+  autolinks, opaque raw HTML, line breaks and profile-specific GFM extensions.
   Lexical values are candidates until their context is resolved, never ready-made
   formatted text. Run independent semantic/HTML expectations for every original
-  pinned example, retaining every failure and version difference.
+  pinned example, retaining every failure and version difference. All 1,324
+  original semantic outputs, 42 directed three-profile fixtures, unique padded
+  cell IDs, parser NUL labels and native/embedded edit/history checks pass.
+  All 57 fresh ordinary x64 scopes, six root builds, 12 probes, 324 exact raster
+  pairs and full validation/format pass. See the [sealed M3 evidence](../../../Measurements/RichText/2026-10-18-markdown-inlines/README.md).
+  Semantic native rendering/editing and the accepted extensions remain M4/M5.
+  Resolved inline forests, global Unicode reference folding, extension options
+  and opaque HTML tagfilter metadata are implemented. Native/embedded reference
+  edit/undo/redo tests prove that unchanged block IDs cannot validate old inlines.
+  Failed, interrupted and superseded attempts remain preserved separately from
+  the final frozen qualification; see the detailed history below.
+  The expanded standalone sample is built, captured and launched;
+  its nine application/reference tests pass using its unchanged exact DxUi pin.
 - [ ] M4: Semantic projection with source-backed/transformed/generated/object and
   repeated/reordered ranges, explicit primary editing affinity, atomic source
   transactions, structural commands and structured accessibility. Integrate the
@@ -73,7 +85,9 @@ tests and owning contract/docs updates before completion):
   active owner recommendation; unknown syntax remains exact source throughout.
 - [ ] M6: Reconcile raw NUL admission with Document/codecs/clipboard/TSF/UIA;
   qualify cancellation/storage/pathological work and real capacity targets before
-  raising the current 65,536-unit limit. Worker out-of-order tests are required if
+  raising the current 65,536-unit limit. Bound generated table padding separately:
+  body-row count times header-column count can amplify a short exact source.
+  The all-newline fixture does not establish a bound for such trees. Worker out-of-order tests are required if
   caller-shared execution is introduced. Physical/platform/performance gates stay
   independently open.
 
@@ -1447,6 +1461,107 @@ Snapshot ancestry distinguishes equal paragraphs; exact surviving nodes take
 priority over enclosing-node fallback at deletion boundaries. Changed kinds,
 reparenting and lost ancestry remain conservative. Block IDs are not geometry or
 semantic-cache validity keys. The renderer remains v0 and analysis remains opt-in.
-M3 is next: inline precedence, global reference resolution and dialect extensions,
+At the M2 boundary, M3 was next: inline precedence, global reference resolution and dialect extensions,
 then independent full semantic/HTML expectations. D2a/M4-M6/D4c/D4d/D5 stay open;
 there is no native ARM64, physical IME/AT, large-file or frame-performance acceptance.
+
+## M3 implementation and preserved qualification history (2026-10-18 to 2026-10-19)
+
+These attempt notes preserve their state at the time. The final M3 closeout below
+supersedes pending actions recorded in the earlier attempts.
+
+The owned parser resolves a dense inline forest and global references, plus
+configurable GFM tables/task markers/two-tilde strike/extended autolinks/tagfilter.
+Private staging contains no published delimiter tombstones. Original source and
+the earlier lexical partition remain exact, and native pixels still use v0.
+Extended links are resolved after bracket ownership and before remaining
+emphasis; their own entity/backslash spelling stays literal. Supplemental pinned
+cmark-gfm reference observations are retained with their implementation/spec
+differences. No foreign parser code is linked into the library.
+
+The completed fifth Release diagnostic has byte-verified frozen inputs and
+passes all 1,324 original semantic outputs, directed cases across three profiles,
+full EditorControls (27.088 s) and Embedded (17,576 checks). The parser failure
+probe sweeps all 209 observed requests and 11 Begin requests, retaining the prior
+publication and allowing retry. Maximum all-newline retained C++ storage is
+11,929,389 bytes, replacement peak 26,317,605, released delta zero and unchanged/
+retire allocations zero. This remains the same narrow fixture as M2, not an
+all-input capacity claim. These diagnostics do not replace root qualification.
+
+M3 closeout requires all 57 ordinary x64 obligations, six root profile builds,
+Debug/ASan failure probes, exact existing raster comparisons, complete tooling/
+format checks and sealed offline-replay evidence. D2a/M4-M6/D4c/D4d/D5 remain open.
+
+The first root matrix attempt was interrupted during the Debug build after review
+found missing VT tagfilter whitespace and over-broad slash boundaries. Its frozen
+inputs, partial build log and owned-process interruption receipt remain under
+`Interrupted1`; it is incomplete evidence. A shared core/native/embedded fixture
+now requires filtering `<SCRIPT` plus VT and `<script/>`, while preserving
+`<script/unknown>`. Restart the root matrix with the corrected frozen source.
+
+Interrupted2 preserves a complete ordinary Debug pass and a partial ASan run on
+the next source. Independent review then reproduced a bounds assertion from
+`[r]: /url` followed immediately by `| - |`, using a private diagnostic linked
+to a copied exact old ASan archive. Table-start reference extraction retired the
+entire paragraph but left it active. Clear that retired leaf before the delimiter
+line is processed; shared core/native/embedded cases cover definition-only,
+real-header and quote variants. The fault fixture now also exercises this
+retirement path and multiple-reference sorting. The fixed source needs a fresh
+root matrix; these interrupted successes are not reused as final qualification.
+
+Superseded3 retains the next complete six-profile/57-scope matrix and tooling
+pass. A final independent probe then found duplicate identities when reparsing
+two generated missing table cells with the same empty source range (exit 23,
+duplicate identity 9 on revision 2). Reconciliation now keeps equivalent keys
+in source traversal order and consumes each old identity once. Core repeated
+revisions and unrelated edits, plus native/embedded edit/undo/redo and held
+snapshots, require distinct stable cell identities. Preserve the completed
+earlier matrix and private exact artifacts; qualify the changed source afresh.
+
+Interrupted4 preserves the subsequent successful Debug build and four isolated
+probes, plus the partial ordinary run and exact artifacts. A separate old-archive
+probe exposed raw NUL reference labels not matching normalized inline labels
+(exit 24). Normalize raw NUL before full case folding, retain exact source and
+test this parser-only behavior under all three profiles. Document/text-service
+NUL admission stays deferred to M6. No interrupted result closes qualification.
+
+## M3 final qualification (2026-10-19)
+
+The final frozen source passes every original CommonMark/GFM semantic output
+(652 + 672), 568 independent block expectations, 42 directed three-profile cases,
+parser-only NUL reference-label normalization and stable distinct padded table
+cells. Native and embedded hosts cover exact source/history, reference edits,
+undo/redo, independent views and held immutable trees. The native formatted view
+still uses v0; this closes the bounded analysis slice, not semantic rendering.
+
+All 57 complete ordinary x64 scope/profile runs were freshly executed without
+capability skips; all six root builds, 12 isolated probes, 324 exact raster pairs,
+five validators, complete tooling and pinned formatting pass. ARM64 is compile-only.
+The qualified compiled library fingerprint is
+`C00CA41A8251D688A8A29CE081E26A4E036214553EA0F028A0EC437F3F6605ED`.
+The final source snapshot binds all 29 changed implementation/test/data/docs
+inputs; prose/evidence closeout preserves the compiled and library identities.
+
+Debug and ASan each sweep all 771 observed parser requests and 32 admission
+points; Release sweeps 273 and 11. The unchanged maximum all-newline fixture
+retains 11,929,557 bytes (Debug/ASan) or 11,929,389 (Release), with replacement
+peaks 26,318,285 or 26,317,605. Released delta and unchanged/retirement allocations
+are zero. These measurements do not bound every generated tree; table-padding
+amplification and general capacity/pathological latency remain M6 obligations.
+
+The expanded standalone default feature sample passes nine application/reference
+tests and has a reviewed harness capture and verified launch. Its exact consumer
+pin stays `302f3783a5d2ef60f201ca3abf508c1158fde039`; it remains separate v0 sample
+evidence. Reviewed library pixels, catalog and design-system tokens did not change,
+so the gallery is unchanged; the 324 exact raster comparisons cover this slice.
+D2a, M4-M6, D4c, D4d and D5 remain open, including semantic rendering/structural
+editing, accepted extensions, physical IME/AT/native ARM64 and the original
+frame-performance HOLD. Foreground suites have not been run without agreed time.
+
+The reviewed [M3 evidence packet](../../../Measurements/RichText/2026-10-18-markdown-inlines/README.md)
+is sealed as `654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276`.
+An independent exact copy and a Git-only staged archive both verify. Deliberately
+modified native receipt and PNG bytes are rejected; restored/original packets
+verify again. The [replay receipt](../../../Measurements/RichText/2026-10-18-markdown-inlines-verification.receipt.txt)
+records the external seal, packet file count and extracted Git tree/archive hash.
+Compiled-source identity is unchanged by documentation/evidence closeout.

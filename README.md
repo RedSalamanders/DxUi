@@ -29,10 +29,11 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
 - [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
-  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor v0 preview with shared Unicode 17 grapheme navigation and native/embedded source TSF/IME and UIA adapters. Real IME/AT and complete Markdown conformance remain pending.
-- [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless container/leaf block-tree and
-  lexical analysis with cooperative preparation and opt-in RichTextEditor hosting;
-  complete CommonMark/GFM parsing and rendering remain in progress.
+  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor v0 preview with shared Unicode 17 grapheme navigation and native/embedded source TSF/IME and UIA adapters. Real IME/AT, semantic Markdown rendering/editing and accepted extension qualification remain pending.
+- [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless Unicode block/inline parsing and configurable GFM analysis,
+  qualified against 1,324 original semantic expectations with cooperative preparation
+  and opt-in RichTextEditor hosting. Semantic native rendering/editing and the
+  accepted math/diagram extensions remain in progress; see [M3 evidence](Measurements/RichText/2026-10-18-markdown-inlines/README.md).
 - [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.
