@@ -1582,10 +1582,18 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         if (nodes[leaf].block.kind == Kind::HtmlBlock)
             return;
     }
-    const auto spelling = InlineSpelling(leaf, label, L"[]");
-    if (! spelling)
-        return;
-    std::wstring replacement(*spelling);
+    std::wstring serialized(0u, L' ');
+    {
+        // The shared token resolver distinguishes literal autolink children
+        // from decoded ordinary labels. Escape those literal URI punctuation
+        // units when retargeting, and suppress automatic recognition on unlink.
+        const bool autolink = enclosing && text[enclosing->source.first] != L'[';
+        const auto spelling = InlineSpelling(leaf, label, (remove || autolink) ? L"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" : L"[]", false, ! remove && ! autolink);
+        if (! spelling)
+            return;
+        serialized = *spelling;
+    }
+    std::wstring replacement(serialized);
     std::size_t begin = owned.first;
     if (! remove)
     {
@@ -1605,7 +1613,7 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         ++begin;
     }
     Add(owned.first, owned.last, replacement);
-    const auto end    = begin + spelling->size();
+    const auto end    = begin + serialized.size();
     plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
     plan.applicable_  = true;

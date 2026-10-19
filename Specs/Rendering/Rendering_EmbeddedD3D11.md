@@ -76,6 +76,11 @@ embedded HWND/device/worker/timer. Unicode source, selection and history survive
 surface suspension and device-generation replacement. Its layout retires when
 hidden and rebuilds on demand; clean composition does no rich-text work.
 DispatchCharacter and the D2d source text-service/UIA adapters are available.
+DispatchKey offers Tab/Shift+Tab to the focused control first, allowing semantic
+list/cell editing before ordinary focus traversal. A declined callback that
+retires/unbinds the control or changes focus consumes the old input frame;
+it cannot traverse a successor. Character input uses the same control route as
+native WM_CHAR. No physical keyboard/focus takeover is needed for these tests.
 Applications retain HWND/TSF client, focusId/revision and screen-placement ownership;
 prepare changed composition/scroll/DPI before publishing geometry or accessibility.
 Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).

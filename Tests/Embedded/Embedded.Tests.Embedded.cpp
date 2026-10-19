@@ -1437,6 +1437,11 @@ __declspec(noinline) static int RunFunctionalTests()
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
                                                         [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded structural commands"); });
+            RichSemanticEditorTests::StructuralHostRouting(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded structural host routing");
+            }, [&](UINT key, UINT modifiers) { return transactionView.DispatchKey(key, true, modifiers); }, [&](wchar_t value, UINT modifiers) {
+                return transactionView.DispatchCharacter(value, modifiers);
+            });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
             RichSemanticEditorTests::RenderingAdmissionFallback(

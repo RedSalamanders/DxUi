@@ -706,7 +706,19 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
         if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
             return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
+        {
+            // A semantic editor owns list/cell Tab before ordinary host focus
+            // traversal, just as under WM_KEYDOWN. A declined callback may also
+            // retire/rebind its owner: never traverse a successor in that frame.
+            auto* target        = _host.GetFocusControl();
+            const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+            if (target && target->OnKeyDown(_host, key, modifiers))
+                return true;
+            if (target &&
+                (lifetime.expired() || _host.GetFocusControl() != target || target->GetHost() != &_host || ! target->IsEnabled() || ! target->IsVisible()))
+                return true;
             return _host.HandleTabNavigation((modifiers & MK_SHIFT) != 0);
+        }
         auto* target = _host.GetFocusControl();
         return target && (down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers));
     }

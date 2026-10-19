@@ -7,6 +7,90 @@ namespace RichSemanticEditorTests
 using namespace DxUi;
 using namespace DxUi::RichText;
 using RichSemanticTests::Check;
+struct RetiringTabEditor final : RichTextEditor
+{
+    explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), successor_(&successor)
+    {
+    }
+    bool OnKeyDown(ControlHost& host, UINT key, UINT) noexcept override
+    {
+        if (key != VK_TAB)
+            return false;
+        try
+        {
+            auto root   = std::make_unique<Panel>();
+            auto* first = root->AddChild<Button>(L"first");
+            first->SetBounds(D2D1::RectF(8, 8, 160, 40));
+            root->AddChild<Button>(L"second")->SetBounds(D2D1::RectF(8, 48, 160, 80));
+            auto* output = successor_;
+            *output      = first;
+            host.SetRoot(std::move(root)); // Retires this object. Only locals follow.
+            host.SetFocusControl(first, false);
+            return false;
+        }
+        catch (const std::exception&)
+        {
+            return false;
+        }
+    }
+
+private:
+    Button** successor_;
+};
+template <typename Prepare, typename Key, typename Character> void StructuralHostRouting(ControlHost& host, Prepare&& prepare, Key&& key, Character&& character)
+{
+    auto panel   = std::make_unique<Panel>();
+    auto* editor = panel->AddChild<RichTextEditor>(L"- a\n- b\n");
+    editor->SetBounds(D2D1::RectF(8, 8, 464, 190));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto* next = panel->AddChild<Button>(L"Next field");
+    next->SetBounds(D2D1::RectF(8, 200, 180, 232));
+    host.SetRoot(std::move(panel));
+    prepare();
+    host.SetFocusControl(editor, false);
+    Check(key(VK_HOME, 0u) && host.GetFocusControl() == editor, "actual host key transport reaches the focused editor before Tab testing");
+    editor->SetSelection({6u, 6u});
+    Check(key(VK_TAB, 0u) && editor->GetText() == L"- a\n  - b\n" && host.GetFocusControl() == editor,
+          "actual native/embedded Tab dispatch offers list indentation before focus traversal");
+    prepare();
+    Check(key(VK_TAB, MK_SHIFT) && editor->GetText() == L"- a\n- b\n" && host.GetFocusControl() == editor, "actual Shift+Tab dispatch outdents in place");
+    editor->SetText(L"- item\n");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    Check(character(L'\r', 0u) && editor->GetText() == L"- item\n- \n", "actual native/embedded character dispatch continues a list");
+    editor->SetText(L"a | b | c\n- | - | -\nx\n");
+    prepare();
+    const auto syntax = editor->GetMarkdownSyntax();
+    std::vector<std::size_t> cells(0u);
+    for (std::size_t i = 0u; i < syntax->Nodes().size(); ++i)
+        if (syntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            cells.push_back(i);
+    editor->SetSelection({editor->GetText().size() - 1u, editor->GetText().size() - 1u});
+    MarkdownCommandRequest request;
+    request.command    = MarkdownCommand::NextTableCell;
+    request.targetCell = cells[3u];
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unchanged, "transport fixture reaches first padded cell");
+    Check(key(VK_TAB, 0u) && host.GetFocusControl() == editor && character(L'|', 0u) && editor->GetText() == L"a | b | c\n- | - | -\nx |  | \\|\n",
+          "actual host key/character dispatch retains padded-cell affinity and materializes the clicked column");
+    editor->SetText(L"word");
+    prepare();
+    editor->SetSelection({4u, 0u});
+    Check(key('B', MK_CONTROL) && editor->GetText() == L"**word**" && editor->GetSelection() == Selection{6u, 2u},
+          "actual host Ctrl+B route applies one directional source style command");
+    editor->SetText(L"word");
+    prepare();
+    Check(key(VK_TAB, 0u) && host.GetFocusControl() == next && editor->GetText() == L"word", "ordinary paragraph Tab reaches the next host control");
+    Button* successor = nullptr;
+    auto retiring     = std::make_unique<RetiringTabEditor>(successor);
+    auto* old         = retiring.get();
+    host.SetRoot(std::move(retiring));
+    prepare();
+    host.SetFocusControl(old, false);
+    Check(key(VK_TAB, 0u) && successor && host.GetFocusControl() == successor,
+          "declined Tab that retires its owner cannot traverse the successor in the same frame");
+    prepare();
+}
 template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&& prepare)
 {
     auto root    = std::make_unique<RichTextEditor>(L"word");

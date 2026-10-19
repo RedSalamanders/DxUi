@@ -2386,9 +2386,22 @@ rejected them. All five validators and tooling tests passed; formatting uses the
 pinned clang-format 22.1.3. These focused receipts are not final qualification.
 
 Freeze the implementation commit, run the guarded x64 Debug/Release/ASan Debug
-EditorControls/Embedded/Accessibility/TextField/MultilineText scopes and all
+EditorControls/Embedded/Accessibility/TextField/MultilineText/WindowHost scopes and all
 three ARM64 builds, retain ASan detection, audit exact artifacts, run the retained
 Default diagnostic, review/publish actual sample/five-theme captures and update
 this checkpoint with reviewed evidence before closing M4e. Private evidence is
 `.build/reports/rich-structural-m4e-20261019`. M4f/g, M5/M6, physical IME/AT,
 native ARM64 execution, consumers and the D4c HOLD stay open.
+
+The first clean `63ea4e3b` qualification passed the complete Debug EditorControls
+scope and both isolated fault preflights, then was deliberately interrupted
+after source review exposed embedded DispatchKey bypassing control Tab handling.
+Its partial receipts/binaries remain archived; it is not six-profile acceptance.
+A standalone probe against its retained library reproduced the missing list Tab
+route with an available input transport. Native/embedded dispatcher tests now
+exercise list indentation, table affinity/materialization, Enter, Ctrl+B,
+ordinary traversal and a declined callback that retires its owner. The fix also
+prevents native traversal of a successor in that retiring callback frame.
+Independent value oracles cover angle/bare/email and URL-label link retargeting/
+unlinking, including literal entity-looking URI bytes and automatic relinking;
+their staged allocation scenarios extend the core sweep before final freeze.

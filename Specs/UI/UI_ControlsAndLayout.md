@@ -1207,7 +1207,10 @@ partial selections. Code conversion MUST use resolved source-unit values and
 escape punctuation when removing code so literal text stays literal. New
 cross-line code spans, partial multiline-code removal and image/HTML conversion
 are unavailable. Link commands own only label wrappers/metadata; reference
-definitions remain untouched. Validated native anchors preserve quote/case/
+definitions remain untouched. URI/autolink labels MUST retain their
+literal Unicode values when retargeted. Unlink MUST escape literal punctuation
+as needed so GFM does not recreate the same automatic link or expose a new block.
+Validated native anchors preserve quote/case/
 attribute trivia when changing href/title. Removing an opening HTML-block anchor
 MUST be rejected because it would reinterpret the literal block body. Marker
 deltas use tab columns; relocating an owned marker tab across stops is

@@ -862,7 +862,11 @@ is available. Shift+Enter always keeps that raw replacement behavior.
 In semantic Rich view Ctrl+B/I toggle Markdown styles and Ctrl+Enter toggles
 tasks. Enter continues/exits lists or inserts table rows. Tab/Shift+Tab first
 navigate a current table cell or indent/outdent an eligible list; otherwise they
-MUST return control to host focus traversal. Padded-cell navigation retains a
+MUST return control to host focus traversal. Both native WM_KEYDOWN and embedded DispatchKey MUST
+offer Tab to the focused control before host traversal. A declined callback that
+retires/unbinds that control or changes focus MUST consume the old frame rather
+than traversing a successor. Ordinary live-control layout changes do not alone
+cancel logical traversal. Padded-cell navigation retains a
 revision-local visual site, including multiple cells at one raw ACP. Literal
 pipe/backslash typing in empty/padded cells escapes source spelling. Source view
 and raw TSF replacements do not acquire this structural policy.

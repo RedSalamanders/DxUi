@@ -90,28 +90,34 @@ static void TestRichMarkdownCommandFailureAtomicity()
         countAllocations = false;
         return allocations;
     };
-    for (unsigned scenario = 0u; scenario < 10u; ++scenario)
+    for (unsigned scenario = 0u; scenario < 12u; ++scenario)
     {
-        const std::wstring_view spelling = scenario < 2u ? L"- a\n- b\n" : scenario < 7u ? L"**abc** &copy;" : L"a | b\n- | -\nx | y";
+        std::wstring_view spelling = scenario < 2u ? L"- a\n- b\n" : scenario < 7u ? L"**abc** &copy;" : L"a | b\n- | -\nx | y";
         MarkdownCommandRequest request;
-        request.command           = scenario == 0u   ? MarkdownCommand::IndentList
-                                    : scenario == 1u ? MarkdownCommand::SetList
-                                    : scenario == 2u ? MarkdownCommand::SetHeading
-                                    : scenario == 3u ? MarkdownCommand::ToggleStyle
-                                    : scenario == 4u ? MarkdownCommand::SetLink
-                                    : scenario == 5u ? MarkdownCommand::ToggleTask
-                                    : scenario == 7u ? MarkdownCommand::InsertTableColumn
-                                    : scenario == 8u ? MarkdownCommand::DeleteTableRow
-                                                     : MarkdownCommand::SetTableCell;
-        request.listKind          = MarkdownListKind::Ordered;
-        request.style             = MarkdownTextStyle::Code;
-        request.destination       = L"target";
-        request.text              = L"new";
-        const Selection selection = scenario < 2u    ? Selection{6u, 6u}
-                                    : scenario == 3u ? Selection{0u, 14u}
-                                    : scenario >= 7u ? Selection{16u, 16u}
-                                                     : Selection{2u, 5u};
-        const auto seed           = [&](Document& document)
+        request.command     = scenario == 0u   ? MarkdownCommand::IndentList
+                              : scenario == 1u ? MarkdownCommand::SetList
+                              : scenario == 2u ? MarkdownCommand::SetHeading
+                              : scenario == 3u ? MarkdownCommand::ToggleStyle
+                              : scenario == 4u ? MarkdownCommand::SetLink
+                              : scenario == 5u ? MarkdownCommand::ToggleTask
+                              : scenario == 7u ? MarkdownCommand::InsertTableColumn
+                              : scenario == 8u ? MarkdownCommand::DeleteTableRow
+                                               : MarkdownCommand::SetTableCell;
+        request.listKind    = MarkdownListKind::Ordered;
+        request.style       = MarkdownTextStyle::Code;
+        request.destination = L"target";
+        request.text        = L"new";
+        Selection selection = scenario < 2u    ? Selection{6u, 6u}
+                              : scenario == 3u ? Selection{0u, 14u}
+                              : scenario >= 7u ? Selection{16u, 16u}
+                                               : Selection{2u, 5u};
+        if (scenario >= 10u)
+        {
+            spelling        = L"<https://example.invalid/?x&copy;>";
+            selection       = {4u, 4u};
+            request.command = scenario == 10u ? MarkdownCommand::RemoveLink : MarkdownCommand::SetLink;
+        }
+        const auto seed = [&](Document& document)
         {
             document.Replace(0u, 0u, L"x", {});
             document.Undo();

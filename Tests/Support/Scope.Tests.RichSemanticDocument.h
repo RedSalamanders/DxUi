@@ -417,5 +417,38 @@ inline void StructuralStyleValues()
     const auto opaque = BuildMarkdownCommand(original, block.Revision(), RichCommandTests::Parse(block), block.GetSelection(), request);
     Check(! opaque.IsApplicable() && ! ApplyMarkdownCommand(block, opaque) && block.Snapshot().IsSameRevision(original),
           "unlink rejects an opening HTML-block anchor rather than reinterpreting a literal body as Markdown");
+    for (const std::wstring_view source : {L"<https://example.invalid/a?x&copy;>",
+                                           L"https://example.invalid/a?x&copy;",
+                                           L"www.example.invalid",
+                                           L"person@example.invalid",
+                                           L"[https://example.invalid](target)",
+                                           L"[**www.example.invalid**](target)"})
+    {
+        Document value(source);
+        value.SetSelection({4u, 4u});
+        const auto before = Build(source);
+        MarkdownCommandRequest unlinkRequest;
+        unlinkRequest.command = MarkdownCommand::RemoveLink;
+        const auto remove     = BuildMarkdownCommand(value.Snapshot(), value.Revision(), RichCommandTests::Parse(value), value.GetSelection(), unlinkRequest);
+        const auto original   = value.Snapshot();
+        Check(remove.IsApplicable() && ApplyMarkdownCommand(value, remove), "angle, bare, email and URL-label unlink changes actual source ownership");
+        const auto after = Build(value.Text());
+        Check(before->Map().Display() == after->Map().Display() &&
+                  std::ranges::none_of(after->Elements(), [](const auto& node) { return node.role == SemanticRole::Link; }),
+              "unlink preserves Unicode value and prevents GFM from automatically recreating the same link");
+        Check(value.Undo() && value.Snapshot().IsSameRevision(original), "autolink unlink restores original URI spelling in one undo");
+        unlinkRequest.command     = MarkdownCommand::SetLink;
+        unlinkRequest.destination = L"#target";
+        const auto update     = BuildMarkdownCommand(value.Snapshot(), value.Revision(), RichCommandTests::Parse(value), value.GetSelection(), unlinkRequest);
+        const bool updated    = ApplyMarkdownCommand(value, update);
+        const auto retargeted = Build(value.Text());
+        if (! updated || retargeted->Map().Display() != before->Map().Display())
+            std::wcerr << L"retarget source=[" << source << L"] result=[" << value.Text() << L"] before=[" << before->Map().Display() << L"] after=["
+                       << retargeted->Map().Display() << L"]\n";
+        Check(
+            updated && retargeted->Map().Display() == before->Map().Display() &&
+                std::ranges::any_of(retargeted->Elements(), [](const auto& node) { return node.role == SemanticRole::Link && node.destination == L"#target"; }),
+            "autolink retargeting preserves literal entity-looking URL labels and changes actual inert metadata");
+    }
 }
 } // namespace RichSemanticDocumentTests

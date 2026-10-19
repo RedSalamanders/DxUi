@@ -3225,6 +3225,8 @@ try
                     }
                     return 0;
                 }
+                if (keyTarget && (keyTargetLifetime.expired() || liveKeyTarget != keyTarget || _focusedControl != keyTarget))
+                    return 0; // A declined callback retired/rebound the old interaction.
                 handled = HandleTabNavigation(ModifiersContainShift(GetModifierState()));
                 return 0;
             }
