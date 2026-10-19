@@ -1,0 +1,90 @@
+[
+  {
+    "Hash": "D2D3C40ABC3DC3977EC866B9DEED4AA65F4204C7D1776D967A266065E3AA051F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\Accessibility-x64-Release.json"
+  },
+  {
+    "Hash": "D37AE6A2E943C87666120014DE0538B3959D4015550D58391BEC2ACD296C917F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\driver.log"
+  },
+  {
+    "Hash": "85C83508F051092FFBB5BCD00AA59175CCBBDE3577126A83F4C420F8B9EBF583",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "BA1B8E226157155EA6BA1D4D7B784246EB95A15E7BCD84F333CE516B60DC4FE2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "A9AE0280395BCE49C99CD0294244196EFE8354AC7D7218C8245F01CA6610C39C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "A04B06CC60DFAF9C8648A82D0CCF8803A75B18166BC838F4374CB8A307C99C88",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "7CD529F30DCA9A7B3B8128F206AA7A21C522744A26A1DC9FCECC8222C8A67B7E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "1C1E81D818E56676331CC8849B1504598A4715D09BA02F6CFBBDF07C48D9CC96",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "8C3624A22619553A426A23C633BD357DFC2E2C8BDFC4B5263370A229D52B4C22",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\DxUi.lib"
+  },
+  {
+    "Hash": "FE648445A24ACF4EB01DD30AEFEE21F9A970D3DA3E1749CD49DD6FC82F3814DE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\EditorControls-x64-Release.json"
+  },
+  {
+    "Hash": "D0F9D2FBAC075C994F77ABEEB58A6B6836A597BB9B8AA024711410CF64673FC3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\Embedded-x64-Release.json"
+  },
+  {
+    "Hash": "9C46B8AE817FB2A51BD4FCED928918009BA6DDAC3EF7FF7C8D58C1F77CB91833",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\MultilineText-x64-Release.json"
+  },
+  {
+    "Hash": "F996539DC4F7A73A398121571334591412E9CE5320486EFDAFB11F33CA908618",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\Performance-x64-Release-c452efe8e1b44e90bd8155a3759bc315.json"
+  },
+  {
+    "Hash": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\Performance-x64-Release-c452efe8e1b44e90bd8155a3759bc315.json.comparison.json"
+  },
+  {
+    "Hash": "138B7BAC17AC9C03BCF595BE230D971A214FE756A0F58548FA1E5CA100A92848",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-Accessibility-x64-Release.log"
+  },
+  {
+    "Hash": "F039E6436CF1A9F26EA4E8BCA2AF743EA8CEC4010222DA66F6F58AD0745281C3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-EditorControls-x64-Release.log"
+  },
+  {
+    "Hash": "30D14D6360132DD9B915C2FE34F365CC671495D4F0980471EE9F8167518A56F8",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-Embedded-x64-Release.log"
+  },
+  {
+    "Hash": "65C1999E86C1DD672415D0DB624DBA233CC2C424026A2E718EE19E9B46D486B2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-MultilineText-x64-Release.log"
+  },
+  {
+    "Hash": "7D6F7CD037737D46D8DC6A67585C056AF77239FAA9D150E12AF62D84D772A43C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-TextField-x64-Release.log"
+  },
+  {
+    "Hash": "28388E970E15493B341C8A693B1801FB353976453AAA3D139E22BB880169BA75",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\test-WindowHost-x64-Release.log"
+  },
+  {
+    "Hash": "D1CCF47BBC7B1BA69EA974A09BB53FD529CB1921105A65A8B6860FC6F1977FD6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\TextField-x64-Release.json"
+  },
+  {
+    "Hash": "ADC685AA04645B2940A4312B0281AC0541275A535368265A08519EA37E69DE8D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\x64-Release\\WindowHost-x64-Release.json"
+  }
+]

@@ -1805,7 +1805,7 @@ cannot close D4c.
     - [x] Freeze and qualify required runtime/build profiles, resource probes,
       baseline/candidate diagnostics, validators/format, sample and five themes;
       update supported capabilities and normative/usage/design-system docs.
-- [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
+- [x] M4e: Add structural list/heading/style/link/task/table commands through M4b,
   with source-exact history and read-only/disabled/stale/reentrant coverage.
   - [x] Define owned immutable plans bound to snapshot, syntax and selection;
     preserve untouched source/EOLs and commit once through the M4b transaction.
@@ -1817,9 +1817,9 @@ cannot close D4c.
     navigation, including padded-cell materialization and last-cell row creation.
   - [x] Route retained commands and semantic keyboard editing through shared host
     services; reject stale/opaque/incompatible targets without inline preparation.
-  - [ ] Add independent pure/native/embedded oracles, actual UIA transport checks,
+  - [x] Add independent pure/native/embedded oracles, actual UIA transport checks,
     allocation-failure/reentrancy tests and required profile/resource qualification.
-  - [ ] Update normative/usage/design/sample docs and reviewed evidence; retain
+  - [x] Update normative/usage/design/sample docs and reviewed evidence; retain
     performance warnings and leave M4f/g, M5/M6 and physical/platform gates open.
 - [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
   UIA, preserving source ACPs for TSF/TextPattern. Test real in-process clients,
@@ -2366,7 +2366,7 @@ whole-stage acceptance. M5/M6, physical IME/AT, native ARM64 execution, consumer
 adoption and controlled performance gates remain open. No foreground suite,
 consumer pin update, merge or performance acceptance is claimed; D4c remains HOLD.
 
-### M4e implementation checkpoint (2026-10-19)
+### M4e implementation checkpoint (2026-10-19, historical pre-qualification)
 
 Owned command plans and retained routing are implemented; whole-slice
 qualification is pending. Shared exact source/history and semantic-value oracles
@@ -2405,3 +2405,68 @@ prevents native traversal of a successor in that retiring callback frame.
 Independent value oracles cover angle/bare/email and URL-label link retargeting/
 unlinking, including literal entity-looking URI bytes and automatic relinking;
 their staged allocation scenarios extend the core sweep before final freeze.
+
+### M4e qualification closeout (2026-10-19)
+
+M4e is complete at implementation `159b77c7700e5e1746bd9846265938cd6d0dbe0b`.
+The [reviewed structural-command packet](../../../Measurements/RichText/2026-10-19-structural-commands/README.md)
+retains the frozen source/build/runtime receipts, independent audits, actual
+sample capture, visual review, diagnostic and separately identified failures.
+This closes M4e only; the complete plan remains WIP.
+
+The six-job matrix passed x64 Debug, Release and ASan Debug runtime testing and
+all three ARM64 builds. ARM64 remains compile-only. Six focused scopes in each
+x64 profile cover EditorControls, Embedded, Accessibility, TextField,
+MultilineText and WindowHost. The affected-change explanation selected broader
+ordinary coverage for the shared native-input and host-dispatch changes, so the
+remaining 13 scopes ran in all three x64 profiles against the same executable
+hashes. All 57 distinct ordinary scope/profile receipts passed with zero
+capability skips. The audits rehashed 98 component, 111 supplementary and six
+sample archive files and bound every runtime receipt to its executable.
+ASan's isolated intentional-failure detection passed. All five validators and
+the complete tooling tests passed on the frozen implementation; the pinned
+clang-format 22.1.3 check passed.
+
+Independent exact-source/selection/history and semantic-value oracles cover all
+19 commands. Actual native WM_KEYDOWN/WM_CHAR and embedded DispatchKey/Character
+tests cover list indentation, Enter, padded table affinity/materialization,
+Ctrl+B, ordinary traversal and a callback that retires its owner. Actual UIA
+clients verify raw source, direction, events and one-step undo in both hosts.
+The final Debug core fault sweep covers 652 observed allocation failure points
+across 12 scenarios, superseding the earlier focused 447-point receipt; the
+host cache-copy/guard sweep also passes retry and one-step undo. The ASan embedded
+suite passes 26,892 checks and 1,000 warm composites with zero tracked C++
+allocations. All 652 CommonMark and 672 GFM corpus/map cases remain covered.
+These observations do not establish all-input latency or SDK/GPU/process memory.
+
+The actual Release 980 x 720 rich-text sample shows the two-row command toolbar
+and semantic document. All five full theme sheets, native-scale RichTextEditor
+regions and the generic embedded example were visually reviewed. All six
+published gallery images are byte-identical to those reviewed captures, and
+all five RichTextEditor pixel-region hashes match. The resting gallery tile
+remains visually unchanged; the sample toolbar is the visible command demo.
+Normative layout/input/embedded/design-system, usage, sample, capability and
+change-fragment documentation describes the bounded source-exact behavior.
+
+The retained unpaired Release Default comparison returned `advice-required`
+(exit 1): dirty FPS -23.80%, frame p50 +30.09%, frame p95 1.9221 to 2.7686 ms
+(+44.04%) and preparation p95 1.2897 to 1.8525 ms (+43.64%). Clean frame p95
+improved 11.88%; dirty private/peak bytes were lower by 1.09%/1.37%. This one
+clear/blocking-readback observation establishes neither causality nor performance
+acceptance. Baseline/candidate/comparison/log/exit remain intact; no rebaseline
+or passing-repeat substitution was made. D4c remains HOLD. Controlled paired
+clear/readback and scheduler profiling remains required; confirmed degradation
+needs developer advice on measured optimization, optional-scope reduction or
+deferral/revert before acceptance.
+
+The failed noexcept-string allocation sweep, archived build-guard markers,
+interrupted `63ea4e3b` matrix and reproduced embedded Tab-routing defect remain
+separate from final acceptance. The `2ef049f4` strict build additionally rejected
+a shadowed test variable; `159b77c7` corrects that warning. Focused/manual probes
+and partial candidates are not final-source qualification. Exact binaries/PDBs
+and original logs remain private; reviewed logs/manifests are published in the
+packet. No foreground suite ran: NativeTextInput remains INTERACTIVE_NOT_RUN
+because desktop-time agreement is required. Physical IME/AT, native ARM64
+execution, consumer adoption and D4c acceptance remain open. Continue with M4f
+acknowledged semantic/style UIA, then M4g whole-stage qualification and M5/M6.
+No consumer pin, push or merge is included.

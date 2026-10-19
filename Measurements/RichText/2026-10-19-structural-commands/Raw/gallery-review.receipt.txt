@@ -1,0 +1,50 @@
+{
+  "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+  "sourceDirty": false,
+  "fullSheetsReviewed": 5,
+  "sampleReviewed": true,
+  "genericEmbeddedReviewed": true,
+  "nativeScaleRichTextRegionsReviewed": 5,
+  "reviewedUtc": "2026-10-19T18:55:16.4188287Z",
+  "controlExecutableSha256": "85C83508F051092FFBB5BCD00AA59175CCBBDE3577126A83F4C420F8B9EBF583",
+  "embeddedExecutableSha256": "0F5054F012C9830E62E7D46EE6D676221135DBAE19A4CF54FEF879DD8F97A7CC",
+  "sampleImageSha256": "5A798E4105326BFC93C35B70FEEC3950B22CC8A85373B0ADD85DF435C77ECA06",
+  "images": [
+    {
+      "file": "theme-controls-dark.png",
+      "sha256": "30E453EFA75C57A120830C203189C8F455023817D0AD96013DA168AB4B23165F",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-light.png",
+      "sha256": "01A68950383C0A2485DA246EE49A93A225232D6E8C62DCDC675FCE8012CED520",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-high-contrast.png",
+      "sha256": "EDA9D85EBFB01D4AC560B4A6A5A09BE9A2C6319B60EC0EBD47A49EE307E24217",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-rainbow-dark.png",
+      "sha256": "C59B92E6B724ABC21493DA6F23046C4CDCB84429F1AC392B44F722DD4653B134",
+      "reviewed": true
+    },
+    {
+      "file": "theme-controls-rainbow-light.png",
+      "sha256": "D49EAC76A59BF40AF3B4EFD88B71B4B2426FE63992C3776CC595AF45BD2DFD8C",
+      "reviewed": true
+    },
+    {
+      "file": "embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "reviewed": true
+    }
+  ],
+  "notes": [
+    "Reviewed actual full five-theme sheets and the generic embedded example. All catalog regions are present; intentional scrolling and clipped viewport content remain within their existing control boundaries.",
+    "Reviewed all five RichTextEditor regions at native scale: heading and inline styles, inherited link underlines, hanging markers, Unicode table alignment and quote fit are intact.",
+    "Reviewed the actual 980x720 rich-text sample: both toolbar rows and labels fit, semantic preview has no overlapping controls, and padded cells, Unicode, links and continuation text are visible.",
+    "Derived native-scale crops are labeled and their source hashes are retained in GalleryReview-159b77c7/Derived/crop-provenance.json. Full raw captures are unchanged."
+  ]
+}

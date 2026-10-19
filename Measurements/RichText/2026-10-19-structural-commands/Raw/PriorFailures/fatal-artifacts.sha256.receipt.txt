@@ -1,0 +1,17 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "64CA82E90EE04D4EC67D3DD954C261EB21CAFE1DFBB1DFA572B7C713D932AE24",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\FailureAttempt1\\command-failures-attempt1.log"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "0727645D5B76E242AE85B5B66991FD59E9946C7E8A47CA0C19A2AED512C98BD8",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\FailureAttempt1\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "DD23183920227DEC29137D8BD31B229B5ACE8594B41CDEB5F5A7448845F3F63E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\FailureAttempt1\\DxUi.EmbeddedTests.pdb"
+  }
+]

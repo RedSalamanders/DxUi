@@ -1,0 +1,42 @@
+FailAllocationIfRequested
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:44:0
+
+operator new(unsigned __int64)
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:50:0
+
+std::_Default_allocate_traits::_Allocate(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:137:0
+
+std::_Allocate<16, struct std::_Default_allocate_traits>(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:258:0
+
+std::allocator<struct std::_Container_proxy>::allocate(unsigned __int64)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:995:0
+
+std::_Container_base12::_Alloc_proxy<class std::allocator<struct std::_Container_proxy>>(class std::allocator<struct std::_Container_proxy> &&)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1232:0
+
+std::basic_string<wchar_t, struct std::char_traits<wchar_t>, class std::allocator<wchar_t>>::basic_string<wchar_t, struct std::char_traits<wchar_t>, class std::allocator<wchar_t>>(class std::basic_string<wchar_t, struct std::char_traits<wchar_t>, class std::allocator<wchar_t>> &&)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:1079:0
+
+std::operator+<wchar_t, struct std::char_traits<wchar_t>, class std::allocator<wchar_t>>(class std::basic_string<wchar_t, struct std::char_traits<wchar_t>, class std::allocator<wchar_t>> &&, wchar_t const *const)
+C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xstring:3379:0
+
+DxUi::RichText::Detail::MarkdownCommandPlanner::SetList(struct DxUi::RichText::MarkdownCommandRequest const &)
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextCommands.cpp:863:0
+
+DxUi::RichText::BuildMarkdownCommand(class DxUi::RichText::SourceSnapshot const &, unsigned __int64, class std::shared_ptr<class DxUi::RichText::MarkdownSyntax const>, struct DxUi::RichText::Selection, struct DxUi::RichText::MarkdownCommandRequest const &)
+Z:\src\DxUi-worktrees\rich-text-core-d2\src\Controls\DxUi.RichTextCommands.cpp:1889:0
+
+`TestRichMarkdownCommandFailureAtomicity'::`4'::<lambda_3>::operator()<std::shared_ptr<DxUi::RichText::MarkdownSyntax const > >
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Scope.Tests.RichSemanticResources.h:61:0
+
+TestRichMarkdownCommandFailureAtomicity
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Scope.Tests.RichSemanticResources.h:85:0
+
+RunFunctionalTests
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.Embedded.cpp:1220:0
+
+wmain
+Z:\src\DxUi-worktrees\rich-text-core-d2\Tests\Embedded\Embedded.Tests.BenchmarkMain.h:47:0
+

@@ -1,0 +1,44 @@
+{
+  "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+  "purpose": "Remaining ordinary affected scopes after shared input/dispatcher changes; no duplicate core scopes",
+  "scopes": [
+    "Foundation",
+    "Grid",
+    "Theme",
+    "Control",
+    "MenuExitLifetime",
+    "NewControls",
+    "ReadOnly",
+    "ComboBox",
+    "Tree",
+    "Tooltip",
+    "Rendering",
+    "Animation",
+    "InteractiveLease"
+  ],
+  "startedUtc": "2026-10-19T18:55:21.1068689Z",
+  "jobs": [
+    {
+      "name": "x64-Debug",
+      "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+      "startedUtc": "2026-10-19T18:55:21.4708105Z",
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T18:57:48.5726511Z"
+    },
+    {
+      "name": "x64-Release",
+      "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+      "startedUtc": "2026-10-19T18:57:50.2489643Z",
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T19:00:03.4976007Z"
+    },
+    {
+      "name": "x64-ASanDebug",
+      "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+      "startedUtc": "2026-10-19T19:00:04.8819417Z",
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T19:03:26.1494884Z"
+    }
+  ],
+  "completedUtc": "2026-10-19T19:03:27.5127680Z"
+}

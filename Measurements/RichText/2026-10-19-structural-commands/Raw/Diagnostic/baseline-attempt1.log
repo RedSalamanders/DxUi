@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2122.18 completed offscreen FPS; p95 0.6213 ms; private 27074560 bytes
+Complex UI clean round 2: 2240.6 completed offscreen FPS; p95 0.5092 ms; private 27029504 bytes
+Complex UI clean round 3: 1970.51 completed offscreen FPS; p95 0.5369 ms; private 27615232 bytes
+Complex UI clean round 4: 2177.56 completed offscreen FPS; p95 0.6948 ms; private 28065792 bytes
+Complex UI clean round 5: 2070.46 completed offscreen FPS; p95 0.6529 ms; private 28028928 bytes
+Complex UI dirty round 1: 498.665 completed offscreen FPS; p95 2.3261 ms; private 28315648 bytes
+Complex UI dirty round 2: 512.054 completed offscreen FPS; p95 2.4051 ms; private 29241344 bytes
+Complex UI dirty round 3: 583.469 completed offscreen FPS; p95 1.897 ms; private 29368320 bytes
+Complex UI dirty round 4: 601.449 completed offscreen FPS; p95 1.823 ms; private 29593600 bytes
+Complex UI dirty round 5: 594.01 completed offscreen FPS; p95 1.9221 ms; private 29286400 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-structural-m4e-20261019\baseline-Default.json

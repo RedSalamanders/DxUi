@@ -1,0 +1,5 @@
+{
+  "Algorithm": "SHA256",
+  "Hash": "53CB49BB3ACD95825054E3D025FB782D9BA71AD71A5308D72E494C91A190F476",
+  "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-2ef049f4\\FailedBuildArtifacts\\DxUi.lib"
+}

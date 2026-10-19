@@ -887,4 +887,7 @@ raw TSF/programmatic replacement does not run cleanup.
 The sample toolbar exercises all these families with the same retained API.
 Structured UIA children/styles/actions, extended Markdown, physical IME/AT,
 native ARM64 execution, consumer adoption and the D4c performance HOLD remain
-separate gates. M4e qualification receipts will be linked after validation.
+separate gates. The [M4e evidence packet](../Measurements/RichText/2026-10-19-structural-commands/README.md)
+records 57 ordinary x64 scope/profile passes, all three ARM64 build-only results,
+allocation-failure and actual transport/client tests, the reviewed toolbar sample
+and gallery, preserved failures and the unresolved performance diagnostic.

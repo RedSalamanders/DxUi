@@ -1,0 +1,34 @@
+[
+  {
+    "Hash": "801E423E65F91330EAC710AA971EB9465803AB7EC763D89CEE74918EE2C1E33C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\driver.log"
+  },
+  {
+    "Hash": "693FE54E03139CF3863ECC663BF503F40902B8EA52930397CBE1EF812CB61079",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "3A8636FD85034B4811A0A3B0F01E9169971B897E4CF5F8C64971ACCAD55CE7A2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "B963EC92DBBA92FAE6DA3FBBD99804461834900D3B6568598B013618D78B8CF1",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "FE68E59D8AD3FAA5BDA756520942E522AB3142EFEEBD098C2371CAAA4B0D9136",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "F427E231622C313B3EA251D64719B84E4F277674FEC043450583EB49CEF4E821",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "F81B0A8B1DF1823ECCAD8153CD45B9644B1F1650B8BD7D100DCCD2550D029506",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "103F3DED0AB8A8E056AC4982B25014932EC48B47B7F78FF1BB303D7CAD950703",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Qualification-159b77c7\\ARM64-Debug\\DxUi.lib"
+  }
+]

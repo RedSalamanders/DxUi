@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "159b77c7700e5e1746bd9846265938cd6d0dbe0b",
+  "additionalArchivedArtifactsVerified": 111,
+  "componentScopeReceipts": 18,
+  "additionalScopeReceipts": 39,
+  "totalOrdinaryScopeReceipts": 57,
+  "zeroCapabilitySkips": true,
+  "sameExecutableHashesAsComponentMatrix": true,
+  "asanDetectionArtifactMatches": true,
+  "arm64": "Three compile-only builds; runtime remains unqualified",
+  "foreground": "INTERACTIVE_NOT_RUN; no desktop agreement",
+  "auditedUtc": "2026-10-19T19:03:50.1655868Z"
+}

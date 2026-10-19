@@ -1,0 +1,158 @@
+[
+  {
+    "Hash": "EDA6EF22DADD4AFD9F182C2009884EAACD2E423EE411AEC1B02CB030BAD12B0D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\AddressSanitizer-x64.json"
+  },
+  {
+    "Hash": "CAFE4523FF1BDEE67CF7440F88630D384DF05FEC435B42497553B524AEC29777",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Animation-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "7F901A239979C49B36A3B18ECD1843F551F94B5879585BDED41A650C5B71F35F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\clang_rt.asan_dynamic-x86_64.dll"
+  },
+  {
+    "Hash": "ADB54883431BE1432ADCF99D7EAE488F388C1DD54F48A25DDFF5B1459A5A2088",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\ComboBox-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "65DCDA9195282249209FA17DF0B0E1B1F5C1673AFFAE1B25B0AEA6AEA4BD4499",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Control-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "ED1809762B58B7082A4C282A851ED3BF17DDABB7E1C2AC288ED42E1C72889EAE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\driver.log"
+  },
+  {
+    "Hash": "18D93A14BBCA2EFDC6FEC262A3DA83E2AE48919987025A99FD193C97E69DA2C2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "F1404A27EF7602162E0EF6B57C8C4146A8C7774AFCCB6EDEA49FFB9CE84ECED4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "D60379BFC01266C7CE110BA44783E8FD0A0266FC1319359D50D6533954CFB574",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "CFF39BAEBC9FC6BBE71DC8C6A5965B972601597EE60C6A10A4C6730AF07783B8",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "FFB3D08422FBF25978C72A6D6850BDBCF893F0AA8E502257B38C446A965B7ADA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "9D8FE0D806EE39FA7C7BADD01BD0377D15415675A679FBBF7269C70A7684CB70",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "1B0A886FD0352EC8991846A64919B4782FEEA1AD35F70EAAF99E229A70EAF066",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\DxUi.lib"
+  },
+  {
+    "Hash": "3B8F05B9D3423CE7E2482FD3F27F2BD7F1D973071EA3B3A338A9B86163BE0C6A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Foundation-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "0D7B566103C4E42DCC6FEB36A3B113A7250182A60C3C8C69481EBFBEE8DA7E1B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Grid-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "6BCCFF0876B1B89CA3565DB751A4BF28924CDEA99C95074CE41A7E7DE35270B2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\InteractiveLease-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "3A711DC51B570DC89934D728C1E01F9E7A90EFCECEC4B7807D122F468D252D48",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\MenuExitLifetime-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "ABA01AC37F81BB4FC1C7B24F411F3E934BF96B4E2693D1B096D9B9A55519D3FD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\NewControls-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "E1B90DBED01E9315F8179C64FAE44D4B0553A98D100B3BC2A27EAB58CE99E8CF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Performance-x64-ASan Debug-0a3c16f52e9a4faf85fb8eb42dd9e128.json"
+  },
+  {
+    "Hash": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Performance-x64-ASan Debug-0a3c16f52e9a4faf85fb8eb42dd9e128.json.comparison.json"
+  },
+  {
+    "Hash": "B7042A967B5FDF8F3B836F3FB605A33664D53B12AA51E0D27742443A90DCCEBF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\ReadOnly-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "06E645AF32B80FD58DEB8029BA9654E347BB0C3267F489383D198F2E89D4A920",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Rendering-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "F248114E94EA5CD488E136D301EAAFC9F2DDF929B4D6E7C92C7E4F8530BFEF2D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-AddressSanitizer-x64.log"
+  },
+  {
+    "Hash": "FF613A56567F9F2DFC81E813561307F49B9CA4C67900C76839600515899B18C3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Animation-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "8F3204B2DA918AFEEA7F778B08D5EFAC0CD771BEAABB0B08840D82D57749AA88",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-ComboBox-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "B6FBECC36F2FE00093FCC7B342CC0C7CEF28BDC3C78AAA8E1CF402DC1B8C7A9C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Control-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Foundation-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "C2C60E39EB4DB483989F6B461C9094C7DED552EC9BD19890E681E98F2297680F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Grid-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "46C4635B6BA8BC4A1C3FCFDBDD9135231830CC6F6EF758773C2B24F82E376F68",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-InteractiveLease-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "D8B3F123180762C69C468AA631B74510039A0F5B89356769E7C6C22A3144232D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-MenuExitLifetime-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "75C3FD658FBB0D567A4A62B95312859A20421BFDDB86F76F6CA99247A63E0D68",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-NewControls-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "F1C89965CF44B7C5AE7E1ADA89176BD8CDDABC1A54D6CEE1F255C8BB29366542",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-ReadOnly-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "8862CB0F9D87326FF4D5F90C3AA62C7495E092FE099550DB2D09D7F8250C847E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Rendering-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "72A4578724533AF681CA062C4C83BBA081ABFC9481A8436EA21EC7288244551B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Theme-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "E405B668EBE74888BF54DF3ABFCB5237BE1B7663813F6C85A048D6163D0DD0A5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Tooltip-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "8AFEDE6D6AB79ED924E78718C355E05A892FB648ABA91A71ECBF1F6E0E520381",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\test-Tree-x64-ASan Debug.log"
+  },
+  {
+    "Hash": "6D7CD3AD5A20DB907B86E834C5E00875749198BB579ECAE96E6AE40233A2CF58",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Theme-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "AF63CCB8A44BB63E6B1339338C4F601270F1077BC1310EBFD8C84B66E91A63FE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Tooltip-x64-ASan Debug.json"
+  },
+  {
+    "Hash": "558F5B64CBAAE5EE6919F89A85E868D65EDC53FE581A01992C6E0E75F1B7B797",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-structural-m4e-20261019\\Additional-159b77c7\\x64-ASanDebug\\Tree-x64-ASan Debug.json"
+  }
+]
