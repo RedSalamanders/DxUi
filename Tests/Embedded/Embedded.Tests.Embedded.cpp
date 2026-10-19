@@ -1177,7 +1177,8 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1212,6 +1213,8 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection")
             TestRichFlatProjectionFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures")
+            TestRichSemanticGeometryFailureBudgets(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")

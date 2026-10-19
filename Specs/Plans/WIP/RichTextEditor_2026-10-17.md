@@ -1965,3 +1965,13 @@ retained line-query/edit-plan locals. The existing complete geometry failure swe
 is the regression test. Preserve M4dQualification, its failed Debug binary/PDB/
 library/logs/receipt and the passing Release archive; restart current qualification
 against the corrected commit without treating this failure as a passing result.
+
+The `d692329e41eb7b90e64f37b62d0f3329b7155b6c` constructor repair was incomplete:
+an early Debug embedded probe and the ordinary Debug Embedded scope still exited
+3. Keep M4dQualificationFixed and the early probe log. Debug EditorControls and
+Accessibility passed. The semantic inline-bound pass additionally calls the
+existing PreparedLayout::Range, whose named-vector return could perform a
+noexcept Debug vector move when NRVO was omitted. The next repair uses an explicit
+fallible copy/prvalue return and adds an isolated semantic-geometry fault probe
+with bounded stack reporting and per-failure-point tracing. Run that focused probe
+before restarting the profile matrix; do not promote either failed candidate.

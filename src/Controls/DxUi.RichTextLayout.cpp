@@ -355,7 +355,10 @@ std::vector<D2D1_RECT_F> PreparedLayout::Range(std::size_t first, std::size_t la
     rectangles.reserve(count);
     for (const auto& item : metrics)
         rectangles.push_back({item.left, item.top, item.left + item.width, item.top + item.height});
-    return rectangles;
+    // Do not rely on optional NRVO: MSVC Debug's noexcept vector move can
+    // allocate an iterator proxy. A fallible copy/prvalue keeps query/staging
+    // allocation failures inside the caller's exception boundary.
+    return std::vector<D2D1_RECT_F>(rectangles);
 }
 std::size_t PreparedLayout::PreviousCluster(std::size_t position) const
 {

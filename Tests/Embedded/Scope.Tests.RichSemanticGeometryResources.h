@@ -1,7 +1,7 @@
 #pragma once
 #include "../Support/Scope.Tests.RichSemanticGeometry.h"
 
-static void TestRichSemanticGeometryFailureBudgets()
+static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
@@ -31,6 +31,11 @@ static void TestRichSemanticGeometryFailureBudgets()
     Check(requests > 0u && requests < 4096u, "semantic geometry has an independently observed finite owned allocation schedule");
     for (size_t point = 0u; point < requests; ++point)
     {
+        if (trace)
+        {
+            std::fprintf(stderr, "semantic geometry allocation failure point=%zu of %zu\n", point, requests);
+            std::fflush(stderr);
+        }
         PreparedSemanticGeometry geometry;
         geometry.Begin(factory.get(), previous, options);
         RichSemanticGeometryTests::Complete(geometry);
