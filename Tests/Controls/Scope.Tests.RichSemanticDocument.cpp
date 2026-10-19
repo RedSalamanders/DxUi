@@ -9,6 +9,10 @@ void TestRichSemanticDocumentStructuralStyleValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
 }
+void TestRichSemanticDocumentSourceFormatOwnership()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
+}
 void TestRichSemanticDocumentDirectedValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
@@ -63,6 +67,7 @@ void TestRichSemanticDocumentPinnedSourceCases()
 void RunRichSemanticDocumentTests()
 {
     DXUI_RUN_TEST(TestRichSemanticDocumentStructuralStyleValues);
+    DXUI_RUN_TEST(TestRichSemanticDocumentSourceFormatOwnership);
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);

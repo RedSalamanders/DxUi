@@ -3,12 +3,24 @@
 #include "../Embedded/Embedded.Tests.EmbeddedUiaBridge.h"
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include <cmath>
 #include <thread>
 
 namespace
 {
 using namespace DxUi;
 constexpr std::wstring_view EditorId = L"rich.source";
+class RichAccessibilityEditor final : public RichTextEditor
+{
+public:
+    using RichTextEditor::RichTextEditor;
+    // Exercise the same protected binding boundary used by retained owners,
+    // without moving the desktop or replacing the source/CPU semantic graph.
+    void RebindForTest(ControlHost* host) noexcept
+    {
+        PropagateHost(host);
+    }
+};
 
 struct RichAccessibilityFixture
 {
@@ -27,7 +39,7 @@ struct RichAccessibilityFixture
             window   = std::make_unique<AttachedHostWindow>();
             controls = &window->Host();
         }
-        auto root = std::make_unique<RichTextEditor>(L"**alpha**\r\nbeta");
+        auto root = std::make_unique<RichAccessibilityEditor>(L"**alpha**\r\nbeta");
         editor    = root.get();
         if (markdownAnalysis || semanticRendering)
             editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::CommonMark0312);
@@ -84,6 +96,26 @@ struct RichAccessibilityFixture
     }
     wil::com_ptr_nothrow<IRawElementProviderSimple> Simple()
     {
+        // Semantic point hit-testing returns the innermost fragment. Acquire
+        // the document by its application identity instead of guessing a pixel
+        // which happens to avoid a heading/link/table cell.
+        if (editor->IsMarkdownRenderingEnabled())
+        {
+            wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+            RequireSucceeded(provider.query_to(root.put()), "semantic root simple provider");
+            wil::unique_variant id;
+            RequireSucceeded(root->GetPropertyValue(UIA_AutomationIdPropertyId, &id), "semantic root identity");
+            if (id.vt == VT_BSTR && std::wstring_view(id.bstrVal, SysStringLen(id.bstrVal)) == EditorId)
+                return root;
+            wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+            wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+            RequireSucceeded(provider.query_to(rootFragment.put()), "application root fragment");
+            RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, child.put()), "application document child");
+            Require(child != nullptr, "embedded document is reachable before its semantic parts");
+            root.reset();
+            RequireSucceeded(child.query_to(root.put()), "document simple provider");
+            return root;
+        }
         wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
         if (window)
             fragment = GetProviderAtDipPoint(window->Hwnd(), *controls, *provider.get(), 30, 20, "native rich point provider");
@@ -1087,11 +1119,380 @@ void TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges()
         PendingPreparationGeometry(embedded, true);
     });
 }
+wil::com_ptr_nothrow<IRawElementProviderSimple> FindSemanticPart(IRawElementProviderSimple& root, CONTROLTYPEID type, unsigned depth = 0u)
+{
+    Require(depth < 16u, "semantic provider tree has bounded ownership depth");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, child;
+    RequireSucceeded(root.QueryInterface(IID_PPV_ARGS(fragment.put())), "semantic fragment interface");
+    RequireSucceeded(fragment->Navigate(NavigateDirection_FirstChild, child.put()), "first semantic child");
+    while (child)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(child.query_to(simple.put()), "semantic child simple interface");
+        if (ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "semantic child role") == type)
+            return simple;
+        auto nested = FindSemanticPart(*simple.get(), type, depth + 1u);
+        if (nested)
+            return nested;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(child->Navigate(NavigateDirection_NextSibling, next.put()), "next semantic sibling");
+        child = std::move(next);
+    }
+    return {};
+}
+UiaTest::ElementId FindClientPart(UiaTest::Client& client, UiaTest::ElementId parent, CONTROLTYPEID type, unsigned depth = 0u)
+{
+    Require(depth < 16u, "actual client semantic walk is bounded");
+    for (const auto child : client.Children(parent))
+    {
+        const auto owner = client.Navigate(child, UiaTest::Direction::Parent);
+        Require(owner && client.Same(*owner, parent), "actual semantic child navigates back to its application-reachable parent");
+        if (client.Describe(child).controlType == type)
+            return child;
+        if (const auto found = FindClientPart(client, child, type, depth + 1u))
+            return found;
+    }
+    return 0u;
+}
+void SemanticAttributesAndFormats(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    const std::wstring source = L"# Head\r\n\r\n**bold &fjlig; \U0001f600** plain *slant* ~~gone~~ `code` [label](#local) **last**\r\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    wil::com_ptr_nothrow<ITextProvider> pattern;
+    RequireSucceeded(simple.query_to(pattern.put()), "semantic text pattern");
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(pattern->get_DocumentRange(document.put()), "semantic source document range");
+    const auto find = [&](std::wstring_view value)
+    {
+        wil::unique_bstr needle(SysAllocStringLen(value.data(), static_cast<UINT>(value.size())));
+        wil::com_ptr_nothrow<ITextRangeProvider> range;
+        RequireSucceeded(document->FindText(needle.get(), FALSE, FALSE, range.put()), "find exact formatted source");
+        Require(range != nullptr, "expected formatted source found");
+        return range;
+    };
+    auto bold = find(L"bold");
+    RequireSucceeded(bold->ExpandToEnclosingUnit(TextUnit_Format), "expand prepared source Format");
+    Require(ReadTextRangeText(*bold.get(), -1, "raw Format text") == L"bold &fjlig; \U0001f600", "Format retains full raw entity and supplementary owner");
+    VARIANT weight{};
+    weight.vt   = VT_I4;
+    weight.lVal = 700;
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    RequireSucceeded(document->FindAttribute(UIA_FontWeightAttributeId, weight, FALSE, found.put()), "find bold source attribute");
+    Require(found && ReadTextRangeText(*found.get(), -1, "found bold source") == L"bold &fjlig; \U0001f600", "FindAttribute uses exact source spans");
+    found.reset();
+    RequireSucceeded(document->FindAttribute(UIA_FontWeightAttributeId, weight, TRUE, found.put()), "backward attribute search");
+    Require(found && ReadTextRangeText(*found.get(), -1, "last bold source") == L"last", "backward attribute search finds the final matching span");
+    weight.vt = VT_BOOL;
+    Require(document->FindAttribute(UIA_FontWeightAttributeId, weight, FALSE, found.put()) == E_INVALIDARG && ! found, "attribute type mismatch clears result");
+    Require(document->FindAttribute(UIA_AnimationStyleAttributeId, weight, FALSE, found.put()) == UIA_E_NOTSUPPORTED, "unsupported attributes stay explicit");
+    auto caret = find(L"bold");
+    RequireSucceeded(caret->MoveEndpointByRange(TextPatternRangeEndpoint_End, caret.get(), TextPatternRangeEndpoint_Start), "collapse source Format caret");
+    int moved = 0;
+    RequireSucceeded(caret->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Format, INT_MAX, &moved), "bounded Format endpoint to source end");
+    Require(moved > 0 && ReadTextRangeText(*caret.get(), -1, "Format suffix") == source.substr(source.find(L"bold")),
+            "large Format movement reaches exact source end");
+    RequireSucceeded(caret->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Format, INT_MIN, &moved), "bounded Format endpoint to source start");
+    Require(moved < 0 && ReadTextRangeText(*caret.get(), -1, "full Format source") == source, "INT_MIN Format movement has no overflow");
+    RequireSucceeded(bold->Move(TextUnit_Format, 1, &moved), "next source format run");
+    Require(moved == 1 && ReadTextRangeText(*bold.get(), -1, "regular delimiter Format").starts_with(L"** plain *"),
+            "Format movement includes hidden syntax as regular source");
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0u, "formatted client reaches source document");
+    const auto boldInfo = client.InspectTextRange(editor, L"bold", {UIA_FontWeightAttributeId, UIA_IsItalicAttributeId, UIA_StyleIdAttributeId}, true);
+    Require(boldInfo.text == L"bold &fjlig; \U0001f600" && boldInfo.attributes[0].type == VT_I4 && boldInfo.attributes[0].number == 700.0 &&
+                boldInfo.attributes[1].type == VT_BOOL && boldInfo.attributes[1].number == 0.0 && boldInfo.attributes[2].number == StyleId_Normal,
+            "actual UIA client reads typed style values and raw Format expansion");
+    const auto heading = client.InspectTextRange(editor, L"Head", {UIA_StyleIdAttributeId, UIA_FontWeightAttributeId, UIA_FontSizeAttributeId});
+    const auto plain   = client.InspectTextRange(editor, L"plain", {UIA_FontSizeAttributeId, UIA_FontNameAttributeId});
+    Require(heading.attributes[0].number == StyleId_Heading1 && heading.attributes[1].number == 600.0 &&
+                std::abs(heading.attributes[2].number / plain.attributes[0].number - 1.9) < 0.001,
+            "heading level, native semibold and point size agree with rendered typography");
+    const auto italic = client.InspectTextRange(editor, L"slant", {UIA_IsItalicAttributeId});
+    const auto strike = client.InspectTextRange(editor, L"gone", {UIA_StrikethroughStyleAttributeId});
+    const auto code   = client.InspectTextRange(editor, L"code", {UIA_FontNameAttributeId});
+    const auto link   = client.InspectTextRange(editor, L"label", {UIA_UnderlineStyleAttributeId});
+    Require(italic.attributes[0].number == 1.0 && strike.attributes[0].number == static_cast<double>(TextDecorationLineStyle_Single) &&
+                ! code.attributes[0].text.empty() && code.attributes[0].text != plain.attributes[1].text &&
+                link.attributes[0].number == static_cast<double>(TextDecorationLineStyle_Single),
+            "real client observes italic, strike, monospace and link underline");
+    const auto all = client.InspectTextRange(editor, {}, {UIA_FontWeightAttributeId, UIA_AnimationStyleAttributeId});
+    Require(all.text == source && all.attributes[0].mixed && all.attributes[1].unsupported, "mixed and unsupported UIA sentinels survive actual transport");
+    Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "source provider stays document") == UIA_DocumentControlTypeId,
+            "structured children do not replace the Document text provider");
+    fixture.editor->SetViewMode(RichText::ViewMode::Source);
+    fixture.Publish();
+    const auto sourceInfo = client.InspectTextRange(editor, L"bold", {UIA_FontWeightAttributeId});
+    Require(sourceInfo.attributes[0].unsupported && ! fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "source mode retires semantic attributes without inventing style for raw source pixels");
+}
+void SemanticStructureAndTasks(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    const std::wstring source = L"# Head\n\n[label](#local) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({5u, 2u});
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto task   = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    auto link   = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    auto image  = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    auto table  = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
+    Require(task && link && image && table, "native and embedded provider trees contain task/link/image/table structure");
+    wil::com_ptr_nothrow<IUnknown> invocation;
+    RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "inert link pattern query");
+    Require(! invocation && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "image alternative") == L"image alt",
+            "link destinations stay inert and images expose their native alternatives");
+    wil::com_ptr_nothrow<ITextProvider> text;
+    RequireSucceeded(simple.query_to(text.put()), "structured source pattern");
+    wil::com_ptr_nothrow<ITextRangeProvider> taskRange, paddedRange;
+    RequireSucceeded(text->RangeFromChild(task.get(), taskRange.put()), "task source from child");
+    Require(ReadTextRangeText(*taskRange.get(), -1, "task raw range") == L"[ ]", "task child owns exact three-unit marker");
+    Require(text->RangeFromChild(simple.get(), paddedRange.put()) == E_INVALIDARG && ! paddedRange, "foreign/nonchild element is rejected");
+    wil::com_ptr_nothrow<IGridProvider> grid;
+    RequireSucceeded(table.query_to(grid.put()), "semantic table provider");
+    int rows = 0, columns = 0;
+    RequireSucceeded(grid->get_RowCount(&rows), "semantic table rows");
+    RequireSucceeded(grid->get_ColumnCount(&columns), "semantic table columns");
+    Require(rows == 2 && columns == 3, "table includes header row and multiple generated padded cells");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> padded;
+    RequireSucceeded(grid->GetItem(1, 1, padded.put()), "padded semantic table cell");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> invalidCell;
+    Require(grid->GetItem(-1, 0, invalidCell.put()) == E_INVALIDARG && ! invalidCell, "invalid table coordinate fails");
+    RequireSucceeded(text->RangeFromChild(padded.get(), paddedRange.put()), "padded cell source range");
+    Require(ReadTextRangeText(*paddedRange.get(), -1, "padded raw source").empty(), "padding adds no invented source units");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> enclosing;
+    RequireSucceeded(paddedRange->GetEnclosingElement(enclosing.put()), "padded affinity enclosing cell");
+    Require(ReadProviderLongProperty(*enclosing.get(), UIA_ControlTypePropertyId, "padded enclosing type") == UIA_TextControlTypeId,
+            "explicit RangeFromChild retains cell identity when multiple padded cells share an ACP");
+    wil::com_ptr_nothrow<IGridItemProvider> firstEnclosingCell;
+    RequireSucceeded(enclosing.query_to(firstEnclosingCell.put()), "padded enclosing grid item");
+    int firstColumn = -1;
+    RequireSucceeded(firstEnclosingCell->get_Column(&firstColumn), "first padded enclosing column");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> secondPadded;
+    RequireSucceeded(grid->GetItem(1, 2, secondPadded.put()), "second cell at shared raw ACP");
+    wil::com_ptr_nothrow<ITextRangeProvider> secondRange, secondClone;
+    RequireSucceeded(text->RangeFromChild(secondPadded.get(), secondRange.put()), "second padded raw range");
+    RequireSucceeded(secondRange->Clone(secondClone.put()), "clone distinct padded affinity");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> secondEnclosing;
+    RequireSucceeded(secondClone->GetEnclosingElement(secondEnclosing.put()), "cloned second padded enclosing element");
+    wil::com_ptr_nothrow<IGridItemProvider> secondEnclosingCell;
+    RequireSucceeded(secondEnclosing.query_to(secondEnclosingCell.put()), "second padded enclosing grid item");
+    int secondColumn = -1;
+    RequireSucceeded(secondEnclosingCell->get_Column(&secondColumn), "second padded enclosing column");
+    Require(firstColumn == 1 && secondColumn == 2 && ReadTextRangeText(*secondClone.get(), -1, "second padded source").empty(),
+            "equal-ACP empty ranges and clones retain their distinct explicit child identity");
+    wil::com_ptr_nothrow<IGridItemProvider> cell;
+    RequireSucceeded(padded.query_to(cell.put()), "semantic table item");
+    int row = -1, column = -1;
+    RequireSucceeded(cell->get_Row(&row), "padded row coordinate");
+    RequireSucceeded(cell->get_Column(&column), "padded column coordinate");
+    Require(row == 1 && column == 1, "cell exposes semantic coordinates");
+    SAFEARRAY* headers = nullptr;
+    wil::com_ptr_nothrow<ITableItemProvider> tableItem;
+    RequireSucceeded(padded.query_to(tableItem.put()), "semantic table header relation");
+    RequireSucceeded(tableItem->GetColumnHeaderItems(&headers), "padded cell column header");
+    Require(headers && headers->rgsabound[0].cElements == 1u, "each padded cell reaches its column header");
+    SafeArrayDestroy(headers);
+    wil::com_ptr_nothrow<IRawElementProviderFragment> taskFragment;
+    RequireSucceeded(task.query_to(taskFragment.put()), "task bounds fragment");
+    UiaRect bounds{};
+    RequireSucceeded(taskFragment->get_BoundingRectangle(&bounds), "native task painted bounds");
+    Require(bounds.width > 0.0 && bounds.height > 0.0, "task bounds follow acknowledged native geometry");
+    UiaTest::Client client(fixture.Hwnd(), {.automationEvents = {UIA_Text_TextChangedEventId}}, [&] { fixture.Pump(); });
+    const auto editor      = FindEditor(client, client.Root());
+    const auto clientTask  = FindClientPart(client, editor, UIA_CheckBoxControlTypeId);
+    const auto clientTable = FindClientPart(client, editor, UIA_TableControlTypeId);
+    Require(clientTask && clientTable && client.TextRangeFromChild(editor, clientTask) == L"[ ]" &&
+                client.TextRangeFromChild(editor, clientTable).find(L"| A | B | C |") != std::wstring::npos,
+            "real UIA clients map reachable semantic children back to complete raw ranges");
+    const auto all = client.InspectTextRange(editor, {});
+    Require(client.Same(all.enclosing, editor) && all.children.size() >= 4u,
+            "DocumentRange exposes immediate semantic children and the document enclosing element");
+    const auto beforeSelection = fixture.editor->GetSelection();
+    const auto mark            = client.Mark();
+    RequireSucceeded(client.Toggle(clientTask), "actual native/embedded UIA task toggle");
+    fixture.Publish();
+    Require(fixture.editor->GetText().find(L"[x] task") != std::wstring::npos && fixture.editor->GetSelection() == beforeSelection && fixture.editor->CanUndo(),
+            "task action changes one raw state character and preserves backward selection");
+    Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                             [&]
+    {
+        const auto events = client.DistinctSince(mark);
+        return std::ranges::any_of(events, [](const auto& event) { return event.id == UIA_Text_TextChangedEventId && event.automationId == EditorId; });
+    }),
+            "task action publishes source TextChanged to the reachable client");
+    VARIANT retired{};
+    Require(task->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "old semantic fragments retire at source publication");
+    Require(fixture.editor->Undo() && fixture.editor->GetText() == source && fixture.editor->GetSelection() == beforeSelection,
+            "one undo restores exact task spelling and selection");
+    fixture.Publish();
+    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    wil::com_ptr_nothrow<IToggleProvider> toggle;
+    RequireSucceeded(task.query_to(toggle.put()), "current task toggle pattern");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    Require(toggle->Toggle() == UIA_E_INVALIDOPERATION, "read-only task action is rejected before mutation");
+    fixture.editor->SetReadOnly(false);
+    fixture.editor->SetEnabled(false);
+    fixture.Publish();
+    Require(toggle->Toggle() == UIA_E_ELEMENTNOTENABLED && fixture.editor->GetText() == source, "disabled task action preserves exact source");
+    fixture.editor->SetEnabled(true);
+    fixture.Publish();
+    const auto epoch = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    fixture.editor->SetMarkdownRenderingEnabled(false);
+    fixture.Publish();
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.Publish();
+    Require(epoch && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Identity() != epoch->Identity() &&
+                toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE,
+            "same-source rendering restart cannot resurrect old child identity");
+    fixture.controls->SetRoot(std::make_unique<RichTextEditor>(L"replacement"));
+    fixture.Publish();
+    Require(table->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement disconnects structured parts");
+}
+void SemanticTaskComposition(bool nativeAdapter)
+{
+    // A borrowed surface provides prepared semantic geometry without an HWND.
+    // Its native backend exercises the real IMM adapter without desktop focus;
+    // attached-window IMM deliberately requires OS focus and is a separate gate.
+    RichAccessibilityFixture fixture(true, true, true);
+    if (nativeAdapter)
+    {
+        fixture.controls->SetTextInputBackend(TextInputBackend::Native);
+        fixture.controls->SetFocusControl(fixture.editor, false);
+    }
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    const std::wstring source = L"- [ ] task\r\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({10u, 10u});
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    if (! nativeAdapter)
+    {
+        EmbeddedTextInputSnapshot snapshot;
+        RequireSucceeded(fixture.view.ReadTextInput(snapshot), "read semantic task composition base");
+        auto preview = snapshot.state;
+        preview.text.insert(10u, L"\u4eee");
+        preview.caretIndex = 11u;
+        preview.selectionAnchorIndex.reset();
+        preview.compositionStartIndex = 10u;
+        preview.compositionEndIndex   = 11u;
+        RequireSucceeded(fixture.view.ApplyTextInput(snapshot.revision, preview, EmbeddedTextInputAction::Preview), "preview task source composition");
+    }
+    else
+    {
+        bool handled = false;
+        fixture.controls->HandleMessage(nullptr, WM_IME_STARTCOMPOSITION, 0, 0, handled);
+        Require(handled, "synthetic native semantic composition starts without taking focus");
+        NativeTextInputImePayload payload;
+        payload.hasCompositionString = true;
+        payload.compositionString    = L"\u4eee";
+        fixture.controls->DebugSetNativeTextInputImePayloadForTest(payload);
+        fixture.controls->HandleMessage(nullptr, WM_IME_COMPOSITION, 0, GCS_COMPSTR, handled);
+        Require(handled, "production native adapter accepts the synthetic source preview");
+    }
+    fixture.Publish();
+    auto task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    wil::com_ptr_nothrow<IToggleProvider> toggle;
+    RequireSucceeded(task.query_to(toggle.put()), "composing task action");
+    const auto previewSource = fixture.editor->GetText();
+    Require(toggle->Toggle() == UIA_E_INVALIDOPERATION && fixture.editor->GetText() == previewSource && ! fixture.editor->CanUndo(),
+            "active native/embedded composition blocks semantic UIA task edits without history");
+    if (! nativeAdapter)
+    {
+        EmbeddedTextInputSnapshot snapshot;
+        RequireSucceeded(fixture.view.ReadTextInput(snapshot), "read cancellation identity");
+        RequireSucceeded(fixture.view.ApplyTextInput(snapshot.revision, snapshot.state, EmbeddedTextInputAction::Cancel), "cancel semantic source preview");
+    }
+    else
+    {
+        bool handled = false;
+        fixture.controls->HandleMessage(nullptr, WM_IME_ENDCOMPOSITION, 0, 0, handled);
+        Require(handled, "native source preview cancels through production adapter");
+    }
+    fixture.Publish();
+    Require(fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "composition cancellation restores exact CRLF task source");
+}
+void SemanticCompositionBindingAndRetirement(bool embedded)
+{
+    SemanticTaskComposition(! embedded);
+    // This fixture separately qualifies the native HWND/application-bridged
+    // semantic provider lifetime. Neither fixture takes desktop focus.
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    fixture.editor->SetText(L"- [ ] task\r\n");
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto task   = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    wil::com_ptr_nothrow<IToggleProvider> toggle;
+    RequireSucceeded(task.query_to(toggle.put()), "task before owner binding change");
+    const auto publication = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    auto* editor           = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    editor->RebindForTest(nullptr);
+    editor->RebindForTest(fixture.controls);
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls) == publication && toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE,
+            "same-path same-source owner rebinding retires old fragments even when immutable CPU semantics are reused");
+    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    toggle.reset();
+    RequireSucceeded(task.query_to(toggle.put()), "task from current owner binding");
+    size_t notices = 0u;
+    std::wstring observed;
+    fixture.editor->SetOnTextChanged([&]
+    {
+        ++notices;
+        observed = fixture.editor->GetText();
+        fixture.controls->SetRoot(std::make_unique<Label>(L"retired by task callback"));
+    });
+    RequireSucceeded(toggle->Toggle(), "task callback may destroy its editor after commit");
+    fixture.Publish();
+    VARIANT retired{};
+    Require(notices == 1u && observed == L"- [x] task\r\n" && task->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "reentrant destruction leaves one exact committed source edit and disconnects the old provider");
+}
+void TestRichTextAccessibilityWindowSemanticCompositionBindingAndRetirement()
+{
+    // The rootless native IMM probe also uses the application UIA bridge, which
+    // requires an STA. The lifetime half still attaches an actual native HWND.
+    EmbeddedCase([](bool) { SemanticCompositionBindingAndRetirement(false); });
+}
+void TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement()
+{
+    EmbeddedCase(SemanticCompositionBindingAndRetirement);
+}
+void TestRichTextAccessibilityWindowSemanticAttributesAndFormats()
+{
+    SemanticAttributesAndFormats(false);
+}
+void TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats()
+{
+    EmbeddedCase(SemanticAttributesAndFormats);
+}
+void TestRichTextAccessibilityWindowSemanticStructureAndTasks()
+{
+    SemanticStructureAndTasks(false);
+}
+void TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks()
+{
+    EmbeddedCase(SemanticStructureAndTasks);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticAttributesAndFormats);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticCompositionBindingAndRetirement);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticStructureAndTasks);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);

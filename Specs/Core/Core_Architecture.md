@@ -47,7 +47,13 @@ is an owner-serialized CPU preparation service with event budgets, cancellation,
 coalescing and failure-atomic publication. It owns no graphics or scheduling
 resource. This CPU service alone does not activate rendering or change source
 text-store coordinates. RichTextEditor's explicit semantic preview consumes its
-immutable publication; complete structural/style accessibility remains M4f.
+immutable publication. Semantic preparation also stages a complete source-format
+partition and process-local publication identity. Rich UIA snapshots share this
+immutable graph and retain optional prepared bounds/nominal typography only for
+semantic editors; unrelated controls add no rich strings or rectangle vectors.
+Semantic child providers retain weak graph identity plus the control's host
+binding epoch. Geometry reflow can reuse CPU semantics; detach/rebind cannot
+resurrect old children. Source text stores retain raw UTF-16 coordinates.
 The semantic builder validates the bounded native HTML policy before hiding any
 tag in a leaf. Its character-reference adapter calls the syntax lexer's existing
 pinned decoder. Markdown style state and active HTML anchor ownership remain
@@ -60,7 +66,8 @@ continuations, nested blocks and tables. Marker/caret sites are geometry identit
 never source ACPs; all source movement preserves logical direction across boxes.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
-commands. Rich structural semantics and real IME/AT acceptance remain pending.
+commands. Explicit semantic rendering adds bounded style/structure providers;
+real IME/AT acceptance remains pending.
 
 MarkdownSyntax is a separate owned Unicode preparation service. Its immutable
 source and exact root-block/lexeme partitions retain original spelling independently

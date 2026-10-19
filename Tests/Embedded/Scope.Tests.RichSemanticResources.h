@@ -1,8 +1,240 @@
 #pragma once
 #include "../Support/Scope.Tests.RichSemantic.h"
+#include <thread>
 
 // Included after this process's isolated allocation counters. Do not instrument
 // the canonical benchmark or Windows/driver allocations with this fixture.
+static LRESULT CALLBACK SemanticDispatchWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    auto* host = reinterpret_cast<DxUi::ControlHost*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (message == WM_NCCREATE)
+    {
+        host = static_cast<DxUi::ControlHost*>(reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(host));
+    }
+    if (host)
+    {
+        bool handled      = false;
+        const auto result = host->HandleMessage(hwnd, message, wParam, lParam, handled);
+        if (handled)
+            return result;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+static void TestRichSemanticNativeDispatchFailureAtomicity()
+{
+    using namespace DxUi;
+    const auto instance        = GetModuleHandleW(nullptr);
+    constexpr PCWSTR className = L"DxUi.Tests.SemanticDispatch";
+    WNDCLASSW windowClass{};
+    windowClass.lpfnWndProc   = SemanticDispatchWindowProc;
+    windowClass.hInstance     = instance;
+    windowClass.lpszClassName = className;
+    Check(RegisterClassW(&windowClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register nonactivating native dispatch fixture");
+    ControlHost host;
+    wil::unique_hwnd window(
+        CreateWindowExW(WS_EX_NOACTIVATE, className, L"Semantic dispatch", WS_OVERLAPPED, -32000, -32000, 480, 240, nullptr, nullptr, instance, &host));
+    Check(bool(window) && host.Attach(window.get()), "attach hidden native dispatch owner without desktop focus");
+    const auto detach         = wil::scope_exit([&] { host.Detach(); });
+    const std::wstring source = L"- [ ] task\r\n";
+    auto root                 = std::make_unique<RichTextEditor>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    const auto prepare = [&]
+    {
+        for (std::size_t turn = 0u; turn < 1024u; ++turn)
+        {
+            Check(host.RenderInitialFrameForShow(), "prepare native dispatch semantics");
+            if (! host.HasPendingContentPreparation())
+                return;
+        }
+        Check(false, "native dispatch preparation completes in bounded turns");
+    };
+    prepare();
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.get()));
+    Check(bool(provider), "native dispatch application provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> document;
+    Hr(provider.query_to(document.put()), "native dispatch document fragment");
+    const auto findToggle = [&](auto&& self, IRawElementProviderFragment& fragment) -> wil::com_ptr_nothrow<IToggleProvider>
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        Hr(fragment.QueryInterface(IID_PPV_ARGS(simple.put())), "native dispatch part");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        Hr(simple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "native dispatch task pattern");
+        wil::com_ptr_nothrow<IToggleProvider> toggle;
+        if (pattern)
+        {
+            Hr(pattern.query_to(toggle.put()), "native dispatch Toggle interface");
+            return toggle;
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+        Hr(fragment.Navigate(NavigateDirection_FirstChild, child.put()), "native dispatch first child");
+        while (child)
+        {
+            toggle = self(self, *child.get());
+            if (toggle)
+                return toggle;
+            wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+            Hr(child->Navigate(NavigateDirection_NextSibling, next.put()), "native dispatch next sibling");
+            child = std::move(next);
+        }
+        return toggle;
+    };
+    const HWND previousFocus = GetFocus();
+    const auto invoke        = [&](std::size_t failure)
+    {
+        // Independent source/history/publication for every fault position.
+        editor->SetText(L"reset");
+        editor->SetText(source);
+        prepare();
+        auto toggle = findToggle(findToggle, *document.get());
+        Check(bool(toggle), "native dispatch finds current semantic task");
+        wil::unique_event_nothrow completed;
+        Hr(completed.create(wil::EventOptions::ManualReset), "native dispatch completion event");
+        HRESULT result         = E_FAIL;
+        std::size_t requests   = 0u;
+        const auto publication = editor->GetAcknowledgedSemanticDocument(host);
+        {
+            std::jthread client([&]
+            {
+                // Only this caller's C++ allocations fail; the owner processes
+                // the production bounded dispatch on its own message queue.
+                countAllocations = true;
+                allocations = allocationBytes = 0u;
+                failAllocationAfter           = failure;
+                result                        = toggle->Toggle();
+                failAllocationAfter           = std::numeric_limits<std::size_t>::max();
+                countAllocations              = false;
+                requests                      = allocations;
+                SetEvent(completed.get());
+            });
+            const auto deadline = GetTickCount64() + 15000u;
+            const HANDLE event  = completed.get();
+            while (WaitForSingleObject(event, 0u) != WAIT_OBJECT_0 && GetTickCount64() < deadline)
+            {
+                const auto wait = MsgWaitForMultipleObjects(1u, &event, FALSE, 50u, QS_ALLINPUT);
+                Check(wait != WAIT_FAILED, "native dispatch waits for client or owner messages");
+                MSG message{};
+                while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+                {
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+            }
+            Check(WaitForSingleObject(event, 0u) == WAIT_OBJECT_0, "native task dispatch finishes before watchdog");
+        }
+        if (failure == std::numeric_limits<std::size_t>::max())
+        {
+            Hr(result, "native foreign-thread task dispatch succeeds");
+            Check(editor->GetText() == L"- [x] task\r\n" && editor->Undo() && editor->GetText() == source && ! editor->CanUndo(),
+                  "successful native dispatched Toggle commits exactly one source transaction");
+        }
+        else
+            Check(result == E_OUTOFMEMORY && editor->GetText() == source && ! editor->CanUndo() && ! editor->CanRedo() &&
+                      editor->GetAcknowledgedSemanticDocument(host) == publication,
+                  "each foreign-thread dispatch allocation fails through HRESULT before source/history/publication mutation");
+        Check(GetFocus() == previousFocus, "native task dispatch and failures never take desktop focus");
+        return requests;
+    };
+    const auto requests = invoke(std::numeric_limits<std::size_t>::max());
+    Check(requests > 0u && requests < 128u, "native semantic dispatch has a finite observed caller allocation schedule");
+    for (std::size_t failure = 0u; failure < requests; ++failure)
+        invoke(failure);
+    invoke(std::numeric_limits<std::size_t>::max());
+    std::cout << "rich semantic native dispatch sweptRequests=" << requests << " sourcePreserved=1 retry=1 focusUnchanged=1\n";
+}
+static void TestRichSemanticAccessibilityFailureAtomicity(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "semantic UIA failure shared graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "semantic UIA failure owner");
+    const std::wstring source = L"| A | B |\n| - | - |\n| one |\n\n- [ ] task\n";
+    auto root                 = std::make_unique<RichTextEditor>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "semantic UIA failure preparation");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    const EmbeddedAccessibilityPlacement placement{{0, 0, 480, 240}, true};
+    Hr(view.AttachAccessibility(site, 0x5249434855494146ull, placement), "semantic UIA failure attachment");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    Hr(view.GetAccessibilityProvider(provider.put()), "semantic UIA failure root");
+    site->root        = provider.get();
+    const auto detach = wil::scope_exit([&]
+    {
+        site->root = nullptr;
+        view.Detach();
+    });
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, documentFragment, tableFragment;
+    Hr(provider.query_to(rootFragment.put()), "semantic root navigation interface");
+    Hr(rootFragment->Navigate(NavigateDirection_FirstChild, documentFragment.put()), "semantic failure document");
+    Hr(documentFragment->Navigate(NavigateDirection_FirstChild, tableFragment.put()), "semantic failure table");
+    wil::com_ptr_nothrow<ITextProvider> text;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> table;
+    Hr(documentFragment.query_to(text.put()), "semantic failure TextPattern");
+    Hr(tableFragment.query_to(table.put()), "semantic failure table element");
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    Hr(text->get_DocumentRange(document.put()), "semantic failure source range");
+    wil::com_ptr_nothrow<IUnknown> unknown;
+    Hr(table->GetPatternProvider(UIA_TablePatternId, unknown.put()), "semantic failure table pattern");
+    wil::com_ptr_nothrow<ITableProvider> headers;
+    Hr(unknown.query_to(headers.put()), "semantic failure header interface");
+    const auto publication = editor->GetAcknowledgedSemanticDocument(view.Controls());
+    std::size_t total      = 0u;
+    for (unsigned scenario = 0u; scenario < 2u; ++scenario)
+    {
+        const auto invoke = [&]
+        {
+            SAFEARRAY* result = nullptr;
+            const auto hr     = scenario == 0u ? document->GetChildren(&result) : headers->GetColumnHeaders(&result);
+            if (result)
+                SafeArrayDestroy(result);
+            return hr;
+        };
+        std::size_t requests = 0u;
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=]
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            Hr(invoke(), "measure fallible semantic UIA collection");
+            countAllocations = false;
+            requests         = allocations;
+        }
+        Check(requests > 0u && requests < 256u, "semantic UIA collection has an independently observed bounded allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            HRESULT result = S_OK;
+            {
+                const auto old      = failAllocationAfter;
+                const auto restore  = wil::scope_exit([=] { failAllocationAfter = old; });
+                failAllocationAfter = failure;
+                result              = invoke();
+            }
+            Check(result == E_OUTOFMEMORY && editor->GetText() == source && ! editor->CanUndo() &&
+                      editor->GetAcknowledgedSemanticDocument(view.Controls()) == publication,
+                  "each UIA collection failure returns an HRESULT without mutation, stale publication or noexcept termination");
+            Hr(invoke(), "semantic UIA collection retries after allocation failure");
+        }
+        total += requests;
+    }
+    Check(site->focusRequests == 0u, "semantic collection queries never acquire application keyboard focus");
+    std::cout << "rich semantic accessibility sweptRequests=" << total << " scenarios=2 sourcePreserved=1 retry=1\n";
+    TestRichSemanticNativeDispatchFailureAtomicity();
+}
 static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
 {
     using namespace DxUi;

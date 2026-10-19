@@ -1027,11 +1027,13 @@ list markers and padding are generated. Destinations/titles are inert metadata;
 no resource fetch, script, DOM or implicit navigation follows. The current pure
 builder uses the bounded native HTML policy below, with balanced validation and
 source-preserving literal fallback. Rendering, source caret sites,
-structural commands are specified in M4e below; structured accessibility remains M4f work.
+structural commands are specified in M4e below. The semantic UIA contract is in
+[input/accessibility](UI_InputAndAccessibility.md); final M4f qualification is pending.
 
 These pure primitives remain independent of graphics. The explicit retained
 rendering preview below consumes them. M4e adds source-exact structural editing;
-semantic UIA remains M4f work. Profile-only analysis keeps v0 rendering.
+semantic UIA uses the acknowledged document and prepared source-format runs.
+Profile-only analysis keeps v0 rendering.
 
 ### Retained semantic rendering preview (M4d)
 
@@ -1110,7 +1112,8 @@ recovery semantics. Fenced/inline code and image alternatives retain their exist
 literal ownership. Empty balanced HTML records a real interior insertion site;
 typing changes exact source between the retained tag pairs in one undo transaction.
 Semantic roles/styles do not replace raw TSF/UIA ACPs. Link invocation and full
-structural commands follow M4e below; style accessibility remains M4f.
+structural commands follow M4e below; semantic style accessibility uses source
+Format units and the acknowledged publication under the input contract.
 
 Selection, composition, text-service rectangles and source-range scrolling use
 the map's actual fragments, including atomic transformed/object spans. Hidden

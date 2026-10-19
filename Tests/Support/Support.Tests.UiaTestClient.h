@@ -382,6 +382,20 @@ struct ElementInfo
     bool hasKeyboardFocus = false;
     RECT boundingRectangle{};
 };
+struct TextAttributeValue
+{
+    VARTYPE type  = VT_EMPTY;
+    double number = 0.0;
+    std::wstring text;
+    bool mixed = false, unsupported = false;
+};
+struct TextRangeInfo
+{
+    std::wstring text;
+    std::vector<TextAttributeValue> attributes;
+    std::vector<ElementId> children;
+    ElementId enclosing = 0u;
+};
 
 // The client thread's state. Only the client thread touches it.
 struct Session
@@ -799,6 +813,110 @@ public:
         });
     }
 
+    [[nodiscard]] TextRangeInfo InspectTextRange(ElementId field, std::wstring needle, std::vector<TEXTATTRIBUTEID> attributes = {}, bool format = false)
+    {
+        return Ask<TextRangeInfo>("semantic text attributes and range children",
+                                  [field, needle = std::move(needle), attributes = std::move(attributes), format](Session& session, TextRangeInfo& result)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> document, range;
+            RETURN_IF_FAILED(pattern->get_DocumentRange(document.put()));
+            if (needle.empty())
+                range = document;
+            else
+            {
+                wil::unique_bstr value(SysAllocStringLen(needle.data(), static_cast<UINT>(needle.size())));
+                RETURN_IF_FAILED(document->FindText(value.get(), FALSE, FALSE, range.put()));
+                if (! range)
+                    return E_INVALIDARG;
+            }
+            if (format)
+                RETURN_IF_FAILED(range->ExpandToEnclosingUnit(TextUnit_Format));
+            wil::unique_bstr text;
+            RETURN_IF_FAILED(range->GetText(-1, text.put()));
+            result.text.assign(text.get(), SysStringLen(text.get()));
+            for (const auto attribute : attributes)
+            {
+                wil::unique_variant value;
+                RETURN_IF_FAILED(range->GetAttributeValue(attribute, &value));
+                TextAttributeValue actual;
+                actual.type = value.vt;
+                if (value.vt == VT_I4)
+                    actual.number = value.lVal;
+                else if (value.vt == VT_R8)
+                    actual.number = value.dblVal;
+                else if (value.vt == VT_BOOL)
+                    actual.number = value.boolVal != VARIANT_FALSE ? 1.0 : 0.0;
+                else if (value.vt == VT_BSTR)
+                    actual.text.assign(value.bstrVal, SysStringLen(value.bstrVal));
+                else if (value.vt == VT_UNKNOWN)
+                {
+                    BOOL reserved = FALSE;
+                    RETURN_IF_FAILED(session.automation->CheckNotSupported(value, &reserved));
+                    actual.unsupported = reserved != FALSE;
+                    wil::com_ptr_nothrow<IUnknown> mixed;
+                    RETURN_IF_FAILED(session.automation->get_ReservedMixedAttributeValue(mixed.put()));
+                    wil::com_ptr_nothrow<IUnknown> identity;
+                    if (value.punkVal)
+                        RETURN_IF_FAILED(value.punkVal->QueryInterface(IID_PPV_ARGS(identity.put())));
+                    actual.mixed = identity.get() == mixed.get();
+                }
+                result.attributes.push_back(std::move(actual));
+            }
+            wil::com_ptr_nothrow<IUIAutomationElement> enclosing;
+            RETURN_IF_FAILED(range->GetEnclosingElement(enclosing.put()));
+            if (enclosing)
+                result.enclosing = session.Remember(enclosing.get());
+            wil::com_ptr_nothrow<IUIAutomationElementArray> children;
+            RETURN_IF_FAILED(range->GetChildren(children.put()));
+            int count = 0;
+            RETURN_IF_FAILED(children->get_Length(&count));
+            for (int index = 0; index < count; ++index)
+            {
+                wil::com_ptr_nothrow<IUIAutomationElement> child;
+                RETURN_IF_FAILED(children->GetElement(index, child.put()));
+                result.children.push_back(session.Remember(child.get()));
+            }
+            return S_OK;
+        });
+    }
+    [[nodiscard]] std::wstring TextRangeFromChild(ElementId field, ElementId child)
+    {
+        return Ask<std::wstring>("a semantic child's exact source range",
+                                 [field, child](Session& session, std::wstring& result)
+        {
+            auto* element = session.Get(field);
+            auto* item    = session.Get(child);
+            if (! element || ! item)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> range;
+            RETURN_IF_FAILED(pattern->RangeFromChild(item, range.put()));
+            wil::unique_bstr text;
+            RETURN_IF_FAILED(range->GetText(-1, text.put()));
+            result.assign(text.get(), SysStringLen(text.get()));
+            return S_OK;
+        });
+    }
+    [[nodiscard]] HRESULT Toggle(ElementId child)
+    {
+        return Ask<HRESULT>("a semantic task action",
+                            [child](Session& session, HRESULT& result)
+        {
+            auto* element = session.Get(child);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTogglePattern> pattern;
+            const auto hr = element->GetCurrentPatternAs(UIA_TogglePatternId, IID_PPV_ARGS(pattern.put()));
+            result        = SUCCEEDED(hr) ? pattern->Toggle() : hr;
+            return S_OK;
+        });
+    }
     [[nodiscard]] HRESULT ExecuteTextRangeCommand(ElementId field, std::wstring needle, TextRangeCommand command)
     {
         return Ask<HRESULT>("a text range command",

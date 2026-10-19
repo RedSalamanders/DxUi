@@ -78,6 +78,15 @@ inline void CheckGraph(const SemanticDocument& document)
         styled += run.length;
     }
     Check(styled == map.Display().size(), "semantic style coverage is complete");
+    std::size_t sourceStyled = 0u;
+    for (const auto& run : document.SourceRuns())
+    {
+        Check(run.start == sourceStyled && run.length > 0u && run.length <= map.Source().size() - sourceStyled && IsEditBoundary(map.Source(), run.start) &&
+                  IsEditBoundary(map.Source(), run.start + run.length),
+              "source format units partition raw UTF-16 without splitting scalar or CRLF ownership");
+        sourceStyled += run.length;
+    }
+    Check(sourceStyled == map.Source().size(), "hidden syntax and transformed values have complete source format coverage");
     std::size_t previous = 0u;
     for (const auto& paragraph : document.Paragraphs())
     {
@@ -331,6 +340,28 @@ inline void SchedulingAndAdmission()
 
 namespace RichSemanticDocumentTests
 {
+inline void SourceFormatOwnership()
+{
+    const std::wstring source = L"# Head\r\n\r\n**bold &fjlig; \U0001f600** and <i>slant</i> and `code`\n";
+    const auto document       = Build(source);
+    CheckGraph(*document);
+    const auto at = [&](std::size_t offset)
+    {
+        for (const auto& run : document->SourceRuns())
+            if (run.start <= offset && offset < run.start + run.length)
+                return run;
+        throw std::logic_error("Missing source format owner");
+    };
+    Check(at(source.find(L"Head")).heading == 1u && at(0u).heading == 0u, "heading syntax stays raw while rendered heading text owns heading style");
+    const auto entity = source.find(L"&fjlig;");
+    for (auto offset = entity; offset < entity + 7u; ++offset)
+        Check(at(offset).flags == Bold, "every raw unit of a multi-scalar entity has the rendered value's style");
+    Check(at(source.find(L"**")).flags == Regular && at(source.find(L"slant")).flags == Italic && at(source.find(L"<i>")).flags == Regular &&
+              at(source.find(L"code")).flags == Code,
+          "hidden delimiters and native HTML retain regular source style; bodies retain actual native style");
+    const auto repeated = Build(source);
+    Check(document->Identity() != repeated->Identity(), "distinct semantic publications cannot reuse a UIA fragment epoch even for identical source");
+}
 inline void StructuralStyleValues()
 {
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})

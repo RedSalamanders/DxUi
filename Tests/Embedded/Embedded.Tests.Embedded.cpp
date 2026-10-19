@@ -1179,6 +1179,7 @@ __declspec(noinline) static int RunFunctionalTests()
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures"))
     {
@@ -1217,6 +1218,14 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichFlatProjectionFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures")
             TestRichSemanticGeometryFailureBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures")
+            TestRichSemanticDocumentFailureAndStorageBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "semantic UIA failure WARP device");
+            TestRichSemanticAccessibilityFailureAtomicity(gpu);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-failures")
             TestRichMarkdownCommandFailureAtomicity();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures")
@@ -1413,9 +1422,11 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
     RichSemanticTests::Run(TestRichMarkdownCommandFailureAtomicity);
     RichSemanticTests::Run([&] { TestRichMarkdownCommandHostFailureAtomicity(gpu); });
+    RichSemanticTests::Run([&] { TestRichSemanticAccessibilityFailureAtomicity(gpu); });
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);

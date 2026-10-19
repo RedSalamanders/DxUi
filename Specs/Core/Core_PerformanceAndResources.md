@@ -39,6 +39,15 @@ and constructs). Every observed request is still injected individually.
 Diagnostic children may emit bounded raw stack addresses on unexpected
 termination; ordinary suites and canonical benchmarks keep their normal path.
 
+Semantic source-format indexing is prepared once with the immutable semantic
+document, sharing its 65,536-unit admission. UIA collection queries do not parse,
+create layouts or mutate the document. Every observed C++ allocation in semantic
+child/header collection construction must return E_OUTOFMEMORY safely and allow
+retry. Child providers hold weak semantic graph identity; optional rich snapshot
+payloads keep bounds/font strings out of unrelated control records. Preparing
+snapshot rectangles is separate from allocation-free composition and from the
+existing warm caret/visible-range query budget.
+
 Semantic coordinate preparation admits at most 65,536 source units, 131,072
 display units and 65,536 display spans. Primary source intervals are disjoint;
 building their caret indexes visits each owned source unit once plus shared

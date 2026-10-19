@@ -73,5 +73,6 @@ transaction visuals: task toggles commit on matching release, empty/padded cell
 typing materializes only the focused cell, and Tab returns to host traversal when
 no list/table command applies. The standalone sample adds two rows of standard
 buttons with readable action/status labels, without changing control tokens or
-the gallery tile's resting appearance. Semantic style accessibility remains pending;
+the gallery tile's resting appearance. Semantic style/structure accessibility
+adds prepared UIA metadata and actions without changing visual tokens or pixels;
 the static HTML preview is design guidance, never native rendering evidence.

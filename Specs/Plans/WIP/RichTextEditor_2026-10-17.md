@@ -80,9 +80,11 @@ tests and owning contract/docs updates before completion):
   transactions, structural commands and structured accessibility. Integrate the
   parser tree into the renderer only after independent coordinate/editing oracles.
 - [ ] M5: Explicit front matter, footnote, math and Mermaid profiles, native
-  editable source-bearing objects/alternatives, isolated offline diagram helper
-  deployment and pending/error source presentation. Helper choice remains an
-  active owner recommendation; unknown syntax remains exact source throughout.
+  editable source-bearing objects/alternatives and pending/error source
+  presentation. Owner decision (2026-10-19): C++ only, with an explicitly limited
+  Mermaid subset; smaller deployment and reduced diagram compatibility. No
+  JavaScript/headless-browser helper is to be deployed. Pin the supported native
+  grammar and retain unsupported diagrams as exact editable source.
 - [ ] M6: Reconcile raw NUL admission with Document/codecs/clipboard/TSF/UIA;
   qualify cancellation/storage/pathological work and real capacity targets before
   raising the current 65,536-unit limit. Bound generated table padding separately:
@@ -1824,6 +1826,15 @@ cannot close D4c.
 - [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
   UIA, preserving source ACPs for TSF/TextPattern. Test real in-process clients,
   format/range children, actions, bounds and provider retirement.
+  - [ ] M4f.1: Prepare immutable source-format runs with the semantic document;
+    expose only acknowledged geometry's revision. Implement typed UIA attributes,
+    mixed values, FindAttribute and Format expansion/movement in source ACPs.
+  - [ ] M4f.2: Publish semantic child fragments and range relationships, heading,
+    link/image alternatives, task actions and table structure. Guard children by
+    owner and semantic-publication identity, including pending/failed preparation.
+  - [ ] M4f.3: Qualify actual native/application-bridged client navigation, events,
+    bounds, task history, read-only/disabled policy, foreign-thread dispatch,
+    retirement/rebinding and allocation failures; update contracts and evidence.
 - [ ] M4g: Qualify native/embedded interaction, cancellation/staleness, allocation
   failures, WARP/device loss, resources, all required build/runtime profiles,
   validators/format and deterministic themed/embedded gallery captures. Update
@@ -2530,3 +2541,45 @@ rebaseline or passing-repeat substitution was made. D4c remains HOLD pending
 the separately controlled paired/scheduler work and advice on any confirmed
 degradation. M4f/g, physical/foreground/native ARM64 runtime and consumer gates
 remain open. No consumer pin, push or merge is included in this correction.
+
+### M4f semantic accessibility implementation (2026-10-19, qualification pending)
+
+The first six focused x64 Debug diagnostics pass: native/embedded actual-client
+attributes/Format and structure/task tests, the source-format ownership oracle,
+and all 1,324 pinned source cases with legal complete source-format partitions.
+Their exact source patch, private header, executable/PDB/library and hashes are
+retained in `.build/reports/rich-semantic-uia-20261019/Iteration3`. This is focused
+evidence, not ordinary-suite or full-profile qualification. Two earlier compile
+attempts remain archived separately: independent native COM interface inheritance,
+then a fixture FragmentRoot/Fragment QI and strict enum/double comparisons.
+
+Current follow-through groups rich snapshot data behind one optional shared
+payload, retains weak semantic publication plus owner-binding identities, rejects
+pending host content, clips child bounds, and adds composition/cancel, same-source
+rebinding, destructive callback and allocation-failure probes. These refinements
+pass all eight focused Debug cases and the 19-point UIA collection and 657-point
+semantic-document allocation sweeps. Actual native-window provider lifetime is
+separate from rootless native IMM protocol coverage; no test takes desktop focus.
+The earlier null-HWND and COM-apartment fixture failures remain archived.
+
+Review additionally found fallible native task-dispatch request construction
+outside the COM error boundary. The corrected caller/shared dispatch explicitly
+constructs Debug container proxies inside a bad-allocation boundary. A new hidden
+native-window foreign-thread allocation sweep checks HRESULTs, exact source,
+history, publication, retry and unchanged focus. Its initial auto-reset completion
+event consumed its own signal; that failed fixture and its exact source/binaries
+are preserved under `Iteration7-Early`. The corrected final Debug source passes
+all eight focused cases, all 1,324 pinned inputs, 19 collection allocation failures,
+seven native foreign-thread dispatch allocation failures and 657 semantic-document
+allocation failures. The same native fault fixture manually linked against the
+retained pre-fix library exits 3 before sweep completion; that diagnostic link,
+its missing-private-PDB warnings and exact object/library/executable hashes are
+separate from canonical qualification. All five validators, full tooling and
+pinned formatting pass. The full profile matrix remains pending; M4f.1/.2/.3
+stay unchecked until its acceptance.
+The implementation changes no visual/sample/gallery inputs. M4g, M5/M6, the D4c
+HOLD, physical/foreground/native ARM64 and consumer gates remain open.
+
+Owner reply selected C++ only for M5, with an explicitly limited Mermaid subset.
+The top-level checklist now removes the proposed external diagram helper; pin
+and implement the native grammar and preserve unsupported diagrams as source.

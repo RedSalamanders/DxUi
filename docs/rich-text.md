@@ -47,7 +47,7 @@ task markers and image alternatives are atomic objects. HTML uses the bounded
 native subset below with whole-leaf literal fallback. Links/images retain inert
 metadata without loading or executing anything. The retained rendering opt-in
 consumes this data separately; source-exact structural commands follow below;
-structured UIA remains open. Admission limits combined syntax
+structured UIA is described under M4f below. Admission limits combined syntax
 nodes to 32,768 and geometry paragraphs to 4,096, alongside the bounded model/map.
 
 Include `DxUi/DxUi.h`. The same control works under native `ControlHost`
@@ -152,11 +152,12 @@ at bounded source offsets, clamping scalar/CRLF boundaries after replacement;
 they do not track the semantic identity of text shifted by an edit. Reacquire
 DocumentRange for the complete grown document. Bounded GetText never returns
 half a supplementary scalar. Retained providers/ranges disconnect on owner replacement. Unknown
-text attributes and annotations are unsupported; structured Markdown semantics,
-font/style attributes and rendered-only accessible text remain future scope.
+text attributes and annotations are unsupported in source/v0 presentation.
+Explicit semantic presentation adds the bounded M4f attributes/children below;
+rendered-only TextPattern text and annotations remain future scope.
 The bounded source range commands include scrolling, selection union/subtraction,
 text search and uniform read-only attribute search. The rules below apply in both
-hosts; rich structural/style attributes and semantic text anchors remain separate.
+hosts; the M4f opt-in extends them with prepared style and structure.
 
 `ScrollIntoView(true)` aligns the range's first painted edge to the viewport top;
 `false` aligns its last edge to the bottom. Document extents clamp both offsets,
@@ -192,13 +193,13 @@ uniform attribute returns the bounded range, and a mismatch returns null.
 Unimplemented rich attributes return `UIA_E_NOTSUPPORTED` for searches.
 
 Clone, comparison, endpoint movement/collapse, word/character/document movement,
-source text, enclosing element, visible bounds and empty embedded children are
+source text, enclosing element, visible bounds and source-only empty children are
 covered in both hosts. `Line` movement uses the prepared wrapped rich projection
 through `GetSourceVisualLineRanges`, including exact source CRLF and hidden
-syntax. Unsupported Format units promote to Word; Paragraph/Page promote to
+syntax. In source/v0 presentation unsupported Format units promote to Word; Paragraph/Page promote to
 Document. Invalid units/endpoints/lengths are rejected. Character commands now
 use shared Unicode 17 default extended grapheme rules. Visual bidi/word
-navigation and rich style/structure semantics remain separate work.
+navigation remains separate work; rich style/structure semantics are described below.
 
 Caret, visible, composition and conversion ranges retain source offsets and
 identity while reading the published document. They do not copy the full source
@@ -822,8 +823,7 @@ The [native presentation qualification packet](../Measurements/RichText/2026-10-
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
-Source-exact structural editing is described below. Structured/style UIA remains
-active M4f work. Math, Mermaid,
+Source-exact structural editing and semantic UIA are described below. Math, Mermaid,
 footnotes/front matter and physical IME/AT/platform/performance gates stay open.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
@@ -891,9 +891,60 @@ Markdown/validated inline HTML wrappers only when their complete body is deleted
 raw TSF/programmatic replacement does not run cleanup.
 
 The sample toolbar exercises all these families with the same retained API.
-Structured UIA children/styles/actions, extended Markdown, physical IME/AT,
+At the M4e checkpoint, structured UIA was still pending; M4f is described below.
+Extended Markdown, physical IME/AT,
 native ARM64 execution, consumer adoption and the D4c performance HOLD remain
 separate gates. The [M4e evidence packet](../Measurements/RichText/2026-10-19-structural-commands/README.md)
 records 57 ordinary x64 scope/profile passes, all three ARM64 build-only results,
 allocation-failure and actual transport/client tests, the reviewed toolbar sample
 and gallery, preserved failures and the unresolved performance diagnostic.
+
+## Semantic accessibility (M4f)
+
+The semantic opt-in also supplies native and embedded UIA structure/style. There
+is no application-side replacement provider to implement. TSF and TextPattern
+continue to expose exact Markdown source, including hidden delimiters and CRLF.
+Heading/list/quote/link/image/task/table children provide rendered names and
+source-backed structure beside that editable source interface.
+
+Text ranges report typed weight, italic, underline, strike, heading StyleId,
+nominal body/monospace font name, point size and read-only attributes. Mixed and
+unsupported values use UIA's reserved values. FindAttribute searches exact raw
+source in either direction and validates VARIANT types. Format units include
+unformatted hidden syntax: expanding inside `**bold &fjlig;**` returns
+`bold &fjlig;`, preserving the entity's original spelling. Source/v0 mode keeps
+the original unsupported-Format-to-Word behavior; Paragraph/Page still promote
+to Document.
+
+RangeFromChild returns a current child's exact source interval. DocumentRange
+encloses the editor and enumerates its immediate semantic children; inner ranges
+enclose their innermost semantic owner. Padded cells can share an empty raw ACP
+while their explicit child ranges/clones retain distinct cell identity. Table
+patterns provide rows, columns, cells and column headers. Bounds come from native
+prepared geometry with viewport clipping, including RTL/reflow. Links remain
+inert and advertise no navigation action. Images expose their Unicode alternative.
+
+Tasks advertise Toggle. Its action changes only the source state character,
+preserves directional selection and creates one undo entry. Read-only, disabled,
+active composition and pending/stale owners reject the action. Queries never
+prepare content or take focus. Native foreign-thread actions use the existing
+bounded host dispatch; embedded clients route through the owner's COM apartment.
+Committed callbacks may retire the editor safely.
+
+`SemanticDocument::SourceRuns()` is a prepared complete source-format partition;
+`Identity()` distinguishes process-local semantic publications. The retained
+`GetAcknowledgedSemanticDocument(host)` and `GetSemanticElementBounds(host, index)`
+read only current prepared state. `ToggleSemanticTask(host, expected, index)`
+uses the same guarded source transaction as UIA. Child providers retain weak
+publication identity and the owner binding epoch, so old children cannot act on
+an edited, replaced or rebound successor. Reacquire children after a semantic
+structure invalidation. Pure CPU semantics may survive geometry-only changes.
+
+M4f remains under qualification in the active plan. Its native/embedded client
+tests are distinct from physical Narrator/NVDA/IME and native ARM64 acceptance.
+This accessibility change alters no drawing, typography, sample or gallery
+inputs; the existing reviewed gallery assets are retained without regeneration.
+
+M5 follows the owner's C++-only decision: an explicit limited Mermaid grammar
+will be implemented natively. Unsupported diagrams remain exact editable source;
+no JavaScript or headless-browser helper is deployed.

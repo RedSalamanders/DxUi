@@ -1,10 +1,19 @@
 #include "DxUi.RichSemanticHtml.h"
+#include <algorithm>
+#include <atomic>
 #include <optional>
 
 namespace DxUi::RichText
 {
-SemanticDocument::SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax) : syntax_(std::move(syntax)), elements_(0u), paragraphs_(0u), runs_(0u)
+SemanticDocument::SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax)
+    : syntax_(std::move(syntax)),
+      elements_(0u),
+      paragraphs_(0u),
+      runs_(0u),
+      sourceRuns_(0u)
 {
+    static std::atomic<std::uint64_t> nextIdentity{1u};
+    identity_ = nextIdentity.fetch_add(1u, std::memory_order_relaxed);
 }
 
 struct SemanticBuilder::Preparation
@@ -501,6 +510,7 @@ struct SemanticBuilder::Preparation
         if (visits.empty())
         {
             document->map_ = SourceDisplayMap::Build(document->syntax_->Source(), output.text, output.spans);
+            PrepareSourceFormats();
             return true;
         }
         auto visit = visits.back();
@@ -510,6 +520,57 @@ struct SemanticBuilder::Preparation
         else
             Block(visit);
         return false;
+    }
+    void PrepareSourceFormats()
+    {
+        // Runs are a sorted, complete display partition. Convert only primary
+        // source owners, then fill hidden syntax with the unformatted style.
+        // This happens once with map publication, never in UIA or composition.
+        std::vector<StyleRun> mapped(0u);
+        const auto runs = document->Runs();
+        for (const auto& span : document->Map().Spans())
+        {
+            if (! span.primary || span.source.first == span.source.last)
+                continue;
+            auto run =
+                std::lower_bound(runs.begin(), runs.end(), span.display.first, [](const auto& item, auto first) { return item.start + item.length <= first; });
+            for (; run != runs.end() && run->start < span.display.last; ++run)
+            {
+                const bool exact = span.kind == DisplaySpanKind::Source;
+                const auto first = exact ? span.source.first + std::max(run->start, span.display.first) - span.display.first : span.source.first;
+                const auto last  = exact ? span.source.first + std::min(run->start + run->length, span.display.last) - span.display.first : span.source.last;
+                if (first < last)
+                    mapped.push_back({first, last - first, run->flags, run->heading});
+            }
+        }
+        std::ranges::sort(mapped, {}, &StyleRun::start);
+        auto& result      = document->sourceRuns_;
+        const auto append = [&](std::size_t first, std::size_t last, unsigned flags, unsigned heading)
+        {
+            if (first == last)
+                return;
+            if (! result.empty() && result.back().start + result.back().length == first && result.back().flags == flags && result.back().heading == heading)
+                result.back().length += last - first;
+            else
+                result.push_back({first, last - first, flags, heading});
+        };
+        std::size_t cursor = 0u;
+        for (const auto& run : mapped)
+        {
+            if (run.start < cursor)
+            {
+                // A multi-scalar transformed object can have several identical
+                // display runs. Conflicting attributes would be ambiguous.
+                if (result.empty() || run.start < result.back().start || run.start + run.length > cursor || result.back().flags != run.flags ||
+                    result.back().heading != run.heading)
+                    throw std::logic_error("Ambiguous source format ownership");
+                continue;
+            }
+            append(cursor, run.start, Regular, 0u);
+            append(run.start, run.start + run.length, run.flags, run.heading);
+            cursor = run.start + run.length;
+        }
+        append(cursor, document->Map().Source().size(), Regular, 0u);
     }
 };
 

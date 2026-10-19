@@ -67,6 +67,12 @@ public:
     {
         return syntax_;
     }
+    // Process-local publication identity, distinct even when the same syntax
+    // is rendered again after disabling/re-enabling semantic presentation.
+    std::uint64_t Identity() const noexcept
+    {
+        return identity_;
+    }
     const SourceDisplayMap& Map() const noexcept
     {
         return *map_;
@@ -83,14 +89,22 @@ public:
     {
         return runs_;
     }
+    // Complete source partition for accessibility Format units. Hidden syntax
+    // has Regular style; transformed values retain their complete raw owner.
+    // Generated/repeated display text never invents another source interval.
+    std::span<const StyleRun> SourceRuns() const noexcept
+    {
+        return sourceRuns_;
+    }
 
 private:
     explicit SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax);
     std::shared_ptr<const MarkdownSyntax> syntax_;
+    std::uint64_t identity_{};
     std::shared_ptr<const SourceDisplayMap> map_;
     std::vector<SemanticElement> elements_;
     std::vector<SemanticParagraph> paragraphs_;
-    std::vector<StyleRun> runs_;
+    std::vector<StyleRun> runs_, sourceRuns_;
     friend class SemanticBuilder;
 };
 // Owner-serialized pure preparation. Each advance resumes block/inline events;

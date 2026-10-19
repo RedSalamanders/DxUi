@@ -12,7 +12,7 @@ Bounded Unicode editor with v0 formatting by default and an explicit semantic Ma
 - **Semantic preview**: enable a CommonMark/GFM analysis profile and `SetMarkdownRenderingEnabled(true)`. Quote indentation, styles, rules, code/image outlines and equal-width table cells use native preparation. Tables retain physical alignment and reverse columns for RTL. No-wrap marker measurement establishes a shared list gutter for wrapped/continuation text; nested blocks inherit it. Links are underlined in inherited text ink and keep inert destinations. The documented balanced native HTML subset uses existing styles; unsupported markup retains the complete normalized leaf literally. Outlines and quote/rule strokes use the caret role. Images display alternatives; task checkboxes commit source state on matching release.
 - **Fallback**: admission overflow displays exact source once and reports SourceFallback; it changes no source, selection or history. Local HTML policy rejection keeps a literal monospaced leaf while the backend can remain Semantic. Source view remains available.
 - **Source caret sites**: empty/trailing/container-only source lines keep native caret boxes with the same typography and indentation. Empty/padded cells retain distinct visual affinity at a shared raw row-end ACP. Placement and movement add no text, undo entries or selection ink. Structural cell materialization uses the focused source cell.
-- **Limits**: 64 Ki UTF-16 units and 128 undo items; 4,096 native marker/body/cell/caret layouts and 32,768 elements. One native HTML leaf permits 4,096 tags and 32 open tags. Empty balanced HTML has an interior source caret; links do not navigate. D2d source TSF/IME/UIA adapters are implemented; real IME/candidate-window/Narrator/NVDA/physical qualification remains pending. Semantic style accessibility and math/Mermaid/footnotes/front matter remain pending.
+- **Limits**: 64 Ki UTF-16 units and 128 undo items; 4,096 native marker/body/cell/caret layouts and 32,768 elements. One native HTML leaf permits 4,096 tags and 32 open tags. Empty balanced HTML has an interior source caret; links do not navigate. D2d source TSF/IME/UIA adapters are implemented; real IME/candidate-window/Narrator/NVDA/physical qualification remains pending. Semantic UIA qualification and math/Mermaid/footnotes/front matter remain pending.
 
 M4e adds `ExecuteMarkdownCommand` / `ApplyMarkdownCommand`: source-exact list,
 heading, style, inert link, task and table transactions. Empty/padded cells
@@ -23,7 +23,13 @@ traversal remains available for incompatible Tab targets. Existing source
 selection/history visuals and all palette/typography metrics remain unchanged.
 The sample toolbar uses standard buttons, clear action names and a target/status
 caption; it adds no editor-owned toolbar, HWND, resource fetch or scheduler.
-Structured/style UIA and physical/extension qualification remain separate.
+Semantic UIA exposes heading/list/quote/link/image/task/table children and typed
+source-format attributes after coherent preparation. Tasks have an undoable
+Toggle action; links remain inert. Source TextPattern/TSF offsets stay exact.
+Child identity retires on source/publication or owner-binding replacement, while
+geometry-only reflow updates prepared bounds. Queries take no focus. The M4f
+qualification checkpoint and physical/extension gates remain in the active plan.
+No pixels, typography tokens or preview/gallery inputs change in this slice.
 
 Task checkbox glyphs use the same monochrome `Segoe UI Symbol` face for checked
 and unchecked states. Their bullet, hit-target and body columns stay fixed when

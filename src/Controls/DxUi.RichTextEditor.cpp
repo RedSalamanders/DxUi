@@ -159,6 +159,56 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
         return MarkdownRenderingStatus::SourceFallback;
     return GetSemanticDocument() && _state->layout.Ready() && _state->layout.Semantic() ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::Pending;
 }
+std::shared_ptr<const RichText::SemanticDocument> RichTextEditor::GetAcknowledgedSemanticDocument(const ControlHost& host) const noexcept
+{
+    const auto document  = GetSemanticDocument();
+    const auto* geometry = _state->layout.SemanticGeometry();
+    return document && ! host.HasPendingContentPreparation() && LayoutIsCurrent(host) && _state->mode == RichText::ViewMode::Rich && geometry &&
+                   &geometry->Document() == document.get()
+               ? document
+               : nullptr;
+}
+uint64_t RichTextEditor::AccessibilityBindingRevision() const noexcept
+{
+    return _state->bindingRevision;
+}
+std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticElementBounds(const ControlHost& host, size_t element) const noexcept
+{
+    const auto document = GetAcknowledgedSemanticDocument(host);
+    if (! document || element >= document->Elements().size())
+        return std::nullopt;
+    auto bounds = _state->layout.SemanticGeometry()->ElementBounds(element);
+    if (bounds)
+    {
+        const auto viewport = TextViewport();
+        bounds->left        = std::max(viewport.left, bounds->left + viewport.left);
+        bounds->right       = std::min(viewport.right, bounds->right + viewport.left);
+        bounds->top         = std::max(viewport.top, bounds->top + viewport.top - _state->scrollDip);
+        bounds->bottom      = std::min(viewport.bottom, bounds->bottom + viewport.top - _state->scrollDip);
+        if (bounds->left >= bounds->right || bounds->top >= bounds->bottom)
+            bounds.reset();
+    }
+    return bounds;
+}
+bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
+{
+    using namespace RichText;
+    if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! Editable() || element >= expected->Elements().size())
+        return false;
+    const auto& task = expected->Elements()[element];
+    if (task.role != SemanticRole::Task || task.taskMarker.last - task.taskMarker.first != 3u)
+        return false;
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    const wchar_t value = task.task == MarkdownTask::Checked ? L' ' : L'x';
+    const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
+    return ApplySourceEdits(Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
+}
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
     _state->readOnly = readOnly;

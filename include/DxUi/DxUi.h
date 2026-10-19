@@ -2841,6 +2841,14 @@ public:
     [[nodiscard]] bool IsMarkdownRenderingEnabled() const noexcept;
     [[nodiscard]] MarkdownRenderingStatus GetMarkdownRenderingStatus() const noexcept;
     [[nodiscard]] std::shared_ptr<const RichText::SemanticDocument> GetSemanticDocument() const noexcept;
+    // Accessibility publication must match current prepared native geometry.
+    // Returns null while source, typography, width or device work is pending.
+    // This getter neither prepares content nor acquires OS focus.
+    [[nodiscard]] std::shared_ptr<const RichText::SemanticDocument> GetAcknowledgedSemanticDocument(const ControlHost& host) const noexcept;
+    [[nodiscard]] std::optional<D2D1_RECT_F> GetSemanticElementBounds(const ControlHost& host, size_t element) const noexcept;
+    // Revision-local accessible task action. Preserves the source selection;
+    // one exact state-character edit/undo, without acquiring keyboard focus.
+    bool ToggleSemanticTask(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
     void SetReadOnly(bool readOnly) noexcept;
     [[nodiscard]] bool IsReadOnly() const noexcept;
     // Programmatic edit commands obey read-only/disabled state. Only successful
@@ -2909,6 +2917,8 @@ protected:
     void OnCaptureLost(ControlHost& host) override;
 
 private:
+    friend struct EmbeddedAccessibilityAccess;
+    [[nodiscard]] uint64_t AccessibilityBindingRevision() const noexcept;
     struct State;
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;

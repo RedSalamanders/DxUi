@@ -6,8 +6,8 @@ Unicode source transactions, history, composition and source UIA text. Parser
 queries and UIA/TSF geometry queries never advance parsing. While source analysis
 or geometry is pending, current glyph bounds remain unavailable; a previous
 acknowledged embedded text snapshot must never acquire unrelated current glyph
-bounds. Structured Markdown accessibility/semantic anchors require their separate
-implementation and qualification. The raw parser accepting NUL does not change
+bounds. The opt-in semantic accessibility contract below adds source-backed
+structure/style after coherent preparation. The raw parser accepting NUL does not change
 the editor/text-store admission contract.
 Opt-in native HTML and hanging marker presentation preserve that same source
 contract. Underlined Markdown/HTML links retain inert destination/title metadata;
@@ -21,7 +21,7 @@ Unicode preview/cancel/commit, one undo/redo, hide/reflow and stale-result rejec
 apply identically in native and embedded hosts. Equal-ACP affinity remains valid
 for padded cells; ordinary marker boundaries must not add invisible arrow stops
 or move a logical Left forward/Right backward. Structured link/HTML children,
-style attributes and invocation remain separate M4f work.
+style attributes and task actions follow the semantic accessibility contract below.
 Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
 anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
@@ -64,8 +64,8 @@ collapses crossing endpoints; bounded GetText preserves valid UTF-16.
 Read-only permits selection; disabled actions
 fail. IsReadOnly is a text attribute; unsupported attributes return UIA's reserved
 unsupported value. Multiline source has no duplicate ValuePattern. Retained
-providers disconnect on owner replacement. Rendered-only text, rich structural/
-font/style semantics and annotations remain future scope. Synthetic OS protocol,
+providers disconnect on owner replacement. Rendered-only TextPattern text and
+annotations remain future scope; semantic structure/style is specified below. Synthetic OS protocol,
 real in-process UIA client and WARP tests do not close real IME/Narrator/NVDA,
 physical/focus-taking or native ARM64 qualification. See the
 [guide](../../docs/rich-text.md) and [plan](../Plans/WIP/RichTextEditor_2026-10-17.md).
@@ -95,18 +95,76 @@ These operations publish TextSelectionChanged, never source/history changes.
 FindText searches bounded exact source, including hidden syntax, with ordinal
 Unicode comparison and forward/backward/case options. Matches respect scalar/CRLF
 boundaries. Empty/malformed needles and invalid unit/endpoint/length arguments
-return E_INVALIDARG. FindAttribute supports the uniform IsReadOnly VT_BOOL value;
+return E_INVALIDARG. Outside acknowledged semantic rendering, FindAttribute supports the uniform IsReadOnly VT_BOOL value;
 unknown attributes return UIA_E_NOTSUPPORTED. No match returns S_OK with null.
 Line commands use prepared wrapped source ranges rather than logical-line guesses.
-Unsupported Format promotes to Word and Paragraph/Page to Document. Character
+Outside acknowledged semantic rendering, unsupported Format promotes to Word;
+Paragraph/Page promote to Document in both modes. Character
 commands use the shared Unicode 17.0.0 default extended grapheme rules, including
 Hangul, Indic conjuncts, pictographic ZWJ context and regional-indicator parity.
 Keyboard deletion/movement and rich mouse hit stops use the same logical
 boundaries. Explicit source selections and text-service ACP geometry preserve
 valid scalar/CRLF offsets inside a grapheme; this is separate from character
-navigation. Full visual bidi/word navigation, rich attributes/structure and
-semantic edit anchors remain engine/AT acceptance work. The source has no
-embedded UIA children to invent.
+navigation. Full visual bidi/word navigation and physical assistive-technology
+acceptance remain separate gates. Source-only presentation has no semantic children.
+
+## Semantic rich-text accessibility
+
+Explicit semantic Rich presentation MUST publish structure/style only with its
+current source, native geometry, host binding, typography and device generation.
+UIA/TSF queries never drain preparation. Pending/failing or source-mode
+presentation keeps the source text interface and publishes no rich metadata.
+The immutable `SemanticDocument::SourceRuns()` partitions exact raw source:
+hidden syntax is Regular, decoded values keep their whole source spelling and
+generated/repeated output creates no duplicate source interval. This index is
+prepared once with semantic publication, including failure-atomic staging.
+
+Text ranges support FontWeight (VT_I4), IsItalic (VT_BOOL), UnderlineStyle and
+StrikethroughStyle (VT_I4), StyleId (VT_I4), FontName (VT_BSTR), FontSize (VT_R8
+points), and IsReadOnly (VT_BOOL). Heading sizes/weights follow native text
+styles; font names are the requested body/monospace faces, including nominal
+source style for object-owned tokens rather than a generated glyph fallback.
+Nonuniform attributes return UIA's reserved mixed value; unknown attributes
+return its reserved unsupported value. FindAttribute requires the exact type,
+searches forward/backward for the maximal matching source interval and returns
+null for no match. Format expansion/movement uses the complete prepared source
+partition, including hidden delimiters; counts are bounded even for INT_MIN/MAX.
+Other source text/range/selection/scroll semantics remain unchanged.
+
+Semantic elements form the actual native/application-bridged fragment tree:
+headings expose Text plus HeadingLevel; quotes use Group; lists/ListItems retain
+their containers; links use inert Hyperlink with destination/title help; images
+use Image with a Unicode alternative; tasks use CheckBox plus Toggle. Tables
+expose Table and Grid, row DataItems, and cell GridItem/TableItem providers with
+column headers, dimensions and row/column coordinates, including padded cells.
+Links advertise no Invoke/navigation action. Child bounds use prepared native
+rectangles clipped to the text/ancestor viewport; offscreen children remain
+navigable with empty bounds. Hit testing returns the innermost semantic fragment.
+Keyboard focus remains on the document, with no OS focus acquisition by queries.
+
+RangeFromChild accepts only a current descendant of the same editor and returns
+its exact source interval. GetEnclosingElement returns the innermost source
+owner; DocumentRange itself encloses the editor. GetChildren returns only the
+intersecting immediate children, ordered by source start. Explicit child ranges
+and clones retain distinct cell identity when padded cells share an empty ACP.
+They add no virtual source characters. Child creation rechecks publication after
+outgoing/reentrant boundaries. Child providers hold weak document identity and
+the owner binding epoch, so edits, source/profile/rendering changes, root
+replacement and detach/rebind cannot alias a successor. Geometry-only reflow may
+retain the same logical publication and refresh its bounds. Source-identity
+ranges retain the existing bounded latest-source behavior.
+
+Toggle edits only the raw task-state character through one source transaction,
+preserves directional selection, and produces one undo and committed source
+notification. Live effective-disabled state rejects with ELEMENTNOTENABLED;
+read-only/active composition rejects with INVALIDOPERATION. Pending or retired
+semantic owners cannot commit. Native foreign-thread actions use existing
+bounded owner dispatch; embedded mutations use COM owner-apartment routing and
+reject direct foreign-thread execution. Allocation failures return HRESULTs and
+preserve state. A committed callback may destroy/rebind the owner; no subsequent
+control dereference is permitted. Semantic epoch/binding changes invalidate the
+reachable structure so clients can reacquire current parts. These protocols do
+not establish physical IME, Narrator/NVDA or native ARM64 acceptance.
 
 Collapsed Backspace/Delete at an interior ACP remove the complete containing
 grapheme. An exact boundary still removes its preceding/following neighbor.
@@ -876,7 +934,7 @@ Only matching release inside its checkbox can apply it. Leaving the rectangle,
 capture/focus loss, source/layout/binding retirement or stale selection cancels
 the gesture. Capture release is a reentrancy boundary; lifetime, binding and
 interaction revision are rechecked before application. Links remain inert.
-Structured semantic children/actions/styles remain M4f; no physical IME/AT or
+Structured semantic children/actions/styles follow the contract above; no physical IME/AT or
 ARM64 runtime qualification follows from synthetic transport/client tests.
 
 RichTextEditor's explicit M4d semantic rendering preview keeps TSF/UIA document
