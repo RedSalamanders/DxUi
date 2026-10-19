@@ -10,6 +10,26 @@ qualification remain separate integration gates in the [active plan](../Specs/Pl
 
 ## Retained editor preview (D2c)
 
+For explicit semantic coordinate preparation, include `DxUi/RichSemantic.h`.
+`SourceDisplayMap::Build` owns validated source/display spans and supports hidden,
+decoded, generated, object, repeated and reordered content. Use `DisplayRanges`
+for selection fragments and `SourceRanges` for edit fragments; mapped endpoints
+alone cannot describe a reordered selection. Generated text edits nothing, while
+decoded values and objects expand atomically to their complete source spelling.
+Range queries accept normalized scalar/CRLF boundaries. Caret affinities are
+explicit; grapheme movement remains the layout/TextElements responsibility.
+
+`ApplySourceEdits(document, expectedSnapshot, expectedRevision, edits, selection)`
+stages ascending disjoint source replacements as one undoable transaction. It
+rejects stale or foreign snapshots before mutation. Retain the expected snapshot
+when preparing commands, and apply only while the same document revision is
+current. The primitive is independent of host editability and notifications;
+control adapters must enforce those before calling it. The retained
+`RichTextEditor::ApplySourceEdits` adapter supplies those guards, synchronizes the
+source text store and notifies once after a committed source change. No-op plans
+may silently update selection. These primitives do not change the retained
+editor's v0 pixels or complete semantic Markdown editing.
+
 Include `DxUi/DxUi.h`. The same control works under native `ControlHost`
 and supplied-device `EmbeddedHost::Controls()`:
 

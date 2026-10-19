@@ -151,6 +151,8 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
     }
     return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 }
+#include "../Support/Scope.Tests.RichSemantic.h"
+#include "../Support/Scope.Tests.RichSemanticEditor.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
@@ -163,6 +165,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Scope.Tests.RichDocumentStorageResources.h"
 #include "Scope.Tests.RichGeometryResources.h"
 #include "Scope.Tests.RichProjectionResources.h"
+#include "Scope.Tests.RichSemanticResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
@@ -1378,6 +1381,23 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
+    RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
+    RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
+    RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
+    RichSemanticTests::Run(RichSemanticTests::TransactionRejections);
+    RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
+    {
+        DxUi::EmbeddedHost transactionView;
+        std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;
+        Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), transactionGraphics), "transaction borrowed graphics");
+        Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
+        RichSemanticTests::Run([&]
+        {
+            RichSemanticEditorTests::Transactions(transactionView.Controls(),
+                                                  [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
+        });
+        transactionView.Detach();
+    }
     TestRichMarkdownParserFailureAndStorageBudgets();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);

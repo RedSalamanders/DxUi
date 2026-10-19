@@ -50,6 +50,12 @@ public:
     SourceSnapshot();
     std::wstring Text() const;
     std::size_t Length() const noexcept;
+    // Exact immutable revision identity, stronger than equal spelling/revision
+    // counters from different documents. Does not walk or materialize source.
+    bool IsSameRevision(const SourceSnapshot& other) const noexcept
+    {
+        return state_ == other.state_;
+    }
     // Inspect UTF-16 offsets without materializing a whole revision. Tree lookup
     // is logarithmic; Slice visits only intersecting pieces after that lookup.
     // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.

@@ -632,6 +632,46 @@ void TestRichTextAccessibilityWindowClientNavigationAndEvents()
 {
     ClientNavigationAndEvents(false);
 }
+void SourceTransactionClient(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true);
+    UiaTest::Client client(fixture.Hwnd(), {.automationEvents = {UIA_Text_TextChangedEventId}}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0, "transaction client reaches the editor through application parents");
+    const auto original  = fixture.editor->Snapshot();
+    const auto revision  = fixture.editor->Revision();
+    const auto oldSyntax = fixture.editor->GetMarkdownSyntax();
+    size_t notifications = 0u;
+    fixture.editor->SetOnTextChanged([&] { ++notifications; });
+    const std::array edits{RichText::SourceEdit{{2u, 7u}, L"bravo"}, RichText::SourceEdit{{11u, 15u}, L"GAMM"}};
+    const auto mark = client.Mark();
+    Require(fixture.editor->ApplySourceEdits(original, revision, edits, {7u, 2u}) && notifications == 1u,
+            "two source replacements notify once before client publication");
+    fixture.Publish();
+    Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                             [&]
+    {
+        const auto events = client.DistinctSince(mark);
+        return std::ranges::any_of(events, [](const auto& event) { return event.id == UIA_Text_TextChangedEventId && event.automationId == EditorId; });
+    }),
+            "real native/embedded client hears the atomic source change");
+    Require(client.DocumentText(editor) == L"**bravo**\r\nGAMM" && client.TextSelectionText(editor) == L"bravo" && client.TextCaretPosition(editor) == 2u,
+            "client text, backward selection and caret share the complete committed source");
+    const auto syntax = fixture.editor->GetMarkdownSyntax();
+    Require(syntax && syntax->Source() == fixture.editor->GetText() && oldSyntax && oldSyntax->Source() == original.Text(),
+            "UIA publication and new syntax agree while the prior immutable source survives");
+    Require(fixture.editor->Undo() && notifications == 2u, "client transaction has one undo entry");
+    fixture.Publish();
+    Require(client.DocumentText(editor) == original.Text() && ! fixture.editor->CanUndo(), "one undo restores both client-visible source replacements");
+}
+void TestRichTextAccessibilityWindowSourceTransactionClient()
+{
+    SourceTransactionClient(false);
+}
+void TestRichTextAccessibilityEmbeddedSourceTransactionClient()
+{
+    EmbeddedCase(SourceTransactionClient);
+}
 void TestRichTextAccessibilityEmbeddedClientNavigationAndEvents()
 {
     EmbeddedCase(ClientNavigationAndEvents);
@@ -896,6 +936,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedClientNavigationAndEvents);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceTransactionClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceTransactionClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSearchCommands);

@@ -36,6 +36,11 @@ global references and configurable GFM metadata. It owns Unicode 17 folding and
 character-class tables generated offline from pinned licensed data. Its semantic
 strings/raw source enclosures do not satisfy the forthcoming M4 editing-coordinate
 contract; the v0 projection remains the active renderer until that gate passes.
+RichSemantic adds an independent immutable span map with nonmonotonic primary
+coordinates and fragment queries, and snapshot-guarded source edit staging.
+It owns no host/device/worker. It does not relax v0 Projection's ordered-unit
+invariants or activate semantic rendering. Structural adapters must commit its
+edit plans through their existing editable/lifetime/notification guards.
 The retained RichTextEditor v0 preview uses ControlHost
 services for native/embedded source TSF/IME and UIA, including bounded source range
 commands. Rich structural semantics and real IME/AT acceptance remain pending.

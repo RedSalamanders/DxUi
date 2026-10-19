@@ -138,6 +138,17 @@ bool RichTextEditor::ToggleFormatting(std::wstring_view marker)
     Changed(changed);
     return changed;
 }
+bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSource,
+                                      uint64_t expectedRevision,
+                                      std::span<const RichText::SourceEdit> edits,
+                                      RichText::Selection after)
+{
+    if (! Editable())
+        return false;
+    const bool changed = RichText::ApplySourceEdits(_state->document, expectedSource, expectedRevision, edits, after);
+    Changed(changed);
+    return changed;
+}
 bool RichTextEditor::Undo()
 {
     if (! Editable() || ! _state->document.Undo())

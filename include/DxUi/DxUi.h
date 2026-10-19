@@ -3,6 +3,7 @@
 #include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
 #include "RichMarkdown.h"
+#include "RichSemantic.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -2825,6 +2826,13 @@ public:
     // Programmatic edit commands obey read-only/disabled state. Only successful
     // source changes notify; selection, mode and SetText updates are silent.
     bool ReplaceSelection(std::wstring text);
+    // Revision/snapshot-guarded source plan, committed as one undoable edit.
+    // The same editable, cancellation, text-store and notification guards as
+    // ReplaceSelection apply. No-op plans may silently update selection.
+    bool ApplySourceEdits(const RichText::SourceSnapshot& expectedSource,
+                          uint64_t expectedRevision,
+                          std::span<const RichText::SourceEdit> edits,
+                          RichText::Selection after);
     bool ToggleFormatting(std::wstring_view marker);
     bool Undo();
     bool Redo();

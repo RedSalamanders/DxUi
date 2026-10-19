@@ -39,6 +39,23 @@ and constructs). Every observed request is still injected individually.
 Diagnostic children may emit bounded raw stack addresses on unexpected
 termination; ordinary suites and canonical benchmarks keep their normal path.
 
+Semantic coordinate preparation admits at most 65,536 source units, 131,072
+display units and 65,536 display spans. Primary source intervals are disjoint;
+building their caret indexes visits each owned source unit once plus shared
+edges, rather than once per repeated display occurrence. Sorting primary indices
+and resolving repeat ownership are bounded preparation work, not composition.
+Coordinate/atomic-boundary queries allocate nothing. Fragment queries return
+owned vectors and may allocate; they belong to preparation/input/accessibility
+work, never Composite. Range returns use explicit fallible copies/prvalue elision
+so MSVC Debug iterator-proxy allocation cannot terminate in a noexcept move.
+The simultaneous maximum source/display/span fixture must retain at most eight
+MiB of C++ storage and release it completely. This is a map-only bound, excluding
+parser, geometry, histories, driver and GPU storage. Observe and inject every
+allocation in map creation, both fragment directions and atomic source edit
+staging; failures must leave held maps and complete Document state unchanged.
+The source transaction materializes its enclosing changed interval once and
+preserves all untouched gaps. It introduces no worker, timer or idle polling.
+
 Status: normative current contract
 Last reviewed: 2026-10-18
 

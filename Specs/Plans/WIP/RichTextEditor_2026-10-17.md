@@ -1741,3 +1741,88 @@ The following are inspected entry points, not completed M4 designs:
   and consumer adoption remain separately open. Keep naming/comments clear,
   update capabilities/changelog/usage docs truthfully, and do not modify sealed
   M1/M2/M3 evidence or silently adopt a new consumer pin.
+
+## M4 resumed implementation (2026-10-19)
+
+The checkpoint above is historical. Work resumed on its exact owned branch.
+The first pre-edit SkipBuild attempt was refused for stale build attestation;
+its inputs/refusal remain in `.build/reports/rich-semantic-m4-20261019/BaselineAttempt1Refused`.
+A fresh root Release rebuild and complete Embedded/EditorControls/Accessibility
+baseline passed on unchanged M3 source; logs, artifact hashes and receipts are
+retained separately under `Baseline`. Its unpaired performance diagnostics
+cannot close D4c.
+
+### Chosen boundaries and ordered checklist
+
+- [x] M4a: Add an independent immutable `SourceDisplayMap` with declared primary
+  occurrences, leading/trailing affinity, source-backed/transformed/generated/
+  object spans, fragmented range queries and atomic display-boundary snapping.
+  Reordered and repeated spans are explicit; v0 Projection keeps its existing
+  monotonic invariants. Validate UTF-16/CRLF boundaries, exact source-backed
+  spelling, primary ownership, complete display coverage and bounded admission.
+- [x] M4b: Add revision/snapshot-guarded multi-range source transactions. Validate
+  ordered disjoint edits and future selection before a single Document.Replace;
+  preserve unedited spelling/EOLs, one undo entry and strong failure guarantees.
+  Test stale/equal-revision foreign input, no-op, undo/redo, backward selections,
+  invalid joins, capacities and every observed allocation failure.
+- [ ] M4c: Build a cooperative immutable semantic document from M3 syntax with
+  precise value-token maps (including entities, code normalization and stripped
+  prefixes), block/inline style/role metadata and bounded generated output.
+  Compare constructed values against parser semantics before publication.
+- [ ] M4d: Stage native DirectWrite geometry for semantic blocks and table cells,
+  using the same semantic map for drawing, caret/hit/selection/navigation/scroll.
+  Keep all allocation/layout/raster work in preparation, and preserve existing
+  v0 callers through explicit control opt-in. No worker/HWND/timer is introduced.
+- [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
+  with source-exact history and read-only/disabled/stale/reentrant coverage.
+- [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
+  UIA, preserving source ACPs for TSF/TextPattern. Test real in-process clients,
+  format/range children, actions, bounds and provider retirement.
+- [ ] M4g: Qualify native/embedded interaction, cancellation/staleness, allocation
+  failures, WARP/device loss, resources, all required build/runtime profiles,
+  validators/format and deterministic themed/embedded gallery captures. Update
+  capabilities, architecture/input/layout/design-system/usage docs and fragment.
+
+M4a and the core M4b transaction are pure preparation primitives; the retained
+M4b adapter uses existing ControlHost lifecycle/notification services. This is not
+a claim that the retained control renders CommonMark/GFM. Generated spans have empty source ownership and never
+contribute source-selection glyphs. Transformed/object spans are indivisible
+edit targets; repeated spans name one primary source occurrence. Display-range
+queries return source fragments and deduplicate repetitions instead of replacing
+an enclosing interval across reordered content. Source boundaries use explicit
+affinity and do not assume global display order. Default semantic rendering
+remains disabled until M4d/f can publish one coherent acknowledged revision.
+
+### M4a/b functional evidence
+
+`RichSemantic.h` / `DxUi.RichSemantic.cpp` implement the independent map and
+transaction, with exact immutable snapshot identity in RichDocument. The retained
+ApplySourceEdits adapter uses Changed/SelectionChanged and introduces no rendering
+change. Native/embedded shared oracles cover hidden/generated/decoded/object/
+repeated/reordered spans, affinities, scalar/CRLF admission, mixed EOLs, backward
+selection, one undo/redo, stale/foreign plans, no-op and rejection atomicity.
+Retained tests additionally cover parser/geometry invalidation, read-only/disabled,
+notification exceptions, reentrant undo and callback owner destruction. Two real
+UIA client tests observe complete committed source, selection, caret and TextChanged
+through native and application-bridged embedded parents.
+
+- Release pure-primitives candidate: complete EditorControls and Embedded passed;
+  28 observed allocation failures injected individually. Maximum simultaneous
+  65,536 source units / 131,072 display units / 65,536 spans retained 4,063,635 C++
+  bytes and released zero net bytes; scalar coordinate queries allocated zero.
+  Receipts/logs/hashes: `.build/reports/rich-semantic-m4-20261019/PrimitivesRelease`.
+- Debug including retained adapter/client tests: complete EditorControls,
+  Embedded and Accessibility passed, zero capability skips. Forty-four observed
+  allocation failures passed; maximum map retained 4,063,795 bytes, released zero
+  net bytes and scalar queries allocated zero. Receipts/logs/hashes: `RetainedDebug`
+  in the same private report directory. Debug UIA source-plan client cases passed
+  in both hosts. These observations exclude parser/SDK/driver/GPU storage.
+- Attempt1 code-3 failures came from a new test fixture hard-coding revision zero;
+  Document construction starts at revision one. Use the observed revision.
+  Preserve `Attempt1Failed`, early probes and driver logs; corrected cases pass.
+- Full validators/tooling and pinned format passed for the pure-primitives source
+  snapshot; refresh after later adapter/builder changes. Remaining profile/platform
+  qualification belongs to M4g. M4 stays unchecked, and the performance HOLD stays.
+- Docs/gallery review: this component adds preparation/source transaction APIs,
+  without changing active pixels/defaults; no new gallery capture is needed for
+  M4a/b. M4d/f visual integration still requires complete regenerated/reviewed sheets.

@@ -28,6 +28,17 @@ entry state before one notifying committed transaction. Rejected text/ranges are
 atomic. New application edits supersede old previews. Lifetime/focus/rebinding
 guards stop stale writes and outgoing notifications after editor retirement.
 
+`RichTextEditor::ApplySourceEdits` commits a snapshot/revision-guarded source plan
+through the same editable, invalidation, composition synchronization and callback
+path as ReplaceSelection. All replacements publish before one source notification;
+source ACPs, backward selection and UIA TextPattern2 caret retain their exact
+meaning. Read-only/disabled plans do nothing. Rejected plans preserve both histories
+and selection. Unchanged spelling may update selection silently without rebuilding
+syntax/geometry. A callback may undo the whole plan, replace source, throw a standard
+exception or destroy its editor; no subsequent stale access/notification is allowed.
+Native and application-bridged embedded client tests must observe complete source,
+selection/caret and TextChanged after owner publication, plus one undo for the plan.
+
 Native and embedded UIA expose the same Document, Text, Text2 and TextEdit
 semantics. Source text, selection, active composition/conversion targets and
 projected rectangles remain coherent with the published snapshot. Text2 uses the

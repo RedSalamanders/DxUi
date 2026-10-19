@@ -940,8 +940,58 @@ generated/repeated/object editing affinities before renderer integration.
 `LexemeSourceAnchor` keeps transformed-value leading/trailing affinity explicit,
 including a named reference producing two Unicode scalars. Original spelling
 always remains available. Text lexical ACPs are not automatically legal editing
-boundaries; callers retain the model's scalar/CRLF checks. Generated/reordered
-semantic objects and rich transaction anchors remain a later stage.
+boundaries; callers retain the model's scalar/CRLF checks. These lexical anchors
+do not replace a complete semantic map.
+
+### Semantic coordinate and transaction primitives (M4a/b)
+
+`RichSemantic.h` adds a preparation-only `SourceDisplayMap`, independent of v0
+Projection's monotonic constraints. Its immutable source/display strings and
+display-ordered spans distinguish exact source-backed spelling, atomic transformed
+values, generated text with empty source ownership and atomic source objects.
+Every display unit belongs to exactly one nonempty span. Primary source ownership
+is disjoint; repeated spans require an exact primary source range and kind.
+Display order may differ from source order. Admission caps source at 65,536 UTF-16
+units, display at 131,072 and spans at 65,536, before copying/index allocation.
+Malformed UTF-16/NUL, scalar/CRLF splits, unknown enums, incomplete coverage and
+ambiguous primary ownership are errors. This does not raise Document capacity.
+
+Leading/trailing affinities resolve shared edges, hidden source and transformed
+interiors explicitly. Source caret lookup uses the declared primary occurrence;
+display hits on a repeated occurrence still resolve to original source. Hidden
+source interiors use the next/previous primary edge, with display end/start as
+outside fallbacks. Exact owned span edges retain their corresponding display
+edge. These are scalar/CRLF coordinates, separate from logical grapheme navigation.
+`SnapDisplayBoundary` moves an arbitrary bounded ACP to the chosen side of an
+atomic span or scalar/CRLF join.
+
+`DisplayRanges` and `SourceRanges` return sorted merged fragments, rather than
+an enclosing endpoint interval. Generated spans contribute no source-selection
+glyphs or replacement ranges. A nonempty intersection with a transformed/object
+span expands to its entire opposite range; empty ranges stay empty. Repeated
+source fragments are deduplicated, so a visual deletion cannot accidentally
+replace unrelated source between reordered occurrences. Callers normalize a
+backward selection before range lookup while retaining its anchor/caret direction.
+
+`ApplySourceEdits` requires the exact immutable expected SourceSnapshot and the
+current Document revision. Numeric revision equality and equal foreign spelling
+are insufficient; `SourceSnapshot::IsSameRevision` compares immutable ownership.
+Edits use ascending disjoint source ranges; touching ranges are allowed but two
+edits with the same start are rejected. Replacement strings are borrowed only
+for the synchronous call. Validate ranges, replacement Unicode and resulting
+capacity, stage one replacement envelope preserving all untouched gaps, then
+delegate future-selection/join validation and publication to Document.Replace.
+A source change records one revision/history entry; unchanged spelling only
+updates a valid selection. Exceptions preserve source, selection, revision and
+both histories. This helper does not bypass a retained control's editable,
+notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdits
+adapter through the existing Changed/SelectionChanged path, enforcing those
+guards and invalidating stale parser/geometry access before notification. It
+preserves the pure helper's single history entry and exact source coordinates.
+
+These pure primitives do not enable semantic pixels, structural commands or UIA
+roles. Their retained-control integration and corresponding qualification remain
+M4 work in the active plan; existing profile-only analysis keeps v0 rendering.
 
 RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
 disables it. The default and formatted pixels retain their v0 behavior. Analysis
