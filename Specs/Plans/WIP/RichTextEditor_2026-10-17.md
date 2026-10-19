@@ -1985,3 +1985,13 @@ same rule to retained optional-vector line/rectangle results, constructed with
 in_place to avoid another nested noexcept move. Added v0 and semantic query fault
 sweeps verify unavailable geometry, unchanged source/history/publication and
 successful retry for each observed allocation, with an isolated trace option.
+
+The new query probe on `b067114331c8548fefcad13d34e018cf6de1038e` caught the
+same legacy defect in the v0 PreparedDocumentLayout::Range return at line 557:
+engine 0, rectangle operation, allocation point 8 of 11 exited 197. LLVM
+symbolization of its retained executable/PDB resolves the stack through the
+vector move, PreparedDocumentLayout, retained adapter and text-service getter.
+Keep M4dQueryProbeFailed (including the symbolized stack). The next fix returns
+an explicit empty prvalue or fallible copy there too. The semantic geometry
+probe still passes all 293 points on this candidate; the query failure remains
+separate evidence. Rerun both isolated probes before the profile matrix.

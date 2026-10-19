@@ -544,7 +544,7 @@ std::vector<D2D1_RECT_F> PreparedDocumentLayout::Range(std::size_t first, std::s
         throw std::out_of_range("Rich document selection range");
     std::vector<D2D1_RECT_F> rectangles(0u);
     if (first == last)
-        return rectangles;
+        return std::vector<D2D1_RECT_F>(0u);
     for (auto index = ChunkAt(first); index < state.chunks.size(); ++index)
     {
         const auto& chunk = state.chunks[index];
@@ -554,7 +554,9 @@ std::vector<D2D1_RECT_F> PreparedDocumentLayout::Range(std::size_t first, std::s
         auto local     = chunk.geometry->layout.Range(first > chunk.displayStart ? first - chunk.displayStart : 0u, end);
         rectangles.insert(rectangles.end(), local.begin(), local.end());
     }
-    return rectangles;
+    // Preserve the query's fallible boundary when Debug omits NRVO. Its vector
+    // move constructor can allocate a proxy despite being noexcept.
+    return std::vector<D2D1_RECT_F>(rectangles);
 }
 std::size_t PreparedDocumentLayout::PreviousCluster(std::size_t position) const
 {
