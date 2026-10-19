@@ -86,6 +86,8 @@
     "bounded-markdown-block-tree-stable-identities-preview",
     "bounded-markdown-inline-gfm-analysis-preview",
     "bounded-rich-semantic-mapping-transactions-preview",
+    "bounded-rich-semantic-document-preview",
+    "bounded-retained-semantic-markdown-rendering-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",

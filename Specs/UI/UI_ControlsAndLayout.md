@@ -989,11 +989,11 @@ adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
 preserves the pure helper's single history entry and exact source coordinates.
 
-### Semantic document preparation (M4c work in progress)
+### Semantic document preparation (M4c bounded preview)
 
 RichSemanticDocument.h defines an immutable SemanticDocument and an owner-serialized
-SemanticBuilder. This component is under implementation/qualification; it does
-not enable the retained renderer. Begin retains immutable MarkdownSyntax; Advance
+SemanticBuilder. This CPU component does not enable the retained renderer by
+itself. Begin retains immutable MarkdownSyntax; Advance
 resumes block/inline events and publishes one complete map, style partition,
 role graph and ordered geometry-paragraph metadata. Held publications remain
 immutable. Identical syntax ownership coalesces; a different syntax object with
@@ -1029,9 +1029,9 @@ builder keeps HTML literal; any later native safe subset needs explicit policy,
 balanced validation and source-preserving fallback. Rendering, source caret sites,
 structural commands and structured accessibility remain separate M4d/f work.
 
-These pure primitives do not enable semantic pixels, structural commands or UIA
-roles. Their retained-control integration and corresponding qualification remain
-M4 work in the active plan; existing profile-only analysis keeps v0 rendering.
+These pure primitives remain independent of graphics. The explicit retained
+rendering preview below consumes them; complete source caret sites, structural
+commands and semantic UIA remain M4 work. Profile-only analysis keeps v0 rendering.
 
 ### Retained semantic rendering preview (M4d)
 

@@ -1773,6 +1773,13 @@ cannot close D4c.
   using the same semantic map for drawing, caret/hit/selection/navigation/scroll.
   Keep all allocation/layout/raster work in preparation, and preserve existing
   v0 callers through explicit control opt-in. No worker/HWND/timer is introduced.
+  - [x] M4d.1: Bounded native paragraph/table geometry and retained opt-in preview,
+    mapped glyph fragments, source fallback, token navigation/deletion and current
+    component qualification. Full M4d remains open for the next substeps.
+  - [ ] M4d.2: Distinct source caret sites for empty/trailing/container-only lines
+    and padded cells, preserving exact source TSF/selection/history semantics.
+  - [ ] M4d.3: Hanging marker indentation, link presentation and the explicitly
+    validated native HTML subset with source-preserving literal fallback.
 - [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
   with source-exact history and read-only/disabled/stale/reentrant coverage.
 - [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
@@ -1840,7 +1847,7 @@ These results qualify this component, not the unfinished M4c/g integration or
 physical IME/AT/foreground gates. Canonical unpaired diagnostics remain unpaired;
 D4c stays HOLD. Do not reuse these artifacts as later M4c/d/f qualification.
 
-M4c is the next active component. Its bounded semantic document must reconstruct
+At the M4a/b checkpoint, M4c was the next component. Its bounded document must reconstruct
 resolved values from exact source tokens, retain immutable role/style/table/task/
 image metadata and reject unprovable interior maps. Native caret scaffolds for
 empty/trailing/hidden source lines and grammar-aware deletion of normalized
@@ -1995,3 +2002,51 @@ Keep M4dQueryProbeFailed (including the symbolized stack). The next fix returns
 an explicit empty prvalue or fallible copy there too. The semantic geometry
 probe still passes all 293 points on this candidate; the query failure remains
 separate evidence. Rerun both isolated probes before the profile matrix.
+
+### M4d.1 qualified checkpoint, 2026-10-19
+
+Implementation commit `1efc053f39d633840bfc13c4ad39a8f238bc99f5` passed the frozen
+six-job component matrix. Complete EditorControls, Embedded and Accessibility
+passed in x64 Debug, Release and ASan Debug (nine ordinary scope/profile runs,
+zero capability skips), including the actual native/embedded semantic-rendering
+UIA clients. The isolated ASan detection probe passed. All three ARM64 builds
+passed; these are cross-compilation results, not native execution.
+
+The ordinary Release embedded suite handled all 122 geometry allocation failures
+and 21 retained query failures (v0 rectangles/lines 6/4, semantic 10/1). Debug
+and ASan each handled 293 geometry and 41 query failures (12/6 and 20/3). Each
+failure preserves its prior publication or reports unavailable query geometry,
+with explicit retry and unchanged source/history. Coalescing/scalar geometry/
+retirement and warm composition allocate zero tracked C++ storage. These are
+bounded C++ observations, not SDK/driver/process memory or all-input latency
+qualification. Core semantic-map/document sweeps and all 1,324 pinned parser
+input constructions also pass in the current scopes.
+
+The source/commit guard remained unchanged before/after every job. Raw logs,
+scope receipts, executables, PDBs, libraries, ASan runtime DLLs, performance raw
+reports/comparisons and hashes are retained in
+`.build/reports/rich-semantic-m4-20261019/M4dQualificationCurrent`. Its independent
+runtime artifact audit verifies all nine receipt executable hashes and the
+sanitizer detection executable. The first audit attempt is explicitly invalid
+and retained separately; only runtime-artifact-audit.json is successful.
+Earlier failed candidates, symbolized stack and isolated traces remain preserved
+under their original report directories; they are not current qualification.
+
+Full validate.ps1 (five validators plus all tooling) and pinned 22.1.3 format
+passed on the qualified implementation. Metadata/gallery closeout receives fresh
+spec/dependency checks. `gallery.ps1 -PublishDocs` regenerated all five theme
+sheets plus the unchanged generic embedded example from the clean qualified
+Release source. The semantic tile was reviewed for resolved styles, Unicode
+table alignment, quote stroke, legibility and viewport fit; the generic embedded
+sample is not a semantic-rich-text capture. Embedded semantic pixels, exact
+hide/show recovery, independent views, device replacement and warm composition
+are exercised by the ordinary borrowed-WARP fixture.
+
+This closes M4d.1 only. Continue in the same owned worktree/branch with M4d.2
+source caret sites (empty/trailing/container-only source lines and padded cells),
+then M4d.3 link/hanging-marker/validated HTML presentation. Preserve exact raw
+TSF/UIA ACPs and source/history; never infer editing from generated glyph ownership.
+M4e structural commands, M4f semantic/style accessibility and M4g overall
+qualification remain open, as do M5/M6 and physical/platform/consumer gates.
+No foreground suites or native ARM64 runtime were run. Canonical timings remain
+unpaired diagnostics; D4c stays HOLD without a causal acceptance claim.

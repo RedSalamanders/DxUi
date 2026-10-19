@@ -5,8 +5,9 @@ The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
 `DxUi::RichTextEditor` preview described below. Its bounded source TSF/IME and
 UIA adapters are implemented in both hosts. Real IME/assistive-technology
-qualification, semantic Markdown rendering/editing and accepted extension
-qualification remain separate integration gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+qualification, complete semantic Markdown editing and accepted extensions remain
+separate gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+The explicit bounded semantic rendering preview is available under M4d below.
 
 ## Retained editor preview (D2c)
 
@@ -44,8 +45,8 @@ paragraph/table-cell metadata. Its source remains exact; code/escape/entity
 normalization has token-level edit affinities. Tables include padded cells;
 task markers and image alternatives are atomic objects. HTML remains literal in
 this preparation API, and links/images retain inert metadata without loading or
-executing anything. This API does not yet connect those values to retained pixels,
-structural commands or structured UIA. Admission currently limits combined syntax
+executing anything. The retained rendering opt-in consumes this data separately;
+structural commands and structured UIA remain open. Admission limits combined syntax
 nodes to 32,768 and geometry paragraphs to 4,096, alongside the bounded model/map.
 
 Include `DxUi/DxUi.h`. The same control works under native `ControlHost`
