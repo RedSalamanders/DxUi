@@ -1,0 +1,1 @@
+- Keep native TSF reconciliation notification counts scoped to the current generation-tagged turn, with bounded diagnostics and queued-geometry regression/counterfactual coverage; qualification gates, deadlines and thresholds remain unchanged.

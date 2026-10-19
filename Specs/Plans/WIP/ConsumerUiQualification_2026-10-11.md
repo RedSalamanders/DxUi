@@ -361,7 +361,7 @@ The source establishes the meaning of `none`:
 
 - [`DesktopLease::Capture/Read/RestoreFocus`](../../../Tests/Support/Support.Tests.DesktopLease.h) saves the
   pre-confirmation desktop. A missing foreground thread or a minimized foreground window yields a null saved
-  focus; otherwise `WindowsDesktop::ThreadFocus` returns `GUITHREADINFO.hwndFocus` on query success and null on
+  focus; otherwise the then-current `Win32DesktopBackend::ThreadFocus` returns `GUITHREADINFO.hwndFocus` on query success and null on
   query failure. A successful query can itself return a null focus. `RestoreFocus` returns `NotRecorded`
   (`none`) immediately when the saved focus is null. It does not attempt `FocusWindow` in that branch.
 - [`RunWithDesktop`](../../../Tests/Support/Support.Tests.InteractiveLease.h) captures before confirmation,
@@ -399,12 +399,14 @@ call. The fake-desktop result is not evidence of which branch the real hosted sn
 
 Concrete next steps, owned here by the qualification/test-harness owner:
 
-1. Add a bounded capture-reason diagnostic to the original `DesktopLease::Read` snapshot, before confirmation or
+1. Implemented by the [18 October diagnostic slice](#bounded-focus-capture-diagnostics-18-october-2026): add a
+   bounded capture-reason diagnostic to the original `DesktopLease::Read` snapshot, before confirmation or
    warning activation. Distinguish absent foreground/thread, minimized foreground, failed focus query, successful
    query with null HWND and recorded live focus. Preserve query success and immediately captured error information
    where meaningful; do not infer the original state from a second later query. Keep raw desktop identities private.
    Copy the one shared snapshot/reason into both child receipts while retaining their independent durations.
-2. Extend the fake-backend/result/presentation checks for those distinct outcomes and for visible-focus restoration
+2. Implemented by that diagnostic slice: extend the fake-backend/result/presentation checks for those distinct
+   outcomes and for visible-focus restoration
    and read-back failure. Retain the existing minimized-stale-focus regression, failed-restoration rejection,
    hosted-marker/ownership guards and the difference between `none`, `unchanged`, `restored` and `failed`.
 3. Run one separately identified native ARM64 Debug hosted diagnostic of Menu plus NativeTextInput and inspect its
@@ -419,8 +421,328 @@ Concrete next steps, owned here by the qualification/test-harness owner:
 No remaining qualification checkbox is closed by this investigation. ARM64 opt-in resources, physical input and
 device removal, real IME/AT/touch, consumer adoption, trusted policy and paired acceptance remain open. Timing/FPS
 and process-memory bands remain 5% and 2%; exact budgets, allocation ceilings, probe deadlines and the
-`qualified=false` policy are unchanged. This update changes documentation only; runtime/test behavior and gallery
-pixels are unchanged, so no gallery regeneration is required.
+`qualified=false` policy are unchanged. The 17 October investigation changed documentation only; its runtime/test
+behavior and gallery pixels were unchanged, so it required no gallery regeneration. The later diagnostic
+implementation and its validation follow below.
+
+### Bounded focus capture diagnostics (18 October 2026)
+
+This test-harness slice starts from PR #86's merged `0dbbad09e10d9e71873f2ac37b3b1765b33930b5`.
+It implements attribution instrumentation; the historical ARM64 `focus=none` observations still lack a capture
+reason and cannot be retroactively assigned to a branch. This plan remains the single shared qualification owner.
+
+[`DesktopLease::Read`](../../../Tests/Support/Support.Tests.DesktopLease.h) now saves a fixed enum and one
+unsigned Windows error code alongside the original desktop state. Eligible capture performs one
+`GetGUIThreadInfo` query; failure preserves `GetLastError` immediately, and successful/skipped queries retain
+zero. No second diagnostic query, worker, timer, event stream or changed capture target is introduced.
+
+| Original capture reason | Query observation | Focus-restoration implication |
+| --- | --- | --- |
+| `no-foreground` | No query; foreground was absent | No saved focus; `none` remains unverified |
+| `no-foreground-thread` | No query; captured foreground had no available thread | No saved focus; `none` remains unverified |
+| `foreground-minimized` | No query; minimized guard intentionally rejects stale thread focus | No saved focus; `none` remains unverified |
+| `query-failed` | Query failed; immediate error code retained, including zero if the API supplied none | No saved focus; `none` remains unverified |
+| `query-returned-null` | Query succeeded with null focus | No saved focus; `none` remains unverified |
+| `recorded` | Query succeeded with nonnull focus | Original focus target is restored/read back under the existing contract; failure still fails the lease |
+
+[`RunWithDesktop/FormatLeaseResult`](../../../Tests/Support/Support.Tests.InteractiveLease.h) logs this
+snapshot before confirmation and writes exactly `focus.capture.reason` and `focus.capture.error` to the native
+result. [`InteractiveRun.psm1`](../../../Tools/InteractiveRun.psm1) validates both fields and presents capture
+separately from restoration. Missing historical diagnostics establish no reason; repeated, partial, unknown,
+out-of-range or contradictory diagnostics fail validation. [`test.ps1`](../../../test.ps1) copies the one
+shared `lease.focusCapture` (`Reason`, `QueryError`) to both children while retaining each child's duration.
+The added diagnostic contains no HWND, PID, thread ID or desktop identity. Existing raw logs stay private.
+
+Deterministic coverage extends [`InteractiveLease`](../../../Tests/Controls/DxUi.Tests.InteractiveLease.cpp)
+and [`Test-InteractiveMode.ps1`](../../../Tools/tests/Test-InteractiveMode.ps1): all six paths; skipped-query
+and exactly-one-query counts; immediate errors surviving later desktop reads; immutable original capture when
+confirmation and children change the desktop; the existing minimized-stale-focus and visible-focus restoration
+cases; successful focus-setting followed by failed read-back; native result serialization; legacy/malformed
+metadata; honest `none`/failure presentation; and actual runner receipt mapping for both child durations.
+Real Win32 backend checks remain read-only and use a never-shown test window.
+
+The final receipt-path review also repairs the missing-native-result fallback in `test.ps1`: it now supplies
+null capture metadata and an empty problem list, so strict mode can still write the failed child receipt.
+The actual runner-assignment regression fails against the preceding driver with a missing `FocusCapture`
+property and passes against the repair, using the same test body. The 36-case PowerShell suite includes that
+path. Native/build checks are refreshed after the driver repair; the counterfactual and prior attempts remain
+in the private packet. This fallback does not invent a capture reason or turn a missing result into success.
+
+The [public evidence packet](../../../Measurements/InteractiveLease/2026-10-18-capture-reasons/README.md)
+records source/artifact identities and sanitized results; original logs and attempts remain in private
+`Z:/DxUiFocus`. After the final missing-result repair, all six builds passed: x64 and ARM64 Debug, Release
+and ASan Debug. The three x64 noninteractive runs passed all 19 selected suites each, with zero capability
+skips and 45 completed InteractiveLease cases per configuration. The isolated ASan detection probe passed.
+These selected passes leave repository qualification `NOT_EVALUATED`; ARM64 builds are cross-build evidence.
+The initial PowerShell pass exposed numeric-type mismatches in three new assertions; corrected expectations
+yield 36/36 passing cases. A signed/unsigned comparison in a new C++ assertion failed `/WX` in the initial
+x64 Debug, ARM64 Debug and x64 Release attempts; an explicit `DWORD` expectation repairs it. Those failed
+attempts are retained alongside the passing final matrix.
+
+The approved foreground runs use three separate shared Menu/NativeTextInput leases, each with automatic Start
+enabled and the visible 30-second countdown (Start remains available). All three original snapshots report
+`recorded`/error zero; both child receipts retain identical shared metadata and separate child durations.
+
+| Local x64 profile | Menu | NativeTextInput | Foreground / focus / pointer restoration |
+| --- | --- | --- | --- |
+| Debug | 110 cases pass | 165 cases pass | restored / restored / unchanged |
+| Release | 110 cases pass | 83 cases complete; case 84 fails | unchanged / unchanged / restored |
+| ASan Debug | 110 cases pass | 103 cases complete; case 104 fails | restored / restored / restored |
+
+All six executions record zero capability skips. These are four passing complete suites and two failed complete
+suite attempts, not six passes. All three desktop restorations are verified independently of child outcomes.
+
+The approved local Release foreground run exposes a separate unresolved failure:
+[`TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible`](../../../Tests/Controls/DxUi.Tests.NativeTextInput.cpp)
+completes 83 earlier cases, then fails the 84th case at `native IMM transition fixture exposes only its active
+preview`. It fails before the field becomes read-only/masked. Menu passes all 110 cases. The shared lease
+retains `recorded`/error zero and verifies foreground/focus unchanged, pointer restored; valid diagnostics and
+restoration do not turn the failed child into a pass. One isolated run of that exact case on the same Release
+executable passes with zero skips and verified restoration. The full failed receipt remains authoritative for
+that execution; no full repeat replaces it and no cause is established by the isolated pass.
+
+Source review identifies a diagnostic gap: this fixture's `RunWhileForegroundHeld` covers activation/session
+setup, then returns before `WM_IME_STARTCOMPOSITION` and `WM_IME_COMPOSITION`. The native handler rejects a
+lost-focus/ineligible host or stale session/composition revision, but the failed assertion records neither the
+actual preview nor stage/session observations. The lease's original desktop snapshot cannot explain state
+inside that later child. The next bounded investigation should retain passive foreground/focus/session,
+composition/revision and text-equality/length observations around START, payload delivery and the preview
+assertion, including the read-only/masked subcase. Exercise a controlled focus/session loss before attributing
+the failure. Keep preview semantics, assertions, guards and deadlines unchanged; this is an open native-input
+qualification observation, not a demonstrated consequence of capture diagnostics. Library and NativeTextInput
+fixture sources are unchanged in this slice.
+
+ASan Debug stops later in
+[`TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText`](../../../Tests/Controls/DxUi.Tests.NativeTextInput.cpp):
+103 cases complete, and case 104 fails `undo fixture creates one earlier independent typed edit`.
+Its existing `[IME-UNDO-SETUP]` trace records one attempt, `activated=false`, terminal `foreground-transfer`,
+`onChar=false`, all three text lengths zero, logical target/native session true, zero foreground losses and
+`sequenceHeld=true`. Source confirms failed activation returns before `OnChar`; composition and undo assertions
+have not run. This establishes a setup failure, without explaining why Windows refused/lost the foreground
+transfer. A no-loss observation does not itself establish successful activation. The bounded
+[follow-through below](#native-input-fixture-readiness-follow-through-18-october-2026) exercises initial activation
+refusal explicitly, preserves the existing 800 ms activation limit and five-run bound, and keeps successful
+activation plus the original text/composition/undo predicates
+mandatory. No full ASan retry replaces this receipt; it is an assertion failure, not an ASan memory diagnosis.
+The intentional isolated ASan detection probe remains separate.
+
+The retained pre-implementation Debug receipt was compared with the first diagnostic candidate before the
+final PowerShell missing-result repair. The ordinary comparator reports **seven timing flags**, including
+clean FPS about **13.94% lower**. That candidate completed while this run's ARM64 ASan build was active.
+One subsequent serialized repeat uses the **same retained candidate executable** after this run's other
+builds/tests finished and reports **ten timing flags**, including clean FPS about **54.80% lower** and dirty
+FPS about **9.97% lower**. Neither comparison flags process memory, exact surface budgets or allocations.
+Both comparisons and all original samples are retained; no passing repeat, causal attribution or accepted
+non-regression is claimed, and there is no repeat-until-green loop.
+
+These smoke observations have explicit limits: library/benchmark source fingerprints and compiler version
+match, but executable hashes and v2 toolchain identities differ between baseline and candidate. Candidate
+validation added the discovered CMake directory to PATH. Baseline receipts and artifact hashes were retained,
+but the original baseline image was not; the diagnostic candidate images are retained. A separate child-shell
+attempt was refused by build attestation before native sampling; the original parent environment matched all
+four saved identities and admitted the actual repeat without relaxing attestation. The timed Embedded fixture
+does not execute the desktop lease, so these numbers cannot measure the new capture diagnostic's overhead.
+They do not qualify the policy or establish a change-induced regression. The public packet retains both flag
+sets and these source/image/environment distinctions.
+
+Performance acceptance stays on HOLD. The next performance action remains stable matched controls with both
+images retained and trusted paired-policy qualification. Defer performance acceptance; seek profiling-backed
+optimization, scope-reduction or deferral advice if stable matched evidence confirms degradation. Do not
+change control hot paths, widen thresholds or replace the retained baseline to make this smoke comparison pass.
+
+The next runtime step remains **open**: run the separately identified native ARM64 Debug hosted Menu plus
+NativeTextInput diagnostic described above, bind source/executable/native-result hashes and inspect one shared
+capture reason. This x64 machine's deterministic tests and ARM64 cross-builds cannot supply that observation.
+If it confirms `foreground-minimized`, retain intentional unrecorded focus and obtain separate native evidence
+with a genuinely visible foreground and recorded live focus before claiming a verified round trip. Do not
+revive the privacy UI or change the capture target for a better-looking status.
+
+No remaining qualification checkbox is closed. All performance-policy, paired acceptance, ARM64 opt-in resource,
+physical-input/device-removal, real IME/AT/touch and consumer gates remain open. The 900 ms hover guard,
+180 ms pointer bound, restoration/child/countdown limits, 5% timing/FPS and 2% memory bands, exact budgets,
+allocation ceilings and `qualified=false` policy are unchanged. Production library code, public APIs and gallery
+pixels are unchanged; this diagnostic slice needs no gallery regeneration.
+
+### Native-input fixture readiness follow-through (18 October 2026)
+
+This repair continues the two local failures retained in the bounded-capture packet above. It does not replace
+those failed executions or attribute the historical Release failure to a particular desktop event. The shared
+qualification owner and every remaining acceptance gate stay here.
+
+Source review confirms two fixture gaps. The IMM eligibility test checked only activation inside its foreground
+guard, then asserted preview outside it. The undo setup returned early after failed activation, while the generic
+guard interpreted zero loss events as a held sequence. The ASan trace directly records that second path.
+
+The repaired IMM fixture observes the complete activation/START/preview/read-only-or-masked transition under
+`RunUntilForegroundHeld`, builds fresh state for each discarded attempt, and defers the original correctness
+predicates until a held attempt is selected. Five fixed attempts contain four passive scalar stage observations
+each. Controlled regressions remove focus before and after preview for both policy transitions, without an
+external application. A missing preview on a held attempt still fails immediately; correctness failures are not
+retried. Initial activation is now an explicit attempt outcome: refusal consumes one of the existing five
+attempts, and exhaustion fails setup rather than skipping. Undo setup reports that outcome and retains its
+original independent edit, composition commit and two-undo assertions. Pure guard regressions cover initial
+refusal without any loss event, bounded permanent refusal, takeover classification and a held failed predicate.
+
+The [fixture-readiness packet](../../../Measurements/TextInput/2026-10-18-fixture-readiness/README.md) and its
+[hash-bound evidence](../../../Measurements/TextInput/2026-10-18-fixture-readiness/evidence.json) retain six
+passing builds and 57 passing noninteractive suite executions, with zero skips. The three pure guard
+regressions and 45 InteractiveLease cases pass in each x64 profile; the isolated ASan detection probe detects
+its intentional fault. Full Debug and Release Menu/NativeTextInput pass all 110/167 cases respectively with
+zero skips and verified restoration. Five focused Release cases pass. Three controlled nonactivating ASan
+cases pass under the lease, including both new native regressions. These controlled passes do not close the
+full ASan foreground gate. The old initial-activation behavior fails the new pure regression in a retained
+Release counterfactual; the separate setup-only IMM mutant was built but not executed.
+
+Two full ASan leases remain failed. In the first, Menu completes 110 cases with one activation skip;
+NativeTextInput completes 83 cases and fails the masked preview. Its trace already shows length six,
+one notification and a nonmatching base **before composition START**, with successful activation/focus/native
+session and zero foreground losses. The person at the desktop confirms interacting during that run; this is
+consistent with the extra edit, without identifying the specific input. The guard does not repeat that ready
+correctness failure. One countercheck at identical source/executable hashes fails the unmodified Menu fixture
+after 13 cases at `create a window on another thread`; the existing 5,000 ms wait/null-HWND predicate records
+neither the failed stage nor a Windows error, so it cannot establish a creation failure versus readiness timeout.
+NativeTextInput completes 104 cases, then records five `foreground-transfer` refusals, no `OnChar`, no edit,
+zero loss events and `sequenceHeld=false`. The repaired guard correctly fails setup at the existing bound,
+rather than treating failed acquisition as a held editor sequence or a capability skip. Both leases verify
+restoration; neither is an ASan memory finding. No further full retry replaces them.
+
+Before implementation, `Z:/DxUiInput` retains the previous source, all six profile images and original
+logs/receipts, plus a new Release ComplexUi baseline. The one serialized candidate comparison flags nine
+timing/FPS metrics: clean FPS is 10.24% lower and dirty FPS 8.11% lower. Process memory, exact budgets and
+allocation metrics do not flag. Library/benchmark/toolchain fingerprints match; executable hashes differ,
+and both baseline and candidate images are retained. The timed Embedded fixture does not execute the readiness
+helpers; this unpaired sample cannot attribute their cost or establish change-induced regression. Retain these
+flags alongside the earlier seven/ten-flag observations and memory uncertainties. Performance acceptance stays
+on HOLD; no repeat, threshold change or rebaseline replaces the sample.
+
+Concrete remaining work, owned here:
+
+1. Obtain a separately identified full ASan foreground run with the desktop left available. Keep both failed
+   leases and the original pre-repair failures. Controlled fixtures are separate evidence.
+2. If acquisition remains refused, record bounded activation/admission stages under the existing limits.
+   For the unmodified Menu setup, distinguish class registration, window creation, activation and readiness
+   publication with immediately captured errors under the same 5,000 ms bound before choosing a repair.
+3. Run the separately identified native ARM64 capture diagnostic; cross-builds and x64 receipts cannot
+   establish its capture reason or focus round trip.
+4. Establish stable matched performance controls with both images retained and qualify the trusted policy.
+   Seek profiling-backed optimization, scope reduction or deferral advice if degradation is confirmed.
+
+The final repository review runs `validate.ps1` and `format.ps1 -Check` on the isolated exact-input checkout;
+private logs retain their outcomes and hash guards preserve unrelated work. No remaining checkbox is closed.
+Native ARM64 execution, opt-in resources, physical input/device removal, real IME/AT/touch, consumer acceptance
+and trusted paired performance qualification remain open. The 800 ms activation limit, five-attempt bound, 900 ms hover guard,
+180 ms pointer bound, watchdog/lease/countdown limits, 5% timing/FPS and 2% memory bands, exact budgets,
+allocation ceilings and `qualified=false` policy are unchanged. This fixture-only change affects no library API
+or control pixels; gallery regeneration is unnecessary.
+
+### ASan foreground setup follow-through (18 October 2026)
+
+The [setup packet](../../../Measurements/TextInput/2026-10-18-asan-setup/README.md) continues the failed full
+ASan leases in the [fixture-readiness packet](../../../Measurements/TextInput/2026-10-18-fixture-readiness/README.md).
+Original receipts, confirmed desktop interaction, activation refusals and the uninstrumented Menu creation timeout
+remain retained. The requested local native checks pass; no remaining qualification checkbox is closed.
+
+Menu creation and activation are now separate. The worker shows without activation, publishes readiness or an
+immediate registration/creation error, and waits for permission to activate. The readiness wait services sent
+callbacks without draining queued input/probes and rejects readiness after its original 5,000 ms deadline.
+The owner is reacquired after UIA/witness preparation. The background queue-focus state is explicitly established
+while the witness retains actual foreground, rather than assumed to remain stale across setup. Intentional
+transfers keep total loss history and separate unexpected-loss counters. Held behavioral failures never retry.
+The same 800 ms polling parameter, five-attempt policy and 2,000 ms foreground observation remain. Teardown waits for
+actual kernel thread termination while servicing callbacks; a completed worker-body flag is insufficient for
+COM cleanup. Deterministic tests cover these protocol boundaries and the non-pumping callback counterfactual.
+
+Bounded native diagnostics record existing direct/fallback requests, attachment/detachment outcomes and immediate
+attachment errors. `SetForegroundWindow` contributes its documented BOOL, not a stale last error. The focused ASan
+NativeTextInput run passes all five selected cases with zero skips and verified restoration: direct acquisition
+is refused, the attached fallback succeeds, and both actual foreground and focus read back true. This establishes
+that this fallback works in that run; it does not attribute the five historical refusals or justify bypassing them.
+No additional native activation operation, retry or wait is introduced by the diagnostics.
+
+Three retained Menu diagnostics expose separate failures. The first passes both controlled witness cases then
+fails UIA setup without stage attribution. The second creates the witness successfully but its activation request
+is refused and the old fixture records one skip. The prepared fixture's next run fails earlier: COM activation,
+2,000/3,000 ms UIA timeout settings and the base-interface query succeed, but `CreateCacheRequest` returns
+`E_FAIL` (`0x80004005`), before event subscription or witness creation. A separate nonactivating COM probe creates
+a cache successfully. These observations do not establish an initialization cause; do not claim a warm-up or a
+passing repeat repaired that failure. A cold-client regression isolates cache creation from foreground behavior.
+
+The final source has six passing builds (x64/ARM64 Debug, Release and ASan Debug), 57 passing affected x64
+noninteractive suite executions, and all six full Menu/NativeTextInput executions passing without capability
+skips. Each profile completes WindowHost 133 cases, InteractiveLease 45, Menu 113 and NativeTextInput 167.
+All three approved automatic-Start leases verify restoration: Debug/ASan desktop states are unchanged; Release
+restores foreground/focus and leaves the pointer unchanged. The formerly failing setup transition passes in each
+profile. These current-source passes do not attribute the retained earlier failures. Resource fixtures were not
+rerun here, and cross-builds supply no native ARM64 execution.
+
+One serialized Release comparison against the retained pre-implementation baseline raises five unpaired flags:
+clean FPS -16.11%, frame p95 +16.01%, compose CPU p95 +9.66%, dirty private bytes +3.10% and private peak +3.08%.
+The status remains `advice-required`; defer acceptance until stable controls and trusted paired evidence provide
+attribution. No repeat, rebaseline, optimization claim or threshold change replaces these observations. Earlier
+nine timing flags, older comparison flags and the MultilineGrid memory uncertainty remain retained.
+
+This ledger remains the single owner of these next steps:
+
+1. For another cache-factory failure, preserve the exact source/image, stage/HRESULT, Windows build and UIA-core
+   version/hash, then isolate cold client setup with and without the prepared host. Collect bounded call attribution
+   before proposing an initialization change; do not add warm-ups, retries or longer UIA timeouts on speculation.
+2. For another native refusal, use the direct/attachment/request/detach and final read-back fields to identify the
+   failed operation. Preserve all five attempts and any observed external loss; permanent refusal remains failed setup.
+3. Observe the same capture-reason fields on native ARM64. `focus=none` remains unverified restoration, and a cross-build
+   supplies no runtime evidence. Run resource, physical-input, real IME/AT/touch and consumer obligations separately.
+4. Keep timing/memory advice on HOLD until stable controls and trusted paired evidence support a decision. Existing
+   flags, the MultilineGrid uncertainty and retention limits remain attached to their original measurements.
+
+The private `Z:/DxUiSetup` packet retains preceding source/images, each diagnostic's source/image identity and
+raw receipt, and a pre-implementation Release ComplexUi baseline. Native ARM64, opt-in resources, physical input/
+device removal, real IME/AT/touch, consumer and trusted paired-policy gates stay open. Earlier timing flags,
+MultilineGrid memory uncertainty and retention limitations remain. All deadlines, thresholds, budgets,
+allocation ceilings and `qualified=false` policy are unchanged. This harness slice changes no library API,
+consumer adapter or control pixels; documentation/gallery review requires no visual regeneration.
+
+### PR #87 staged TSF notification follow-up (18 October 2026)
+
+PR #87 run `39160627044`, at `ee63697c6c91a139aded97daa95a2335181d3dcc`, passes five Full native
+runs but fails ARM64 Release NativeTextInput in `TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession`:
+the exact post-commit text/layout notification-count predicate fails after the earlier text-retention and
+posted-work-drain predicates pass. Menu passes with zero capability skips in that job. The test body and production
+implementation are unchanged; shared-harness timing effects are not excluded. The original receipt omits the
+before/after notification counts, so missing, duplicated and earlier notifications remain distinct hypotheses.
+The failed log/report and their hashes are retained privately under `Z:/DxUiSetup`; a green repeat cannot attribute it.
+
+The [bounded count-boundary packet](../../../Measurements/TextInput/2026-10-18-staged-reconciliation/README.md)
+retains an instrumentation-only Release pass and a controlled queued-geometry counterfactual. The former records
+text/layout counts `0/1` and `0/1`, with unchanged session/activation identity. In the counterfactual a whole pump
+records one text notification and two layout notifications: the exact old predicate is false while valid independent
+geometry work runs. Dispatching the current production reconciliation turn separately records one text/one layout;
+the later queued geometry then adds its own layout notification. This proves the observation-boundary defect,
+without reconstructing the original ARM64 ordering.
+
+The repair retains the exact one-text/one-layout predicate for that turn, the existing reentrancy/lifetime checks,
+and the original drained-work check after the full pump. A sink may legitimately request a later deferred lock.
+Two registered cases cover following queued geometry and the old whole-queue counterfactual; an idle duplicate
+record must repeat none of the three notification families. Two bounded scalar records per existing foreground
+attempt retain counts, cookies, activation identity, geometry and actual focus/foreground, with no new wait or retry.
+
+The intermediate three-case probe has zero native skips and passing assertions, but its lease fails cursor restoration.
+The person confirms desktop interaction and readiness for the remaining approved runs. That is context rather than
+causal proof: the failed lease and its source/image identities remain retained, and cannot qualify complete foreground
+validation. The final matrix has six successful builds, 57 affected noninteractive x64 executions and three full
+NativeTextInput runs (169 cases each, zero skips and verified desktop restoration), bound separately to final source
+and images. The five candidate validators, all 18 tooling groups and formatting pass. The initial whole-checkout
+validation reports unrelated local measurement metadata/path errors and a malformed new changelog fragment;
+the fragment is fixed and all five validators pass in the isolated candidate. The failed log remains retained.
+The single retained Release comparison is within the unchanged noise bands with zero new flags; it is unpaired
+and clears none of the earlier flags. Full Menu/resource receipts remain attached to their earlier source/images;
+this follow-up leaves new-head hosted Full validation and native ARM64 execution pending. No exact assertion, deadline, threshold, attempt bound,
+budget or policy is relaxed, and all 20 qualification gates remain open throughout this investigation.
+
+ARM64 Debug and Release receipts now identify `focusCapture.Reason=foreground-minimized`, with query error 0.
+That describes the unavailable initial focus in those captures; neither lease verifies focus restoration.
+This test-only repair changes no production library/API, consumer adapter or control pixels; the documentation/gallery
+review requires no visual regeneration. A fresh native ARM64 Release run must retain the bounded counts and session
+identity before treating the corrected predicate as observed on that platform. Earlier failures, performance flags,
+MultilineGrid memory uncertainty and retention limits remain attached to their original evidence.
 
 ### PR #84 hover-switch follow-up (18 October 2026)
 

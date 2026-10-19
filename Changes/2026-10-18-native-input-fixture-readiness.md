@@ -1,0 +1,1 @@
+- Guard the complete native IMM eligibility sequence and distinguish initial activation refusal from a held foreground attempt, with deterministic preview-loss and undo-setup regressions. Preserve activation deadlines, attempt bounds, text-input assertions and all remaining qualification gates and thresholds.

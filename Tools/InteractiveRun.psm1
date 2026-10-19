@@ -137,6 +137,7 @@ function Read-DxUiLeaseResult {
     $facts = [ordered]@{}
     $children = [Collections.Generic.List[object]]::new()
     $confirmationDuplicates = [Collections.Generic.List[string]]::new()
+    $captureProblems = [Collections.Generic.List[string]]::new()
     foreach ($line in $Text -split '\r?\n') {
         if ($line -notmatch '^(?<key>[A-Za-z][A-Za-z0-9.]*): (?<value>.*)$') { continue }
         $key = $Matches['key']
@@ -152,6 +153,9 @@ function Read-DxUiLeaseResult {
                 })
             }
         } else {
+            if ($key -in @('focus.capture.reason','focus.capture.error') -and $facts.Contains($key)) {
+                $captureProblems.Add("repeated $key")
+            }
             if ($key -in @('confirmation','confirmation.autoStart','confirmation.seconds') -and $facts.Contains($key)) {
                 $confirmationDuplicates.Add($key)
             }
@@ -160,6 +164,24 @@ function Read-DxUiLeaseResult {
     }
     if (-not $facts.Contains('state')) { return $null }
     $part = { param([string] $Key) if ($facts.Contains($Key)) { $facts[$Key] } else { 'none' } }
+    $capture = $null
+    if ($facts.Contains('focus.capture.reason') -or $facts.Contains('focus.capture.error')) {
+        $captureReason = & $part 'focus.capture.reason'
+        $rawError = & $part 'focus.capture.error'
+        [uint32]$queryError = 0
+        if ($captureReason -cnotin @('no-foreground','no-foreground-thread','foreground-minimized','query-failed','query-returned-null','recorded')) {
+            $captureProblems.Add('missing or unknown focus capture reason')
+        }
+        if ($rawError -cnotmatch '^[0-9]{1,10}$' -or -not [uint32]::TryParse($rawError, [ref]$queryError)) {
+            $captureProblems.Add('missing or invalid focus capture error')
+        } elseif ($captureReason -cne 'query-failed' -and $queryError -ne 0) {
+            $captureProblems.Add('focus capture error without a failed query')
+        }
+        if ($facts.Contains('restoration.focus') -and (($captureReason -ceq 'recorded') -eq ($facts['restoration.focus'] -ceq 'none'))) {
+            $captureProblems.Add('focus capture reason contradicts focus restoration')
+        }
+        if (-not $captureProblems.Count) { $capture = [pscustomobject]@{ Reason=$captureReason; QueryError=$queryError } }
+    }
     return [pscustomobject]@{
         State = $facts['state']
         Exit = if ($facts.Contains('exit')) { [int]$facts['exit'] } else { -1 }
@@ -171,6 +193,8 @@ function Read-DxUiLeaseResult {
         SavedForeground = if ($facts.Contains('foreground.saved')) { $facts['foreground.saved'] } else { '' }
         Foreground = & $part 'restoration.foreground'
         Focus = & $part 'restoration.focus'
+        FocusCapture = $capture
+        FocusCaptureProblems = $captureProblems.ToArray()
         Cursor = & $part 'restoration.cursor'
         CursorSaved = & $part 'cursor.saved'
         CursorAtExit = & $part 'cursor.atExit'
@@ -209,6 +233,9 @@ function Get-DxUiLeaseProblems {
     if ($Result.State -ne 'completed') {
         $why = if ($Result.Reason) { $Result.Reason } else { Get-DxUiLeaseExitMeaning $ExitCode }
         $problems.Add("the interactive run did not take place ($($Result.State)): $why")
+    }
+    if ($Result.PSObject.Properties['FocusCaptureProblems'] -and @($Result.FocusCaptureProblems).Count) {
+        $problems.Add("invalid focus capture diagnostic: $($Result.FocusCaptureProblems -join '; ')")
     }
     $failed = [Collections.Generic.List[string]]::new()
     foreach ($part in 'Foreground', 'Focus', 'Cursor') { if ($Result.$part -eq 'failed') { $failed.Add($part.ToLowerInvariant()) } }
@@ -253,9 +280,23 @@ function Get-DxUiLeaseSummary {
         }
         $pointerNotice += ' The desktop is captured before confirmation; this report does not identify which action moved the pointer.'
     }
+    $captureNotice = 'Focus capture before confirmation: diagnostic unavailable in this receipt.'
+    if ($null -ne $Result -and $Result.PSObject.Properties['FocusCaptureProblems'] -and @($Result.FocusCaptureProblems).Count) {
+        $captureNotice = 'Focus capture before confirmation: invalid diagnostic; no capture reason established.'
+    } elseif ($null -ne $Result -and $Result.PSObject.Properties['FocusCapture'] -and $null -ne $Result.FocusCapture) {
+        $capture = $Result.FocusCapture
+        $query = switch -CaseSensitive ($capture.Reason) {
+            'query-failed' { "query failed, error $($capture.QueryError)" }
+            'query-returned-null' { 'query succeeded with no focus' }
+            'recorded' { 'query succeeded with focus' }
+            default { 'query not attempted' }
+        }
+        $captureNotice = "Focus capture before confirmation: $($capture.Reason) ($query)."
+    }
     return [pscustomobject]@{
         Message = "Foreground lease ($state): foreground $foreground, focus $focus, pointer $cursor; $restoration"
         PointerNotice = $pointerNotice
+        CaptureNotice = $captureNotice
     }
 }
 

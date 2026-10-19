@@ -999,26 +999,10 @@ public:
     }
 
 private:
-    // Service only sent messages; never remove queued input or posted probes. Waiting stays event-driven.
+    // The shared helper also serves foreground witness creation; neither path removes queued input or probes.
     [[nodiscard]] static bool PumpSentUntil(HANDLE event, ULONGLONG deadline) noexcept
     {
-        const DWORD count = event ? 1u : 0u;
-        for (;;)
-        {
-            if (event && WaitForSingleObject(event, 0u) == WAIT_OBJECT_0)
-                return true;
-            const ULONGLONG now = GetTickCount64();
-            if (now >= deadline)
-                return false;
-            const DWORD wake =
-                MsgWaitForMultipleObjectsEx(count, event ? &event : nullptr, static_cast<DWORD>(deadline - now), QS_SENDMESSAGE, MWMO_INPUTAVAILABLE);
-            if (event && wake == WAIT_OBJECT_0)
-                return true;
-            if (wake != WAIT_OBJECT_0 + count)
-                return false;
-            MSG pending{};
-            static_cast<void>(PeekMessageW(&pending, nullptr, WM_NULL, WM_NULL, PM_NOREMOVE));
-        }
+        return WaitForDxUiEventWithSentMessagesUntil(event, deadline) == WAIT_OBJECT_0;
     }
 
     HWND _owner;
@@ -8877,83 +8861,369 @@ void TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClick
     });
 }
 
-// Focus that moves in a window which has just lost the foreground is not announced. Until its thread processes the
-// deactivation, Win32 still reports that window as focused (GetFocus), as when a queued message moves focus right after
-// the user switched to another application. A screen reader follows the foreground, so the host announces only while
-// its window holds the foreground's keyboard focus.
-void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
+// Creation may synchronously call back to the UI thread. Publish its outcome before activation and let the caller
+// acknowledge readiness before the worker can switch the foreground. This keeps the subsequent no-pump assertion intact.
+class MenuForegroundWitnessForTest final
+{
+public:
+    explicit MenuForegroundWitnessForTest(bool failCreation = false)
+        : _ready(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
+          _activate(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
+          _stop(CreateEventW(nullptr, TRUE, FALSE, nullptr))
+    {
+        Require(_ready && _activate && _stop, "create foreground witness events");
+        _thread = std::jthread([this, failCreation]() noexcept
+        {
+            _threadId.store(GetCurrentThreadId());
+            static constexpr wchar_t kClassName[] = L"DxUiTests.ForegroundThreadWindow";
+            WNDCLASSEXW windowClass{};
+            windowClass.cbSize        = sizeof(windowClass);
+            windowClass.lpfnWndProc   = &WindowProcedure;
+            windowClass.hInstance     = GetModuleHandleW(nullptr);
+            windowClass.lpszClassName = kClassName;
+            _stage.store(Stage::Registering);
+            const ATOM registered         = RegisterClassExW(&windowClass);
+            const DWORD registrationError = registered ? ERROR_SUCCESS : GetLastError();
+            if (! registered && registrationError != ERROR_CLASS_ALREADY_EXISTS)
+            {
+                _registrationError.store(registrationError);
+                _stage.store(Stage::Failed);
+                static_cast<void>(SetEvent(_ready.get()));
+                return;
+            }
+            _stage.store(Stage::Creating);
+            const wil::unique_hwnd hwnd(CreateWindowExW(0u,
+                                                        failCreation ? L"DxUiTests.DeliberatelyUnregisteredForegroundWitness" : kClassName,
+                                                        L"DxUiTests foreground",
+                                                        WS_OVERLAPPED,
+                                                        -32000,
+                                                        -32000,
+                                                        200,
+                                                        120,
+                                                        nullptr,
+                                                        nullptr,
+                                                        windowClass.hInstance,
+                                                        this));
+            if (! hwnd)
+            {
+                _creationError.store(GetLastError());
+                _stage.store(Stage::Failed);
+                static_cast<void>(SetEvent(_ready.get()));
+                return;
+            }
+            _stage.store(Stage::Showing);
+            static_cast<void>(ShowWindow(hwnd.get(), SW_SHOWNOACTIVATE));
+            _foreground.store(hwnd.get());
+            _stage.store(Stage::Ready);
+            static_cast<void>(SetEvent(_ready.get()));
+            const HANDLE permits[]{_stop.get(), _activate.get()};
+            if (WaitForMultipleObjects(2u, permits, FALSE, INFINITE) == WAIT_OBJECT_0 + 1u)
+            {
+                _stage.store(Stage::Activating);
+                _activationCalls.fetch_add(1u);
+                _activationAccepted.store(SetForegroundWindow(hwnd.get()) != FALSE);
+                _stage.store(Stage::Pumping);
+                const HANDLE stop = _stop.get();
+                while (MsgWaitForMultipleObjects(1u, &stop, FALSE, 30000u, QS_ALLINPUT) == WAIT_OBJECT_0 + 1u)
+                {
+                    MSG message{};
+                    while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE) != FALSE)
+                    {
+                        TranslateMessage(&message);
+                        DispatchMessageW(&message);
+                    }
+                }
+            }
+            _foreground.store(nullptr);
+            _stage.store(Stage::Stopped);
+        });
+    }
+
+    ~MenuForegroundWitnessForTest() noexcept
+    {
+        static_cast<void>(SetEvent(_stop.get()));
+        if (_thread.joinable())
+        {
+            // Destruction can synchronously call the still-live UIA client/UI thread too.
+            const DWORD stopped = WaitForDxUiEventWithSentMessagesUntil(_thread.native_handle(), GetTickCount64() + 5000u);
+            if (stopped != WAIT_OBJECT_0)
+                Print("stop-timeout");
+            Require(stopped == WAIT_OBJECT_0, "foreground witness exits within the existing readiness bound");
+            _thread.join();
+        }
+    }
+    MenuForegroundWitnessForTest(const MenuForegroundWitnessForTest&)            = delete;
+    MenuForegroundWitnessForTest& operator=(const MenuForegroundWitnessForTest&) = delete;
+
+    [[nodiscard]] bool WaitForReady() noexcept
+    {
+        _wait = WaitForDxUiEventWithSentMessagesUntil(_ready.get(), GetTickCount64() + 5000u, &_waitError);
+        return _wait == WAIT_OBJECT_0 && _foreground.load() != nullptr;
+    }
+    void Activate() noexcept
+    {
+        static_cast<void>(SetEvent(_activate.get()));
+    }
+    [[nodiscard]] HWND Window() const noexcept
+    {
+        return _foreground.load();
+    }
+    [[nodiscard]] unsigned ActivationCalls() const noexcept
+    {
+        return _activationCalls.load();
+    }
+    [[nodiscard]] DWORD CreationError() const noexcept
+    {
+        return _creationError.load();
+    }
+    [[nodiscard]] bool ReadyWasPublished() const noexcept
+    {
+        return _wait == WAIT_OBJECT_0;
+    }
+    [[nodiscard]] DWORD ThreadId() const noexcept
+    {
+        return _threadId.load();
+    }
+    void BeginObservation() noexcept
+    {
+        _unexpectedLosses.store(0u);
+        _unexpectedThread.store(0u);
+        _observing.store(true);
+    }
+    [[nodiscard]] uint32_t UnexpectedLosses() const noexcept
+    {
+        return _unexpectedLosses.load();
+    }
+    [[nodiscard]] DWORD UnexpectedThread() const noexcept
+    {
+        return _unexpectedThread.load();
+    }
+    void Print(const char* point) const
+    {
+        static constexpr std::array names{"starting", "registering", "creating", "showing", "ready", "activating", "pumping", "stopped", "failed"};
+        std::cerr << std::format(
+            "    [MENU-WITNESS] point={} stage={} readyWait={} waitError={} registrationError={} creationError={} activationCalls={} accepted={}\n",
+            point,
+            names[static_cast<size_t>(_stage.load())],
+            _wait,
+            _waitError,
+            _registrationError.load(),
+            _creationError.load(),
+            _activationCalls.load(),
+            _activationAccepted.load());
+    }
+
+private:
+    static LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) noexcept
+    {
+        if (message == WM_NCCREATE)
+        {
+            const auto* create = reinterpret_cast<const CREATESTRUCTW*>(lParam);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+        }
+        auto* self = reinterpret_cast<MenuForegroundWitnessForTest*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+        if (self && message == WM_ACTIVATEAPP && wParam == FALSE && self->_observing.load() && static_cast<DWORD>(lParam) != self->_ownerThread)
+        {
+            self->_unexpectedLosses.fetch_add(1u);
+            self->_unexpectedThread.store(static_cast<DWORD>(lParam));
+        }
+        if (message == WM_NCDESTROY)
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+        return DefWindowProcW(hwnd, message, wParam, lParam);
+    }
+    enum class Stage
+    {
+        Starting,
+        Registering,
+        Creating,
+        Showing,
+        Ready,
+        Activating,
+        Pumping,
+        Stopped,
+        Failed
+    };
+    wil::unique_event _ready;
+    wil::unique_event _activate;
+    wil::unique_event _stop;
+    const DWORD _ownerThread = GetCurrentThreadId();
+    std::atomic<DWORD> _threadId{0u};
+    std::atomic<bool> _observing{false};
+    std::atomic<uint32_t> _unexpectedLosses{0u};
+    std::atomic<DWORD> _unexpectedThread{0u};
+    std::atomic<Stage> _stage{Stage::Starting};
+    std::atomic<HWND> _foreground{nullptr};
+    std::atomic<DWORD> _registrationError{ERROR_SUCCESS};
+    std::atomic<DWORD> _creationError{ERROR_SUCCESS};
+    std::atomic<unsigned> _activationCalls{0u};
+    std::atomic<bool> _activationAccepted{false};
+    DWORD _wait      = WAIT_TIMEOUT;
+    DWORD _waitError = ERROR_SUCCESS;
+    std::jthread _thread;
+};
+
+void TestMenuForegroundWitnessPublishesCreationBeforeActivation()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    MenuForegroundWitnessForTest witness;
+    const bool ready = witness.WaitForReady();
+    witness.Print("controlled-ready");
+    Require(ready && witness.ReadyWasPublished() && witness.ActivationCalls() == 0u,
+            "foreground witness creation is acknowledged before any activation request");
+}
+
+void TestMenuForegroundWitnessPublishesCreationFailureWithoutActivation()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    MenuForegroundWitnessForTest witness(true);
+    const bool ready = witness.WaitForReady();
+    witness.Print("controlled-failure");
+    Require(! ready && witness.ReadyWasPublished() && witness.CreationError() != ERROR_SUCCESS && witness.ActivationCalls() == 0u,
+            "foreground witness publishes the real creation error without requesting activation or waiting out readiness");
+}
+
+// Focus moving in a background window is not announced, even when that window owns its thread's queue focus.
+// Establish that state explicitly after client/witness preparation; setup pumping cannot be assumed to leave stale
+// GetFocus state. A screen reader follows actual foreground focus, and the positive half verifies the same client
+// hears the window's next logical change after it regains the foreground.
+bool VerifyForegroundAnnouncementsAfterPreparedWitness(bool withdrawSetupFocus)
 {
     using namespace DxUi;
-    AttachedHostWindow window;
-    auto root    = std::make_unique<Panel>();
-    auto* first  = root->AddChild<Button>(L"Premier bouton");
-    auto* second = root->AddChild<Button>(L"Second bouton");
-    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
-    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
-    window.Host().SetRoot(std::move(root));
-    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    const char* failure           = nullptr;
+    size_t attempt                = 0u;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]
     {
-        SkipDxUiTest("DxUi foreground focus announcements require an interactive desktop");
-        return;
-    }
-    window.Host().SetFocusControl(first);
-
-    FocusEventClient client(window, window.Hwnd());
-    // The window that takes the foreground belongs to another thread, which activates it as another application's
-    // would: this thread only learns of its deactivation when it next processes messages.
-    wil::unique_event foregroundReady(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    wil::unique_event foregroundStop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    Require(foregroundReady && foregroundStop, "create the foreground thread events");
-    std::atomic<HWND> foreground{nullptr};
-    std::jthread foregroundThread([&]
-    {
-        static constexpr wchar_t kClassName[] = L"DxUiTests.ForegroundThreadWindow";
-        WNDCLASSEXW windowClass{};
-        windowClass.cbSize        = sizeof(windowClass);
-        windowClass.lpfnWndProc   = DefWindowProcW;
-        windowClass.hInstance     = GetModuleHandleW(nullptr);
-        windowClass.lpszClassName = kClassName;
-        static_cast<void>(RegisterClassExW(&windowClass));
-        wil::unique_hwnd hwnd(CreateWindowExW(
-            0u, kClassName, L"DxUiTests foreground", WS_OVERLAPPED | WS_VISIBLE, -32000, -32000, 200, 120, nullptr, nullptr, windowClass.hInstance, nullptr));
-        static_cast<void>(SetForegroundWindow(hwnd.get()));
-        foreground.store(hwnd.get());
-        SetEvent(foregroundReady.get());
-        const HANDLE stopHandle = foregroundStop.get();
-        while (MsgWaitForMultipleObjects(1u, &stopHandle, FALSE, 30000u, QS_ALLINPUT) == WAIT_OBJECT_0 + 1u)
+        ++attempt;
+        failure = nullptr;
+        AttachedHostWindow window;
+        auto root    = std::make_unique<Panel>();
+        auto* first  = root->AddChild<Button>(L"Premier bouton");
+        auto* second = root->AddChild<Button>(L"Second bouton");
+        first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+        window.Host().SetRoot(std::move(root));
+        const auto activate = [&](const char* point)
         {
-            MSG message{};
-            while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE) != FALSE)
-            {
-                TranslateMessage(&message);
-                DispatchMessageW(&message);
-            }
+            DxUiActivationObservation observation{};
+            const bool activated = TryActivateDxUiTestWindow(window.Hwnd(), 800u, nullptr, &observation);
+            PrintDxUiActivationObservation(observation, point, attempt);
+            return activated;
+        };
+        const auto owner = [&](const char* point)
+        {
+            std::cerr << std::format("    [MENU-OWNER] attempt={} point={} foreground={} focus={} logicalFirst={} totalLosses={} unexpectedLosses={}\n",
+                                     attempt,
+                                     point,
+                                     GetForegroundWindow() == window.Hwnd(),
+                                     GetFocus() == window.Hwnd(),
+                                     window.Host().GetFocusControl() == first,
+                                     window.ForegroundLossCount(),
+                                     window.UnexpectedForegroundLossCount());
+        };
+        if (! activate("menu-owner-initial"))
+            return ForegroundAttempt{false, 0u, false};
+        window.Host().SetFocusControl(first);
+        owner("before-client");
+        FocusEventClient client(window, window.Hwnd());
+        owner("after-client");
+        MenuForegroundWitnessForTest foreground;
+        const bool ready = foreground.WaitForReady();
+        foreground.Print("ready");
+        Require(ready, "create a window on another thread");
+        owner("after-witness");
+        if (withdrawSetupFocus)
+        {
+            static_cast<void>(SetFocus(nullptr));
+            Require(GetFocus() != window.Hwnd(), "the controlled setup withdraws queue focus before final acquisition");
         }
+        // Client setup and witness creation may pump or synchronously call this thread. Their earlier acquisition
+        // cannot authorize a later transfer. Establish the actual starting state after both have completed.
+        if (! activate("menu-owner-prepared"))
+            return ForegroundAttempt{false, 0u, false};
+        window.Host().SetFocusControl(first);
+        window.ExpectForegroundTransferToForTest(foreground.ThreadId());
+        foreground.BeginObservation();
+        owner("before-switch");
+        const auto observed = [&]
+        {
+            ForegroundAttempt result{};
+            if (window.UnexpectedForegroundLossCount() != 0u)
+                result = {true, window.LastUnexpectedForegroundThread(), true};
+            if (foreground.UnexpectedLosses() != 0u)
+                result = {true, foreground.UnexpectedThread(), true};
+            DWORD process      = 0u;
+            const HWND current = GetForegroundWindow();
+            const DWORD thread = current ? GetWindowThreadProcessId(current, &process) : 0u;
+            if (process != 0u && process != GetCurrentProcessId())
+                result = {true, thread, true};
+            return result;
+        };
+        foreground.Activate();
+        // Preserve the existing no-pump cross-queue foreground observation and its two-second bound.
+        const ULONGLONG deadline = GetTickCount64() + 2000u;
+        while (GetForegroundWindow() != foreground.Window() && GetTickCount64() < deadline)
+            Sleep(10);
+        foreground.Print("activated");
+        if (GetForegroundWindow() != foreground.Window())
+        {
+            ForegroundAttempt result = observed();
+            if (! result.lost)
+                result.activationEstablished = false;
+            return result;
+        }
+        // Establish the background queue-focus state explicitly. It is not guaranteed to remain stale merely
+        // because this thread has not pumped. This must leave the witness as the actual foreground window.
+        static_cast<void>(SetFocus(window.Hwnd()));
+        owner("background-queue-focus");
+        if (GetForegroundWindow() != foreground.Window() || GetFocus() != window.Hwnd())
+        {
+            failure = "the background queue owns thread focus while the witness retains actual foreground";
+            return observed();
+        }
+        const size_t secondBefore      = client.Count(L"Second bouton");
+        const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
+        window.Host().SetFocusControl(second);
+        if (window.Host().GetFocusControl() != second)
+        {
+            failure = "focus moves to the second button after the window lost the foreground";
+            return observed();
+        }
+        client.Settle();
+        if (client.Count(L"Second bouton") != secondBefore || window.Host().DebugGetFocusAnnouncementCount() != announcedBefore)
+        {
+            failure = "a window that lost the foreground announces no focus change";
+            return observed();
+        }
+        if (! activate("menu-focus-return"))
+        {
+            ForegroundAttempt result = observed();
+            if (! result.lost)
+                result.activationEstablished = false;
+            return result;
+        }
+        client.Settle();
+        const size_t firstBefore = client.Count(L"Premier bouton");
+        window.Host().SetFocusControl(first);
+        if (! client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") > firstBefore; }))
+            failure = "the same window in the foreground announces its focus change";
+        owner("complete");
+        return observed();
     });
-    const auto stopForeground = wil::scope_exit([&]() noexcept { SetEvent(foregroundStop.get()); });
-    Require(WaitForSingleObject(foregroundReady.get(), 5000u) == WAIT_OBJECT_0 && foreground.load() != nullptr, "create a window on another thread");
+    if (! ForegroundHeldOrSkip(run, "prepared foreground focus announcements"))
+        return false;
+    Require(failure == nullptr, failure ? failure : "prepared foreground assertions");
+    return true;
+}
 
-    // No pumping here: this thread must not process its deactivation before the focus move below.
-    const ULONGLONG foregroundDeadline = GetTickCount64() + 2000u;
-    while (GetForegroundWindow() != foreground.load() && GetTickCount64() < foregroundDeadline)
-        Sleep(10);
-    if (GetForegroundWindow() != foreground.load() || GetFocus() != window.Hwnd())
-    {
-        std::cerr << "    [FOCUS] foreground=" << (GetForegroundWindow() == foreground.load()) << " threadFocus=" << (GetFocus() == window.Hwnd()) << '\n';
-        SkipDxUiTest("DxUi foreground focus announcements need the other thread's window in the foreground");
-        return;
-    }
+void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
+{
+    static_cast<void>(VerifyForegroundAnnouncementsAfterPreparedWitness(false));
+}
 
-    window.Host().SetFocusControl(second);
-    Require(window.Host().GetFocusControl() == second, "focus moves to the second button after the window lost the foreground");
-    client.Settle();
-    Require(client.Count(L"Second bouton") == 0u, "a window that lost the foreground announces no focus change");
-
-    Require(TryActivateDxUiTestWindow(window.Hwnd()), "the window returns to the foreground");
-    client.Settle(); // The message loop turns and the activation's own event is resolved: the move below is the host's to announce.
-    window.Host().SetFocusControl(first);
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
-            "the same window in the foreground announces its focus change");
+void TestMenuForegroundWitnessReacquiresFocusAfterPreparedSetup()
+{
+    Require(VerifyForegroundAnnouncementsAfterPreparedWitness(true),
+            "withdrawing focus during setup preserves the original background and foreground UIA predicates");
 }
 
 // While the menu holds capture Windows sends no WM_SETCURSOR, so a cursor the window had set (a resize or text cursor)
@@ -9859,6 +10129,9 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce);
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus);
     DXUI_RUN_TEST(TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce);
+    DXUI_RUN_TEST(TestMenuForegroundWitnessPublishesCreationBeforeActivation);
+    DXUI_RUN_TEST(TestMenuForegroundWitnessPublishesCreationFailureWithoutActivation);
+    DXUI_RUN_TEST(TestMenuForegroundWitnessReacquiresFocusAfterPreparedSetup);
     DXUI_RUN_TEST(TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange);
     DXUI_RUN_TEST(TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside);
     DXUI_RUN_TEST(TestMenuChoosesTheCursorWhenItOpensAndCloses);

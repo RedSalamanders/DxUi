@@ -202,6 +202,8 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
 
     DesktopLease lease(services.Desktop());
     lease.Capture();
+    services.Log(std::format(
+        "focus capture before confirmation: {} (query-error={})", FocusCaptureReasonName(lease.Saved().focusCaptureReason), lease.Saved().focusQueryError));
     outcome.savedForeground = services.Desktop().Describe(lease.Saved().foreground);
     if (! outcome.savedForeground.empty())
         services.Log(std::format("foreground window to restore: {}", outcome.savedForeground));
@@ -377,6 +379,8 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
     if (outcome.restoration.has_value())
     {
         const RestoreReport& report = *outcome.restoration;
+        text += std::format(
+            "focus.capture.reason: {}\nfocus.capture.error: {}\n", FocusCaptureReasonName(report.saved.focusCaptureReason), report.saved.focusQueryError);
         text += std::format("restoration.foreground: {}\nrestoration.focus: {}\nrestoration.cursor: {}\n",
                             RestorationName(report.foreground),
                             RestorationName(report.focus),
