@@ -624,7 +624,10 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
                 break;
             display           = map.SnapDisplayBoundary(next, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
             const auto result = map.ToSource(display, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
-            if (result != source)
+            // Generated marker anchors can lie ahead of a raw caret inside
+            // opening syntax. Left must not follow them forward, nor Right
+            // backward. Those anchors are not owned logical source stops.
+            if (forwards ? result > source : result < source)
                 return {result, index};
         }
     if ((forwards && index + 1u == state.boxes.size()) || (! forwards && ! index))

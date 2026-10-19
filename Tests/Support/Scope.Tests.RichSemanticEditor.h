@@ -94,6 +94,7 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 // transport tests. Physical IME/foreground qualification remains separate.
 struct SourceCaretEditorFixture final : RichTextEditor
 {
+    using RichTextEditor::ExportTextInputState;
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
 };
@@ -155,8 +156,8 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     const auto stillSecond = editor->TryGetTextInputCaretRect(host, anchor);
     Check(stillSecond && std::abs(stillSecond->left - second->left) < .1f, "padded-cell Home/End keep visual affinity");
     TextInputState input;
-    Check(host.TryReadTextInputState(editor, input) && input.text == table && input.caretIndex == anchor,
-          "TSF state contains exact source and the real padded-cell ACP");
+    Check(editor->ExportTextInputState(input) && input.text == table && input.caretIndex == anchor,
+          "source text-service export contains exact text and the real padded-cell ACP without requiring OS focus");
     Check(editor->ImportTextInputState(host, input, false), "selection-only text-service synchronization accepts the active source caret");
     const auto synchronized = editor->TryGetTextInputCaretRect(host, anchor);
     Check(synchronized && std::abs(synchronized->left - second->left) < .1f, "unchanged TSF synchronization preserves padded-cell affinity");
@@ -188,7 +189,7 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     const auto entry = editor->GetText();
     editor->SetSelection({1u, 1u});
     TextInputState originalInput;
-    Check(host.TryReadTextInputState(editor, originalInput), "export empty quote source state");
+    Check(editor->ExportTextInputState(originalInput), "export empty quote source state");
     auto preview = originalInput;
     preview.text.insert(1u, L"\u6771\u4eac");
     preview.caretIndex = 3u;
@@ -211,6 +212,12 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     prepare();
     Check(editor->Undo() && editor->GetText() == L"\r\n\r\n", "empty-line Backspace is one reversible raw source edit");
     prepare();
+    editor->SetText(L"- [ ] one");
+    prepare();
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection().caret == 0u && editor->OnKeyDown(host, VK_LEFT, MK_CONTROL) &&
+              editor->GetSelection().caret == 0u,
+          "Left and word-Left at raw document zero never jump forward through a generated marker anchor");
 }
 template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
 {

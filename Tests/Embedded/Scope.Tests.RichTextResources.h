@@ -156,6 +156,8 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         released       = liveBytes;
         countLiveBytes = false;
     }
+    std::cout << "lossless Markdown maximum storage retainedCppBytes=" << retained << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released
+              << '\n';
     Check(retained >= 0 && retained <= 24 * 1024 * 1024 && released == 0, "maximum bounded syntax storage releases completely within 24 MiB C++ budget");
     Check(peak >= retained && peak <= 32 * 1024 * 1024, "old/staged maximum syntax replacement stays within 32 MiB peak C++ storage");
     MarkdownParser parser;

@@ -943,7 +943,8 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         {
             const auto display = byWord && key == VK_LEFT ? FindPreviousWordBoundary(projection.DisplayText(), position)
                                                           : FindNextWordBoundary(projection.DisplayText(), position);
-            target             = {projection.ToSource(display)};
+            const auto raw     = projection.ToSource(display);
+            target             = {key == VK_LEFT ? std::min(raw, selection.caret) : std::max(raw, selection.caret)};
         }
         state.document.SetSelection({extend ? selection.anchor : target.position, target.position});
         state.sourceCaretSite      = target.site;

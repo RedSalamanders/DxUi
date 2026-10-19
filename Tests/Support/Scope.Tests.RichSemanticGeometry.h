@@ -230,5 +230,12 @@ inline void SourceCaretSites()
     Check(rejected && sdkCalls == 0u && geometry.Ready() && ! geometry.Pending() && &geometry.Document() == previousDocument &&
               geometry.Generation() == previousGeneration,
           "caret-site admission rejects before SDK calls and preserves the prior complete native publication");
+    for (const auto sourceText : {L"- [ ] one", L"- words", L"# heading", L"**bold**"})
+    {
+        const auto prefixed = RichSemanticDocumentTests::Build(sourceText);
+        geometry.Begin(factory.get(), prefixed, options);
+        Complete(geometry);
+        Check(geometry.StepSource(0u, MarkdownNoNode, false).position == 0u, "source-zero Left never follows a generated marker anchor forward into content");
+    }
 }
 } // namespace RichSemanticGeometryTests

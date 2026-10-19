@@ -757,5 +757,10 @@ publication; cancelling or clearing owns no new heap work. Hidden/retired contro
 release SDK graphs. A semantic admission rejection prepares source geometry once,
 remembering exact syntax identity so idle preparation cannot retry in a loop.
 OOM/SDK/internal failures remain failed owner turns with no self-rescheduling.
+Parser admission reserves a physical-line upper bound for empty-line source
+metadata during its bounded source scan/copy. Replacement avoids geometric
+vector-growth peaks; the existing 24 MiB retained/32 MiB parser replacement-peak
+ceilings remain unchanged. Native caret-box counts are preflighted cooperatively
+before SDK calls, including row-wide ordering for padded cells.
 Resource/failure sweeps and all-current renderer qualification remain M4g work;
 earlier sealed parser/v0 packets do not establish semantic rendering performance.

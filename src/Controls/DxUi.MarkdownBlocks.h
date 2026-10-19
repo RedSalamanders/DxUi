@@ -793,6 +793,18 @@ public:
           sourceProfile_(profile),
           extensions_(extensions)
     {
+        // Admission/copy already scans the bounded source. Reserve a physical-
+        // line upper bound once so old/new publications cannot incur geometric
+        // empty-line vector growth peaks during replacement. CRLF counts once.
+        std::size_t physicalLines = 1u;
+        for (std::size_t i = 0u; i < source.size(); ++i)
+            if (source[i] == L'\r' || source[i] == L'\n')
+            {
+                ++physicalLines;
+                if (source[i] == L'\r' && i + 1u < source.size() && source[i + 1u] == L'\n')
+                    ++i;
+            }
+        emptyLines_.reserve(physicalLines);
         Add(Kind::Document, MarkdownNoNode);
         nodes_[0].block.source  = {0u, source.size()};
         nodes_[0].block.content = nodes_[0].block.source;
