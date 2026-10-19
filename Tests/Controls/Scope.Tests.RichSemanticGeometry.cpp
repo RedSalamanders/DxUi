@@ -24,6 +24,19 @@ void TestRichSemanticGeometryLinkRasterOracle()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
 }
+void TestRichSemanticGeometryTaskCheckboxAlignment()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
+}
+void TestRichSemanticNativeTaskCheckboxAlignment()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::TaskCheckboxAlignment(window.Host(),
+                                                       [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native task checkbox alignment"); });
+    });
+}
 void TestRichSemanticNativeSourceCaretSites()
 {
     AttachedHostWindow window;
@@ -65,6 +78,8 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticGeometryHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticGeometryLinkRasterOracle);
+    DXUI_RUN_TEST(TestRichSemanticGeometryTaskCheckboxAlignment);
+    DXUI_RUN_TEST(TestRichSemanticNativeTaskCheckboxAlignment);
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);

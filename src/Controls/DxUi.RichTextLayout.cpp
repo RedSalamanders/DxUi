@@ -237,6 +237,17 @@ void PreparedLayout::PrepareOwned(
                   "SetFontWeight");
         }
     }
+    if (marker)
+    {
+        // Only semantic marker layouts contain these owned task objects.
+        // Segoe UI's checked box falls back to a wider color emoji; using the
+        // same monochrome symbol face for both states keeps the bullet, task
+        // hit box and body text fixed when a checkbox is toggled. Body text
+        // and generated list ordinals retain the caller's requested font.
+        for (std::size_t i = 0u; i < projection.text.size(); ++i)
+            if (projection.text[i] == L'\u2610' || projection.text[i] == L'\u2611')
+                Check(layout->SetFontFamilyName(L"Segoe UI Symbol", {static_cast<UINT32>(i) + textOffset, 1u}), "Set task checkbox font");
+    }
     DWRITE_TEXT_METRICS metrics{};
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};

@@ -24,8 +24,10 @@ target requirement. Enter continues a list or inserts a table row; Tab/Shift+Tab
 navigates cells or indents/outdents lists, otherwise it traverses focus normally.
 Ctrl+B/I toggles styles, Ctrl+Enter toggles tasks and Ctrl+Z/Y restores exact
 source history. Task press/release toggles the source checkbox; dragging away
-cancels it. Typing in padded cells materializes the focused cell only. All raw
-text services retain exact source ACPs; structured/style accessibility remains
+cancels it. Typing in padded cells materializes the focused cell only. Both task
+states appear near the top of the document and use matching monochrome checkbox
+metrics, keeping bullets and text aligned during toggling. All raw text services
+retain exact source ACPs; structured/style accessibility remains
 pending. Add `--output image.png` for a deterministic
 capture that drains cooperative preparation without taking desktop focus.
 

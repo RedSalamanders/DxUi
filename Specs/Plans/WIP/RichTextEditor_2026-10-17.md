@@ -2470,3 +2470,25 @@ because desktop-time agreement is required. Physical IME/AT, native ARM64
 execution, consumer adoption and D4c acceptance remain open. Continue with M4f
 acknowledged semantic/style UIA, then M4g whole-stage qualification and M5/M6.
 No consumer pin, push or merge is included.
+
+### Task checkbox alignment correction (2026-10-19)
+
+- [x] Reproduce the reported checked/unchecked bullet shift independently. Native
+  DirectWrite reports a 24.7148-DIP checked glyph versus 15.5039-DIP unchecked
+  glyph at 18 DIP in Segoe UI; the checked state falls back to a color emoji.
+  The new geometry oracle fails against the archived pre-fix library.
+- [x] Use `Segoe UI Symbol` for owned task glyphs in semantic marker layouts
+  only. Both states measure 15.5039 DIP in the independent SDK probe. Preserve
+  source/display mapping, marker/body budget, caller body/ordinal fonts and
+  allocation-free composition.
+- [x] Add geometry and native/embedded retained regressions for sibling columns,
+  single-task state changes, wrapping, fonts/sizes, RTL, exact click targets and
+  check/uncheck undo. Show both task states in the sample and gallery fixtures.
+- [ ] Qualify the correction through required runtime/build/resource profiles,
+  validators/format, retained before/after diagnostic and actual themed captures.
+- [ ] Publish reviewed evidence and update this checkpoint. D4c remains HOLD;
+  M4f/g, physical/foreground/native ARM64 runtime and consumer gates stay open.
+
+Private correction evidence is `.build/reports/rich-task-alignment-20261019`.
+The pre-fix baseline and failing probe are retained; neither counts as candidate
+qualification. The existing M4e packet remains immutable historical evidence.

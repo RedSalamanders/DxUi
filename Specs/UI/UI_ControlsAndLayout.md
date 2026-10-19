@@ -1065,6 +1065,11 @@ gutters accumulate with the existing bounded container indentation, mirror for
 RTL and apply to nested table frames/clips as well as glyphs. Existing standalone
 marker rows before first-child list/table/code/HTML/rule blocks remain explicit.
 Marker and body layouts count separately toward the 4,096 native layout ceiling.
+Owned checked/unchecked task glyphs MUST use the same monochrome symbol face
+(`Segoe UI Symbol`) within marker layouts. Their advance, baseline and hit-target
+geometry MUST be independent of checkbox state: toggling cannot move the bullet,
+body caret or wrapping, including a list with only one task. Generated ordinals
+and body text retain the requested fonts; ordinary body Unicode is unaffected.
 Generated marker ink has no owned source selection glyphs. Native movement across
 boxes preserves logical direction; equal ACPs are separate stops only for explicit
 source sites such as padded cells. Home on a text body uses its text edge;

@@ -25,4 +25,10 @@ The sample toolbar uses standard buttons, clear action names and a target/status
 caption; it adds no editor-owned toolbar, HWND, resource fetch or scheduler.
 Structured/style UIA and physical/extension qualification remain separate.
 
+Task checkbox glyphs use the same monochrome `Segoe UI Symbol` face for checked
+and unchecked states. Their bullet, hit-target and body columns stay fixed when
+toggled, including single-task lists, custom body fonts and RTL. Other text and
+ordinal typography keeps the requested font. The sample and gallery show both
+task states for direct alignment review.
+
 The preview is a static HTML rendition using `bundle.css`; the populated harness gallery is the authoritative Direct2D capture.

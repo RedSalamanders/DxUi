@@ -210,6 +210,57 @@ inline void HangingMarkersLinksAndHtml()
     Check(sdkCalls == 0u && geometry.Ready() && &geometry.Document() == document.get(),
           "marker admission rejects before SDK work and retains the old publication");
 }
+inline void TaskCheckboxAlignment()
+{
+    auto factory              = Factory();
+    const std::wstring label  = L"same Unicode \u6771\u4eac task body wraps across the available text column";
+    const std::wstring source = L"- [ ] " + label + L"\r\n- [x] " + label + L"\r\n";
+    const auto second         = source.find(L"[x]");
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    for (const auto family : {L"Segoe UI", L"Consolas"})
+        for (const float size : {12.0f, 18.0f, 28.0f})
+            for (const bool rtl : {false, true})
+            {
+                LayoutOptions options;
+                options.widthDip         = 240.0f;
+                options.fontSizeDip      = size;
+                options.fontFamily       = family;
+                options.readingDirection = rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+                PreparedSemanticGeometry geometry;
+                geometry.Begin(factory.get(), document, options);
+                Complete(geometry);
+                const auto empty = geometry.SourceRange({2u, 5u}), checked = geometry.SourceRange({second, second + 3u});
+                Check(empty.size() == 1u && checked.size() == 1u, "each task state owns one atomic source hit rectangle");
+                Check(std::abs(empty.front().left - checked.front().left) < .01f && std::abs(empty.front().right - checked.front().right) < .01f,
+                      "checked and unchecked siblings keep exactly the same checkbox column and advance");
+                const auto before = geometry.SourceCaret(6u);
+                auto changed      = source;
+                changed[3u]       = L'x';
+                PreparedSemanticGeometry toggled;
+                toggled.Begin(factory.get(), RichSemanticDocumentTests::Build(changed), options);
+                Complete(toggled);
+                const auto after = toggled.SourceCaret(6u);
+                const auto box   = toggled.SourceRange({2u, 5u});
+                Check(box.size() == 1u && std::abs(box.front().left - empty.front().left) < .01f && std::abs(box.front().right - empty.front().right) < .01f &&
+                          std::abs(box.front().top - empty.front().top) < .01f && std::abs(box.front().bottom - empty.front().bottom) < .01f,
+                      "toggling the only unchecked item never moves or resizes its hit box");
+                Check(std::abs(before.x - after.x) < .01f && std::abs(before.y - after.y) < .01f && std::abs(before.height - after.height) < .01f &&
+                          std::abs(geometry.Height() - toggled.Height()) < .01f,
+                      "task toggles retain body caret, wrapping and total geometry in both reading directions and custom body fonts");
+                const auto singleSource = source.substr(0u, source.find(L'\r') + 2u);
+                auto checkedSingle      = singleSource;
+                checkedSingle[3u]       = L'x';
+                PreparedSemanticGeometry uncheckedOnly, checkedOnly;
+                uncheckedOnly.Begin(factory.get(), RichSemanticDocumentTests::Build(singleSource), options);
+                checkedOnly.Begin(factory.get(), RichSemanticDocumentTests::Build(checkedSingle), options);
+                Complete(uncheckedOnly);
+                Complete(checkedOnly);
+                const auto singleBefore = uncheckedOnly.SourceCaret(6u), singleAfter = checkedOnly.SourceCaret(6u);
+                Check(std::abs(singleBefore.x - singleAfter.x) < .01f && std::abs(singleBefore.y - singleAfter.y) < .01f &&
+                          std::abs(uncheckedOnly.Height() - checkedOnly.Height()) < .01f,
+                      "a list containing just one task keeps its gutter and wrapping when toggled, without a wider sibling to reserve space");
+            }
+}
 inline void ParagraphsTablesAndSourceRanges()
 {
     auto factory              = Factory();

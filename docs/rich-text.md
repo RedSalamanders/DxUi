@@ -791,6 +791,9 @@ aligns 9./10. siblings, wrapped text and loose continuations; nested lists/table
 inherit ancestor gutters. RTL mirrors placement. Marker and body share their first
 baseline; block-only items retain their existing standalone marker rows. Marker
 ink stays outside source selection ownership and adds no synthetic arrow stop.
+Task checkboxes use `Segoe UI Symbol` for both states, avoiding color-emoji
+fallback and keeping their bullet column, hit box and text stable when toggled.
+This affects owned task glyphs only; body text and list numbers keep their fonts.
 
 The native HTML subset accepts balanced attribute-free b/strong/i/em/u/s/del/code/
 span tags, br/br / breaks, and anchors with exactly one quoted href plus optional

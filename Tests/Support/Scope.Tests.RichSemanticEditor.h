@@ -1,6 +1,7 @@
 #pragma once
 #include "Scope.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
+#include <cmath>
 
 namespace RichSemanticEditorTests
 {
@@ -341,6 +342,45 @@ struct SourceCaretEditorFixture final : RichTextEditor
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
 };
+template <typename Prepare> void TaskCheckboxAlignment(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"- [ ] An unchecked task\r\n- [x] A checked task\r\n";
+    auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    const auto second = source.find(L"[x]");
+    for (const auto flow : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+    {
+        editor->SetFlowDirection(flow);
+        prepare();
+        const auto first = editor->TryGetTextInputRangeRects(host, 2u, 5u);
+        const auto other = editor->TryGetTextInputRangeRects(host, second, second + 3u);
+        const auto body  = editor->TryGetTextInputCaretRect(host, 6u);
+        Check(first && first->size() == 1u && other && other->size() == 1u && body, "both hosts publish checkbox and body source geometry");
+        Check(std::abs(first->front().left - other->front().left) < .01f && std::abs(first->front().right - other->front().right) < .01f,
+              "native/embedded checked and unchecked tasks share the same checkbox column");
+        const auto point = D2D1::Point2F((first->front().left + first->front().right) * .5f, (first->front().top + first->front().bottom) * .5f);
+        Check(editor->OnMouseDown(host, point, false, 0u) && editor->GetText() == source, "task press stages without editing raw source");
+        Check(editor->OnMouseUp(host, point, false, 0u), "task release checks the existing atomic source marker");
+        prepare();
+        auto checkedSource = source;
+        checkedSource[3u]  = L'x';
+        Check(editor->GetText() == checkedSource, "checkbox geometry retains the exact task click target");
+        const auto after     = editor->TryGetTextInputRangeRects(host, 2u, 5u);
+        const auto afterBody = editor->TryGetTextInputCaretRect(host, 6u);
+        Check(after && after->size() == 1u && afterBody && std::abs(after->front().left - first->front().left) < .01f &&
+                  std::abs(after->front().right - first->front().right) < .01f && std::abs(afterBody->left - body->left) < .01f &&
+                  std::abs(afterBody->top - body->top) < .01f,
+              "checking a task preserves native/embedded checkbox, bullet column and body placement");
+        Check(editor->OnMouseDown(host, point, false, 0u) && editor->OnMouseUp(host, point, false, 0u), "the same physical target unchecks the task");
+        prepare();
+        Check(editor->GetText() == source && editor->Undo() && editor->GetText() == checkedSource && editor->Undo() && editor->GetText() == source,
+              "check/uncheck remain separate exact-source undo transactions");
+        prepare();
+    }
+}
 template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"9. first list item wraps naturally with [link](local)\r\n10. second list item\r\n\r\n<p><b>Native</b> <a href='#target' "

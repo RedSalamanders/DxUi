@@ -1423,6 +1423,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+    RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
@@ -1450,6 +1451,9 @@ __declspec(noinline) static int RunFunctionalTests()
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
             RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {
                 Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded hanging markers and HTML preparation");
+            });
+            RichSemanticEditorTests::TaskCheckboxAlignment(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded task checkbox alignment preparation");
             });
         });
         transactionView.Detach();
