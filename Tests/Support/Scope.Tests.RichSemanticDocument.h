@@ -430,13 +430,13 @@ inline void StructuralStyleValues()
         MarkdownCommandRequest unlinkRequest;
         unlinkRequest.command = MarkdownCommand::RemoveLink;
         const auto remove     = BuildMarkdownCommand(value.Snapshot(), value.Revision(), RichCommandTests::Parse(value), value.GetSelection(), unlinkRequest);
-        const auto original   = value.Snapshot();
+        const auto autolinkSnapshot = value.Snapshot();
         Check(remove.IsApplicable() && ApplyMarkdownCommand(value, remove), "angle, bare, email and URL-label unlink changes actual source ownership");
         const auto after = Build(value.Text());
         Check(before->Map().Display() == after->Map().Display() &&
                   std::ranges::none_of(after->Elements(), [](const auto& node) { return node.role == SemanticRole::Link; }),
               "unlink preserves Unicode value and prevents GFM from automatically recreating the same link");
-        Check(value.Undo() && value.Snapshot().IsSameRevision(original), "autolink unlink restores original URI spelling in one undo");
+        Check(value.Undo() && value.Snapshot().IsSameRevision(autolinkSnapshot), "autolink unlink restores original URI spelling in one undo");
         unlinkRequest.command     = MarkdownCommand::SetLink;
         unlinkRequest.destination = L"#target";
         const auto update     = BuildMarkdownCommand(value.Snapshot(), value.Revision(), RichCommandTests::Parse(value), value.GetSelection(), unlinkRequest);
