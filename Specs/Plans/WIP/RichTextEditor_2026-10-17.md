@@ -1765,7 +1765,7 @@ cannot close D4c.
   preserve unedited spelling/EOLs, one undo entry and strong failure guarantees.
   Test stale/equal-revision foreign input, no-op, undo/redo, backward selections,
   invalid joins, capacities and every observed allocation failure.
-- [ ] M4c: Build a cooperative immutable semantic document from M3 syntax with
+- [x] M4c: Build a cooperative immutable semantic document from M3 syntax with
   precise value-token maps (including entities, code normalization and stripped
   prefixes), block/inline style/role metadata and bounded generated output.
   Compare constructed values against parser semantics before publication.
@@ -1889,3 +1889,13 @@ already held syntax and all SDK/GPU/process storage. Logs, native receipts,
 executables, symbols, library and hashes are retained under
 `.build/reports/rich-semantic-m4-20261019/M4cRelease`. Debug/ASan and later native
 integration qualification are still pending; M4c stays unchecked for now.
+
+M4c CPU preparation subsequently passed complete EditorControls/Embedded in x64
+Debug and ASan Debug against frozen commit
+`a045836a2549b6c76fecaee9e70296e0f42f5991`. Both instrumented profiles passed 514
+complete-preparation and 15 pending-Begin allocation failure points, with zero
+idle/retire allocations and full release of the maximum plain fixture. The ASan
+detection probe passed. Raw logs, scope receipts, executables, PDBs, library and
+runtime DLLs are retained in M4cQualification. M4c's checkbox denotes this pure
+CPU component; all-current native rendering/ARM64/full validation still belongs
+to M4g after integration. Earlier M4c Release counts remain in M4cRelease.
