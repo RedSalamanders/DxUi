@@ -1565,3 +1565,179 @@ modified native receipt and PNG bytes are rejected; restored/original packets
 verify again. The [replay receipt](../../../Measurements/RichText/2026-10-18-markdown-inlines-verification.receipt.txt)
 records the external seal, packet file count and extracted Git tree/archive hash.
 Compiled-source identity is unchanged by documentation/evidence closeout.
+
+## M4 resume checkpoint (2026-10-19)
+
+Paused at the user's explicit request to save everything needed for later.
+M4 is authorized but remains **not implemented**. Only initial inspection/design
+analysis was performed in this turn: no M4 production/test code, baseline,
+build, native/embedded run or qualification result exists yet. The next session
+must not promote M3 results to M4 acceptance. The checkpoint is documentation only.
+
+### Checkout and immutable starting evidence
+
+- Work only in `Z:\src\DxUi-worktrees\rich-text-core-d2`, branch
+  `codex/rich-text-prototype`. The source baseline is commit
+  `e2956b94c5cfd587f3abd9c4087d937e298e64d9` (M3 complete). A later checkpoint-only
+  commit does not represent additional implementation.
+- `Z:\src\DxUi` has concurrent unrelated work. Do not switch, reset, clean, stage
+  or overwrite that checkout. The conversation's default cwd is
+  `D:\utils\ghidra-master`; use an explicit working directory for every repo command.
+- M3 compiled library fingerprint:
+  `C00CA41A8251D688A8A29CE081E26A4E036214553EA0F028A0EC437F3F6605ED`.
+  Compiled-source identity:
+  `4e26e1abf5fa51f80cd81612de176fd506b2b22820d99a3f4f845f1597cd4fcc`.
+- The sealed M3 packet and external replay receipt linked immediately above are
+  immutable. Its seal is
+  `654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276`.
+  M3 passed 1,324 original semantic expectations, 568 block expectations, 42
+  directed three-profile scenarios, 57 fresh ordinary x64 scope/profile runs,
+  six root builds, 12 isolated probes and 324 exact raster comparisons.
+- Private matching artifacts/receipts remain under
+  `.build/reports/rich-markdown-inline-20261018/Final`, `FinalArtifacts` and
+  `FinalArtifacts.receipt.txt`; final commit proof is
+  `.build/reports/m3-final-commit.receipt.txt`. Post-closeout full validation and
+  pinned-format results are in
+  `.build/reports/markdown-inlines-postcloseout-20261019`. Read timestamps/hashes
+  before using any live `.build/logs` or ordinary scope receipt; old logs persist.
+- The standalone sample at `Z:\src\richedit` is not a Git repository. Its expanded
+  default source is `samples/FeatureShowcase.md`; executable is
+  `build-dxui-x64-Release/Release/RichEditRebuild.exe`. Nine app/reference tests,
+  a reviewed harness capture and a launch were verified; it is not claimed to
+  be currently open. Exact consumer pin remains
+  `302f3783a5d2ef60f201ca3abf508c1158fde039`, with the v0 renderer. Do not silently
+  change any consumer pin or keep reopening a demo the user may have closed.
+
+### Inspected boundaries and next file reads
+
+Read root `AGENTS.md`, `Specs/README.md` and the owning architecture, performance,
+controls/layout, embedded-rendering and input/accessibility contracts before
+editing. The external `plan-execute-with-spec-update` skill was selected and read.
+The local control-development, embedded-rendering, input-accessibility,
+performance-resources, modern-cpp-wil, spec-workflow and build-dxui skills were read.
+No instruction authorizes proactive agent delegation; none was used.
+
+The following are inspected entry points, not completed M4 designs:
+
+- `include/DxUi/MarkdownSyntax.h`: immutable M3 blocks/inlines, table/task metadata,
+  original source and revision-local inline indices. Semantic values can be
+  transformed even for Text. Enclosing `source` ranges do not map interior ACPs.
+  Stable block IDs do not validate reference-dependent semantic content.
+- `include/DxUi/RichMarkdown.h` and `src/Controls/DxUi.RichMarkdownProjection.cpp`:
+  v0 `Projection`, `SourceUnit`, `StyleRun`, `PreparedProjection`, `ToggleMarker`.
+  Inspect the actual `Projection::ToDisplay`/`ToSource` bodies and every mapping
+  caller next; the current header offers only one scalar mapping in each direction.
+- `include/DxUi/RichDocument.h`: persistent snapshots, source selection and bounded
+  history. `Document::Replace` is an atomic source transaction; inspect its
+  implementation before adding multiple source edits. Do not bypass its history,
+  scalar/CRLF validation or failure guarantees.
+- `src/Controls/DxUi.RichTextLayout.cpp`: `PreparedLayout::PrepareOwned` explicitly
+  validates monotonically increasing `sourceToDisplay` and nonoverlapping ordered
+  `units`, rejecting zero-length units. It currently applies bold/italic/code/
+  strike/heading styles to one DirectWrite layout. Grapheme navigation and exact
+  ACP geometry have distinct contracts. Clear uses preallocated retirement buffers
+  to avoid throwing MSVC Debug proxy construction.
+- `src/Controls/DxUi.RichDocumentLayout.cpp`: `State` owns v0 `PreparedProjection`,
+  chunks and optional whole-layout reference. `SourceBoundary` binary-searches a
+  monotonic source-to-display mapping; `SourceMatches` scans physical v0 blocks.
+  Read the complete preparation and geometry/navigation methods before extending
+  them. A naive nonmonotonic map substitution would invalidate these assumptions.
+- `src/Controls/DxUi.RichTextEditor.cpp`: State owns document, parser, layout and
+  current profile. PrepareContent first advances optional analysis, then stages
+  geometry. `LayoutIsCurrent`, invalidation, cancellation, binding/revision checks,
+  source TSF/IME, scrolling, navigation, selection and painting must remain coherent.
+  Analysis alone currently preserves v0 pixels. Inspect range-rectangle and deletion
+  paths carefully before integrating multiple display fragments per source range.
+- `src/Controls/DxUi.Accessibility.cpp`: locate `AccessibilityTextRangeProvider`
+  `FindAttribute` (around 5803), `GetAttributeValue` (5887), `GetChildren` (6649),
+  and `TextUnit_Format` (11158). These locations may move. Bodies still need full
+  review. Current normative rich attributes support IsReadOnly; structured/style
+  semantics and rendered-only text are pending. Inspect prepared accessibility
+  snapshots/part ownership before choosing a structured child-provider mechanism.
+- Existing tests: `Tests/Controls/Scope.Tests.RichMarkdown.cpp`, RichTextEditor,
+  RichTextLayout, RichDocumentLayout, RichProjectionBlocks, RichTextInput and
+  RichTextAccessibility; `Tests/Embedded/Scope.Tests.RichTextResources.h`,
+  RichGeometryResources and RichProjectionResources; shared Markdown fixtures
+  under `Tests/Support`. UIA client tests must use the actual in-process client
+  and embedded bridge rather than asserting provider internals alone.
+
+### Open design decisions: resolve before implementation
+
+1. Define an explicit semantic projection API and independent mapping oracles
+   before renderer integration. It must represent source-backed, transformed,
+   generated, object, repeated and reordered display spans, leading/trailing
+   affinity and a documented primary editing occurrence. A single monotonic
+   `sourceToDisplay` vector is insufficient. Source-range geometry needs a list
+   of display fragments; taking only mapped endpoints can include unrelated text.
+2. Define replacement/deletion behavior for entity expansion, escape decoding,
+   code normalization, generated markers, hidden delimiters, image alternatives,
+   repeated occurrences and reorderings. Reject ambiguity or use the declared
+   primary affinity; never invent an implicit destructive source interval.
+3. Decide how semantic geometry fits the existing staged layout service. One
+   candidate is a separate semantic projection plus an explicitly counted whole
+   DirectWrite layout path inside PreparedDocumentLayout; another is a dedicated
+   semantic layout adapter. Neither was chosen or implemented. Preserve v0 reuse
+   contracts and report any whole-source/layout fallback and resource cost.
+4. Decide explicit public opt-in/default/profile behavior. An enabling API was
+   considered so existing analysis-only callers retain their published contract;
+   candidate names/options are not approved APIs. Keep profile/mode/revision/
+   typography/device/binding request keys and cancellation/stale-result rejection.
+5. Define native rendering for CommonMark/GFM blocks and inlines, including list
+   markers/tasks, code, quotes, links, image alternatives and tables. Preserve
+   unsupported HTML as editable opaque source or a documented safe native subset;
+   no browser/script execution or automatic remote loading follows from M3 HTML.
+   Math/Mermaid/footnotes/front matter remain M5, not invented M4 placeholders
+   presented as completed features.
+6. Specify atomic structural commands and history/selection behavior before
+   implementing Enter/list continuation/exit, indent/outdent, task toggles,
+   heading/style/link operations and table edits. Stage all source edits before
+   one committed notification/history entry. Cover failures, read-only/disabled,
+   reentrancy and stale semantic revisions. Retain exact unedited source/EOLs.
+7. Preserve exact source ACPs for TSF/IME and existing source UIA ranges. Define
+   structured UIA semantics, style attributes, Format/range behavior, children,
+   bounds/actions and detach/disconnect using the same acknowledged revision and
+   mapping as pixels. Generated text does not silently replace text-store ACPs.
+8. Bound generated rendering output before allocation. M3 table padding can
+   amplify header columns times body rows; the all-newline storage fixture does
+   not establish an all-input bound. General capacity/pathological latency remains
+   M6, but a semantic renderer still needs fail-safe admission and failure tests.
+
+### Resume sequence and acceptance
+
+- Check status/branch/current contracts, then retain a pre-M4 Release baseline on
+  unchanged source with exact fixture/tool/dependency/artifact identity. No M4
+  baseline measurement was made during this paused inspection.
+- Add a detailed M4 checklist here; keep the single indexed plan. Implement map
+  primitives and independent coordinate/edit oracles first, then native rendering,
+  structural transactions, retained native/embedded integration and accessibility.
+  Complete each component's code, meaningful tests and owning specs/docs together.
+- Test decoded/multiscalar/supplementary text, scalar/CRLF/grapheme boundaries,
+  hidden-only selections, backward selections, generated/padded content, objects,
+  repeated/reordered spans and primary affinity. Cover cancellation/coalescing,
+  stale parser/layout results, profile/mode changes, reference edits, undo/redo,
+  allocation failures, callback retirement, two views, DPI/flow/resize/device loss,
+  clean/dirty/hidden preparation and allocation-free composition.
+- Use `Test-Changes.ps1 -Explain` and affected scopes during iteration. Required
+  closeout includes x64 Debug/Release/ASan ordinary tests, three ARM64 builds,
+  WARP/device-loss and measured clean/dirty/hidden/resource evidence for renderer
+  changes, full `validate.ps1` and pinned `format.ps1 -Check`. Do not turn compile
+  success or a focused run into whole-M4 qualification. Preserve failed attempts.
+- Visual changes require deterministic harness captures, gallery regeneration
+  through `gallery.ps1 -PublishDocs`, review of themed/embedded sheets, affected
+  design-system previews and docs. Never substitute a desktop screenshot.
+- Native/embedded synthetic and in-process UIA tests do not qualify physical IME,
+  Narrator/NVDA, touch or native ARM64. Real-focus Menu, NativeTextInput,
+  MenuResources and MenuResourceScaling require the person's agreement to the
+  time. None was granted for this M4 turn; do not run them automatically.
+- Existing benchmark observations are unpaired diagnostics. D4c performance HOLD
+  stays open; no threshold/judge/rebaseline changes or causal speedup claim. Use
+  same-machine controlled baseline/candidate evidence for new rendering costs.
+- Environment used by prior root qualification: TEMP/TMP
+  `Z:\DxUiPerfTemp\uia-ranges`, `MSBUILDDISABLENODEREUSE=1`. Discover Visual Studio
+  through repository tooling. The observed pinned formatter is
+  `Z:\src\DxUi\.build\format\clang_format\data\bin\clang-format.exe` (22.1.3);
+  verify availability/version rather than assuming an installation.
+- Keep M4 unchecked until its actual acceptance completes. D2a/M5/M6/D4c/D4d/D5
+  and consumer adoption remain separately open. Keep naming/comments clear,
+  update capabilities/changelog/usage docs truthfully, and do not modify sealed
+  M1/M2/M3 evidence or silently adopt a new consumer pin.
