@@ -55,3 +55,12 @@ performance, native ARM foreground/resource, physical-input and consumer gates s
   implementation and documentation changes.
 - Regenerate changed gallery captures with `gallery.ps1 -PublishDocs`, review them, and commit the resulting
   `docs/gallery` files with the design-system changes. No separate design-system publication is required.
+
+The RichTextEditor M4d preview uses an explicit semantic rendering option. Its
+populated gallery tile and static component preview show resolved styles and a
+Unicode table. Table/code/image outlines, quote strokes and rules reuse the caret
+ink role; selection keeps the existing selected-text/fill roles in every theme.
+Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
+within the bounded viewport. No palette token changes. Structural commands,
+empty/padded source caret sites and semantic style accessibility remain pending;
+the static HTML preview is design guidance, never native rendering evidence.

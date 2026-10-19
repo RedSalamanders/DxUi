@@ -137,18 +137,25 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
+void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options)
+{
+    PrepareOwned(factory, projection, options, 0.0f, true);
+}
+void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin, bool semanticDisplay)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
     if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! validName(options.fontFamily) ||
         ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
+        (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
+         options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
         ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f)
         throw std::invalid_argument("Invalid rich-text layout options");
-    if (projection.text.size() > Document::MaximumUnits || ! IsValidUtf16(projection.text) || projection.source.size() > Document::MaximumUnits ||
-        ! IsValidUtf16(projection.source) || projection.units.size() != projection.text.size() ||
-        projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
+    const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
+    if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||
+        projection.units.size() != projection.text.size() || projection.sourceToDisplay.size() != projection.source.size() + 1 ||
+        (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
         throw std::invalid_argument("Invalid rich-text display text");
     std::size_t previousDisplay = 0, previousSource = 0;
     for (const auto offset : projection.sourceToDisplay)
@@ -185,6 +192,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
           "CreateTextFormat");
     Check(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
+    Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring positionedText(0u, L'\0');
     const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;
@@ -221,7 +229,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projectio
         if (run.heading)
         {
             Check(layout->SetFontSize(fontSize * (1.0f + 0.15f * static_cast<float>(7 - run.heading)), range), "SetFontSize");
-            Check(layout->SetFontWeight(DWRITE_FONT_WEIGHT_SEMI_BOLD, range), "SetFontWeight");
+            Check(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range),
+                  "SetFontWeight");
         }
     }
     DWRITE_TEXT_METRICS metrics{};

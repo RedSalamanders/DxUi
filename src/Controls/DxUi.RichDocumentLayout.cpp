@@ -29,7 +29,8 @@ bool SameStyles(const Projection& left, const Projection& right) noexcept
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
     return left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip && left.fontFamily == right.fontFamily &&
-           left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection;
+           left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection &&
+           left.textAlignment == right.textAlignment;
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {

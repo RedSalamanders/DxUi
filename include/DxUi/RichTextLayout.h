@@ -7,6 +7,10 @@
 #include <wil/com.h>
 namespace DxUi::RichText
 {
+namespace Detail
+{
+class PreparedSemanticGeometry;
+}
 struct LayoutOptions
 {
     float widthDip                            = 1.0f;
@@ -15,6 +19,7 @@ struct LayoutOptions
     std::wstring codeFontFamily               = L"Consolas";
     std::wstring locale                       = L"en-us"; // Empty uses DirectWrite's default, as ControlHost does.
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    DWRITE_TEXT_ALIGNMENT textAlignment       = DWRITE_TEXT_ALIGNMENT_LEADING;
 };
 struct CaretGeometry
 {
@@ -78,9 +83,13 @@ public:
 
 private:
     friend class PreparedDocumentLayout;
+    friend class Detail::PreparedSemanticGeometry;
     std::pair<float, float> DrawingVerticalBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
+    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f, bool semanticDisplay = false);
+    // Private identity layout for already bounded semantic display, not a model
+    // capacity increase or a replacement for its nonmonotonic document map.
+    void PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;

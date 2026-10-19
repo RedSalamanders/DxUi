@@ -4,6 +4,7 @@
 #include "PreparedTreeAccessibility.h"
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
+#include "RichSemanticDocument.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -2773,6 +2774,13 @@ private:
 
 // Bounded retained preview with shared native/embedded source TSF/IME and UIA
 // adapters. Real IME/AT qualification and complete rich Markdown remain separate.
+enum class MarkdownRenderingStatus
+{
+    Disabled,
+    Pending,
+    Semantic,
+    SourceFallback
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -2796,6 +2804,9 @@ struct RichTextEditorDebugState
     bool markdownPreparationPending    = false;
     size_t markdownPreparationAdvances = 0;
     size_t lastAdvanceMarkdownWork     = 0;
+    bool semanticPreparationPending    = false;
+    size_t semanticPreparationAdvances = 0;
+    size_t lastAdvanceSemanticWork     = 0;
 };
 
 class RichTextEditor : public Control
@@ -2821,6 +2832,14 @@ public:
     // Returns only a completed analysis of current source/profile, never drains
     // pending work. Held results remain immutable after editing or detachment.
     [[nodiscard]] std::shared_ptr<const RichText::MarkdownSyntax> GetMarkdownSyntax() const noexcept;
+    // Opt-in semantic rendering preview. Requires an analysis profile; clearing
+    // that profile also disables rendering. Source view remains exact raw text.
+    // Admission overflow displays SourceFallback without changing requested
+    // view mode, text, selection or history. No getter drains preparation.
+    void SetMarkdownRenderingEnabled(bool enabled);
+    [[nodiscard]] bool IsMarkdownRenderingEnabled() const noexcept;
+    [[nodiscard]] MarkdownRenderingStatus GetMarkdownRenderingStatus() const noexcept;
+    [[nodiscard]] std::shared_ptr<const RichText::SemanticDocument> GetSemanticDocument() const noexcept;
     void SetReadOnly(bool readOnly) noexcept;
     [[nodiscard]] bool IsReadOnly() const noexcept;
     // Programmatic edit commands obey read-only/disabled state. Only successful

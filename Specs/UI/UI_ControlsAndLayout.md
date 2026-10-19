@@ -1033,6 +1033,52 @@ These pure primitives do not enable semantic pixels, structural commands or UIA
 roles. Their retained-control integration and corresponding qualification remain
 M4 work in the active plan; existing profile-only analysis keeps v0 rendering.
 
+### Retained semantic rendering preview (M4d)
+
+`SetMarkdownRenderingEnabled(true)` explicitly opts a RichTextEditor with a
+non-null analysis profile into the semantic native geometry backend. The default
+and profile-only analysis retain v0 pixels. Clearing the profile disables this
+option. Source view always displays exact raw source; the requested Rich view is
+preserved when semantic admission instead requires SourceFallback.
+`GetMarkdownRenderingStatus` distinguishes Disabled, Pending, Semantic and
+SourceFallback. `GetSemanticDocument` returns only the completed current syntax
+owner's immutable CPU document and never prepares work. Geometry readiness is
+separate: a completed semantic document can precede its SDK layouts.
+
+The backend stages independent paragraph/cell DirectWrite layouts, styles,
+indentation, equal-width table columns with declared physical alignment, RTL
+column placement, quote/rule lines and code/image/cell outlines. Destinations are
+inert; images display their owned alternative, not downloaded media. HTML stays
+literal under the current policy. Generated list/task markers are preview text;
+their interactive structural commands and the validated HTML subset remain open.
+Every host turn bounds SDK calls and metadata events independently. Layout,
+row placement, source line indexing and element bounds must complete before one
+publication; input/paint/geometry queries never drain staging. No HWND, worker,
+timer, graphics device or scheduler belongs to this backend.
+
+Selection, composition, text-service rectangles and source-range scrolling use
+the map's actual fragments, including atomic transformed/object spans. Hidden
+syntax receives no glyph rectangle. Source line units partition raw ACPs in
+document order, including original EOLs/trivia; cells have their own wrapped line
+units. A wrapping atomic object remains one source unit rather than overlapping
+intervals. This does not yet provide distinct native source caret sites for all
+empty/container-only lines or padded cells. That requirement remains active.
+
+Collapsed visual deletion expands a source caret inside a transformed/object
+token to the complete owned token and commits mapped fragments in one source
+transaction. Programmatic replacement and TSF retain exact raw ACPs. Generated
+separators do not imply a structural join command: list/quote continuation joins,
+empty-format cleanup and padded-cell editing remain M4e. Pending geometry uses
+exact source graphemes rather than applying v0 grammar to another dialect.
+
+A semantic length/admission rejection records the exact immutable syntax owner,
+retires staging and prepares exact source geometry once. It preserves requested
+mode, source, selection and history; idle turns do not retry that revision. A
+source/profile/opt-in change permits a new request. Allocation/SDK/internal
+invariant failures remain failed preparation and must not self-reschedule.
+Native/embedded resource, accessibility, gallery and platform qualification stay
+explicit in the WIP plan; this opt-in does not close M4 as a whole.
+
 RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
 disables it. The default and formatted pixels retain their v0 behavior. Analysis
 uses ControlHost turns before geometry, with a 4,096-operation default per turn.

@@ -741,3 +741,21 @@ Clean/hidden work does not poll; new source after failure can request explicit
 retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
 
 The [cooperative preparation record](../../Measurements/RichText/2026-10-18-cooperative/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
+
+The opt-in M4d semantic path uses the same host turns with separate bounded CPU
+semantic events (default 4,096), SDK layout calls (4) and geometry metadata events
+(4,096). Its graph is bounded by 4,096 semantic paragraphs/cells and 32,768
+elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
+or final map construction remains indivisible. It retains at most a published
+and staged native geometry graph; source edits currently rebuild semantic leaves
+rather than claiming v0 chunk reuse. Immutable CPU syntax/document ownership can
+outlive native geometry when clients hold it. Raster preparation may allocate;
+composition must not call the builder/layout backend or allocate.
+
+Geometry preparation indexes source line units and bounds cooperatively before
+publication; cancelling or clearing owns no new heap work. Hidden/retired controls
+release SDK graphs. A semantic admission rejection prepares source geometry once,
+remembering exact syntax identity so idle preparation cannot retry in a loop.
+OOM/SDK/internal failures remain failed owner turns with no self-rescheduling.
+Resource/failure sweeps and all-current renderer qualification remain M4g work;
+earlier sealed parser/v0 packets do not establish semantic rendering performance.

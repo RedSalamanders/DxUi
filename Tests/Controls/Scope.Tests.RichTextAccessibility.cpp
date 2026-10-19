@@ -12,7 +12,7 @@ constexpr std::wstring_view EditorId = L"rich.source";
 
 struct RichAccessibilityFixture
 {
-    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false) : embedded(embedded)
+    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false) : embedded(embedded)
     {
         if (embedded)
         {
@@ -29,8 +29,10 @@ struct RichAccessibilityFixture
         }
         auto root = std::make_unique<RichTextEditor>(L"**alpha**\r\nbeta");
         editor    = root.get();
-        if (markdownAnalysis)
+        if (markdownAnalysis || semanticRendering)
             editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::CommonMark0312);
+        if (semanticRendering)
+            editor->SetMarkdownRenderingEnabled(true);
         editor->SetAccessibleName(L"Markdown editor");
         editor->SetAccessibleAutomationId(std::wstring(EditorId));
         controls->SetRoot(std::move(root));
@@ -632,9 +634,11 @@ void TestRichTextAccessibilityWindowClientNavigationAndEvents()
 {
     ClientNavigationAndEvents(false);
 }
-void SourceTransactionClient(bool embedded)
+void SourceTransactionClient(bool embedded, bool semanticRendering = false)
 {
-    RichAccessibilityFixture fixture(embedded, true);
+    RichAccessibilityFixture fixture(embedded, true, semanticRendering);
+    Require(! semanticRendering || fixture.editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic,
+            "semantic client fixture has acknowledged current native geometry");
     UiaTest::Client client(fixture.Hwnd(), {.automationEvents = {UIA_Text_TextChangedEventId}}, [&] { fixture.Pump(); });
     const auto editor = FindEditor(client, client.Root());
     Require(editor != 0, "transaction client reaches the editor through application parents");
@@ -670,7 +674,15 @@ void TestRichTextAccessibilityWindowSourceTransactionClient()
 }
 void TestRichTextAccessibilityEmbeddedSourceTransactionClient()
 {
-    EmbeddedCase(SourceTransactionClient);
+    EmbeddedCase([](bool embedded) { SourceTransactionClient(embedded); });
+}
+void TestRichTextAccessibilityWindowSemanticRenderingClient()
+{
+    SourceTransactionClient(false, true);
+}
+void TestRichTextAccessibilityEmbeddedSemanticRenderingClient()
+{
+    EmbeddedCase([](bool embedded) { SourceTransactionClient(embedded, true); });
 }
 void TestRichTextAccessibilityEmbeddedClientNavigationAndEvents()
 {
@@ -938,6 +950,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedClientNavigationAndEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceTransactionClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceTransactionClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticRenderingClient);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticRenderingClient);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionCommands);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSearchCommands);

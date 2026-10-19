@@ -833,6 +833,23 @@ the events left are dropped once the host is disconnected (or an embedded view's
 longer the one published at its path, and never reach an element that is gone. The providers that raise them never touch a
 control.
 
+RichTextEditor's explicit M4d semantic rendering preview keeps TSF/UIA document
+text, selection, history and composition offsets in exact raw UTF-16 source ACPs.
+Range rectangles use actual mapped glyph fragments; hidden-only ranges remain
+empty and transformed/image/task tokens are atomic. Source-range scrolling uses
+these fragments without taking focus. Source line units remain ordered raw ACP
+partitions, with cell-local wrapping and atomic objects coalesced across wrapped
+SDK lines. All geometry is unavailable until its current host/source/resource
+publication is acknowledged; queries never finish pending preparation.
+Pending semantic preparation uses raw source graphemes for logical commands,
+not another Markdown dialect's v0 projection. Exact document Home/End includes
+trailing raw trivia. A collapsed visual delete from inside a transformed/object
+source token removes its complete owned token through one undoable source plan;
+programmatic replacement and imported text-service state retain exact ACPs.
+Generated separators require explicit structural joining; complete structural
+commands, empty/padded source caret sites, semantic UIA children/format attributes
+and physical IME/AT qualification remain open in M4 and the existing platform gates.
+
 The control that called a native publish treats it as a reentrancy boundary too: before touching itself again or
 calling a pending delegate, it checks that its lifetime survived the publish. Tree and Grid selection helpers that
 allow their input callers to continue report whether the control survived both its delegate and accessibility

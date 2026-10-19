@@ -1899,3 +1899,58 @@ detection probe passed. Raw logs, scope receipts, executables, PDBs, library and
 runtime DLLs are retained in M4cQualification. M4c's checkbox denotes this pure
 CPU component; all-current native rendering/ARM64/full validation still belongs
 to M4g after integration. Earlier M4c Release counts remain in M4cRelease.
+
+### M4d active native integration, 2026-10-19
+
+The owned worktree now contains PreparedSemanticGeometry and a private retained
+layout adapter. An explicit SetMarkdownRenderingEnabled option selects native
+semantic preparation after the completed current parser/CPU document; defaults
+and analysis alone retain v0. Source mode stays raw. Admission overflow records
+the exact rejected syntax owner and prepares SourceFallback once, preserving
+requested mode, source, selection and history. OOM/SDK/internal failure remains
+a failed owner turn without automatic rescheduling.
+
+Implemented geometry covers paragraph styles/headings, quote/list indentation,
+equal-width table cells with physical alignment/RTL columns, rules and cell/code/
+image outlines. Row placement, source line indexing and element bounds are
+cooperative metadata phases; each turn limits SDK calls separately. Selection,
+composition, text-service range rectangles and scrolling use actual source
+fragments. Collapsed token deletion expands interior transformed/object ACPs to
+one atomic source transaction. Source line units cover table cells and coalesce
+wrapping atomic objects without reversed/overlapping ACP intervals.
+
+First focused geometry-only Release tests passed (two named cases, zero skips),
+with raw logs, exact source patch/new files, binaries, symbols and library hashes
+in `.build/reports/rich-semantic-m4-20261019/M4dGeometryRelease`. This is backend
+evidence only. Retained attempt1 failed compilation in the adapter; retain its
+driver/build logs. Corrected code and complete EditorControls/Embedded/Accessibility
+are under attempt2 testing; no pass is claimed in advance.
+
+Added shared native/embedded retained tests cover opt-in/profile rejection,
+current CPU/native publication, source view, hidden/object/table range rectangles,
+RTL reflow, hiding/showing, raw document End, atomic entity deletion/undo and
+admission fallback without idle retry. Embedded coverage also runs the shared-view
+WARP clean/dirty/hidden/device-replacement fixture with semantics enabled, plus
+owned allocation failure/idle/retirement sweeps. Two actual UIA client cases keep
+raw source/selection/caret/events coherent with the new renderer. The populated
+gallery tile and static design preview now describe the opt-in semantic path;
+regeneration and visual review are still required after functional checks pass.
+
+M4d stays unchecked. Remaining native work includes distinct empty/trailing/
+container/padded source caret sites, hanging marker indentation, link styling and
+the explicitly validated HTML subset. M4e still owns structural joins/format
+cleanup, list/heading/link/task/table commands; M4f owns semantic UIA children and
+style/format units. All-current x64/ARM64/resource/gallery qualification remains
+M4g. This component does not close the D4c performance HOLD or other platform gates.
+
+Retained attempt2 subsequently passed complete Release EditorControls, Embedded
+and Accessibility (zero capability skips), including 119 individually injected
+native-geometry allocation failures and zero idle/retire C++ allocations. Its
+source patch/new files, executables, PDBs, library, raw logs and receipts are kept
+in M4dRetainedRelease2. Full validate.ps1 (five validators and all tooling) and
+pinned 22.1.3 format passed. These are the pre-navigation-correction artifacts.
+Review found a Right-arrow affinity problem at generated paragraph separators;
+the next candidate uses the next content's leading affinity, adds shared
+native/embedded paragraph-crossing regressions and prevents retired layout-engine
+publications from colliding in the retained generation counter. Fresh candidate
+qualification is required after those corrections.

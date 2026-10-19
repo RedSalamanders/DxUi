@@ -1080,9 +1080,12 @@ void AddComboItems(ComboBox& combo)
         field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
     }
     {
-        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / Unicode preview", 2u, 180.0f);
-        auto* editor    = scene.root->AddChild<RichTextEditor>(L"# Owned Unicode\r\n**Bold** and *italic*, `code` and ~~strike~~.\r\nGreek \u03b2 | Japanese "
-                                                               L"\u65e5\u672c\u8a9e | \U0001f600\r\nSource-preserving Markdown v0");
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / semantic preview", 2u, 260.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(
+            L"# Owned Unicode\r\n\r\n**Bold**, *italic*, `code`, ~~strike~~ and &amp;.\r\n\r\n"
+            L"| Language | Text |\n| :--- | ---: |\n| Greek | \u03b2 |\n| Japanese | \u65e5\u672c\u8a9e \U0001f600 |\n\n> Source-preserving semantic preview");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
         editor->SetBounds(tile.content);
     }
     {
@@ -1391,6 +1394,7 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
     window.PumpMessages(100u);
 
     WindowHostBitmapCapture capture;
+    Require(PrepareNativeContentForTests(window.Host()), "gallery cooperative controls reach one acknowledged frame");
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;

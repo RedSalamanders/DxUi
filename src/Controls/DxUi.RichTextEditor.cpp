@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.RichEditorLayout.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
@@ -12,8 +13,12 @@ struct RichTextEditor::State
     {
     }
     RichText::Document document;
-    RichText::PreparedDocumentLayout layout;
+    RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
+    RichText::SemanticBuilder semantic;
+    std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
+    bool markdownRendering  = false;
+    size_t semanticAdvances = 0, lastAdvanceSemanticWork = 0;
     std::optional<RichText::MarkdownProfile> markdownProfile;
     uint64_t markdownRequestRevision = 0;
     bool markdownRequestActive       = false;
@@ -96,6 +101,10 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
     if (_state->markdownProfile == profile)
         return;
     _state->markdown.Clear();
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    if (! profile)
+        _state->markdownRendering = false;
     _state->markdownProfile = profile;
     RetireLayout();
     SelectionChanged();
@@ -108,6 +117,37 @@ std::shared_ptr<const RichText::MarkdownSyntax> RichTextEditor::GetMarkdownSynta
 {
     const auto syntax = _state->markdown.Published();
     return syntax && _state->markdownProfile && syntax->Revision() == Revision() && syntax->Profile() == *_state->markdownProfile ? syntax : nullptr;
+}
+void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
+{
+    if (enabled && ! _state->markdownProfile)
+        throw std::invalid_argument("Semantic rendering requires a Markdown analysis profile");
+    if (_state->markdownRendering == enabled)
+        return;
+    _state->markdownRendering = enabled;
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    RetireLayout();
+    SelectionChanged();
+}
+bool RichTextEditor::IsMarkdownRenderingEnabled() const noexcept
+{
+    return _state->markdownRendering;
+}
+std::shared_ptr<const RichText::SemanticDocument> RichTextEditor::GetSemanticDocument() const noexcept
+{
+    const auto syntax   = GetMarkdownSyntax();
+    const auto document = _state->semantic.Published();
+    return _state->markdownRendering && syntax && document && document->Syntax() == syntax ? document : nullptr;
+}
+MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexcept
+{
+    if (! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
+        return MarkdownRenderingStatus::Disabled;
+    const auto syntax = GetMarkdownSyntax();
+    if (syntax && _state->semanticRejected == syntax)
+        return MarkdownRenderingStatus::SourceFallback;
+    return GetSemanticDocument() && _state->layout.Ready() && _state->layout.Semantic() ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::Pending;
 }
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
@@ -186,6 +226,8 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
             ++_state->cancelledPreparations;
         _state->layout.Invalidate();
         _state->markdown.Cancel();
+        _state->semantic.Cancel();
+        _state->semanticRejected.reset();
         _state->markdownRequestActive = false;
         _state->requestActive         = false;
         RequestContentPreparation(false);
@@ -247,6 +289,7 @@ void RichTextEditor::RetireLayout() const noexcept
         ++_state->cancelledPreparations;
     _state->layout.Clear();
     _state->markdown.Cancel();
+    _state->semantic.Cancel();
     _state->markdownRequestActive = false;
     _state->requestActive         = false;
     _state->revealCaret           = true;
@@ -273,6 +316,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     auto& state              = *_state;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
+    state.lastAdvanceSemanticWork                          = 0u;
     try
     {
         const auto viewport = TextViewport();
@@ -282,6 +326,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 ++state.cancelledPreparations;
             state.layout.Clear();
             state.markdown.Cancel();
+            state.semantic.Clear();
+            state.semanticRejected.reset();
             state.markdownRequestActive = false;
             state.requestActive         = false;
             return S_OK;
@@ -297,8 +343,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             {
                 // Exact bounded source admission/copy is still indivisible.
                 // Parsing resumes its own cursors, without DirectWrite or a
-                // per-control worker. Future semantic rendering consumes this
-                // tree only after inline/container precedence is implemented.
+                // per-control worker. Semantic preparation consumes only a
+                // completed current tree on a later bounded stage.
                 state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
                 state.markdownRequestRevision = Revision();
                 state.markdownRequestActive   = true;
@@ -310,6 +356,36 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 return S_FALSE;
             state.markdownRequestActive = false;
         }
+        std::shared_ptr<const RichText::SemanticDocument> semanticDocument;
+        if (state.markdownRendering && state.mode == RichText::ViewMode::Rich)
+        {
+            const auto syntax = GetMarkdownSyntax();
+            semanticDocument  = GetSemanticDocument();
+            if (! semanticDocument && state.semanticRejected != syntax)
+            {
+                try
+                {
+                    if (! state.semantic.HasPendingPreparation())
+                        state.semantic.Begin(syntax);
+                    ++state.semanticAdvances;
+                    const auto advance            = state.semantic.Advance();
+                    state.lastAdvanceSemanticWork = advance.workUnits;
+                    if (advance.status == RichText::MarkdownPreparationStatus::Pending)
+                        return S_FALSE;
+                    semanticDocument = GetSemanticDocument();
+                }
+                catch (const std::length_error&)
+                {
+                    // Admission is a preview bound, not a document failure.
+                    // Remember this exact immutable syntax so idle preparation
+                    // cannot repeatedly fail. Editing/profile changes retry.
+                    state.semantic.Clear();
+                    state.semanticRejected = syntax;
+                }
+            }
+        }
+        const auto effectiveMode =
+            state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto width      = std::max(1.0f, viewport.right - viewport.left);
         auto* factory         = host.GetWriteFactory();
         const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
@@ -340,7 +416,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             THROW_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
             options.locale.pop_back();
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-            state.layout.BeginPreparation(factory, state.document.Snapshot(), revision, state.mode, options);
+            state.layout.BeginPreparation(factory, state.document.Snapshot(), revision, effectiveMode, options, semanticDocument);
             state.requestRevision   = revision;
             state.requestBinding    = binding;
             state.requestTypography = typography;
@@ -380,6 +456,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     {
         state.layout.Invalidate();
         state.markdown.Cancel();
+        state.semantic.Cancel();
         state.markdownRequestActive = false;
         state.requestActive         = false;
         return E_OUTOFMEMORY;
@@ -388,6 +465,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     {
         state.layout.Invalidate();
         state.markdown.Cancel();
+        state.semantic.Cancel();
         state.markdownRequestActive = false;
         state.requestActive         = false;
         return E_FAIL;
@@ -432,14 +510,17 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->layout.UsesWholeRaster(),
             preparation.wholeLayoutsPrepared,
             preparation.wholeLayoutSourceUnits,
-            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation(),
+            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() || _state->semantic.HasPendingPreparation(),
             _state->preparationAdvances,
             _state->cancelledPreparations,
             _state->lastAdvanceLayouts,
             _state->lastAdvanceBlockSteps,
             _state->markdown.HasPendingPreparation(),
             _state->markdownAdvances,
-            _state->lastAdvanceMarkdownWork};
+            _state->lastAdvanceMarkdownWork,
+            _state->semantic.HasPendingPreparation(),
+            _state->semanticAdvances,
+            _state->lastAdvanceSemanticWork};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {
@@ -452,6 +533,11 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
         RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         std::vector<std::pair<size_t, size_t>> ranges;
+        if (const auto* semantic = projection.SemanticGeometry())
+        {
+            const auto lines = semantic->SourceLines();
+            return std::vector<std::pair<size_t, size_t>>(lines.begin(), lines.end());
+        }
         size_t displayStart = 0;
         size_t sourceStart  = 0;
         do
@@ -489,26 +575,22 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         const auto first       = projection.ToDisplay(sourceStart);
-        const auto last        = projection.ToDisplay(sourceEnd);
+        const auto rectangles  = projection.SourceRange(sourceStart, sourceEnd);
         // Hidden-only syntax has no painted extent to reveal. Do not jump to
         // an offscreen marker's anchor or fabricate a visible rectangle.
-        if (sourceStart != sourceEnd && first == last)
+        if (sourceStart != sourceEnd && rectangles.empty())
             return true;
         const auto caret = _state->layout.Caret(first);
         float top        = caret.y;
         float bottom     = caret.y + caret.height;
-        if (first != last)
+        if (! rectangles.empty())
         {
-            const auto rectangles = _state->layout.Range(first, last);
-            if (! rectangles.empty())
+            top    = rectangles.front().top;
+            bottom = rectangles.front().bottom;
+            for (const auto& rectangle : rectangles)
             {
-                top    = rectangles.front().top;
-                bottom = rectangles.front().bottom;
-                for (const auto& rectangle : rectangles)
-                {
-                    top    = std::min(top, rectangle.top);
-                    bottom = std::max(bottom, rectangle.bottom);
-                }
+                top    = std::min(top, rectangle.top);
+                bottom = std::max(bottom, rectangle.bottom);
             }
         }
         const auto viewport = TextViewport();
@@ -589,7 +671,7 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
         RequireCurrentLayout(host);
         const auto& projection = _state->layout;
         const auto viewport    = TextViewport();
-        auto rectangles        = _state->layout.Range(projection.ToDisplay(sourceStart), projection.ToDisplay(sourceEnd));
+        auto rectangles        = projection.SourceRange(sourceStart, sourceEnd);
         for (auto& rectangle : rectangles)
         {
             rectangle.left += viewport.left;
@@ -693,11 +775,11 @@ void RichTextEditor::Paint(ControlHost& host) const
     auto* caretBrush        = host.GetSolidBrush(style.caret);
     const auto selection    = state.document.GetSelection();
     const auto& projection  = state.layout;
-    const auto rectangles   = state.layout.Range(projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End()));
+    const auto rectangles   = projection.SourceRange(selection.Start(), selection.End());
     const auto origin       = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
     context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    state.layout.Draw(context, textBrush, origin, state.scrollDip, state.scrollDip + viewport.bottom - viewport.top);
+    state.layout.Draw(context, textBrush, caretBrush, origin, state.scrollDip, state.scrollDip + viewport.bottom - viewport.top);
     for (const auto& rectangle : rectangles)
     {
         const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
@@ -706,7 +788,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         context->FillRectangle(translated, selectionBrush);
         context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        state.layout.Draw(context, selectedTextBrush, origin, rectangle.top, rectangle.bottom);
+        state.layout.Draw(context, selectedTextBrush, selectedTextBrush, origin, rectangle.top, rectangle.bottom);
     }
     NativeTextInputState input;
     if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
@@ -715,7 +797,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         {
             if (first > last || last > projection.SourceLength())
                 return;
-            for (const auto& rect : state.layout.Range(projection.ToDisplay(first), projection.ToDisplay(last)))
+            for (const auto& rect : projection.SourceRange(first, last))
                 context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
                                   D2D1::Point2F(rect.right + origin.x, rect.bottom + origin.y - 1),
                                   caretBrush,
@@ -767,9 +849,9 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
 {
     if (! LayoutIsCurrent(host))
     {
-        // Logical source commands remain usable during reflow. The bounded v0
-        // projection preserves hidden-marker affinity and Unicode semantics;
-        // no DirectWrite, rasterization or geometry preparation runs here.
+        // Logical commands remain usable during reflow. Semantic preparation
+        // falls back to exact source graphemes until its current map exists;
+        // it must never apply the older renderer's grammar to another dialect.
         const auto selection = GetSelection();
         if (! extend && selection.Start() != selection.End() && (key == VK_LEFT || key == VK_RIGHT))
         {
@@ -779,7 +861,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         }
         if (key != VK_LEFT && key != VK_RIGHT && ! (byWord && (key == VK_HOME || key == VK_END)))
             return; // Wrapped/vertical movement needs published visual geometry.
-        const auto projection = RichText::Project(Snapshot(), Revision(), _state->mode);
+        const auto projection = RichText::Project(Snapshot(), Revision(), _state->markdownRendering ? RichText::ViewMode::Source : _state->mode);
         const auto position   = projection.ToDisplay(selection.caret);
         size_t next;
         switch (key)
@@ -812,8 +894,11 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     {
         case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
         case VK_RIGHT:
-            next     = byWord ? FindNextWordBoundary(projection.DisplayText(), position) : state.layout.NextCluster(position);
-            trailing = true;
+            next = byWord ? FindNextWordBoundary(projection.DisplayText(), position) : state.layout.NextCluster(position);
+            // At a semantic boundary, leading affinity belongs to the next
+            // content span. Trailing would select a generated separator's old
+            // source anchor and leave Right stuck at the preceding paragraph.
+            trailing = ! projection.Semantic();
             break;
         case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(position, false); break;
         case VK_END:
@@ -832,7 +917,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             break;
         }
     }
-    const auto source = projection.ToSource(next, trailing);
+    const auto source = byWord && key == VK_HOME ? 0u : byWord && key == VK_END ? state.document.Length() : projection.ToSource(next, trailing);
     state.document.SetSelection({extend ? selection.anchor : source, source});
     // Set all state before host invalidation can invoke application scheduling.
     state.pendingLeadSurrogate = 0;
@@ -849,9 +934,44 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     const auto selection = GetSelection();
     if (selection.Start() != selection.End())
         return ReplaceSelection({});
+    if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+    {
+        if (const auto document = GetSemanticDocument())
+        {
+            const auto& map     = document->Map();
+            const auto position = map.ToDisplay(selection.caret);
+            std::pair<size_t, size_t> range;
+            if (LayoutIsCurrent(host) && _state->layout.Semantic())
+                range = _state->layout.DeletionRange(position, backwards);
+            else
+            {
+                const auto element = GetTextElementDeletionRange(map.Display(), position, backwards);
+                range              = {element.first, element.last};
+            }
+            // A raw source client may place its caret inside an entity/object.
+            // Visual delete owns that complete token, in either direction.
+            for (const auto& span : map.Spans())
+                if (span.primary && (span.kind == RichText::DisplaySpanKind::Transformed || span.kind == RichText::DisplaySpanKind::Object) &&
+                    span.source.first < selection.caret && selection.caret < span.source.last)
+                {
+                    range = {span.display.first, span.display.last};
+                    break;
+                }
+            range.first       = map.SnapDisplayBoundary(range.first, RichText::MappingAffinity::Leading);
+            range.second      = map.SnapDisplayBoundary(range.second, RichText::MappingAffinity::Trailing);
+            const auto ranges = map.SourceRanges({range.first, range.second});
+            if (ranges.empty())
+                return false; // Generated separators need an explicit structural join command (M4e).
+            std::vector<RichText::SourceEdit> edits;
+            edits.reserve(ranges.size());
+            for (const auto source : ranges)
+                edits.push_back({source, {}});
+            return ApplySourceEdits(Snapshot(), Revision(), edits, {ranges.front().first, ranges.front().first});
+        }
+    }
     if (! LayoutIsCurrent(host))
     {
-        const auto projection = RichText::Project(Snapshot(), Revision(), _state->mode);
+        const auto projection = RichText::Project(Snapshot(), Revision(), _state->markdownRendering ? RichText::ViewMode::Source : _state->mode);
         const auto range      = GetTextElementDeletionRange(projection.text, projection.ToDisplay(selection.caret), backwards);
         if (range.first == range.last)
             return false;

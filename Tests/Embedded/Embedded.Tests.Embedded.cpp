@@ -153,6 +153,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 }
 #include "../Support/Scope.Tests.RichSemantic.h"
 #include "../Support/Scope.Tests.RichSemanticEditor.h"
+#include "../Support/Scope.Tests.RichSemanticGeometry.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
@@ -166,6 +167,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Scope.Tests.RichGeometryResources.h"
 #include "Scope.Tests.RichProjectionResources.h"
 #include "Scope.Tests.RichSemanticDocumentResources.h"
+#include "Scope.Tests.RichSemanticGeometryResources.h"
 #include "Scope.Tests.RichSemanticResources.h"
 #include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
@@ -1389,7 +1391,10 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
+    RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
+    RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
     {
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;
@@ -1399,12 +1404,17 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
+            RichSemanticEditorTests::Rendering(transactionView.Controls(),
+                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
+            RichSemanticEditorTests::RenderingAdmissionFallback(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); });
         });
         transactionView.Detach();
     }
     TestRichMarkdownParserFailureAndStorageBudgets();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
+    TestRetainedRichTextSharedViewsAndResources(gpu, true);
     TestRichPreparedLayoutClearAllocationBudget();
     TestRichPreparedLayoutValueFailureAtomicity();
     TestRichDocumentGeometryFailureAtomicity();

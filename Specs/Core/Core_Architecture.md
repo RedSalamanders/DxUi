@@ -162,3 +162,13 @@ consumers to rebuild against the matching pinned headers and static library. The
 revision 4 adoption scope; earlier consumer pins are not changed by this implementation.
 This avoids cross-module ownership assumptions of the kind described in Microsoft's
 [CRT boundary guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/potential-errors-passing-crt-objects-across-dll-boundaries?view=msvc-170).
+
+The M4d RichTextEditor semantic preview adds an explicit rendering option and an
+immutable semantic document accessor within API revision 4. Its private retained
+layout adapter stages either existing v0/source geometry or semantic native
+geometry, and switches only after a complete publication. The semantic backend
+retains paragraph/cell DirectWrite layouts and a factory; it borrows raster targets
+and brushes synchronously. The CPU builder remains independent of graphics.
+Both paths use ControlHost owner turns, resource/typography/binding identities,
+retirement and scheduling. No new worker, HWND, device or timer is introduced.
+Consumers must rebuild matching headers/library; their pinned source is unchanged.

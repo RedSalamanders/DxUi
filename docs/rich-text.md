@@ -680,7 +680,8 @@ The owned parser now resolves emphasis/strong, code spans, escapes/entities,
 inline and global reference links, images, URI/email autolinks, raw HTML and
 line breaks. GFM options add tables with cell alignment, task metadata, two-tilde
 strike, extended autolinks and tagfilter metadata. The source always stays exact.
-This is opt-in analysis; the native formatted renderer is still v0.
+Analysis alone retains the v0 native formatted renderer. The explicit semantic
+rendering preview described below consumes the resolved document separately.
 
 ```cpp
 using namespace DxUi::RichText;
@@ -734,3 +735,38 @@ M6 and the existing gates own real capacity, physical/platform and performance
 acceptance. The current source limit stays 65,536 UTF-16 units. Advance budgets
 count operations; construct lookahead, stack resolution, sorting and allocations
 can inspect more than one character per step and are not wall-clock guarantees. Generated table padding can amplify columns times body rows; a general tree/storage capacity bound remains M6 work.
+
+## Semantic rendering preview (M4d)
+
+```cpp
+auto editor = std::make_unique<DxUi::RichTextEditor>(
+    L"# Heading\n\n| left | right |\n| :--- | ---: |\n| **bold** | &amp; |\n");
+editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::Gfm029);
+editor->SetMarkdownRenderingEnabled(true);
+// Give ownership to the native or embedded ControlHost as usual.
+// Its preparation turns parse, build semantics and prepare native layouts.
+```
+
+The option requires an analysis profile and defaults off. Source mode always
+displays raw text; clearing the profile disables semantic rendering.
+`GetMarkdownRenderingStatus()` reports Disabled, Pending, Semantic or
+SourceFallback. `GetSemanticDocument()` returns completed current CPU data, which
+can be ready before native geometry; neither getter advances preparation.
+
+The preview displays resolved Unicode values, styles, headings, quote/list
+indentation, rules, code/image outlines and equal-width table cells with declared
+alignment and RTL columns. Images show their alternative; destinations remain
+inert and HTML stays literal. Selection, composition rectangles and scrolling
+use mapped source fragments. Text services and UIA still expose exact source
+ACPs, including hidden Markdown and original line endings.
+
+Admission overflow uses exact source geometry once and reports SourceFallback;
+it preserves source, requested view, selection and history. A new source/profile
+request can retry. The existing source limit remains 65,536 UTF-16 units;
+semantic admission adds 4,096 paragraphs/cells and 32,768 elements. These are
+preview bounds, not large-document latency or performance qualification.
+
+Empty/container-only source caret sites, padded-cell editing, structural joins
+and formatting cleanup, interactive task commands, link styling, safe HTML
+formatting and structured/style UIA remain active M4 work. Math, Mermaid,
+footnotes/front matter and physical IME/AT/platform/performance gates stay open.

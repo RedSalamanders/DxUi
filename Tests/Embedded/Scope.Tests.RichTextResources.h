@@ -796,7 +796,7 @@ static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
                   << " reusedChunks=" << state.reusedGeometryChunks << " preparedSourceUnits=" << state.preparedSourceUnits << '\n';
     }
 }
-static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
+static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bool semanticRendering = false)
 {
     using namespace DxUi;
     std::shared_ptr<GraphicsDevice> graphics;
@@ -810,6 +810,13 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     auto b                    = std::make_unique<RichTextEditor>(source);
     auto* editor              = a.get();
     auto* other               = b.get();
+    if (semanticRendering)
+    {
+        a->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        b->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        a->SetMarkdownRenderingEnabled(true);
+        b->SetMarkdownRenderingEnabled(true);
+    }
     first.Controls().SetRoot(std::move(a));
     second.Controls().SetRoot(std::move(b));
     Hr(PrepareRichEmbeddedContent(first, 480, 240), "rich-text first preparation");
@@ -818,6 +825,9 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu)
     const auto prepared        = editor->DebugGetState();
     const auto otherGeneration = other->DebugGetState().layoutGeneration;
     Check(prepared.layoutReady && other->DebugGetState().layoutReady, "both layouts prepared through host DWrite");
+    Check(! semanticRendering || (editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic &&
+                                  other->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic),
+          "semantic resource fixture uses the opt-in geometry engine in both independent views");
     Check(first.GetStatistics().surfaceBytes != second.GetStatistics().surfaceBytes, "two views retain separate bounded surfaces");
     gpu.Bind();
     Hr(first.Composite(gpu.context.get(), gpu.Viewport()), "rich-text initial composition");
