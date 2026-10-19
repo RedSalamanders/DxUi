@@ -703,7 +703,8 @@ void SourceCaretSitesClient(bool embedded)
                                            static_cast<LONG>(std::lround(fixture.window->Host().DipsToPixels(point.y)))},
                                           "empty source UIA point transport");
     };
-    for (const auto& line : fixture.editor->GetMarkdownSyntax()->EmptyLines())
+    const auto emptySyntax = fixture.editor->GetMarkdownSyntax();
+    for (const auto& line : emptySyntax->EmptyLines())
     {
         fixture.editor->SetSelection({line.insertion, line.insertion});
         fixture.Publish();
@@ -712,6 +713,11 @@ void SourceCaretSitesClient(bool embedded)
         const auto point = screenPoint(D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f));
         Require(client.TextCaretPosition(editor) == line.insertion && client.TextPositionFromPoint(editor, point) == line.insertion,
                 "real native/embedded UIA caret and RangeFromPoint preserve exact empty-line ACPs");
+        Require(fixture.editor->OnMouseDoubleClick(*fixture.controls, D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f), false, 0u),
+                "double-click empty source line through native/embedded control");
+        fixture.Publish();
+        Require(client.TextCaretPosition(editor) == line.insertion && client.TextSelectionText(editor).empty() && client.DocumentText(editor) == source,
+                "real UIA client sees a collapsed empty-line double-click without adjacent word selection or source mutation");
     }
     const std::wstring table = L"| a | b | c |\n| - | - | - |\n| value |\n";
     fixture.editor->SetText(table);
@@ -723,6 +729,8 @@ void SourceCaretSitesClient(bool embedded)
     const auto point = D2D1::Point2F(viewport->left + (viewport->right - viewport->left) * .8f, rectangles->front().top + 5.0f);
     Require(fixture.editor->OnMouseDown(*fixture.controls, point, false, 0u), "choose last padded UIA cell");
     static_cast<void>(fixture.editor->OnMouseUp(*fixture.controls, point, false, 0u));
+    fixture.Publish();
+    Require(fixture.editor->OnMouseDoubleClick(*fixture.controls, point, false, 0u), "double-click last padded UIA cell");
     fixture.Publish();
     Require(client.DocumentText(editor) == table && client.TextCaretPosition(editor) == table.rfind(L'\n') &&
                 client.TextPositionFromPoint(editor, screenPoint(point)) == table.rfind(L'\n') && ! fixture.editor->CanUndo(),

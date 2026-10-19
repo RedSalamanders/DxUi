@@ -1257,7 +1257,17 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
             return false;
         const auto source      = HitSource(host, point);
         const auto& projection = _state->layout;
-        size_t caret           = projection.ToDisplay(source);
+        if (const auto* geometry = projection.SemanticGeometry(); geometry && geometry->IsEmptySourceSite(source, _state->sourceCaretSite))
+        {
+            // This line/cell has a source insertion site but no owned word.
+            // Display-only lookup would select a neighboring paragraph or cell.
+            // Keep the clicked affinity even when several cells share one ACP.
+            _state->dragging = false;
+            _state->document.SetSelection({source, source});
+            SelectionChanged();
+            return true;
+        }
+        size_t caret = projection.ToDisplay(source);
         std::optional<size_t> anchor;
         SelectSingleLineWordAt(projection.DisplayText(), caret, caret, anchor);
         _state->dragging = false;

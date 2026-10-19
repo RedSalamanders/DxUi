@@ -854,7 +854,10 @@ M4d.2 source caret geometry distinguishes empty/trailing/container-only lines an
 empty/padded cells without adding source characters. TextPattern2, TSF selections
 and RangeFromPoint continue to expose exact raw UTF-16 ACPs. Native visual site
 affinity disambiguates equal-ACP cells for painting and text-service caret bounds;
-an unchanged source/selection synchronization retains it. Explicit source
+an unchanged source/selection synchronization retains it. Double-clicking a
+caret-only semantic site keeps a collapsed raw selection and the clicked cell
+affinity instead of selecting a neighboring paragraph/cell word. It inserts no
+source and creates no history entry. Explicit source
 selection or source/mode/profile replacement clears it. Caret-only boxes do not
 give hidden/generated source ranges selection rectangles. Empty physical-line
 deletion respects raw Unicode graphemes and CRLF; empty cell scaffolding owns no

@@ -142,6 +142,7 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
         geometry.SourceCaret(0u);
         const auto sourceHit = geometry.HitTestSource(4.0f, 4.0f);
         geometry.StepSource(sourceHit.position, sourceHit.site, true);
+        geometry.StepSource(sourceHit.position, sourceHit.site, false);
         geometry.SourceLineBoundary(sourceHit.position, sourceHit.site, true);
         geometry.VisibleSourceRange(0.0f, geometry.Height());
         for (const auto& line : candidate->Syntax()->EmptyLines())

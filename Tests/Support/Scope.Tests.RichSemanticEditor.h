@@ -118,6 +118,9 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
         Check(caret && caret->top > previousY && caret->bottom > caret->top, "native/embedded source caret sites have distinct text-service bounds");
         const auto hit = editor->TryHitTestTextInputPoint(host, D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f));
         Check(hit && *hit == line.insertion, "native/embedded empty caret bounds and text-service hit testing agree in raw ACPs");
+        Check(editor->OnMouseDoubleClick(host, D2D1::Point2F(caret->left, (caret->top + caret->bottom) * .5f), false, 0u) &&
+                  editor->GetSelection() == Selection{line.insertion, line.insertion},
+              "native/embedded double-click on a caret-only source line never selects a neighboring word");
         previousY = caret->top;
     }
     Check(editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
@@ -155,6 +158,11 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     Check(editor->OnKeyDown(host, VK_HOME, 0u) && editor->OnKeyDown(host, VK_END, 0u), "padded-cell Home and End are handled");
     const auto stillSecond = editor->TryGetTextInputCaretRect(host, anchor);
     Check(stillSecond && std::abs(stillSecond->left - second->left) < .1f, "padded-cell Home/End keep visual affinity");
+    Check(editor->OnMouseDoubleClick(host, D2D1::Point2F(second->left + 1.0f, (second->top + second->bottom) * .5f), false, 0u) &&
+              editor->GetSelection() == Selection{anchor, anchor},
+          "native/embedded empty-cell double-click remains collapsed at the real raw row-end ACP");
+    const auto doubleClicked = editor->TryGetTextInputCaretRect(host, anchor);
+    Check(doubleClicked && std::abs(doubleClicked->left - second->left) < .1f, "empty-cell double-click preserves equal-ACP visual affinity");
     TextInputState input;
     Check(editor->ExportTextInputState(input) && input.text == table && input.caretIndex == anchor,
           "source text-service export contains exact text and the real padded-cell ACP without requiring OS focus");
