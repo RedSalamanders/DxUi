@@ -5,6 +5,10 @@ Owner: DxUi. Shared qualification is owned by
 The structured [evidence](evidence.json) binds the source, images, receipts and validation stages.
 Raw logs, desktop records and build images remain private under `Z:/DxUiTsf`.
 
+The separate [19 October post-merge observation](../2026-10-19-pr87-postmerge/README.md) records later
+native execution at the exact merged source, including ARM64. This packet keeps its original local identities,
+failed probe and uncertainty; the later pass closes none of the 20 shared qualification HOLDs.
+
 ## Failure and demonstrated boundary defect
 
 [PR #87 ARM64 Release](https://github.com/RedSalamanders/DxUi/actions/runs/39160627044/job/117773034720),

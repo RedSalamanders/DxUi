@@ -700,6 +700,42 @@ MultilineGrid memory uncertainty and retention limitations remain. All deadlines
 allocation ceilings and `qualified=false` policy are unchanged. This harness slice changes no library API,
 consumer adapter or control pixels; documentation/gallery review requires no visual regeneration.
 
+### PR #87 post-merge observation (19 October 2026)
+
+[PR #87](https://github.com/RedSalamanders/DxUi/pull/87) merged as
+`5da68bcec49c0df2c9158ede168779ebf9737a52` under the user's explicit implementation-only exception.
+The [post-merge run 39187090924](https://github.com/RedSalamanders/DxUi/actions/runs/39187090924)
+passes all six native jobs, eight enabled public-consumer checks, validation, Windows tooling, formatting,
+native scope and `ci-gate`; the separate formatting workflow also passes. The
+[reviewed post-merge summary](../../../Measurements/TextInput/2026-10-19-pr87-postmerge/README.md)
+binds that exact source to 126 core suite receipts plus two x64 Release characterization receipts,
+all successful with zero skips. Every profile completes Menu 113/113 and NativeTextInput 169/169.
+
+Retained traces verify the corrected reconciliation boundary on native ARM64: one text/one layout notification
+for the current turn, a separate later geometry/layout notification and an inert duplicate dispatch, with stable
+session/activation identity. The whole-queue counterfactual still exposes the old count predicate. These passes
+do not reconstruct the original ARM64 failure's missing counts or attribute its precise event ordering.
+
+ARM64 Debug, Release and ASan Debug retain `focus=none`, `focusCapture.Reason=foreground-minimized` and query error 0.
+These are three shared Full leases, not six independent Menu/NativeTextInput snapshots. The initial foreground
+was minimized before confirmation and either child; no initial keyboard focus was saved, and the no-saved-focus
+path returns `none` without attempting focus restoration. This is neither a child focus failure nor a restoration
+timeout. Native functional execution passes, while ARM64 focus restoration remains unverified.
+
+Next, retain the source-specific captures and obtain separately approved ordinary-host/native ARM64 evidence
+with a visible foreground and recorded initial keyboard focus, then verify restoration. Keep missing initial
+focus separate from child focus behavior; preserve capture/refusal checks, deadlines and attempt bounds.
+No new activation retries or longer waits are authorized by this evidence update.
+
+The push skips paired measurement by design. The final PR paired run remains inconclusive with
+`policy-review-required`/`qualified=false`, and its aggregate failed on that result. The authorized implementation-only
+merge and green push CI establish no accepted paired non-regression. All 20 qualification HOLDs remain open,
+with all deadlines, thresholds, exact budgets, allocation ceilings and policy unchanged. Earlier performance flags,
+MultilineGrid memory uncertainty, failed/refused/cancelled receipts, historical attribution gaps and retention
+limits remain. Native ARM64 opt-in resources, physical input/device removal, real IME/AT/touch and consumer
+pins/product acceptance remain separate obligations. This documentation-only update changes no pixels or examples;
+gallery regeneration is unnecessary.
+
 ### PR #87 staged TSF notification follow-up (18 October 2026)
 
 PR #87 run `39160627044`, at `ee63697c6c91a139aded97daa95a2335181d3dcc`, passes five Full native
@@ -734,14 +770,15 @@ validation reports unrelated local measurement metadata/path errors and a malfor
 the fragment is fixed and all five validators pass in the isolated candidate. The failed log remains retained.
 The single retained Release comparison is within the unchanged noise bands with zero new flags; it is unpaired
 and clears none of the earlier flags. Full Menu/resource receipts remain attached to their earlier source/images;
-this follow-up leaves new-head hosted Full validation and native ARM64 execution pending. No exact assertion, deadline, threshold, attempt bound,
+at that local evidence cutoff, new-head hosted Full validation and native ARM64 execution were pending;
+the exact merged-source observation above records their later results. No exact assertion, deadline, threshold, attempt bound,
 budget or policy is relaxed, and all 20 qualification gates remain open throughout this investigation.
 
 ARM64 Debug and Release receipts now identify `focusCapture.Reason=foreground-minimized`, with query error 0.
 That describes the unavailable initial focus in those captures; neither lease verifies focus restoration.
 This test-only repair changes no production library/API, consumer adapter or control pixels; the documentation/gallery
-review requires no visual regeneration. A fresh native ARM64 Release run must retain the bounded counts and session
-identity before treating the corrected predicate as observed on that platform. Earlier failures, performance flags,
+review requires no visual regeneration. The post-merge observation above retains bounded native ARM64 Release
+counts and session identity at the exact merged source. Earlier failures, performance flags,
 MultilineGrid memory uncertainty and retention limits remain attached to their original evidence.
 
 ### PR #84 hover-switch follow-up (18 October 2026)

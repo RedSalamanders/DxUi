@@ -1,9 +1,15 @@
 # Independent DxUi measurements
 
+- [PR #87 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr87-postmerge/README.md):
+  six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact
+  merge commit. Native ARM64 TSF traces pass; focus restoration remains unverified in three shared leases.
+  Push skips paired measurement; all 20 qualification HOLDs, deadlines and thresholds remain unchanged.
+
 - [Staged TSF reconciliation boundary, 2026-10-18](TextInput/2026-10-18-staged-reconciliation/README.md):
   bounded notification/session diagnostics and a queued-geometry counterfactual distinguish one reconciliation
   turn from a whole queue drain. The historical ARM64 ordering and failed probe cursor restoration remain
-  unattributed; native runtime, trusted performance and all shared qualification gates stay open.
+  unattributed. The separate post-merge packet above records later native functional execution;
+  focus restoration, trusted performance and all 20 shared qualification HOLDs stay open.
 
 - [ASan foreground setup, 2026-10-18](TextInput/2026-10-18-asan-setup/README.md):
   creation-before-activation, strict sent-callback readiness, actual thread-exit cleanup and bounded diagnostics;
