@@ -1,6 +1,74 @@
 #pragma once
 #include "../Support/Scope.Tests.RichSemanticGeometry.h"
 
+static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool trace = false)
+{
+    using namespace DxUi;
+    const std::wstring source = L"**alpha**\r\n[link](local) &amp; ![alt](image)\r\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "query failure borrowed graphics");
+    for (const bool semantic : {false, true})
+    {
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "query failure embedded owner");
+        auto root    = std::make_unique<RichTextEditor>(source);
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(semantic);
+        view.Controls().SetRoot(std::move(root));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "query failure current geometry");
+        const auto revision   = editor->Revision();
+        const auto generation = editor->DebugGetState().layoutGeneration;
+        for (unsigned operation = 0u; operation != 2u; ++operation)
+        {
+            const auto query = [&]
+            {
+                return operation == 0u ? editor->TryGetTextInputRangeRects(view.Controls(), 0u, source.size()).has_value()
+                                       : editor->GetSourceVisualLineRanges(view.Controls()).has_value();
+            };
+            Check(query(), "query failure fixture starts with available glyph/line geometry");
+            size_t requests = 0u;
+            {
+                const auto oldCounting = countAllocations;
+                const auto oldCalls = allocations, oldBytes = allocationBytes;
+                const auto restore = wil::scope_exit([=] noexcept
+                {
+                    countAllocations = oldCounting;
+                    allocations      = oldCalls;
+                    allocationBytes  = oldBytes;
+                });
+                allocations = allocationBytes = 0u;
+                countAllocations              = true;
+                const bool available          = query();
+                countAllocations              = false;
+                requests                      = allocations;
+                Check(available && requests > 0u && requests < 256u, "query allocation schedule is finite and independently observed");
+            }
+            for (size_t point = 0u; point < requests; ++point)
+            {
+                if (trace)
+                {
+                    std::fprintf(
+                        stderr, "semantic query engine=%u operation=%u allocation failure point=%zu of %zu\n", semantic ? 1u : 0u, operation, point, requests);
+                    std::fflush(stderr);
+                }
+                bool available = false;
+                {
+                    const auto previous = failAllocationAfter;
+                    const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                    failAllocationAfter = point;
+                    available           = query();
+                }
+                Check(! available && editor->Revision() == revision && editor->DebugGetState().layoutReady &&
+                          editor->DebugGetState().layoutGeneration == generation && editor->GetText() == source && ! editor->CanUndo(),
+                      "each text-service query allocation failure reports unavailable without source/history/geometry mutation");
+                Check(query(), "text-service geometry query succeeds after every injected failure");
+            }
+            std::cout << "rich semantic query engine=" << semantic << " operation=" << operation << " sweptRequests=" << requests << '\n';
+        }
+    }
+}
+
 static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
 {
     using namespace DxUi::RichText;

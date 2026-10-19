@@ -1178,7 +1178,7 @@ __declspec(noinline) static int RunFunctionalTests()
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1215,6 +1215,12 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichFlatProjectionFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures")
             TestRichSemanticGeometryFailureBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "query failure isolated borrowed WARP device");
+            TestRichSemanticEditorQueryFailureBudgets(gpu, true);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
@@ -1398,6 +1404,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
+    RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
     {
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;

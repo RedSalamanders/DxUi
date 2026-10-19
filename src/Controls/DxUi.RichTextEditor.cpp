@@ -536,7 +536,7 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
         if (const auto* semantic = projection.SemanticGeometry())
         {
             const auto lines = semantic->SourceLines();
-            return std::vector<std::pair<size_t, size_t>>(lines.begin(), lines.end());
+            return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, lines.begin(), lines.end());
         }
         size_t displayStart = 0;
         size_t sourceStart  = 0;
@@ -558,7 +558,7 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
             sourceStart  = sourceEnd;
             displayStart = displayEnd;
         } while (true);
-        return ranges;
+        return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, ranges);
     }
     catch (const std::exception&)
     {
@@ -681,7 +681,9 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
         }
         // Service transport needs the raw extents to report clipping truthfully.
         // UIA clips these separately and keeps hidden delimiters pixel-empty.
-        return rectangles;
+        // Construct the contained vector fallibly in place. Converting a vector
+        // temporary into optional would invoke MSVC Debug's noexcept move.
+        return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rectangles);
     }
     catch (const std::exception&)
     {

@@ -1975,3 +1975,13 @@ noexcept Debug vector move when NRVO was omitted. The next repair uses an explic
 fallible copy/prvalue return and adds an isolated semantic-geometry fault probe
 with bounded stack reporting and per-failure-point tracing. Run that focused probe
 before restarting the profile matrix; do not promote either failed candidate.
+
+The `84df13e8c1a04d3e77c6f5cb749ee760849faf59` range repair passed its isolated
+Debug geometry probe: all 293 observed allocation failures preserve publication
+and allow explicit retry; coalescing/scalar queries/retirement allocate zero.
+The exact executable, PDB, library, trace and hashes are retained in M4dRangeProbe.
+This is focused evidence, not full qualification. Inspection then extended the
+same rule to retained optional-vector line/rectangle results, constructed with
+in_place to avoid another nested noexcept move. Added v0 and semantic query fault
+sweeps verify unavailable geometry, unchanged source/history/publication and
+successful retry for each observed allocation, with an isolated trace option.
