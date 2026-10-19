@@ -1776,7 +1776,7 @@ cannot close D4c.
   - [x] M4d.1: Bounded native paragraph/table geometry and retained opt-in preview,
     mapped glyph fragments, source fallback, token navigation/deletion and current
     component qualification. Full M4d remains open for the next substeps.
-  - [ ] M4d.2: Distinct source caret sites for empty/trailing/container-only lines
+  - [x] M4d.2: Distinct source caret sites for empty/trailing/container-only lines
     and padded cells, preserving exact source TSF/selection/history semantics.
     - [x] Implement parser-owned empty-line source trivia and native caret boxes,
       keeping generated/hidden syntax pixel-empty for source range queries.
@@ -1784,7 +1784,7 @@ cannot close D4c.
       cells; route pointer, keyboard, scrolling and text-service caret geometry.
     - [x] Add directed shared native/embedded and real UIA client tests, exact
       Unicode preview/cancel/commit/history and raw CRLF deletion scenarios.
-    - [ ] Execute focused tests/fault probes, fix failures, qualify required
+    - [x] Execute focused tests/fault probes, fix failures, qualify required
       profiles/resources, review gallery and record evidence before closeout.
   - [ ] M4d.3: Hanging marker indentation, link presentation and the explicitly
     validated native HTML subset with source-preserving literal fallback.
@@ -2058,3 +2058,138 @@ M4e structural commands, M4f semantic/style accessibility and M4g overall
 qualification remain open, as do M5/M6 and physical/platform/consumer gates.
 No foreground suites or native ARM64 runtime were run. Canonical timings remain
 unpaired diagnostics; D4c stays HOLD without a causal acceptance claim.
+
+### M4d.2 source caret implementation and qualification, 2026-10-19
+
+Parser-owned empty-line trivia records the physical source extent, insertion
+before its original EOL, container owner and indentation. Native preparation
+merges that metadata with semantic paragraphs and cells in physical source order.
+A separate glyph-box index preserves display-order queries when a generated
+marker's display anchor crosses an empty source line. Empty list markers reuse
+their existing paragraph; empty documents, hidden-only documents and final EOLs
+receive appropriate native caret geometry without generated source text.
+
+Empty and padded cells retain distinct visual sites even at the same raw UTF-16
+ACP. Padded-cell insertion is before the row EOL; M3's lossless syntax extent is
+unchanged. A private site index routes pointer/double-click, arrows, Home/End,
+vertical movement, caret scrolling and text-service geometry. It survives
+same-source reflow/hide/device retirement and resets on source/selection changes.
+The index never enters Document, history, TSF or UIA source coordinates. Empty
+physical-line deletion uses raw Unicode/CRLF boundaries; cell scaffold deletion
+is a no-op until M4e can serialize a structural edit. Typing still makes an exact
+raw source edit; this step does not materialize missing table delimiters or
+invent formatted/fenced-block contents.
+
+Source line ranges partition physical EOLs without phantom EOL-only units.
+Generated/hidden syntax contributes no selection glyphs. Interior positions in
+decoded entities/image alternatives retain atomic directional navigation.
+Geometry preflight counts the complete merged plan before SDK allocation and
+falls back to the existing source renderer beyond 4,096 native boxes without an
+idle retry loop. Parser admission reserves its physical-line upper bound once,
+preserving the existing 24 MiB retained / 32 MiB replacement-peak C++ limits.
+These are coordinated source APIs (revision 4), with no consumer pin update.
+
+Shared pure/control scenarios cover mixed CR/LF/CRLF, spaces, nested containers,
+trailing and empty documents, definition/code/heading/list sources, equal-ACP
+padded cells, RTL, wrapping/reflow, cancellation, source/display mode and stale
+geometry. Native and embedded fixtures test keyboard/pointer/double-click,
+transport affinity, composition preview/cancel/commit, one undo/redo, CRLF
+deletion and read-only/disabled behavior. Actual UIA TextPattern clients in both
+hosts verify complete raw source, caret, selection and RangeFromPoint. Caret
+placement alone makes no source revision/history entry. Physical OS IME and
+assistive-technology sessions remain separate gates.
+
+Preserved failures explain the final design: initial `c8292120` put an EOF caret
+between padded cells and their row; `56b6034a` corrected row ordering but exposed
+the unchanged parser replacement-peak ceiling. `0fa99cd9` reserved line capacity
+and corrected generated-prefix direction; its inactive-native-session fixture
+was replaced by the existing protected export/import testing convention.
+`d229c7a2` corrected phantom source EOL units; `188b2633` restored Left from
+interior transformed/object source positions. A separate borrowed-WARP public
+API diagnostic then proved that empty-line double-click selected the next word;
+`f7802f2b` collapses at the clicked raw insertion and retains cell affinity.
+Each correction has directed regressions. Failed/interrupted builds, identity
+refusals, logs, binary/PDB/library/DLL archives, source-point diagnostics and
+uncompleted matrix receipts remain under their original private directories;
+they are not substituted for final-source qualification.
+
+Implementation commit `f7802f2bf1fcd923757de9176ab574c3ae418021` passed the frozen
+six-job component matrix. Complete EditorControls, Embedded and Accessibility
+passed in x64 Debug, Release and ASan Debug: nine ordinary scope/profile runs,
+zero capability skips. ASan's isolated detection probe passed. All three ARM64
+builds passed; these are cross-compilation results, not native execution. The
+independent audit verifies all 76 archived artifact hashes and the nine scope
+receipt/executable bindings, including both real UIA source-caret clients in
+every x64 profile. No implementation/test input changed between those jobs.
+
+Private evidence root:
+`.build/reports/rich-semantic-m4d2-20261019`. `Qualificationf7802f2b` retains the
+source-guarded driver receipt, raw scope logs/receipts, actual executable/PDB/
+library/runtime DLLs, diagnostics and SHA-256 manifests. The independent
+`runtime-artifact-audit.json` checks nine executable receipt hashes, directed
+native/real-client completions and the ASan detection artifact. `probe-geometry`
+and `probe-query` logs preserve the isolated Debug fault sweeps. Earlier source
+archives are explicitly historical and are never reused as current results.
+
+The ordinary Release embedded suite handles all 191 observed semantic geometry
+allocation failures and 21 retained query failures (v0 rectangles/lines 6/4,
+semantic 10/1). Debug and ASan each handle 514 geometry and 41 query failures
+(12/6 and 20/3). The semantic document sweeps cover 198 failures plus five pending
+begin allocations in Release, and 514 plus 15 in Debug/ASan. Parser sweeps cover
+274 plus 12 in Release, and 773 plus 34 in Debug/ASan. Current maximum parser
+retention/replacement peaks are 14,550,932 / 31,560,707 bytes in Release and
+14,551,132 / 31,561,451 in Debug/ASan, below unchanged limits; each returns to its
+initial tracked C++ allocation total after release. Source/geometry scalar
+queries, idle/retirement and 1,000
+warm composites allocate zero tracked C++ storage. These are bounded C++
+observations, excluding SDK/driver/GPU/process memory and all-input latency.
+
+Full five-validator/tooling validation and pinned clang-format 22.1.3 pass on
+the frozen implementation. Fresh spec/dependency/skill checks pass for closeout.
+The initial packet-format validation rejected raw JSON envelopes as canonical
+benchmark records. Preserve `metadata-specs.log`; the corrected packet uses the
+existing byte-preserving `.receipt.txt` convention without validator changes.
+The subsequent dependency check caught two overlong comparison paths; profile
+Default receipt aliases now fit the unchanged 150-character consumer limit.
+Keep `metadata-dependencies-final.log` and the corrected passing checks.
+Its verifier passes all 56 packet-file hashes and recorded source/scope/capture
+bindings; it replays evidence without rerunning native suites or rehashing
+private binaries absent from the packet.
+`gallery.ps1 -PublishDocs` regenerated five themed sheets and the generic embedded
+example from the clean qualified Release source. The enlarged RichTextEditor
+tile was reviewed in all five themes for source-line spacing, resolved styles,
+Unicode table alignment and quote viewport fit; the published component pixel
+regions exactly match the reviewed private captures. The generic embedded image
+is not semantic-rich-text evidence. `DxUi.EmbeddedControls.exe --rich-text` now
+opens the current branch's Unicode semantic preview through the existing device,
+host loop and text-service bridge. Its deterministic `--output` path produced
+the actual 980 x 720 sample capture; the source/executable/image hashes match.
+No consumer pin was changed.
+
+The [reviewed source-caret packet](../../../Measurements/RichText/2026-10-19-source-caret-sites/README.md)
+publishes final raw receipts/logs, private artifact hashes, isolated failure traces,
+sample capture/provenance and the warning below. Original binaries and the full
+failed/interrupted history remain in the private report directory.
+
+The retained Release Default baseline/candidate comparison completed its native
+measurement but exited 1 with `advice-required`: clean frame p95 rose from
+0.470 to 0.518 ms (+10.21%, above the unchanged 5% diagnostic band). Clean
+preparation p95 remained 0.0003 ms, composition CPU p95 0.0119 ms and composition
+allocations zero; dirty frame p95 was 1.7899 to 1.7947 ms (+0.27%). These are
+single before/after observations of completed WARP frames with clear/blocking
+readback. They establish neither causality nor performance acceptance. Keep the
+baseline, candidate, comparison and exit record; do not rebaseline or replace
+the warning with a passing repeat. D4c remains HOLD. A future acceptance change
+requires the separately controlled paired/scheduler investigation and developer
+advice if degradation is confirmed, with measured optimization, optional-scope
+reduction or deferral/revert choices.
+
+This closes M4d.2 only. Continue with M4d.3 hanging marker indentation, link
+presentation and the explicitly validated native HTML subset. M4e still owns
+structural commands and empty/padded-cell materialization; M4f must publish
+semantic/style accessibility while retaining raw source coordinates, including
+pre-EOL padded-cell caret bounds distinct from the syntax node's extent. M4g,
+M5/M6, physical IME/AT/foreground, native ARM64 runtime, consumer adoption and
+performance acceptance remain open. No foreground suites or consumer pin changes
+were made. D4c remains HOLD; diagnostic timings cannot establish causality or
+close the separate acceptance gate.

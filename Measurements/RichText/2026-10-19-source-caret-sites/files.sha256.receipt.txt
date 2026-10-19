@@ -1,0 +1,282 @@
+[
+  {
+    "path": "capture.log",
+    "sha256": "80E26F3FDA1B69BB057AA230FD8EB64070A5409FA3D8B2247C2BD2BC433F24B2",
+    "bytes": 158
+  },
+  {
+    "path": "capture.receipt.txt",
+    "sha256": "F97A0049CED7F1DB4537A2317A86FBCE3861D62A5097D3FCFED26369F0B499C3",
+    "bytes": 484
+  },
+  {
+    "path": "rich-text-preview.png",
+    "sha256": "AAA5C2922735086A356352C53E7061B4474BE56D459D22681F9AD9FFC843E03A",
+    "bytes": 43268
+  },
+  {
+    "path": "Verify.ps1",
+    "sha256": "111224CCF95A68F8A961BCBF02C83A52D5F158A41C1028B1F4FE1BE65567FE99",
+    "bytes": 4178
+  },
+  {
+    "path": "Raw/format-f7802f2b.log",
+    "sha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812",
+    "bytes": 40
+  },
+  {
+    "path": "Raw/probe-geometry-Debug-f7802f2b.log",
+    "sha256": "8686EE711CC2D73DC3935838B77E66C43BFADDB77F90DAEFC4C976767A5F4EBC",
+    "bytes": 28230
+  },
+  {
+    "path": "Raw/probe-query-Debug-f7802f2b.log",
+    "sha256": "8A4B636AC3A3AFBB18F9B8A76728E72A6DB987B50D4538FF394C159E94CCF873",
+    "bytes": 3107
+  },
+  {
+    "path": "Raw/published-gallery-tile-audit.receipt.txt",
+    "sha256": "7259FECB6AB8146AD966CD952B3EF56C2A0FECFE7FE8043B197E580F293F4665",
+    "bytes": 1794
+  },
+  {
+    "path": "Raw/runs.receipt.txt",
+    "sha256": "A4EFFD58CD0369D8ABCA2744ED0E23EEF49186E6FD95DACE63E7DF38220E46D4",
+    "bytes": 1844
+  },
+  {
+    "path": "Raw/runtime-artifact-audit.receipt.txt",
+    "sha256": "1010BD841B697FAB544D2A2A20369CC2581A279E14D4D6498B83A5FD60C6E8AF",
+    "bytes": 396
+  },
+  {
+    "path": "Raw/validation-f7802f2b.log",
+    "sha256": "2EAE179E58CF57F7441CEFD61F3164C84EA719734EB016439119FF9218826C88",
+    "bytes": 44461
+  },
+  {
+    "path": "Raw/ARM64-ASanDebug/artifacts.sha256.receipt.txt",
+    "sha256": "E8B995F151FD02F27C219E3A693926B23BB8D38DA85D2FC029311035C7A1DFC4",
+    "bytes": 2332
+  },
+  {
+    "path": "Raw/ARM64-ASanDebug/driver.log",
+    "sha256": "223B26E5333AB43E4F81A8EF2F0E91B0471CE9355AE5A327FEF513A92DA45166",
+    "bytes": 5941
+  },
+  {
+    "path": "Raw/ARM64-Debug/artifacts.sha256.receipt.txt",
+    "sha256": "8D74C55853FE99A31987A905CDB724D1504DA6465C6EF28DB89CD13993C5F679",
+    "bytes": 2029
+  },
+  {
+    "path": "Raw/ARM64-Debug/driver.log",
+    "sha256": "7C755AF1DC509B2531E50328BB61D21D57C3C3B24F371D0CE556527AFA52ECA1",
+    "bytes": 5881
+  },
+  {
+    "path": "Raw/ARM64-Release/artifacts.sha256.receipt.txt",
+    "sha256": "78FE1A354E2462AAA31E011DF771E532CE890DCA26AD4B50169B7DF9353AED29",
+    "bytes": 2045
+  },
+  {
+    "path": "Raw/ARM64-Release/driver.log",
+    "sha256": "F61F19BD164711EEEE1E80518B5DA07F077E2DBE5BC44CB2FC3E6F1A75917C8D",
+    "bytes": 5905
+  },
+  {
+    "path": "Raw/Diagnostic/baseline-Default.json.comparison.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "Raw/Diagnostic/baseline-Default.receipt.txt",
+    "sha256": "535A4334FA27B52B759616C9793D6CACE4D8579BE825A84BC50019763BF2E97F",
+    "bytes": 38474
+  },
+  {
+    "path": "Raw/Diagnostic/baseline-performance.log",
+    "sha256": "354CC2312D8BADBE0710611FE586B65CA61CC03CE3BE7786CAC7F1C8CF694930",
+    "bytes": 1139
+  },
+  {
+    "path": "Raw/Diagnostic/candidate-Default.json.comparison.receipt.txt",
+    "sha256": "11CAF29E92402BD695A603793C423C5660F7F7B62AF0A7F9FF831C7F7297A9D6",
+    "bytes": 5758
+  },
+  {
+    "path": "Raw/Diagnostic/candidate-Default.receipt.txt",
+    "sha256": "1EA805B18FFD54673C3E18DFD7BD5BE457C7C69DCF934493BFC3E713501DE95D",
+    "bytes": 38456
+  },
+  {
+    "path": "Raw/Diagnostic/candidate-performance.exit.receipt.txt",
+    "sha256": "B7FF816BAB87B139AF885D2DC2ACCCAAEFB819DDA238E25857C8DDEAAD3DB72E",
+    "bytes": 344
+  },
+  {
+    "path": "Raw/Diagnostic/candidate-performance.log",
+    "sha256": "CCC80727342A3ABB62F4427B77D894953B5C2A3E54383AEC103DAE22846D7672",
+    "bytes": 1311
+  },
+  {
+    "path": "Raw/x64-ASanDebug/Accessibility-x64-ASan Debug.receipt.txt",
+    "sha256": "F1FF7629595BD9F4787FBFDDE4F6B38F75D94E24DCF84D9BC69F31CE027DFE53",
+    "bytes": 35558
+  },
+  {
+    "path": "Raw/x64-ASanDebug/AddressSanitizer-x64.receipt.txt",
+    "sha256": "ED6F85EEDEDCC07B7A669126C63AD66B8CF04180B2F37065B0225AB4D61E5ADC",
+    "bytes": 511
+  },
+  {
+    "path": "Raw/x64-ASanDebug/artifacts.sha256.receipt.txt",
+    "sha256": "7F2B847DEDE06A35CEE0EFDCF14A6FF26C56C9365CFC71455A4F842EB125BB21",
+    "bytes": 5073
+  },
+  {
+    "path": "Raw/x64-ASanDebug/Default.comparison.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "Raw/x64-ASanDebug/Default.receipt.txt",
+    "sha256": "CACF66CFDC57321E81515AEF8A810B61A69F3F11B4666A52AC80A4F2DDE816A0",
+    "bytes": 38579
+  },
+  {
+    "path": "Raw/x64-ASanDebug/driver.log",
+    "sha256": "D2ECF05A6DC76388EB1607DE89281A47A58D8187FE7CC39D17454B4BDF34E7C8",
+    "bytes": 8852
+  },
+  {
+    "path": "Raw/x64-ASanDebug/EditorControls-x64-ASan Debug.receipt.txt",
+    "sha256": "DC714A8CC5B358C84344C86602878D9004C5E112811FDBA1D013EDE520DDB56C",
+    "bytes": 35559
+  },
+  {
+    "path": "Raw/x64-ASanDebug/Embedded-x64-ASan Debug.receipt.txt",
+    "sha256": "5606C6CBAD313A620F4B0851714C6F7B7057CE6BEFE64629D87EDBC6E25B4BB6",
+    "bytes": 35554
+  },
+  {
+    "path": "Raw/x64-ASanDebug/test-Accessibility-x64-ASan Debug.log",
+    "sha256": "3D9CC5B3A2B6B3E47D35F74A9B2EA600A48059525FC426D4CDB90B997A66875E",
+    "bytes": 105030
+  },
+  {
+    "path": "Raw/x64-ASanDebug/test-AddressSanitizer-x64.log",
+    "sha256": "5AEEDB41465CE7A51240E90F90FF615322C5AF2B06F7A46F31B086E805B01457",
+    "bytes": 5832
+  },
+  {
+    "path": "Raw/x64-ASanDebug/test-EditorControls-x64-ASan Debug.log",
+    "sha256": "1A89479A10D7CB1B4697B41A9D1D7AA38567A7A75FCDA94EC35A58B260B496B1",
+    "bytes": 35031
+  },
+  {
+    "path": "Raw/x64-ASanDebug/test-Embedded-x64-ASan Debug.log",
+    "sha256": "A7105CCAE8379E688E5588937525D9030255A5B950873808A2FFF1966D314FD8",
+    "bytes": 8593
+  },
+  {
+    "path": "Raw/x64-Debug/Accessibility-x64-Debug.receipt.txt",
+    "sha256": "41128685092AD0CE51B7CBEF2E3804A56D538BB344996CE06B211BBA9426D8F3",
+    "bytes": 35465
+  },
+  {
+    "path": "Raw/x64-Debug/artifacts.sha256.receipt.txt",
+    "sha256": "8A0D10E04FC6A31B196E746FAA735405FA75A04D402F677625CA4E9C3695202A",
+    "bytes": 4175
+  },
+  {
+    "path": "Raw/x64-Debug/Default.comparison.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "Raw/x64-Debug/Default.receipt.txt",
+    "sha256": "4371B6A0F357CF4EC17075D9C63050F885DF6901338F5D4FAFD8010862C45626",
+    "bytes": 38488
+  },
+  {
+    "path": "Raw/x64-Debug/driver.log",
+    "sha256": "0B76C35134C1D2BBECDDE0341077511A66CE2F93815D127D6F09DCA60559D44A",
+    "bytes": 2833
+  },
+  {
+    "path": "Raw/x64-Debug/EditorControls-x64-Debug.receipt.txt",
+    "sha256": "CDBADA0BDEDC34402436B787C804B888BA54CE769A8F969B481AC900C6D49159",
+    "bytes": 35466
+  },
+  {
+    "path": "Raw/x64-Debug/Embedded-x64-Debug.receipt.txt",
+    "sha256": "C9653191ED4A1A135DDE52B1E5A51FA4636E61CFEDCFC2B329DF121D009395DD",
+    "bytes": 35461
+  },
+  {
+    "path": "Raw/x64-Debug/test-Accessibility-x64-Debug.log",
+    "sha256": "AE813D452210F25D5DDB0557CEEFA98CFA07BB260E21354799BD8F3B2573C697",
+    "bytes": 104997
+  },
+  {
+    "path": "Raw/x64-Debug/test-EditorControls-x64-Debug.log",
+    "sha256": "01BDFE2208E55A5E5F01E4EF5EC5C50ED702F1C4990685DF62BC9445CC390080",
+    "bytes": 35029
+  },
+  {
+    "path": "Raw/x64-Debug/test-Embedded-x64-Debug.log",
+    "sha256": "73ECDDB1DAF489A399A8A2A6A83A6074DB92A3AA841030481D05AC72B9D82119",
+    "bytes": 8592
+  },
+  {
+    "path": "Raw/x64-Release/Accessibility-x64-Release.receipt.txt",
+    "sha256": "F6AED36CDABA8218630D9BFB42A1FBB16926A99359A4F191D66D920D3260A421",
+    "bytes": 35451
+  },
+  {
+    "path": "Raw/x64-Release/artifacts.sha256.receipt.txt",
+    "sha256": "C5695F43A02BC977F661B790BBD4F5304C587C43CC3DA50098FD76B3D97D6054",
+    "bytes": 4223
+  },
+  {
+    "path": "Raw/x64-Release/Default.comparison.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "Raw/x64-Release/Default.receipt.txt",
+    "sha256": "9CAC5BE604912FCEE3BD09ECB9A0263BEDF43A1B2AB4047C33D96529D76F22D8",
+    "bytes": 38467
+  },
+  {
+    "path": "Raw/x64-Release/driver.log",
+    "sha256": "53917DE077F12B5993DC8E87799C035E7BCA923A48080227B3253C2D9A312C51",
+    "bytes": 8721
+  },
+  {
+    "path": "Raw/x64-Release/EditorControls-x64-Release.receipt.txt",
+    "sha256": "929856E500E5D7E496A87F342E5190C98868C37D70ED8705F819A91CB4A2955D",
+    "bytes": 35452
+  },
+  {
+    "path": "Raw/x64-Release/Embedded-x64-Release.receipt.txt",
+    "sha256": "DCB920AE27B80683E3288B0890DE3FE60BE91BF0F9F63D171D63DCB9CD9C26CF",
+    "bytes": 35447
+  },
+  {
+    "path": "Raw/x64-Release/test-Accessibility-x64-Release.log",
+    "sha256": "24EBD961DAAAE3B30E324A6B9133FE83220E46BBAB7827CD4E2A3B2938F753B1",
+    "bytes": 104970
+  },
+  {
+    "path": "Raw/x64-Release/test-EditorControls-x64-Release.log",
+    "sha256": "186DF43511291FC6579B2987FFE39EAFB5B8BFEE9D88425A3A13769BFDAEC30D",
+    "bytes": 35018
+  },
+  {
+    "path": "Raw/x64-Release/test-Embedded-x64-Release.log",
+    "sha256": "8AFB1DB1CC41DA597BD73CF1CAFE659DE4072D3BD6105BCA12FEBF9BEBA4558C",
+    "bytes": 8583
+  }
+]

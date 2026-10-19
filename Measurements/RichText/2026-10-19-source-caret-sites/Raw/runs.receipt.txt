@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+  "startedUtc": "2026-10-19T12:36:40.8795313Z",
+  "nativeScope": "EditorControls,Embedded,Accessibility",
+  "jobs": [
+    {
+      "name": "x64-Debug",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T12:36:40.9817338Z",
+      "runtime": true,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T12:41:02.7356415Z"
+    },
+    {
+      "name": "x64-Release",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T12:41:04.0174628Z",
+      "runtime": true,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T12:50:33.8403915Z"
+    },
+    {
+      "name": "x64-ASanDebug",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T12:50:34.5730057Z",
+      "runtime": true,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T13:02:21.5281194Z"
+    },
+    {
+      "name": "ARM64-Debug",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T13:02:22.7343127Z",
+      "runtime": false,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T13:06:55.1824291Z"
+    },
+    {
+      "name": "ARM64-Release",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T13:06:56.3852600Z",
+      "runtime": false,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T13:13:01.9468528Z"
+    },
+    {
+      "name": "ARM64-ASanDebug",
+      "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+      "startedUtc": "2026-10-19T13:13:02.8655663Z",
+      "runtime": false,
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T13:19:19.2786739Z"
+    }
+  ],
+  "completedUtc": "2026-10-19T13:19:20.4370487Z"
+}

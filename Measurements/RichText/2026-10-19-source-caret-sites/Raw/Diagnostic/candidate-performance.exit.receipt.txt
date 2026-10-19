@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+  "exitCode": 1,
+  "nativeReceiptCompleted": true,
+  "comparisonStatus": "advice-required",
+  "reason": "Clean frame p95 0.470 to 0.518 ms (+10.212765957446823 percent).",
+  "acceptance": "D4c HOLD unchanged; single before/after diagnostic, no causal conclusion or rebaseline."
+}

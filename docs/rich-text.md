@@ -776,6 +776,11 @@ not modify source or add undo entries. Hidden/generated source ranges still
 have no selection glyph rectangles. Empty physical-line deletion uses raw
 Unicode graphemes/whole CRLF; a cell scaffold owns no token to delete.
 
+The [source-caret qualification packet](../Measurements/RichText/2026-10-19-source-caret-sites/README.md)
+records the native/embedded scenarios, nine x64 scope passes, three ARM64 builds,
+fault/resource observations and actual sample capture. The separate performance
+HOLD remains open, including the retained clean-frame diagnostic warning.
+
 Padded-cell materialization, structural joins
 and formatting cleanup, interactive task commands, link styling, safe HTML
 formatting and structured/style UIA remain active M4 work. Math, Mermaid,

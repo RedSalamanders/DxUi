@@ -1,0 +1,66 @@
+[
+  {
+    "Hash": "41128685092AD0CE51B7CBEF2E3804A56D538BB344996CE06B211BBA9426D8F3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\Accessibility-x64-Debug.json"
+  },
+  {
+    "Hash": "0B76C35134C1D2BBECDDE0341077511A66CE2F93815D127D6F09DCA60559D44A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\driver.log"
+  },
+  {
+    "Hash": "0D061B238BBE73DDAA7112AB0833380DA78683122125EAE9A480DD7B4CD3C809",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "FAD7540BF01ECABE53B6863CFD22DD64B2ED1F9379C12942A07791B299A60735",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "4C3A5BAD86E4B7BACCF493F6634D590FA777949E7F3A65D341B6B9F6F56453ED",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "E7B3355471B613AA44B5049C87E9E597544C62A260883EBFED2B849150DB5442",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "16A4AA758E902EE59A7BEFACC7E74E976C9CC6A7812E510B0EB5810B25369F51",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "8E0696C3002D7EA9087F6AFCE343073687BE1E1351D65151F0D7B4FBA4BC08C6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "4992CDC2D533AE24A1B745BA70E36A4E7B76B77EE988EBFC228B8208CD452CCE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\DxUi.lib"
+  },
+  {
+    "Hash": "CDBADA0BDEDC34402436B787C804B888BA54CE769A8F969B481AC900C6D49159",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\EditorControls-x64-Debug.json"
+  },
+  {
+    "Hash": "C9653191ED4A1A135DDE52B1E5A51FA4636E61CFEDCFC2B329DF121D009395DD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\Embedded-x64-Debug.json"
+  },
+  {
+    "Hash": "4371B6A0F357CF4EC17075D9C63050F885DF6901338F5D4FAFD8010862C45626",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\Performance-x64-Debug-dd60cba3f4f348799c15bd412960011b.json"
+  },
+  {
+    "Hash": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\Performance-x64-Debug-dd60cba3f4f348799c15bd412960011b.json.comparison.json"
+  },
+  {
+    "Hash": "AE813D452210F25D5DDB0557CEEFA98CFA07BB260E21354799BD8F3B2573C697",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\test-Accessibility-x64-Debug.log"
+  },
+  {
+    "Hash": "01BDFE2208E55A5E5F01E4EF5EC5C50ED702F1C4990685DF62BC9445CC390080",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\test-EditorControls-x64-Debug.log"
+  },
+  {
+    "Hash": "73ECDDB1DAF489A399A8A2A6A83A6074DB92A3AA841030481D05AC72B9D82119",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\x64-Debug\\test-Embedded-x64-Debug.log"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "Hash": "46261E83388D240D6CA57B24772209881D446B5CBCD65300423506D9286F515C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\clang_rt.asan_dynamic-aarch64.dll"
+  },
+  {
+    "Hash": "223B26E5333AB43E4F81A8EF2F0E91B0471CE9355AE5A327FEF513A92DA45166",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\driver.log"
+  },
+  {
+    "Hash": "FC5E2A8358EF1F9F0B29A1AF111F8FE6FEE6D2FDC944D6374B8C8976D7BB8F5F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "B5BAAB5E7203249BA799D2B1DFDF30A562EABA4E7ABFEE71897EEC17FA2809F9",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "2B6113C59AFE636274B94BA9272F5316873902B40F438386CA55B2D738250331",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "56BD70F28F46FBBCAD6FBB5770305930046588D9D32876E32CACF358A8D79C40",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "8C41BA92A61A7CFE09BC4A5915CD637D994939410559F7E8EA4AFDB90C99AE78",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "C7D78C94BE54271EF71D478586AFE2552848532B478D10CEC1F6A33200F8E315",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "85385C2F16D42C4320DB1F861120CC99F53DBF6225A06F15F5F926F9DE0530A3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-m4d2-20261019\\Qualificationf7802f2b\\ARM64-ASanDebug\\DxUi.lib"
+  }
+]

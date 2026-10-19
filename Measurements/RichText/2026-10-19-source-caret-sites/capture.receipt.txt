@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "f7802f2bf1fcd923757de9176ab574c3ae418021",
+  "configuration": "Release",
+  "platform": "x64",
+  "scenario": "--rich-text --output rich-text-preview.png",
+  "executableSha256": "F5E4FE6F99584C7F4002D6E044D078B5BD09F9177DFFC2DBD3F9DF0C5CB03678",
+  "imageSha256": "AAA5C2922735086A356352C53E7061B4474BE56D459D22681F9AD9FFC843E03A",
+  "capturedUtc": "2026-10-19T12:48:22.6048986Z",
+  "capture": "Actual offscreen application harness, no desktop takeover"
+}
