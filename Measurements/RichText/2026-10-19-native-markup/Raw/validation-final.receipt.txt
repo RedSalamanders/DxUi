@@ -1,0 +1,35 @@
+{
+  "qualifiedNativeSource": "a72ab562e5440cf4cb91917590c4729310d85ce3",
+  "workspaceHead": "a72ab562e5440cf4cb91917590c4729310d85ce3",
+  "metadataDirty": true,
+  "nativeInputsUnchanged": true,
+  "scope": "Final documentation and evidence validators; earlier full validate.ps1 includes tooling",
+  "validators": [
+    {
+      "validator": "skills",
+      "exitCode": 0,
+      "logSha256": "5B3F8F0D19AC78D111973206D219668DA634EF8E7E9C4703A89F21C2AA31CC0B"
+    },
+    {
+      "validator": "specs",
+      "exitCode": 0,
+      "logSha256": "45EEFE7052249209CAA03DD6679030FC619FA0E76F7162243BADAA3EAC26B796"
+    },
+    {
+      "validator": "dependencies",
+      "exitCode": 0,
+      "logSha256": "AF472026C71340F4E2A43ABC8E8C47F04B4E7A4EA77D153713B7C2C026C9EEDE"
+    },
+    {
+      "validator": "test-port",
+      "exitCode": 0,
+      "logSha256": "4460EDEBC0C50E7000CE0ECCF585FBD99D88EFA5BD6BAC69BC934402ED15F93E"
+    },
+    {
+      "validator": "build-matrix",
+      "exitCode": 0,
+      "logSha256": "AE0048E2573A862EDB80E4E484B5FF9394669A63D905D4D632CE8E88E1F7A1FA"
+    }
+  ],
+  "completedUtc": "2026-10-19T15:50:59.9660728Z"
+}

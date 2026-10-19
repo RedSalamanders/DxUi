@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "a72ab562e5440cf4cb91917590c4729310d85ce3",
+  "archivedArtifactsVerified": 76,
+  "scopeReceipts": 9,
+  "zeroCapabilitySkips": true,
+  "executableHashesMatch": true,
+  "nativeHtmlMarkersLinksAndRealClientsCompleted": true,
+  "asanDetectionArtifactMatches": true,
+  "arm64": "Three builds only; no native ARM64 execution",
+  "auditedUtc": "2026-10-19T15:46:40.2684611Z"
+}

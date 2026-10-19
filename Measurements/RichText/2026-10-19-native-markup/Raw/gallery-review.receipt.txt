@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "a72ab562e5440cf4cb91917590c4729310d85ce3",
+  "sourceDirty": false,
+  "configuration": "Release",
+  "platform": "x64",
+  "executableSha256": "2EF6C0A9197A75E87E71CFD73E8F28772C59A3336F94921A281A5A1F7A3F3CD1",
+  "fullSheetsReviewed": 5,
+  "componentPixelRegion": "24,1176,436,480",
+  "review": "All full sheets and native-scale component regions inspected: hanging alignment, underline ink, Unicode table, quote and viewport fit",
+  "images": [
+    {
+      "name": "theme-controls-dark.png",
+      "sha256": "30E453EFA75C57A120830C203189C8F455023817D0AD96013DA168AB4B23165F"
+    },
+    {
+      "name": "theme-controls-high-contrast.png",
+      "sha256": "EDA9D85EBFB01D4AC560B4A6A5A09BE9A2C6319B60EC0EBD47A49EE307E24217"
+    },
+    {
+      "name": "theme-controls-light.png",
+      "sha256": "7672E466CC432EC55AF19DF9FD1F0D0F44EE8B4A7E3ABC6CFF2ED86011831A24"
+    },
+    {
+      "name": "theme-controls-rainbow-dark.png",
+      "sha256": "C59B92E6B724ABC21493DA6F23046C4CDCB84429F1AC392B44F722DD4653B134"
+    },
+    {
+      "name": "theme-controls-rainbow-light.png",
+      "sha256": "D49EAC76A59BF40AF3B4EFD88B71B4B2426FE63992C3776CC595AF45BD2DFD8C"
+    }
+  ],
+  "reviewedUtc": "2026-10-19T15:19:07.6043900Z"
+}

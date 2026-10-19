@@ -1769,13 +1769,13 @@ cannot close D4c.
   precise value-token maps (including entities, code normalization and stripped
   prefixes), block/inline style/role metadata and bounded generated output.
   Compare constructed values against parser semantics before publication.
-- [ ] M4d: Stage native DirectWrite geometry for semantic blocks and table cells,
+- [x] M4d: Stage native DirectWrite geometry for semantic blocks and table cells,
   using the same semantic map for drawing, caret/hit/selection/navigation/scroll.
   Keep all allocation/layout/raster work in preparation, and preserve existing
   v0 callers through explicit control opt-in. No worker/HWND/timer is introduced.
   - [x] M4d.1: Bounded native paragraph/table geometry and retained opt-in preview,
     mapped glyph fragments, source fallback, token navigation/deletion and current
-    component qualification. Full M4d remains open for the next substeps.
+    component qualification; subsequent substeps are recorded below.
   - [x] M4d.2: Distinct source caret sites for empty/trailing/container-only lines
     and padded cells, preserving exact source TSF/selection/history semantics.
     - [x] Implement parser-owned empty-line source trivia and native caret boxes,
@@ -1786,7 +1786,7 @@ cannot close D4c.
       Unicode preview/cancel/commit/history and raw CRLF deletion scenarios.
     - [x] Execute focused tests/fault probes, fix failures, qualify required
       profiles/resources, review gallery and record evidence before closeout.
-  - [ ] M4d.3: Hanging marker indentation, link presentation and the explicitly
+  - [x] M4d.3: Hanging marker indentation, link presentation and the explicitly
     validated native HTML subset with source-preserving literal fallback.
     - [x] Measure generated markers through bounded native preparation; align
       wrapped/continuation text in a shared list gutter, including tasks, nested
@@ -1802,7 +1802,7 @@ cannot close D4c.
       not become Markdown. No DOM, scripts, fetch, CSS or implicit navigation.
     - [x] Add independent native/embedded semantic, coordinate, interaction,
       client, raster, cancellation/capacity and allocation-failure tests.
-    - [ ] Freeze and qualify required runtime/build profiles, resource probes,
+    - [x] Freeze and qualify required runtime/build profiles, resource probes,
       baseline/candidate diagnostics, validators/format, sample and five themes;
       update supported capabilities and normative/usage/design-system docs.
 - [ ] M4e: Add structural list/heading/style/link/task/table commands through M4b,
@@ -2257,3 +2257,97 @@ current fault/resource evidence, five reviewed/published themes, actual sample
 capture and retained baseline/candidate diagnostics. Keep M4d.3 unchecked until
 those complete. M4e/f/g, M5/M6 and physical/platform/consumer gates remain open;
 D4c stays HOLD without a rebaseline or acceptance/merge claim.
+
+### M4d.3 qualified native presentation, 2026-10-19
+
+Implementation commit `a72ab562e5440cf4cb91917590c4729310d85ce3` passed the frozen
+six-job component matrix: complete EditorControls, Embedded and Accessibility
+in x64 Debug, Release and ASan Debug, nine ordinary scope/profile runs with zero
+capability skips. The sanitizer's isolated detection probe passed. All three
+ARM64 builds passed; these are compile-only results. The independent audit
+verified 76 archived-file hashes and all nine receipt/executable bindings,
+including the named marker/HTML/raster/source-caret tests and both new and old
+actual native/embedded UIA clients in every x64 profile. No tracked source input
+changed during the matrix. Full five-validator/tooling validation and pinned
+clang-format 22.1.3 checks passed.
+
+Native DirectWrite marker measurements now establish a shared per-list gutter;
+ordinary attached markers and bodies share their first baseline, loose and nested
+continuations retain the body edge, and RTL mirrors that geometry. Prefix/body
+layouts count independently toward native admission and actual staged SDK work.
+First-child list/table/code/HTML/rule blocks retain the documented standalone
+marker-row policy. Scalar queries and warm composition perform no added C++ heap
+work. Markdown/native anchor labels use inherited theme ink with underlines and
+inert destination/title metadata.
+
+The complete HTML-containing leaf validates before tag hiding. The explicit
+style/anchor/break/block-wrapper allowlist, 32-open/4,096-tag ceilings, pinned
+reference decoding and unsafe-URI checks are normative in the layout contract.
+Unsupported HTML uses whole-leaf literal ink after ordinary outer Markdown
+container normalization. This local policy does not force whole-document
+SourceFallback, claim browser HTML/CSS/whitespace equivalence, fetch resources or
+invoke destinations. Raw source ACPs, transport/history and old v0 defaults remain
+coherent; empty balanced tags expose their real interior source insertion point.
+
+Native and shared embedded tests cover every declared alias, heading and allowed
+anchor form; malformed/unsafe/overlapping/depth/tag-limit rejection; independent
+SDK underline pixels; hanging/wrapped/loose/nested/table/RTL coordinate oracles;
+source marker omission, atomic entity/br deletion, empty HTML typing with one
+undo, Unicode preview/cancel/commit, read-only/disabled, stale/current flow,
+visibility/source-mode changes, cancellation and layout-capacity fallback. Actual
+in-process UIA clients inspect raw labels, hidden href ranges, scrolling and empty
+HTML caret/RangeFromPoint in native and embedded hosts. Existing raw-direction and
+same-ACP padded-cell scenarios remain enabled.
+
+The ordinary Release embedded suite handles 320 observed geometry allocation
+failures and 47 query failures (v0 rectangles/lines 6/7, semantic 33/1). Debug and
+ASan handle 853 geometry and 82 query failures (12/9 and 58/3). Semantic document
+sweeps cover 232 failures plus five pending-begin allocations in Release and
+637 plus 16 in Debug/ASan. Parser sweeps remain 274 plus 12 in Release and 773 plus
+34 in Debug/ASan. Maximum parser retained/replacement peaks remain 14,550,932 /
+31,560,707 bytes in Release and 14,551,132 / 31,561,451 in Debug/ASan, below the
+unchanged ceilings. Raw profile logs retain the individual outcomes.
+Source/geometry scalar queries, idle/retirement and 1,000 warm composites
+allocate zero tracked C++ storage; released tracked totals return to their
+initial values. These bounded observations exclude SDK/driver/GPU/process memory
+and do not establish all-input latency or performance acceptance.
+
+
+Two prequalification failures are preserved separately. The independent anchor
+probe demonstrated an image incorrectly inheriting a closed native anchor through
+a Markdown emphasis container. Parent traversal is now syntactic for ordinary
+styles and resolves the active native anchor only for actual element creation;
+the rebuilt probe and graph regressions pass. The full embedded suite exposed a
+generated-prefix inter-box Left step advancing from source zero. Ordinary neighbor
+stops now filter strictly by raw direction; explicit source-caret sites retain
+same-ACP adjacency. Both original failed binaries/PDBs/libraries, sources, hashes
+and logs remain under the private report directory. Final frozen-scope checks
+include the strengthened regression oracles; failed candidates are not counted
+as qualification.
+
+The 480-DIP RichTextEditor gallery tile and actual sample now include native HTML,
+inherited underlined links and hanging 9./10. markers alongside Unicode tables.
+All five full Release theme sheets and native-scale component regions were
+visually reviewed for ink/alignment and viewport fit. `gallery.ps1 -PublishDocs`
+regenerated the five sheets and generic embedded image from the clean qualified
+source; the five published component pixel regions exactly match those reviewed.
+The actual 980 x 720 Release `--rich-text --output` sample capture has matching
+source/executable/image provenance. All capture paths use the application harness
+without desktop takeover. The generic embedded gallery image is a separate mode.
+
+The retained Release Default baseline/candidate diagnostic completed with `advice-required` (exit 1). Flagged metrics: dirty.privateBytes, dirty.privatePeakBytes. dirty.privateBytes: 28,569,600 to 29,392,896 bytes (+2.88%). dirty.privatePeakBytes: 28,688,384 to 29,413,376 bytes (+2.53%).
+
+clean.frameP95Ms: 0.7127 to 0.5211 (-26.88%); dirty.frameP95Ms: 2.5741 to 1.8649 (-27.55%). Frame values are milliseconds. These are single before/after observations of completed WARP frames with clear/blocking readback. They establish neither causality nor performance acceptance. Baseline, candidate, comparison and exit record are preserved; no rebaseline or passing-repeat substitution was made. D4c remains HOLD. Any acceptance change needs the separately controlled paired/scheduler investigation and developer advice if degradation is confirmed, with measured optimization, scope reduction or deferral/revert choices.
+
+The [reviewed native presentation packet](../../../Measurements/RichText/2026-10-19-native-markup/README.md)
+contains final scope/driver logs and receipts, the independent artifact audit,
+SDK failure probes, actual sample/provenance, gallery pixel audit and preserved
+diagnostic results. Public JSON archives retain their payload bytes using the
+existing `.receipt.txt` convention and short Default aliases. Original artifacts
+remain private at `.build/reports/rich-semantic-m4d3-20261019`.
+
+This closes M4d.3 and its native M4d presentation substeps only. Continue with M4e
+source-exact structural commands, M4f acknowledged semantic/style UIA and M4g
+whole-stage acceptance. M5/M6, physical IME/AT, native ARM64 execution, consumer
+adoption and controlled performance gates remain open. No foreground suite,
+consumer pin update, merge or performance acceptance is claimed; D4c remains HOLD.

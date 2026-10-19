@@ -811,6 +811,10 @@ caret, double-clicks select source text, and the control opens no URL/resource.
 HTML lists/tables/images and DOM/CSS recovery/layout remain outside this subset.
 Their supported Markdown counterparts retain native rendering.
 
+The [native presentation qualification packet](../Measurements/RichText/2026-10-19-native-markup/README.md)
+records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
+five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
+
 Padded-cell materialization, structural joins and formatting cleanup,
 interactive task/link commands and structured/style UIA remain active M4 work. Math, Mermaid,
 footnotes/front matter and physical IME/AT/platform/performance gates stay open.

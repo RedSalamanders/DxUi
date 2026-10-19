@@ -1,0 +1,20 @@
+Complex UI clean round 1: 2174.57 completed offscreen FPS; p95 0.5211 ms; private 27127808 bytes
+Complex UI clean round 2: 2313.34 completed offscreen FPS; p95 0.537 ms; private 27004928 bytes
+Complex UI clean round 3: 2341.7 completed offscreen FPS; p95 0.5007 ms; private 26980352 bytes
+Complex UI clean round 4: 2419.56 completed offscreen FPS; p95 0.5063 ms; private 27914240 bytes
+Complex UI clean round 5: 1978.5 completed offscreen FPS; p95 0.9383 ms; private 29081600 bytes
+Complex UI dirty round 1: 591.113 completed offscreen FPS; p95 1.9802 ms; private 29392896 bytes
+Complex UI dirty round 2: 599.856 completed offscreen FPS; p95 1.919 ms; private 29388800 bytes
+Complex UI dirty round 3: 608.728 completed offscreen FPS; p95 1.8089 ms; private 29380608 bytes
+Complex UI dirty round 4: 615.647 completed offscreen FPS; p95 1.7794 ms; private 29392896 bytes
+Complex UI dirty round 5: 607.112 completed offscreen FPS; p95 1.8649 ms; private 29392896 bytes
+Performance comparison: advice-required
+REGRESSION dirty/privateBytes: 28569600.000 -> 29392896.000
+REGRESSION dirty/privatePeakBytes: 28688384.000 -> 29413376.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\performance.ps1:80
+Line |
+  80 |  … DE -ne 0) { throw "The performance comparison requires advice or foun …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The performance comparison requires advice or found invalid evidence:
+     | Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-semantic-m4d3-20261019\candidate-Default.json.comparison.json

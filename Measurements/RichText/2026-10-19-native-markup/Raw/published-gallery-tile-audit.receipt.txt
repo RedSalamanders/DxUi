@@ -1,0 +1,43 @@
+{
+  "sourceCommit": "a72ab562e5440cf4cb91917590c4729310d85ce3",
+  "capture": "Actual native harness images",
+  "fiveReviewedComponentRegionsMatch": true,
+  "auditedUtc": "2026-10-19T15:48:19.7815048Z",
+  "images": [
+    {
+      "file": "theme-controls-dark.png",
+      "pixelRegion": "24,1176,436,480",
+      "reviewedTileSha256": "F96AEAF1486C5370800751D89960489890AB7E647F868EA6FF6A44AEDC9EAE63",
+      "publishedTileSha256": "F96AEAF1486C5370800751D89960489890AB7E647F868EA6FF6A44AEDC9EAE63",
+      "equal": true
+    },
+    {
+      "file": "theme-controls-light.png",
+      "pixelRegion": "24,1176,436,480",
+      "reviewedTileSha256": "D2487123DB54D9B42C5F0CB402ACCEE7C85B35AB2231F40D296045A86CE61B55",
+      "publishedTileSha256": "D2487123DB54D9B42C5F0CB402ACCEE7C85B35AB2231F40D296045A86CE61B55",
+      "equal": true
+    },
+    {
+      "file": "theme-controls-high-contrast.png",
+      "pixelRegion": "24,1176,436,480",
+      "reviewedTileSha256": "ABA5FA96D95F00DB26299E93968EE1C2C838FC7CD9A160A150B5BC6972B72B95",
+      "publishedTileSha256": "ABA5FA96D95F00DB26299E93968EE1C2C838FC7CD9A160A150B5BC6972B72B95",
+      "equal": true
+    },
+    {
+      "file": "theme-controls-rainbow-dark.png",
+      "pixelRegion": "24,1176,436,480",
+      "reviewedTileSha256": "F96AEAF1486C5370800751D89960489890AB7E647F868EA6FF6A44AEDC9EAE63",
+      "publishedTileSha256": "F96AEAF1486C5370800751D89960489890AB7E647F868EA6FF6A44AEDC9EAE63",
+      "equal": true
+    },
+    {
+      "file": "theme-controls-rainbow-light.png",
+      "pixelRegion": "24,1176,436,480",
+      "reviewedTileSha256": "D2487123DB54D9B42C5F0CB402ACCEE7C85B35AB2231F40D296045A86CE61B55",
+      "publishedTileSha256": "D2487123DB54D9B42C5F0CB402ACCEE7C85B35AB2231F40D296045A86CE61B55",
+      "equal": true
+    }
+  ]
+}
