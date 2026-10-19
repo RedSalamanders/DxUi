@@ -1826,3 +1826,25 @@ through native and application-bridged embedded parents.
 - Docs/gallery review: this component adds preparation/source transaction APIs,
   without changing active pixels/defaults; no new gallery capture is needed for
   M4a/b. M4d/f visual integration still requires complete regenerated/reviewed sheets.
+
+M4a/b qualification completed against frozen code commit
+`e160883bcb37e4bd22e767077a5475a81aa6c63b`: complete EditorControls, Embedded and
+Accessibility passed in x64 Debug, Release and ASan Debug (nine ordinary scope/
+profile runs, zero capability skips). ASan's isolated detection probe passed.
+All three ARM64 builds passed; no ARM64 runtime result is claimed. Full
+validate.ps1 (five validators plus tooling) and pinned 22.1.3 format passed.
+The sequential Release/ASan/ARM64 driver enforced unchanged commit/source before
+and after every job, retained raw logs, native receipts and artifact hashes in
+`.build/reports/rich-semantic-m4-20261019/Qualification`; Debug is in RetainedDebug.
+These results qualify this component, not the unfinished M4c/g integration or
+physical IME/AT/foreground gates. Canonical unpaired diagnostics remain unpaired;
+D4c stays HOLD. Do not reuse these artifacts as later M4c/d/f qualification.
+
+M4c is the next active component. Its bounded semantic document must reconstruct
+resolved values from exact source tokens, retain immutable role/style/table/task/
+image metadata and reject unprovable interior maps. Native caret scaffolds for
+empty/trailing/hidden source lines and grammar-aware deletion of normalized
+line joins need explicit M4d/e tests; a scalar display endpoint alone cannot
+represent all such source editing sites. Keep these as active implementation
+requirements, rather than silently claiming that pure token mapping finishes
+structural editing.
