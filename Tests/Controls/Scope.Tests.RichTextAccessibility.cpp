@@ -13,6 +13,8 @@ constexpr std::wstring_view EditorId = L"rich.source";
 class RichAccessibilityEditor final : public RichTextEditor
 {
 public:
+    using RichTextEditor::ExportTextInputState;
+    using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
     // Exercise the same protected binding boundary used by retained owners,
     // without moving the desktop or replacing the source/CPU semantic graph.
@@ -1230,6 +1232,106 @@ void SemanticAttributesAndFormats(bool embedded)
     Require(sourceInfo.attributes[0].unsupported && ! fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls),
             "source mode retires semantic attributes without inventing style for raw source pixels");
 }
+void SemanticFrontMatterDiagnostics(bool embedded)
+{
+    for (const bool yaml : {true, false})
+    {
+        RichAccessibilityFixture fixture(embedded, true, true);
+        auto* sourceAdapter = static_cast<RichAccessibilityEditor*>(fixture.editor);
+        fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        const std::wstring source            = yaml ? L"\ufeff---\r\nkey: value\r\n" : L"\ufeff+++\r\nkey = 'value'\r\n";
+        const std::wstring_view expectedHelp = yaml ? L"Missing closing YAML front matter fence." : L"Missing closing TOML front matter fence.";
+        const auto fence                     = yaml ? L"---" : L"+++";
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple   = fixture.Simple();
+        auto metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        Require(metadata && ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "metadata diagnostic help") == expectedHelp,
+                "native/embedded semantic metadata exposes an actual missing-fence explanation");
+        UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+        const auto editor = FindEditor(client, client.Root());
+        const auto child  = FindClientPart(client, editor, UIA_GroupControlTypeId);
+        Require(child && client.StringProperty(child, UIA_HelpTextPropertyId) == expectedHelp && client.TextRangeFromChild(editor, child) == source,
+                "actual native/application-bridged clients reach diagnostic help and the exact raw metadata range");
+        const auto closed = source + fence + L"\r\n# Body\r\n";
+        fixture.editor->SetText(closed);
+        const auto retired = [](IRawElementProviderSimple& element)
+        {
+            VARIANT value{};
+            const auto clear = wil::scope_exit([&] noexcept { VariantClear(&value); });
+            return element.GetPropertyValue(UIA_HelpTextPropertyId, &value) == UIA_E_ELEMENTNOTAVAILABLE;
+        };
+        Require(retired(*metadata.get()), "source change immediately retires the old diagnostic fragment");
+        {
+            // Query the provider directly before pumping the client/host queue, so
+            // asynchronous owner preparation cannot erase this pending-state case.
+            wil::com_ptr_nothrow<ITextProvider> text;
+            RequireSucceeded(simple.query_to(text.put()), "pending source text provider");
+            wil::com_ptr_nothrow<ITextRangeProvider> range;
+            RequireSucceeded(text->get_DocumentRange(range.put()), "pending source document range");
+            SAFEARRAY* children = nullptr;
+            VARIANT font{};
+            const auto clear = wil::scope_exit([&] noexcept
+            {
+                if (children)
+                    SafeArrayDestroy(children);
+                VariantClear(&font);
+            });
+            RequireSucceeded(range->GetChildren(&children), "pending semantic children");
+            RequireSucceeded(range->GetAttributeValue(UIA_FontNameAttributeId, &font), "pending semantic font");
+            wil::com_ptr_nothrow<IUnknown> unsupported;
+            RequireSucceeded(UiaGetReservedNotSupportedValue(unsupported.put()), "reserved unsupported attribute");
+            Require((! children || ! children->rgsabound[0].cElements) && font.vt == VT_UNKNOWN && font.punkVal == unsupported.get(),
+                    "pending source withdraws semantic children and formatting without rebuilding a snapshot on the input path");
+        }
+        UiaTest::ElementInfo retiredInfo;
+        Require(client.TryDescribe(child, retiredInfo) == UIA_E_ELEMENTNOTAVAILABLE, "actual foreign UIA queries reject an older metadata epoch");
+        fixture.Publish();
+        const auto replacement = FindClientPart(client, editor, UIA_GroupControlTypeId);
+        Require(replacement && client.StringProperty(replacement, UIA_HelpTextPropertyId).empty() &&
+                    fixture.editor->GetMarkdownSyntax()->Diagnostics().empty() && fixture.editor->GetText() == closed && ! fixture.editor->CanUndo(),
+                "closing metadata removes its diagnostic without rewriting source or fabricating history");
+        metadata        = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        const auto held = fixture.editor->GetSemanticDocument();
+        fixture.editor->SetViewMode(RichText::ViewMode::Source);
+        Require(retired(*metadata.get()), "presentation retirement invalidates semantic fragments before publication");
+        fixture.editor->SetViewMode(RichText::ViewMode::Rich);
+        fixture.Publish();
+        Require(fixture.editor->GetSemanticDocument() == held && retired(*metadata.get()),
+                "reusing an unchanged CPU document cannot resurrect a fragment from an older presentation epoch");
+        metadata         = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        const auto value = closed.find(L"value");
+        fixture.editor->SetSelection({value, value + 5u});
+        Require(fixture.editor->ReplaceSelection(L"changed") && retired(*metadata.get()),
+                "ordinary source transactions retire semantic fragments without waiting for glyph preparation");
+        fixture.Publish();
+        metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        Require(fixture.editor->Undo() && fixture.editor->GetText() == closed && retired(*metadata.get()),
+                "undo also retires the previous semantic epoch immediately");
+        fixture.Publish();
+        metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        TextInputState entry;
+        Require(sourceAdapter->ExportTextInputState(entry), "export metadata source for a synthetic input-service preview");
+        const bool canRedo         = fixture.editor->CanRedo();
+        entry.selectionAnchorIndex = entry.caretIndex = 0u;
+        Require(sourceAdapter->ImportTextInputState(*fixture.controls, entry, false) && ! retired(*metadata.get()),
+                "selection-only service imports preserve a current semantic identity");
+        auto preview = entry;
+        preview.text.replace(value, 5u, L"preview");
+        Require(sourceAdapter->ImportTextInputState(*fixture.controls, preview, false) && retired(*metadata.get()),
+                "non-notifying input-service previews retire semantic source without a text-change delegate");
+        Require(sourceAdapter->ImportTextInputState(*fixture.controls, entry, false) && fixture.editor->GetText() == closed &&
+                    fixture.editor->CanRedo() == canRedo,
+                "preview cancellation restores exact metadata and preserves redo");
+        fixture.Publish();
+        metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+        sourceAdapter->RebindForTest(nullptr);
+        Require(retired(*metadata.get()), "host retirement invalidates fragments even before another snapshot is built");
+        sourceAdapter->RebindForTest(fixture.controls);
+        fixture.Publish();
+        Require(retired(*metadata.get()), "same-host rebinding cannot resurrect an older semantic epoch");
+    }
+}
 void SemanticStructureAndTasks(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
@@ -1482,6 +1584,14 @@ void TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks()
 {
     EmbeddedCase(SemanticStructureAndTasks);
 }
+void TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics()
+{
+    SemanticFrontMatterDiagnostics(false);
+}
+void TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics()
+{
+    EmbeddedCase(SemanticFrontMatterDiagnostics);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -1493,6 +1603,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticStructureAndTasks);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);

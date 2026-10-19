@@ -1,5 +1,17 @@
 # Markdown research and standard data
 
+`mermaid-11.4.1` pins the original Mermaid syntax documentation, flow grammar and
+MIT notice from tag `mermaid@11.4.1`, peeled commit
+`9868f3a4c3784e214d8b6c74277ca542774e7de9`. `collection.json` records original
+URLs, repository paths, Git blob IDs and SHA-256 hashes for all 24 files;
+`syntax-inventory.json` retains the complete declared syntax-document inventory.
+These are reference/corpus inputs, never a compiled or deployed Mermaid runtime.
+Original Markdown and grammar files use `.txt` suffixes so their upstream-relative
+links remain unmodified data rather than becoming repository documentation links.
+The owned C++ limited flowchart profile remains M5 work; reference availability
+does not establish grammar or rendering compatibility. Unsupported families and
+constructs must remain exact editable source with explicit diagnostics.
+
 The parser implementation is owned Unicode C++ in `src/Controls/DxUi.MarkdownSyntax.cpp`.
 MD4C, Discount and cmark-gfm inform API boundaries; none is linked or used as the
 implementation. Exact earlier research snapshots remain in the cooperative

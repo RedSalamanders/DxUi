@@ -25,6 +25,27 @@ void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
 }
+void TestRichSemanticDocumentFrontMatterLiteralFallback()
+{
+    using namespace DxUi::RichText;
+    const auto document = RichSemanticDocumentTests::Build(L"\ufeff---\r\n# literal **&amp;**\r\n---\r\n# After\r\n", MarkdownProfile::RichMarkdown);
+    RichSemanticDocumentTests::CheckGraph(*document);
+    Require(document->Map().Display() == L"\ufeff---\n# literal **&amp;**\n---\nAfter\n",
+            "unvalidated metadata stays fully source-visible with no Markdown/entity decoding or fence loss");
+    const auto elements = document->Elements();
+    const auto metadata = std::find_if(elements.begin(), elements.end(), [](const auto& item) { return item.role == SemanticRole::Metadata; });
+    Require(metadata != elements.end() && metadata->source.first == 0u && ! metadata->name.empty(),
+            "literal metadata fallback retains a named source-bearing semantic element");
+    for (const auto* source : {L"---", L"---\r\nx: [\r\n", L"+++\nkey = [\n"})
+    {
+        const auto incomplete = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        RichSemanticDocumentTests::CheckGraph(*incomplete);
+        Require(! incomplete->Map().Display().empty() && incomplete->Syntax()->Nodes()[1u].block.source.last == std::wstring_view(source).size(),
+                "incomplete metadata remains a visible exact source owner through EOF");
+        Require(incomplete->Syntax()->Diagnostics().size() == 1u && ! incomplete->Elements()[1u].title.empty(),
+                "incomplete metadata retains a structured source diagnostic and accessible explanation");
+    }
+}
 void TestRichSemanticDocumentPinnedSourceCases()
 {
     using namespace DxUi::RichText;
@@ -72,4 +93,5 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDocumentPinnedSourceCases);
+    DXUI_RUN_TEST(TestRichSemanticDocumentFrontMatterLiteralFallback);
 }

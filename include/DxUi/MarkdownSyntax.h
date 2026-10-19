@@ -54,7 +54,8 @@ enum class MarkdownBlockKind
     ReferenceDefinition,
     Table,
     TableRow,
-    TableCell
+    TableCell,
+    FrontMatter
 };
 struct MarkdownBlock
 {
@@ -78,6 +79,26 @@ enum class MarkdownTask
     None,
     Unchecked,
     Checked
+};
+// RichMarkdown alone recognizes a leading metadata envelope. This identifies
+// its language, not a successful metadata validation or a reserialization API.
+enum class MarkdownFrontMatterKind
+{
+    None,
+    Yaml,
+    Toml
+};
+enum class MarkdownDiagnosticCode
+{
+    UnclosedFrontMatter
+};
+// Diagnostics name exact raw source ranges in this immutable publication.
+// They do not change source, imply metadata validity, or carry SDK/UI objects.
+struct MarkdownDiagnostic
+{
+    MarkdownDiagnosticCode code{};
+    MarkdownRange source;
+    std::size_t node = MarkdownNoNode;
 };
 enum class MarkdownInlineKind
 {
@@ -149,6 +170,7 @@ struct MarkdownNode
     MarkdownAlignment alignment{};
     MarkdownTask task{};
     bool tableHeader{};
+    MarkdownFrontMatterKind frontMatterKind{};
 };
 struct MarkdownBlockStatistics
 {
@@ -199,6 +221,7 @@ public:
     // Dense semantic forest rooted by each leaf's firstInline. Opaque HTML
     // blocks also have an Html value. Retired delimiter/bracket shells are gone.
     const std::vector<MarkdownInline>& Inlines() const noexcept;
+    std::span<const MarkdownDiagnostic> Diagnostics() const noexcept;
     std::wstring_view Slice(MarkdownRange range) const;
     std::wstring_view LexemeValue(std::size_t index) const;
     // Text has source-backed interior ACPs; transformed values have explicit
@@ -217,6 +240,7 @@ private:
     std::vector<MarkdownNode> nodes_;
     std::vector<MarkdownEmptyLine> emptyLines_;
     std::vector<MarkdownInline> inlines_;
+    std::vector<MarkdownDiagnostic> diagnostics_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
     friend class MarkdownParser;

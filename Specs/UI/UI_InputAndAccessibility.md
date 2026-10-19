@@ -904,6 +904,32 @@ the events left are dropped once the host is disconnected (or an embedded view's
 longer the one published at its path, and never reach an element that is gone. The providers that raise them never touch a
 control.
 
+### RichMarkdown incomplete metadata
+
+Status: source-envelope diagnostic integration in development under M5a; final
+profile/physical qualification remains separate.
+
+A source-bearing `SemanticRole::Metadata` child MUST expose UIA Group and retain
+its exact envelope source range through TextPattern `RangeFromChild`, including
+BOM and original line endings. An unclosed YAML/TOML envelope MUST provide the
+missing-fence explanation through HelpText and a structured syntax diagnostic
+naming the opener/source owner. No input focus is required by diagnostic queries.
+Closing/editing the source MUST retire old fragments before another prepared
+publication; the closed successor MUST have no stale missing-fence explanation.
+This does not validate the metadata payload or establish physical IME/AT support.
+
+Semantic snapshot liveness MUST cover source commits/reset, transient input
+service previews/restoration, presentation/profile changes, binding retirement
+and destruction before a later snapshot publication. Queries MUST use a data-only
+shared epoch rather than dereferencing a live control on a foreign UIA thread.
+Providers MUST retain their captured semantic revision, preventing resurrection
+on mode/binding cycles even when the CPU semantic document is reused. Geometry
+reflow alone MAY retain that identity. Immutable historical document pointers
+MUST remain stable for diffs and in-flight queries; liveness is an explicit guard,
+not a mutable nullable document accessor. Capture source/epoch pairs before
+fallible snapshot staging. Lazy activation failure MUST preserve source/mode;
+retirement itself MUST allocate no memory or rebuild a snapshot on the input path.
+
 M4e structural commands use the same atomic source transaction and native/
 embedded host synchronization. TSF and UIA TextPattern MUST expose complete
 committed raw Markdown, hidden syntax and CRLF ACPs, never intermediate edits or

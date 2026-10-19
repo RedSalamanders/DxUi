@@ -20,7 +20,8 @@ enum class SemanticRole
     Link,
     Image,
     Task,
-    Rule
+    Rule,
+    Metadata
 };
 struct SemanticElement
 {

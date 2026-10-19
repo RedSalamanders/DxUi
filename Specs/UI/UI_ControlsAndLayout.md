@@ -1247,3 +1247,36 @@ wrappers remain outside this cleanup. Raw programmatic/TSF replacement MUST NOT
 apply this semantic cleanup policy. Unsupported mixed opaque targets reject
 atomically. These operations do not provide general Markdown reformatting,
 structured UIA publication, extension rendering or consumer qualification.
+
+### RichMarkdown metadata envelopes (M5a)
+
+Status: initial source-envelope implementation in development; validity,
+dedicated object editing and complete M5 qualification remain pending.
+
+Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
+1.0.0) first physical line, optionally preceded by one document BOM. No leading
+blank, indentation, trailing whitespace, container prefix or later thematic
+break qualifies. CommonMark0312/Gfm029 MUST retain their existing block grammar.
+YAML closes with an exact `---` or `...` line; TOML with an exact `+++` line.
+Fence recognition precedes parsing the metadata language, including invalid
+or incomplete quoted values. No JSON front matter is inferred.
+
+The `FrontMatter` leaf MUST retain the exact whole source envelope, a separate
+fence-excluding content range, language and closed state. Missing close consumes
+the source through EOF and reports `block.closed == false`; it MUST NOT discard
+text or fabricate a close. Metadata content MUST NOT define Markdown references,
+headings, lists or inlines in the following document. Unknown fields, comments,
+spelling, order, BOM and original EOLs MUST survive every untouched source range.
+
+Before validated metadata presentation is available, semantic rendering MUST
+display the entire literal envelope, including fences, without entity/Markdown
+decoding. Source ACPs/history remain authoritative. Markdown structural style,
+heading and table commands MUST reject metadata targets atomically; ordinary
+source replacement/undo/redo and source-view selection remain available.
+Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
+extension conformance. Later M5 work owns metadata content-validity diagnostics and source editors.
+An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
+exact opening marker range and revision-local owner node. Semantic UIA HelpText
+MUST explain the missing closing fence. Source edits retire that provider; a
+closed successor MUST have no stale missing-fence issue. This envelope diagnostic
+does not validate the YAML/TOML payload.

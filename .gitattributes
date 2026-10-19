@@ -55,3 +55,5 @@ Measurements/RichText/** -text -whitespace
 ThirdParty/Unicode/** -text
 ThirdParty/Markdown/** -text
 ThirdParty/Markdown/corpora/** -whitespace
+# Pinned Mermaid originals retain upstream Markdown/grammar whitespace.
+ThirdParty/Markdown/mermaid-11.4.1/*.txt -whitespace

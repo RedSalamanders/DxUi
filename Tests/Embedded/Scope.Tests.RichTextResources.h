@@ -1,6 +1,185 @@
 #pragma once
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include <DxUi/RichSemanticDocument.h>
+
+static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    const auto finish = [](MarkdownParser& parser)
+    {
+        while (parser.HasPendingPreparation())
+            parser.Advance(7u);
+    };
+    std::size_t total         = 0u;
+    std::size_t semanticTotal = 0u;
+    const auto finishSemantic = [](SemanticBuilder& builder)
+    {
+        while (builder.HasPendingPreparation())
+            builder.Advance(7u);
+    };
+    MarkdownParser oldParser;
+    oldParser.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+    finish(oldParser);
+    const auto oldSyntax = oldParser.Published();
+    std::size_t activationRequests{};
+    {
+        DxUi::RichTextEditor editor(L"previous");
+        editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        editor.SetMarkdownRenderingEnabled(true);
+        countAllocations   = false;
+        activationRequests = allocations;
+    }
+    Check(activationRequests > 0u && activationRequests < 32u, "semantic activation lazily creates a bounded liveness state");
+    for (std::size_t failure = 0u; failure < activationRequests; ++failure)
+    {
+        DxUi::RichTextEditor editor(L"previous");
+        editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        bool rejected = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                editor.SetMarkdownRenderingEnabled(true);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && ! editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous" && ! editor.CanUndo(),
+              "failed semantic activation preserves mode, exact source and history");
+        editor.SetMarkdownRenderingEnabled(true);
+        Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous", "semantic activation retries after each observed allocation failure");
+    }
+    for (const std::wstring_view source :
+         {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n", L"+++\n# comment\nname = '\u03b2'\n+++\n", L"---\nkey: [\n", L"+++\nkey = [\n"})
+    {
+        std::size_t requests{};
+        {
+            MarkdownParser parser;
+            parser.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+            finish(parser);
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+            finish(parser);
+            countAllocations = false;
+            requests         = allocations;
+        }
+        Check(requests > 0u && requests < 512u, "metadata parser exposes a finite observed allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "front matter failure-point=%zu/%zu\n", failure, requests);
+            MarkdownParser parser;
+            parser.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+            finish(parser);
+            const auto old = parser.Published();
+            bool rejected  = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+                    finish(parser);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && parser.Published() == old && ! parser.HasPendingPreparation() && old->Source() == L"previous",
+                  "every observed metadata allocation failure retires staging and preserves the exact old publication");
+            parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+            finish(parser);
+            Check(parser.Published()->Source() == source && parser.Published()->Nodes()[1u].block.kind == MarkdownBlockKind::FrontMatter,
+                  "explicit metadata retry succeeds after every observed allocation failure");
+        }
+        total += requests;
+        MarkdownParser parsed;
+        parsed.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+        finish(parsed);
+        const auto syntax = parsed.Published();
+        std::size_t semanticRequests{};
+        {
+            SemanticBuilder builder;
+            builder.Begin(oldSyntax);
+            finishSemantic(builder);
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            builder.Begin(syntax);
+            finishSemantic(builder);
+            countAllocations = false;
+            semanticRequests = allocations;
+        }
+        Check(semanticRequests > 0u && semanticRequests < 512u, "metadata semantic publication has a finite independently observed allocation schedule");
+        for (std::size_t failure = 0u; failure < semanticRequests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "front matter semantic failure-point=%zu/%zu\n", failure, semanticRequests);
+            SemanticBuilder builder;
+            builder.Begin(oldSyntax);
+            finishSemantic(builder);
+            const auto old = builder.Published();
+            bool rejected  = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    builder.Begin(syntax);
+                    finishSemantic(builder);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && builder.Published() == old && ! builder.HasPendingPreparation() && old->Map().Source() == L"previous",
+                  "metadata semantic/diagnostic allocation failures retain the old publication and retire staging");
+            builder.Begin(syntax);
+            finishSemantic(builder);
+            Check(builder.Published()->Syntax() == syntax && builder.Published()->Map().Source() == source,
+                  "semantic metadata and missing-fence help retry without changing source after each observed allocation failure");
+        }
+        semanticTotal += semanticRequests;
+    }
+    std::cout << "front matter allocation scenarios=4 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter semantic allocation scenarios=4 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
+    std::cout << "semantic accessibility activation sweptRequests=" << activationRequests << " sourcePreserved=1 retry=1\n";
+}
 
 static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
 {
@@ -191,6 +370,52 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
               << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released << " unchangedAndRetireAllocations=" << idleCalls << '\n';
 }
 
+static void TestEmbeddedFrontMatterFencesAndSourceEdits(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "metadata borrowed WARP resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "metadata embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    for (const auto& scenario : FrontMatterTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded metadata preparation");
+        const auto syntax = editor->GetMarkdownSyntax();
+        Check(syntax != nullptr, "embedded metadata source preparation completes");
+        FrontMatterTests::CheckSyntax(*syntax, scenario, Check);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(semantic && semantic->Syntax() == syntax && editor->GetText() == scenario.source && ! editor->CanUndo() && ! view.Controls().GetHwnd(),
+              "embedded metadata shares acknowledged syntax and exact source/history without a control HWND");
+    }
+    const std::wstring source = L"---\r\n# keep comment\r\nname: '\u03b2'\r\n---\r\n# Body\r\n";
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded metadata edit baseline");
+    const auto held = editor->GetAcknowledgedSemanticDocument(view.Controls());
+    const auto at   = source.find(L'\u03b2');
+    editor->SetSelection({at, at + 1u});
+    for (const auto command : {MarkdownCommand::ToggleStyle, MarkdownCommand::SetHeading, MarkdownCommand::InsertTable})
+        Check(editor->ExecuteMarkdownCommand({command}) == MarkdownCommandStatus::Unavailable && editor->GetText() == source && ! editor->CanUndo(),
+              "embedded structural commands cannot rewrite opaque metadata");
+    Check(editor->ReplaceSelection(L"\u03a9") && ! editor->GetAcknowledgedSemanticDocument(view.Controls()),
+          "embedded metadata edit immediately rejects stale semantic acknowledgement");
+    auto expected = source;
+    expected.replace(at, 1u, L"\u03a9");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded metadata source edit");
+    Check(editor->GetText() == expected && held->Syntax()->Source() == source, "embedded metadata source edits preserve untouched text and held revisions");
+    Check(editor->Undo() && editor->GetText() == source && ! editor->CanUndo() && editor->Redo() && editor->GetText() == expected,
+          "embedded metadata edit is exactly one undo/redo transaction");
+    const auto selection = editor->GetSelection();
+    editor->SetViewMode(ViewMode::Source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded metadata source view");
+    Check(editor->GetSelection() == selection && editor->GetText() == expected, "embedded source view retains metadata spelling and selection");
+}
 static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
 {
     using namespace DxUi;

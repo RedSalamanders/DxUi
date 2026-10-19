@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
@@ -17,6 +18,7 @@ struct RichTextEditor::State
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
     std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
+    std::shared_ptr<RichText::Detail::AccessibilityEpoch> accessibilityEpoch;
     bool markdownRendering  = false;
     size_t semanticAdvances = 0, lastAdvanceSemanticWork = 0;
     std::optional<RichText::MarkdownProfile> markdownProfile;
@@ -55,10 +57,14 @@ RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<Stat
     SetFocusable(true);
     EnableContentPreparation();
 }
-RichTextEditor::~RichTextEditor() noexcept = default;
+RichTextEditor::~RichTextEditor() noexcept
+{
+    RetireSemanticAccessibility();
+}
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
+    RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->scrollDip       = 0;
     RetireLayout();
@@ -92,6 +98,7 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         throw std::invalid_argument("Invalid rich-text view mode");
     if (_state->mode == mode)
         return;
+    RetireSemanticAccessibility();
     _state->mode            = mode;
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     RetireLayout();
@@ -108,6 +115,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         throw std::invalid_argument("Invalid Markdown analysis profile");
     if (_state->markdownProfile == profile)
         return;
+    RetireSemanticAccessibility();
     _state->markdown.Clear();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
@@ -133,6 +141,12 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
         throw std::invalid_argument("Semantic rendering requires a Markdown analysis profile");
     if (_state->markdownRendering == enabled)
         return;
+    // Allocate only for the semantic opt-in, before changing any live state.
+    // Retirement itself is one atomic increment and must survive allocation
+    // failure or a delayed/failed accessibility snapshot publication.
+    if (enabled && ! _state->accessibilityEpoch)
+        _state->accessibilityEpoch = std::make_shared<RichText::Detail::AccessibilityEpoch>();
+    RetireSemanticAccessibility();
     _state->markdownRendering = enabled;
     _state->sourceCaretSite   = RichText::MarkdownNoNode;
     _state->semantic.Clear();
@@ -168,9 +182,14 @@ std::shared_ptr<const RichText::SemanticDocument> RichTextEditor::GetAcknowledge
                ? document
                : nullptr;
 }
-uint64_t RichTextEditor::AccessibilityBindingRevision() const noexcept
+std::shared_ptr<const RichText::Detail::AccessibilityEpoch> RichTextEditor::AccessibilitySemanticEpoch() const noexcept
 {
-    return _state->bindingRevision;
+    return _state->accessibilityEpoch;
+}
+void RichTextEditor::RetireSemanticAccessibility() const noexcept
+{
+    if (_state->accessibilityEpoch)
+        _state->accessibilityEpoch->revision.fetch_add(1u, std::memory_order_release);
 }
 std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticElementBounds(const ControlHost& host, size_t element) const noexcept
 {
@@ -335,6 +354,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
+        RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
         _state->sourceCaretSite = RichText::MarkdownNoNode;
         // Reject stale queries immediately, but retain bounded immutable chunks
@@ -878,7 +898,10 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     else
     {
         if (changed)
+        {
+            RetireSemanticAccessibility();
             RetireLayout();
+        }
         SelectionChanged(false);
     }
     return true;
@@ -1586,6 +1609,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
 {
     if (GetHost() != host)
     {
+        RetireSemanticAccessibility();
         ++_state->bindingRevision;
         RetireLayout();
         _state->pendingLeadSurrogate = 0;

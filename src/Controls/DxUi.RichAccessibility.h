@@ -64,7 +64,7 @@ public:
           identity_(CaptureControlIdentity(record)),
           document_(record.RichSemantic()),
           publication_(record.RichSemantic()->Identity()),
-          binding_(record.RichBinding()),
+          semanticRevision_(record.RichSemanticRevision()),
           element_(element)
     {
         static_cast<void>(target_->AddRef());
@@ -76,7 +76,7 @@ public:
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         HoldAccessibilityPeerCreationForTest(hwnd);
-        if (! target || ! record.RichSemantic() || element == 0u || element >= record.RichSemantic()->Elements().size())
+        if (! target || ! record.HasCurrentRichSemantic() || element == 0u || element >= record.RichSemantic()->Elements().size())
             return result;
         auto* provider = new (std::nothrow) RichSemanticElementProvider(target, hwnd, record, element);
         if (provider)
@@ -182,17 +182,17 @@ public:
         {
             case UIA_ControlTypePropertyId:
             {
-                const auto type = element.role == Task                          ? UIA_CheckBoxControlTypeId
-                                  : element.role == Link                        ? UIA_HyperlinkControlTypeId
-                                  : element.role == Image                       ? UIA_ImageControlTypeId
-                                  : element.role == Table                       ? UIA_TableControlTypeId
-                                  : element.role == List                        ? UIA_ListControlTypeId
-                                  : element.role == ListItem                    ? UIA_ListItemControlTypeId
-                                  : element.role == Row                         ? UIA_DataItemControlTypeId
-                                  : element.role == Cell && element.tableHeader ? UIA_HeaderItemControlTypeId
-                                  : element.role == Quote                       ? UIA_GroupControlTypeId
-                                  : element.role == Rule                        ? UIA_SeparatorControlTypeId
-                                                                                : UIA_TextControlTypeId;
+                const auto type = element.role == Task                                ? UIA_CheckBoxControlTypeId
+                                  : element.role == Link                              ? UIA_HyperlinkControlTypeId
+                                  : element.role == Image                             ? UIA_ImageControlTypeId
+                                  : element.role == Table                             ? UIA_TableControlTypeId
+                                  : element.role == List                              ? UIA_ListControlTypeId
+                                  : element.role == ListItem                          ? UIA_ListItemControlTypeId
+                                  : element.role == Row                               ? UIA_DataItemControlTypeId
+                                  : element.role == Cell && element.tableHeader       ? UIA_HeaderItemControlTypeId
+                                  : element.role == Quote || element.role == Metadata ? UIA_GroupControlTypeId
+                                  : element.role == Rule                              ? UIA_SeparatorControlTypeId
+                                                                                      : UIA_TextControlTypeId;
                 *result         = VariantFromInt(type);
                 return S_OK;
             }
@@ -270,7 +270,8 @@ public:
                AppendRuntimeIdValue(values, count, static_cast<LONG>(identity_.value >> 32u)) &&
                AppendRuntimeIdValue(values, count, static_cast<LONG>(publication_)) &&
                AppendRuntimeIdValue(values, count, static_cast<LONG>(publication_ >> 32u)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(binding_)) && AppendRuntimeIdValue(values, count, static_cast<LONG>(binding_ >> 32u)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(semanticRevision_)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(semanticRevision_ >> 32u)) &&
                AppendRuntimeIdValue(values, count, static_cast<LONG>(element_))))
             return E_INVALIDARG;
         return BuildRuntimeId(result, std::span(values.data(), count));
@@ -508,7 +509,7 @@ public:
     [[nodiscard]] bool Matches(const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
         const auto document = document_.lock();
-        return document && document == record.RichSemantic() && binding_ == record.RichBinding() &&
+        return record.HasCurrentRichSemantic() && document && document == record.RichSemantic() && semanticRevision_ == record.RichSemanticRevision() &&
                SameControlIdentity(identity_, CaptureControlIdentity(record)) && AreControlPathsEqual(path_, record.path);
     }
     [[nodiscard]] size_t Element() const noexcept
@@ -628,6 +629,6 @@ private:
     ControlPath path_;
     AccessibilityControlIdentity identity_;
     std::weak_ptr<const RichText::SemanticDocument> document_;
-    uint64_t publication_, binding_;
+    uint64_t publication_, semanticRevision_;
     size_t element_;
 };

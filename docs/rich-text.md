@@ -951,3 +951,32 @@ to published regions, so existing gallery assets are retained. D4c remains HOLD.
 M5 follows the owner's C++-only decision: an explicit limited Mermaid grammar
 will be implemented natively. Unsupported diagrams remain exact editable source;
 no JavaScript or headless-browser helper is deployed.
+
+## Leading metadata envelopes (M5a, in development)
+
+RichMarkdown analysis now recognizes a leading YAML `---` or TOML `+++` envelope,
+with an optional initial BOM. Fence lines must be exact, without spaces. YAML
+closes at `---` or `...`; TOML closes at `+++`. Later thematic breaks, indented
+or quoted markers and markers in code retain normal Markdown interpretation.
+CommonMark0312 and Gfm029 do not acquire metadata syntax.
+
+`MarkdownBlockKind::FrontMatter` and `MarkdownNode::frontMatterKind` identify the
+source owner and language. `block.content` excludes fences; `block.source` retains
+the entire envelope, comments, order, spelling and original EOLs. An incomplete
+envelope extends through EOF with `block.closed == false`. No Markdown references,
+headings or inline styles are extracted from metadata.
+`Diagnostics()` carries a source-ranged `UnclosedFrontMatter` issue naming the
+opener and final syntax node. The semantic child exposes a missing-fence
+explanation through UIA HelpText; closing the envelope retires that diagnostic.
+Semantic children also carry a data-only liveness revision. Source commits/reset,
+service previews, presentation/profile changes and binding retirement withdraw
+old children before a replacement snapshot. Pure geometry reflow may preserve
+their identity. Foreign UIA reads do not dereference the control to check it.
+
+Semantic presentation currently keeps this source fully visible as a literal
+fallback, including fences. Ordinary source edits/undo/redo remain available;
+Markdown style/heading/table commands reject metadata targets. Metadata
+content-validity diagnostics and the dedicated object source editor remain later
+M5 work. Envelope and diagnostic transport tests pass in focused Debug/native/
+embedded checks, including actual clients and allocation failures. Final qualification
+pending; this does not establish YAML/TOML conformance or complete M5 support.

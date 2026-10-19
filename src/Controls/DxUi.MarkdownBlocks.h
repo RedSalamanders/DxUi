@@ -473,7 +473,7 @@ class MarkdownBlocks
         if (nodes_[node].lines.size() == 1u)
             block.content.first = cursor.offset;
         block.content.last = bodyEnd;
-        if (block.kind == Kind::FencedCode || block.kind == Kind::IndentedCode || block.kind == Kind::HtmlBlock)
+        if (block.kind == Kind::FencedCode || block.kind == Kind::IndentedCode || block.kind == Kind::HtmlBlock || block.kind == Kind::FrontMatter)
             block.content.last = lineEnd_;
         block.source.last = lineEnd_;
     }
@@ -511,6 +511,44 @@ class MarkdownBlocks
             }
         }
         leaf_ = MarkdownNoNode;
+    }
+    bool FrontMatterLine(std::size_t first, std::size_t bodyEnd, std::size_t end)
+    {
+        if (sourceProfile_ != MarkdownProfile::RichMarkdown)
+            return false;
+        const auto body = source_.substr(first, bodyEnd - first);
+        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::FrontMatter)
+        {
+            auto& node        = nodes_[leaf_];
+            const bool closes = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? body == L"---" || body == L"..." : body == L"+++";
+            if (closes)
+            {
+                node.block.source.last  = end;
+                node.block.content.last = first;
+                node.block.closed       = true;
+                leaf_                   = MarkdownNoNode;
+            }
+            else
+                Content(leaf_, Cursor{source_, first, bodyEnd}, bodyEnd);
+            Extend();
+            return true;
+        }
+        // No indentation, leading blank line, container or later thematic break
+        // can open metadata. An optional initial Unicode BOM remains in Source.
+        if (first != 0u)
+            return false;
+        const auto bom    = body.starts_with(L'\ufeff') ? 1u : 0u;
+        const auto marker = body.substr(bom);
+        if (marker != L"---" && marker != L"+++")
+            return false;
+        leaf_                = Add(Kind::FrontMatter, 0u);
+        auto& node           = nodes_[leaf_];
+        node.frontMatterKind = marker == L"---" ? MarkdownFrontMatterKind::Yaml : MarkdownFrontMatterKind::Toml;
+        node.block.content   = {end, end};
+        node.block.info      = {bom, bodyEnd};
+        node.block.closed    = false;
+        Extend();
+        return true;
     }
     bool ReferenceSpace(wchar_t c) const noexcept
     {
@@ -780,6 +818,8 @@ public:
     {
         lineFirst_ = first;
         lineEnd_   = end;
+        if (FrontMatterLine(first, bodyEnd, end))
+            return;
         lastOtherMarker_.fill(MarkdownNoNode);
         constexpr wchar_t markers[] = {L'-', L'*', L'_'};
         for (auto offset = first; offset < bodyEnd; ++offset)
@@ -1100,9 +1140,9 @@ public:
     }
     void Finish()
     {
-        const bool trailingInLeaf =
-            leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
-            (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode || nodes_[leaf_].block.kind == Kind::HtmlBlock);
+        const bool trailingInLeaf = leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
+                                    (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode ||
+                                     nodes_[leaf_].block.kind == Kind::HtmlBlock || nodes_[leaf_].block.kind == Kind::FrontMatter);
         CloseLeaf();
         for (const auto container : open_)
         {

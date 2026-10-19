@@ -1243,7 +1243,10 @@ __declspec(noinline) static int RunFunctionalTests()
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
+        {
             TestRichMarkdownParserFailureAndStorageBudgets(true);
+            TestRichFrontMatterAllocationFailureAtomicity(true);
+        }
         else
             TestRichProjectionPreparationAllocationFailureAtomicity(true);
         return 0;
@@ -1412,6 +1415,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
+    TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
@@ -1470,6 +1474,7 @@ __declspec(noinline) static int RunFunctionalTests()
         transactionView.Detach();
     }
     TestRichMarkdownParserFailureAndStorageBudgets();
+    TestRichFrontMatterAllocationFailureAtomicity();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);

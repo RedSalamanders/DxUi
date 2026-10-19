@@ -155,7 +155,8 @@ struct MarkdownCommandPlanner
             const auto r = nodes[i].block.source;
             if (nodes[i].block.kind == kind && r.first <= at &&
                 (at < r.last || (at == r.last && at == text.size() &&
-                                 (text.empty() || (text.back() != L'\r' && text.back() != L'\n') || (kind == Kind::FencedCode && ! nodes[i].block.closed)))) &&
+                                 (text.empty() || (text.back() != L'\r' && text.back() != L'\n') ||
+                                  ((kind == Kind::FencedCode || kind == Kind::FrontMatter) && ! nodes[i].block.closed)))) &&
                 (best == MarkdownNoNode || r.last - r.first <= nodes[best].block.source.last - nodes[best].block.source.first))
                 best = i;
         }
@@ -508,7 +509,7 @@ struct MarkdownCommandPlanner
         const auto& line = Line(first);
         if (Line(last).first != line.first)
             return;
-        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock})
+        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter})
         {
             const auto opaque = NodeAt(kind, first);
             if (opaque == MarkdownNoNode)
@@ -752,14 +753,14 @@ struct MarkdownCommandPlanner
         leaf = LeafAt(plan.before_.Start());
         if (leaf == MarkdownNoNode && plan.before_.anchor == plan.before_.caret && Line(plan.before_.caret).first == Line(plan.before_.caret).bodyEnd)
             return NodeAt(Kind::FencedCode, plan.before_.caret) == MarkdownNoNode && NodeAt(Kind::IndentedCode, plan.before_.caret) == MarkdownNoNode &&
-                   NodeAt(Kind::HtmlBlock, plan.before_.caret) == MarkdownNoNode;
+                   NodeAt(Kind::HtmlBlock, plan.before_.caret) == MarkdownNoNode && NodeAt(Kind::FrontMatter, plan.before_.caret) == MarkdownNoNode;
         return leaf != MarkdownNoNode && plan.before_.End() <= nodes[leaf].block.content.last;
     }
     bool EmptyStructuralSite() const
     {
         if (plan.before_.anchor != plan.before_.caret)
             return false;
-        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::Table})
+        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter, Kind::Table})
             if (NodeAt(kind, plan.before_.caret) != MarkdownNoNode)
                 return false;
         const auto& line = Line(plan.before_.caret);
@@ -807,7 +808,7 @@ struct MarkdownCommandPlanner
         for (const auto& node : nodes)
             if (node.block.source.first < plan.before_.End() && node.block.source.last > plan.before_.Start() &&
                 (node.block.kind == Kind::FencedCode || node.block.kind == Kind::IndentedCode || node.block.kind == Kind::HtmlBlock ||
-                 node.block.kind == Kind::Table || node.block.kind == Kind::ThematicBreak))
+                 node.block.kind == Kind::FrontMatter || node.block.kind == Kind::Table || node.block.kind == Kind::ThematicBreak))
                 return true;
         return false;
     }
@@ -1649,7 +1650,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         else
         {
             if (NodeAt(Kind::FencedCode, at) != MarkdownNoNode || NodeAt(Kind::IndentedCode, at) != MarkdownNoNode ||
-                NodeAt(Kind::HtmlBlock, at) != MarkdownNoNode)
+                NodeAt(Kind::HtmlBlock, at) != MarkdownNoNode || NodeAt(Kind::FrontMatter, at) != MarkdownNoNode)
                 return;
             while (at < line.bodyEnd && (Space(text[at]) || text[at] == L'>'))
                 ++at;

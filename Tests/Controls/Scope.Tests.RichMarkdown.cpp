@@ -826,6 +826,34 @@ void TestLosslessMarkdownLexicalValuesAndAffinity()
     Reject([&] { syntax->LexemeValue(999u); }, "out of bounds lexical index rejected");
     Reject([&] { syntax->LexemeSourceAnchor(1u, 9u); }, "out of bounds transformed offset rejected");
 }
+void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
+{
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : FrontMatterTests::scenarios)
+        {
+            MarkdownParser parser;
+            parser.Begin(scenario.source, 1u, profile);
+            const auto syntax = CompleteMarkdown(parser, 1u);
+            FrontMatterTests::CheckSyntax(*syntax, scenario, Require);
+            CheckMarkdownPartitions(*syntax, scenario.source);
+            CheckInlineForest(*syntax);
+        }
+    MarkdownParser parser;
+    parser.Begin(L"---\nkey: old\n---\n# suffix\n", 1u, MarkdownProfile::RichMarkdown);
+    const auto old      = CompleteMarkdown(parser);
+    const auto identity = old->Nodes()[old->Nodes()[0].firstChild].identity;
+    parser.Begin(L"---\nkey: new\n---\n# suffix\n", 2u, MarkdownProfile::RichMarkdown);
+    parser.Advance(5u);
+    Require(parser.Published() == old, "pending metadata cannot replace the last immutable publication");
+    parser.Cancel();
+    Require(parser.Published() == old && ! parser.HasPendingPreparation(), "metadata cancellation retires staging without changing the old source");
+    parser.Begin(L"---\nkey: new\n---\n# suffix\n", 2u, MarkdownProfile::RichMarkdown);
+    const auto current = CompleteMarkdown(parser, 1u);
+    Require(current->Nodes()[current->Nodes()[0].firstChild].identity == identity && old->Source().find(L"old") != std::wstring_view::npos,
+            "compatible envelope identity survives a body edit without mutating a held revision");
+    parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
+    Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
+}
 void TestLosslessMarkdownSchedulingCancellationAndIdentity()
 {
     MarkdownParser parser;
@@ -887,4 +915,5 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownFencedCodeBoundaries);
     DXUI_RUN_TEST(TestLosslessMarkdownLexicalValuesAndAffinity);
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
+    DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
 }

@@ -695,6 +695,27 @@ public:
         });
     }
 
+    [[nodiscard]] std::wstring StringProperty(ElementId id, PROPERTYID property)
+    {
+        return Ask<std::wstring>("a string property",
+                                 [id, property](Session& session, std::wstring& result)
+        {
+            IUIAutomationElement* const element = session.Get(id);
+            if (! element)
+                return E_INVALIDARG;
+            VARIANT value{};
+            const auto clear = wil::scope_exit([&] noexcept { VariantClear(&value); });
+            RETURN_IF_FAILED(element->GetCurrentPropertyValue(property, &value));
+            if (value.vt != VT_BSTR)
+                return E_UNEXPECTED;
+            if (value.bstrVal)
+                result.assign(value.bstrVal, SysStringLen(value.bstrVal));
+            else
+                result.clear();
+            return S_OK;
+        });
+    }
+
     // What UI Automation answers when asked for an element's properties: a failure, UIA_E_ELEMENTNOTAVAILABLE, for an element
     // whose control is gone. `info` is filled when it succeeds.
     [[nodiscard]] HRESULT TryDescribe(ElementId id, ElementInfo& info)

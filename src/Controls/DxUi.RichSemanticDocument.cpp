@@ -80,6 +80,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::FencedCode:
             case MarkdownBlockKind::IndentedCode: return SemanticRole::Code;
             case MarkdownBlockKind::HtmlBlock: return SemanticRole::Html;
+            case MarkdownBlockKind::FrontMatter: return SemanticRole::Metadata;
             case MarkdownBlockKind::Table: return SemanticRole::Table;
             case MarkdownBlockKind::TableRow: return SemanticRole::Row;
             case MarkdownBlockKind::TableCell: return SemanticRole::Cell;
@@ -97,6 +98,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::FencedCode:
             case MarkdownBlockKind::IndentedCode:
             case MarkdownBlockKind::HtmlBlock:
+            case MarkdownBlockKind::FrontMatter:
             case MarkdownBlockKind::TableCell:
             case MarkdownBlockKind::ThematicBreak: return true;
             default: return false;
@@ -112,6 +114,7 @@ struct SemanticBuilder::Preparation
             case SemanticRole::Heading:
             case SemanticRole::Code:
             case SemanticRole::Html:
+            case SemanticRole::Metadata:
             case SemanticRole::Cell:
             case SemanticRole::Link: element.name.assign(output.text, element.display.first, element.display.last - element.display.first); break;
             default: break;
@@ -293,7 +296,8 @@ struct SemanticBuilder::Preparation
             return true;
         const auto kind = nodes[first].block.kind;
         return kind == MarkdownBlockKind::List || kind == MarkdownBlockKind::Table || kind == MarkdownBlockKind::FencedCode ||
-               kind == MarkdownBlockKind::IndentedCode || kind == MarkdownBlockKind::HtmlBlock || kind == MarkdownBlockKind::ThematicBreak;
+               kind == MarkdownBlockKind::IndentedCode || kind == MarkdownBlockKind::HtmlBlock || kind == MarkdownBlockKind::FrontMatter ||
+               kind == MarkdownBlockKind::ThematicBreak;
     }
     void Marker(std::size_t itemIndex, std::size_t anchor, unsigned flags, unsigned heading)
     {
@@ -393,8 +397,12 @@ struct SemanticBuilder::Preparation
         if (node.block.kind == MarkdownBlockKind::ListItem || node.block.kind == MarkdownBlockKind::BlockQuote)
             ++visit.indent;
         visit.heading = node.block.heading;
-        if (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode)
+        if (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode ||
+            node.block.kind == MarkdownBlockKind::FrontMatter)
             visit.flags |= Code;
+        if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
+            document->elements_[visit.element].title = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? L"Missing closing YAML front matter fence."
+                                                                                                             : L"Missing closing TOML front matter fence.";
         if (node.tableHeader)
             visit.flags |= Bold;
         if (node.block.kind == MarkdownBlockKind::Table)
@@ -429,7 +437,8 @@ struct SemanticBuilder::Preparation
             Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
             if (node.block.kind == MarkdownBlockKind::HtmlBlock)
                 html.Block(normalized);
-            else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode)
+            else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode &&
+                     node.block.kind != MarkdownBlockKind::FrontMatter)
                 html.Inline(syntax, node, normalized);
             else
                 html.Reset();

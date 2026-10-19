@@ -145,7 +145,8 @@ MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision,
       lexemes_(0u),
       nodes_(0u),
       emptyLines_(0u),
-      inlines_(0u)
+      inlines_(0u),
+      diagnostics_(0u)
 {
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
@@ -191,6 +192,10 @@ const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 const std::vector<MarkdownInline>& MarkdownSyntax::Inlines() const noexcept
 {
     return inlines_;
+}
+std::span<const MarkdownDiagnostic> MarkdownSyntax::Diagnostics() const noexcept
+{
+    return diagnostics_;
 }
 std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
 {
@@ -283,7 +288,12 @@ struct MarkdownParser::Preparation
             identitiesComplete = true;
             return;
         }
-        auto& node = syntax->nodes_[identityCursor++];
+        const auto nodeIndex = identityCursor++;
+        auto& node           = syntax->nodes_[nodeIndex];
+        // Reuse the existing resumable final-node pass; never rescan all nodes
+        // on a host input/read path just to discover incomplete envelopes.
+        if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
+            syntax->diagnostics_.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
         if (identityCursor == 1u && previous)
         {
             node.identity = previous->Nodes()[0].identity;

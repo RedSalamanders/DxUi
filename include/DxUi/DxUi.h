@@ -51,6 +51,10 @@ struct ITfThreadMgrEventSink;
 
 namespace DxUi
 {
+namespace RichText::Detail
+{
+struct AccessibilityEpoch;
+}
 inline constexpr UINT kModifierAlt = 0x0100u;
 
 [[nodiscard]] inline bool ModifiersContainCtrl(UINT modifiers) noexcept
@@ -2918,7 +2922,8 @@ protected:
 
 private:
     friend struct EmbeddedAccessibilityAccess;
-    [[nodiscard]] uint64_t AccessibilityBindingRevision() const noexcept;
+    [[nodiscard]] std::shared_ptr<const RichText::Detail::AccessibilityEpoch> AccessibilitySemanticEpoch() const noexcept;
+    void RetireSemanticAccessibility() const noexcept;
     struct State;
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;

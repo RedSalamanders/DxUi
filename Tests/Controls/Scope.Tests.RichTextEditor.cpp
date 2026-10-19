@@ -5,6 +5,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.RichMarkdown.h"
 #include <DxUi/ControlCatalog.h>
+#include <DxUi/RichSemanticDocument.h>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -755,6 +756,47 @@ void TestRichTextEditorNativeInlineGrammarAndReferenceEdits()
     RenderEditor(window);
     Require(MarkdownHtmlTests::Html(*editor->GetMarkdownSyntax()) == MarkdownHtmlTests::Html(*after), "native redo re-resolves global references");
 }
+void TestRichTextEditorNativeFrontMatterFencesAndSourceEdits()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    for (const auto& scenario : FrontMatterTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        RenderEditor(window);
+        const auto syntax = editor->GetMarkdownSyntax();
+        Require(syntax != nullptr, "native metadata source preparation completes");
+        FrontMatterTests::CheckSyntax(*syntax, scenario, Require);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(semantic && semantic->Syntax() == syntax && editor->GetText() == scenario.source && ! editor->CanUndo(),
+                "native metadata shares acknowledged syntax and preserves exact source/history");
+    }
+    const std::wstring source = L"+++\r\n# keep comment\r\ntitle = '\u03b2'\r\n+++\r\n# Body\r\n";
+    editor->SetText(source);
+    RenderEditor(window);
+    const auto held = editor->GetAcknowledgedSemanticDocument(window.Host());
+    const auto at   = source.find(L'\u03b2');
+    editor->SetSelection({at, at + 1u});
+    for (const auto command : {MarkdownCommand::ToggleStyle, MarkdownCommand::SetHeading, MarkdownCommand::InsertTable})
+        Require(editor->ExecuteMarkdownCommand({command}) == MarkdownCommandStatus::Unavailable && editor->GetText() == source && ! editor->CanUndo(),
+                "Markdown structure commands cannot rewrite an opaque metadata value");
+    Require(editor->ReplaceSelection(L"\u03a9") && ! editor->GetAcknowledgedSemanticDocument(window.Host()),
+            "native source edit invalidates old metadata acknowledgement synchronously");
+    auto expected = source;
+    expected.replace(at, 1u, L"\u03a9");
+    RenderEditor(window);
+    Require(editor->GetText() == expected && held->Syntax()->Source() == source, "native metadata edit preserves untouched spelling and held source");
+    Require(editor->Undo() && editor->GetText() == source && ! editor->CanUndo() && editor->Redo() && editor->GetText() == expected,
+            "native metadata replacement is one reversible source transaction");
+    const auto selected = editor->GetSelection();
+    editor->SetViewMode(ViewMode::Source);
+    RenderEditor(window);
+    Require(editor->GetText() == expected && editor->GetSelection() == selected, "native source view preserves metadata selection and exact document");
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -846,4 +888,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);
     DXUI_RUN_TEST(TestRichTextEditorNativeBlockGrammarAndIdentity);
     DXUI_RUN_TEST(TestRichTextEditorNativeInlineGrammarAndReferenceEdits);
+    DXUI_RUN_TEST(TestRichTextEditorNativeFrontMatterFencesAndSourceEdits);
 }

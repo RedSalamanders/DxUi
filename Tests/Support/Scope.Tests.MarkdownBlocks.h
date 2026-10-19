@@ -95,3 +95,77 @@ inline constexpr Scenario scenarios[]         = {
     {L"thematic precedence", L"- alpha\n- - -\n", L"<ul><li></li></ul><hr></hr>"},
 };
 } // namespace MarkdownBlockTests
+
+namespace FrontMatterTests
+{
+using namespace DxUi::RichText;
+struct Scenario
+{
+    std::wstring_view name, source, content, after;
+    MarkdownFrontMatterKind kind{};
+    bool closed{};
+};
+inline constexpr Scenario scenarios[] = {
+    {L"empty YAML", L"---\n---\n# after\n", L"", L"# after\n", MarkdownFrontMatterKind::Yaml, true},
+    {L"YAML BOM Unicode CRLF and dot close",
+     L"\ufeff---\r\n# comment\r\nname: '\U0001f600e\u0301'\r\n...\r\n# after\r\n",
+     L"# comment\r\nname: '\U0001f600e\u0301'\r\n",
+     L"# after\r\n",
+     MarkdownFrontMatterKind::Yaml,
+     true},
+    {L"YAML exact close at EOF", L"---\nkey: value\n---", L"key: value\n", L"", MarkdownFrontMatterKind::Yaml, true},
+    {L"YAML unclosed opener at EOF", L"---", L"", L"", MarkdownFrontMatterKind::Yaml, false},
+    {L"YAML incomplete body", L"---\r\nkey: [\r\n", L"key: [\r\n", L"", MarkdownFrontMatterKind::Yaml, false},
+    {L"YAML fences require exact lines", L"---\n--- \n ---\n# ---\n...\n", L"--- \n ---\n# ---\n", L"", MarkdownFrontMatterKind::Yaml, true},
+    {L"YAML leaves Markdown and entities opaque",
+     L"---\n# not heading\n- [x] **&amp;**\n[r]: /not-a-link\n---\n[r]\n",
+     L"# not heading\n- [x] **&amp;**\n[r]: /not-a-link\n",
+     L"[r]\n",
+     MarkdownFrontMatterKind::Yaml,
+     true},
+    {L"empty TOML", L"+++\n+++\n# after\n", L"", L"# after\n", MarkdownFrontMatterKind::Toml, true},
+    {L"TOML BOM and CR lines", L"\ufeff+++\r# comment\rtitle = '\u03b2'\r+++\r", L"# comment\rtitle = '\u03b2'\r", L"", MarkdownFrontMatterKind::Toml, true},
+    {L"TOML does not close at YAML fences", L"+++\n---\n...\n+++", L"---\n...\n", L"", MarkdownFrontMatterKind::Toml, true},
+    {L"YAML does not close at TOML fence", L"---\n+++\n...", L"+++\n", L"", MarkdownFrontMatterKind::Yaml, true},
+    {L"TOML unclosed opener", L"+++\n", L"", L"", MarkdownFrontMatterKind::Toml, false},
+    {L"TOML incomplete body", L"+++\nx = [1,\n", L"x = [1,\n", L"", MarkdownFrontMatterKind::Toml, false},
+    {L"leading blank", L"\n---\nkey: value\n---\n", {}, {}},
+    {L"later thematic break", L"text\n\n---\nkey: value\n---\n", {}, {}},
+    {L"indented opener", L" ---\nkey: value\n---\n", {}, {}},
+    {L"opener with trailing space", L"--- \nkey: value\n---\n", {}, {}},
+    {L"quoted opener", L"> ---\n> key: value\n> ---\n", {}, {}},
+    {L"code opener", L"```\n---\nkey: value\n---\n```\n", {}, {}},
+    {L"JSON is not metadata", L"{\"title\": \"source\"}\n", {}, {}},
+    {L"two BOMs are not an opener", L"\ufeff\ufeff---\nx: 1\n---\n", {}, {}},
+};
+template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, const Scenario& scenario, Check&& check)
+{
+    check(syntax.Source() == scenario.source, "metadata envelope retains exact UTF-16, comments, spelling and EOLs");
+    std::size_t count = 0u;
+    for (const auto& node : syntax.Nodes())
+    {
+        if (node.block.kind != MarkdownBlockKind::FrontMatter)
+            continue;
+        ++count;
+        check(syntax.Profile() == MarkdownProfile::RichMarkdown && node.parent == 0u && node.block.source.first == 0u,
+              "metadata is a RichMarkdown document-start leaf, never a nested or later block");
+        check(node.frontMatterKind == scenario.kind && node.block.closed == scenario.closed && syntax.Slice(node.block.content) == scenario.content,
+              "metadata language, incomplete-input state and fence-excluding content match independent expectations");
+        check(syntax.Source().substr(node.block.source.last) == scenario.after && node.firstChild == MarkdownNoNode && node.firstInline == MarkdownNoNode,
+              "metadata has no Markdown descendants and does not capture the following document");
+        check(syntax.Slice(node.block.info) == (scenario.kind == MarkdownFrontMatterKind::Yaml ? L"---" : L"+++"),
+              "metadata opener range excludes only the optional BOM");
+    }
+    const bool expected = syntax.Profile() == MarkdownProfile::RichMarkdown && scenario.kind != MarkdownFrontMatterKind::None;
+    check(count == (expected ? 1u : 0u), "base profiles and non-leading or inexact fences cannot acquire metadata semantics");
+    const auto diagnostics = syntax.Diagnostics();
+    check(diagnostics.size() == (expected && ! scenario.closed ? 1u : 0u), "only incomplete metadata envelopes publish the missing-close diagnostic");
+    if (! diagnostics.empty())
+    {
+        const auto& issue = diagnostics[0u];
+        check(issue.code == MarkdownDiagnosticCode::UnclosedFrontMatter && issue.node < syntax.Nodes().size() &&
+                  issue.source == syntax.Nodes()[issue.node].block.info,
+              "metadata diagnostic names the exact opener and final revision-local source owner");
+    }
+}
+} // namespace FrontMatterTests

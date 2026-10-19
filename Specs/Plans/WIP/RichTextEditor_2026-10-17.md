@@ -2615,3 +2615,130 @@ is accepted; D4c remains HOLD. M5/M6, remaining D2a preparation, actual IME/AT,
 agreed focus-taking tests, native ARM64 execution and consumer/product gates remain
 open. Continue with M5's explicitly pinned native extension grammar, source-bearing
 objects and unsupported-source diagnostics under the C++ only Mermaid decision.
+
+## M5 native extension sequence (2026-10-20)
+
+The owner's C++ only Mermaid choice supersedes the prototype's proposed browser
+helper. No accepted math or metadata category is removed by that choice. Execute
+these substeps, retaining code/tests/contracts together and separating focused
+development checks from final frozen qualification:
+
+- [ ] M5a: Establish source-owning extension envelopes, diagnostic/admission
+  contracts and immutable reference/corpus pins. Exact leading YAML/TOML fences
+  must be recognized before Markdown blocks/references; incomplete envelopes
+  retain source. CommonMark0312 and Gfm029 keep their existing semantics.
+  - [x] M5a.1: Source-owning envelopes, literal fallback and opaque command guards
+    pass focused Debug/native/embedded and observed allocation-failure checks.
+    Final profile qualification remains M5f.
+  - [x] M5a.2: Publish source-ranged incomplete-envelope diagnostics and verify
+    actual native/application-bridged UIA explanation, source range and retirement.
+    - [x] Added coverage: independently sweep semantic diagnostic/title staging
+      and lazy accessibility activation; parser allocation sweeps cannot cover them.
+  - [ ] M5a.3: Complete named math/native Mermaid grammar/admission/corpus pins;
+    retain every supported/unsupported result separately from rendered success.
+- [ ] M5b: Validate YAML 1.2.2 and TOML 1.0.0 without reserializing source; report
+  invalid/duplicate/unresolved/capacity cases. Implement normalized footnote
+  labels, multi-paragraph definitions, repeated references, first-reference
+  numbering and explicit backlinks/reordered primary source ownership.
+- [ ] M5c: Implement the named native math command/environment corpus and layout:
+  identifiers/numbers/operators/groups, fractions, roots, scripts, stretchy
+  delimiters, accents, large operators/limits, matrices/cases/aligned and text.
+  Qualify font fallback, baseline, selection/hit testing, high DPI and source copy.
+- [ ] M5d: Implement DxUi's versioned limited Mermaid flowchart grammar, owned
+  deterministic layout and alternatives. Pin Mermaid 11.4.1 reference commit
+  `9868f3a4c3784e214d8b6c74277ca542774e7de9`; classify the complete declared
+  diagram-family inventory and original flowchart examples. Unsupported syntax
+  remains exact source with a diagnostic, never a successful diagram result.
+- [ ] M5e: Integrate source-bearing object editing and caret entry/exit, diagnostics,
+  structural source transactions, native/embedded UIA alternatives/actions,
+  preparation cancellation/coalescing/staleness and the complex sample/gallery.
+- [ ] M5f: Freeze and qualify final native/embedded behavior, independent corpora,
+  observed valid/invalid allocation schedules, resources/device loss, all required
+  local build/runtime profiles, validators/format and reviewed themed captures.
+  Preserve failures and the D4c HOLD; physical/platform/consumer gates stay distinct.
+
+M5a implementation in progress: `FrontMatter` syntax leaves carry language,
+exact fence-excluding content and `block.closed`. Only RichMarkdown at absolute
+document start (optional BOM) recognizes exact `---`/`+++` opening lines. YAML
+closes with exact `---` or `...`; TOML with exact `+++`. No spaces/container or
+later thematic break opens metadata. Envelopes have no Markdown descendants or
+reference definitions; the following document resumes normal grammar. Missing
+closing fences retain the rest of the exact source with `closed == false`.
+
+The semantic fallback displays the full envelope literally, including fences,
+without decoding Markdown/entities. Source edits retain ordinary history; style,
+heading and table commands cannot reinterpret metadata. Twenty-one independent
+fence scenarios, base-profile isolation, cancellation/identity, semantic source
+maps, native/embedded source edits and four allocation schedules pass the first
+focused Debug checks in `Iteration1`: five directed native tests, the isolated
+allocation probes and ordinary Embedded all return zero. All 1,324 original
+semantic expectations/source admissions still pass; the new four-case envelope
+sweep covers 219 observed allocation points. Embedded completes 27,825 checks and
+1,000 warm composites with zero tracked C++ allocations. Exact source patch,
+executables/PDB/library, raw logs and hashes are retained privately. These are
+focused development results, not final six-profile or M5 qualification.
+
+Current follow-through adds `Diagnostics()` with exact opener/source-owner
+`UnclosedFrontMatter` records, UIA Group metadata children and missing-fence
+HelpText. New actual native/application-bridged client tests verify raw ranges,
+source retirement and cleared diagnostics after closure. That source is pending
+its next build/tests. Twenty-four immutable original Mermaid documentation,
+flow-grammar and MIT-notice files are retained as data under ThirdParty/Markdown;
+they are not deployed or compiled. The first documentation check found 14
+upstream-relative links; original documents now use `.txt` suffixes with unchanged
+hashes, and repository specification validation passes. This is not metadata
+content validity, a dedicated object source editor, full M5 or performance acceptance.
+
+Iteration2 builds and seven of nine focused runs pass, including 225 new parser
+allocation points and ordinary Embedded (27,867 checks, zero tracked C++
+allocations across 1,000 warm composites). Both new native/embedded diagnostic
+client tests fail at the same pre-publication stale-read assertion: after
+programmatic `SetText`, a cached old snapshot still serves the old child HelpText.
+Exact failed source/artifacts/logs remain in `Iteration2`; earlier M4 action guards
+do not make that read-currentness assertion pass.
+
+The current correction adds a data-only atomic semantic epoch, allocated lazily
+for the semantic opt-in. Source commits/reset, transient service imports,
+presentation/profile changes, binding retirement and destruction invalidate it
+before subsequent owner callbacks/publication. Snapshot queries read this shared
+epoch without touching the control on a foreign thread. Raw immutable document
+pointers remain stable for historical diffs and in-flight reads; current-query
+guards check the epoch explicitly, avoiding a check/dereference race. Each
+provider retains its captured epoch, so mode or same-host cycles cannot resurrect
+an old child even if its CPU document is reused. Geometry-only changes keep that
+identity. Source/epoch pairs are captured before fallible snapshot allocation.
+No universal navigation-record fields or per-edit snapshot rebuild are added.
+Extended actual-client, ordinary edit/undo, selection/preview/cancel, mode/binding,
+semantic publication failure and activation failure tests are pending Iteration3.
+
+Iteration3's production library/Embedded executable compile, but the Control
+fixture fails compilation (wrong helper name and calls through its base-typed
+editor field). The partial build/source/log/artifact archive is
+`Failed-Iteration3`; its isolated resource diagnostic passes but is not canonical
+qualification. The test now queries its existing provider explicitly and accesses
+protected protocol/rebind methods through the constructor's actual test subclass.
+
+Iteration4 Debug builds and all 15 focused obligations pass: thirteen directed
+native tests (new YAML/TOML actual clients plus all six existing M4 semantic UIA
+regressions and original semantic/source corpora), isolated allocation probes
+and ordinary Embedded. Both host/client variants verify immediate stale-provider
+withdrawal, pending format/child withdrawal, same-CPU-document mode-cycle and
+same-host rebinding retirement, ordinary edits/undo and transient service imports.
+Selection-only imports preserve identity. All 1,324 original semantic/source cases
+still pass. Observed failure schedules are 225 parser-envelope allocations, 301
+semantic publication/diagnostic allocations and one lazy activation allocation;
+every observed failure preserves old state and permits retry. Embedded passes
+28,475 checks; 1,000 warm composites allocate no tracked C++ memory. These are
+focused Debug results; final profiles/resources/gallery remain M5f and D4c stays
+HOLD. Exact modified/untracked native sources, patch, binaries/PDB/library and
+hashes are retained in `Iteration4`. Continue with M5a.3 and the remaining M5 work.
+
+Development closeout for this checkpoint: all five repository validators, the
+complete tooling suite and pinned clang-format 22.1.3 check passed. This is a
+coherent WIP commit; M5f still owns the new source's full runtime/build profiles.
+
+The clean pre-change Release baseline uses metadata commit `bd5d3e49`, through
+the canonical build path. A prior SkipBuild refusal is retained: the capability
+manifest changed the conservative build identity. The successful measurement and
+build log are private under `.build/reports/rich-frontmatter-m5a-20261020`.
+It is a development baseline and does not rebaseline or clear D4c acceptance.
