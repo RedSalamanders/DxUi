@@ -940,10 +940,13 @@ publication identity and the owner binding epoch, so old children cannot act on
 an edited, replaced or rebound successor. Reacquire children after a semantic
 structure invalidation. Pure CPU semantics may survive geometry-only changes.
 
-M4f remains under qualification in the active plan. Its native/embedded client
-tests are distinct from physical Narrator/NVDA/IME and native ARM64 acceptance.
-This accessibility change alters no drawing, typography, sample or gallery
-inputs; the existing reviewed gallery assets are retained without regeneration.
+The bounded M4f implementation and M4 component closeout are
+[functionally qualified](../Measurements/RichText/2026-10-20-semantic-uia/README.md):
+all 57 ordinary x64 scope/profile runs, three ARM64 builds, failure/resource
+probes, validation and formatting pass. Native/embedded client tests are distinct
+from physical Narrator/NVDA/IME and native ARM64 acceptance. This accessibility
+change alters no drawing inputs; fresh reviewed rich captures are pixel-identical
+to published regions, so existing gallery assets are retained. D4c remains HOLD.
 
 M5 follows the owner's C++-only decision: an explicit limited Mermaid grammar
 will be implemented natively. Unsupported diagrams remain exact editable source;

@@ -91,6 +91,7 @@
     "bounded-semantic-source-caret-sites-preview",
     "bounded-native-html-links-hanging-markers-preview",
     "bounded-source-exact-markdown-commands-preview",
+    "bounded-semantic-style-structure-uia-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",

@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "5717ff85a7e0aecb5374cd2ff7d276f368d9e578",
+  "exitCode": 1,
+  "baseline": "baseline-Default.json",
+  "candidate": "candidate-Default.json",
+  "classification": "Single unpaired diagnostic after all owned builds/tests and Ghidra reference work finished; cannot clear D4c HOLD",
+  "completedUtc": "2026-10-19T22:14:20.9619738Z"
+}

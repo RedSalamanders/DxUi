@@ -1,0 +1,50 @@
+[
+  {
+    "Hash": "BB582B47335992A75D612B35153E88F2E3AEA1D62EC3F9A97423D621AF3706FC",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "7E1D080636D7A0013800E44D685D329C360178D4A8B82CFCF1F65A34A21F2405",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "33A591404284D919913E6390D2282BE4B9ABB274E6D671FD40A746F3B1B08995",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "Hash": "0CBAF11EE603105FFDE376D5A1A2FC426FE57F76A3E52A5A0756EA5BB76A7DD7",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.EmbeddedControls.pdb"
+  },
+  {
+    "Hash": "844D440B1122CE6803EBB298214009787C07BE858E59F1510773B30DC8692A51",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "6E396DFCAD0B69FE3DF6149038BB1D30C4EADB12E620A91A6956E0E40909FA60",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "40F58AA289052704C10D1A03CFE476AAF8C8B88D6F98C92E6536ECEADE227B0C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "281321F0434379C00CF1C36E38477F8078B537F0116A89A6556089E4DD6364B4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "CE4FB7A60A477CF4F4C6EB7EF6FF225750AFA6713F5815FFC3A0451CCC213521",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.InteractiveLease.exe"
+  },
+  {
+    "Hash": "10F4221A7E65831E2031506A35E5EAB8B24C0B51E75590CADFDFF0048B855946",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.InteractiveLease.pdb"
+  },
+  {
+    "Hash": "C4CA3BDA03CD080E00E64060E3041192C0956B09D4279C0DD6631B6A6DD33F50",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.lib"
+  },
+  {
+    "Hash": "1F493B17006AA47D124E7D5AA2A23A578B7058F38498B6D43B90D171BE77C5B0",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\ARM64\\Release\\DxUi.pdb"
+  }
+]

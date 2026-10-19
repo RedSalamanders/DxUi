@@ -1,0 +1,7 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestRichSemanticDocumentPinnedSourceCases
+semantic pinned source cases admitted=1324 rejectedDocumentSource=0 failures=0
+  [DONE] TestRichSemanticDocumentPinnedSourceCases (0.177 s)
+[DONE] EditorControls (0.180 s)
+All DxUi tests passed.

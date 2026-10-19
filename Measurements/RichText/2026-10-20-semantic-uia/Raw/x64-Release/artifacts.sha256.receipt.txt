@@ -1,0 +1,218 @@
+[
+  {
+    "Hash": "AB166BFBFB82EE3F85E6295C9EC15696A32DCE29BED2E48FB040207CD7AFF4CF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Accessibility-x64-Release.json"
+  },
+  {
+    "Hash": "BBED548E819CAF03287BAF0DE41D5779CBEDDC830E3B79F084C2D382CBAFD493",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Animation-x64-Release.json"
+  },
+  {
+    "Hash": "18F6523220A42D16252B3A1CD187856936F258A780021F3E513722459DD8A47F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\build-attestation.json"
+  },
+  {
+    "Hash": "AC0C6F504BA5A7705779AC548F28B4B4A39CFB8A3D6BE304DDDB419D9A5F3275",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\ComboBox-x64-Release.json"
+  },
+  {
+    "Hash": "D34AB2D4B74C9113FBE7103EC019A86BB0A68A7920C4FAAEFBDD5827EAD36779",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Control-x64-Release.json"
+  },
+  {
+    "Hash": "C47A21CFBB8C5B87CE1862B2051C0776AB70FAC8DE24AA24DF1E3CACA5EEAF60",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\driver.log"
+  },
+  {
+    "Hash": "EBD9A6DE83B867A2030946A1FDC3235E4ADF478A75202A3E37D42134DA45A247",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "9052597C46C7E6E8D89E942F849A44F3FC445E4A97D8325C943B45937646B559",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "C1BCE9CD4309A622D882A3891B7A8872A90FC5E429FC0D976E9C236C5738C7A2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "Hash": "53B3315F11C1BA97B7D5FD5554C08684C2495867D20781CAC837BD22BFA5A014",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.EmbeddedControls.pdb"
+  },
+  {
+    "Hash": "7061B9B413E364BB0C724850B4739799AC7E56E12C80E5603F2CC56B9E47C5E3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "E9BC94A908B3FEAF5D04CC943D50774F3CC4F383659A7E85E54CAB6B250A04F6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "99ED0C96618C8CBC125DBBBA4DEC94769B6770E25B1393B02E601FEC2ED18E35",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "776B9F57296EB8FB39AA82CE1EE9D321C99DDEC3E6E50426AC6D8E8CAE7D4DFF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "19C938CF2EB8E152E7A46C5D96B40DAF55C0E0C028C0430C8094B1C76B20522A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\DxUi.lib"
+  },
+  {
+    "Hash": "2C9CB1E81DA08D2CFF379D69A2248DF4D6E740355E85A083E80FDC151CCA21BF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\EditorControls-x64-Release.json"
+  },
+  {
+    "Hash": "128275F0FC184692D6EBBF27EFE04AD782683D7EA21451DCE43845A4F269E32F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Embedded-x64-Release.json"
+  },
+  {
+    "Hash": "4395E07312D1698D13DCFCB788C38E5FE082FDDC8A8F5352756D03BF7A4EA3E8",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Foundation-x64-Release.json"
+  },
+  {
+    "Hash": "1379F2BE216CF7A78599016919F4A51F21C455D5409F515DEF03F9F5E5832719",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Grid-x64-Release.json"
+  },
+  {
+    "Hash": "B724F35D05AAEF9931FF52428CDB889CD71869E7AEF163E01004F1600CF0BCBF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\incremental-attestation.json"
+  },
+  {
+    "Hash": "E43088C705FD1CE626F5A2D0B9AC51A06FED4F5F5791E26FA494850EC49905BE",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\InteractiveLease-x64-Release.json"
+  },
+  {
+    "Hash": "465BCFEABCB1D92A3BA5CDBD5640E2E0DE477D6A88B9B0D2022D6E77A5173B32",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\MenuExitLifetime-x64-Release.json"
+  },
+  {
+    "Hash": "0E03B9F7F491845E48D4E1EDA4B6750889E0FF3397C5C764E34591B6F9C0104A",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\MultilineText-x64-Release.json"
+  },
+  {
+    "Hash": "DB54D07C6BBD6AA8AA824A4B9EBFBF524511978575EBD1FAD0C74D3C36FB6BE6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\native-build.log"
+  },
+  {
+    "Hash": "304FD3FF01EF7BB2D5DAC520A2714B8D6D6A9725E4C53A1D4C6DF6F4C860DF84",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\NewControls-x64-Release.json"
+  },
+  {
+    "Hash": "0CFD96B0754DD8CC4741003142A1734696E50119CB34F4B36B615C621EFFF0BC",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Performance-x64-Release-e3c296c80a0c478fb69d752e59056cab.json"
+  },
+  {
+    "Hash": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Performance-x64-Release-e3c296c80a0c478fb69d752e59056cab.json.comparison.json"
+  },
+  {
+    "Hash": "8E2BFBD6C459C8D8083A1A1BCE272BA4C532BCB19807F9494FF97A19252E49A4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\ReadOnly-x64-Release.json"
+  },
+  {
+    "Hash": "E67D7B3CE1A9004BC0A41D2F7CFB9C6F5F12EE92CF4CAFC218C8D2726CB2421B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Rendering-x64-Release.json"
+  },
+  {
+    "Hash": "16063807B83BC3F5B615EFAD9D574DEEEA565D9CE2A712F98FC299E272DD9B9E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Accessibility-x64-Release.log"
+  },
+  {
+    "Hash": "DC8FB8A1C4D614990676A1E426D733403E74CDC39587FB0919AEC0E5690FFD9F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Animation-x64-Release.log"
+  },
+  {
+    "Hash": "87C18BCBA64B84451ED2F78B81C51E307DF32B8D5F8DBCE851BF8BA5DB9ADF65",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-ComboBox-x64-Release.log"
+  },
+  {
+    "Hash": "224C844C9A14BEB6E053A771AB24E468252D57586A84CED5EC23460B3F4057D9",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Control-x64-Release.log"
+  },
+  {
+    "Hash": "6808DC0189274AD88CDA6802F2701981A028C54B6D5B3A495088B70D3A997BC2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-EditorControls-x64-Release.log"
+  },
+  {
+    "Hash": "BAA546C10B5C04EB5E7A6962B05C7F4753F7373349B4C62404D82D29B38ECC68",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Embedded-x64-Release.log"
+  },
+  {
+    "Hash": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Foundation-x64-Release.log"
+  },
+  {
+    "Hash": "C4DCC681AFFB8B25EA835CC7EE2A963695ED6B1F98C8326D4A1751268C245712",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Grid-x64-Release.log"
+  },
+  {
+    "Hash": "5D9BC7181BD71A6EA1FC3A98179838F1E31CDD195A0D4B2D178ADC68F2A52DDF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-InteractiveLease-x64-Release.log"
+  },
+  {
+    "Hash": "D8B3F123180762C69C468AA631B74510039A0F5B89356769E7C6C22A3144232D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-MenuExitLifetime-x64-Release.log"
+  },
+  {
+    "Hash": "AEC41C68C7756EE8A735C16B615B328DAF543EC802737807F11DE8E5957DA8C0",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-MultilineText-x64-Release.log"
+  },
+  {
+    "Hash": "5482995D9F17602690BA89E49FCCB424D763C34C7C25E8A684B5C0C6358905EA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-NewControls-x64-Release.log"
+  },
+  {
+    "Hash": "CFAA912E0C6B5DC8E2DCDDA40F6BCE05E6FB7374A384AB44DBE8C3DABC1A2A51",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-ReadOnly-x64-Release.log"
+  },
+  {
+    "Hash": "3DA0164176AA061FE611DC642ACD32C56E7A97029B6ACD8A91CC1DB747731587",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Rendering-x64-Release.log"
+  },
+  {
+    "Hash": "1101A0F28F5F4D9616B1177EF29F0AF040279D0D434727B08CE2D67F21295261",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-TextField-x64-Release.log"
+  },
+  {
+    "Hash": "C65F22495A56D4DF2D722CB76D7BCBC3954152D7FEDFC386E5F85F880A1B4F03",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Theme-x64-Release.log"
+  },
+  {
+    "Hash": "0A769CF6A349BBF484F89C8F947E89848CCB4A67D9BB4C29E2095BB93A970E88",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Tooltip-x64-Release.log"
+  },
+  {
+    "Hash": "DDB37078477062819F12A1BCABA94B6CFAA930408BB46A07422485969F10240F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-Tree-x64-Release.log"
+  },
+  {
+    "Hash": "A3AE872D1DA0586A7318AD15906181E11754DE3F2AFB8465C583FA8A5D86FA32",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\test-WindowHost-x64-Release.log"
+  },
+  {
+    "Hash": "00D0D1D0E8B81FC85224B4475A557CB73C67B005E2D52D0E5B1279211CC87596",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\TextField-x64-Release.json"
+  },
+  {
+    "Hash": "731DEEDF1F4534097E4AF5A008EE2899C5D9DC0DC273C43EA9A5AB623D776493",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Theme-x64-Release.json"
+  },
+  {
+    "Hash": "E6D22E93774B79834E925826150BBCE679637D8FAD71F30AB60690A85AD2399F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Tooltip-x64-Release.json"
+  },
+  {
+    "Hash": "F97AC1311BFC3D61A5D0E69AE4321206E797B11151C8361D7D31814C97AF2226",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\Tree-x64-Release.json"
+  },
+  {
+    "Hash": "0678E91B57538FF05B5FD1F76ECD6718627DE10C3C7399543A6A5C1572A48C26",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\verified-build-state.json"
+  },
+  {
+    "Hash": "DB197361A5CBF3A510F33C4F8EFD4AB4B6BDEE3423A9F2BB51FC26FE9FFF692F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\x64-Release\\WindowHost-x64-Release.json"
+  }
+]

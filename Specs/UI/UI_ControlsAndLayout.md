@@ -1028,7 +1028,9 @@ no resource fetch, script, DOM or implicit navigation follows. The current pure
 builder uses the bounded native HTML policy below, with balanced validation and
 source-preserving literal fallback. Rendering, source caret sites,
 structural commands are specified in M4e below. The semantic UIA contract is in
-[input/accessibility](UI_InputAndAccessibility.md); final M4f qualification is pending.
+[input/accessibility](UI_InputAndAccessibility.md). The bounded M4f implementation
+is [functionally qualified](../../Measurements/RichText/2026-10-20-semantic-uia/README.md);
+physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open.
 
 These pure primitives remain independent of graphics. The explicit retained
 rendering preview below consumes them. M4e adds source-exact structural editing;

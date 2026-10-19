@@ -27,9 +27,11 @@ Semantic UIA exposes heading/list/quote/link/image/task/table children and typed
 source-format attributes after coherent preparation. Tasks have an undoable
 Toggle action; links remain inert. Source TextPattern/TSF offsets stay exact.
 Child identity retires on source/publication or owner-binding replacement, while
-geometry-only reflow updates prepared bounds. Queries take no focus. The M4f
-qualification checkpoint and physical/extension gates remain in the active plan.
+geometry-only reflow updates prepared bounds. Queries take no focus. The bounded
+M4f implementation is [functionally qualified](../../../../Measurements/RichText/2026-10-20-semantic-uia/README.md).
+Physical/extension/platform gates remain in the active plan; D4c stays HOLD.
 No pixels, typography tokens or preview/gallery inputs change in this slice.
+Fresh harness captures confirm all five rich gallery regions remain identical.
 
 Task checkbox glyphs use the same monochrome `Segoe UI Symbol` face for checked
 and unchecked states. Their bullet, hit-target and body columns stay fixed when

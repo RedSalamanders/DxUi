@@ -75,10 +75,13 @@ tests and owning contract/docs updates before completion):
   the final frozen qualification; see the detailed history below.
   The expanded standalone sample is built, captured and launched;
   its nine application/reference tests pass using its unchanged exact DxUi pin.
-- [ ] M4: Semantic projection with source-backed/transformed/generated/object and
+- [x] M4: Semantic projection with source-backed/transformed/generated/object and
   repeated/reordered ranges, explicit primary editing affinity, atomic source
   transactions, structural commands and structured accessibility. Integrate the
   parser tree into the renderer only after independent coordinate/editing oracles.
+  Bounded component acceptance is complete; see the
+  [M4 accessibility/closeout packet](../../../Measurements/RichText/2026-10-20-semantic-uia/README.md).
+  This does not close D4c/D4d performance, physical AT or native ARM64 runtime gates.
 - [ ] M5: Explicit front matter, footnote, math and Mermaid profiles, native
   editable source-bearing objects/alternatives and pending/error source
   presentation. Owner decision (2026-10-19): C++ only, with an explicitly limited
@@ -1823,22 +1826,24 @@ cannot close D4c.
     allocation-failure/reentrancy tests and required profile/resource qualification.
   - [x] Update normative/usage/design/sample docs and reviewed evidence; retain
     performance warnings and leave M4f/g, M5/M6 and physical/platform gates open.
-- [ ] M4f: Publish acknowledged semantic structure/style through native/embedded
+- [x] M4f: Publish acknowledged semantic structure/style through native/embedded
   UIA, preserving source ACPs for TSF/TextPattern. Test real in-process clients,
   format/range children, actions, bounds and provider retirement.
-  - [ ] M4f.1: Prepare immutable source-format runs with the semantic document;
+  - [x] M4f.1: Prepare immutable source-format runs with the semantic document;
     expose only acknowledged geometry's revision. Implement typed UIA attributes,
     mixed values, FindAttribute and Format expansion/movement in source ACPs.
-  - [ ] M4f.2: Publish semantic child fragments and range relationships, heading,
+  - [x] M4f.2: Publish semantic child fragments and range relationships, heading,
     link/image alternatives, task actions and table structure. Guard children by
     owner and semantic-publication identity, including pending/failed preparation.
-  - [ ] M4f.3: Qualify actual native/application-bridged client navigation, events,
+  - [x] M4f.3: Qualify actual native/application-bridged client navigation, events,
     bounds, task history, read-only/disabled policy, foreign-thread dispatch,
     retirement/rebinding and allocation failures; update contracts and evidence.
-- [ ] M4g: Qualify native/embedded interaction, cancellation/staleness, allocation
+- [x] M4g: Qualify native/embedded interaction, cancellation/staleness, allocation
   failures, WARP/device loss, resources, all required build/runtime profiles,
   validators/format and deterministic themed/embedded gallery captures. Update
   capabilities, architecture/input/layout/design-system/usage docs and fragment.
+  This is bounded component qualification, with ARM64 compile-only. Controlled
+  paired performance acceptance and physical/platform gates remain D4c/D4d.
 
 M4a and the core M4b transaction are pure preparation primitives; the retained
 M4b adapter uses existing ControlHost lifecycle/notification services. This is not
@@ -2542,7 +2547,7 @@ the separately controlled paired/scheduler work and advice on any confirmed
 degradation. M4f/g, physical/foreground/native ARM64 runtime and consumer gates
 remain open. No consumer pin, push or merge is included in this correction.
 
-### M4f semantic accessibility implementation (2026-10-19, qualification pending)
+### M4f semantic accessibility implementation (historical pre-qualification)
 
 The first six focused x64 Debug diagnostics pass: native/embedded actual-client
 attributes/Format and structure/task tests, the source-format ownership oracle,
@@ -2583,3 +2588,30 @@ HOLD, physical/foreground/native ARM64 and consumer gates remain open.
 Owner reply selected C++ only for M5, with an explicitly limited Mermaid subset.
 The top-level checklist now removes the proposed external diagram helper; pin
 and implement the native grammar and preserve unsupported diagrams as source.
+
+### M4f/M4g component closeout (2026-10-20)
+
+The [sealed semantic accessibility packet](../../../Measurements/RichText/2026-10-20-semantic-uia/README.md)
+qualifies frozen native source `5717ff85a7e0aecb5374cd2ff7d276f368d9e578`.
+All 57 ordinary x64 scope/profile runs pass with zero capability skips, as do
+the intentional ASan detection probe and all three ARM64 builds. ARM64 remains
+compile-only. Six verified v2 build states, 208 rehashed private archive files,
+18 fresh/final ARM64 bindings, eight directed tests and all 1,324 source admissions
+are retained. Native/embedded UIA collection and other-thread native dispatch
+allocation sweeps preserve exact source/history, retry and focus. The earlier
+failed fixture/compile attempts and pre-fix negative diagnostic remain distinct.
+
+The final five validators/full tooling and pinned format pass; metadata closeout
+rehashes the 25 current native outputs against that frozen archive. Fresh Release
+captures were reviewed in all five themes at full sheet and unscaled rich-region
+size, plus the embedded and rich samples. The rich regions and rich sample are
+pixel-identical to published assets, so no gallery replacement is needed.
+
+M4's bounded component acceptance is complete. A final single unpaired Default
+diagnostic returns advice-required/exit 1 for memory: clean private bytes +2.48%,
+dirty private/peak about +4%, dirty working-set/peak about +2.1%. Clean-frame p95
+is +2.50% and inside that comparator threshold. No causal conclusion or rebaseline
+is accepted; D4c remains HOLD. M5/M6, remaining D2a preparation, actual IME/AT,
+agreed focus-taking tests, native ARM64 execution and consumer/product gates remain
+open. Continue with M5's explicitly pinned native extension grammar, source-bearing
+objects and unsupported-source diagnostics under the C++ only Mermaid decision.

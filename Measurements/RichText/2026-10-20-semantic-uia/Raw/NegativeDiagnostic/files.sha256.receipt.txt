@@ -1,0 +1,38 @@
+[
+  {
+    "Hash": "53BDE02F7E355BCDB196B7D5722045FE1D9D2EE74FCE236065CEEBF7AD727E71",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\before-fix.log"
+  },
+  {
+    "Hash": "A19CC561F83CBA702A090B53F67715D5402A81E497E93C81A991DFBE4A3BC61E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\BeforeFix.exe"
+  },
+  {
+    "Hash": "9FEF7E8399C71DDA025AB6D49ACF27E237C76888CF03969AD030C79AF96F1939",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\BeforeFix.pdb"
+  },
+  {
+    "Hash": "0C0CB34086D3F00860E2BE0157779D2EA66D6FAC8E0CDF3F27CC4650E753BDDD",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\DxUi.lib"
+  },
+  {
+    "Hash": "A27241C66BBC4121C409F57134DFD586F44316583CFB879621952308E92DDD29",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\Embedded.Tests.Embedded.obj"
+  },
+  {
+    "Hash": "0CD1F51C2E8A351D78D28B8465F1D9655213F276B3ED54F9267A61B6861FE322",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\link.cmd"
+  },
+  {
+    "Hash": "784B57482A31FA2768BF5AC548456ABCE094DC918BE31FE1B876083668B0D648",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\link.log"
+  },
+  {
+    "Hash": "B188ECDCF9A7BDB78ECC1AB01297804C738D37F8E5515B67C95023D3E423B8A3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\link.rsp"
+  },
+  {
+    "Hash": "80FA34E5DE8022DF2AAF173FFD2E147693711FEA93E8E1FB86BACF9CA182EC0C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\NativeDispatch-BeforeFix\\result.json"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "Hash": "5F982556408982E7A02FF1F4766622CF6F24FE72657A7CDDC90ACBC4E2BB7639",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "FFE9B0927A0F458A655548E1881EF69D69933CE40CC4C4B249EC769970B3811C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "B0BFE64855DB38E89F177456BFE35ACD860D3CD0CAE2448284A6E38B75FA117E",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "6990ADD50E1E24D908DC84D9AFA33B4A8DD433A1A31083DACB2EC32154987352",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "E98CE186BBC8C1F3B666426191A7AAB85ADA2C7070CED80D7EB0E0185DA84A6F",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.lib"
+  },
+  {
+    "Hash": "C76EC2A350D5FD9DE5E38886FA9648F5220B05BB3B8E875F2A0EC3FBC951F872",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\DxUi.RichAccessibility.h"
+  },
+  {
+    "Hash": "A1C93813BF0040C5679B08E5664D3A7C9367734939DC5F252A784CDD8E8977AC",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\focused-runs.json"
+  },
+  {
+    "Hash": "420A7F41AF1569EBBA13CBD74DB2A83CE9BAA9B5F10236156E23BC2F98471DE4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\test-rich-semantic-document-failures.log"
+  },
+  {
+    "Hash": "AF797EDE04BE39BBCCACF27A7D0E8A7ACFE3D183726A0242BDA00DFC0FBED5BA",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\test-rich-semantic-uia-failures.log"
+  },
+  {
+    "Hash": "514D470952266A01B26DA4F794EA72E15DEA91F39BBB5AA6D92528331C32A433",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichSemanticDocumentPinnedSourceCases.log"
+  },
+  {
+    "Hash": "1477121F34F735C579D499CE20FD97D046CAFFEC4C93C4A592E70863B983B004",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichSemanticDocumentSourceFormatOwnership.log"
+  },
+  {
+    "Hash": "7CE234388FC376BA7FE9E323872C3FF41606C16CDF657DBA9B94F6967E1980E3",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats.log"
+  },
+  {
+    "Hash": "9EF429031C97F45018BC6EC9A2AA8AF92E7B86B7EB70A1D3740F721B80637AC4",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement.log"
+  },
+  {
+    "Hash": "FB7BC780335F966CFA43B2B1FDC7C8B480BB1A8F7AD045BCD2817D1049A44AB2",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks.log"
+  },
+  {
+    "Hash": "A632729AE3DF2A0BA519D7C8FDEDEA7B89B1BA23EC9627BBD6A237FDB79DB322",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityWindowSemanticAttributesAndFormats.log"
+  },
+  {
+    "Hash": "57A9BEA9D03274ADD67796D640E141E4E8683C594AE969F8AB977FD58D38BA17",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityWindowSemanticCompositionBindingAndRetirement.log"
+  },
+  {
+    "Hash": "C8D7C286BEFDDD1A8B1B3CC916217BC44D973B0BA0B64DE4D87D3675D491DCD6",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\TestRichTextAccessibilityWindowSemanticStructureAndTasks.log"
+  },
+  {
+    "Hash": "C54CB7849389EEDD9B0B7892AAEE4CF7172F4203C03275BECAF7B08F0796133B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Iteration8\\tracked.patch"
+  }
+]

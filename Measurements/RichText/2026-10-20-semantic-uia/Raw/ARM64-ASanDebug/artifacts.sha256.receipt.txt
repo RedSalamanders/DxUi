@@ -1,0 +1,62 @@
+[
+  {
+    "Hash": "1D962E297994B12953E9C931A9874B7FB534D127B35DE76925699968054B2CC5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\build-attestation.json"
+  },
+  {
+    "Hash": "46261E83388D240D6CA57B24772209881D446B5CBCD65300423506D9286F515C",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\clang_rt.asan_dynamic-aarch64.dll"
+  },
+  {
+    "Hash": "C03C5F449096D652358398B3C5CE886D9A5128DAB59293E83CEF3E44F7ECB40B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\driver.log"
+  },
+  {
+    "Hash": "6017503A681DA8EC9E424F948E02577DE343343BA52AFF56E9A4D8B06A7CB5FF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Hash": "C05CC9F1DD0D9492DCC4379A320305EFCFD808BA143028BDD056FBEC37DD11FB",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.ControlTests.pdb"
+  },
+  {
+    "Hash": "BE25D70569128AED95D7AE318DE7290693086E5BF39749B8242199F72E99E0CF",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.EmbeddedControls.exe"
+  },
+  {
+    "Hash": "7D8D6A82D9468A4A2B6A75BA78D5DDD30DF14A04F52C2F5ACF4DF3B0ACC4B169",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.EmbeddedControls.pdb"
+  },
+  {
+    "Hash": "5D41BC21D5F3BCD992C45A26BAA7A5216AB65AD36E1732EABB7B5D6D0735CF99",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Hash": "B1BA9903D38794BAFEF533C62360D9BE67255C8A0B7CCE65D6A94356D25838A9",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.EmbeddedTests.pdb"
+  },
+  {
+    "Hash": "BE94D5710D4B7412AFA4346BA0912D1DEEB812837C0E9FC2989C29CB3B1BB50D",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.FoundationTests.exe"
+  },
+  {
+    "Hash": "94D9D42727FCC907497446E5159BF048F3CB2555AC09485E62B110A4E31E3D23",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.FoundationTests.pdb"
+  },
+  {
+    "Hash": "B7EA26FB797F8D84C13247D7CDBE3E240D1A3459DB1B7711F940D8CBA5BB8DE5",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\DxUi.lib"
+  },
+  {
+    "Hash": "8F71DB31EC88A21268C02A62508C4B98DF99A91EC898BF7991F446EC7BEE6683",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\incremental-attestation.json"
+  },
+  {
+    "Hash": "2437F26CC8F3F7D0B83E8AC15F82DBC7C30B5559DDF53A04FFAB280665C8EA2B",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\native-build.log"
+  },
+  {
+    "Hash": "FA77806F2C2D3DEEFA60AF50D7584EA1DE5B88550F775FD67307063487799BB1",
+    "Path": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-semantic-uia-20261019\\Qualification\\ARM64-ASanDebug\\verified-build-state.json"
+  }
+]

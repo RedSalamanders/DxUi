@@ -1,0 +1,7 @@
+{
+  "purpose": "Negative diagnostic only: source8 test object linked to retained source6 pre-fix library; no canonical build qualification",
+  "oldLibrarySha256": "0C0CB34086D3F00860E2BE0157779D2EA66D6FAC8E0CDF3F27CC4650E753BDDD",
+  "objectSha256": "A27241C66BBC4121C409F57134DFD586F44316583CFB879621952308E92DDD29",
+  "executableSha256": "A19CC561F83CBA702A090B53F67715D5402A81E497E93C81A991DFBE4A3BC61E",
+  "exitCode": 3
+}

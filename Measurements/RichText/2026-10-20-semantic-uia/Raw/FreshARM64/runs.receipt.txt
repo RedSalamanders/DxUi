@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "5717ff85a7e0aecb5374cd2ff7d276f368d9e578",
+  "purpose": "Fresh ARM64 compilation using isolated platform/configuration output and attestation paths while x64 runtime qualification proceeds; final matrix revalidates identical artifacts",
+  "jobs": [
+    {
+      "configuration": "Debug",
+      "sourceCommit": "5717ff85a7e0aecb5374cd2ff7d276f368d9e578",
+      "startedUtc": "2026-10-19T21:29:19.5714057Z",
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T21:35:07.0724571Z"
+    },
+    {
+      "configuration": "Release",
+      "sourceCommit": "5717ff85a7e0aecb5374cd2ff7d276f368d9e578",
+      "startedUtc": "2026-10-19T21:35:07.7771648Z",
+      "exitCode": 0,
+      "completedUtc": "2026-10-19T21:42:21.1845722Z"
+    }
+  ],
+  "completedUtc": "2026-10-19T21:42:21.5499473Z"
+}

@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks
+  [DONE] TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks (1.347 s)
+[DONE] Accessibility (1.347 s)
+All DxUi tests passed.
