@@ -1,4 +1,5 @@
 #include "Scope.Tests.RichSemanticDocument.h"
+#include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
@@ -61,6 +62,23 @@ void TestRichSemanticDocumentFootnoteDefinitionLiteralFallback()
                 element->name.starts_with(L"[^n]: **first &amp;**"),
             "literal note fallback has one named source owner without rendering its parsed child subtree a second time");
 }
+void TestRichSemanticDocumentFootnoteBindingsKeepLiteralReferenceSource()
+{
+    for (const auto& scenario : FootnoteResolutionTests::scenarios)
+    {
+        const auto document = RichSemanticDocumentTests::Build(scenario.source, DxUi::RichText::MarkdownProfile::RichMarkdown);
+        RichSemanticDocumentTests::CheckGraph(*document);
+        FootnoteResolutionTests::CheckSyntax(*document->Syntax(), scenario, Require);
+        for (const auto& node : document->Syntax()->Inlines())
+            if (node.kind == DxUi::RichText::MarkdownInlineKind::FootnoteReference)
+            {
+                const auto ranges = document->Map().DisplayRanges(node.source);
+                Require(ranges.size() == 1u &&
+                            document->Map().Display().substr(ranges[0u].first, ranges[0u].last - ranges[0u].first) == document->Syntax()->Slice(node.source),
+                        "CPU binding cannot drop or decode a literal raw reference before footer presentation is implemented");
+            }
+    }
+}
 void TestRichSemanticDocumentPinnedSourceCases()
 {
     using namespace DxUi::RichText;
@@ -109,5 +127,6 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDocumentPinnedSourceCases);
     DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteDefinitionLiteralFallback);
+    DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteBindingsKeepLiteralReferenceSource);
     DXUI_RUN_TEST(TestRichSemanticDocumentFrontMatterLiteralFallback);
 }

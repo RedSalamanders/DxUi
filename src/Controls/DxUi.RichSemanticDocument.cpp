@@ -258,6 +258,13 @@ struct SemanticBuilder::Preparation
         }
         if (node.kind == MarkdownInlineKind::SoftBreak || node.kind == MarkdownInlineKind::HardBreak)
             output.Emit(node.kind == MarkdownInlineKind::SoftBreak ? L" " : L"\n", node.source, DisplaySpanKind::Transformed, flags, visit.heading);
+        else if (node.kind == MarkdownInlineKind::FootnoteReference)
+        {
+            // Binding/numbering is CPU syntax data. Until the footer/object
+            // presentation is ready, keep the whole raw reference visible and
+            // source-exact, including table escapes and unknown labels.
+            output.Emit(node.value, node.source, DisplaySpanKind::Source, flags, visit.heading);
+        }
         else if (! node.value.empty())
         {
             Detail::SemanticValue value;

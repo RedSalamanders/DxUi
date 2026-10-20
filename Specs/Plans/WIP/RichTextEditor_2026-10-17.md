@@ -2642,19 +2642,25 @@ development checks from final frozen qualification:
   numbering and explicit backlinks/reordered primary source ownership.
   - [ ] M5b.1: Metadata content validators, diagnostics and allocation/capacity
     failure contracts for the complete named YAML/TOML profiles.
-  - [ ] M5b.2: Real footnote block containers before generic reference extraction,
+  - [x] M5b.2: Real footnote block containers before generic reference extraction,
     normalized global resolution/diagnostics and deterministic reachable numbering.
     - [x] M5b.2a: Definition containers, literal fallback and source guards pass
       focused Debug/native/embedded checks, 21 block fixtures, raw-scalar label
       boundaries, caret stress and observed parser/semantic/geometry allocation
       failures. Final runtime/build profiles remain M5f.
-    - [ ] M5b.2b: Label/ref binding, missing/duplicate diagnostics and reachable
-      deterministic numbering; source-fallback scaffolding is not that support.
+    - [x] M5b.2b: Label/ref binding, missing/duplicate diagnostics and reachable
+      deterministic numbering pass focused Debug/native/embedded and allocation
+      checks. Numeric/footer presentation remains M5b.3; final profiles remain M5f.
   - [ ] M5b.3: Footer rendering and repeated reference/backlink source ownership.
     Added dependency: geometry currently merges empty-line caret sites in source
     order. Prepare display-order ownership for reordered definitions, and test
     differing definition/reference order plus empty/multi-paragraph definitions
     in both hosts before closing footnote rendering/accessibility.
+    - [ ] Added integration audit: visual source-line indexing also accumulates
+      a monotonic `sourceLineStart`. Reordered footer lines must retain correct
+      source line units. Verify retained drag/keyboard selection and deletion
+      across a main/footer boundary; abstract SourceDisplayMap reorder tests do
+      not establish the end-to-end control behavior.
 - [ ] M5c: Implement the named native math command/environment corpus and layout:
   identifiers/numbers/operators/groups, fractions, roots, scripts, stretchy
   delimiters, accents, large operators/limits, matrices/cases/aligned and text.
@@ -2828,6 +2834,43 @@ and is not a paired performance result. All five validators, complete tooling
 and pinned clang-format 22.1.3 check pass. Exact source/artifact/log/hash evidence
 is retained in `Iteration2`. Continue M5b.2b/global resolution; do not mark
 metadata validity, numbering, footer, backlinks or the parent M5b item complete.
+
+M5b.2b binding implementation is in development: a shared label identity helper
+retains strict-profile whitespace/case-fold rules; immutable unique rows record
+primary definitions, reachable ordinals and final inline occurrences. A separate
+post-compaction owner-budgeted walk visits main content then queued primary
+definition bodies once, excluding unused/duplicate bodies from numbering and
+terminating cycles. Missing/duplicate diagnostics retain ordered raw ranges.
+The initial display remains literal references/definitions until M5b.3.
+Parser-only development diagnostics pass ten direct scenarios, the 14 shared
+independent binding fixtures and all 1,324 original CommonMark/GFM semantic cases.
+Native/embedded source-edit and expanded observed allocation checks are next;
+these parser-only observations are not full native qualification. Inventory is
+125 native test files, including the shared footnote binding fixture header.
+
+The first binding build passed (4:18); five directed native runs, complete
+EditorControls and ordinary Embedded passed. Embedded counted 32,421 checks;
+all 1,166 observed parser/semantic allocation points across eight preparations
+and 158 geometry points passed. A structure-size diagnostic then identified
+avoidable base-profile storage: placing two extension fields in every inline
+grew x64 Debug `MarkdownInline` from 192 to 208 bytes. Preserve that candidate's
+source/artifacts in `Iteration3`; do not normalize the footprint increase into a
+new baseline. Replace universal fields with optional per-reference records,
+remap them after compaction and use immutable indexed lookup. The corrected
+header-only size diagnostic is 192 bytes, and its parser-only 14-fixture/original
+1,324-case replay passes. This is structure-size evidence, not frame-performance
+acceptance; native allocation/runtime checks follow on the corrected source.
+
+Corrected sparse binding source passes canonical x64 Debug (3:47), all five
+directed native runs, complete EditorControls (42.505 s) and ordinary Embedded
+(32,557 counted checks plus shared semantic oracles). All 1,174 observed
+parser/semantic allocation points across eight preparations and 158 geometry
+points pass. The 1,324 original semantic corpus comparisons remain unchanged.
+Warm embedded composition performs no tracked C++ allocation (1,000 composites,
+8,449 us; diagnostic only). Full pinned format check passes. Exact modified and
+untracked inputs, binaries, PDBs, library, logs and hashes are in `Iteration4`
+under `.build/reports/rich-footnotes-m5b-20261020`. These focused results do not
+clear final profiles, rendered footnotes or D4c performance acceptance.
 
 The clean pre-change Release baseline uses metadata commit `bd5d3e49`, through
 the canonical build path. A prior SkipBuild refusal is retained: the capability

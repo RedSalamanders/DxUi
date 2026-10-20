@@ -1,4 +1,5 @@
 #pragma once
+#include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownUnicodeData.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
@@ -20,6 +21,9 @@ class MarkdownInlines
     MarkdownExtensions extensions_;
     std::vector<MarkdownNode>& blocks_;
     std::vector<MarkdownInline>& nodes_;
+    std::vector<MarkdownFootnote>& footnotes_;
+    std::vector<MarkdownFootnoteReference>& footnoteReferences_;
+    std::vector<MarkdownDiagnostic>& diagnostics_;
     ReferenceDecoder referenceDecoder_;
     struct Reference
     {
@@ -46,10 +50,17 @@ class MarkdownInlines
     {
         std::size_t node, parent;
     };
+    struct FootnoteVisit
+    {
+        std::size_t node{};
+        bool inlineNode{}, definitionRoot{}, followSibling = true;
+    };
     std::vector<Reference> references_;
     std::vector<Delimiter> delimiters_;
     std::vector<Bracket> brackets_;
     std::vector<AutolinkVisit> autolinkWalk_;
+    std::vector<FootnoteVisit> footnoteWalk_;
+    std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
     std::wstring text_;
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
@@ -60,6 +71,10 @@ class MarkdownInlines
     std::size_t autolinkDelimiter_ = MarkdownNoNode, underscoreOpen_{};
     bool autolinkBoundary_{}, emailBoundary_{};
     bool referencesComplete_{}, leafActive_{}, autolinksActive_{};
+    bool referencesSorted_{}, compactComplete_{}, footnoteWalkStarted_{};
+    bool footnoteReferencesFinal_{};
+    std::size_t footnoteReferenceCursor_{}, footnoteReferenceCount_{};
+    std::size_t footnoteUniqueCursor_{}, footnoteUniqueCount_{}, footnoteOrdinal_{}, footnoteQueueHead_{};
 
     static bool AsciiLetter(wchar_t c) noexcept
     {
@@ -121,33 +136,7 @@ class MarkdownInlines
     }
     std::wstring FoldLabel(std::wstring_view text) const
     {
-        std::wstring result(0u, L' ');
-        bool space = false;
-        for (std::size_t i = 0; i < text.size(); i = StepToNextCodePoint(text, i))
-        {
-            // Definition fragments retain raw source; inline text already has
-            // NUL replaced. Normalize before folding so both label paths agree.
-            const auto raw    = Scalar(text, i);
-            const auto scalar = raw ? raw : 0xfffdu;
-            if (scalar < 128u && GrammarSpace(static_cast<wchar_t>(scalar)))
-            {
-                space = ! result.empty();
-                continue;
-            }
-            if (space)
-                result.push_back(L' ');
-            space = false;
-            const auto* entry =
-                std::lower_bound(std::begin(MarkdownUnicodeData::kFold), std::end(MarkdownUnicodeData::kFold), scalar, [](const auto& candidate, auto wanted) {
-                return candidate.scalar < wanted;
-            });
-            if (entry != std::end(MarkdownUnicodeData::kFold) && entry->scalar == scalar)
-                for (unsigned j = 0; j < entry->count; ++j)
-                    AppendScalar(result, entry->mapped[j]);
-            else
-                AppendScalar(result, scalar);
-        }
-        return result;
+        return NormalizeMarkdownLabel(text, profile_);
     }
     std::wstring Decode(std::wstring_view input) const
     {
@@ -193,6 +182,14 @@ class MarkdownInlines
     void CollectReference()
     {
         const auto& block = blocks_[referenceCursor_++];
+        if (block.block.kind == MarkdownBlockKind::FootnoteDefinition)
+        {
+            footnotes_.emplace_back();
+            auto& note      = footnotes_.back();
+            note.label      = FoldLabel(source_.substr(block.label.first, block.label.last - block.label.first));
+            note.definition = referenceCursor_ - 1u;
+            return;
+        }
         if (block.block.kind != MarkdownBlockKind::ReferenceDefinition)
             return;
         references_.emplace_back();
@@ -688,6 +685,39 @@ class MarkdownInlines
         end = i + 1u;
         return true;
     }
+    std::size_t FootnoteFor(std::wstring_view rawLabel) const
+    {
+        const auto label = FoldLabel(rawLabel);
+        const auto found =
+            std::lower_bound(footnotes_.begin(), footnotes_.end(), label, [](const auto& note, const auto& wanted) { return note.label < wanted; });
+        return found != footnotes_.end() && found->label == label ? static_cast<std::size_t>(found - footnotes_.begin()) : MarkdownNoNode;
+    }
+    bool Footnote(const Bracket& bracket, std::size_t end)
+    {
+        if (profile_ != MarkdownProfile::RichMarkdown || bracket.image || bracket.nested || ! brackets_.empty())
+            return false;
+        const auto range = Range(bracket.offset, end);
+        const auto raw   = source_.substr(range.first, range.last - range.first);
+        if (raw.size() < 4u || ! raw.starts_with(L"[^") || raw.back() != L']')
+            return false;
+        const auto label = raw.substr(2u, raw.size() - 3u);
+        if (! ValidFootnoteLabel(label))
+            return false;
+        const auto binding = FootnoteFor(label);
+        Emphasis(bracket.delimiter);
+        auto& node  = nodes_[bracket.node];
+        node.kind   = Kind::FootnoteReference;
+        node.source = range;
+        node.value.assign(raw);
+        node.firstChild = node.nextSibling = MarkdownNoNode;
+        footnoteReferences_.push_back({bracket.node, binding, 0u});
+        tail_        = bracket.node;
+        lastLiteral_ = MarkdownNoNode;
+        cursor_      = end;
+        if (binding == MarkdownNoNode)
+            diagnostics_.push_back({MarkdownDiagnosticCode::UndefinedFootnote, range, blockCursor_});
+        return true;
+    }
     bool CloseBracket()
     {
         if (brackets_.empty())
@@ -734,6 +764,8 @@ class MarkdownInlines
                 found       = true;
             }
         }
+        if (! found && Footnote(bracket, cursor_ + 1u))
+            return true;
         if (! brackets_.empty())
             brackets_.back().nested = true;
         if (! found)
@@ -1280,23 +1312,113 @@ class MarkdownInlines
         Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first));
     }
 
+    bool ResolveFootnoteStep()
+    {
+        if (! footnoteReferencesFinal_)
+        {
+            if (footnoteReferenceCursor_ < footnoteReferences_.size())
+            {
+                auto reference       = footnoteReferences_[footnoteReferenceCursor_++];
+                reference.inlineNode = previous_[reference.inlineNode];
+                if (reference.inlineNode != MarkdownNoNode)
+                    footnoteReferences_[footnoteReferenceCount_++] = reference;
+                return false;
+            }
+            footnoteReferences_.resize(footnoteReferenceCount_);
+            std::sort(footnoteReferences_.begin(), footnoteReferences_.end(), [](const auto& a, const auto& b) { return a.inlineNode < b.inlineNode; });
+            footnoteReferencesFinal_ = true;
+            return false;
+        }
+        if (footnotes_.empty())
+            return true;
+        if (! footnoteWalkStarted_)
+        {
+            footnoteWalkStarted_ = true;
+            footnoteWalk_.push_back({0u, false, false, false});
+            return false;
+        }
+        if (! footnoteWalk_.empty())
+        {
+            const auto visit = footnoteWalk_.back();
+            footnoteWalk_.pop_back();
+            if (visit.inlineNode)
+            {
+                auto& node = nodes_[visit.node];
+                if (node.nextSibling != MarkdownNoNode)
+                    footnoteWalk_.push_back({node.nextSibling, true});
+                if (node.kind == Kind::FootnoteReference)
+                {
+                    const auto reference =
+                        std::lower_bound(footnoteReferences_.begin(), footnoteReferences_.end(), visit.node, [](const auto& binding, auto wanted) {
+                        return binding.inlineNode < wanted;
+                    });
+                    if (reference == footnoteReferences_.end() || reference->inlineNode != visit.node)
+                        throw std::logic_error("Missing final footnote reference binding");
+                    if (reference->footnote != MarkdownNoNode)
+                    {
+                        auto& note = footnotes_[reference->footnote];
+                        if (! note.ordinal)
+                        {
+                            note.ordinal = ++footnoteOrdinal_;
+                            reachableDefinitions_.push_back(note.definition);
+                        }
+                        note.references.push_back(visit.node);
+                        reference->occurrence = note.references.size();
+                    }
+                }
+                if (node.firstChild != MarkdownNoNode)
+                    footnoteWalk_.push_back({node.firstChild, true});
+            }
+            else
+            {
+                const auto& block = blocks_[visit.node];
+                if (visit.followSibling && block.nextSibling != MarkdownNoNode)
+                    footnoteWalk_.push_back({block.nextSibling});
+                // Main content never gets numbered by a definition's original
+                // source position. Only a newly reachable primary body enters
+                // the queue, once, so chains and cycles have a finite traversal.
+                if (block.block.kind == MarkdownBlockKind::FootnoteDefinition && ! visit.definitionRoot)
+                    return false;
+                if (block.firstChild != MarkdownNoNode)
+                    footnoteWalk_.push_back({block.firstChild});
+                if (block.firstInline != MarkdownNoNode)
+                    footnoteWalk_.push_back({block.firstInline, true});
+            }
+            return false;
+        }
+        if (footnoteQueueHead_ < reachableDefinitions_.size())
+        {
+            footnoteWalk_.push_back({reachableDefinitions_[footnoteQueueHead_++], false, true, false});
+            return false;
+        }
+        return true;
+    }
+
 public:
     MarkdownInlines(std::wstring_view source,
                     MarkdownProfile profile,
                     MarkdownExtensions extensions,
                     std::vector<MarkdownNode>& blocks,
                     std::vector<MarkdownInline>& inlines,
+                    std::vector<MarkdownFootnote>& footnotes,
+                    std::vector<MarkdownFootnoteReference>& footnoteReferences,
+                    std::vector<MarkdownDiagnostic>& diagnostics,
                     ReferenceDecoder decoder)
         : source_(source),
           profile_(profile),
           extensions_(extensions),
           blocks_(blocks),
           nodes_(inlines),
+          footnotes_(footnotes),
+          footnoteReferences_(footnoteReferences),
+          diagnostics_(diagnostics),
           referenceDecoder_(decoder),
           references_(0u),
           delimiters_(0u),
           brackets_(0u),
           autolinkWalk_(0u),
+          footnoteWalk_(0u),
+          reachableDefinitions_(0u),
           previous_(0u),
           offsets_(0u),
           backtickNext_(0u),
@@ -1309,11 +1431,38 @@ public:
         {
             if (referenceCursor_ < blocks_.size())
                 CollectReference();
-            else
+            else if (! referencesSorted_)
             {
                 std::sort(references_.begin(), references_.end(), [](const auto& a, const auto& b) {
                     return a.label != b.label ? a.label < b.label : a.source < b.source;
                 });
+                std::sort(footnotes_.begin(),
+                          footnotes_.end(),
+                          [&](const auto& a, const auto& b)
+                {
+                    if (a.label != b.label)
+                        return a.label < b.label;
+                    const auto first = blocks_[a.definition].block.source.first, second = blocks_[b.definition].block.source.first;
+                    return first != second ? first < second : a.definition < b.definition;
+                });
+                referencesSorted_ = true;
+            }
+            else if (footnoteUniqueCursor_ < footnotes_.size())
+            {
+                const auto index = footnoteUniqueCursor_++;
+                const auto& note = footnotes_[index];
+                if (footnoteUniqueCount_ && footnotes_[footnoteUniqueCount_ - 1u].label == note.label)
+                    diagnostics_.push_back({MarkdownDiagnosticCode::DuplicateFootnoteDefinition, blocks_[note.definition].label, note.definition});
+                else
+                {
+                    if (index != footnoteUniqueCount_)
+                        footnotes_[footnoteUniqueCount_] = note;
+                    ++footnoteUniqueCount_;
+                }
+            }
+            else
+            {
+                footnotes_.resize(footnoteUniqueCount_);
                 referencesComplete_ = true;
             }
             return false;
@@ -1374,7 +1523,14 @@ public:
             return false;
         }
         if (blockCursor_ == blocks_.size())
-            return Compact();
+        {
+            if (! compactComplete_)
+            {
+                compactComplete_ = Compact();
+                return false;
+            }
+            return ResolveFootnoteStep();
+        }
         const auto kind = blocks_[blockCursor_].block.kind;
         if (kind == MarkdownBlockKind::HtmlBlock)
         {

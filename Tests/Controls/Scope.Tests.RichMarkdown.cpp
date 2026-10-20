@@ -1,4 +1,5 @@
 #include "Scope.Tests.RichMarkdown.h"
+#include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownHtml.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
@@ -908,6 +909,46 @@ void TestLosslessMarkdownFootnoteLabelCapacityCountsRawScalars()
     check(supplementary, true);
     check(supplementary + L"\U0001f600", false);
 }
+void TestLosslessMarkdownFootnoteResolutionAndReachableNumbering()
+{
+    for (const auto& scenario : FootnoteResolutionTests::scenarios)
+    {
+        MarkdownParser parser;
+        parser.Begin(scenario.source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = FootnoteResolutionTests::Complete(parser);
+        FootnoteResolutionTests::CheckSyntax(*syntax, scenario, Require);
+        CheckMarkdownPartitions(*syntax, scenario.source);
+        CheckInlineForest(*syntax);
+    }
+}
+void TestLosslessMarkdownFootnoteBindingRevisionAndCancellation()
+{
+    const std::wstring original = L"main[^a]\n\n[^a]: body\n";
+    MarkdownParser parser;
+    parser.Begin(original, 1u, MarkdownProfile::RichMarkdown);
+    const auto old = FootnoteResolutionTests::Complete(parser);
+    Require(old->Footnotes().size() == 1u && old->Footnotes()[0u].ordinal == 1u, "note binding starts with a reachable immutable revision");
+    auto changed = original;
+    changed.replace(changed.find(L"[^a]") + 2u, 1u, L"b");
+    parser.Begin(changed, 1u, MarkdownProfile::RichMarkdown);
+    parser.Advance(5u);
+    parser.Cancel();
+    Require(parser.Published() == old && old->Footnotes()[0u].ordinal == 1u, "cancelled numbering cannot mutate a held row/reference publication");
+    parser.Begin(changed, 1u, MarkdownProfile::RichMarkdown);
+    const auto current = FootnoteResolutionTests::Complete(parser);
+    Require(current != old && current->Source() == changed && current->Footnotes()[0u].ordinal == 0u && current->Diagnostics().size() == 1u &&
+                old->Source() == original && old->Diagnostics().empty(),
+            "same numeric revision cannot alias different raw labels or inherit stale reference numbers");
+    parser.Begin(changed, 1u, MarkdownProfile::Gfm029);
+    Require(FootnoteResolutionTests::Complete(parser)->Footnotes().empty(), "a base-profile replacement cannot inherit extension binding rows");
+    parser.Begin(L"main[^x] then[^y]\n\n[^x]: X\n[^y]: Y\n", 2u, MarkdownProfile::RichMarkdown);
+    const auto ordered = FootnoteResolutionTests::Complete(parser);
+    parser.Begin(L"main[^y] then[^x]\n\n[^x]: X\n[^y]: Y\n", 3u, MarkdownProfile::RichMarkdown);
+    const auto reordered = FootnoteResolutionTests::Complete(parser);
+    Require(ordered->Footnotes()[0u].ordinal == 1u && ordered->Footnotes()[1u].ordinal == 2u && reordered->Footnotes()[0u].ordinal == 2u &&
+                reordered->Footnotes()[1u].ordinal == 1u,
+            "reference-order edits renumber the current rows while a held revision keeps its original numbering");
+}
 void TestNativeFlowchartGrammarAndGraphValues()
 {
     using namespace NativeFlowchartTests;
@@ -1067,6 +1108,8 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteLabelCapacityCountsRawScalars);
+    DXUI_RUN_TEST(TestLosslessMarkdownFootnoteResolutionAndReachableNumbering);
+    DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBindingRevisionAndCancellation);
     DXUI_RUN_TEST(TestNativeFlowchartPinnedIndependentCorpus);
     DXUI_RUN_TEST(TestNativeFlowchartSchedulingAndAtomicAdmission);
     DXUI_RUN_TEST(TestNativeFlowchartCapacityBeforeGeneratedAllocation);

@@ -1425,6 +1425,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartSourceFallbacks(gpu);
     TestEmbeddedFootnoteBlockSourceEdits(gpu);
+    TestEmbeddedFootnoteResolutionAndSourceEdits(gpu);
     RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);

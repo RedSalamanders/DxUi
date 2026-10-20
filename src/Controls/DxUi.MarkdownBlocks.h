@@ -1,4 +1,5 @@
 #pragma once
+#include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownTableCells.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
@@ -128,27 +129,24 @@ class MarkdownBlocks
             return {};
         cursor.Take();
         const auto label = cursor.offset;
-        std::size_t count{};
-        bool nonblank{};
         while (! cursor.Empty() && cursor.Peek() != L']')
         {
             if (cursor.Peek() == L'[')
                 return {};
-            nonblank        = nonblank || ! Space(cursor.Peek());
             const auto unit = cursor.Peek();
             cursor.Take();
             if (unit == L'\\' && (cursor.Peek() == L']' || cursor.Peek() == L'[' || cursor.Peek() == L'\\'))
             {
                 cursor.Take();
-                ++count; // The raw escape and escaped scalar both own label capacity.
             }
             else if (unit >= 0xd800 && unit <= 0xdbff && ! cursor.Empty())
                 cursor.Take();
-            if (++count > 999u)
+            // No valid 999-scalar UTF-16 label can exceed 1,998 units.
+            if (cursor.offset - label > 1998u)
                 return {};
         }
         const auto last = cursor.offset;
-        if (! nonblank || cursor.Empty())
+        if (cursor.Empty() || ! ValidFootnoteLabel(source_.substr(label, last - label)))
             return {};
         cursor.Take();
         if (cursor.Empty() || cursor.Peek() != L':')

@@ -1,4 +1,5 @@
 #pragma once
+#include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include <DxUi/RichSemanticDocument.h>
@@ -66,8 +67,10 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
         }
         total += requests;
     };
-    for (const auto* source :
-         {L"[^n]: first\r\n\r\n    second\r\n", L"- [^n]:\n      > - nested\n      >\n      >   body\n", L"[^\u03b2\U0001f600]: **body**\n[^m]: next\n"})
+    for (const auto* source : {L"[^n]: first\r\n\r\n    second\r\n",
+                               L"- [^n]:\n      > - nested\n      >\n      >   body\n",
+                               L"[^\u03b2\U0001f600]: **body**\n[^m]: next\n",
+                               L"main[^X] and[^missing]\n\n[^x]: body[^y]\n[^X]: duplicate\n[^y]: body[^x]\n"})
     {
         sweep(
             [&]
@@ -96,7 +99,7 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
             [](const auto& value) { return value->Map().Source(); },
             source);
     }
-    std::cout << "note block parser/semantic allocation scenarios=6 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "note block/binding parser/semantic allocation scenarios=8 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
@@ -568,6 +571,29 @@ static void TestEmbeddedFootnoteBlockSourceEdits(GraphicsFixture& gpu)
               "initial embedded literal note commands reject child prefix reinterpretation atomically");
     Check(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source && editor->Redo(),
           "raw embedded note replacement remains one reversible Unicode transaction");
+}
+
+static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "footnote binding borrowed WARP resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "footnote binding embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    FootnoteResolutionTests::ExerciseSourceEdits(*editor,
+                                                 [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded note resolution preparation"); },
+                                                 [&](const auto& syntax)
+    {
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        return semantic && semantic->Syntax() == syntax && semantic->Map().Source() == syntax->Source() && ! view.Controls().GetHwnd();
+    },
+                                                 Check);
 }
 
 static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)

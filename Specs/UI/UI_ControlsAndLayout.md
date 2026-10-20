@@ -1359,8 +1359,40 @@ caret rows for its child blank trivia. Structural commands touching this fallbac
 MUST be unavailable atomically; raw source replacement and undo/redo remain valid.
 Future note-aware structural commands require their own prefix/transaction tests.
 
-Global resolution will use the existing Unicode 17 default case-fold and ASCII
-whitespace collapse without changing label source. Missing/duplicate definitions,
-repeated references, reachable first-reference numbering and generated backlinks
-remain explicit M5b obligations. Reordered footer definitions require display-order
-caret-site ownership and source-exact UIA navigation before that support can close.
+Global resolution uses the existing Unicode 17 default case-fold and ASCII
+whitespace collapse without changing label source. No NFC/NFKC or entity decoding
+is applied to identities. Binding/numbering is in development; rendering and
+backlink navigation remain separate M5b/M5e obligations.
+
+`MarkdownSyntax::Footnotes()` MUST expose unique rows sorted by normalized label.
+A row names the first source definition, its reachable ordinal (zero if unused)
+and final dense inline indexes in reachable reading order. A
+`FootnoteReference` inline owns its complete raw marker. Optional
+`FootnoteReferences()` records, sorted by final inline index, hold row indexes and
+one-based reachable occurrences; `FootnoteReferenceFor(index)` borrows that
+immutable record or returns null for an ordinary inline. Undefined references
+use `MarkdownNoNode`, and unvisited/undefined occurrences use zero. Extension
+metadata MUST NOT enlarge every ordinary inline node.
+Raw table escape spelling MUST participate in the same identity as a definition.
+Explicit inline/reference links, images, code and escaped bracket openers take
+precedence; nested bracket labels MUST NOT create nested interactive references.
+
+Later duplicate definitions MUST retain their source and publish
+`DuplicateFootnoteDefinition` at the exact later label range. Missing references
+MUST retain literal source and publish `UndefinedFootnote` at the whole marker.
+Diagnostics MUST be ordered by raw source position and name a revision-local
+owning block. The first definition wins without renaming or reordering source.
+
+Number all main-content references first in reading order, skipping definitions
+at their original positions. Then traverse newly reachable primary definition
+bodies in discovery order, each once; references there may queue further bodies.
+Cycles MUST terminate, repeated references share a number and get distinct
+one-based occurrences, and unused/duplicate bodies MUST NOT affect numbering.
+Bindings and diagnostics stay immutable across later edits/cancellation and
+cannot be reused solely because a numeric revision matches. No host, SDK, worker
+or source editing occurs in this CPU pass. Until footer presentation is ready,
+reference tokens and definitions MUST remain source-exact literal fallback.
+
+Reordered footer definitions require display-order caret-site ownership,
+complete visual-line indexing and source-exact selection/edit/UIA navigation
+before rendered footnote support can close.

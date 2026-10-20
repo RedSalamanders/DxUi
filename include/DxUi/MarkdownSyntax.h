@@ -91,7 +91,9 @@ enum class MarkdownFrontMatterKind
 };
 enum class MarkdownDiagnosticCode
 {
-    UnclosedFrontMatter
+    UnclosedFrontMatter,
+    DuplicateFootnoteDefinition,
+    UndefinedFootnote
 };
 // Diagnostics name exact raw source ranges in this immutable publication.
 // They do not change source, imply metadata validity, or carry SDK/UI objects.
@@ -112,7 +114,8 @@ enum class MarkdownInlineKind
     Strikethrough,
     Link,
     Image,
-    Html
+    Html,
+    FootnoteReference
 };
 // Resolved inline values, with original spelling retained in Source(). Indices
 // are revision-local. source encloses delimiters and any stripped line prefixes;
@@ -131,6 +134,22 @@ struct MarkdownInline
     // UTF-16 offsets in an opaque Html value whose '<' is filtered by GFM.
     // This is the tagfilter extension, not an HTML sanitizer or execution API.
     std::vector<std::size_t> filteredHtmlOpeners;
+};
+// Optional extension metadata does not enlarge every ordinary inline node.
+struct MarkdownFootnoteReference
+{
+    std::size_t inlineNode{}, footnote = MarkdownNoNode, occurrence{};
+};
+struct MarkdownFootnote
+{
+    MarkdownFootnote() : label(0u, L' '), references(0u)
+    {
+    }
+    MarkdownFootnote(const MarkdownFootnote&)            = default;
+    MarkdownFootnote& operator=(const MarkdownFootnote&) = default;
+    std::wstring label; // Normalized identity; exact spelling stays in Source().
+    std::size_t definition = MarkdownNoNode, ordinal{};
+    std::vector<std::size_t> references; // Final dense inline indexes, reachable reading order.
 };
 // Tree indices are revision-local; identities belong to DocumentIdentity().
 // Container source ranges include their prefixes and overlap their descendants.
@@ -223,6 +242,9 @@ public:
     // blocks also have an Html value. Retired delimiter/bracket shells are gone.
     const std::vector<MarkdownInline>& Inlines() const noexcept;
     std::span<const MarkdownDiagnostic> Diagnostics() const noexcept;
+    std::span<const MarkdownFootnote> Footnotes() const noexcept;
+    std::span<const MarkdownFootnoteReference> FootnoteReferences() const noexcept;
+    const MarkdownFootnoteReference* FootnoteReferenceFor(std::size_t inlineNode) const noexcept;
     std::wstring_view Slice(MarkdownRange range) const;
     std::wstring_view LexemeValue(std::size_t index) const;
     // Text has source-backed interior ACPs; transformed values have explicit
@@ -242,6 +264,8 @@ private:
     std::vector<MarkdownEmptyLine> emptyLines_;
     std::vector<MarkdownInline> inlines_;
     std::vector<MarkdownDiagnostic> diagnostics_;
+    std::vector<MarkdownFootnote> footnotes_;
+    std::vector<MarkdownFootnoteReference> footnoteReferences_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
     friend class MarkdownParser;

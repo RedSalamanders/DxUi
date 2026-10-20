@@ -20,8 +20,9 @@ are still pending; the current editor displays exact code-fence source fallback.
 RichMarkdown footnote definition containers are in development with exact labels,
 four-column continuation, multiple paragraphs and literal definition fallback.
 Source editing remains available; structural commands over that fallback are
-guarded. Global label resolution, numbering, rendered footer/backlinks and their
-accessibility actions are still pending.
+guarded. Global label binding, diagnostics and reachable numbering are now in
+development as immutable syntax data; the display remains literal source.
+Rendered footer/backlinks and their accessibility actions are still pending.
 
 ## Retained editor preview (D2c)
 

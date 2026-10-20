@@ -146,7 +146,9 @@ MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision,
       nodes_(0u),
       emptyLines_(0u),
       inlines_(0u),
-      diagnostics_(0u)
+      diagnostics_(0u),
+      footnotes_(0u),
+      footnoteReferences_(0u)
 {
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
@@ -196,6 +198,20 @@ const std::vector<MarkdownInline>& MarkdownSyntax::Inlines() const noexcept
 std::span<const MarkdownDiagnostic> MarkdownSyntax::Diagnostics() const noexcept
 {
     return diagnostics_;
+}
+std::span<const MarkdownFootnote> MarkdownSyntax::Footnotes() const noexcept
+{
+    return footnotes_;
+}
+std::span<const MarkdownFootnoteReference> MarkdownSyntax::FootnoteReferences() const noexcept
+{
+    return footnoteReferences_;
+}
+const MarkdownFootnoteReference* MarkdownSyntax::FootnoteReferenceFor(std::size_t inlineNode) const noexcept
+{
+    const auto found = std::lower_bound(
+        footnoteReferences_.begin(), footnoteReferences_.end(), inlineNode, [](const auto& reference, auto wanted) { return reference.inlineNode < wanted; });
+    return found != footnoteReferences_.end() && found->inlineNode == inlineNode ? &*found : nullptr;
 }
 std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
 {
@@ -285,6 +301,9 @@ struct MarkdownParser::Preparation
         }
         if (identityCursor == syntax->nodes_.size())
         {
+            std::sort(syntax->diagnostics_.begin(), syntax->diagnostics_.end(), [](const auto& a, const auto& b) {
+                return std::tie(a.source.first, a.source.last, a.code) < std::tie(b.source.first, b.source.last, b.code);
+            });
             identitiesComplete = true;
             return;
         }
@@ -345,7 +364,15 @@ struct MarkdownParser::Preparation
             node.identity = nextIdentity++;
     }
     Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_};
-    Detail::MarkdownInlines inlines{syntax->source_, syntax->profile_, syntax->extensions_, syntax->nodes_, syntax->inlines_, CharacterReference};
+    Detail::MarkdownInlines inlines{syntax->source_,
+                                    syntax->profile_,
+                                    syntax->extensions_,
+                                    syntax->nodes_,
+                                    syntax->inlines_,
+                                    syntax->footnotes_,
+                                    syntax->footnoteReferences_,
+                                    syntax->diagnostics_,
+                                    CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
     void ScanBlockUnit()
