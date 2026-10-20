@@ -1257,7 +1257,10 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichSemanticGeometryFailureBudgets(true, false, true);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
+        {
             TestNativeFlowchartAllocationFailureAtomicity(true);
+            TestNativeFlowchartLayoutAllocationFailureAtomicity(true);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
         {
             TestRichMarkdownParserFailureAndStorageBudgets(true);
@@ -1503,6 +1506,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichMarkdownParserFailureAndStorageBudgets();
     TestRichFrontMatterAllocationFailureAtomicity();
     TestNativeFlowchartAllocationFailureAtomicity();
+    FlowchartLayoutTests::Geometry(Check);
+    FlowchartLayoutTests::Corpus(Check);
+    FlowchartLayoutTests::Admission(Check);
+    TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);

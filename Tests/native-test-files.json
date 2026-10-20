@@ -104,6 +104,7 @@
   "Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h",
   "Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp",
   "Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h",
+  "Tests/Support/Scope.Tests.FlowchartLayout.h",
   "Tests/Support/Scope.Tests.Footnotes.h",
   "Tests/Support/Scope.Tests.MarkdownBlocks.h",
   "Tests/Support/Scope.Tests.MarkdownCapacity.h",

@@ -1,4 +1,5 @@
 #include "Scope.Tests.RichMarkdown.h"
+#include "../Support/Scope.Tests.FlowchartLayout.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
@@ -950,6 +951,18 @@ void TestLosslessMarkdownFootnoteBindingRevisionAndCancellation()
                 reordered->Footnotes()[1u].ordinal == 1u,
             "reference-order edits renumber the current rows while a held revision keeps its original numbering");
 }
+void TestNativeFlowchartDeterministicGeometry()
+{
+    FlowchartLayoutTests::Geometry(Require);
+}
+void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
+{
+    FlowchartLayoutTests::Corpus(Require);
+}
+void TestNativeFlowchartLayoutAdmissionAndCancellation()
+{
+    FlowchartLayoutTests::Admission(Require);
+}
 void TestNativeFlowchartGrammarAndGraphValues()
 {
     using namespace NativeFlowchartTests;
@@ -1111,6 +1124,9 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
+    DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
+    DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);
+    DXUI_RUN_TEST(TestNativeFlowchartLayoutAdmissionAndCancellation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteLabelCapacityCountsRawScalars);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteResolutionAndReachableNumbering);

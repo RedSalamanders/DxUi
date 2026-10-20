@@ -2762,8 +2762,33 @@ development checks from final frozen qualification:
     have independent accounting. Final build/runtime profiles remain M5f.
   - [ ] M5d.2: Deterministic bounded native graph layout, cycle/back-edge/self-loop
     routing, DWrite labels, raster resources and source-independent retained plans.
+    - [x] M5d.2a: Source-independent cooperative CPU geometry from measured label
+      sizes; deterministic rank/orientation, shape containment, exterior routing,
+      complete extent admission, immutable publication/cancellation and independent
+      coordinate/collision/corpus/allocation checks in native and embedded suites.
+      Focused x64 Debug build and eight directed native checks pass, as do the
+      complete EditorControls and ordinary Embedded scopes, all 18 observed layout
+      admission failures, five validators, full tooling and pinned format check.
+      Final profile and resource qualification remain M5f and M5d.2b.
+    - [ ] M5d.2b: Owner-budgeted DWrite label shaping, device/theme resources,
+      native paint plans and raster/high-DPI/device-loss/resource qualification.
   - [ ] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
     source editing and UIA with M5e; graph acceptance alone is not rendered support.
+
+The M5d.2a development packet is retained privately under
+`.build/reports/rich-flowchart-m5d2-20261020/Iteration1`, based on `d7ce6dd`.
+It freezes changed inputs, native artifacts, the canonical build receipt, a
+verified v2 source/toolchain/dependency/environment identity and raw run hashes.
+The build completes in 4:51; EditorControls takes 54.042 seconds and Embedded
+reports 420,344 checks with zero tracked C++ allocations for 1,000 warm composites.
+Those timings are unpaired diagnostics, not a performance decision. The isolated
+probe sweeps 86 parser and 18 geometry admission allocation points; geometry
+advancement allocates nothing. Independent checks cover exact two-rank coordinates,
+all shapes/directions, all 13 admitted original examples, a 256-node chain, node/
+edge-label collision, nonfinite/invalid inputs, capacity, cancellation/replacement
+and source-independent retained lifetime. The other 92 original examples and
+20 other families remain explicitly unsupported. Existing gallery output is
+unchanged because this CPU service is not yet connected to editor painting.
 - [ ] M5e: Integrate source-bearing object editing and caret entry/exit, diagnostics,
   structural source transactions, native/embedded UIA alternatives/actions,
   preparation cancellation/coalescing/staleness and the complex sample/gallery.

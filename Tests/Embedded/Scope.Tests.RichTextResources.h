@@ -1,4 +1,5 @@
 #pragma once
+#include "../Support/Scope.Tests.FlowchartLayout.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
@@ -104,6 +105,80 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
     std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
+static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
+{
+    using namespace FlowchartLayoutTests;
+    std::size_t total{};
+    for (const auto mode : {0u, 1u, 2u})
+    {
+        const auto graph = Graph(L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((second));B-->A;A-->A");
+        std::vector<FlowchartSize> nodes(graph->nodes.size(), {20.0, 12.0}), edges(graph->edges.size(), {20.0, 12.0});
+        if (mode == 1u)
+            nodes[0u].width = NativeFlowchartLayout::MaximumExtent;
+        if (mode == 2u)
+            for (auto& size : edges)
+                size = {65500.0, 65500.0};
+        std::size_t requests{};
+        {
+            NativeFlowchartLayout layout;
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            layout.Begin(graph, nodes, edges);
+            countAllocations = false;
+            requests         = allocations;
+            allocations      = 0u;
+            countAllocations = true;
+            Complete(layout, Check, 7u);
+            Check(allocations == 0u, "graph geometry Advance allocates nothing after bounded admission");
+            countAllocations = false;
+        }
+        Check(requests > 0u && requests < 32u, "graph geometry has a bounded observed admission allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "native graph layout mode=%u failure=%zu/%zu\n", mode, failure, requests);
+            NativeFlowchartLayout layout;
+            const auto oldGraph                           = Graph(L"graph TD;Old");
+            const std::array<FlowchartSize, 1u> oldLabels = {{{16.0, 12.0}}};
+            layout.Begin(oldGraph, oldLabels, {});
+            const auto old = Complete(layout, Check);
+            layout.Begin(oldGraph, oldLabels, {});
+            layout.Advance(2u);
+            bool rejected{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    layout.Begin(graph, nodes, edges);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && layout.Published() == old && layout.HasPendingPreparation(),
+                  "every failed layout admission preserves pending and published geometry");
+            Check(Complete(layout, Check)->nodes.size() == 1u, "previous pending graph still completes after allocation failure");
+            layout.Begin(graph, nodes, edges);
+            const auto retry = Complete(layout, Check, 7u);
+            Check(mode == 0u ? retry->issue == FlowchartLayoutIssue::None && retry->nodes.size() == 2u
+                             : retry->issue != FlowchartLayoutIssue::None && retry->nodes.empty(),
+                  "explicit graph layout retry reaches the intended prepared or capacity result");
+        }
+        total += requests;
+    }
+    std::cout << "native graph layout allocation scenarios=3 sweptRequests=" << total << " AdvanceAllocations=0 preservedPending=1 retry=1\n";
+}
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
 {
     using namespace NativeFlowchartTests;

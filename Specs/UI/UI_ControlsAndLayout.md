@@ -1284,7 +1284,7 @@ does not validate the YAML/TOML payload.
 ### Native Mermaid flowchart profile
 
 The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
-named limited grammar below. This CPU parser is in development; native layout,
+named limited grammar below. The CPU parser and geometric layout are in development; native painting,
 source-object editing and UIA diagram publication remain M5 work. A prepared
 graph MUST NOT be reported as a rendered diagram until those layers qualify.
 
@@ -1323,6 +1323,29 @@ invalid source admission without replacing pending work, yield during scanning,
 support cancellation and reject stale publication at its future host adapter.
 One statement parse is an indivisible bounded operation; event budgets are not
 wall-clock guarantees. It owns no worker, HWND, graphics device or timer.
+
+The internal layout service takes one already measured label size per node and
+edge. It MUST NOT create SDK layouts, retain source/device resources in its
+published geometry, or allocate while advancing. Stable first-seen DFS removes
+gray back edges and self-loops from ranking; stable Kahn traversal assigns
+longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
+rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
+diagonal, and diamonds contain twice the padded width/height. Direction changes
+flow without rotating text. Every edge gets a distinct exterior lane; endpoint
+corridors remain outside full rank rows, including for skipped-rank edges,
+cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
+and upstream Mermaid coordinate compatibility are not claimed.
+
+All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
+with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
+an explicit capacity issue with no partial geometry. Invalid/nonfinite/negative
+measurements and failed admission preserve pending work and prior publication.
+Successful replacement and cancellation retire only staging. Cooperative events
+handle a node, edge, DFS transition or rank; stable Kahn selection may inspect up
+to 256 nodes. Published geometry is independent of source and label SDK objects;
+the future owner adapter must budget every actual label-shaping SDK call and
+reject stale results before painting or UIA publication. CPU geometry alone does
+not change the editor's exact source fallback or establish diagram rendering.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 13 admitted

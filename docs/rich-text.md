@@ -14,8 +14,12 @@ has an internal CPU parser with focused Debug checks for rectangles, rounded nod
 diamonds, four directions and plain/arrow edge chains. Other Mermaid families,
 expanded shapes/edges, subgraphs, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
-rejected definitions. Diagram layout, rich objects and editing/UIA integration
-are still pending; the current editor displays exact code-fence source fallback.
+rejected definitions. Source-independent cooperative CPU geometry is in
+implemented in focused x64 Debug checks, with stable ranks, four orientations and separate exterior lanes
+for forward/back/self/parallel edges. It accepts measured label sizes and creates
+no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
+shaping, diagram painting, rich objects and editing/UIA integration are still
+pending; the current editor displays exact code-fence source fallback.
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
 and reachable numbering have focused native/embedded checks. The footer preview
