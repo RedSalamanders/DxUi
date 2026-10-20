@@ -1176,9 +1176,9 @@ __declspec(noinline) static int RunFunctionalTests()
 {
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures"))
@@ -1242,6 +1242,8 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
+            TestNativeFlowchartAllocationFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
         {
             TestRichMarkdownParserFailureAndStorageBudgets(true);
@@ -1416,6 +1418,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
+    TestEmbeddedFlowchartSourceFallbacks(gpu);
     RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
@@ -1475,6 +1478,7 @@ __declspec(noinline) static int RunFunctionalTests()
     }
     TestRichMarkdownParserFailureAndStorageBudgets();
     TestRichFrontMatterAllocationFailureAtomicity();
+    TestNativeFlowchartAllocationFailureAtomicity();
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);

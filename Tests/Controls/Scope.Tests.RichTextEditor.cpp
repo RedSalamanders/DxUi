@@ -797,6 +797,31 @@ void TestRichTextEditorNativeFrontMatterFencesAndSourceEdits()
     RenderEditor(window);
     Require(editor->GetText() == expected && editor->GetSelection() == selected, "native source view preserves metadata selection and exact document");
 }
+void TestRichTextEditorNativeFlowchartSourceFallbacks()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    for (const auto& scenario : NativeFlowchartTests::scenarios)
+    {
+        const auto source = NativeFlowchartTests::FencedSource(scenario);
+        editor->SetText(source);
+        RenderEditor(window);
+        const auto syntax = editor->GetMarkdownSyntax();
+        Require(syntax != nullptr, "native Mermaid source preparation completes");
+        NativeFlowchartTests::CheckFencedSource(*syntax, scenario, Require);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source &&
+                    semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario) && editor->GetText() == source && ! editor->CanUndo(),
+                "native parser preparation leaves exact definition/history and current source fallback intact");
+        editor->SetSelection({13u, 13u});
+        Require(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source,
+                "every accepted/rejected native diagram definition remains a reversible Unicode source edit");
+    }
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -889,4 +914,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeBlockGrammarAndIdentity);
     DXUI_RUN_TEST(TestRichTextEditorNativeInlineGrammarAndReferenceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFrontMatterFencesAndSourceEdits);
+    DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartSourceFallbacks);
 }

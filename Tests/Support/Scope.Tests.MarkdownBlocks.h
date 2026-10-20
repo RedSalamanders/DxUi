@@ -1,4 +1,6 @@
 #pragma once
+#include "../../src/Controls/DxUi.NativeFlowchart.h"
+#include "Scope.Tests.NativeFlowchartCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
 namespace MarkdownBlockTests
 {
@@ -169,3 +171,163 @@ template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, 
     }
 }
 } // namespace FrontMatterTests
+
+namespace NativeFlowchartTests
+{
+using namespace DxUi::RichText;
+using namespace DxUi::RichText::Detail;
+// Independently authored DxUiNativeFlowchart1 expectations. These check the
+// admitted graph, not just successful rejection of broader Mermaid syntax.
+struct Scenario
+{
+    std::wstring_view source;
+    FlowchartOutcome outcome{};
+    FlowchartIssue issue{};
+    std::size_t nodes{}, edges{};
+    FlowchartDirection direction{};
+    std::wstring_view firstLabel;
+    FlowchartShape firstShape{};
+};
+inline constexpr Scenario scenarios[] = {
+    {L"flowchart TD\nA[Start] --> B[End]\n", {}, {}, 2u, 1u, {}, L"Start"},
+    {L"graph LR; A(One) --> B((Two)) --> C{Three};", {}, {}, 3u, 2u, FlowchartDirection::LeftRight, L"One", FlowchartShape::Rounded},
+    {L"flowchart BT\r\nA --- B\r\n", {}, {}, 2u, 1u, FlowchartDirection::BottomTop, L"A"},
+    {L"flowchart RL\nA -->|yes| B\n", {}, {}, 2u, 1u, FlowchartDirection::RightLeft, L"A"},
+    {L"flowchart TB\nA[\"Unicode \u03b2 \U0001f600\"] --> B[\"second\\nline\"]\n", {}, {}, 2u, 1u, {}, L"Unicode \u03b2 \U0001f600"},
+    {L"flowchart TB\n%% comment\nA[Old]; A[New]; A --> B %% trailing\n", {}, {}, 2u, 1u, {}, L"New"},
+    {L"flowchart TD\nA --> B\nB --> A\nA --> A\n", {}, {}, 2u, 3u, {}, L"A"},
+    {L"graph TD\nA\n", {}, {}, 1u, 0u, {}, L"A"},
+    {L"flowchart TD\nA --> B --> C\n", {}, {}, 3u, 2u, {}, L"A"},
+    {L"graph TB;A{Decision};A-->B;A[Updated];A;", {}, {}, 2u, 1u, {}, L"Updated"},
+    {L"graph TB;A[\"a;[b] \\\"quote\\\" \\\\ end\"];A-->|\"yes; or no\"|B", {}, {}, 2u, 1u, {}, L"a;[b] \"quote\" \\ end"},
+    {L"%% preface\rgraph TB\rA((circle))--- B\r", {}, {}, 2u, 1u, {}, L"circle", FlowchartShape::Circle},
+    {L"graph TB; A{why};A-->xB;", {}, {}, 2u, 1u, {}, L"why", FlowchartShape::Diamond},
+    {L"graph TD;A[a\\\"b];A-->a;", {}, {}, 2u, 1u, {}, L"a\"b"},
+    {L"graph TD;A[\"\"];a[lower];A-->a", {}, {}, 2u, 1u, {}, L""},
+    {L"graph TD;A-->|yes%%keep|B", {}, {}, 2u, 1u, {}, L"A"},
+    {L"graph TD;A--- ops;A--- xB", {}, {}, 3u, 2u, {}, L"A"},
+    {L"sequenceDiagram\nA->>B: hello\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedFamily},
+    {L"flowchart TD\nsubgraph G\nA --> B\nend\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
+    {L"flowchart TD\nA --> B\nstyle A fill:red\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
+    {L"flowchart TD\nA --> B\nclick A \"https://example.invalid\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
+    {L"%%{init: {}}%%\nflowchart TD\nA --> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedConfiguration},
+    {L"flowchart TD\nA[\"<b>HTML</b>\"]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"flowchart TD\nA@{shape: hex}\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape},
+    {L"flowchart TD\nA -.-> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
+    {L"flowchart TD\nA ---oB\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
+    {L"flowchart TD\nA ---xB\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
+    {L"graph TD; end", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
+    {L"graph TD; A[[subroutine]]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape},
+    {L"graph TD; A[\"&amp;\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"graph TD; A[\"#9829;\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"graph TD; A[\"fab:fa-truck\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"graph TD; A[\"$$x^2$$\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"flowchart TD\nA[unclosed\n", FlowchartOutcome::Malformed, FlowchartIssue::MissingLabelClose},
+    {L"flowchart TD\nA -->\n", FlowchartOutcome::Malformed, FlowchartIssue::MissingTarget},
+    {L"flowchart ZZ\nA --> B\n", FlowchartOutcome::Malformed, FlowchartIssue::InvalidDirection},
+    {L"graph TD;A[\"bad\\q\"]", FlowchartOutcome::Malformed, FlowchartIssue::InvalidEscape},
+    {L"graph TD;1A", FlowchartOutcome::Malformed, FlowchartIssue::InvalidIdentifier},
+    {L"%% comment only\n", FlowchartOutcome::Malformed, FlowchartIssue::MissingHeader},
+    {L"graph TD;A((circle)", FlowchartOutcome::Malformed, FlowchartIssue::MissingLabelClose},
+};
+inline std::shared_ptr<const FlowchartModel> Complete(NativeFlowchartParser& parser, std::size_t budget = 1u)
+{
+    while (parser.HasPendingPreparation())
+        parser.Advance(budget);
+    return parser.Published();
+}
+template <typename Check> inline void CheckModel(const FlowchartModel& model, const Scenario& scenario, Check&& check)
+{
+    check(model.source == scenario.source && model.outcome == scenario.outcome && model.diagnostic.issue == scenario.issue,
+          "native diagram result preserves exact source and independently classified outcome/diagnostic");
+    check(model.nodes.size() == scenario.nodes && model.edges.size() == scenario.edges, "rejected native diagrams expose no partially accepted graph");
+    if (model.outcome != FlowchartOutcome::Prepared)
+    {
+        check(model.diagnostic.source.first <= model.diagnostic.source.last && model.diagnostic.source.last <= model.source.size(),
+              "native diagram diagnostic is a counted original-source range");
+        return;
+    }
+    check(model.direction == scenario.direction && model.nodes.front().label == scenario.firstLabel && model.nodes.front().shape == scenario.firstShape,
+          "prepared native graph has expected direction, last explicit label and shape");
+    for (const auto& node : model.nodes)
+        check(node.identifier.first < node.identifier.last && node.identifier.last <= model.source.size() && node.declaration.last <= model.source.size(),
+              "native graph identifier and latest declaration retain raw body coordinates");
+    for (const auto& edge : model.edges)
+        check(edge.from < model.nodes.size() && edge.to < model.nodes.size() && edge.source.first < edge.source.last && edge.source.last <= model.source.size(),
+              "native graph edges bind deterministic first-seen node identities and raw source");
+}
+inline std::wstring FencedSource(const Scenario& scenario)
+{
+    std::wstring source = L"~~~~mermaid\n";
+    source += scenario.source;
+    if (source.back() != L'\n' && source.back() != L'\r')
+        source += L'\n';
+    source += L"~~~~\n";
+    return source;
+}
+inline std::wstring LiteralDisplay(const Scenario& scenario)
+{
+    std::wstring display;
+    for (std::size_t i = 0u; i < scenario.source.size(); ++i)
+    {
+        if (scenario.source[i] == L'\r')
+        {
+            display += L'\n';
+            if (i + 1u < scenario.source.size() && scenario.source[i + 1u] == L'\n')
+                ++i;
+        }
+        else
+            display += scenario.source[i];
+    }
+    if (display.empty() || display.back() != L'\n')
+        display += L'\n';
+    return display;
+}
+template <typename Check> inline void CheckFencedSource(const MarkdownSyntax& syntax, const Scenario& scenario, Check&& check)
+{
+    check(syntax.Source() == FencedSource(scenario), "Mermaid fence retains exact raw definition and original EOLs");
+    const auto& node = syntax.Nodes()[syntax.Nodes()[0u].firstChild];
+    check(node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed && syntax.Slice(node.block.info) == L"mermaid",
+          "native diagram definition remains an opaque source-owning code fence before renderer integration");
+    const auto body = syntax.Slice(node.block.content);
+    check(body.starts_with(scenario.source), "Mermaid fence body retains every counted original source unit");
+    NativeFlowchartParser parser;
+    parser.Begin(body.substr(0u, scenario.source.size()), syntax.Revision());
+    CheckModel(*Complete(parser), scenario, check);
+}
+template <typename Check> inline void CheckOriginalCorpus(Check&& check)
+{
+    NativeFlowchartParser parser;
+    std::size_t prepared{}, unsupported{};
+    for (const auto& example : NativeFlowchartCorpus::flowcharts)
+    {
+        parser.Begin(example.source, example.number);
+        const auto result = Complete(parser, 1u);
+        check(result->source == example.source && result->outcome == example.outcome && result->nodes.size() == example.nodes &&
+                  result->edges.size() == example.edges,
+              "all original Mermaid flowchart examples match independent subset status and graph counts");
+        if (example.outcome == FlowchartOutcome::Prepared)
+        {
+            check(result->direction == example.direction && result->diagnostic.issue == FlowchartIssue::None,
+                  "admitted original Mermaid graphs preserve expected direction without a fallback diagnostic");
+            ++prepared;
+        }
+        else
+        {
+            check(result->diagnostic.issue != FlowchartIssue::None && result->diagnostic.source.first <= result->diagnostic.source.last &&
+                      result->diagnostic.source.last <= result->source.size(),
+                  "unsupported original Mermaid syntax retains a bounded source explanation");
+            ++unsupported;
+        }
+    }
+    for (const auto& family : NativeFlowchartCorpus::unsupportedFamilies)
+    {
+        parser.Begin(family.source, 1u);
+        const auto result = Complete(parser, 1u);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->source == family.source && result->nodes.empty() && result->edges.empty(),
+              "every other declared Mermaid diagram family has explicit unsupported source fallback");
+    }
+    check(prepared == 13u && unsupported == 92u && std::size(NativeFlowchartCorpus::unsupportedFamilies) == 20u,
+          "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
+}
+} // namespace NativeFlowchartTests

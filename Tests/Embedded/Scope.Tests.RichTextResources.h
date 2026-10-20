@@ -3,6 +3,74 @@
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include <DxUi/RichSemanticDocument.h>
 
+static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
+{
+    using namespace NativeFlowchartTests;
+    const std::wstring sources[] = {L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
+                                    L"graph TD;A[staged];B[another];A-->B;style A fill:red",
+                                    L"graph TD;A[staged];B[another];A-->|\"incomplete label",
+                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]"};
+    std::size_t total{};
+    for (const auto& source : sources)
+    {
+        std::size_t requests{};
+        {
+            NativeFlowchartParser parser;
+            parser.Begin(L"graph TD;Old", 1u);
+            Complete(parser);
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            parser.Begin(source, 2u);
+            Complete(parser, 7u);
+            countAllocations = false;
+            requests         = allocations;
+        }
+        Check(requests > 0u && requests < 512u, "native flowchart has a bounded observed allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "native flowchart failure-point=%zu/%zu\n", failure, requests);
+            NativeFlowchartParser parser;
+            parser.Begin(L"graph TD;Old", 1u);
+            const auto old = Complete(parser);
+            parser.Begin(L"graph LR;Staged", 99u);
+            bool rejected{};
+            bool began{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    parser.Begin(source, 2u);
+                    began = true;
+                    Complete(parser, 7u);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && parser.Published() == old && parser.HasPendingPreparation() != began && old->source == L"graph TD;Old",
+                  "failed native Begin keeps pending work; failed Advance retires only staging; neither changes the old publication");
+            if (! began)
+                Check(Complete(parser)->source == L"graph LR;Staged", "native Begin allocation failure preserves the previous pending source");
+            parser.Begin(source, 2u);
+            Check(Complete(parser)->source == source, "explicit native flowchart retry succeeds after every observed allocation failure");
+        }
+        total += requests;
+    }
+    std::cout << "native flowchart allocation scenarios=4 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+}
+
 static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
 {
     using namespace DxUi::RichText;
@@ -368,6 +436,39 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
     Check(idleCalls == 0u, "same-content preparation, completed reads and retirement allocate no C++ storage");
     std::cout << "lossless Markdown sweptRequests=" << requests << " pendingBeginRequests=" << beginRequests << " maximumRetainedCppBytes=" << retained
               << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released << " unchangedAndRetireAllocations=" << idleCalls << '\n';
+}
+
+static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    NativeFlowchartTests::CheckOriginalCorpus(Check);
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "diagram borrowed WARP resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "diagram embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    for (const auto& scenario : NativeFlowchartTests::scenarios)
+    {
+        const auto source = NativeFlowchartTests::FencedSource(scenario);
+        editor->SetText(source);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded diagram definition preparation");
+        const auto syntax = editor->GetMarkdownSyntax();
+        Check(syntax != nullptr, "embedded diagram source preparation completes");
+        NativeFlowchartTests::CheckFencedSource(*syntax, scenario, Check);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source &&
+                  semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario) && editor->GetText() == source && ! editor->CanUndo() &&
+                  ! view.Controls().GetHwnd(),
+              "embedded parser preparation preserves source fallback and history without a control HWND");
+        editor->SetSelection({13u, 13u});
+        Check(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source,
+              "every embedded diagram definition remains a reversible Unicode source edit");
+    }
 }
 
 static void TestEmbeddedFrontMatterFencesAndSourceEdits(GraphicsFixture& gpu)

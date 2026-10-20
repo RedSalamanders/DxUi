@@ -854,6 +854,100 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
     parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
     Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
 }
+void TestNativeFlowchartGrammarAndGraphValues()
+{
+    using namespace NativeFlowchartTests;
+    NativeFlowchartParser parser;
+    for (const auto& scenario : scenarios)
+    {
+        parser.Begin(scenario.source, 1u);
+        CheckModel(*Complete(parser), scenario, Require);
+    }
+    parser.Begin(L"graph LR;A-->B((second));B-->A;A-->|yes|A", 2u);
+    const auto model = Complete(parser);
+    Require(model->nodes[1u].shape == FlowchartShape::Circle && model->edges[1u].from == 1u && model->edges[1u].to == 0u && model->edges[2u].from == 0u &&
+                model->edges[2u].to == 0u && model->edges[2u].label == L"yes" && model->edges[2u].arrow,
+            "native graph retains circle declaration, cycle/back-edge, self-loop, arrow and edge label");
+    parser.Begin(L"graph TB;A[\"a\\n\u03b2\"];A --- B", 3u);
+    const auto second = Complete(parser);
+    Require(second->nodes[0u].label == L"a\n\u03b2" && ! second->edges[0u].arrow && model->revision == 2u,
+            "escaped Unicode labels and line edges do not mutate held native graphs");
+    parser.Begin(L"graph TD;A-->|yes%%keep|B", 4u);
+    Require(Complete(parser)->edges[0u].label == L"yes%%keep", "comment markers inside a plain edge label remain literal label text");
+}
+void TestNativeFlowchartPinnedIndependentCorpus()
+{
+    NativeFlowchartTests::CheckOriginalCorpus(Require);
+}
+void TestNativeFlowchartSchedulingAndAtomicAdmission()
+{
+    using namespace NativeFlowchartTests;
+    NativeFlowchartParser parser;
+    Require(parser.Advance().status == MarkdownPreparationStatus::Idle, "native graph starts idle");
+    parser.Begin(L"graph TB;A", 1u);
+    const auto old      = Complete(parser);
+    std::wstring caller = L"graph LR;A[latest]-->B";
+    parser.Begin(caller, 2u);
+    caller.assign(L"caller buffer changed");
+    Require(parser.Advance(0u).workUnits == 0u && parser.Published() == old, "zero budget does not publish or scan native graphs");
+    const auto first = parser.Advance(3u);
+    parser.Begin(L"graph LR;A[latest]-->B", 2u);
+    std::size_t total = first.workUnits;
+    while (parser.HasPendingPreparation())
+        total += parser.Advance(1u).workUnits;
+    const auto held = parser.Published();
+    Require(total <= held->source.size() + 1u && held->source == L"graph LR;A[latest]-->B", "identical pending native requests coalesce and own caller data");
+    parser.Begin(held->source, held->revision);
+    Require(! parser.HasPendingPreparation() && parser.Published() == held, "identical completed native request reuses immutable graph");
+    parser.Begin(L"graph TB;C", 3u);
+    Reject([&] { parser.Begin(std::wstring(1u, 0xd800), 4u); }, "native graph rejects unpaired surrogate");
+    Reject([&] { parser.Begin(std::wstring(Document::MaximumUnits + 1u, L'x'), 4u); }, "native graph rejects unbounded source before copying");
+    Require(Complete(parser)->source == L"graph TB;C", "failed native Begin preserves the previous pending request");
+    parser.Begin(L"graph TB;D", 3u);
+    parser.Advance(2u);
+    parser.Cancel();
+    Require(! parser.HasPendingPreparation() && parser.Published()->source == L"graph TB;C", "native graph cancellation retires staging only");
+    parser.Begin(L"graph TB;D", 3u);
+    Require(Complete(parser)->source == L"graph TB;D" && held->source.find(L"latest") != std::wstring::npos,
+            "equal numeric revision cannot alias another native body or mutate held readers");
+    parser.Clear();
+    Require(! parser.Published() && parser.Advance().status == MarkdownPreparationStatus::Idle, "native graph Clear releases parser ownership");
+}
+void TestNativeFlowchartCapacityBeforeGeneratedAllocation()
+{
+    using namespace NativeFlowchartTests;
+    const auto check = [](const std::wstring& source, FlowchartIssue issue)
+    {
+        NativeFlowchartParser parser;
+        parser.Begin(source, 1u);
+        const auto model = Complete(parser, 7u);
+        Require(model->source == source && model->outcome == FlowchartOutcome::Capacity && model->diagnostic.issue == issue && model->nodes.empty() &&
+                    model->edges.empty(),
+                "native graph capacity is explicit, source-exact and never a partially prepared graph");
+    };
+    check(std::wstring(NativeFlowchartParser::MaximumSourceUnits + 1u, L' '), FlowchartIssue::SourceCapacity);
+    check(L"graph TD;" + std::wstring(NativeFlowchartParser::MaximumIdentifierUnits + 1u, L'a'), FlowchartIssue::IdentifierCapacity);
+    check(L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'a') + L"\"]", FlowchartIssue::LabelCapacity);
+    std::wstring nodes = L"graph TD;";
+    for (std::size_t i = 0u; i <= NativeFlowchartParser::MaximumNodes; ++i)
+        nodes += L"N" + std::to_wstring(i) + L";";
+    check(nodes, FlowchartIssue::NodeCapacity);
+    std::wstring edges = L"graph TD;A";
+    for (std::size_t i = 0u; i <= NativeFlowchartParser::MaximumEdges; ++i)
+        edges += L"-->A";
+    check(edges, FlowchartIssue::EdgeCapacity);
+    std::wstring statements = L"graph TD;";
+    for (std::size_t i = 0u; i < NativeFlowchartParser::MaximumStatements; ++i)
+        statements += L"A;";
+    check(statements, FlowchartIssue::StatementCapacity);
+    NativeFlowchartParser parser;
+    auto boundary = L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits, L'a') + L"\"];";
+    boundary.resize(NativeFlowchartParser::MaximumSourceUnits, L' ');
+    parser.Begin(boundary, 1u);
+    Require(Complete(parser, 1u)->outcome == FlowchartOutcome::Prepared &&
+                parser.Published()->nodes[0u].label.size() == NativeFlowchartParser::MaximumLabelUnits,
+            "exact native source/label boundaries remain admitted");
+}
 void TestLosslessMarkdownSchedulingCancellationAndIdentity()
 {
     MarkdownParser parser;
@@ -916,4 +1010,8 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownLexicalValuesAndAffinity);
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
+    DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
+    DXUI_RUN_TEST(TestNativeFlowchartPinnedIndependentCorpus);
+    DXUI_RUN_TEST(TestNativeFlowchartSchedulingAndAtomicAdmission);
+    DXUI_RUN_TEST(TestNativeFlowchartCapacityBeforeGeneratedAllocation);
 }

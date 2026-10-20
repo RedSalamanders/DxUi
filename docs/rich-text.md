@@ -9,6 +9,14 @@ qualification, complete semantic Markdown editing and accepted extensions remain
 separate gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 The explicit bounded semantic rendering preview is available under M4d below.
 
+The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
+has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
+diamonds, four directions and plain/arrow edge chains. Other Mermaid families,
+expanded shapes/edges, subgraphs, styling, icons and executable directives remain
+unsupported. The pinned original corpus distinguishes accepted graphs from
+rejected definitions. Diagram layout, rich objects and editing/UIA integration
+are still pending; the current editor displays exact code-fence source fallback.
+
 ## Retained editor preview (D2c)
 
 For explicit semantic coordinate preparation, include `DxUi/RichSemantic.h`.

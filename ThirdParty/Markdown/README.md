@@ -12,6 +12,21 @@ The owned C++ limited flowchart profile remains M5 work; reference availability
 does not establish grammar or rendering compatibility. Unsupported families and
 constructs must remain exact editable source with explicit diagnostics.
 
+`dxui-flowchart-expectations.json` independently classifies all 105 original
+flowchart fences: 13 admitted graphs and 92 unsupported definitions.
+`dxui-family-matrix.json` accounts for the 22 syntax documents, including the
+flowchart profile, example collection and 20 unsupported diagram families.
+`Tools/Generate-NativeFlowchartTestData.ps1` checks every original file hash,
+the MIT notice, inventory and expectation pins before generating native vectors.
+Original snippets use LF in test vectors; original file bytes remain unchanged.
+Neither accepted CPU graphs nor unsupported results establish native rendering.
+
+`katex-0.16.11` retains only original command documentation and the MIT notice
+from commit `fbbea3573439d51e6568356f5886053b111b1f88`; `collection.json` records
+URLs, Git blobs and exact SHA-256 values. These pin the math command reference.
+No KaTeX implementation, JavaScript runtime, browser or external helper is built
+or deployed. The owned native math parser/layout remains M5 work.
+
 The parser implementation is owned Unicode C++ in `src/Controls/DxUi.MarkdownSyntax.cpp`.
 MD4C, Discount and cmark-gfm inform API boundaries; none is linked or used as the
 implementation. Exact earlier research snapshots remain in the cooperative

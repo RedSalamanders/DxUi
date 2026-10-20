@@ -1280,3 +1280,52 @@ exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a
 closed successor MUST have no stale missing-fence issue. This envelope diagnostic
 does not validate the YAML/TOML payload.
+
+### Native Mermaid flowchart profile
+
+The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
+named limited grammar below. This CPU parser is in development; native layout,
+source-object editing and UIA diagram publication remain M5 work. A prepared
+graph MUST NOT be reported as a rendered diagram until those layers qualify.
+
+The body starts with `flowchart` or `graph`, horizontal whitespace and one exact
+direction: `TB`/`TD`, `BT`, `LR` or `RL`. Statements end at a physical CR/LF/CRLF
+or a semicolon outside quoted labels and shapes. Horizontal whitespace is space
+or tab. Ordinary `%%` comments outside labels run to the line end. Diagram-local
+YAML, `%%{...}%%` configuration, directives and other families are unsupported.
+
+An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
+`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click` and
+`linkStyle` are reserved. A node is an identifier alone or followed by `[label]`
+(rectangle), `(label)` (rounded), `((label))` (circle) or `{label}` (diamond).
+Expanded shape syntax is unsupported. An explicit declaration replaces the
+node's previous label/shape; a bare endpoint preserves it. Node order is first
+appearance order and edge order is source order, including cycles/self-loops.
+
+An edge chain is `node (edge node)*`, where edge is `-->` or `---` optionally
+followed by `|label|`. Expanded, dotted, thick, multi-target, reversed and named
+edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
+treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
+Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
+labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
+text. HTML, Markdown labels, entity escapes, icon syntax and inline math labels
+are unsupported; they MUST NOT silently acquire a different label meaning.
+
+Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 edges, 1,024
+nonempty statements including the header, 1,024 decoded label units and 128 ID
+units. Check each bound before adding generated data. Capacity, unsupported and
+malformed outcomes retain the complete body with a source-ranged diagnostic and
+expose no partially prepared graph. Failure of an allocation retires staging,
+preserves the prior immutable publication and permits explicit retry.
+
+The private CPU parser MUST coalesce identical source/revision requests, reject
+invalid source admission without replacing pending work, yield during scanning,
+support cancellation and reject stale publication at its future host adapter.
+One statement parse is an indivisible bounded operation; event budgets are not
+wall-clock guarantees. It owns no worker, HWND, graphics device or timer.
+
+The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
+remain accounted for. Independent subset expectations distinguish 13 admitted
+graphs from 92 unsupported definitions and 20 other diagram families. Rejection
+is compatibility accounting, never rendered conformance. Original reference
+bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.

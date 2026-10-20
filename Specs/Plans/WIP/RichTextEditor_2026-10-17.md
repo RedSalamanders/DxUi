@@ -2640,6 +2640,15 @@ development checks from final frozen qualification:
   invalid/duplicate/unresolved/capacity cases. Implement normalized footnote
   labels, multi-paragraph definitions, repeated references, first-reference
   numbering and explicit backlinks/reordered primary source ownership.
+  - [ ] M5b.1: Metadata content validators, diagnostics and allocation/capacity
+    failure contracts for the complete named YAML/TOML profiles.
+  - [ ] M5b.2: Real footnote block containers before generic reference extraction,
+    normalized global resolution/diagnostics and deterministic reachable numbering.
+  - [ ] M5b.3: Footer rendering and repeated reference/backlink source ownership.
+    Added dependency: geometry currently merges empty-line caret sites in source
+    order. Prepare display-order ownership for reordered definitions, and test
+    differing definition/reference order plus empty/multi-paragraph definitions
+    in both hosts before closing footnote rendering/accessibility.
 - [ ] M5c: Implement the named native math command/environment corpus and layout:
   identifiers/numbers/operators/groups, fractions, roots, scripts, stretchy
   delimiters, accents, large operators/limits, matrices/cases/aligned and text.
@@ -2649,6 +2658,14 @@ development checks from final frozen qualification:
   `9868f3a4c3784e214d8b6c74277ca542774e7de9`; classify the complete declared
   diagram-family inventory and original flowchart examples. Unsupported syntax
   remains exact source with a diagnostic, never a successful diagram result.
+  - [x] M5d.1: CPU parser, explicit source diagnostics, pre-allocation capacities,
+    scheduling and exact native/embedded code-fence fallbacks pass focused Debug
+    checks. All 105 pinned flowchart examples and the 22-document syntax inventory
+    have independent accounting. Final build/runtime profiles remain M5f.
+  - [ ] M5d.2: Deterministic bounded native graph layout, cycle/back-edge/self-loop
+    routing, DWrite labels, raster resources and source-independent retained plans.
+  - [ ] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
+    source editing and UIA with M5e; graph acceptance alone is not rendered support.
 - [ ] M5e: Integrate source-bearing object editing and caret entry/exit, diagnostics,
   structural source transactions, native/embedded UIA alternatives/actions,
   preparation cancellation/coalescing/staleness and the complex sample/gallery.
@@ -2736,6 +2753,42 @@ hashes are retained in `Iteration4`. Continue with M5a.3 and the remaining M5 wo
 Development closeout for this checkpoint: all five repository validators, the
 complete tooling suite and pinned clang-format 22.1.3 check passed. This is a
 coherent WIP commit; M5f still owns the new source's full runtime/build profiles.
+
+Native flowchart development follows the owner's C++ only choice. The private
+CPU model/parser now has explicit bounded graph/diagnostic outcomes, immutable
+publication and cooperative scanning. The generator pins all 24 original Mermaid
+files, 105 independently classified flowchart examples (13 admitted/92 unsupported)
+and the 20 other families in the 22-document inventory. Its eight offline
+reproducibility/mutation obligations pass. The native test inventory is 124 files.
+KaTeX 0.16.11 command documentation is reference data only; the named math target
+corpus/limits/envelopes are retained without claiming an implemented math engine.
+
+Iteration1 compiled and five focused checks passed (86 observed allocation failure
+points), but final build attestation correctly rejected generator/reference input
+changes during compilation. Retain that failure; it is not a qualified build.
+Iteration2 froze all compiled inputs and passed the canonical Debug build in
+4:52, five directed native tests, the original-corpus test and ordinary Embedded
+(29,337 checks, 1,000 warm composites with zero tracked C++ allocations). Full
+EditorControls and complete repository validation also passed. A separate diagnostic
+against the frozen library then reproduced a missing edge-label comment guard:
+`A-->|yes%%keep|B` incorrectly became malformed. Fix `%%` recognition to exclude
+pipe labels and include this case in both hosts; Iteration3 is the corrected
+frozen build. These are development Debug checks; full M5f qualification remains.
+
+Iteration3 passed the canonical Debug build (4:25), all five directed core/native
+tests, complete EditorControls (45.260 seconds), isolated allocation probes and
+ordinary Embedded (29,365 checks). All 40 owned host scenarios and 125 original
+flowchart/family vectors pass. Every one of the 86 observed allocation failures
+preserves the old publication; failed Begin additionally preserves a pending
+request and failed Advance retires staging. The same diagnostic source against
+the new frozen library exits zero, preserving the literal `yes%%keep` label.
+Its pre-fix exit-one receipt remains. The 1,000 warm embedded composites allocate
+zero tracked C++ objects; the 9,024 microsecond observation is not a paired
+performance comparison or D4c acceptance. Final specs/dependencies and pinned
+format checks pass; full tooling validation passed on Iteration2, with unchanged
+tool inputs. Exact private source/artifact/run records remain under
+`.build/reports/rich-flowchart-m5d1-20261020`. Continue M5b/M5c/M5d.2/M5e/M5f,
+M6/D2a and the remaining gates; the plan stays WIP and D4c stays HOLD.
 
 The clean pre-change Release baseline uses metadata commit `bd5d3e49`, through
 the canonical build path. A prior SkipBuild refusal is retained: the capability
