@@ -1,0 +1,1 @@
+- Record ARM64 lease focus evidence, three shared snapshots behind six child receipts, and bounded capture-reason diagnostics and native focus follow-up steps while preserving all remaining qualification gates and thresholds.

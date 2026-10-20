@@ -189,7 +189,10 @@ struct MenuPopup;
     {
         return true;
     }
-    return false;
+    // A menu-bar hover is input too. Leaving its registered message behind popup
+    // paints can starve root switching while the popup remains continuously dirty.
+    const WndMsg::RegisteredMessage hover = WndMsg::ContextMenuRootHoverChanged();
+    return hover && PeekMessageW(&msg, nullptr, hover.value, hover.value, PM_REMOVE) != FALSE;
 }
 
 [[nodiscard]] bool ShouldTraceMenuLoopMessageImmediately(UINT message, bool popupMessage) noexcept

@@ -142,6 +142,45 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
 #define DXUI_RUN_TEST(test) RunDxUiTest(#test, test)
 
+// Setup may receive synchronous cross-thread window/COM callbacks. Service sent messages only; posted/input messages
+// must remain queued until the fixture's normal pump. The deadline is absolute and never restarts on a callback.
+[[nodiscard]] inline DWORD WaitForDxUiEventWithSentMessagesUntil(HANDLE event, ULONGLONG deadline, DWORD* error = nullptr) noexcept
+{
+    if (error)
+        *error = ERROR_SUCCESS;
+    const DWORD count = event ? 1u : 0u;
+    for (;;)
+    {
+        const ULONGLONG now = GetTickCount64();
+        if (now >= deadline)
+            return WAIT_TIMEOUT;
+        if (event)
+        {
+            const DWORD ready = WaitForSingleObject(event, 0u);
+            if (ready == WAIT_OBJECT_0)
+                return GetTickCount64() < deadline ? ready : WAIT_TIMEOUT;
+            if (ready == WAIT_FAILED)
+            {
+                if (error)
+                    *error = GetLastError();
+                return ready;
+            }
+        }
+        const DWORD wake =
+            MsgWaitForMultipleObjectsEx(count, event ? &event : nullptr, static_cast<DWORD>(deadline - now), QS_SENDMESSAGE, MWMO_INPUTAVAILABLE);
+        if (event && wake == WAIT_OBJECT_0)
+            return GetTickCount64() < deadline ? wake : WAIT_TIMEOUT;
+        if (wake != WAIT_OBJECT_0 + count)
+        {
+            if (wake == WAIT_FAILED && error)
+                *error = GetLastError();
+            return wake;
+        }
+        MSG pending{};
+        static_cast<void>(PeekMessageW(&pending, nullptr, WM_NULL, WM_NULL, PM_NOREMOVE));
+    }
+}
+
 [[nodiscard]] inline bool WaitForDxUiThreadFocus(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
@@ -177,13 +216,82 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     return WaitForDxUiThreadFocus(hwnd, timeoutMs);
 }
 
-// An optional terminal-stage observation explains a failed fixture setup without changing activation or retry policy.
-[[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u, const char** terminalStage = nullptr) noexcept
+struct DxUiActivationObservation
 {
-    const auto finish = [terminalStage](bool result, const char* stage) noexcept
+    bool recorded          = false;
+    bool initialForeground = false;
+    bool initialFocus      = false;
+    bool visible           = false;
+    bool minimized         = false;
+    bool directCalled      = false;
+    bool directAccepted    = false;
+    bool fallbackCalled    = false;
+    DxUi::TestSupport::ForegroundTransferObservation transfer{};
+    unsigned sentWaits   = 0u;
+    DWORD waitError      = ERROR_SUCCESS;
+    bool finalForeground = false;
+    bool finalFocus      = false;
+};
+
+inline void PrintDxUiActivationObservation(const DxUiActivationObservation& observation, const char* context, size_t attempt)
+{
+    if (! observation.recorded)
+        return;
+    const auto& transfer = observation.transfer;
+    std::cerr << std::format(
+        "    [ACTIVATION] context={} attempt={} initialForeground={} initialFocus={} visible={} minimized={} directCalled={} directAccepted={} "
+        "fallbackCalled={} foregroundPresent={} foregroundThread={} attachmentNeeded={} attachmentCalled={} attached={} attachmentError={} "
+        "requestCalled={} requestAccepted={} detachCalled={} detached={} detachError={} sentWaits={} waitError={} finalForeground={} finalFocus={}\n",
+        context,
+        attempt,
+        observation.initialForeground,
+        observation.initialFocus,
+        observation.visible,
+        observation.minimized,
+        observation.directCalled,
+        observation.directAccepted,
+        observation.fallbackCalled,
+        transfer.foregroundPresent,
+        transfer.foregroundThread,
+        transfer.attachmentNeeded,
+        transfer.attachmentCalled,
+        transfer.attached,
+        transfer.attachmentError,
+        transfer.requestCalled,
+        transfer.requestAccepted,
+        transfer.detachCalled,
+        transfer.detached,
+        transfer.detachError,
+        observation.sentWaits,
+        observation.waitError,
+        observation.finalForeground,
+        observation.finalFocus);
+}
+
+// Optional scalar observations explain setup without changing activation, pumping, deadlines or retry policy.
+[[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd,
+                                                    DWORD timeoutMs                        = 800u,
+                                                    const char** terminalStage             = nullptr,
+                                                    DxUiActivationObservation* observation = nullptr) noexcept
+{
+    if (observation)
+    {
+        *observation                   = {};
+        observation->recorded          = true;
+        observation->initialForeground = GetForegroundWindow() == hwnd;
+        observation->initialFocus      = GetFocus() == hwnd;
+        observation->visible           = IsWindowVisible(hwnd) != FALSE;
+        observation->minimized         = IsIconic(hwnd) != FALSE;
+    }
+    const auto finish = [terminalStage, observation, hwnd](bool result, const char* stage) noexcept
     {
         if (terminalStage)
             *terminalStage = stage;
+        if (observation)
+        {
+            observation->finalForeground = GetForegroundWindow() == hwnd;
+            observation->finalFocus      = GetFocus() == hwnd;
+        }
         return result;
     };
     if (DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread())
@@ -200,12 +308,20 @@ inline bool RunDxUiTest(const char* name, void (*test)())
         return finish(true, "already-foreground");
     }
 
-    if (SetForegroundWindow(hwnd) == FALSE && GetForegroundWindow() != hwnd)
+    const bool directAccepted = SetForegroundWindow(hwnd) != FALSE;
+    if (observation)
+    {
+        observation->directCalled   = true;
+        observation->directAccepted = directAccepted;
+    }
+    if (! directAccepted && GetForegroundWindow() != hwnd)
     {
         // Authorized foreground fixtures need a real foreground grant, not only thread-local active/focus state.
         // Reuse the lease backend's scoped input attachment; it detaches before this helper checks the result.
         DxUi::TestSupport::Win32DesktopBackend desktop;
-        if (! desktop.BringToForeground(hwnd) && GetForegroundWindow() != hwnd)
+        if (observation)
+            observation->fallbackCalled = true;
+        if (! desktop.BringToForeground(hwnd, observation ? &observation->transfer : nullptr) && GetForegroundWindow() != hwnd)
         {
             return finish(false, "foreground-transfer");
         }
@@ -227,8 +343,12 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
         // Cross-queue activation can need a sent-message nudge. Keep the existing polling deadline and leave
         // queued input to the normal pump. A dispatched sent callback can outlast a poll; the test watchdog remains.
+        if (observation)
+            ++observation->sentWaits;
         if (MsgWaitForMultipleObjectsEx(0u, nullptr, 10u, QS_SENDMESSAGE, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
         {
+            if (observation)
+                observation->waitError = GetLastError();
             return finish(false, "foreground-message-wait-failed");
         }
         MSG message{};
@@ -939,6 +1059,22 @@ public:
         return _lastForegroundThiefThreadId;
     }
 
+    // Keep total history intact while separately observing foreign interference during a controlled worker transfer.
+    void ExpectForegroundTransferToForTest(DWORD thread) noexcept
+    {
+        _expectedForegroundThread       = thread;
+        _unexpectedForegroundLossCount  = 0u;
+        _lastUnexpectedForegroundThread = 0u;
+    }
+    [[nodiscard]] uint32_t UnexpectedForegroundLossCount() const noexcept
+    {
+        return _unexpectedForegroundLossCount;
+    }
+    [[nodiscard]] DWORD LastUnexpectedForegroundThread() const noexcept
+    {
+        return _lastUnexpectedForegroundThread;
+    }
+
     void PumpMessages(DWORD maximumDurationMs = INFINITE) const
     {
         const ULONGLONG started = GetTickCount64();
@@ -997,6 +1133,11 @@ private:
             {
                 ++self->_foregroundLossCount;
                 self->_lastForegroundThiefThreadId = static_cast<DWORD>(lp);
+                if (self->_expectedForegroundThread == 0u || self->_lastForegroundThiefThreadId != self->_expectedForegroundThread)
+                {
+                    ++self->_unexpectedForegroundLossCount;
+                    self->_lastUnexpectedForegroundThread = self->_lastForegroundThiefThreadId;
+                }
             }
             bool handled         = false;
             const LRESULT result = self->_host.HandleMessage(hwnd, msg, wp, lp, handled);
@@ -1023,8 +1164,11 @@ private:
     DxUi::WindowHost _host;
     ApplicationMessageHandler _applicationMessageHandler;
     SIZE _maximumTrackSizePx{};
-    uint32_t _foregroundLossCount      = 0u;
-    DWORD _lastForegroundThiefThreadId = 0u;
+    uint32_t _foregroundLossCount           = 0u;
+    DWORD _lastForegroundThiefThreadId      = 0u;
+    DWORD _expectedForegroundThread         = 0u;
+    uint32_t _unexpectedForegroundLossCount = 0u;
+    DWORD _lastUnexpectedForegroundThread   = 0u;
 };
 
 // Names the process that owns a thread, for messages that say who took the foreground: "Claude.exe (process 8900)".
@@ -1054,9 +1198,10 @@ private:
 // What became of a sequence run by RunWhileForegroundHeld.
 struct ForegroundRunResult
 {
-    bool held           = false; // A run ended without another application having taken the foreground from its window.
-    int runs            = 0;
-    DWORD thiefThreadId = 0u; // The thread of the window that took the foreground in the latest lost run.
+    bool held              = false; // A run ended without another application having taken the foreground from its window.
+    int runs               = 0;
+    DWORD thiefThreadId    = 0u;    // The thread of the window that took the foreground in the latest lost run.
+    bool activationRefused = false; // The last attempt never established activation; absence of a loss is insufficient.
 
     // Why the sequence could not be observed, for the capability skip.
     [[nodiscard]] std::string SkipReason(const char* what) const
@@ -1076,8 +1221,9 @@ struct ForegroundRunResult
 // windows, and the thread of the window that did.
 struct ForegroundAttempt
 {
-    bool lost           = false;
-    DWORD thiefThreadId = 0u;
+    bool lost                  = false;
+    DWORD thiefThreadId        = 0u;
+    bool activationEstablished = true; // Existing sequences without explicit activation keep their original contract.
 };
 
 // Runs `attempt` until a run reports that no other application took the foreground from its windows, at most
@@ -1085,7 +1231,8 @@ struct ForegroundAttempt
 // (it releases its native text session, stops announcing focus changes), so a desktop application retaking the
 // foreground a few tens of milliseconds after a test window activated failed assertions that it says nothing about. The
 // caller asserts on what the run that kept the foreground recorded, so its assertions are exactly those of a run without
-// a thief, and a regression still fails: a run nobody took the foreground from is never repeated. `attempt` plays the
+// a thief, and a regression still fails: an activation-confirmed run nobody took the foreground from is never repeated.
+// Explicit activation refusal consumes one of the same bounded attempts; permanent refusal is a setup failure, not a skip. `attempt` plays the
 // whole sequence, with windows of its own when a later run must not inherit what an earlier one did to them, records
 // what the caller asserts on, and returns what it found about the foreground. When another application takes the
 // foreground in every run, the result says who, and ForegroundHeldOrSkip records the skip.
@@ -1096,6 +1243,12 @@ template <typename Attempt> [[nodiscard]] ForegroundRunResult RunUntilForeground
     {
         ++result.runs;
         const ForegroundAttempt run = attempt();
+        result.activationRefused    = ! run.activationEstablished;
+        if (result.activationRefused)
+        {
+            std::cerr << "    [FOREGROUND] activation not established in run " << result.runs << " of " << maximumRuns << '\n' << std::flush;
+            continue;
+        }
         if (! run.lost)
         {
             result.held = true;
@@ -1127,9 +1280,14 @@ template <typename Sequence> [[nodiscard]] ForegroundRunResult RunWhileForegroun
         maximumRuns);
 }
 
-// True when a run kept the foreground; otherwise records the capability skip naming who took it and returns false.
+// True when a run kept the foreground. Exhausted activation refusal fails setup; observed takeovers retain the capability skip.
 [[nodiscard]] inline bool ForegroundHeldOrSkip(const ForegroundRunResult& run, const char* what)
 {
+    if (run.activationRefused)
+    {
+        const std::string activationFailure = std::format("{} did not establish activation within {} attempts", what, run.runs);
+        Require(false, activationFailure.c_str()); // Initial refusal is a setup failure, never a capability skip.
+    }
     if (! run.held)
         SkipDxUiTest(run.SkipReason(what).c_str());
     return run.held;

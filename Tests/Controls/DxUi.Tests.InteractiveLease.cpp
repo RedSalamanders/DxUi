@@ -116,13 +116,15 @@ public:
         return found == _threads.end() ? 0u : found->second;
     }
 
-    [[nodiscard]] HWND ThreadFocus(DWORD thread) override
+    [[nodiscard]] FocusQuery ThreadFocus(DWORD thread) override
     {
-        return FocusOf(thread);
+        ++focusQueries;
+        return focusQueryError.has_value() ? FocusQuery{nullptr, false, *focusQueryError} : FocusQuery{FocusOf(thread), true, ERROR_SUCCESS};
     }
 
     [[nodiscard]] bool Cursor(POINT& position) override
     {
+        SetLastError(ERROR_INVALID_DATA); // Later desktop reads must not replace an earlier focus-query error.
         if (! cursorReadable)
             return false;
         position = cursor;
@@ -161,6 +163,8 @@ public:
         if (focusRefused)
             return false;
         _focus[thread] = window;
+        if (failFocusReadback)
+            focusQueryError = ERROR_ACCESS_DENIED;
         return true;
     }
 
@@ -182,8 +186,11 @@ public:
     bool activationResetsFocus                   = false;
     std::optional<POINT> activationSnapsCursorTo = std::nullopt;
     bool focusRefused                            = false;
-    int foregroundCalls                          = 0;
-    int waits                                    = 0;
+    bool failFocusReadback                       = false;
+    std::optional<DWORD> focusQueryError;
+    int focusQueries    = 0;
+    int foregroundCalls = 0;
+    int waits           = 0;
 
 private:
     Events& _events;
@@ -274,11 +281,81 @@ void TestDesktopLeaseDoesNotCaptureStaleFocusFromMinimizedForeground()
     lease.Capture();
     Require(lease.Saved().foreground == person.editor && lease.Saved().focus == nullptr,
             "a minimized foreground window is recorded without its stale thread focus");
+    Require(lease.Saved().focusCaptureReason == FocusCaptureReason::ForegroundMinimized && desktop.focusQueries == 0,
+            "the original snapshot identifies the minimized guard without querying its stale focus");
     TakeOver(desktop, person);
     const RestoreReport report = lease.Restore();
     Require(Is(report, Restoration::Restored, Restoration::NotRecorded, Restoration::Restored) && report.Succeeded(),
             "the foreground and pointer still restore, while no inaccessible focus is invented");
     Require(Count(events, "focus") == 0, "the lease does not set focus to a stale child of a minimized window");
+}
+
+void TestDesktopLeaseCaptureDistinguishesEveryNullFocusPath()
+{
+    for (const FocusCaptureReason reason : {FocusCaptureReason::NoForeground,
+                                            FocusCaptureReason::NoForegroundThread,
+                                            FocusCaptureReason::ForegroundMinimized,
+                                            FocusCaptureReason::QueryFailed,
+                                            FocusCaptureReason::QueryReturnedNull,
+                                            FocusCaptureReason::Recorded})
+    {
+        Events events;
+        FakeDesktop desktop(events);
+        const Person person;
+        SeatThePerson(desktop, person);
+        switch (reason)
+        {
+            case FocusCaptureReason::NoForeground: desktop.TakeForeground(nullptr); break;
+            case FocusCaptureReason::NoForegroundThread: desktop.AddWindow(person.editor, 0u); break;
+            case FocusCaptureReason::ForegroundMinimized: desktop.SetMinimized(person.editor, true); break;
+            case FocusCaptureReason::QueryFailed: desktop.focusQueryError = ERROR_ACCESS_DENIED; break;
+            case FocusCaptureReason::QueryReturnedNull: desktop.SetFocusOf(kPersonThread, nullptr); break;
+            default: break;
+        }
+        DesktopLease lease(desktop);
+        lease.Capture();
+        const DesktopState& saved = lease.Saved();
+        Require(saved.focusCaptureReason == reason, "the original snapshot distinguishes each capture path");
+        Require(saved.focusQueryError == static_cast<DWORD>(reason == FocusCaptureReason::QueryFailed ? ERROR_ACCESS_DENIED : ERROR_SUCCESS),
+                "query failure preserves its immediate error, while success and skipped queries have no error");
+        Require(saved.focus == (reason == FocusCaptureReason::Recorded ? person.caret : nullptr), "only a successful nonnull query records focus");
+        const bool queried =
+            reason == FocusCaptureReason::QueryFailed || reason == FocusCaptureReason::QueryReturnedNull || reason == FocusCaptureReason::Recorded;
+        Require(desktop.focusQueries == (queried ? 1 : 0), "capture performs exactly one focus query when eligible, with no diagnostic re-query");
+        const RestoreReport report = lease.Restore();
+        Require(report.saved.focusCaptureReason == reason && report.saved.focusQueryError == saved.focusQueryError,
+                "later exit reads preserve the original capture diagnostic");
+        Require(report.focus == (reason == FocusCaptureReason::Recorded ? Restoration::Unchanged : Restoration::NotRecorded),
+                "a capture reason does not promote unrecorded focus to verified restoration");
+        Require(Count(events, "focus") == 0, "capture diagnostics do not set focus");
+    }
+    Events events;
+    FakeDesktop desktop(events);
+    const Person person;
+    SeatThePerson(desktop, person);
+    desktop.focusQueryError = ERROR_SUCCESS;
+    DesktopLease lease(desktop);
+    lease.Capture();
+    Require(lease.Saved().focusCaptureReason == FocusCaptureReason::QueryFailed && lease.Saved().focus == nullptr && lease.Saved().focusQueryError == 0u,
+            "a failed query with no extended error remains failed, not a successful null or recorded focus");
+}
+
+void TestDesktopLeaseRejectsFailedFocusReadback()
+{
+    Events events;
+    FakeDesktop desktop(events);
+    const Person person;
+    SeatThePerson(desktop, person);
+    DesktopLease lease(desktop);
+    lease.Capture();
+    TakeOver(desktop, person);
+    desktop.failFocusReadback  = true;
+    const RestoreReport report = lease.Restore();
+    Require(desktop.FocusOf(kPersonThread) == person.caret, "the fake accepted focus restoration");
+    Require(report.focus == Restoration::Failed && ! report.Succeeded(), "an accepted set without successful readback remains a failed lease");
+    Require(desktop.waits == DesktopLease::kSettleAttempts, "failed focus readback keeps the original bounded settle attempts");
+    Require(report.saved.focusCaptureReason == FocusCaptureReason::Recorded && report.saved.focusQueryError == ERROR_SUCCESS,
+            "a later query failure cannot rewrite the original successful capture");
 }
 
 void TestDesktopLeaseGivesBackThePointerLast()
@@ -628,7 +705,17 @@ void TestWin32BackendReadsTheDesktopWithoutChangingIt()
     Require(window != nullptr, "the test creates a window it never shows");
     const HWND handle = window.get();
     Require(backend.IsWindowAlive(handle) && backend.WindowThread(handle) == GetCurrentThreadId(), "the real backend finds a window and its thread");
-    Require(backend.ThreadFocus(GetCurrentThreadId()) == GetFocus(), "and the focus of a thread is what the thread's own GetFocus says");
+    SetLastError(ERROR_ACCESS_DENIED);
+    const FocusQuery focus = backend.ThreadFocus(GetCurrentThreadId());
+    Require(focus.succeeded && focus.window == GetFocus() && focus.error == ERROR_SUCCESS,
+            "the thread focus query distinguishes success, including null, and discards stale last-error");
+    const FocusQuery invalidThread = backend.ThreadFocus(0u);
+    Require(! invalidThread.succeeded && invalidThread.window == nullptr && invalidThread.error == ERROR_INVALID_PARAMETER,
+            "an absent thread cannot silently query the current foreground thread");
+    const FocusQuery failedQuery = backend.ThreadFocus(MAXDWORD); // Deliberately invalid thread ID.
+    const DWORD failedError      = GetLastError();
+    Require(! failedQuery.succeeded && failedQuery.window == nullptr && failedQuery.error == failedError && failedError != ERROR_SUCCESS,
+            "a failed Windows query preserves the immediate API error");
     std::string description = backend.Describe(handle);
     std::ranges::transform(description, description.begin(), [](char ch) noexcept {
         return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
@@ -1026,6 +1113,12 @@ void TestLeaseReportsADesktopItCouldNotRestore()
     const LeaseOutcome second              = RunLease(failing.services, RequestFor({L"Menu"}));
     Require(second.exitCode == LeaseExit::kChildFailed && second.restoration->foreground == Restoration::Failed,
             "a child's failure keeps its own exit code, with the failed restoration beside it");
+
+    Lease unreadableFocus;
+    unreadableFocus.desktop.failFocusReadback = true;
+    const LeaseOutcome third                  = RunLease(unreadableFocus.services, RequestFor({L"Menu"}));
+    Require(third.exitCode == LeaseExit::kNotRestored && third.restoration->focus == Restoration::Failed,
+            "passing children with unreadable focus restoration remain a failed run");
 }
 
 void TestLeaseReleasesTheSessionOnEveryPath()
@@ -1069,6 +1162,8 @@ void TestLeaseResultNamesEveryFact()
     Require(facts["cursor.saved"] == std::vector<std::string>{"400,300"} && facts["cursor.atExit"] == std::vector<std::string>{"900,700"},
             "with the pointer where the person had it and where the run left it");
     Require(facts["restoration.runMovedSomething"] == std::vector<std::string>{"1"}, "and whether the run had moved anything");
+    Require(facts["focus.capture.reason"] == std::vector<std::string>{"recorded"} && facts["focus.capture.error"] == std::vector<std::string>{"0"},
+            "one shared capture diagnostic accompanies both children");
     Require(facts["child"].size() == 2u && facts["child"][0].starts_with("Menu launched=1 exit=0 seconds=2.0") &&
                 facts["child"][1].starts_with("NativeTextInput launched=1 exit=1"),
             "each child has a line of its own");
@@ -1082,6 +1177,36 @@ void TestLeaseResultNamesEveryFact()
     Require(refusedText.find("reason: line one line two after a tab\n") != std::string::npos, "a reason is one line, whatever it holds");
     Require(refusedText.find("restoration") == std::string::npos && refusedText.find("child:") == std::string::npos,
             "and a run that took nothing records no restoration and no child");
+}
+
+void TestLeaseCaptureReasonSurvivesConfirmationAndChildren()
+{
+    for (const bool queryFailed : {false, true})
+    {
+        Lease lease;
+        if (queryFailed)
+            lease.desktop.focusQueryError = ERROR_ACCESS_DENIED;
+        else
+            lease.desktop.SetMinimized(lease.person.editor, true);
+        lease.services.onConfirm = [&]
+        {
+            Require(lease.desktop.focusQueries == (queryFailed ? 1 : 0), "capture was completed before confirmation");
+            lease.desktop.focusQueryError.reset();
+            lease.desktop.SetMinimized(lease.person.editor, false);
+        };
+        const LeaseOutcome outcome  = RunLease(lease.services, RequestFor({L"Menu", L"NativeTextInput"}));
+        const RestoreReport& report = *outcome.restoration;
+        Require(outcome.children.size() == 2u && report.focus == Restoration::NotRecorded,
+                "both children use one original unrecorded focus without inventing a later snapshot");
+        Require(report.atExit.focusCaptureReason == FocusCaptureReason::Recorded, "the later desktop has a different capture path");
+        const std::string text     = FormatLeaseResult(outcome);
+        const std::string expected = queryFailed ? "focus.capture.reason: query-failed\nfocus.capture.error: 5\n"
+                                                 : "focus.capture.reason: foreground-minimized\nfocus.capture.error: 0\n";
+        Require(text.contains(expected), "the result serializes the pre-confirmation reason and immediate query error");
+        const std::string expectedLog = queryFailed ? "focus capture before confirmation: query-failed (query-error=5)"
+                                                    : "focus capture before confirmation: foreground-minimized (query-error=0)";
+        Require(Count(lease.services.log, expectedLog) == 1u, "one bounded capture log survives even when the later desktop has changed");
+    }
 }
 
 void TestLeasePlanFileParsing()
@@ -1144,6 +1269,8 @@ void RunInteractiveLeaseTests()
     DXUI_RUN_TEST(TestDesktopLeaseLeavesAnUntouchedDesktopAlone);
     DXUI_RUN_TEST(TestDesktopLeaseGivesBackTheForegroundWindowAndItsFocus);
     DXUI_RUN_TEST(TestDesktopLeaseDoesNotCaptureStaleFocusFromMinimizedForeground);
+    DXUI_RUN_TEST(TestDesktopLeaseCaptureDistinguishesEveryNullFocusPath);
+    DXUI_RUN_TEST(TestDesktopLeaseRejectsFailedFocusReadback);
     DXUI_RUN_TEST(TestDesktopLeaseGivesBackThePointerLast);
     DXUI_RUN_TEST(TestDesktopLeaseRetriesAForegroundTheSystemRefusesOnce);
     DXUI_RUN_TEST(TestDesktopLeaseReportsAForegroundItCannotRestore);
@@ -1179,6 +1306,7 @@ void RunInteractiveLeaseTests()
     DXUI_RUN_TEST(TestLeaseReportsADesktopItCouldNotRestore);
     DXUI_RUN_TEST(TestLeaseReleasesTheSessionOnEveryPath);
     DXUI_RUN_TEST(TestLeaseResultNamesEveryFact);
+    DXUI_RUN_TEST(TestLeaseCaptureReasonSurvivesConfirmationAndChildren);
     DXUI_RUN_TEST(TestLeasePlanFileParsing);
     DXUI_RUN_TEST(TestLeaseDurationTextIsApproximate);
     DXUI_RUN_TEST(TestConfirmationCountdownEndsInACancellation);

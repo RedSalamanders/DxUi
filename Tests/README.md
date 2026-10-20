@@ -186,3 +186,29 @@ native placements with excess alternatives preserved. The capture mode uses the
 actual sample scene and deterministic caller-supplied pixels without a desktop
 window. These cases do not establish physical input/AT, native ARM64 execution
 or paired performance acceptance.
+
+The lease logs its original focus capture reason before confirmation and writes `focus.capture.reason` and
+`focus.capture.error` in its native result. The six reasons distinguish absent foreground/thread, minimized
+foreground, failed query, successful null focus and recorded focus. Only query failure carries a meaningful
+Windows error; other branches carry zero. Child receipts share `lease.focusCapture` (`Reason`, `QueryError`)
+and keep their own durations. Console summaries display the reason separately from restoration: focus `none`
+remains unverified. Older receipts without the diagnostic establish no reason, and malformed new diagnostics
+fail validation. The new fields contain no desktop identities; retain existing raw logs privately.
+See the [capture diagnostic packet](../Measurements/InteractiveLease/2026-10-18-capture-reasons/README.md) for
+the source/receipt hashes and explicit remaining qualification limits.
+
+The IMM eligibility and undo fixtures report initial activation separately from foreground-loss events. Refused activation uses
+the existing five-attempt bound and 800 ms helper limit; exhaustion fails setup rather than skipping. The IMM
+eligibility fixture guards the complete preview/policy transition and asserts all original predicates only on
+the held attempt, with fresh state after a discarded attempt. Its bounded trace records booleans, lengths and
+equality, not document text. Controlled regressions cover loss on both sides of preview and initial refusal.
+The [fixture-readiness packet](../Measurements/TextInput/2026-10-18-fixture-readiness/README.md) retains
+the original failures, deterministic counterfactual and repaired-source validation separately.
+
+The Menu foreground witness publishes creation/error before activation. Its sent-message-only readiness wait
+preserves queued input and the absolute 5,000 ms bound. Owner acquisition follows client/witness preparation;
+intentional transfers and external losses have separate counters. Teardown waits for actual thread exit while
+servicing callbacks. Optional activation diagnostics record existing operations only; UIA setup failures identify
+their stage and HRESULT. See the [ASan setup packet](../Measurements/TextInput/2026-10-18-asan-setup/README.md)
+for retained diagnostic failures and current validation limits. No setup failure or passing repeat closes a
+remaining qualification gate.

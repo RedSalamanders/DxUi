@@ -1,7 +1,16 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-18
+
+Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
+the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
+notification is valid and does not belong to the activation batch. Retain the exact one-text/one-layout assertion
+for that reconciliation turn, verify its queued record cannot duplicate the notification, and test a following
+queued geometry change separately. A whole-queue counterfactual must expose the old count-boundary error.
+Diagnostics are bounded scalar records after each observed boundary; retain cookie/activation identity, counts,
+geometry and focus state without publishing desktop identities. These tests do not qualify native ARM64, real IME,
+physical input or performance acceptance.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -55,6 +64,13 @@ The activation helper MUST preserve its 800 ms polling deadline while servicing 
 `MsgWaitForMultipleObjectsEx` and `PeekMessageW` with `PM_NOREMOVE`; queued input remains for its normal pump.
 A sent callback can outlast the polling interval, so this deadline is not a hard callback bound. The native
 watchdog and existing foreground checks, grants, authorization and bounded attempts remain required.
+
+Menu hover-switch validation retains its 180 ms pointer-only guard and 900 ms explicit-hover discovery guard.
+The pending-paint regression must establish a bounded stream of popup paints and observe the requested root
+inside the same 900 ms guard. Its unchanged-library counterfactual must retain the failed assertion, queued
+hover, active paint backlog and absence of callback entry. Bounded UI/driver trace storage uses the synchronous
+borrowed diagnostic sink; records retain phase names, relative times and query outcomes rather than desktop
+identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
@@ -317,6 +333,12 @@ names a native job; its merge to main runs all six.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
+Menu fixture discovery shares the process/owner/visibility rule in
+`Tests/Controls/Scope.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
+`Control` exercises hidden initialization, reveal, wrong owner/class and hidden-again/never-ready states on a
+private desktop that is never made the input desktop. This deterministic regression requires no foreground lease;
+the actual Menu fixtures still require their existing lease and retain their render/scroll assertions and cleanup.
+
 The Grid selection model is held to a copy of its original linear logic. Fixed-seed randomized runs apply thousands of mixed
 operations to both and require equal counts, order, anchors and answers after every one, over universes from one id to 5,200
 so that selections pass the two sizes at which the model changes how it works: 1,024 ids, up to which `IsSelected` scans the
@@ -392,12 +414,26 @@ foreground failed on a takeover it says nothing about. Such a fixture runs its f
 `RunWhileForegroundHeld` (`Tests/Controls/Controls.Tests.DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
 deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
 at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
-thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
+thief. An activation-confirmed run in which no application took the foreground is never repeated, so a regression still fails, and each
 repeat is logged as `[FOREGROUND] <executable> (process <id>) took the foreground in run <n> of <max>`. When another
 application takes the foreground in every run, the fixture records a capability skip naming its executable and process
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
 can activate: the sequence repeats once, and stops after the maximum with the application named.
+The IMM eligibility and composition-undo setup fixtures MUST report whether activation succeeded independently
+of foreground-loss events. A refused acquisition consumes one of the same five attempts; it MUST NOT count as a
+held sequence merely because Windows delivered no loss event. Exhausted activation refusal MUST fail setup,
+not produce a capability skip. The existing 800 ms activation limit and attempt count MUST NOT be extended.
+Other fixtures retain their existing setup predicates; adding explicit acquisition retries is not permission to
+repeat a held sequence whose correctness assertion failed.
+The IMM eligibility-transition fixture MUST guard activation, composition START, preview delivery and the policy
+transition as one sequence, then assert the original preview/cancellation/notification/session predicates on the
+held attempt. A discarded attempt MUST NOT leave read-only/masked state or composition/history in its successor.
+Deterministic tests MUST inject loss before and after preview, initial activation refusal without a loss event,
+persistent refusal at the existing bound, and a ready sequence whose failed correctness predicate is never retried.
+Passive IMM diagnostics are bounded to five attempts and four stages each, with scalar state, lengths/equality
+and existing loss counts; no text or new desktop identities, activation, pumping or deadline extension is added
+by observation. Setup failure remains distinct from an editor or sanitizer defect.
 Foreground-loss counting does not establish initial acquisition. The zero-size NativeTextInput fixture MUST reset
 its setup-success observation at the start of each attempt and fail an unmet setup condition when no foreground
 loss was observed; an earlier successful attempt cannot authorize a later failed acquisition. This fixture records
@@ -469,8 +505,17 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
 - **The fixtures.** `TestContextMenuDebugStateProbeBoundsWedgedWindowThread` and
   `TestContextMenuDebugCaptureBoundsWedgedWindowThread` wedge the popup thread in a stalled handler. They require each probe
   to fail at its bound, before the release, and the next capture to succeed.
+  Before probing, both fixtures require the modal-loop peek acknowledgement within the remainder of the same
+  five-second popup-discovery budget. Visibility and a successful sent text lookup alone do not establish readiness
+  for a posted state query. `TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization` holds
+  a visible popup at its first modal-loop peek, services sent queries and withholds posted dispatch for 1,200 ms after
+  discovery. It retains the healthy-state and deliberate-wedge assertions. Removing only the acknowledgement wait
+  must fail the healthy-state assertion; the one-second state and three-second capture bounds stay unchanged.
+  Each fixture starts its three-second handler-entry wait at probe preparation after readiness, so slow
+  initialization cannot pre-release the deliberate stall. The 1,200/4,000 ms release delays and elapsed bands stay unchanged.
 - **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
-  stopped answering.
+  stopped answering. A failed initial healthy-state assertion also reports the answer flag, elapsed time, item count,
+  window validity/visibility and owner match, without publishing raw desktop identities.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
@@ -676,6 +721,26 @@ it MUST NOT record the thread's `GUITHREADINFO.hwndFocus` as active keyboard foc
 stale child HWND for a minimized window that cannot receive keyboard input. A visible foreground window's
 focus MUST continue to be recorded, restored and verified; failed restoration remains a failed lease.
 
+The original pre-confirmation snapshot MUST retain one bounded focus capture reason: `no-foreground`,
+`no-foreground-thread`, `foreground-minimized`, `query-failed`, `query-returned-null` or `recorded`.
+The first three mean the focus query was skipped; the last three distinguish query failure, successful null
+focus and successful recorded focus. A failed query MUST retain its immediately read Windows error code;
+success and skipped queries MUST record zero, without copying stale last-error state. These facts MUST come
+from that snapshot, without a second diagnostic query or a change to the saved restoration target.
+The native log and result MUST retain this reason; result keys are `focus.capture.reason` and
+`focus.capture.error` (an unsigned 32-bit code, meaningful only for `query-failed`). The diagnostic adds no
+window, process or thread identities. Existing raw desktop descriptions remain private evidence.
+`test.ps1` MUST copy the shared diagnostic to each child's `lease.focusCapture` (`Reason`, `QueryError`),
+while retaining each child's own duration. Repeated, incomplete, unknown or contradictory diagnostic fields
+MUST fail result validation. Historical receipts with neither field remain readable but establish no capture
+reason. A reason for `none` MUST NOT promote it to verified focus restoration or close qualification.
+If the native result is missing, the runner's fallback MUST keep capture metadata absent and still write
+the failed child receipt under strict mode; it MUST NOT invent a capture reason or throw on missing fields.
+Deterministic fake-backend, serialization, parser, presentation and child-receipt tests MUST cover these
+branches, immutable capture across confirmation, visible-focus restoration and failed restoration read-back.
+Native ARM64 attribution still requires a separately identified hosted observation with those fields;
+a complete focus round trip requires an initially visible foreground with recorded focus.
+
 When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
 marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
 held mouse buttons and active/unreadable mouse capture before pointer movement and again before button-down,
@@ -746,6 +811,18 @@ HGLOBAL allocations: native Grid copy and TextField paste/cut at 65,535/65,536/6
 allocation arithmetic, allocation/ownership/publication failure, and one open attempt under contention. Large
 valid native payloads must still be rejected by the embedded service without changing the document. The control runner and
 its clipboard setup/read helpers share that private backend; system clipboard acceptance is a separate manual check.
+
+Foreground fixtures that create a witness on another thread MUST publish creation readiness or its immediate
+registration/creation error before requesting activation. Their readiness wait services synchronous sent messages
+without draining queued probes or input, under its original absolute deadline; readiness published after that
+deadline fails. Reacquire the owner after pumping client/witness preparation, before authorizing the transfer.
+Keep deliberate witness transfers separate from unexpected foreground losses without erasing total loss history.
+A held attempt whose behavior predicate fails MUST fail immediately; only setup refusal or observed external
+interference uses the existing bounded-attempt policy. These witnesses and their shared focus-event client wait
+for actual kernel thread termination while servicing required callbacks; a worker-body completion flag does not
+establish completed COM cleanup.
+Bounded setup diagnostics retain the failing stage and HRESULT or documented Windows error; they do not add
+requests, retries or deadline extensions. A passing repeat does not establish the cause of an earlier failure.
 
 The public text-service sample is also copied into the relocated exact-pin consumer fixture and executed with
 --text-input --output. It checks Unicode paste using an injected private clipboard, a real TSF document attachment

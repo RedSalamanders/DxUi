@@ -322,6 +322,10 @@ actions carry popup-instance identity so HWND reuse cannot dispatch an old actio
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
 
+The modal menu loop prioritizes registered menu-bar hover handoffs with mouse and keyboard input, before
+draining popup paints or unrelated owner traffic. A continuously dirty popup must not starve a queued root
+switch. Existing hover sequence validation, popup lifetime checks and keyboard/pointer ordering remain required.
+
 Context-menu mnemonics consume the Unicode character produced by the active keyboard layout
 (`WM_CHAR`/`WM_SYSCHAR`), rather than deriving a letter from a virtual key. An explicit ampersand
 mnemonic wins over an inferred label mnemonic; when multiple enabled rows match, successive

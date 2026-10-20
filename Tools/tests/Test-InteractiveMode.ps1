@@ -240,6 +240,95 @@ Invoke-TestCase 'a result that is missing, empty or not the lease''s is no resul
     Assert-Equal 0 @($refused.Children).Count 'and no child'
     Assert-True (-not $refused.RunMovedSomething) 'nothing was moved'
 }
+Invoke-TestCase 'capture reasons retain skipped, failed, null and recorded query outcomes without changing restoration claims' {
+    foreach ($reason in 'no-foreground','no-foreground-thread','foreground-minimized','query-failed','query-returned-null','recorded') {
+        $focus = if ($reason -ceq 'recorded') { 'restored' } else { 'none' }
+        $queryError = if ($reason -ceq 'query-failed') { 5 } else { 0 }
+        $result = Read-DxUiLeaseResult -Text "state: completed`nrestoration.foreground: restored`nrestoration.focus: $focus`nrestoration.cursor: restored`nfocus.capture.reason: $reason`nfocus.capture.error: $queryError`n"
+        Assert-Equal $reason $result.FocusCapture.Reason 'the original reason survives parsing'
+        Assert-Equal ([uint32]$queryError) $result.FocusCapture.QueryError 'with the immediate query error, meaningful only on failure'
+        Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $result -ExitCode 0).Count 'absence of recorded focus remains unverified, not a restoration failure'
+        $shown = Get-RunnerLeasePresentation $result
+        Assert-True ($shown.Contains("Focus capture before confirmation: $reason")) 'the canonical runner presents the original reason'
+        if ($reason -ceq 'recorded') {
+            Assert-True ($shown.Contains('query succeeded with focus') -and $shown.Contains('states were restored or unchanged')) 'a recorded focus can have a verified restoration'
+        } else {
+            Assert-True ($shown.Contains('focus none') -and $shown.Contains('not fully verified')) 'a reason cannot promote none into verified restoration'
+        }
+        if ($reason -ceq 'query-failed') { Assert-True ($shown.Contains('query failed, error 5')) 'query failure includes its bounded error' }
+        elseif ($reason -ceq 'query-returned-null') { Assert-True ($shown.Contains('query succeeded with no focus')) 'success with null is distinct from failure' }
+        elseif ($reason -cne 'recorded') { Assert-True ($shown.Contains('query not attempted')) 'guards do not imply a query happened' }
+    }
+    $legacy = Read-DxUiLeaseResult -Text ($completed -replace 'restoration.focus: unchanged', 'restoration.focus: none')
+    Assert-Equal $null $legacy.FocusCapture 'historical receipts remain readable without inventing capture facts'
+    Assert-True ((Get-RunnerLeasePresentation $legacy).Contains('diagnostic unavailable in this receipt')) 'historical absence remains explicit'
+}
+Invoke-TestCase 'partial, repeated, unknown and contradictory capture diagnostics fail closed' {
+    $baseline = "state: completed`nrestoration.foreground: restored`nrestoration.focus: none`nrestoration.cursor: restored`n"
+    foreach ($facts in @(
+        "focus.capture.reason: foreground-minimized`n",
+        "focus.capture.error: 0`n",
+        "focus.capture.reason: unknown`nfocus.capture.error: 0`n",
+        "focus.capture.reason: Recorded`nfocus.capture.error: 0`n",
+        "focus.capture.reason: query-failed`nfocus.capture.error: -1`n",
+        "focus.capture.reason: query-failed`nfocus.capture.error: 4294967296`n",
+        "focus.capture.reason: query-failed`nfocus.capture.error: text`n",
+        "focus.capture.reason: foreground-minimized`nfocus.capture.error: 5`n",
+        "focus.capture.reason: recorded`nfocus.capture.error: 0`n",
+        "focus.capture.reason: query-failed`nfocus.capture.error: 5`nfocus.capture.reason: foreground-minimized`n",
+        "focus.capture.reason: foreground-minimized`nfocus.capture.error: 0`nfocus.capture.error: 0`n"
+    )) {
+        $result = Read-DxUiLeaseResult -Text ($baseline + $facts)
+        Assert-Equal $null $result.FocusCapture 'invalid diagnostics establish no reason'
+        Assert-True (@(Get-DxUiLeaseProblems -Result $result -ExitCode 0) -match 'invalid focus capture diagnostic') 'malformed diagnostic makes the result fail validation'
+        Assert-True ((Get-RunnerLeasePresentation $result).Contains('invalid diagnostic; no capture reason established')) 'presentation does not infer a reason from malformed metadata'
+    }
+    foreach ($errorCode in 0, 4294967295) {
+        $result = Read-DxUiLeaseResult -Text ($baseline + "focus.capture.reason: query-failed`nfocus.capture.error: $errorCode`n")
+        Assert-Equal ([uint32]$errorCode) $result.FocusCapture.QueryError 'the entire DWORD error domain is retained, including a failure without an error code'
+    }
+    $contradiction = Read-DxUiLeaseResult -Text ($baseline.Replace('restoration.focus: none', 'restoration.focus: unchanged') + "focus.capture.reason: query-returned-null`nfocus.capture.error: 0`n")
+    Assert-True (@(Get-DxUiLeaseProblems -Result $contradiction -ExitCode 0) -match 'contradicts focus restoration') 'unrecorded focus cannot claim unchanged restoration'
+}
+Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and keep separate durations' { param($fixture)
+    $assignment = @($testAst.FindAll({ param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -ceq '$receipt[''lease'']'
+    }, $true))
+    Assert-Equal 1 $assignment.Count 'one canonical lease receipt mapping'
+    $writeLease = [scriptblock]::Create($assignment[0].Extent.Text)
+    $leaseResult = Read-DxUiLeaseResult -Text ($completed.Replace('restoration.focus: unchanged', 'restoration.focus: none') + "`nfocus.capture.reason: foreground-minimized`nfocus.capture.error: 0`n")
+    $lease = [pscustomobject]@{ ExitCode=0; RequestedAutoStart=$false; RequestedConfirmationSeconds=0 }
+    $hostedForegroundLease = $true
+    $InteractiveAutoStart = $false
+    Set-FixtureFile $fixture 'lease.exe' 'synthetic identity only'
+    $leaseExecutable = Join-Path $fixture 'lease.exe'
+    $copies = foreach ($child in $leaseResult.Children) {
+        $receipt = [ordered]@{}
+        . $writeLease
+        ($receipt | ConvertTo-Json -Depth 8 | ConvertFrom-Json).lease
+    }
+    Assert-Equal 2 @($copies).Count 'one receipt per child'
+    Assert-Equal ($copies[0].focusCapture | ConvertTo-Json -Compress) ($copies[1].focusCapture | ConvertTo-Json -Compress) 'the same diagnostic is copied, not recaptured per child'
+    Assert-Equal 'foreground-minimized' $copies[0].focusCapture.Reason 'the original reason survives JSON'
+    Assert-True ($copies[0].focusCapture.QueryError -eq 0) 'with no fabricated query error'
+    Assert-Equal 43.3 $copies[0].seconds 'Menu duration remains its own'
+    Assert-Equal 1.2 $copies[1].seconds 'NativeTextInput duration remains its own'
+    Assert-Equal 'QueryError,Reason' (($copies[0].focusCapture.PSObject.Properties.Name | Sort-Object) -join ',') 'diagnostics expose no raw window, process or thread identities'
+    $missing = @($testAst.FindAll({ param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -ceq '$leaseResult' -and
+        $node.Right.Extent.Text.Contains('the native lease wrote no result')
+    }, $true))
+    Assert-Equal 1 $missing.Count 'one canonical fallback when the native result is missing'
+    $lease = [pscustomobject]@{ Result=$null; ExitCode=24; RequestedAutoStart=$false; RequestedConfirmationSeconds=0 }
+    . ([scriptblock]::Create($missing[0].Extent.Text))
+    $receipt = [ordered]@{}
+    $child = $null
+    . $writeLease
+    Assert-Equal 'missing' $receipt.lease.state 'a missing result still writes its failed receipt under strict mode'
+    Assert-Equal $null $receipt.lease.focusCapture 'the fallback invents no capture reason'
+    Assert-Equal 0 @($receipt.lease.focusCaptureProblems).Count 'absence of a result is distinct from malformed metadata'
+    Assert-True (@(Get-DxUiLeaseProblems -Result $leaseResult -ExitCode 24) -match 'native lease wrote no result') 'the missing result remains a failure'
+}
 Invoke-TestCase 'what is wrong with a finished lease is said in a message' {
     $fine = Read-DxUiLeaseResult -Text ($completed -replace 'exit=3221225477', 'exit=0')
     Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $fine -ExitCode 0).Count 'a lease that completed with its desktop restored has no problem'

@@ -3,6 +3,7 @@
 #include "Scope.Tests.Forms.h"
 #include "Scope.Tests.HostControlRegressions.h"
 #include "Scope.Tests.IntrinsicLayout.h"
+#include "Scope.Tests.MenuPopupReadiness.h"
 
 #include <cctype>
 #include <fstream>
@@ -2916,6 +2917,7 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
 
 void RunControlTests()
 {
+    DXUI_RUN_TEST(TestMenuPopupDiscoveryRejectsHiddenInitializationWindows);
     DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
     RunIntrinsicLayoutTests();
     RunFormLayoutTests();

@@ -24,6 +24,36 @@
   is too coarse for frame attribution. Empty aligned histograms do not close the
   trace-policy or performance HOLD.
 
+- [PR #87 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr87-postmerge/README.md):
+  six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact
+  merge commit. Native ARM64 TSF traces pass; focus restoration remains unverified in three shared leases.
+  Push skips paired measurement; all 20 qualification HOLDs, deadlines and thresholds remain unchanged.
+
+- [Staged TSF reconciliation boundary, 2026-10-18](TextInput/2026-10-18-staged-reconciliation/README.md):
+  bounded notification/session diagnostics and a queued-geometry counterfactual distinguish one reconciliation
+  turn from a whole queue drain. The historical ARM64 ordering and failed probe cursor restoration remain
+  unattributed. The separate post-merge packet above records later native functional execution;
+  focus restoration, trusted performance and all 20 shared qualification HOLDs stay open.
+
+- [ASan foreground setup, 2026-10-18](TextInput/2026-10-18-asan-setup/README.md):
+  creation-before-activation, strict sent-callback readiness, actual thread-exit cleanup and bounded diagnostics;
+  six builds, 57 noninteractive and six full foreground suite passes with zero skips and verified restoration.
+  Historical failures remain unattributed; five new unpaired timing/memory flags and all qualification HOLDs remain.
+
+- [Native-input fixture readiness, 2026-10-18](TextInput/2026-10-18-fixture-readiness/README.md):
+  complete IMM eligibility sequences, explicit activation outcomes and deterministic loss/refusal regressions;
+  original and repaired-source failures, source/artifact identities and remaining qualification limits stay explicit.
+  Full ASan foreground acceptance and unpaired timing flags remain open.
+
+- [Bounded focus capture reasons, 2026-10-18](InteractiveLease/2026-10-18-capture-reasons/README.md):
+  deterministic snapshot/query/restoration and receipt checks, source/executable hashes and separate native/cross-build
+  evidence. Historical ARM64 `focus=none`, foreground/platform qualification and timing flags remain open;
+  no threshold or trusted-policy change.
+
+- [Bounded timing/memory attribution pilot, 2026-10-17](Performance/2026-10-17-attribution-pilot/README.md):
+  24 retained diagnostic processes, clock/batch and frame-stage traces, capture/heap/teardown observations,
+  measured observer cost and the unavailable kernel trace. All qualification gates and thresholds are unchanged.
+
 - [PR #80 paired controls, 2026-10-17](Performance/2026-10-17-pr80-controls/README.md): sanitized replay and
   attribution evidence for 71/72 unstable controls, quantized preparation, retained long-frame/memory witnesses
   and the single legacy/migrated improvement disagreement. Remaining performance, platform and consumer gates stay open.
