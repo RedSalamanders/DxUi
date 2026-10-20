@@ -21,9 +21,18 @@ no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
 shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge
-labels paint last over padded opaque backgrounds so routes cannot obscure them. Rich
-objects and editing/UIA integration are still pending; the current editor
-displays exact code-fence source fallback.
+labels paint last over padded opaque backgrounds so routes cannot obscure them.
+Source-backed objects pass focused x64 Debug/native/embedded/UIA checks:
+RichMarkdown can project a prepared flowchart as one
+source-backed graphic with a node/connection alternative. Quotes, lists and note
+bodies retain original source provenance; unsupported, malformed, empty and
+unclosed definitions remain code with diagnostics. Width/font rejection keeps
+usable exact source and retries after a matching view/resource change. Source
+fallback deletion edits raw graphemes/ranges; native object selection preserves
+the resolved selection surface, including high contrast. Dedicated
+object source entry and final extension build/runtime/resource qualification
+remain pending. The generated gallery includes the native diagram and a literal
+unsupported-family example in every theme.
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
 and reachable numbering have focused native/embedded checks. The footer preview

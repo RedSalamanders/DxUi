@@ -227,7 +227,7 @@ public:
             {
                 const auto type = element.role == Task                                                                            ? UIA_CheckBoxControlTypeId
                                   : element.role == Link || element.role == FootnoteReference || element.role == FootnoteBacklink ? UIA_HyperlinkControlTypeId
-                                  : element.role == Image                                                                         ? UIA_ImageControlTypeId
+                                  : element.role == Image || element.role == Diagram                                              ? UIA_ImageControlTypeId
                                   : element.role == Table                                                                         ? UIA_TableControlTypeId
                                   : element.role == List                                                                          ? UIA_ListControlTypeId
                                   : element.role == ListItem                                                                      ? UIA_ListItemControlTypeId

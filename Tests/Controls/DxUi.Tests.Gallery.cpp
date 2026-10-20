@@ -1099,6 +1099,15 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ flowchart", 2u, 400.0f);
+        auto* editor =
+            scene.root->AddChild<RichTextEditor>(L"### Source-backed native diagram\n\n```mermaid\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\n```\n\n"
+                                                 L"Unsupported families retain editable source:\n\n```mermaid\nsequenceDiagram\nA->>B: hello\n```\n");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);

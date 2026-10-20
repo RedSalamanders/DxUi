@@ -1353,6 +1353,46 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElemen
     }
     return {};
 }
+void SemanticDiagramAlternatives(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"```mermaid\ngraph TD;A[\"Unicode \u03b2\"]-->B\n```\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto image  = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(image != nullptr, "both hosts expose a native diagram Image child after geometry acknowledgement");
+    const auto name = ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "diagram alternative");
+    Require(name.starts_with(L"Flowchart,") && name.find(L"Unicode \u03b2") != std::wstring::npos && name.find(L"Connections:") != std::wstring::npos,
+            "diagram alternative describes Unicode labels and graph relationships");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text->RangeFromChild(image.get(), range.put()), "native diagram source range");
+    Require(ReadTextRangeText(*range.get(), -1, "diagram exact raw fence") == source, "diagram UIA child owns the complete exact original fence");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    RequireSucceeded(image.query_to(fragment.put()), "diagram fragment");
+    UiaRect bounds{};
+    RequireSucceeded(fragment->get_BoundingRectangle(&bounds), "diagram measured bounds");
+    Require(bounds.width > 0.0 && bounds.height > 0.0, "native diagram UIA bounds are measured geometry");
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    const auto actual = FindClientPart(client, editor, UIA_ImageControlTypeId);
+    Require(actual && client.TextRangeFromChild(editor, actual) == source, "actual native/application-bridged clients read original source behind the graphic");
+    fixture.editor->SetText(source + L"tail\n");
+    wil::unique_variant retired;
+    Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "source changes immediately retire old native image providers");
+    fixture.Publish();
+    image = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(image != nullptr, "a replacement graph exposes a new live provider");
+    fixture.editor->SetMarkdownRenderingEnabled(false);
+    Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "presentation withdrawal retires native graphic providers");
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.Publish();
+    Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "restoring presentation cannot resurrect an old graphic provider");
+}
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -1773,6 +1813,14 @@ void TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics()
 {
     EmbeddedCase(SemanticFrontMatterDiagnostics);
 }
+void TestRichTextAccessibilityWindowDiagramAlternatives()
+{
+    SemanticDiagramAlternatives(false);
+}
+void TestRichTextAccessibilityEmbeddedDiagramAlternatives()
+{
+    EmbeddedCase(SemanticDiagramAlternatives);
+}
 void TestRichTextAccessibilityWindowFootnoteNavigation()
 {
     SemanticFootnoteNavigation(false);
@@ -1795,6 +1843,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);

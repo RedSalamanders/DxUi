@@ -14,12 +14,14 @@ public:
                                              std::uint64_t revision,
                                              ViewMode mode,
                                              const LayoutOptions& options,
-                                             std::shared_ptr<const SemanticDocument> document = {})
+                                             std::shared_ptr<const SemanticDocument> document = {},
+                                             ID2D1Factory* drawing                            = nullptr,
+                                             FlowchartResourceEpoch epochs                    = {})
     {
         const bool semantic = mode == ViewMode::Rich && static_cast<bool>(document);
-        const auto result =
-            semantic ? semantic_.Begin(factory, std::move(document), options) : v0_.BeginPreparation(factory, std::move(source), revision, mode, options);
-        requestedSemantic_ = semantic;
+        const auto result   = semantic ? semantic_.Begin(factory, std::move(document), options, drawing, epochs)
+                                       : v0_.BeginPreparation(factory, std::move(source), revision, mode, options);
+        requestedSemantic_  = semantic;
         if (semantic)
             v0_.CancelPreparation();
         else
@@ -176,10 +178,11 @@ public:
     {
         return activeSemantic_ ? semantic_.VisibleRange(top, bottom) : v0_.VisibleRange(top, bottom);
     }
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom) const
+    void Draw(
+        ID2D1RenderTarget* target, ID2D1Brush* brush, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill = nullptr) const
     {
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom);
+            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill);
         else
             v0_.Draw(target, brush, origin, top, bottom);
     }

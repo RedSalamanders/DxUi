@@ -5,6 +5,11 @@
 
 namespace DxUi::RichText
 {
+namespace Detail
+{
+struct SemanticExtensions;
+struct SemanticExtensionAccess;
+} // namespace Detail
 enum class SemanticRole
 {
     Document,
@@ -25,7 +30,8 @@ enum class SemanticRole
     Metadata,
     Footnote,
     FootnoteReference,
-    FootnoteBacklink
+    FootnoteBacklink,
+    Diagram
 };
 struct SemanticElement
 {
@@ -65,6 +71,20 @@ struct SemanticNavigation
     std::size_t element{};
     MarkdownRange target;
 };
+enum class SemanticDiagnosticKind
+{
+    UnsupportedDiagram,
+    MalformedDiagram,
+    DiagramCapacity,
+    UnclosedDiagram,
+    EmptyDiagram
+};
+struct SemanticDiagnostic
+{
+    SemanticDiagnosticKind kind{};
+    MarkdownRange source;
+    std::size_t element{};
+};
 // One immutable semantic publication. Raw source remains in Syntax(); rendered
 // values never replace source ACPs. Only the documented balanced native HTML
 // subset is projected; other HTML stays literal. There is no DOM, script,
@@ -103,6 +123,9 @@ public:
         return navigation_;
     }
     std::optional<MarkdownRange> NavigationTarget(std::size_t element) const noexcept;
+    // Native extension diagnostics own exact raw source ranges. Human-readable
+    // explanations live in the named element's title; Syntax() remains immutable.
+    std::span<const SemanticDiagnostic> Diagnostics() const noexcept;
     std::span<const StyleRun> Runs() const noexcept
     {
         return runs_;
@@ -124,7 +147,11 @@ private:
     std::vector<SemanticParagraph> paragraphs_;
     std::vector<SemanticNavigation> navigation_;
     std::vector<StyleRun> runs_, sourceRuns_;
+    // Optional document-level state keeps native graphs out of ordinary inline
+    // values and unrelated controls. No SDK/host resource belongs to semantics.
+    std::shared_ptr<Detail::SemanticExtensions> extensions_;
     friend class SemanticBuilder;
+    friend struct Detail::SemanticExtensionAccess;
 };
 // Owner-serialized pure preparation. Each advance resumes block/inline events;
 // one bounded leaf normalization/value tokenization, image alternative or final

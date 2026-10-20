@@ -1,6 +1,7 @@
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
+#include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
@@ -18,6 +19,21 @@ struct RichTextEditor::State
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
     std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
+    struct NativeGeometryRejection
+    {
+        std::shared_ptr<const RichText::SemanticDocument> document;
+        float width{};
+        uint64_t typography{}, resources{}, binding{};
+        bool rtl{};
+    };
+    std::optional<NativeGeometryRejection> nativeGeometryRejected;
+    bool RejectsNativeGeometry(
+        const std::shared_ptr<const RichText::SemanticDocument>& value, float width, bool rtl, uint64_t typography, uint64_t resources) const noexcept
+    {
+        return nativeGeometryRejected && nativeGeometryRejected->document == value && nativeGeometryRejected->width == width &&
+               nativeGeometryRejected->rtl == rtl && nativeGeometryRejected->typography == typography && nativeGeometryRejected->resources == resources &&
+               nativeGeometryRejected->binding == bindingRevision;
+    }
     struct MarkdownCapacityRejection
     {
         RichText::SourceSnapshot source;
@@ -77,6 +93,7 @@ void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
     _state->markdownCapacityRejected.reset();
+    _state->nativeGeometryRejected.reset();
     RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->scrollDip       = 0;
@@ -134,6 +151,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
     if (! profile)
         _state->markdownRendering = false;
     _state->markdownProfile = profile;
@@ -165,6 +183,7 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
     _state->sourceCaretSite   = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
     RetireLayout();
     SelectionChanged();
 }
@@ -184,6 +203,16 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
         return MarkdownRenderingStatus::Disabled;
     if (_state->HasCurrentMarkdownCapacityRejection())
         return MarkdownRenderingStatus::SourceFallback;
+    if (const auto* host = GetHost())
+    {
+        const auto viewport = TextViewport();
+        if (_state->RejectsNativeGeometry(GetSemanticDocument(),
+                                          std::max(1.0f, viewport.right - viewport.left),
+                                          IsRightToLeft(),
+                                          host->GetTypographyRevision(),
+                                          host->GetResourceGeneration()))
+            return MarkdownRenderingStatus::SourceFallback;
+    }
     const auto syntax = GetMarkdownSyntax();
     if (syntax && _state->semanticRejected == syntax)
         return MarkdownRenderingStatus::SourceFallback;
@@ -406,6 +435,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         _state->markdown.Cancel();
         _state->semantic.Cancel();
         _state->semanticRejected.reset();
+        _state->nativeGeometryRejected.reset();
         _state->markdownCapacityRejected.reset();
         _state->markdownRequestActive = false;
         _state->requestActive         = false;
@@ -509,6 +539,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.markdown.Cancel();
             state.semantic.Clear();
             state.semanticRejected.reset();
+            state.nativeGeometryRejected.reset();
             state.markdownRequestActive = false;
             state.requestActive         = false;
             return S_OK;
@@ -548,6 +579,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 state.markdownRequestActive = false;
                 state.semantic.Clear();
                 state.semanticRejected.reset();
+                state.nativeGeometryRejected.reset();
                 state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
             }
         }
@@ -579,11 +611,13 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 }
             }
         }
-        const auto effectiveMode =
-            state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto width      = std::max(1.0f, viewport.right - viewport.left);
         auto* factory         = host.GetWriteFactory();
         const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
+        if (semanticDocument && state.RejectsNativeGeometry(semanticDocument, width, IsRightToLeft(), typography, resources))
+            semanticDocument.reset();
+        const auto effectiveMode =
+            state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto revision = Revision(), binding = state.bindingRevision;
         const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestFactory == factory &&
                                  state.requestRevision == revision && state.requestBinding == binding && state.requestTypography == typography &&
@@ -611,7 +645,16 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             THROW_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
             options.locale.pop_back();
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-            state.layout.BeginPreparation(factory, state.document.Snapshot(), revision, effectiveMode, options, semanticDocument);
+            wil::com_ptr<ID2D1Factory> drawing;
+            if (semanticDocument && ! RichText::Detail::SemanticExtensionAccess::Diagrams(*semanticDocument).empty())
+            {
+                auto* context = host.GetDeviceContext();
+                if (! context)
+                    THROW_HR(E_UNEXPECTED);
+                context->GetFactory(drawing.put());
+            }
+            state.layout.BeginPreparation(
+                factory, state.document.Snapshot(), revision, effectiveMode, options, semanticDocument, drawing.get(), {typography, resources});
             state.requestRevision   = revision;
             state.requestBinding    = binding;
             state.requestTypography = typography;
@@ -646,6 +689,30 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         state.requestActive      = false;
         UpdateCaretScroll();
         return S_OK;
+    }
+    catch (const RichText::Detail::NativeObjectCapacity&)
+    {
+        // Native font/width rejection belongs to this layout key. A wider view,
+        // changed font/resource epoch or new binding must be able to retry;
+        // syntax-only rejection would permanently strand a valid graph.
+        const auto value = GetSemanticDocument();
+        if (value && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
+        {
+            const auto viewport = TextViewport();
+            state.nativeGeometryRejected.emplace(value,
+                                                 std::max(1.0f, viewport.right - viewport.left),
+                                                 host.GetTypographyRevision(),
+                                                 host.GetResourceGeneration(),
+                                                 state.bindingRevision,
+                                                 IsRightToLeft());
+            RetireSemanticAccessibility();
+            state.layout.Invalidate();
+            state.requestActive = false;
+            return S_FALSE;
+        }
+        state.layout.Invalidate();
+        state.requestActive = false;
+        return E_FAIL;
     }
     catch (const std::length_error&)
     {
@@ -956,6 +1023,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
         if (changed)
         {
             RetireSemanticAccessibility();
+            _state->nativeGeometryRejected.reset();
             RetireLayout();
         }
         SelectionChanged(false);
@@ -982,18 +1050,30 @@ void RichTextEditor::Paint(ControlHost& host) const
     if (viewport.right <= viewport.left || viewport.bottom <= viewport.top)
         return;
     RequireCurrentLayout(host);
-    auto& state             = *_state;
-    auto* textBrush         = host.GetSolidBrush(style.text);
-    auto* selectedTextBrush = host.GetSolidBrush(style.selectionText);
-    auto* selectionBrush    = host.GetSolidBrush(style.selectionFill);
-    auto* caretBrush        = host.GetSolidBrush(style.caret);
-    const auto selection    = state.document.GetSelection();
-    const auto& projection  = state.layout;
-    const auto rectangles   = projection.SourceRange(selection.Start(), selection.End());
-    const auto origin       = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
+    auto& state                     = *_state;
+    auto* textBrush                 = host.GetSolidBrush(style.text);
+    auto* selectedTextBrush         = host.GetSolidBrush(style.selectionText);
+    auto* selectionBrush            = host.GetSolidBrush(style.selectionFill);
+    auto* caretBrush                = host.GetSolidBrush(style.caret);
+    ID2D1Brush* diagramFill         = nullptr;
+    ID2D1Brush* selectedDiagramFill = nullptr;
+    if (const auto* semantic = state.layout.SemanticGeometry(); semantic && semantic->HasNativeObjects())
+    {
+        auto opaque = style.fill;
+        opaque.a    = 1.0f;
+        diagramFill = host.GetSolidBrush(opaque);
+        // Diagram nodes and crossing-label backing are opaque. Resolve the
+        // selection surface first so their final pass cannot cover the
+        // selected background with the ordinary input surface.
+        selectedDiagramFill = host.GetSolidBrush(CompositeOverBackground(style.selectionFill, opaque));
+    }
+    const auto selection   = state.document.GetSelection();
+    const auto& projection = state.layout;
+    const auto rectangles  = projection.SourceRange(selection.Start(), selection.End());
+    const auto origin      = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
     context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    state.layout.Draw(context, textBrush, caretBrush, origin, state.scrollDip, state.scrollDip + viewport.bottom - viewport.top);
+    state.layout.Draw(context, textBrush, caretBrush, origin, state.scrollDip, state.scrollDip + viewport.bottom - viewport.top, diagramFill);
     for (const auto& rectangle : rectangles)
     {
         const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
@@ -1002,7 +1082,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         context->FillRectangle(translated, selectionBrush);
         context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        state.layout.Draw(context, selectedTextBrush, selectedTextBrush, origin, rectangle.top, rectangle.bottom);
+        state.layout.Draw(context, selectedTextBrush, selectedTextBrush, origin, rectangle.top, rectangle.bottom, selectedDiagramFill);
     }
     NativeTextInputState input;
     if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
@@ -1186,6 +1266,23 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     if (! Editable())
         return false;
     const auto selection = GetSelection();
+    if (GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback)
+    {
+        // A view-capacity rejection can retain valid CPU semantics while the
+        // visible layout is exact source. Never use that hidden atomic-object
+        // map for Delete/Backspace in the source fallback presentation.
+        const auto source = Snapshot();
+        auto first = selection.Start(), last = selection.End();
+        if (first == last)
+        {
+            const auto range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
+            first            = range.first;
+            last             = range.last;
+        }
+        const bool changed = _state->document.Replace(first, last, {}, {first, first});
+        Changed(changed);
+        return changed;
+    }
     if (selection.Start() != selection.End())
     {
         if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)

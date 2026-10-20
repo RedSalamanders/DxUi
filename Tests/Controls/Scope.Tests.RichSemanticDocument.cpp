@@ -1,6 +1,7 @@
 #include "Scope.Tests.RichSemanticDocument.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
+#include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
 
@@ -119,8 +120,23 @@ void TestRichSemanticDocumentPinnedSourceCases()
     // pixels, browser equivalence and physical assistive technology are separate.
 }
 } // namespace
+void TestRichSemanticDiagramSourceProvenanceAndAdmission()
+{
+    SemanticDiagramTests::Core(Require);
+}
+void TestRichSemanticDiagramSdkGeometryAndSourceCarets()
+{
+    SemanticDiagramTests::Geometry(Require);
+}
+void TestRichSemanticDiagramPositionedRaster()
+{
+    SemanticDiagramTests::PositionedRaster(Require);
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticDiagramSourceProvenanceAndAdmission);
+    DXUI_RUN_TEST(TestRichSemanticDiagramSdkGeometryAndSourceCarets);
+    DXUI_RUN_TEST(TestRichSemanticDiagramPositionedRaster);
     DXUI_RUN_TEST(TestRichSemanticDocumentStructuralStyleValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentSourceFormatOwnership);
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);

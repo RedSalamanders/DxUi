@@ -2784,6 +2784,40 @@ development checks from final frozen qualification:
       The registered native/embedded regression now passes in canonical Iteration2.
   - [ ] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
     source editing and UIA with M5e; graph acceptance alone is not rendered support.
+    - [x] M5d.3a: Retained source-backed native diagrams, typed Unicode diagnostics,
+      atomic source ownership, budgeted SDK positioning, exact-view fallback and
+      UIA alternatives pass focused x64 Debug/native/embedded qualification.
+      Root/container/footer source provenance, selection colors, raw fallback
+      deletion, copy/cut/undo and width recovery have registered tests. All five
+      gallery themes and the populated supplied-device sample are reviewed.
+    - [ ] M5d.3b: Object source-entry editing/actions remain with M5e. Final
+      runtime/build profiles and broader resources/device loss remain M5f/M5d.2c.
+    The first canonical build exposed a test-only nonexistent clipboard method;
+    its failure and exact source are preserved. A separate actual-pixel probe
+    found selected node backing covered the high-contrast selection surface
+    (white instead of green). Compositing selected opaque backing repairs it;
+    registered native/embedded pixel regressions and six paragraph-positioning
+    comparisons at 96/144/192 DPI in both directions pass in Iteration3.
+    Iteration2 builds and passes 15 of 17 directed tests, both actual UIA clients,
+    all 1,324 pinned source admissions, and 1,121 observed parser/layout/paint/
+    semantic/positioning allocation points. The two native fixture failures are
+    preserved: Windows clamps the requested 50-pixel outer window to a 120-pixel
+    client; hidden-window capture returns false. Exact-DIP child sizing and an
+    off-screen non-activating capture repair those fixtures in private probes.
+    A separate source-fallback Delete reproducer erased all 30 source units
+    instead of one. Exact raw Delete/Backspace/selected deletion now has a shared
+    native/embedded regression and passes both private host probes with undo.
+    Iteration3 builds in 3:30; all 17 directed tests, isolated allocation sweeps,
+    full EditorControls (42.197 s), Accessibility (115.792 s) and Embedded
+    (430,069 checks) pass. The 1,000 warm composites take 6,386 us with zero
+    tracked C++ allocations. Timings are unpaired diagnostics; D4c stays HOLD.
+    Complete validation/tooling and pinned formatting pass. The private packet
+    `.build/reports/rich-flowchart-m5d3-20261020/Iteration3` freezes all changed
+    inputs, native artifacts, build receipt and verified v2 identity. Concurrent
+    gallery generation briefly locked its log during final evidence hashing;
+    that packaging failure is retained. After capture completion, the exact
+    before/after source/dependency/artifact/environment identity is rechecked
+    and closed files are sealed without repeating unchanged functional runs.
 
 The M5d.2a development packet is retained privately under
 `.build/reports/rich-flowchart-m5d2-20261020/Iteration1`, based on `d7ce6dd`.

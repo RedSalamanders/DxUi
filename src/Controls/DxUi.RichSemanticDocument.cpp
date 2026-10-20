@@ -1,4 +1,5 @@
 #include "DxUi.RichSemanticHtml.h"
+#include "DxUi.SemanticExtensions.h"
 #include <algorithm>
 #include <atomic>
 #include <optional>
@@ -22,6 +23,10 @@ std::optional<MarkdownRange> SemanticDocument::NavigationTarget(std::size_t elem
     return found != navigation_.end() && found->element == element ? std::optional(found->target) : std::nullopt;
 }
 
+std::span<const SemanticDiagnostic> SemanticDocument::Diagnostics() const noexcept
+{
+    return extensions_ ? std::span<const SemanticDiagnostic>(extensions_->diagnostics) : std::span<const SemanticDiagnostic>{};
+}
 struct SemanticBuilder::Preparation
 {
     struct Visit
@@ -30,6 +35,24 @@ struct SemanticBuilder::Preparation
         std::size_t table = MarkdownNoNode, row{}, column{}, columns{};
         unsigned flags{}, heading{}, indent{};
         bool inlineNode{}, close{}, footerRoot{}, backlink{};
+    };
+    struct DiagramWork
+    {
+        DiagramWork(Visit value, std::wstring_view body, std::uint64_t revision) : visit(value)
+        {
+            parser.Begin(body, revision);
+        }
+        Visit visit;
+        Detail::NativeFlowchartParser parser;
+        std::shared_ptr<const Detail::FlowchartModel> graph;
+        std::size_t cursor{};
+        enum class Phase
+        {
+            Parse,
+            Nodes,
+            Edges,
+            Publish
+        } phase{};
     };
     explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax)
         : document(new SemanticDocument(std::move(syntax))),
@@ -61,6 +84,7 @@ struct SemanticBuilder::Preparation
     Detail::SemanticOutput output;
     Detail::SemanticValue normalized;
     Detail::NativeHtmlPlan html;
+    std::unique_ptr<DiagramWork> diagram;
     std::size_t htmlDisplayFirst{};
     std::vector<Visit> visits;
     std::vector<std::size_t> tails;
@@ -440,6 +464,273 @@ struct SemanticBuilder::Preparation
             break;
         }
     }
+    Detail::SemanticExtensions& Extensions()
+    {
+        if (! document->extensions_)
+            document->extensions_ = std::make_shared<Detail::SemanticExtensions>();
+        return *document->extensions_;
+    }
+    void DiagramDiagnostic(Visit visit, SemanticDiagnosticKind kind, MarkdownRange source, std::wstring_view message)
+    {
+        auto& extensions = Extensions();
+        if (extensions.diagnostics.size() == SemanticDocument::MaximumElements)
+            throw std::length_error("Native semantic diagnostic capacity exceeded");
+        extensions.diagnostics.push_back({kind, source, visit.element});
+        document->elements_[visit.element].title.assign(message);
+    }
+    bool StartDiagram(Visit visit)
+    {
+        const auto& syntax = *document->syntax_;
+        const auto& node   = syntax.Nodes()[visit.node];
+        if (syntax.Profile() != MarkdownProfile::RichMarkdown || node.block.kind != MarkdownBlockKind::FencedCode)
+            return false;
+        auto info = syntax.Slice(node.block.info);
+        while (! info.empty() && (info.back() == L' ' || info.back() == L'\t'))
+            info.remove_suffix(1u);
+        if (! info.starts_with(L"mermaid") || (info.size() > 7u && info[7u] != L' ' && info[7u] != L'\t'))
+            return false;
+        auto& extensions = Extensions();
+        if (++extensions.candidates > Detail::SemanticExtensions::MaximumObjects)
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Too many diagrams. Source is preserved.");
+        else if (info.size() != 7u)
+            DiagramDiagnostic(
+                visit, SemanticDiagnosticKind::UnsupportedDiagram, node.block.info, L"Diagram fence options are unsupported. Source is preserved.");
+        else if (! node.block.closed)
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::UnclosedDiagram, node.block.source, L"Missing closing diagram fence. Source is preserved.");
+        else if (normalized.text.size() > Detail::NativeFlowchartParser::MaximumSourceUnits)
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.content, L"Diagram source is too large. Source is preserved.");
+        else
+        {
+            diagram = std::make_unique<DiagramWork>(visit, normalized.text, syntax.Revision());
+            return true;
+        }
+        return false;
+    }
+    void RejectDiagram(SemanticDiagnosticKind kind, MarkdownRange source, std::wstring_view message)
+    {
+        const auto visit = diagram->visit;
+        DiagramDiagnostic(visit, kind, source, message);
+        diagram.reset();
+        LeafBlock(visit, false);
+    }
+    MarkdownRange DiagramSource(MarkdownRange body) const
+    {
+        if (body.first > body.last || body.last > normalized.units.size())
+            throw std::logic_error("Native diagram diagnostic is outside its source body");
+        if (body.first == body.last)
+        {
+            const auto at = body.first < normalized.units.size() ? normalized.units[body.first].source.first
+                                                                 : document->syntax_->Nodes()[diagram->visit.node].block.content.last;
+            return {at, at};
+        }
+        return {normalized.units[body.first].source.first, normalized.units[body.last - 1u].source.last};
+    }
+    bool DiagramAlternative(std::initializer_list<std::wstring_view> pieces)
+    {
+        constexpr std::size_t maximum = 32768u;
+        auto& alternative             = document->elements_[diagram->visit.element].name;
+        auto available                = maximum - alternative.size();
+        for (const auto piece : pieces)
+        {
+            if (piece.size() > available)
+            {
+                RejectDiagram(SemanticDiagnosticKind::DiagramCapacity,
+                              document->elements_[diagram->visit.element].source,
+                              L"Diagram alternative is too large. Source is preserved.");
+                return false;
+            }
+            available -= piece.size();
+        }
+        for (const auto piece : pieces)
+            alternative.append(piece);
+        return true;
+    }
+    void AdvanceDiagram()
+    {
+        using Phase      = DiagramWork::Phase;
+        auto& work       = *diagram;
+        const auto& node = document->syntax_->Nodes()[work.visit.node];
+        if (work.phase == Phase::Parse)
+        {
+            if (work.parser.Advance(1u).status != MarkdownPreparationStatus::Complete)
+                return;
+            work.graph        = work.parser.Published();
+            const auto& graph = *work.graph;
+            if (graph.outcome != Detail::FlowchartOutcome::Prepared)
+            {
+                const auto source = DiagramSource(graph.diagnostic.source);
+                const auto kind   = graph.outcome == Detail::FlowchartOutcome::Capacity      ? SemanticDiagnosticKind::DiagramCapacity
+                                    : graph.outcome == Detail::FlowchartOutcome::Unsupported ? SemanticDiagnosticKind::UnsupportedDiagram
+                                                                                             : SemanticDiagnosticKind::MalformedDiagram;
+                RejectDiagram(kind,
+                              source,
+                              graph.outcome == Detail::FlowchartOutcome::Unsupported ? L"Unsupported diagram syntax. Source is preserved."
+                              : graph.outcome == Detail::FlowchartOutcome::Capacity  ? L"Diagram exceeds its capacity. Source is preserved."
+                                                                                     : L"Malformed diagram. Source is preserved.");
+                return;
+            }
+            if (graph.nodes.empty())
+            {
+                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content, L"Empty flowchart. Source is preserved.");
+                return;
+            }
+            if (graph.nodes.size() + graph.edges.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
+            {
+                RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
+                return;
+            }
+            std::wstring_view direction = L"top to bottom";
+            if (graph.direction == Detail::FlowchartDirection::BottomTop)
+                direction = L"bottom to top";
+            else if (graph.direction == Detail::FlowchartDirection::LeftRight)
+                direction = L"left to right";
+            else if (graph.direction == Detail::FlowchartDirection::RightLeft)
+                direction = L"right to left";
+            if (! DiagramAlternative({L"Flowchart, ", direction, L". Nodes: "}))
+                return;
+            work.phase = Phase::Nodes;
+            return;
+        }
+        const auto& graph = *work.graph;
+        const auto id     = [&](std::size_t index)
+        {
+            const auto range = graph.nodes[index].identifier;
+            return std::wstring_view(graph.source).substr(range.first, range.last - range.first);
+        };
+        if (work.phase == Phase::Nodes)
+        {
+            if (work.cursor == graph.nodes.size())
+            {
+                if (! DiagramAlternative({L" Connections: "}))
+                    return;
+                work.cursor = 0u;
+                work.phase  = Phase::Edges;
+                return;
+            }
+            const auto index = work.cursor++;
+            DiagramAlternative({id(index), L" = ", graph.nodes[index].label, L"; "});
+            return;
+        }
+        if (work.phase == Phase::Edges)
+        {
+            if (work.cursor == graph.edges.size())
+            {
+                work.phase = Phase::Publish;
+                return;
+            }
+            const auto& edge = graph.edges[work.cursor++];
+            if (edge.label.empty())
+                DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});
+            else
+                DiagramAlternative({id(edge.from), L" (", edge.label, edge.arrow ? L") \u2192 " : L") \u2014 ", id(edge.to), L"; "});
+            return;
+        }
+        auto& extensions = Extensions();
+        auto& result     = extensions.diagrams.emplace_back();
+        result.element   = work.visit.element;
+        result.graph     = work.graph;
+        result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
+        result.sourceEnd = node.block.content.last;
+        extensions.records += graph.nodes.size() + graph.edges.size();
+        auto& element  = document->elements_[work.visit.element];
+        element.role   = SemanticRole::Diagram;
+        element.title  = L"Flowchart. Source is available as document text.";
+        auto close     = BeginLeafParagraph(work.visit);
+        result.display = {output.text.size(), output.text.size() + 1u};
+        output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, work.visit.flags, work.visit.heading);
+        visits.push_back(close);
+        diagram.reset();
+    }
+    Visit BeginLeafParagraph(Visit visit)
+    {
+        const auto& nodes = document->syntax_->Nodes();
+        const auto& node  = nodes[visit.node];
+        auto close        = visit;
+        close.close       = true;
+        close.paragraph   = Paragraph(visit, visit.element);
+        Prefix(visit, visit.element);
+        auto& paragraph = document->paragraphs_[close.paragraph];
+        if (output.text.size() > paragraph.display.first)
+        {
+            paragraph.markerEnd = output.text.size();
+            for (auto owner = node.parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
+            {
+                if (Footer(owner) != MarkdownNoNode)
+                    break;
+                if (nodes[owner].block.kind == MarkdownBlockKind::ListItem)
+                {
+                    paragraph.markerOwner = owner;
+                    break;
+                }
+            }
+        }
+        htmlDisplayFirst = output.text.size();
+        return close;
+    }
+    void LeafBlock(Visit visit, bool analyzeNative = true)
+    {
+        const auto& syntax = *document->syntax_;
+        const auto& node   = syntax.Nodes()[visit.node];
+        auto close         = visit;
+        Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
+        if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+            html.Block(normalized);
+        else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode &&
+                 node.block.kind != MarkdownBlockKind::FrontMatter && node.block.kind != MarkdownBlockKind::FootnoteDefinition)
+            html.Inline(syntax, node, normalized);
+        else
+            html.Reset();
+        document->elements_[visit.element].nativeHtml = html.valid;
+        if (analyzeNative && StartDiagram(visit))
+            return;
+        if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+        {
+            if (! html.valid)
+                visit.flags |= Code;
+            else if (html.wrapper)
+            {
+                const auto kind = *html.wrapper;
+                if (Detail::HtmlHeading(kind))
+                {
+                    visit.heading                              = Detail::HtmlHeading(kind);
+                    document->elements_[visit.element].role    = SemanticRole::Heading;
+                    document->elements_[visit.element].heading = visit.heading;
+                }
+                else if (kind == Detail::NativeHtmlKind::Pre)
+                    document->elements_[visit.element].role = SemanticRole::Code;
+                else
+                    document->elements_[visit.element].role = SemanticRole::Paragraph;
+            }
+        }
+        close = BeginLeafParagraph(visit);
+        if (html.present && ! html.valid)
+        {
+            Detail::SemanticValue literal;
+            if (node.block.kind != MarkdownBlockKind::HtmlBlock && node.firstInline != MarkdownNoNode)
+                Detail::SliceSemanticValue(normalized, {syntax.Inlines()[node.firstInline].source.first, node.block.source.last}, literal);
+            else
+                literal = normalized;
+            output.Value(literal, visit.flags | Code, visit.heading);
+        }
+        else if (node.block.kind == MarkdownBlockKind::HtmlBlock)
+            HtmlBlock(visit);
+        else if (node.firstInline != MarkdownNoNode)
+        {
+            visits.push_back(close);
+            auto inlineVisit       = visit;
+            inlineVisit.inlineNode = true;
+            inlineVisit.node       = node.firstInline;
+            inlineVisit.parent     = visit.element;
+            visits.push_back(inlineVisit);
+            return;
+        }
+        else if (node.block.kind == MarkdownBlockKind::ThematicBreak)
+            output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
+        else
+            output.Value(normalized, visit.flags, visit.heading);
+
+        visits.push_back(close);
+    }
     void Block(Visit visit)
     {
         const auto& syntax = *document->syntax_;
@@ -549,79 +840,8 @@ struct SemanticBuilder::Preparation
         }
         else if (Leaf(node.block.kind) && ! visit.footerRoot)
         {
-            Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
-            if (node.block.kind == MarkdownBlockKind::HtmlBlock)
-                html.Block(normalized);
-            else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode &&
-                     node.block.kind != MarkdownBlockKind::FrontMatter && node.block.kind != MarkdownBlockKind::FootnoteDefinition)
-                html.Inline(syntax, node, normalized);
-            else
-                html.Reset();
-            document->elements_[visit.element].nativeHtml = html.valid;
-            if (node.block.kind == MarkdownBlockKind::HtmlBlock)
-            {
-                if (! html.valid)
-                    visit.flags |= Code;
-                else if (html.wrapper)
-                {
-                    const auto kind = *html.wrapper;
-                    if (Detail::HtmlHeading(kind))
-                    {
-                        visit.heading                              = Detail::HtmlHeading(kind);
-                        document->elements_[visit.element].role    = SemanticRole::Heading;
-                        document->elements_[visit.element].heading = visit.heading;
-                    }
-                    else if (kind == Detail::NativeHtmlKind::Pre)
-                        document->elements_[visit.element].role = SemanticRole::Code;
-                    else
-                        document->elements_[visit.element].role = SemanticRole::Paragraph;
-                }
-            }
-            close           = visit;
-            close.close     = true;
-            close.paragraph = Paragraph(visit, visit.element);
-            Prefix(visit, visit.element);
-            auto& paragraph = document->paragraphs_[close.paragraph];
-            if (output.text.size() > paragraph.display.first)
-            {
-                paragraph.markerEnd = output.text.size();
-                for (auto owner = node.parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
-                {
-                    if (Footer(owner) != MarkdownNoNode)
-                        break;
-                    if (nodes[owner].block.kind == MarkdownBlockKind::ListItem)
-                    {
-                        paragraph.markerOwner = owner;
-                        break;
-                    }
-                }
-            }
-            htmlDisplayFirst = output.text.size();
-            if (html.present && ! html.valid)
-            {
-                Detail::SemanticValue literal;
-                if (node.block.kind != MarkdownBlockKind::HtmlBlock && node.firstInline != MarkdownNoNode)
-                    Detail::SliceSemanticValue(normalized, {syntax.Inlines()[node.firstInline].source.first, node.block.source.last}, literal);
-                else
-                    literal = normalized;
-                output.Value(literal, visit.flags | Code, visit.heading);
-            }
-            else if (node.block.kind == MarkdownBlockKind::HtmlBlock)
-                HtmlBlock(visit);
-            else if (node.firstInline != MarkdownNoNode)
-            {
-                visits.push_back(close);
-                auto inlineVisit       = visit;
-                inlineVisit.inlineNode = true;
-                inlineVisit.node       = node.firstInline;
-                inlineVisit.parent     = visit.element;
-                visits.push_back(inlineVisit);
-                return;
-            }
-            else if (node.block.kind == MarkdownBlockKind::ThematicBreak)
-                output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
-            else
-                output.Value(normalized, visit.flags, visit.heading);
+            LeafBlock(visit);
+            return;
         }
         visits.push_back(close);
         if ((! Leaf(node.block.kind) || visit.footerRoot) && node.firstChild != MarkdownNoNode)
@@ -669,6 +889,11 @@ struct SemanticBuilder::Preparation
     }
     bool Step()
     {
+        if (diagram)
+        {
+            AdvanceDiagram();
+            return false;
+        }
         if (visits.empty())
         {
             if (nextFooter < footerOrder.size())

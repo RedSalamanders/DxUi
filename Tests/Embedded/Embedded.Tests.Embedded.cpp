@@ -1261,6 +1261,7 @@ __declspec(noinline) static int RunFunctionalTests()
             TestNativeFlowchartAllocationFailureAtomicity(true);
             TestNativeFlowchartLayoutAllocationFailureAtomicity(true);
             TestPreparedFlowchartAllocationFailures(true);
+            TestSemanticDiagramAllocationFailures(true);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
         {
@@ -1436,7 +1437,12 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
-    TestEmbeddedFlowchartSourceFallbacks(gpu);
+    TestEmbeddedFlowchartRenderingAndFallbacks(gpu);
+    SemanticDiagramTests::Core(Check);
+    SemanticDiagramTests::Geometry(Check);
+    SemanticDiagramTests::PositionedRaster(Check);
+    TestEmbeddedDiagramViewCapacityRecovery(gpu);
+    TestEmbeddedDiagramSelectionRaster(gpu);
     TestEmbeddedFootnoteBlockSourceEdits(gpu);
     TestEmbeddedFootnoteResolutionAndSourceEdits(gpu);
     TestEmbeddedParserCapacitySourceFallback(gpu);
@@ -1512,6 +1518,7 @@ __declspec(noinline) static int RunFunctionalTests()
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestPreparedFlowchartAllocationFailures();
+    TestSemanticDiagramAllocationFailures();
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
     PreparedFlowchartTests::RasterOracle(Check);
     PreparedFlowchartTests::EdgeLabelRasterOracle(Check);

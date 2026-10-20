@@ -4,6 +4,7 @@
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.RichMarkdown.h"
 #include <DxUi/ControlCatalog.h>
@@ -799,7 +800,7 @@ void TestRichTextEditorNativeFrontMatterFencesAndSourceEdits()
     RenderEditor(window);
     Require(editor->GetText() == expected && editor->GetSelection() == selected, "native source view preserves metadata selection and exact document");
 }
-void TestRichTextEditorNativeFlowchartSourceFallbacks()
+void TestRichTextEditorNativeFlowchartRenderingAndFallbacks()
 {
     AttachedHostWindow window;
     auto owned   = std::make_unique<RichTextEditor>();
@@ -807,6 +808,8 @@ void TestRichTextEditorNativeFlowchartSourceFallbacks()
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
     window.Host().SetRoot(std::move(owned));
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 1024, 300, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE, "wide native diagram corpus host");
+    window.PumpMessages();
     for (const auto& scenario : NativeFlowchartTests::scenarios)
     {
         const auto source = NativeFlowchartTests::FencedSource(scenario);
@@ -816,13 +819,69 @@ void TestRichTextEditorNativeFlowchartSourceFallbacks()
         Require(syntax != nullptr, "native Mermaid source preparation completes");
         NativeFlowchartTests::CheckFencedSource(*syntax, scenario, Require);
         const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
-        Require(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source &&
-                    semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario) && editor->GetText() == source && ! editor->CanUndo(),
-                "native parser preparation leaves exact definition/history and current source fallback intact");
+        Require(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source && editor->GetText() == source && ! editor->CanUndo(),
+                "native graph rendering/fallback retains exact definition and history");
+        Require(scenario.outcome == RichText::Detail::FlowchartOutcome::Prepared ? ! RichText::Detail::SemanticExtensionAccess::Diagrams(*semantic).empty()
+                                                                                 : semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario),
+                "admitted native graphs render atomically while rejected definitions retain code presentation");
         editor->SetSelection({13u, 13u});
         Require(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source,
                 "every accepted/rejected native diagram definition remains a reversible Unicode source edit");
     }
+}
+void TestRichTextEditorNativeDiagramViewCapacityRecovery()
+{
+    AttachedHostWindow window;
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 640, 300, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE, "native diagram fixture outer window");
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<RichTextEditor>();
+    window.Host().SetRoot(std::move(root));
+    UINT lastWidth{};
+    SemanticDiagramTests::Editor(*editor,
+                                 window.Host(),
+                                 [&](UINT width)
+    {
+        if (width != lastWidth)
+        {
+            // Size the hosted editor in DIP, independently of top-level window
+            // tracking/nonclient/DPI constraints. Both hosts receive the same
+            // actual text viewport widths, including the narrow rejection.
+            editor->SetBounds(D2D1::RectF(0.f, 0.f, static_cast<float>(width), 240.f));
+            lastWidth = width;
+            window.PumpMessages();
+        }
+        RenderEditor(window);
+    },
+                                 Require);
+    RichEditorClipboard clipboard;
+    const auto source = editor->GetText();
+    editor->SetSelection({0u, source.size()});
+    Require(editor->OnCopy(window.Host()) && clipboard.text == source,
+            "native graphic selection copies the exact source fence rather than its generated caption");
+    Require(editor->OnKeyDown(window.Host(), 'X', MK_CONTROL) && editor->GetText().empty() && clipboard.text == source && editor->Undo() &&
+                editor->GetText() == source,
+            "native graphic source cut is one reversible Unicode editing transaction");
+    RenderEditor(window);
+    Require(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "undo of source cut restores the native graphic");
+}
+void TestRichTextEditorNativeDiagramSelectionRaster()
+{
+    AttachedHostWindow window;
+    window.Host().SetTheme(SemanticDiagramTests::SelectionPalette());
+    auto owned   = std::make_unique<RichTextEditor>(std::wstring(SemanticDiagramTests::SelectionSource));
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    RenderEditor(window);
+    editor->SetSelection({0u, editor->GetText().size()});
+    RenderEditor(window);
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), "native selected graphic capture without activating the desktop");
+    SemanticDiagramTests::SelectionPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
 }
 void TestRichTextEditorNativeFootnoteBlockSourceEdits()
 {
@@ -983,7 +1042,9 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeBlockGrammarAndIdentity);
     DXUI_RUN_TEST(TestRichTextEditorNativeInlineGrammarAndReferenceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFrontMatterFencesAndSourceEdits);
-    DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartSourceFallbacks);
+    DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartRenderingAndFallbacks);
+    DXUI_RUN_TEST(TestRichTextEditorNativeDiagramViewCapacityRecovery);
+    DXUI_RUN_TEST(TestRichTextEditorNativeDiagramSelectionRaster);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);

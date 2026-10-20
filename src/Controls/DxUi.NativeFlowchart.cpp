@@ -52,6 +52,13 @@ struct NativeFlowchartParser::Preparation
     }
     bool Error(FlowchartIssue issue, std::size_t at, std::size_t end, FlowchartOutcome outcome = FlowchartOutcome::Malformed) noexcept
     {
+        // Diagnostics are selectable source ranges. ASCII-only identifiers may
+        // reject the first UTF-16 unit of a valid supplementary scalar; include
+        // that whole scalar (and original CRLF pairs), never a split ACP.
+        while (at && ! IsEditBoundary(Text(), at))
+            --at;
+        while (end < Text().size() && ! IsEditBoundary(Text(), end))
+            ++end;
         return Fail(outcome, issue, {at, end});
     }
     void Skip(std::size_t& at, std::size_t end) const noexcept

@@ -138,12 +138,19 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker)
+void PreparedLayout::PrepareSemanticOwned(
+    IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker, IDWriteInlineObject* object, UINT32 objectOffset)
 {
-    PrepareOwned(factory, projection, options, 0.0f, true, marker);
+    PrepareOwned(factory, projection, options, 0.0f, true, marker, object, objectOffset);
 }
-void PreparedLayout::PrepareOwned(
-    IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin, bool semanticDisplay, bool marker)
+void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
+                                  Projection& projection,
+                                  const LayoutOptions& options,
+                                  float verticalOrigin,
+                                  bool semanticDisplay,
+                                  bool marker,
+                                  IDWriteInlineObject* object,
+                                  UINT32 objectOffset)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -159,6 +166,8 @@ void PreparedLayout::PrepareOwned(
         projection.units.size() != projection.text.size() || projection.sourceToDisplay.size() != projection.source.size() + 1 ||
         (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
         throw std::invalid_argument("Invalid rich-text display text");
+    if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
+        throw std::invalid_argument("Invalid semantic object placement");
     std::size_t previousDisplay = 0, previousSource = 0;
     for (const auto offset : projection.sourceToDisplay)
     {
@@ -192,7 +201,7 @@ void PreparedLayout::PrepareOwned(
                                     options.locale.c_str(),
                                     format.put()),
           "CreateTextFormat");
-    Check(format->SetWordWrapping(marker ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
+    Check(format->SetWordWrapping(marker || object ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
     wil::com_ptr<IDWriteTextLayout> layout;
@@ -249,6 +258,10 @@ void PreparedLayout::PrepareOwned(
                 Check(layout->SetFontFamilyName(L"Segoe UI Symbol", {static_cast<UINT32>(i) + textOffset, 1u}), "Set task checkbox font");
     }
     DWRITE_TEXT_METRICS metrics{};
+    // The layout retains this COM property. Its no-op Draw reserves metrics;
+    // native graphics paint explicitly on the owner's known target later.
+    if (object)
+        Check(layout->SetInlineObject(object, {objectOffset + textOffset, 1u}), "Set semantic object metrics");
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};
     Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");

@@ -1,14 +1,78 @@
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.SemanticExtensions.h"
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <tuple>
 #include <wil/resource.h>
+#include <wrl/implements.h>
 
 namespace DxUi::RichText::Detail
 {
 namespace
 {
+// DirectWrite reserves and hit-tests one atomic graphic. Graphics are painted
+// later on the known owner target; the opaque drawingContext is never cast.
+class SemanticObjectPlaceholder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
+{
+public:
+    explicit SemanticObjectPlaceholder(DWRITE_INLINE_OBJECT_METRICS metrics) noexcept : metrics_(metrics)
+    {
+    }
+    HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_INLINE_OBJECT_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        *metrics = metrics_;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        *metrics = {};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
+    {
+        if (! before || ! after)
+            return E_POINTER;
+        *before = *after = DWRITE_BREAK_CONDITION_NEUTRAL;
+        return S_OK;
+    }
+
+private:
+    DWRITE_INLINE_OBJECT_METRICS metrics_;
+};
+struct NativeDiagramPlacement
+{
+    std::size_t element{}, display{};
+    std::unique_ptr<PreparedFlowchart> paint;
+    D2D1_RECT_F bounds{}; // Relative to the containing DirectWrite paragraph.
+    float caretHeight{};
+    bool rtl{};
+};
+struct NativeDiagramGeometry
+{
+    NativeDiagramGeometry(std::size_t count, ID2D1Factory* factory, FlowchartResourceEpoch inputEpochs)
+        : drawing(factory),
+          epochs(inputEpochs),
+          placements(count)
+    {
+    }
+    wil::com_ptr<ID2D1Factory> drawing;
+    FlowchartResourceEpoch epochs;
+    std::vector<NativeDiagramPlacement> placements;
+    NativeDiagramPlacement* Find(std::size_t element) noexcept
+    {
+        const auto found = std::lower_bound(placements.begin(), placements.end(), element, [](const auto& value, auto index) { return value.element < index; });
+        return found != placements.end() && found->element == element ? &*found : nullptr;
+    }
+};
 struct SemanticBox
 {
     PreparedLayout layout;
@@ -17,6 +81,23 @@ struct SemanticBox
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
     bool caretOnly{}, markerOnly{};
+    const NativeDiagramPlacement* native{};
+    CaretGeometry Caret(std::size_t local) const
+    {
+        if (! native)
+            return layout.Caret(local);
+        const auto object = native->display - paragraph.display.first;
+        if (local < object)
+        {
+            auto caret   = layout.Caret(local);
+            caret.height = std::min(caret.height, native->caretHeight);
+            return caret;
+        }
+        const auto& bounds     = native->bounds;
+        const auto caretHeight = std::min(native->caretHeight, bounds.bottom - bounds.top);
+        const bool after       = local > object;
+        return {after != native->rtl ? bounds.right : bounds.left, after ? bounds.bottom - caretHeight : bounds.top, caretHeight};
+    }
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -68,7 +149,11 @@ void IdentityProjection(const SemanticDocument& document, MarkdownRange range, P
 } // namespace
 struct PreparedSemanticGeometry::State
 {
-    State(std::shared_ptr<const SemanticDocument> input, IDWriteFactory* writeFactory, const LayoutOptions& inputOptions)
+    State(std::shared_ptr<const SemanticDocument> input,
+          IDWriteFactory* writeFactory,
+          const LayoutOptions& inputOptions,
+          ID2D1Factory* drawing,
+          FlowchartResourceEpoch epochs)
         : document(std::move(input)),
           factory(writeFactory),
           options(inputOptions),
@@ -78,10 +163,21 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
+        if (! diagrams.empty())
+        {
+            native = std::make_unique<NativeDiagramGeometry>(diagrams.size(), drawing, epochs);
+            for (std::size_t index = 0u; index < diagrams.size(); ++index)
+            {
+                native->placements[index].element = diagrams[index].element;
+                native->placements[index].display = diagrams[index].display.first;
+            }
+        }
     }
     std::shared_ptr<const SemanticDocument> document;
     wil::com_ptr<IDWriteFactory> factory;
     LayoutOptions options;
+    std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
@@ -163,6 +259,7 @@ struct PreparedSemanticGeometry::Preparation
         IndexCaretAnchors,
         IndexCaretSites,
         CountSites,
+        NativeObjects,
         MarkerLayouts,
         Layouts,
         RowPlacement,
@@ -172,8 +269,12 @@ struct PreparedSemanticGeometry::Preparation
         ParentBounds,
         Publish
     };
-    explicit Preparation(std::shared_ptr<const SemanticDocument> document, IDWriteFactory* factory, const LayoutOptions& options)
-        : state(std::make_unique<State>(std::move(document), factory, options)),
+    explicit Preparation(std::shared_ptr<const SemanticDocument> document,
+                         IDWriteFactory* factory,
+                         const LayoutOptions& options,
+                         ID2D1Factory* drawing,
+                         FlowchartResourceEpoch epochs)
+        : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs)),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
           literalDefinitionNodes(0u),
@@ -185,6 +286,7 @@ struct PreparedSemanticGeometry::Preparation
     {
     }
     std::unique_ptr<State> state;
+    std::size_t nativeIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
     std::vector<bool> literalDefinitionNodes;
@@ -495,16 +597,48 @@ struct PreparedSemanticGeometry::Preparation
                 options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         }
         options.widthDip = std::max(1.0f, box->width);
+        auto* native     = next.native ? next.native->Find(content.element) : nullptr;
+        if (native && (native->display < content.display.first || native->display >= content.display.last))
+            native = nullptr;
         if (! box->layout.Ready())
         {
             Projection projection{
                 std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
             IdentityProjection(*next.document, content.display, projection);
-            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options);
+            wil::com_ptr<IDWriteInlineObject> placeholder;
+            if (native)
+            {
+                const auto extent = native->paint->Geometry()->extent;
+                if (extent.width > options.widthDip)
+                    throw NativeObjectCapacity("Diagram does not fit this view width");
+                const auto height = static_cast<float>(extent.height);
+                const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(
+                    DWRITE_INLINE_OBJECT_METRICS{static_cast<float>(extent.width), height, std::min(options.fontSizeDip, height), FALSE});
+                if (! object)
+                    throw std::bad_alloc();
+                placeholder = object.Get();
+            }
+            const auto objectOffset = native ? static_cast<UINT32>(native->display - content.display.first) : 0u;
+            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset);
             lastLayoutCalls = 1u;
+            if (native)
+            {
+                const auto textBounds = box->layout.HorizontalTextBounds();
+                if (textBounds.second > options.widthDip + 0.01f)
+                    throw NativeObjectCapacity("Diagram and its marker do not fit this view width");
+                const auto rectangles = box->layout.Range(objectOffset, objectOffset + 1u);
+                if (rectangles.size() != 1u)
+                    throw std::logic_error("Native diagram did not produce one atomic SDK object");
+                native->bounds      = rectangles.front();
+                native->caretHeight = options.fontSizeDip;
+                native->rtl         = rtl;
+                box->native         = native;
+            }
         }
-        box->height  = box->layout.Height();
-        box->frame   = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        box->height = box->layout.Height();
+        box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        if (native)
+            box->frame = D2D1::RectF(box->x + native->bounds.left, box->y + native->bounds.top, box->x + native->bounds.right, box->y + native->bounds.bottom);
         float bottom = box->frame.bottom;
         if (content.markerOwner != MarkdownNoNode && ! split && consumeParagraph)
         {
@@ -572,12 +706,25 @@ struct PreparedSemanticGeometry::Preparation
 };
 PreparedSemanticGeometry::PreparedSemanticGeometry() noexcept  = default;
 PreparedSemanticGeometry::~PreparedSemanticGeometry() noexcept = default;
-LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory, std::shared_ptr<const SemanticDocument> document, const LayoutOptions& options)
+LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
+                                                        std::shared_ptr<const SemanticDocument> document,
+                                                        const LayoutOptions& options,
+                                                        ID2D1Factory* drawing,
+                                                        FlowchartResourceEpoch epochs)
 {
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         options.fontSizeDip <= 0.0f)
         throw std::invalid_argument("Invalid semantic geometry request");
-    const auto same = [&](const State& state) { return state.factory.get() == factory && state.document == document && SameOptions(state.options, options); };
+    const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
+    if (! diagrams.empty() && ! drawing)
+        throw std::invalid_argument("Native semantic objects require a drawing factory");
+    if (! diagrams.empty() && options.fontSizeDip > 512.0f)
+        throw NativeObjectCapacity("Native object font exceeds its supported extent");
+    const auto same = [&](const State& state)
+    {
+        return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) &&
+               (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs));
+    };
     if (next_ && same(*next_->state))
         return LayoutPreparationStatus::Pending;
     if (state_ && same(*state_))
@@ -586,7 +733,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         valid_ = true;
         return LayoutPreparationStatus::Complete;
     }
-    auto next = std::make_unique<Preparation>(std::move(document), factory, options);
+    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs);
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
@@ -697,7 +844,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.paragraph == paragraphs.size() && work.emptyLine == lines.size())
                 {
                     work.paragraph = work.emptyLine = 0u;
-                    work.phase                      = Preparation::Phase::MarkerLayouts;
+                    work.phase                      = Preparation::Phase::NativeObjects;
                     continue;
                 }
                 std::size_t additional = 1u;
@@ -720,6 +867,39 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 work.plannedBoxes += additional;
                 if (work.plannedBoxes > SemanticDocument::MaximumParagraphs)
                     throw std::length_error("Semantic native paragraph/caret-site admission exceeded");
+            }
+            else if (work.phase == Preparation::Phase::NativeObjects)
+            {
+                auto& state         = *work.state;
+                const auto diagrams = SemanticExtensionAccess::Diagrams(*state.document);
+                if (work.nativeIndex == diagrams.size())
+                {
+                    work.phase = Preparation::Phase::MarkerLayouts;
+                    continue;
+                }
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    break;
+                auto& placement = state.native->placements[work.nativeIndex];
+                if (! placement.paint)
+                {
+                    placement.paint = std::make_unique<PreparedFlowchart>();
+                    placement.paint->Begin(
+                        state.factory.get(), state.native->drawing.get(), diagrams[work.nativeIndex].graph, state.options, state.native->epochs);
+                    ++result.blockSteps;
+                    continue;
+                }
+                const auto advance = placement.paint->Advance({budget.maximumLayouts - result.layoutsPrepared, budget.maximumBlockSteps - result.blockSteps});
+                result.layoutsPrepared += advance.layoutsPrepared;
+                result.blockSteps += advance.blockSteps;
+                if (advance.status == LayoutPreparationStatus::Complete)
+                {
+                    if (! placement.paint->Ready())
+                        throw NativeObjectCapacity("Native diagram exceeds its font/geometry capacity");
+                    ++work.nativeIndex;
+                }
+                if (! advance.blockSteps && ! advance.layoutsPrepared)
+                    break;
+                continue;
             }
             else if (work.phase == Preparation::Phase::MarkerLayouts)
             {
@@ -930,6 +1110,10 @@ std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 {
     return state_ ? state_->boxes.size() : 0u;
 }
+bool PreparedSemanticGeometry::HasNativeObjects() const noexcept
+{
+    return state_ && state_->native;
+}
 const PreparedSemanticGeometry::State& PreparedSemanticGeometry::Current() const
 {
     if (! Ready())
@@ -944,7 +1128,7 @@ CaretGeometry PreparedSemanticGeometry::Caret(std::size_t offset) const
 {
     const auto& state = Current();
     const auto& box   = state.BoxAt(offset);
-    auto result       = box.layout.Caret(std::clamp(offset, box.paragraph.display.first, box.paragraph.display.last) - box.paragraph.display.first);
+    auto result       = box.Caret(std::clamp(offset, box.paragraph.display.first, box.paragraph.display.last) - box.paragraph.display.first);
     result.x += box.x;
     result.y += box.y;
     return result;
@@ -967,7 +1151,7 @@ CaretGeometry PreparedSemanticGeometry::SourceCaret(std::size_t source, std::siz
                                                 ? box.paragraph.display.last
                                                 : box.paragraph.display.first)
                                          : state.document->Map().ToDisplay(source);
-    auto result        = box.layout.Caret(std::clamp(display, box.paragraph.display.first, box.paragraph.display.last) - box.paragraph.display.first);
+    auto result        = box.Caret(std::clamp(display, box.paragraph.display.first, box.paragraph.display.last) - box.paragraph.display.first);
     result.x += box.x;
     result.y += box.y;
     return result;
@@ -1215,11 +1399,14 @@ std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleRange(float
         }
     return first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
 }
-void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom) const
+void PreparedSemanticGeometry::Draw(
+    ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
         throw std::invalid_argument("Invalid semantic raster request");
+    if (state.native && ! fill)
+        throw std::invalid_argument("Native diagram drawing needs an opaque fill brush");
     const auto elements = state.document->Elements();
     for (std::size_t i = 0u; i < elements.size(); ++i)
     {
@@ -1254,6 +1441,13 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target, ID2D1Brush* text,
                         target->PopAxisAlignedClip();
                 });
                 box->layout.Draw(target, text, D2D1::Point2F(origin.x + box->x, origin.y + box->y));
+                if (box->native &&
+                    ! box->native->paint->Draw(target,
+                                               text,
+                                               decoration,
+                                               fill,
+                                               D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
+                    throw std::logic_error("Native diagram target/resources are incompatible");
             }
         }
 }

@@ -1377,6 +1377,49 @@ graphs from 92 unsupported definitions and 20 other diagram families. Rejection
 is compatibility accounting, never rendered conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
+### Source-backed native diagram objects
+
+RichMarkdown recognizes case-sensitive `mermaid` fenced code as a native diagram
+candidate. Trailing horizontal whitespace is accepted; fence options receive an
+unsupported diagnostic. Other language words and the pinned CommonMark/GFM
+profiles retain ordinary code interpretation. Unclosed, malformed, unsupported,
+empty and over-capacity candidates retain code presentation with an accessible
+explanation and an exact selectable source diagnostic. Diagnostics MUST contain
+whole UTF-16 scalars and original CRLF pairs.
+
+Semantic preparation MUST advance graph parsing and alternative construction
+cooperatively. A document admits at most 128 candidates and 32,768 combined native
+node/edge records before adding the next graph. Prepared graphs use one atomic
+object display character owning the complete original fence. Optional document
+state retains the CPU model and code-body provenance, including removed container
+prefixes, virtual indentation and normalized EOLs. Source spelling and source
+text-store offsets remain unchanged. Alternative names include direction, node
+identities/labels and connections. `SemanticDocument::Diagnostics()` references
+original source and the owning semantic element; `Syntax()` remains immutable.
+
+Native geometry MUST consume the same owner SDK allowance for graph labels and
+the positioning paragraph. A no-op DirectWrite inline object reserves intrinsic
+metrics and supports hit testing/selection; native drawing uses the known owner
+target. Carets around a graphic remain text-sized. Prepared geometry and UIA
+publication must match the same source, binding, typography and resource request.
+The diagram child exposes Image semantics, a meaningful alternative and an exact
+raw fence range. Source changes and presentation withdrawal retire old children.
+Dedicated source-entry actions remain the separate object-editing integration.
+Selected native objects MUST retain the resolved selection text/surface pair,
+including high contrast. Their opaque node and edge-label backing uses the
+selection surface composited over the ordinary opaque object surface; it MUST
+NOT repaint selected interiors with the ordinary input fill.
+When native geometry capacity selects source fallback, Delete, Backspace and
+selected-range deletion MUST operate on visible raw source graphemes/ranges.
+Retained CPU object semantics MUST NOT expand those edits to the hidden fence.
+
+An intrinsic diagram that cannot fit the available paragraph width or font/extent
+limits causes usable exact source presentation. This rejection is keyed by the
+semantic document, width, reading direction, typography/resource epochs and host
+binding. Repeated unchanged requests MUST add no parsing/layout work. Width/font/
+resource/binding changes permit retry without altering text, selection or history.
+Transient memory failures remain retryable and MUST NOT create a capacity latch.
+
 ### Bounded Markdown staging and source fallback
 
 `MarkdownSyntax::MaximumNodeRecords` is 32,768 combined block/inline staging

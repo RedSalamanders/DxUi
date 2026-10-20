@@ -5,6 +5,7 @@
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
+#include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include <DxUi/RichSemanticDocument.h>
 
 static void TestFootnoteBlockAllocationFailures(bool trace = false)
@@ -104,6 +105,183 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
             source);
     }
     std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+}
+
+static void TestSemanticDiagramAllocationFailures(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto oldSyntax      = RichSemanticDocumentTests::Parse(L"previous", MarkdownProfile::RichMarkdown);
+    const auto pendingSyntax  = RichSemanticDocumentTests::Parse(L"pending", MarkdownProfile::RichMarkdown);
+    const auto finishSemantic = [](SemanticBuilder& builder)
+    {
+        while (builder.HasPendingPreparation())
+            builder.Advance(7u);
+    };
+    // Count the actual allocation schedule, including native parsing, captions,
+    // normalized-to-raw provenance, diagnostic publication and footer ownership.
+    const std::array<std::wstring_view, 4u> sources = {SemanticDiagramTests::scenarios[5u].source,
+                                                       L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
+                                                       SemanticDiagramTests::scenarios[11u].source,
+                                                       SemanticDiagramTests::scenarios[8u].source};
+    const auto observe                              = [](auto&& operation)
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        operation();
+        countAllocations = false;
+        return allocations;
+    };
+    std::size_t semanticRequests{}, geometryRequests{};
+    for (const auto source : sources)
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(source, MarkdownProfile::RichMarkdown);
+        SemanticBuilder measured;
+        measured.Begin(oldSyntax);
+        finishSemantic(measured);
+        measured.Begin(pendingSyntax);
+        const auto requests = observe([&]
+        {
+            measured.Begin(syntax);
+            finishSemantic(measured);
+        });
+        Check(requests > 0u && requests < 4096u, "native semantic preparation has a finite observed allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "semantic diagram failure=%zu/%zu\n", failure, requests);
+            SemanticBuilder builder;
+            builder.Begin(oldSyntax);
+            finishSemantic(builder);
+            const auto old = builder.Published();
+            builder.Begin(pendingSyntax);
+            bool rejected{}, began{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    builder.Begin(syntax);
+                    began = true;
+                    finishSemantic(builder);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && builder.Published() == old && builder.HasPendingPreparation() != began && old->Map().Source() == L"previous",
+                  "native semantic Begin preserves pending work; failed Advance retires only staging and preserves exact published source");
+            if (! began)
+            {
+                finishSemantic(builder);
+                Check(builder.Published()->Map().Source() == L"pending", "old pending semantic request remains usable after rejected admission");
+            }
+            builder.Begin(syntax);
+            finishSemantic(builder);
+            Check(builder.Published()->Map().Source() == source, "native semantic preparation retries after every observed C++ failure");
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = 0u;
+                builder.Cancel();
+                builder.Clear();
+            }
+        }
+        semanticRequests += requests;
+    }
+    const auto write       = PreparedFlowchartTests::WriteFactory();
+    const auto drawing     = PreparedFlowchartTests::DrawingFactory();
+    const auto oldDocument = SemanticDiagramTests::Build(L"previous", Check);
+    for (std::size_t scenario = 0u; scenario < 4u; ++scenario)
+    {
+        const auto document = SemanticDiagramTests::Build(SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source, Check);
+        LayoutOptions options;
+        options.widthDip = scenario == 3u ? 40.0f : 1024.0f;
+        LayoutOptions previousOptions;
+        previousOptions.widthDip = 800.0f;
+        const auto finish        = [](PreparedSemanticGeometry& geometry)
+        {
+            try
+            {
+                while (geometry.Pending())
+                    geometry.Advance({1u, 3u});
+                return true;
+            }
+            catch (const NativeObjectCapacity&)
+            {
+                return false;
+            }
+        };
+        PreparedSemanticGeometry measured;
+        measured.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
+        finish(measured);
+        auto pendingOptions     = previousOptions;
+        pendingOptions.widthDip = 900.0f;
+        measured.Begin(write.get(), oldDocument, pendingOptions, drawing.get(), {2u, 2u});
+        const auto requests = observe([&]
+        {
+            measured.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
+            finish(measured);
+        });
+        Check(requests > 0u && requests < 1024u, "native semantic geometry has a finite observed allocation schedule");
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "semantic diagram geometry=%zu failure=%zu/%zu\n", scenario, failure, requests);
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
+            finish(geometry);
+            const auto generation = geometry.Generation();
+            geometry.Begin(write.get(), oldDocument, pendingOptions, drawing.get(), {2u, 2u});
+            bool rejected{}, began{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
+                    began = true;
+                    finish(geometry);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && geometry.Ready() && &geometry.Document() == oldDocument.get() && geometry.Generation() == generation &&
+                      geometry.Pending() != began,
+                  "native label/object/paragraph allocation failures preserve the previous immutable geometry and pending admission contract");
+            if (! began)
+                Check(finish(geometry), "old pending geometry remains usable after failed admission");
+            geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
+            const auto ready = finish(geometry);
+            Check(scenario == 3u ? ! ready && &geometry.Document() == oldDocument.get()
+                                 : ready && geometry.HasNativeObjects() && &geometry.Document() == document.get(),
+                  "explicit retry distinguishes intrinsic-width capacity from transient allocation failure");
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = 0u;
+                geometry.Cancel();
+                geometry.Invalidate();
+                geometry.Clear();
+            }
+        }
+        geometryRequests += requests;
+    }
+    std::cout << "semantic diagram failure scenarios=4 sweptRequests=" << semanticRequests << " geometryScenarios=4 sweptRequests=" << geometryRequests
+              << " preservedPublication=1 preservedPendingBegin=1 explicitRetry=1 retirementAllocations=0\n";
 }
 
 static void TestPreparedFlowchartAllocationFailures(bool trace = false)
@@ -840,7 +1018,29 @@ static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
         *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "capacity source fallback preparation"); }, Check);
     Check(! view.Controls().GetHwnd(), "capacity fallback acquires no control HWND");
 }
-static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)
+static void TestEmbeddedDiagramSelectionRaster(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "native selection borrowed device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "native selection embedded host");
+    view.Controls().SetTheme(SemanticDiagramTests::SelectionPalette());
+    auto owned   = std::make_unique<RichTextEditor>(std::wstring(SemanticDiagramTests::SelectionSource));
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "native selection embedded preparation");
+    editor->SetSelection({0u, editor->GetText().size()});
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "native selection embedded selected preparation");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "native selection embedded composite");
+    std::vector<uint8_t> pixels;
+    Hr(gpu.Read(pixels), "native selection embedded pixels");
+    SemanticDiagramTests::SelectionPixels(*editor, view.Controls(), pixels, gpu.width, gpu.height, 1.f, Check);
+}
+static void TestEmbeddedFlowchartRenderingAndFallbacks(GraphicsFixture& gpu)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
@@ -858,21 +1058,37 @@ static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)
     {
         const auto source = NativeFlowchartTests::FencedSource(scenario);
         editor->SetText(source);
-        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded diagram definition preparation");
+        Hr(PrepareRichEmbeddedContent(view, 1024u, 240u), "embedded diagram definition preparation");
         const auto syntax = editor->GetMarkdownSyntax();
         Check(syntax != nullptr, "embedded diagram source preparation completes");
         NativeFlowchartTests::CheckFencedSource(*syntax, scenario, Check);
         const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
-        Check(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source &&
-                  semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario) && editor->GetText() == source && ! editor->CanUndo() &&
+        Check(semantic && semantic->Syntax() == syntax && semantic->Map().Source() == source && editor->GetText() == source && ! editor->CanUndo() &&
                   ! view.Controls().GetHwnd(),
-              "embedded parser preparation preserves source fallback and history without a control HWND");
+              "embedded graph rendering/fallback preserves source and history without a control HWND");
+        Check(scenario.outcome == RichText::Detail::FlowchartOutcome::Prepared ? ! RichText::Detail::SemanticExtensionAccess::Diagrams(*semantic).empty()
+                                                                               : semantic->Map().Display() == NativeFlowchartTests::LiteralDisplay(scenario),
+              "embedded admitted graphs render atomically and rejected diagrams keep literal code");
         editor->SetSelection({13u, 13u});
         Check(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source,
               "every embedded diagram definition remains a reversible Unicode source edit");
     }
 }
 
+static void TestEmbeddedDiagramViewCapacityRecovery(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "native diagram recovery resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "native diagram recovery embedding");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    SemanticDiagramTests::Editor(
+        *editor, view.Controls(), [&](UINT width) { Hr(PrepareRichEmbeddedContent(view, width, 240u), "embedded diagram recovery preparation"); }, Check);
+    Check(! view.Controls().GetHwnd(), "diagram recovery uses borrowed hosting services without a child HWND");
+}
 static void TestEmbeddedFrontMatterFencesAndSourceEdits(GraphicsFixture& gpu)
 {
     using namespace DxUi;

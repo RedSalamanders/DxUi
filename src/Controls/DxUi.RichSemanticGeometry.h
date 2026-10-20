@@ -1,9 +1,16 @@
 #pragma once
+#include "DxUi.PreparedFlowchart.h"
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
+#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
+class NativeObjectCapacity final : public std::length_error
+{
+public:
+    using std::length_error::length_error;
+};
 struct SourceCaretHit
 {
     std::size_t position{}, site = MarkdownNoNode;
@@ -19,7 +26,11 @@ public:
     ~PreparedSemanticGeometry() noexcept;
     PreparedSemanticGeometry(const PreparedSemanticGeometry&)            = delete;
     PreparedSemanticGeometry& operator=(const PreparedSemanticGeometry&) = delete;
-    LayoutPreparationStatus Begin(IDWriteFactory* factory, std::shared_ptr<const SemanticDocument> document, const LayoutOptions& options);
+    LayoutPreparationStatus Begin(IDWriteFactory* factory,
+                                  std::shared_ptr<const SemanticDocument> document,
+                                  const LayoutOptions& options,
+                                  ID2D1Factory* drawing         = nullptr,
+                                  FlowchartResourceEpoch epochs = {});
     LayoutAdvance Advance(LayoutWorkBudget budget = {});
     void Cancel() noexcept;
     void Invalidate() noexcept;
@@ -30,6 +41,7 @@ public:
     std::uint64_t Revision() const noexcept;
     float Height() const noexcept;
     std::size_t BoxCount() const noexcept;
+    bool HasNativeObjects() const noexcept;
     const SemanticDocument& Document() const;
     Hit HitTest(float x, float y) const;
     CaretGeometry Caret(std::size_t displayOffset) const;
@@ -53,7 +65,8 @@ public:
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t offset, bool backwards) const;
     std::size_t LineBoundary(std::size_t offset, bool end) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom) const;
+    void Draw(
+        ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill = nullptr) const;
 
 private:
     struct State;

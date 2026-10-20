@@ -90,12 +90,19 @@ private:
     void PrepareOwned(IDWriteFactory* factory,
                       Projection& projection,
                       const LayoutOptions& options,
-                      float verticalOrigin = 0.0f,
-                      bool semanticDisplay = false,
-                      bool marker          = false);
+                      float verticalOrigin        = 0.0f,
+                      bool semanticDisplay        = false,
+                      bool marker                 = false,
+                      IDWriteInlineObject* object = nullptr,
+                      UINT32 objectOffset         = 0u);
     // Private identity layout for already bounded semantic display, not a model
     // capacity increase or a replacement for its nonmonotonic document map.
-    void PrepareSemanticOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker = false);
+    void PrepareSemanticOwned(IDWriteFactory* factory,
+                              Projection& projection,
+                              const LayoutOptions& options,
+                              bool marker                 = false,
+                              IDWriteInlineObject* object = nullptr,
+                              UINT32 objectOffset         = 0u);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;

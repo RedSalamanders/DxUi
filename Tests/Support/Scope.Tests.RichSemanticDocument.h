@@ -16,13 +16,17 @@ inline std::shared_ptr<const MarkdownSyntax> Parse(std::wstring_view source, Mar
 }
 inline std::shared_ptr<const SemanticDocument> Complete(SemanticBuilder& builder, const MarkdownSyntax& syntax)
 {
-    std::size_t work = 0u;
+    std::size_t work            = 0u;
+    const bool nativeCandidates = syntax.Profile() == MarkdownProfile::RichMarkdown && std::ranges::any_of(syntax.Nodes(), [&](const auto& node) {
+        return node.block.kind == MarkdownBlockKind::FencedCode && syntax.Slice(node.block.info).starts_with(L"mermaid");
+    });
+    const auto bound            = 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u);
     while (builder.HasPendingPreparation())
     {
         const auto step = builder.Advance(7u);
         Check(step.workUnits > 0u && step.workUnits <= 7u, "semantic owner turns obey the declared event budget");
         work += step.workUnits;
-        Check(work <= 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u, "semantic traversal has a linear event bound");
+        Check(work <= bound, "semantic traversal and native source scanning have a linear event bound");
     }
     const auto result = builder.Published();
     Check(result && result->Syntax().get() == &syntax, "semantic publication retains the exact requested immutable syntax");

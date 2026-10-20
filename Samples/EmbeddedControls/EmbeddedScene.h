@@ -34,6 +34,7 @@ struct EmbeddedScene
             rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             rich->SetMarkdownRenderingEnabled(true);
             rich->SetText(L"# Owned Unicode rich text\r\n\r\n"
+                          L"```mermaid\r\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\r\n```\r\n\r\n"
                           L"Edit **bold**, *italic*, ~~deleted~~ and `code`.[^unicode] Try an [underlined link](https://example.invalid).\r\n\r\n"
                           L"<p>Native <b>HTML</b>, <u>underline</u>, <a href='#sample' title='Inert link'>a link</a> and &copy;.</p>\r\n\r\n"
                           L"- [x] A checked task\r\n- [ ] An unchecked task\r\n\r\n"

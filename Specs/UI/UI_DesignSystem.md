@@ -76,6 +76,13 @@ buttons with readable action/status labels, without changing control tokens or
 the gallery tile's resting appearance. Semantic style/structure accessibility
 adds prepared UIA metadata and actions without changing visual tokens or pixels;
 the static HTML preview is design guidance, never native rendering evidence.
+The RichMarkdown native C++ flowchart variant uses body typography, caret-role
+outlines and the ordinary input surface, with opaque node/edge-label backing.
+Selection composites that backing with the resolved selected surface, including
+high contrast. Intrinsic diagrams keep readable scale: a view/font capacity
+rejection shows exact editable source, while unsupported syntax keeps a literal
+code leaf and explanation. The populated native gallery demonstrates both paths
+in every theme; dedicated object source-entry actions remain separate work.
 The RichMarkdown footnote variant adds superscript references, numbered styled
 bodies and repeated underlined backlinks using existing body/selected/disabled
 ink. A footer has its own root indentation; original declaration-list gutters
