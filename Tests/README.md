@@ -165,6 +165,12 @@ an unexpected noexcept failure without a CRT dialog. Correct code returns zero;
 the original Debug failure is a preserved negative diagnostic, never a suite pass.
 ## Native rich images
 
+`test-consumer.ps1` also copies the application-owned image-loader header into
+the relocated sample, compiles all eight public rich-text headers independently,
+and renders the rich sample with explicit document-location metadata. Its receipt
+hashes the new capture. This supplements the existing minimal/complex/text-service
+and multi-module checks; it does not qualify physical IME/AT or performance.
+
 The named `EditorControls` tests cover native resource/pixel publication, the
 real clipboard-to-worker path and bounded loader queues/cancellation/closure.
 The named native/embedded decoded-image tests are in `Accessibility`; ordinary

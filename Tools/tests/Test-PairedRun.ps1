@@ -425,6 +425,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Contains $harness 'Tools/ScopedTesting.psm1' 'old baselines receive the current attestation helper'
     Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
     Assert-Contains $harness 'Tools/Changelog.psm1' 'the validator import closure is complete'
+    Assert-Contains $harness 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'the benchmark compiler configuration is shared'
     Assert-Equal $harness.Count @($harness | Select-Object -Unique).Count 'the effective driver harness has no duplicates'
     $target = Join-Path $root 'baseline'
     $backup = Join-Path $root 'backup'
@@ -434,16 +435,117 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'Tools/ScopedTesting.psm1' 'original baseline scoped helper'
     Set-FixtureFile $target 'Tools/Validation.psm1' 'original baseline solution validator'
     Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
+    Set-FixtureFile $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'original baseline benchmark project'
     $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
     Assert-HarnessOverlay -Target $target -Records $records
     Assert-Equal 'original baseline library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Control.cpp'))) 'candidate library source did not enter the baseline'
     Assert-Equal 'original baseline project' ([IO.File]::ReadAllText((Join-Path $target 'src/DxUi.vcxproj'))) 'baseline compiler/project inputs stay their own'
+    Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
     Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
     Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
     Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
     Assert-Equal 'original baseline solution validator' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Validation.psm1'))) 'the baseline validator was restored'
     Assert-Equal 'original baseline validator dependency' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Changelog.psm1'))) 'the validator dependency was restored'
+    Assert-Equal 'original baseline benchmark project' ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the original benchmark compiler configuration was restored'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/PerformancePolicy.psm1'))) 'created harness files are removed after the study'
+}
+
+function Get-PairedBuildPreflightForTest([string] $Name='Assert-PairedBuildCompatibility') {
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'performance-paired.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'paired driver parses'
+    $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $Name},$true)
+    Assert-True ($null -ne $definition) 'paired runs have a build-compatibility preflight'
+    # Function signatures can declare parameters before the body. Preserve those
+    # declarations so the extracted test call cannot read a caller's variables.
+    $parameters=(@($definition.Parameters | ForEach-Object { $_.Extent.Text }) -join ',')
+    $body=$definition.Body.Extent.Text
+    return [scriptblock]::Create("param($parameters)"+$body.Substring(1,$body.Length-2))
+}
+function New-PairedBuildStateForTest {
+    return [ordered]@{buildIdentityVersion=2;identityStatus='verifiable';identityScope='full';benchmarkSha256='fixture';
+        harnessIdentity='harness';toolchainIdentity='compiler';dependencyIdentity='dependencies';environmentIdentity='machine';
+        sourceCommit='baseline';sourceFingerprint='baseline-source';executableSha256='baseline-exe'}
+}
+Invoke-TestCase 'a changed benchmark project refuses SkipBuild just like a changed compiled fixture' {
+    $changes=Get-PairedBuildPreflightForTest -Name 'Get-PairedBuildChanges'
+    $records=@(@{path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj';action='replaced'},
+        @{path='Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h';action='replaced'},
+        @{path='performance.ps1';action='replaced'})
+    $actual=@(& $changes -Records $records)
+    Assert-Equal 2 $actual.Count 'source and benchmark project both require rebuild'
+    Assert-Contains $actual 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'project options invalidate build reuse'
+    Assert-Contains $actual 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' 'compiled source still invalidates reuse'
+    Assert-Equal 0 @(& $changes -Records @(@{path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj';action='unchanged'})).Count 'unchanged project can reuse its attested build'
+}
+Invoke-FixtureCase 'common benchmark timestamp staging preserves bytes and restores every original stamp' {
+    param($root)
+    $stage=Get-PairedBuildPreflightForTest -Name 'Set-PairedProjectStamps'
+    $restore=Get-PairedBuildPreflightForTest -Name 'Restore-PairedProjectStamps'
+    $left=Join-Path $root 'A'; $right=Join-Path $root 'B'
+    $relative='Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+    foreach($side in @($left,$right)){Set-FixtureFile $side $relative '<Project />'}
+    $first=[DateTime]::UtcNow.AddDays(-2); $second=[DateTime]::UtcNow.AddDays(-1)
+    [IO.File]::SetLastWriteTimeUtc((Join-Path $left $relative),$first)
+    [IO.File]::SetLastWriteTimeUtc((Join-Path $right $relative),$second)
+    $common=[DateTime]::UtcNow
+    $records=@(& $stage -Roots @($left,$right) -StampUtc $common)
+    Assert-Equal 2 $records.Count 'both physical roots are recorded'
+    foreach($side in @($left,$right)){
+        Assert-True (Test-SameStamp $common (Join-Path $side $relative)) 'staged project timestamps match'
+        Assert-Equal '<Project />' ([IO.File]::ReadAllText((Join-Path $side $relative))) 'project bytes are unchanged'
+    }
+    & $restore -Records $records
+    Assert-True (Test-SameStamp $first (Join-Path $left $relative)) 'first original timestamp returns'
+    Assert-True (Test-SameStamp $second (Join-Path $right $relative)) 'second original timestamp returns'
+    [void](Get-ErrorMessage { & $stage -Roots @($left,(Join-Path $root 'missing')) -StampUtc $common })
+    Assert-True (Test-SameStamp $first (Join-Path $left $relative)) 'partial admission failure rolls back the first timestamp'
+}
+Invoke-TestCase 'SkipBuild stages new roots but never changes an existing attested comparison context' {
+    $select=Get-PairedBuildPreflightForTest -Name 'Get-PairedProjectStampRoots'
+    $sides=@(@{Root='new-baseline';Existing=$false},@{Root='existing-candidate';Existing=$true})
+    Assert-Equal 'new-baseline' (@(& $select -Sides $sides -ReuseBuilds $true) -join ',') 'new revision still needs setup and build'
+    Assert-Equal 'new-baseline,existing-candidate' (@(& $select -Sides $sides -ReuseBuilds $false) -join ',') 'fresh builds stage both sides'
+    Assert-Equal 0 @(& $select -Sides @($sides[1]) -ReuseBuilds $true).Count 'an entirely reused study keeps project timestamps'
+}
+Invoke-TestCase 'paired preflight allows distinct source/artifacts only with complete matched build profiles' {
+    $preflight=Get-PairedBuildPreflightForTest
+    $baseline=New-PairedBuildStateForTest; $candidate=New-PairedBuildStateForTest
+    $candidate.sourceCommit='candidate'; $candidate.sourceFingerprint='candidate-source'; $candidate.executableSha256='candidate-exe'
+    & $preflight -Baseline $baseline -Candidate $candidate
+    & $preflight -Baseline $baseline -Candidate $baseline
+}
+Invoke-TestCase 'paired preflight rejects absent or changed compiler, dependency, fixture and environment identities' {
+    $preflight=Get-PairedBuildPreflightForTest
+    foreach($field in @('benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity')) {
+        foreach($mutation in @('different','empty','missing','wrong-type')) {
+            $baseline=New-PairedBuildStateForTest; $candidate=New-PairedBuildStateForTest
+            switch($mutation) {
+                'different' {$candidate[$field]='CHANGED'}
+                'empty' {$candidate[$field]=' '}
+                'missing' {$candidate.Remove($field)}
+                'wrong-type' {$candidate[$field]=123}
+            }
+            $message=Get-ErrorMessage { & $preflight -Baseline $baseline -Candidate $candidate }
+            Assert-True ($message -like "*$field*") "the refusal identifies $field ($mutation)"
+            $message=Get-ErrorMessage { & $preflight -Baseline $candidate -Candidate $baseline }
+            Assert-True ($message -like "*$field*") 'both roles require complete identities'
+        }
+    }
+    foreach($case in @(@('buildIdentityVersion',1),@('identityStatus','identity-unverifiable'),@('identityScope','platform-only'))) {
+        $baseline=New-PairedBuildStateForTest; $candidate=New-PairedBuildStateForTest
+        $candidate[$case[0]]=$case[1]
+        [void](Get-ErrorMessage { & $preflight -Baseline $baseline -Candidate $candidate })
+    }
+}
+Invoke-TestCase 'paired build preflight runs after builds and before the first measurement' {
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'performance-paired.ps1'),[ref]$tokens,[ref]$errors)
+    $preflight=$ast.Find({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Assert-PairedBuildCompatibility'},$true)
+    $measurement=$ast.Find({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Invoke-Measurement'},$true)
+    $build=$ast.Find({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Complete-PerformanceBuildAttestation'},$true)
+    Assert-True ($null -ne $preflight -and $null -ne $measurement -and $null -ne $build) 'build, preflight and measurement are explicit stages'
+    Assert-True ($build.Extent.StartOffset -lt $preflight.Extent.StartOffset -and $preflight.Extent.StartOffset -lt $measurement.Extent.StartOffset) 'incompatible builds cannot consume measurement slots'
 }
 
 function Get-HistoricFingerprint([string] $Root) {

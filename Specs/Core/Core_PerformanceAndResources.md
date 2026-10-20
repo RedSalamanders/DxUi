@@ -90,6 +90,15 @@ targets are acceptance contracts, not claims of current support.
 
 ## Mandatory performance policy
 
+Paired setup MUST share the benchmark project and its effective compiler options,
+including per-item flags, while retaining each side's own library project/source.
+Fresh builds stage the common benchmark project's timestamp after restore and
+record/restore original timestamps so MSBuild's newest-import selection is
+comparable. Reused builds retain their attested context. Before any measured
+process, both v2 full build states MUST match fixture, harness, compiler,
+dependency and environment identities. A mismatch consumes no measurement slots;
+retain the refused states. No property, flag or threshold is ignored to get a match.
+
 Speed and low memory consumption are primary library requirements for every design, implementation, review and test.
 Among correct designs, minimize steady-state CPU/GPU time, private/resident memory, allocations and copies,
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,

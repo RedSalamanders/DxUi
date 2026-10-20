@@ -21,6 +21,15 @@ PR #89 readiness, 2026-10-20:
 - [ ] Investigate D4c using frozen main/candidate identities, controlled matched
   runs, bounded clear/readback and scheduler admission, retaining all original
   failures/outliers. No compilation or functional suites overlap local timing.
+- [x] Reproduce paired setup mismatch with actual full compiler profiles. Share
+  the benchmark project (`/bigobj`), stage/restore timestamp context without
+  excluding `MSBuildAllProjects`, and fail before timing on incompatible states.
+  Preserve original mismatches and pre-fix regression failures; 31 tooling cases
+  now pass. This is setup qualification, not D4c acceptance.
+- [ ] Requalify the repaired relocated public consumer: original CI missed
+  `RichImageLoader.h`; copy it, compile all public rich headers independently and
+  require a rich-sample capture. Keep CI's original failures and native passes
+  separate from the eventual repaired-source result.
 - [ ] Record the separate unqualified-base-policy blocker and independent review
   requirement. Do not self-approve the policy, relax budgets or suppress checks.
 - [ ] Fix reproduced failures, update contracts/docs/results, push all changes,

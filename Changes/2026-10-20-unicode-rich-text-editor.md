@@ -3,3 +3,5 @@
   native image rendering and document-relative image/file-link paste. Specify
   pending file drag-and-drop and consolidate validation into a concise summary;
   performance acceptance and remaining extension/platform/product gates stay open.
+  Add relocated rich-sample checks and share/preflight paired benchmark build
+  configuration while preserving original contexts and refusing mismatches.

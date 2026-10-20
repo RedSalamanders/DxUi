@@ -80,6 +80,19 @@ No threshold, baseline, exact budget or historical finding is relaxed here.
 
 ## PR readiness work (in progress)
 
+- Local merged-source x64 builds passed in all three configurations; four targeted
+  Debug suites and four Debug foreground suites passed. Desktop restoration was
+  verified. Later harness edits invalidated reuse before the next profile;
+  requalification remains required, and that refusal is preserved.
+- Initial x64 CI passed native suites but failed the relocated consumer because
+  `RichImageLoader.h` was not copied. The fix also adds all eight public rich-header
+  compile checks and a rich-text render/capture smoke check; fresh CI is pending.
+- A matched-probe preflight isolated benchmark `/bigobj` and timestamp-driven
+  `MSBuildAllProjects` differences. Identical project bytes/options yielded matching
+  normalized profiles after timestamp staging. The paired setup now shares that
+  project, restores timestamps and rejects incompatible states before timing.
+  All 31 paired-run tooling cases pass; original negative tests and states remain
+  private. Judges, assignment generator, policies and thresholds are unchanged.
 - Main `f65e4a4b` integrated at `2ceb1da5`; all five conflicts resolved, retaining
   both documentation indexes and all test registrations (141 unique native files).
 - Fresh merged-source native/build/consumer/interactive CI and local targeted

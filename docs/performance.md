@@ -80,6 +80,15 @@ so its own effect needs measurement before attributing
 the variability. CPU-time quantization also makes some clean-window deltas zero; raw cycle counts are consumption
 observations rather than elapsed durations. See the retained packet for exact ranges and validation limits.
 
+Paired runs now overlay the benchmark project alongside the fixture, retaining
+each side's library project and source. They stage/restore its timestamp for fresh
+builds and record both full identities before consuming a measurement slot.
+This handles different per-item options and the
+[MSBuild newest-project/import selection](https://github.com/dotnet/msbuild/blob/main/src/Build/Evaluation/Evaluator.cs)
+without excluding metadata or relaxing comparison. SkipBuild preserves attested
+contexts and refuses a changed benchmark project. A successful preflight is setup
+admission, not performance acceptance; the unqualified-policy gate still applies.
+
 The [RichTextEditor source-command investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
 retains a corrected matching-profile 48-process Default study and eight CPU/cache
 profiles. Its clean-frame p95 paired effect is -1.31%, with both judges agreeing

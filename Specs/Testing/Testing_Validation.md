@@ -99,6 +99,14 @@ entry order may differ from completion order; late or in-flight callbacks MUST r
 A quiet interval does not guarantee no later delivery. Provider attempts MUST NOT substitute for semantic event
 payloads or delivery success, and partial callback completion MUST NOT be reported as a complete timeline.
 
+The paired setup regression tests MUST cover common benchmark-project options,
+changed-project SkipBuild refusal, timestamp byte preservation/restoration/partial
+failure, new versus reused roots, complete cross-side identities and preflight
+ordering before measurements. Relocated public-consumer qualification MUST copy
+the image-loader sample header, compile all eight rich-text public headers as
+first/only includes, and render the rich sample with explicit document metadata.
+Missing headers and absent rich capture files fail qualification.
+
 Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
 while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
 judges are replayed from the same hashed native reports, including every same-side control. Historical v1 reports

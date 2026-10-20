@@ -31,7 +31,7 @@ Write-Lock
 # Prevent ancestor repository properties from contaminating this external consumer.
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.props')
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.targets')
-foreach($name in @('EmbeddedScene.h','EmbeddedTextClient.h','GraphicsFixture.h','Main.cpp')) {
+foreach($name in @('EmbeddedScene.h','EmbeddedTextClient.h','GraphicsFixture.h','RichImageLoader.h','Main.cpp')) {
     $sampleDirectory=Join-Path $consumer 'Samples/EmbeddedControls'
     New-Item -ItemType Directory -Path $sampleDirectory -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $checkout "Samples/EmbeddedControls/$name") -Destination (Join-Path $sampleDirectory $name)
@@ -65,7 +65,8 @@ $project=@"
 </Project>
 "@
 # Compile every supported helper header as the first and only include in its own translation unit.
-$headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop','RichDocument','RichMarkdown','RichTextLayout')) {
+$headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop',
+    'RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage')) {
     "#include <DxUi/$header.h>" | Set-Content -LiteralPath (Join-Path $consumer "$header.cpp") -Encoding utf8
     '<ClCompile Include="' + $header + '.cpp" />'
 }
@@ -82,6 +83,8 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render
 if ($LASTEXITCODE -ne 0) { throw 'The relocated independent complex sample failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --text-input --output (Join-Path $consumer 'text-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated text-service consumer failed.' }
+& (Join-Path $consumer 'bin/ExternalConsumer.exe') --rich-text --document-path (Join-Path $consumer 'note.md') --output (Join-Path $consumer 'rich-text-consumer.png')
+if ($LASTEXITCODE -ne 0) { throw 'The relocated rich-text consumer failed to render.' }
 # Independently link the same archive into an executable and two plugin-like DLLs. No DxUi C++
 # state crosses their C ABI; native class dispatch and animation must remain in the owning module.
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
@@ -134,6 +137,7 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
     nativeModuleChecks=12;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8
 Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: $root"
