@@ -493,6 +493,12 @@ when trusted snapshot change metadata is already available, and avoids indexing
 discarded old children for a full replacement. Read-spy and parser identity/event
 budget tests and focused x64 Debug/native/embedded qualification pass. Source ownership
 copies, line scans and complete incremental preparation remain separate work.
+`Document::ReplaceWholeText` also localizes notifying
+RichTextEditor service commits, sharing unchanged pieces while recording one
+undo transaction. It reuses transient Unicode/CRLF boundary comparison. Focused
+x64 Debug model/adapter/native/embedded, observed failure and controlled C++
+storage checks pass. Complete incremental preparation, retained source-edit
+integration, final profiles and frame-performance acceptance remain separate.
 `PreparedProjection` is the supporting v0 line-block preparation service. Call
 `Prepare(snapshot, revision, mode)` on the preparation owner, then use `ToDisplay`,
 `ToSource` or immutable `Blocks()` with document-wide source/display prefixes.

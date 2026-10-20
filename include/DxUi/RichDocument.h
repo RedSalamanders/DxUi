@@ -111,6 +111,9 @@ public:
     void SetSelection(Selection selection);
     void Reset(std::wstring_view text);
     bool Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after);
+    // A service supplies complete text, but one recorded transaction retains
+    // only its scalar/CRLF-safe changed interval and shares untouched pieces.
+    bool ReplaceWholeText(std::wstring_view text, Selection after);
     // OS composition previews and their rollback change source/selection with a
     // fresh revision, preserving both histories. Restore the entry text before
     // recording the final committed replacement as one ordinary transaction.
@@ -139,5 +142,6 @@ private:
     std::vector<History> undo_, redo_;
     static void Push(std::vector<History>& history, History entry);
     bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory);
+    bool ReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory);
 };
 } // namespace DxUi::RichText

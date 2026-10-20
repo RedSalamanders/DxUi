@@ -39,6 +39,70 @@ static void TestRichDocumentFragmentedHistoryStorageBudget()
     Check(retained >= 0 && retained <= 4 * 1024 * 1024, "fragmented source plus capped history retains at most four MiB of C++ storage");
 }
 
+static void TestRichRecordedWholeTextStorageBudget()
+{
+    using namespace DxUi::RichText;
+    static_cast<void>(Document{}.Length()); // Warm immutable empty-state storage outside accounting.
+    std::wstring input(Document::MaximumUnits, L'a');
+    const auto oldCounting = countLiveBytes;
+    const auto oldLive     = liveBytes;
+    ptrdiff_t retained[2]{}, released[2]{};
+    bool correct = true, noOpChanged{true};
+    std::size_t calls{}, bytes{};
+    // Same fixture and allocator accounting: retain the adapter's former
+    // whole-range recording path beside the new localized state import.
+    for (std::size_t mode = 0u; mode < 2u; ++mode)
+    {
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countLiveBytes = oldCounting;
+            liveBytes      = oldLive;
+        });
+        liveBytes          = 0;
+        countLiveBytes     = true;
+        {
+            Document document(input);
+            for (std::size_t edit = 0u; edit < Document::MaximumHistory; ++edit)
+            {
+                input[input.size() / 2u] = edit % 2u ? L'a' : L'b';
+                if (mode)
+                    document.ReplaceWholeText(input, {0u, 0u});
+                else
+                    document.Replace(0u, document.Length(), input, {0u, 0u});
+            }
+            correct             = correct && document.Text() == input && document.CanUndo();
+            retained[mode]      = liveBytes;
+            const auto revision = document.Revision();
+            {
+                const auto oldCount = countAllocations;
+                const auto oldCalls = allocations, oldBytes = allocationBytes;
+                const auto restoreCount = wil::scope_exit([=]() noexcept
+                {
+                    countAllocations = oldCount;
+                    allocations      = oldCalls;
+                    allocationBytes  = oldBytes;
+                });
+                allocations = allocationBytes = 0u;
+                countAllocations              = true;
+                noOpChanged                   = document.ReplaceWholeText(input, {input.size(), 0u});
+                countAllocations              = false;
+                calls                         = allocations;
+                bytes                         = allocationBytes;
+            }
+            correct = correct && document.Revision() == revision && document.GetSelection() == Selection{input.size(), 0u};
+        }
+        released[mode] = liveBytes;
+        countLiveBytes = false;
+    }
+    Check(correct && ! noOpChanged && calls == 0u && bytes == 0u, "equal recorded complete text changes only selection and allocates no C++ storage/history");
+    Check(retained[1] >= 0 && retained[1] <= 4 * 1024 * 1024 && released[0] == 0 && released[1] == 0,
+          "128 localized recorded imports of a 64-Ki-unit document share untouched storage within four MiB and release both fixtures completely");
+    Check(retained[0] > 4 * 1024 * 1024 && retained[1] < retained[0],
+          "the unchanged whole-range baseline demonstrates the retained-source regression repaired by localized recording");
+    std::cout << "rich recorded complete-text sourceUnits=" << input.size() << " edits=" << Document::MaximumHistory
+              << " baselineRetainedCppBytes=" << retained[0] << " localizedRetainedCppBytes=" << retained[1] << " releasedDelta=" << released[0] << ','
+              << released[1] << " noOpAllocations=" << calls << '\n';
+}
 static void TestRichDocumentSameContentAllocationBudget()
 {
     DxUi::RichText::Document document(std::wstring(8192u, L'a'));
@@ -100,6 +164,7 @@ static void TestRichDocumentAllocationFailureAtomicity()
             case 2u: document.Reset(text); break;
             case 3u: document.Undo(); break;
             case 4u: document.Redo(); break;
+            case 5u: document.ReplaceWholeText(text, {0u, 0u}); break;
         }
     };
     const auto historiesMatch = [](Document left, Document right)
@@ -116,13 +181,18 @@ static void TestRichDocumentAllocationFailureAtomicity()
             }
         return true;
     };
-    for (size_t operation = 0u; operation < 5u; ++operation)
+    for (size_t operation = 0u; operation < 6u; ++operation)
     {
         size_t requests = 0u;
         {
             Document candidate     = baseline;
             std::wstring insertion = L"prepared replacement source";
-            const auto oldCount    = countAllocations;
+            if (operation == 5u)
+            {
+                insertion = expected;
+                insertion.replace(77u, 4u, L"prepared replacement source");
+            }
+            const auto oldCount = countAllocations;
             const auto oldCalls = allocations, oldBytes = allocationBytes;
             const auto restore = wil::scope_exit([=] noexcept
             {
@@ -141,7 +211,12 @@ static void TestRichDocumentAllocationFailureAtomicity()
         {
             Document candidate     = baseline;
             std::wstring insertion = L"prepared replacement source";
-            bool rejected          = false;
+            if (operation == 5u)
+            {
+                insertion = expected;
+                insertion.replace(77u, 4u, L"prepared replacement source");
+            }
+            bool rejected = false;
             {
                 const auto previous = failAllocationAfter;
                 const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
@@ -156,7 +231,7 @@ static void TestRichDocumentAllocationFailureAtomicity()
                 }
             }
             Check(rejected && candidate.Text() == expected && candidate.GetSelection() == selection && candidate.Revision() == revision &&
-                      candidate.CanUndo() && candidate.CanRedo() && saved.Text() == expected,
+                      candidate.CanUndo() && candidate.CanRedo() && saved.Text() == expected && candidate.Snapshot().IsSameRevision(saved),
                   "failed source/history allocation publishes no text, selection, revision or history change");
             Check(historiesMatch(candidate, baseline), "all undo/redo entries survive allocation failure in order");
         }

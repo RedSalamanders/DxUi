@@ -155,12 +155,31 @@ will require fresh reviewed captures. M6b/M6c and the overall plan remain open.
     before/after identity are frozen under
     `.build/reports/rich-correlation-d2a-20261020/Iteration1`. Timings remain
     unpaired diagnostics and D4c stays HOLD. Full extension profiles remain M5f.
-  - [ ] D2a.recorded-import (added scoped-editing dependency): reuse localized
+  - [x] D2a.recorded-import (added scoped-editing dependency): reuse localized
     transient replacement logic for notifying rich-text service commits. The
     actual protected-adapter baseline reports a four-unit edit at [9,13) as
     [0,22), losing useful source-change bounds and copying the whole source.
     Preserve that baseline; keep one undo transaction, exact Unicode selection,
     composition rollback, immutable snapshots and allocation-failure atomicity.
+    `Document::ReplaceWholeText` shares the
+    existing scalar/CRLF-safe transient interval comparison and records one
+    ordinary transaction. Only notifying RichTextEditor service imports adopt
+    it. Ten independent model/service scenarios pass registered native/embedded
+    checks. Canonical Iteration1 builds in 4:45 and passes 24 directed checks,
+    full Foundation/EditorControls/Accessibility/Embedded, the existing 2,187
+    parser/semantic/diagram allocation points and 47 source/history points
+    (including 15 newly observed localized-recording allocations). The paired
+    64-Ki-unit/128-edit C++ storage fixture retains 17,253,630 bytes through the
+    former whole-range path and 468,350 through localized recording; both release
+    every tracked byte and equal-content imports allocate nothing. Embedded
+    reports 439,448 checks and 1,000 warm composites in 8,290 us with zero tracked
+    C++ allocations. Complete validation/tooling, pinned formatting and exact v2
+    before/after identity pass. The frozen packet is
+    `.build/reports/rich-recorded-import-d2a-20261020/Iteration1`. This is focused
+    x64 Debug functional/retention qualification; timings are unpaired, D4c stays
+    HOLD, and full extension profiles remain M5f.
+    The initial proposed name collided with the SDK's ReplaceText macro; that
+    private compiler failure is preserved and the explicit whole-text name is used.
 - [x] D2b-core: Canonical bounded model/projection/layout and migrated behavior
   tests pass all 19 normal suites in x64 Debug/Release/ASan and all ARM64 builds.
 - [x] D2b: Move reusable model/projection/layout into include/DxUi and src/Controls

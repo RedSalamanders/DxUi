@@ -1004,8 +1004,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     bool changed;
     try
     {
-        changed = notifyChange ? _state->document.Replace(0, _state->document.Length(), state.text, selection)
-                               : _state->document.ReplaceTransient(state.text, selection);
+        changed = notifyChange ? _state->document.ReplaceWholeText(state.text, selection) : _state->document.ReplaceTransient(state.text, selection);
     }
     catch (const std::logic_error&)
     {

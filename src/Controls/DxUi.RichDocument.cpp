@@ -608,6 +608,14 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view tex
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
+    return ReplaceWholeTextImpl(text, selection, false);
+}
+bool Document::ReplaceWholeText(std::wstring_view text, Selection selection)
+{
+    return ReplaceWholeTextImpl(text, selection, true);
+}
+bool Document::ReplaceWholeTextImpl(std::wstring_view text, Selection selection, bool recordHistory)
+{
     Validate(text);
     const auto length      = Length();
     const auto commonLimit = std::min(length, text.size());
@@ -649,9 +657,10 @@ bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
     });
     while (suffix && (! source_.IsBoundary(length - suffix) || ! IsEditBoundary(text, text.size() - suffix)))
         --suffix;
-    // The OS supplies whole preview text. Retain only its changed interval;
-    // untouched buffers/paths and useful incremental metadata stay shared.
-    return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, false);
+    // The OS supplies complete text for previews and notifying commits. Retain
+    // only the changed interval; untouched buffers/paths and useful incremental
+    // metadata stay shared. The caller chooses ordinary or transient history.
+    return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, recordHistory);
 }
 
 bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory)

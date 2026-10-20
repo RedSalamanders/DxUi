@@ -1,4 +1,5 @@
 #include "Scope.Tests.RichDocument.h"
+#include "../Support/Scope.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichDocument.h>
 #include <atomic>
@@ -453,8 +454,13 @@ void TestRichDocumentBorrowedInputLifetime()
 
 } // namespace
 
+void TestRichDocumentLocalizedRecordedStateReplacement()
+{
+    RichTextStateReplacementTests::Core(Require);
+}
 void RunRichDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichDocumentLocalizedRecordedStateReplacement);
     DXUI_RUN_TEST(TestRichDocumentPrototypeContracts);
     DXUI_RUN_TEST(TestRichDocumentSlicesAndJoinedBoundaries);
     DXUI_RUN_TEST(TestRichDocumentCrossPieceUnicodeOracle);

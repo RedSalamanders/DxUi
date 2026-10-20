@@ -1167,6 +1167,19 @@ static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
         *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "capacity source fallback preparation"); }, Check);
     Check(! view.Controls().GetHwnd(), "capacity fallback acquires no control HWND");
 }
+static void TestEmbeddedLocalizedRecordedServiceCommit(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "recorded service shared borrowed device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "recorded service embedded owner");
+    auto owned   = std::make_unique<RichTextStateReplacementTests::ServiceEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    RichTextStateReplacementTests::Service(*editor, view.Controls(), Check);
+    Check(! view.Controls().GetHwnd(), "recorded embedded import needs no control HWND");
+}
 static void TestEmbeddedDiagramSelectionRaster(GraphicsFixture& gpu)
 {
     using namespace DxUi;

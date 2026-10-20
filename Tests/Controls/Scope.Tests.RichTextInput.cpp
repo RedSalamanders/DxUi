@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichTextInput.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../Support/Scope.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/Embedded.h>
 #include <imm.h>
@@ -11,13 +12,7 @@ using namespace DxUi::RichText;
 
 // Expose the protected adapter to exercise malformed service input independently
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
-class ServiceRichEditor final : public RichTextEditor
-{
-public:
-    using RichTextEditor::ExportTextInputState;
-    using RichTextEditor::ImportTextInputState;
-    using RichTextEditor::RichTextEditor;
-};
+using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
 
 void TestRichTextTransientSourcePreservesHistory()
 {
@@ -276,6 +271,28 @@ void TestRichTextEmbeddedPreviewRebinding()
 }
 } // namespace
 
+void TestRichTextNativeLocalizedServiceCommit()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<ServiceRichEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RichTextStateReplacementTests::Service(*editor, window.Host(), Require);
+}
+void TestRichTextEmbeddedLocalizedServiceCommit()
+{
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "localized service borrowed graphics fixture");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "localized service shared device");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics), "localized service embedded owner");
+    auto owned   = std::make_unique<ServiceRichEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    RichTextStateReplacementTests::Service(*editor, view.Controls(), Require);
+    Require(! view.Controls().GetHwnd(), "localized embedded service commit creates no control HWND");
+}
 void RunRichTextInputTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
@@ -287,6 +304,8 @@ void RunRichTextInputTests()
             CoUninitialize();
     });
     DXUI_RUN_TEST(TestRichTextTransientSourcePreservesHistory);
+    DXUI_RUN_TEST(TestRichTextNativeLocalizedServiceCommit);
+    DXUI_RUN_TEST(TestRichTextEmbeddedLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextServiceValidationAndGeometry);
     DXUI_RUN_TEST(TestRichTextNativeImeCommitCancelAndRetirement);
     DXUI_RUN_TEST(TestRichTextEmbeddedCompositionRevisionsAndRebinding);

@@ -6,6 +6,7 @@
 #include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
 #include "../Support/Scope.Tests.MarkdownSourceCorrelation.h"
+#include "../Support/Scope.Tests.RichTextStateReplacement.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "../Support/Support.Tests.FailureReports.h"
 #include <DxUi/AccessibilityTextUnits.h>
@@ -1280,11 +1281,18 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-document-storage")
     {
         const std::wstring_view test(__wargv[2]);
-        Check(test == L"Retained" || test == L"SameContent", "known rich source storage case");
+        Check(test == L"Retained" || test == L"SameContent" || test == L"Recorded" || test == L"RecordedFailures", "known rich source storage case");
         if (test == L"Retained")
             TestRichDocumentFragmentedHistoryStorageBudget();
-        else
+        else if (test == L"SameContent")
             TestRichDocumentSameContentAllocationBudget();
+        else if (test == L"Recorded")
+        {
+            RichTextStateReplacementTests::Core(Check);
+            TestRichRecordedWholeTextStorageBudget();
+        }
+        else
+            TestRichDocumentAllocationFailureAtomicity();
         return 0;
     }
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
@@ -1424,6 +1432,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
     TestRichDocumentFragmentedHistoryStorageBudget();
+    RichTextStateReplacementTests::Core(Check);
+    TestRichRecordedWholeTextStorageBudget();
+    TestEmbeddedLocalizedRecordedServiceCommit(gpu);
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichSourceChangeAllocationBudget();

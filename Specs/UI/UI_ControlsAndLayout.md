@@ -666,6 +666,17 @@ skip fully removed middle subtrees, coalesce rewritten contiguous buffer slices
 and rebalance before publication. Only the final root may collapse height.
 No per-read cache or mutable shared index is retained. Worker reads use a captured
 immutable snapshot, not a concurrent call into a mutating Document.
+`Document::ReplaceWholeText(text, selection)` accepts complete service text but
+records only the scalar/CRLF-safe changed interval, sharing untouched source
+pieces. It MUST use the same interval comparison as transient preview updates,
+with ordinary one-transaction undo/redo semantics and exact supplied selection.
+Equal content MUST preserve source identity/revision/history and acknowledge
+selection without allocating source/history storage. Invalid input or allocation
+failure MUST leave source, selection, revision and both histories unchanged.
+Notifying RichTextEditor service imports MUST use this localized recording path;
+preview/cancel imports retain transient semantics. Other controls keep their
+existing adapters. Comparison of bounded complete text remains indivisible;
+this is not a large-file or total constant-time claim.
 Validate future selections against the virtual old-prefix/insertion/old-suffix
 before allocating source storage/history, including a newly joined CRLF. A
 same-content replacement only acknowledges its exact valid selection; it allocates
