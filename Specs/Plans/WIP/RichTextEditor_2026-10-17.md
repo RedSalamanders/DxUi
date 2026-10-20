@@ -10,8 +10,17 @@ RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
 
 - [x] Native inline/display mathematical objects, bounded TeX, matrix/alignment and scalable delimiters.
 - [x] Broader native Mermaid state/class models with source-exact fallback.
-- [ ] Source/history, native/embedded geometry, accessibility, resource/device tests and six build configurations.
-- [ ] Documentation/gallery and consumer handoff evidence. Physical/native ARM64 and D4c remain separate.
+- [x] Source/history, native/embedded geometry, accessibility/device checks and six build configurations.
+- [x] Documentation/gallery and exact-pin consumer handoff evidence.
+
+Runtime source `778e8630392812c65da364c778056ff42b862f36` passes all 19 noninteractive suites in each x64
+configuration (57 zero-skip passes), real ASan detection and all six native builds. Independent glyph-position
+oracles cover aligned/cases/matrix columns and oversized notation keeps opaque source. The library-only
+[final receipt packet](../../../Measurements/RichText/2026-10-20-native-math-diagrams/Final/README.md) retains
+source fingerprints, executable hashes and raw reports. RedTilde adopts that exact runtime revision and separately
+passes its 20 behavioral cases in each x64 profile, crash/restart, portable extraction and actual captures.
+Application receipts remain in the application repository. Full language conformance, physical/native ARM64,
+agreed-time focus tests, WARP/clean/dirty/hidden resource acceptance and D4c performance remain open.
 
 
 PR #89 readiness, 2026-10-20:

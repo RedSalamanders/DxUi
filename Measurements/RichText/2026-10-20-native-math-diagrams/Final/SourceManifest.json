@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-math-mermaid-validation",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.NativeMath.cpp": "0D80B6B671DE3461643C92FB62F95F83580084ECE4AD25D2F8371C4C0B2FFA27",
+    "src/Controls/DxUi.PreparedMath.h": "61CEB37A016D2F709F5371412D03016F34C951F4B9BA5BEE6F80992488D19329",
+    "src/Controls/DxUi.NativeFlowchart.cpp": "D425140CF2409ECFB1F82C4950840B2FAAA7E3DFB692CA3FF1828188DF5CEA90",
+    "Tests/Controls/Scope.Tests.RichSemanticDocument.cpp": "F0EDCE5C4F2CFB2A7C6481E1D809EF76028C52F5EDE32B23A8C62363B78001BC",
+    "Tests/Support/Scope.Tests.RichSemanticEditor.h": "2ED6C78239D7B3D76BB33EF6FEE95EF7EB427246CD73D94C33C6D2C417E47F6D",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "runtimeSourceCommit": "778e8630392812c65da364c778056ff42b862f36",
+  "sourceFingerprint": "03FA16B3AFDFD7B3B134A43F25142CFC84EC599E02DB354CCC6DEE11C19FFD8F",
+  "compiledSourceMatchesRuntimeCommit": true,
+  "normalSuites": [
+    "Foundation",
+    "Embedded",
+    "Grid",
+    "Theme",
+    "Control",
+    "MenuExitLifetime",
+    "NewControls",
+    "EditorControls",
+    "TextField",
+    "MultilineText",
+    "ReadOnly",
+    "ComboBox",
+    "Tree",
+    "Tooltip",
+    "Rendering",
+    "Animation",
+    "Accessibility",
+    "WindowHost",
+    "InteractiveLease"
+  ],
+  "suitePassCount": 57,
+  "capabilitySkipCount": 0,
+  "profiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "runtimeExecuted": true,
+      "buildIdentity": "842ad0e2b816e06046c2d4131ee9ae211f2dc1747e964a63330f903425bd5e3f",
+      "buildDigest": "d1061cd35b314a93b1d4e1deacaf54bc854cd96875c283dbc4900aed7df9ac10",
+      "binaries": {
+        "DxUi.lib": "1DD366A0ABD99AA89C5D99271B86A492DCF313156CC7865EE0C4C7D15CC68A83",
+        "DxUi.ControlTests.exe": "7A4557940B90609EC063F8F5B4147E90BC12EF210A0332AD0AF0119E0E293B80",
+        "DxUi.FoundationTests.exe": "152F00A5B94643D78643575CDA23E71890411814202F2649B0D9C49B38CDF215",
+        "DxUi.EmbeddedTests.exe": "5A8CD423D7678A1153A6AA457468AC27327BC608BA0CCE8160F6D68F22F6C490"
+      }
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "runtimeExecuted": true,
+      "buildIdentity": "53db3ae28f29f141539fe0fe8db3b664304f54613910beb283677f9408b215eb",
+      "buildDigest": "6fbef19ef9e7a585cdcbf4745721218a0d3563ed631a0836c2d064dc7910dd6e",
+      "binaries": {
+        "DxUi.lib": "A2AED2AC84283630EBC1A73B73BECC9F6BF07D54E80870A414B60074D3885550",
+        "DxUi.ControlTests.exe": "0B59141684B7351C991F330FD0E1D080FE4AEE5346630D5B41771D311409BD4E",
+        "DxUi.FoundationTests.exe": "5A90F8D94A3AE4BFD8E78C3EB994EB3AE444FFC3BAA3EADA62A0ABDD98059070",
+        "DxUi.EmbeddedTests.exe": "9D2817131778277143EC0972322CF610E8A206600B128BE7334A247FC01FE07D"
+      }
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "runtimeExecuted": true,
+      "buildIdentity": "893f69d48a2b5feadd6c837a78001ab0f2880a003b695f7eaea5106505e844b9",
+      "buildDigest": "34e03ba5a2abb06332dedfda21f67b8744e5c32c1cdfb2a7cd05e8588ede66b5",
+      "binaries": {
+        "DxUi.lib": "3BD2AD567CB4138A7742408270C73BD32FDAC34F11AF4AE593291EF9ED0FDFC3",
+        "DxUi.ControlTests.exe": "C79B70F6D4453BB8A864E5E4F771234694441AAFD585980D010414B348E6E785",
+        "DxUi.FoundationTests.exe": "514E84BEA6584E284AE4C6CF177811728864FABE5540AA7538B84CD0C3EFF6B7",
+        "DxUi.EmbeddedTests.exe": "6BFF24E6B9D0C1A705100CC7EBCDEE3C376201758BAA8F11644F382C21501D1B"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "runtimeExecuted": false,
+      "buildIdentity": "3ce16e17c65ba11f70f844769f8fda1de4d48b7db136385114866715ed62583b",
+      "buildDigest": "435626c27867061009f54ae80ef235dea0080582f25a4162183420ae804a73c1",
+      "binaries": {
+        "DxUi.lib": "FB06B2EC61552AB61D72CC703CBE9C8ECD9CB6200F43FE1B6299019E1DEFF528",
+        "DxUi.ControlTests.exe": "274527989DEA4CE4642EA23C65008592141993E16388B8B7D15293ECEADABAB0",
+        "DxUi.FoundationTests.exe": "C1DCD13D9B34F37AAA4597E73C97408B4A89740BD64019F7B791C4B960072D06",
+        "DxUi.EmbeddedTests.exe": "B395210AED501D0C893B74E9509BD2A871D9207E17ACC6323A92F6E690AB8AD1"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "runtimeExecuted": false,
+      "buildIdentity": "9f26645a6077dca348ac6008bd83acb43e6bb733cbe6393150fd1dcc56dc56b2",
+      "buildDigest": "69c15ff0f78c2b7cea0bd3a8d78790c12dddf8d2ada0c3e78bf082d8ed0da430",
+      "binaries": {
+        "DxUi.lib": "D836DB423E6885920C2375EA92A6FA69FF8F229FD1CDC95475E145A07564F7B4",
+        "DxUi.ControlTests.exe": "40E901DD59245190477CCAEC235DF635A3EACC9A3A673C4A0F3A5A067081427C",
+        "DxUi.FoundationTests.exe": "1708B969A19A381E2F058BED7E7FD2635C1BEA0535BF1FFBE3D8CE3A727DC652",
+        "DxUi.EmbeddedTests.exe": "B9151D76C546C2A07EC0C6C793E4C6209AF07B5E3D1987FEA9A35AFB4D8721AC"
+      }
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "runtimeExecuted": false,
+      "buildIdentity": "f04ae7e86db949afc6894fe886e9b597f71a1daf2ad8c8479e634ad54c82db3f",
+      "buildDigest": "e0e5ecfeb73586384fa16dabc7c84e9223bb512e0a6c14080047ea0b1037bd6e",
+      "binaries": {
+        "DxUi.lib": "3191EE44F654A021CD4C33684B3E53E0224D40F60879B5993000C0B96CC76D3C",
+        "DxUi.ControlTests.exe": "06BED75157571C666B08F61796FA28F75EB7CA5011E3F0E0FBDDE22B2F37F973",
+        "DxUi.FoundationTests.exe": "0A9D70AF669D80DADFAC961B8F77E1E83F63AAE3B8EF54C85A911FCCD48AEE59",
+        "DxUi.EmbeddedTests.exe": "2B416F52465145AA29EC59CE6B3C1F68D35AE22335C4E1F89FF3B3F66DB73324"
+      }
+    }
+  ],
+  "interactiveAuthorization": "not requested or granted; no focus-taking suite run",
+  "performance": "unpaired diagnostics, not qualification",
+  "recordedUtc": "2026-10-20T20:34:40.4113901Z"
+}
