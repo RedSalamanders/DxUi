@@ -5,6 +5,7 @@
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownHtml.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include "../Support/Scope.Tests.MarkdownSourceCorrelation.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
@@ -1104,8 +1105,18 @@ void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 }
 } // namespace
 
+void TestLosslessMarkdownCorrelationSourceReadBudget()
+{
+    MarkdownSourceCorrelationTests::Reads(Require);
+}
+void TestLosslessMarkdownCorrelationSnapshotIdentity()
+{
+    MarkdownSourceCorrelationTests::ParserIdentities(Require);
+}
 void RunRichMarkdownTests()
 {
+    DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSourceReadBudget);
+    DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);
     DXUI_RUN_TEST(TestRichMarkdownSnapshotAndValidationContracts);
     DXUI_RUN_TEST(TestRichMarkdownV0StylesCommandsAndMalformedMappings);

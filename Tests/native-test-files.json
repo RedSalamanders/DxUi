@@ -111,6 +111,7 @@
   "Tests/Support/Scope.Tests.MarkdownCapacity.h",
   "Tests/Support/Scope.Tests.MarkdownHtml.h",
   "Tests/Support/Scope.Tests.MarkdownInlines.h",
+  "Tests/Support/Scope.Tests.MarkdownSourceCorrelation.h",
   "Tests/Support/Scope.Tests.NativeFlowchartCorpus.h",
   "Tests/Support/Scope.Tests.PreparedFlowchart.h",
   "Tests/Support/Scope.Tests.RichSemantic.h",

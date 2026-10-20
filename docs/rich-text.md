@@ -488,6 +488,11 @@ allocate zero C++ bytes; localized transient previews retain about 23 KB in the
 fixed 4,096-preview fixture. Numeric metadata has an explicit 188,664-byte history
 fixture cost. These are functional/resource observations. Incremental geometry,
 shared preparation and frame-performance acceptance remain open in the plan.
+The next bounded preparation follow-through removes redundant source correlation
+when trusted snapshot change metadata is already available, and avoids indexing
+discarded old children for a full replacement. Read-spy and parser identity/event
+budget tests and focused x64 Debug/native/embedded qualification pass. Source ownership
+copies, line scans and complete incremental preparation remain separate work.
 `PreparedProjection` is the supporting v0 line-block preparation service. Call
 `Prepare(snapshot, revision, mode)` on the preparation owner, then use `ToDisplay`,
 `ToSource` or immutable `Blocks()` with document-wide source/display prefixes.

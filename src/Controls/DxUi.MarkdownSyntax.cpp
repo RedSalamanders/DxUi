@@ -2,6 +2,7 @@
 #include "DxUi.MarkdownCharacterReference.h"
 #include "DxUi.MarkdownEntityData.h"
 #include "DxUi.MarkdownInlines.h"
+#include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <atomic>
@@ -268,30 +269,16 @@ struct MarkdownParser::Preparation
             return;
         }
         const auto a = previous->Source(), b = syntax->Source();
-        while (commonFirst < a.size() && commonFirst < b.size() && a[commonFirst] == b[commonFirst])
-            ++commonFirst;
-        commonOldEnd = a.size();
-        commonNewEnd = b.size();
-        while (commonOldEnd > commonFirst && commonNewEnd > commonFirst && a[commonOldEnd - 1u] == b[commonNewEnd - 1u])
-        {
-            --commonOldEnd;
-            --commonNewEnd;
-        }
-        if (change)
-        {
-            if (change->kind == SourceChangeKind::TrackedEdits)
-            {
-                commonFirst  = change->begin;
-                commonOldEnd = change->previousEnd;
-                commonNewEnd = change->currentEnd;
-            }
-            else if (change->kind == SourceChangeKind::FullReplacement)
-                discardOldIdentities = true;
-        }
+        const auto correlation = Detail::CorrelateMarkdownSource(
+            a.size(), b.size(), change, [&](std::size_t at) noexcept { return a[at]; }, [&](std::size_t at) noexcept { return b[at]; });
+        commonFirst          = correlation.first;
+        commonOldEnd         = correlation.previousEnd;
+        commonNewEnd         = correlation.currentEnd;
+        discardOldIdentities = correlation.discardPrevious;
     }
     void IdentityUnit()
     {
-        if (previous && oldIndexCursor < previous->Nodes().size())
+        if (previous && ! discardOldIdentities && oldIndexCursor < previous->Nodes().size())
         {
             const auto& oldNode = previous->Nodes()[oldIndexCursor];
             const auto& block   = oldNode.block;

@@ -848,6 +848,13 @@ new one. Revisions retain immutable old trees. Reparse the entire bounded block
 source before reconciling identities; the older projection's line-local widening
 is unsafe for fences/containers/references. Prefer Begin(SourceSnapshot, ...):
 tracked source ancestry distinguishes equal paragraphs and pending sibling edits.
+Trusted unchanged/tracked/full-replacement snapshot metadata MUST be honored
+before reading source units for common-prefix/suffix correlation. A full
+replacement MUST NOT populate an old-child identity index that cannot be reused;
+the parser's document-root identity remains stable and old child identities are
+discarded. String-only input still needs the existing UTF-16 unit comparison.
+This removes redundant correlation work, not source materialization, line scans
+or the remaining bounded parser stages; it is not a wall-clock deadline promise.
 Map unchanged prefix/suffix and compatible enclosing nodes under the same parent
 identity; changed kinds, reparented nodes, lost ancestry and newly created nodes
 receive new identities. Deleted identities are not resurrected from an unbounded

@@ -5,6 +5,7 @@
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
+#include "../Support/Scope.Tests.MarkdownSourceCorrelation.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "../Support/Support.Tests.FailureReports.h"
 #include <DxUi/AccessibilityTextUnits.h>
@@ -1441,6 +1442,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartRenderingAndFallbacks(gpu);
     SemanticDiagramTests::Core(Check);
+    MarkdownSourceCorrelationTests::Reads(Check);
+    MarkdownSourceCorrelationTests::ParserIdentities(Check);
     SemanticSourceBlockTests::Core(Check);
     SemanticSourceBlockTests::Geometry(Check);
     SemanticDiagramTests::Geometry(Check);

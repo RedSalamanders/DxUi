@@ -139,6 +139,28 @@ will require fresh reviewed captures. M6b/M6c and the overall plan remain open.
 - [ ] D2a: Review API/source boundaries. Replace prototype whole-source edit
   copies/single full layout and per-control worker with suitable document,
   incremental/shared scheduling and prepared-resource contracts.
+  - [x] D2a.source-correlation (added dependency for scoped editing): honor trusted
+    snapshot change metadata before prefix/suffix reads, and skip the unused old
+    node index for a full replacement. Source copies and physical-line reservation
+    scans remain separate D2a/M6 work. Independent read spies and end-to-end
+    native/embedded identity/work-budget tests pass focused x64 Debug
+    qualification. Full replacement of a 512-paragraph tree with three source
+    units must finish within 128 owner events, preserving only the document-root
+    identity. No wall-clock/performance acceptance follows from that event bound.
+    Canonical Iteration1 builds in 4:40; all 21 directed checks, existing observed
+    allocation sweeps and full EditorControls (49.283 s), Accessibility
+    (119.299 s) and Embedded (439,325 checks) pass. The 1,000 warm composites take
+    6,298 us with zero tracked C++ allocations. Complete validation/tooling and
+    pinned formatting pass. Inputs, artifacts, build receipt and unchanged v2
+    before/after identity are frozen under
+    `.build/reports/rich-correlation-d2a-20261020/Iteration1`. Timings remain
+    unpaired diagnostics and D4c stays HOLD. Full extension profiles remain M5f.
+  - [ ] D2a.recorded-import (added scoped-editing dependency): reuse localized
+    transient replacement logic for notifying rich-text service commits. The
+    actual protected-adapter baseline reports a four-unit edit at [9,13) as
+    [0,22), losing useful source-change bounds and copying the whole source.
+    Preserve that baseline; keep one undo transaction, exact Unicode selection,
+    composition rollback, immutable snapshots and allocation-failure atomicity.
 - [x] D2b-core: Canonical bounded model/projection/layout and migrated behavior
   tests pass all 19 normal suites in x64 Debug/Release/ASan and all ARM64 builds.
 - [x] D2b: Move reusable model/projection/layout into include/DxUi and src/Controls
