@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichTextLayout.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../Support/Scope.Tests.PreparedFlowchart.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
@@ -297,8 +298,28 @@ void TestRichTextLayoutCopyMoveOwnership()
     target     = std::move(*self);
     Require(target.Ready() && target.Height() == height && target.Content().source == document.Text(), "self copy/move preserve the complete layout");
 }
+void TestPreparedFlowchartSdkBudgetAndLifetime()
+{
+    PreparedFlowchartTests::BudgetAndLifecycle(Require);
+}
+void TestPreparedFlowchartIndependentSdkRasterOracle()
+{
+    PreparedFlowchartTests::RasterOracle(Require);
+}
+void TestPreparedFlowchartBorrowedWarpTargets()
+{
+    PreparedFlowchartTests::BorrowedTargets(Require);
+}
+void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
+{
+    PreparedFlowchartTests::EdgeLabelRasterOracle(Require);
+}
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestPreparedFlowchartSdkBudgetAndLifetime);
+    DXUI_RUN_TEST(TestPreparedFlowchartIndependentSdkRasterOracle);
+    DXUI_RUN_TEST(TestPreparedFlowchartBorrowedWarpTargets);
+    DXUI_RUN_TEST(TestPreparedFlowchartEdgeLabelsCannotBeObscured);
     DXUI_RUN_TEST(TestRichTextLayoutCopyMoveOwnership);
     DXUI_RUN_TEST(TestRichTextLayoutTrailingEmptyLineBoundary);
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);

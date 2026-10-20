@@ -1260,6 +1260,7 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             TestNativeFlowchartAllocationFailureAtomicity(true);
             TestNativeFlowchartLayoutAllocationFailureAtomicity(true);
+            TestPreparedFlowchartAllocationFailures(true);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
         {
@@ -1510,6 +1511,10 @@ __declspec(noinline) static int RunFunctionalTests()
     FlowchartLayoutTests::Corpus(Check);
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
+    TestPreparedFlowchartAllocationFailures();
+    PreparedFlowchartTests::BudgetAndLifecycle(Check);
+    PreparedFlowchartTests::RasterOracle(Check);
+    PreparedFlowchartTests::EdgeLabelRasterOracle(Check);
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);

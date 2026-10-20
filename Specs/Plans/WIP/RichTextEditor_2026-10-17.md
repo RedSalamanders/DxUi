@@ -2770,8 +2770,18 @@ development checks from final frozen qualification:
       complete EditorControls and ordinary Embedded scopes, all 18 observed layout
       admission failures, five validators, full tooling and pinned format check.
       Final profile and resource qualification remain M5f and M5d.2b.
-    - [ ] M5d.2b: Owner-budgeted DWrite label shaping, device/theme resources,
-      native paint plans and raster/high-DPI/device-loss/resource qualification.
+    - [x] M5d.2b: Owner-budgeted DWrite label shaping, native paint plans,
+      actual SDK-call interception, Unicode/bidi/multiline raster oracles at three
+      DPIs, caller-transform restoration, replacement borrowed WARP targets and
+      distinct resource epoch pairs. Focused x64 Debug/native/embedded proof passes.
+    - [ ] M5d.2c: Close actual device-loss, process/GPU resource and maximum-object
+      qualification with M5f. Controlled replacement devices and C++ allocation
+      tracking do not establish these broader requirements.
+      The first actual light/dark service captures revealed route-over-label
+      overpainting despite passing the initial eight native and allocation
+      checks. The preserved independent raster reproducer differs at 945/1,012
+      label pixels before repair and zero after a final opaque-backed label pass.
+      The registered native/embedded regression now passes in canonical Iteration2.
   - [ ] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
     source editing and UIA with M5e; graph acceptance alone is not rendered support.
 
@@ -2988,3 +2998,25 @@ the canonical build path. A prior SkipBuild refusal is retained: the capability
 manifest changed the conservative build identity. The successful measurement and
 build log are private under `.build/reports/rich-frontmatter-m5a-20261020`.
 It is a development baseline and does not rebaseline or clear D4c acceptance.
+
+M5d.2b focused native paint evidence is retained privately under
+`.build/reports/rich-flowchart-m5d2b-20261020/Iteration2`, based on `b8f9efa`.
+The canonical x64 Debug build completes in 5:05; nine directed native checks,
+the isolated parser/geometry/paint probe, complete EditorControls (56.593 seconds)
+and ordinary Embedded (424,986 checks) all pass. The probe covers 86 parser,
+18 CPU geometry and 44 native paint C++ allocation points; real format/three
+label HRESULT failure cases preserve prior resources and permit retry. Actual
+CreateTextLayout interception agrees with every returned SDK budget. Retirement
+and borrowed-target drawing allocate no tracked C++ storage. Embedded reports
+zero tracked C++ allocations during 1,000 warm composites. These timings are
+unpaired diagnostics, not performance acceptance or a new baseline.
+
+All five validators, complete tooling, pinned format check and closeout spec
+validation pass. The packet freezes changed inputs, exact native artifacts,
+verified v2 source/toolchain/dependency/environment identity and hashes. Reviewed
+light/dark captures link exclusively to that frozen library and match the reviewed
+pixels. The original route-over-label captures and 945/1,012 failing pixel
+reproducer remain retained; the final native and embedded oracle reports zero
+differences. Gallery output is unchanged while the service remains unconnected
+to editor objects. M5d.2c/M5d.3/M5e/M5f, metadata/math, M6 and the existing
+performance/physical/platform gates remain open.

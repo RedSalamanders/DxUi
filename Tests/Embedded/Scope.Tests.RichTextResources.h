@@ -4,6 +4,7 @@
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include "../Support/Scope.Tests.PreparedFlowchart.h"
 #include <DxUi/RichSemanticDocument.h>
 
 static void TestFootnoteBlockAllocationFailures(bool trace = false)
@@ -105,6 +106,112 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
     std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
+static void TestPreparedFlowchartAllocationFailures(bool trace = false)
+{
+    using namespace PreparedFlowchartTests;
+    const auto write    = WriteFactory();
+    const auto drawing  = DrawingFactory();
+    const auto oldGraph = FlowchartLayoutTests::Graph(L"graph TD;Old");
+    const auto rich     = FlowchartLayoutTests::Graph(L"graph LR;A{\"Unicode \u03b2 \U0001f600\"}-->|yes|B((second));B-->A;A-->A");
+    const auto huge     = FlowchartLayoutTests::Graph(L"graph TD;A[\"" + std::wstring(1024u, L'W') + L"\"]");
+    std::size_t total{};
+    for (const bool capacity : {false, true})
+    {
+        const auto graph = capacity ? huge : rich;
+        LayoutOptions options;
+        if (capacity)
+            options.fontSizeDip = 512.0f;
+        std::size_t requests{};
+        {
+            PreparedFlowchart prepared;
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=]() noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+            Complete(prepared, Check);
+            countAllocations = false;
+            requests         = allocations;
+            Check(requests > 0u && requests < 128u, "native diagram has a bounded observed C++ preparation allocation schedule");
+        }
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            if (trace)
+                std::fprintf(stderr, "native paint capacity=%d failure=%zu/%zu\n", capacity ? 1 : 0, failure, requests);
+            PreparedFlowchart prepared;
+            LayoutOptions oldOptions;
+            prepared.Begin(write.get(), drawing.get(), oldGraph, oldOptions, {1u, 1u});
+            Complete(prepared, Check);
+            const auto old        = prepared.Geometry();
+            const auto generation = prepared.Generation();
+            prepared.Begin(write.get(), drawing.get(), oldGraph, oldOptions, {9u, 9u});
+            bool rejected{}, began{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+                    began = true;
+                    Complete(prepared, Check);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && prepared.Geometry() == old && prepared.Generation() == generation && prepared.Pending() != began,
+                  "failed native Begin preserves pending work; failed Advance retires only staged resources");
+            if (! began)
+            {
+                Complete(prepared, Check);
+                Check(prepared.Ready(), "old pending native resources can still finish after failed admission");
+            }
+            prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+            Complete(prepared, Check);
+            Check(capacity ? ! prepared.Ready() && prepared.Geometry()->nodes.empty() : prepared.Ready(),
+                  "explicit native retry reaches prepared or capacity outcome after every observed C++ failure");
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = 0u;
+                prepared.Cancel();
+                prepared.Invalidate();
+                prepared.Clear();
+            }
+            Check(! prepared.Ready() && ! prepared.Pending(), "native resource retirement allocates no C++ storage");
+        }
+        total += requests;
+    }
+    static thread_local bool drawOldCounting{}, drawAllocated{};
+    static thread_local std::size_t drawOldCalls{};
+    drawAllocated = false;
+    BorrowedTargets(Check,
+                    [](bool before) noexcept
+    {
+        if (before)
+        {
+            drawOldCounting  = countAllocations;
+            drawOldCalls     = allocations;
+            countAllocations = true;
+        }
+        else
+        {
+            drawAllocated    = drawAllocated || allocations != drawOldCalls;
+            countAllocations = drawOldCounting;
+            allocations      = drawOldCalls;
+        }
+    });
+    Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
+    std::cout << "native paint C++ failure scenarios=2 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
+}
 static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
 {
     using namespace FlowchartLayoutTests;

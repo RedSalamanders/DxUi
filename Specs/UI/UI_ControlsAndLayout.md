@@ -1347,6 +1347,30 @@ the future owner adapter must budget every actual label-shaping SDK call and
 reject stale results before painting or UIA publication. CPU geometry alone does
 not change the editor's exact source fallback or establish diagram rendering.
 
+Native diagram paint preparation MUST consume the owner's common SDK-layout
+allowance for every actual DirectWrite label creation, including empty node
+labels; empty edge labels need no layout. Formats, label ink/logical extents,
+CPU geometry and bounded diamond/arrow paths are staged before drawing. Label
+metrics retain Unicode/bidi/multiline ink and whitespace, without rotating text
+or clamping excessive extents into a renderable diagram. Plain labels inherit
+the requested host font, size, locale and reading direction. Paragraph width,
+code font and paragraph alignment do not control intrinsic diagram geometry.
+
+Prepared label/path state MUST retain factories with explicit COM ownership,
+with no owned target/device/host/worker. Coalescing checks the graph identity,
+factories, relevant typography and separate typography/resource epochs; epoch
+pairs MUST NOT be reduced to a sum/xor that can alias. Invalid admission leaves
+pending work intact. Failed preparation discards staging and keeps the previous
+publication; callers may explicitly retry. Drawing is raster preparation on a
+compatible caller-owned target, with supplied brushes and BeginDraw/EndDraw. It
+MUST restore the caller transform and create no C++/SDK resources. Edge labels
+paint last with a two-DIP padded opaque backing supplied by the caller, so crossing
+routes cannot obscure their ink. Padding fits within the geometry's eight-DIP
+outer margins. The fill brush MUST be opaque. CPU geometry
+remains source-independent; labels and device-independent factory paths may
+survive replacement borrowed devices with the same factory. Final process/GPU
+resource, device-loss and host object qualification remain separate requirements.
+
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 13 admitted
 graphs from 92 unsupported definitions and 20 other diagram families. Rejection
