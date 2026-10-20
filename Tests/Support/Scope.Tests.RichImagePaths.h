@@ -31,16 +31,15 @@ template <typename Check> inline void Paths(Check&& check)
     };
     for (const auto& item : cases)
     {
-        const auto result = BuildMarkdownImagePath(item.document, item.clipboard);
+        const auto result = BuildMarkdownFileReference(item.document, item.clipboard);
         check(result && *result == item.expected, "image paths use escaped source and document-relative URI destinations");
     }
-    for (const auto* invalid :
-         {L"a.png", L"C:a.png", L"\\a.png", L"C:\\a.txt", L"C:\\a.png\nC:\\b.png", L"\\\\.\\C:\\a.png", L"C:\\..\\a.png", L"C:\\a.png:stream"})
-        check(! BuildMarkdownImagePath(L"C:\\note.md", invalid), "ambiguous/non-image/device paths remain ordinary Unicode text");
-    check(! BuildMarkdownImagePath(L"", std::wstring(1u, wchar_t(0xd800))), "malformed UTF-16 is never interpreted as an image path");
+    for (const auto* invalid : {L"a.png", L"C:a.png", L"\\a.png", L"C:\\a.png\nC:\\b.png", L"\\\\.\\C:\\a.png", L"C:\\..\\a.png", L"C:\\a.png:stream"})
+        check(! BuildMarkdownFileReference(L"C:\\note.md", invalid), "ambiguous/device paths remain ordinary Unicode text");
+    check(! BuildMarkdownFileReference(L"", std::wstring(1u, wchar_t(0xd800))), "malformed UTF-16 is never interpreted as an image path");
     for (const auto* invalid :
          {L"C:\\NUL.png", L"C:\\com1.jpg", L"C:\\COM\u00b9.png", L"C:\\folder.\\a.png", L"C:\\folder \\a.png", L"\\\\?\\C:\\folder\\..\\a.png"})
-        check(! BuildMarkdownImagePath(L"C:\\note.md", invalid), "DOS devices and ambiguous extended/trailing component spellings remain literal");
+        check(! BuildMarkdownFileReference(L"C:\\note.md", invalid), "DOS devices and ambiguous extended/trailing component spellings remain literal");
     struct ResolveCase
     {
         const wchar_t* document;
@@ -82,13 +81,138 @@ template <typename Check> inline void Paths(Check&& check)
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
     try
     {
-        static_cast<void>(BuildMarkdownImagePath(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"));
+        static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"));
         check(false, "encoded source capacity must fail");
     }
     catch (const std::length_error&)
     {
     }
 }
+template <typename Check> inline void FileReferences(Check&& check)
+{
+    using namespace DxUi::RichText::Detail;
+    struct Case
+    {
+        const wchar_t* document;
+        const wchar_t* clipboard;
+        const wchar_t* expected;
+    };
+    const Case cases[] = {
+        {L"C:\\docs\\note.md", L"C:\\docs\\report.pdf", L"[report\\.pdf](report.pdf)"},
+        {L"C:\\docs\\chapters\\note.md", L"\"C:\\docs\\report.pdf\"\r\n", L"[report\\.pdf](../report.pdf)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\files\\a [b]#%.TXT", L"[a \\[b\\]\\#\\%\\.TXT](files/a%20%5Bb%5D%23%25.TXT)"},
+        {L"C:\\docs\\note.md", L"D:\\files\\report.pdf", L"[report\\.pdf](file:///D:/files/report.pdf)"},
+        {L"", L"C:\\files\\report.pdf", L"[report\\.pdf](file:///C:/files/report.pdf)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\\u6771\U0001f600.pdf", L"[\u6771\U0001f600\\.pdf](%E6%9D%B1%F0%9F%98%80.pdf)"},
+        {L"\\\\server\\share\\docs\\note.md", L"\\\\SERVER\\share\\report.pdf", L"[report\\.pdf](../report.pdf)"},
+        {L"\\\\server\\share\\note.md", L"\\\\server\\other\\report.pdf", L"[report\\.pdf](file://server/other/report.pdf)"},
+        {L"C:\\DOCS\\note.md", L"c:\\docs\\report.pdf", L"[report\\.pdf](../docs/report.pdf)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\README", L"[README](README)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\.gitignore", L"[\\.gitignore](.gitignore)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\photo.png.txt", L"[photo\\.png\\.txt](photo.png.txt)"},
+        {L"C:\\docs\\note.md", L"C:\\docs\\picture.SVG", L"![picture](picture.SVG)"},
+    };
+    for (const auto& item : cases)
+    {
+        const auto result = BuildMarkdownFileReference(item.document, item.clipboard);
+        check(result && *result == item.expected, "file references retain complete link labels and share image relative/URI escaping rules");
+    }
+    for (const auto* invalid : {L"report.pdf", L"C:report.pdf", L"https://example.invalid/report.pdf", L"C:\\NUL.pdf", L"C:\\report.pdf:stream"})
+        check(! BuildMarkdownFileReference(L"C:\\docs\\note.md", invalid), "non-absolute, remote and ambiguous file references remain literal");
+    try
+    {
+        static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".pdf"));
+        check(false, "encoded file-link capacity must fail");
+    }
+    catch (const std::length_error&)
+    {
+    }
+}
+
+template <typename Prepare, typename Check> inline void RetainedFileReferences(DxUi::RichTextEditor& editor, Prepare&& prepare, Check&& check)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor.SetMarkdownRenderingEnabled(true);
+    editor.SetDocumentFilePath(L"C:\\docs\\note.md");
+    editor.SetText(L"replace\r\n");
+    const Selection selection{7u, 0u};
+    editor.SetSelection(selection);
+    prepare();
+    TextClipboardContent content;
+    content.filePaths        = {L"C:\\docs\\media\\a.png", L"C:\\docs\\files\\report.pdf", L"D:\\other.txt"};
+    std::wstring replacement = L"sentinel";
+    const auto revision      = editor.Revision();
+    check(editor.TryPrepareClipboardPaste(content, replacement) &&
+              replacement == L"![a](media/a.png)\r\n\r\n[report\\.pdf](files/report.pdf)\r\n\r\n[other\\.txt](file:///D:/other.txt)" &&
+              editor.Revision() == revision && editor.GetSelection() == selection && ! editor.CanUndo(),
+          "mixed references stage once without changing source, selection or history");
+    check(editor.ReplaceSelection(replacement), "mixed references replace the backward source selection");
+    prepare();
+    const auto semantic = editor.GetSemanticDocument();
+    check(static_cast<bool>(semantic), "mixed reference source prepares semantic roles");
+    const auto& elements = semantic->Elements();
+    check(std::ranges::count(elements, SemanticRole::Image, &SemanticElement::role) == 1 &&
+              std::ranges::count(elements, SemanticRole::Link, &SemanticElement::role) == 2,
+          "independent semantic parsing distinguishes one displayed image and two text links");
+    const auto link = std::ranges::find(elements, SemanticRole::Link, &SemanticElement::role);
+    check(link != elements.end() && link->name == L"report.pdf" && link->destination == L"files/report.pdf",
+          "link label displays the full filename while the destination resolves relative to the document");
+    std::vector<RichImageRequest> requests(0u);
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u && requests[0].FilePath() == L"C:\\docs\\media\\a.png", "ordinary file links never request image decoding");
+    check(editor.Undo() && editor.GetText() == L"replace\r\n" && editor.GetSelection() == selection && ! editor.CanUndo(),
+          "one undo restores the entire mixed paste and backward selection");
+    check(editor.Redo() && editor.GetText() == replacement + L"\r\n", "one redo restores the complete mixed paste");
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    prepare();
+    content.filePaths.push_back(L"relative.txt");
+    check(editor.TryPrepareClipboardPaste(content, replacement) &&
+              replacement == L"\"C:\\docs\\media\\a.png\"\r\n\"C:\\docs\\files\\report.pdf\"\r\n\"D:\\other.txt\"\r\n\"relative.txt\"",
+          "an unrepresentable structured path preserves the entire original list as literal text");
+    replacement = L"sentinel";
+    content.filePaths.back().assign(1u, wchar_t(0xd800));
+    try
+    {
+        static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
+        check(false, "malformed file references must fail");
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(), "malformed list fails before partial output or history");
+    }
+    content.filePaths = {L"C:\\docs\\report.pdf"};
+    editor.SetViewMode(ViewMode::Source);
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C:\\docs\\report.pdf\"", "source mode keeps structured paths literal");
+    editor.SetViewMode(ViewMode::Rich);
+    content.filePaths.clear();
+    content.text = L"\"C:\\docs\\report.pdf\"";
+    for (const auto* source :
+         {L"```\nraw\n```\n", L"    code\n", L"<script>raw</script>\n", L"---\nname: value\n---\n", L"`inline code`", L"[link](url)", L"![image](url)"})
+    {
+        editor.SetText(source);
+        editor.SetSelection({5u, 5u});
+        prepare();
+        replacement = L"sentinel";
+        check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "file links preserve literal source in opaque contexts");
+        content.filePaths = {L"C:\\docs\\report.pdf"};
+        check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C:\\docs\\report.pdf\"",
+              "opaque contexts retain structured file paths as quoted literal source");
+        content.filePaths.clear();
+    }
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    prepare();
+    editor.SetReadOnly(true);
+    check(! editor.TryPrepareClipboardPaste(content, replacement), "read-only rejects file-link paste");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    check(! editor.TryPrepareClipboardPaste(content, replacement), "disabled rejects file-link paste");
+    editor.SetEnabled(true);
+}
+
 inline std::vector<std::byte> DropBuffer(std::wstring_view list)
 {
     std::vector<std::byte> bytes(sizeof(DROPFILES) + list.size() * sizeof(wchar_t));
@@ -180,8 +304,8 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)\n\n![b](b.jpg)",
           "multiple images remain distinct Markdown paragraphs in source EOL style");
     content.filePaths.push_back(L"C:\\docs\\notes.txt");
-    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C:\\docs\\a.png\"\n\"C:\\docs\\b.jpg\"\n\"C:\\docs\\notes.txt\"",
-          "mixed file lists preserve every original path as literal source");
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)\n\n![b](b.jpg)\n\n[notes\\.txt](notes.txt)",
+          "mixed file lists preserve order with displayed images and full-filename links");
     content.filePaths.clear();
     content.text = L"C:\\docs\\a.png";
     for (const auto* text :

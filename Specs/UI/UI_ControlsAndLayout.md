@@ -797,17 +797,22 @@ character pairs never enter the model. AltGr Unicode entry remains accepted.
 
 RichTextEditor document-file metadata MUST be an explicit canonical absolute
 Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
-change source/history/composition. Prepared canonical Rich-mode image-path paste
-MUST generate escaped Markdown image source relative to the document parent;
+change source/history/composition. Prepared canonical Rich-mode file-reference paste
+MUST generate escaped Markdown images for recognized image suffixes and named
+Markdown links for other files, relative to the document parent;
 unsaved/cross-root paths MUST use an absolute file URI. Component case MUST be
 preserved, including case-sensitive directory correctness. Code/HTML/metadata,
 active source scopes and partial atomic inline contexts MUST retain literal
-paste. Multiple images use blank paragraphs; mixed file lists MUST preserve the
-complete original list as quoted source. One paste MUST record one transaction
+paste. Multiple files MUST use blank paragraphs and preserve clipboard order,
+including mixed images/links. Image descriptions use the filename stem; text link
+labels retain the complete filename. If any structured path is unrepresentable,
+the complete original list MUST remain quoted source. One paste MUST record one transaction
 and preserve exact undo/redo and backward selections. Path construction is
 lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
 fetch is implied. Display requires caller-serviced immutable image resources;
-unserviced or declined resources retain their alternative.
+unserviced or declined resources retain their alternative. File links retain
+the existing inert link presentation. Paste MUST NOT activate/open a file, query
+existence or register drag-and-drop; classification uses the path suffix only.
 
 Pure structural command/deletion planning MUST reject syntax carrying a
 presentation-only source-region hint before staging any document change, even

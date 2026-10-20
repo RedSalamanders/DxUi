@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichTextEditor.h"
 #include "../../src/Controls/TextClipboard.h"
+#include "../Support/Scope.Tests.ClipboardFixture.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
@@ -985,6 +986,41 @@ void TestRichTextNativeImageDecoder()
     RichImageTests::Core(Require);
     RichImageResourceTests::Admission(Require);
 }
+void TestRichTextEditorNativeFileReferencePaste()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RichImagePathTests::FileReferences(Require);
+    RichImagePathTests::RetainedFileReferences(*editor, [&] { RenderEditor(window); }, Require);
+    editor->SetText(L"replace");
+    editor->SetSelection({7u, 0u});
+    RenderEditor(window);
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0C:\\docs\\report.pdf\0";
+    const auto bytes         = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Require(clipboard.fileData != nullptr, "native file-reference fixture owns clipboard storage");
+    auto* data = GlobalLock(clipboard.fileData.get());
+    Require(data != nullptr, "native file-reference fixture locks clipboard storage");
+    std::memcpy(data, bytes.data(), bytes.size());
+    GlobalUnlock(clipboard.fileData.get());
+    std::size_t notices{};
+    editor->SetOnTextChanged([&] { ++notices; });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](report.pdf)" && notices == 1u,
+            "native Ctrl+V reads real wide-file transport and commits mixed Markdown once");
+    Require(clipboard.opens == 1u && clipboard.closes == 1u, "native mixed paste uses one nonblocking clipboard read");
+    Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} && ! editor->CanUndo(),
+            "native mixed clipboard paste restores the backward selection in one undo");
+    editor->SetOnTextChanged({});
+    clipboard.fileData.reset();
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"\"C:\\docs\\files\\report.pdf\""), "native Unicode file-path clipboard data");
+    RenderEditor(window);
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"[report\\.pdf](files/report.pdf)",
+            "native quoted text file path becomes a full-filename relative link");
+    Require(editor->Undo() && editor->GetText() == L"replace", "native text file-path link is one undo transaction");
+}
 void TestRichTextEditorNativeImageResources()
 {
     AttachedHostWindow window;
@@ -1130,6 +1166,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
     DXUI_RUN_TEST(TestRichTextEditorNativeRetainedObjectSourceEditing);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePathPaste);
+    DXUI_RUN_TEST(TestRichTextEditorNativeFileReferencePaste);
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);

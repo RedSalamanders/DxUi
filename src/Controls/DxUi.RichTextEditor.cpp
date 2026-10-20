@@ -187,7 +187,7 @@ RichText::RichImageResourceStatistics RichTextEditor::GetImageResourceStatistics
 {
     return _state->images.Statistics();
 }
-bool RichTextEditor::CanPasteMarkdownImages() const noexcept
+bool RichTextEditor::CanPasteMarkdownFileReferences() const noexcept
 {
     using namespace RichText;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
@@ -241,7 +241,7 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
 {
     if (! Editable())
         return false;
-    const bool images     = CanPasteMarkdownImages();
+    const bool references = CanPasteMarkdownFileReferences();
     const auto syntax     = GetMarkdownSyntax();
     std::wstring_view eol = L"\r\n";
     if (syntax)
@@ -253,9 +253,9 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     std::wstring staged(0u, L' ');
     if (content.filePaths.empty())
     {
-        if (! images)
+        if (! references)
             return false;
-        const auto markdown = RichText::Detail::BuildMarkdownImagePath(_state->documentFilePath, content.text);
+        const auto markdown = RichText::Detail::BuildMarkdownFileReference(_state->documentFilePath, content.text);
         if (! markdown)
             return false;
         staged.assign(*markdown);
@@ -273,26 +273,26 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
                 throw std::length_error("Clipboard file capacity exceeded");
             totalFileUnits += file.size();
         }
-        bool allImages = images;
+        bool allReferences = references;
         for (const auto& file : content.filePaths)
         {
-            const auto markdown = allImages ? RichText::Detail::BuildMarkdownImagePath(_state->documentFilePath, file) : std::nullopt;
+            const auto markdown = allReferences ? RichText::Detail::BuildMarkdownFileReference(_state->documentFilePath, file) : std::nullopt;
             if (! markdown)
             {
-                allImages = false;
+                allReferences = false;
                 break;
             }
             const auto separator = staged.empty() ? 0u : eol.size() * 2u;
             if (separator > RichText::Document::MaximumUnits - staged.size() || markdown->size() > RichText::Document::MaximumUnits - staged.size() - separator)
-                throw std::length_error("Image paste source capacity exceeded");
+                throw std::length_error("File reference paste source capacity exceeded");
             if (separator)
                 staged.append(eol).append(eol);
             staged.append(*markdown);
         }
-        if (! allImages)
+        if (! allReferences)
         {
-            // A raw/code context or mixed file list keeps every original file
-            // spelling as quoted source text; never drop the unsupported tail.
+            // A raw/code context or unrepresentable file path keeps every
+            // original spelling as quoted source; never drop an unsupported tail.
             staged.clear();
             for (const auto& file : content.filePaths)
             {

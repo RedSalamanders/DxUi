@@ -1,0 +1,584 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-rich-unicode-file-reference-paste",
+  "kind": "native/embedded functional qualification; ordinary performance diagnostics remain unpaired and D4c HOLD",
+  "baseCommit": "9d7dd7209f5b5f6cfcc819fa2a02b006e344d6a0",
+  "source": [
+    {
+      "path": "include/DxUi/DxUi.h",
+      "sha256": "92CD5C48C323FB278DEB77177B6112C01A1094098FBC8AC1C946DE6F82440CF0"
+    },
+    {
+      "path": "src/Controls/DxUi.RichImagePaths.h",
+      "sha256": "7DC87FA1AC9251C45158E90FC3CE58DD63F5E1B5ABBF20C66C859F3E398950C5"
+    },
+    {
+      "path": "src/Controls/DxUi.RichTextEditor.cpp",
+      "sha256": "59C251EA17E7B83C4BC16A379B87F95713B8DB401099229FDE3E6803EFA17857"
+    },
+    {
+      "path": "Tests/Controls/Scope.Tests.RichTextEditor.cpp",
+      "sha256": "0BFC1A80E1EDEDC8E188F127B0667C96FE971C1FE6AA1D481208443A9A4392F0"
+    },
+    {
+      "path": "Tests/Controls/Scope.Tests.RichTextInput.cpp",
+      "sha256": "B4D791FC2AE231E171DA656923DDE6A6503A79C5014BB1A7549E2E7EADF36D56"
+    },
+    {
+      "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+      "sha256": "B0290A002A6B6FCF07D5EA200ACD3348FFA323C203E13210C611AC106C5B2875"
+    },
+    {
+      "path": "Tests/Embedded/Scope.Tests.RichTextResources.h",
+      "sha256": "BDFDB6FB4E7F24667A0E31F6BBE6A5B5E6F6194229AC949128C8664FE1E233D5"
+    },
+    {
+      "path": "Tests/Support/Scope.Tests.RichImagePaths.h",
+      "sha256": "BA1DB2F67609D4FDCE5D1A6B0EE79D49138EB661FAA3B8BEAEB42611FFC70634"
+    }
+  ],
+  "builds": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "nativeRuntime": true,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "dd5db9c10de02f9a852c7a2f947d93ac6bc50b829f5e7838c99f369a73e4abc5",
+      "buildArtifactIdentity": "780e885210eeda92e85ca92584961c43ec2a110bfe91be7b945bbb51d268d17d",
+      "buildAttestationIdentity": "16a309366e60543f51b3ae8ac0940c5619ead9f709224bdc5162aa6d381eb4e9",
+      "stateSha256": "F0C8502967132098493B0E759C74ED49744374A02D41AD8DA3F2B2FD81AA2532",
+      "logSha256": "F65C16ACA5F0E45C89F199411048D40AAF41EF47B7DFCC2B91DEDF87DD89A632"
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "nativeRuntime": true,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "d5c2ac7f5a0343ddd0479bfb8787ab13f56612c2505da3945b2495abed5f46a4",
+      "buildArtifactIdentity": "065ff2ead8a355fc731570ff1b7fcb0318e8935516da35135c9435fda1ea19ee",
+      "buildAttestationIdentity": "7ddb75d9d92501256352a675af32b41119ba2256dec2ce4124428fc8547a1c16",
+      "stateSha256": "FFFD435465035EA7B8F77C19318DB60EBCA1525CD19973CC9EE39BEE13DA9F1B",
+      "logSha256": "1D2EE7484A2411FA92BBE74DC6B58713259C2A12497644A2762749409A23E595"
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "nativeRuntime": true,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "b27de5ad47239e6f1be2520f5c234321a1068fe48bd3079785948b76d9b16251",
+      "buildArtifactIdentity": "fa89a27b8ebd9c892be521766f7765bd8964bbb687a4dbabc90528737050493c",
+      "buildAttestationIdentity": "fe0edba53e137639f5769398044618c9cc5ccfcfbf651007734121142bd78fdd",
+      "stateSha256": "770CF72F82CBBC76A7D6FD12DFE574E2B6CFE50C97C4344758504C4E7060499E",
+      "logSha256": "CE5C754F14DF6119BF298A3033E952ACDB17B932F557C29368B85EB69E185FF2"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "nativeRuntime": false,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "77d16e4dcdf5b071269f4b18e32268a655ea6e0a90ac73b3e212573594738493",
+      "buildArtifactIdentity": "8f0e6a3b4ebcdc8643d483fdf1855ee04e593ef138a1aece6e011b676ef4f237",
+      "buildAttestationIdentity": "19200cfca9381f9344d84fc0f3ddae5a3e8f9ab4ad1fc899a4bed93ab1df8268",
+      "stateSha256": "21CA23E1E674AF38612C7CF4B30FA67797BE72CCD9221A0F7D24FBADC24076B6",
+      "logSha256": "0D363958694B6D30A0634FB9157C023B247DFF21478350045D7D1B6FC618FD48"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "nativeRuntime": false,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "ece42749acba0661cbd2a4492e34411faab24a58cff713164f6961cbcc483961",
+      "buildArtifactIdentity": "4348d76818212ad28b152731345945c1b9f956bffaab1f6a98c2f265e2c2c8bc",
+      "buildAttestationIdentity": "54a9d0861bb0db80bab35e0c55181ecdffdab6b94313f3feb9e6639755db865d",
+      "stateSha256": "E0F6BF85A38941AB473A443F69E150D2ED1CA84F53FC80466E2B6AEBCB87590F",
+      "logSha256": "DDCF74924531C8900D5E365DAC89A4A7E9EA4642210CD22CC2FEEE223D975C09"
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "nativeRuntime": false,
+      "exitCode": 0,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "06dc9931169ff7b514b5594a48461f5c099d5d8feb3f33275ac53e1826d2babd",
+      "buildArtifactIdentity": "39aeba0215ccba58ab65fc2bee16e9fc79999faf89304fef22b6c384f1b148c2",
+      "buildAttestationIdentity": "6a53d46dfdaf5897c4642e63406b6b35f3086934e8ee7e125e9ccd628b1e3f44",
+      "stateSha256": "F2C2D3C226D6BAD4350434922F0017E97168905A08F9384700E92DB2178A7326",
+      "logSha256": "2CCF187912205E56A26E4DF14B3CCF2E45873298AF92E4DD1E138862F78A0038"
+    }
+  ],
+  "nativeProfiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "nativeRuntime": true,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "dd5db9c10de02f9a852c7a2f947d93ac6bc50b829f5e7838c99f369a73e4abc5",
+      "buildArtifactIdentity": "780e885210eeda92e85ca92584961c43ec2a110bfe91be7b945bbb51d268d17d",
+      "buildAttestationIdentity": "16a309366e60543f51b3ae8ac0940c5619ead9f709224bdc5162aa6d381eb4e9",
+      "beforeSha256": "F0C8502967132098493B0E759C74ED49744374A02D41AD8DA3F2B2FD81AA2532",
+      "afterSha256": "F0C8502967132098493B0E759C74ED49744374A02D41AD8DA3F2B2FD81AA2532",
+      "runnerSha256": "82ACBB45112CAEE463B1F63B709DEC846FB9787D96EC431497062CAE87F8CD5A",
+      "suites": [
+        {
+          "suite": "Foundation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "0D5E99A9C778AE093AD1872520AC973BE576E2F1574A796B8694388C07DD95D4",
+          "executableSha256": "D5A0598B541270411F1CA12651ABCE7BE2D0A570C74D5786B80E8146079B9622"
+        },
+        {
+          "suite": "Embedded",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "18602C90EA0D1049AC74730B4A04AB67DBD6C1F677BD161BFF8F5D62AF757416",
+          "executableSha256": "D15CF188B299DE83128EE0DCAF310FC113A097533C07C634052F232BA1FF6DDD"
+        },
+        {
+          "suite": "Grid",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "29FF4D3331723EC3047D84BC86082C1544228C1D9609F1256D89CD3819AB9E4C",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Theme",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "42EBB9645B6E0A3DC4894C4D34B620AC166DDEBCF51B42ED93AB77E1596EE777",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Control",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "4AA5B40DB5FA9A74A32091EDBD15B3511CA6875D4A4D5C00C006F3B9CE6008DE",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "MenuExitLifetime",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "93931BD7CCFA0CF08953C8AC78301C0F6861A67492405B6762F94EA29575B3B2",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "NewControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "9350041A50ADCC1E93E60049BDCCADC09C14B73776BC328EA97DAF3B80B635E3",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "EditorControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "217D9119973FD37DC18006EC6FA72AC2E8CCB6E9451A3EFAFF8893CD40EBD708",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "TextField",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "FCB33C016E07FFA37D280C7F51DFC49688CD097C98B8C34C584C989B87DF1F77",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "MultilineText",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "0E73E79FE80BB313B3288436AA15E4A826A62EE933103F50B4709A22BA0C4853",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "ReadOnly",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "EAB3A358C685AEA6EBF611C39204966A6CAD6E685B5D45E71D99E7BD8CC85452",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "ComboBox",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "8C8FFBCA6D7060A7B64017ACCC0A0552D41573221E4927B4A709C65D9E947C36",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Tree",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "ABA75166321FB9FAAEA346AE7F64DEE26152C5958403E02D944B6F76E6A40BC7",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Tooltip",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "E7747D14E837699DADC0190B539AF8F30B8AD9E46A2CCB61624BF1BE08A0DB4C",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Rendering",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "9D9DCF246F37040C8426E86627D7CCC04AAD1700CB5314DBF4ABCD7E968C14E4",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Animation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "21ED976A4F3F376FF8187DCE45CC9B154F1DB1FB840550B396F6DADD54F26C34",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "Accessibility",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "A93E6DAE4CAF1C11ADA9862CBAEEF2B8198E058CEF00D513AC0BCEE9B719E81D",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "WindowHost",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "318EA9D9609621CBFEC02D1332A5AC5ECBBB811A06AC0CD5478AE2E598485449",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        },
+        {
+          "suite": "InteractiveLease",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "E6637012D514980870E88D5EAAE94C5E3949061FA198F06AD11FFC866509D076",
+          "executableSha256": "9AA51F81F0CA3F268CF37DEFA3FDB66FD8F3534A58913852B9E9C22AAE73B632"
+        }
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "nativeRuntime": true,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "d5c2ac7f5a0343ddd0479bfb8787ab13f56612c2505da3945b2495abed5f46a4",
+      "buildArtifactIdentity": "065ff2ead8a355fc731570ff1b7fcb0318e8935516da35135c9435fda1ea19ee",
+      "buildAttestationIdentity": "7ddb75d9d92501256352a675af32b41119ba2256dec2ce4124428fc8547a1c16",
+      "beforeSha256": "FFFD435465035EA7B8F77C19318DB60EBCA1525CD19973CC9EE39BEE13DA9F1B",
+      "afterSha256": "FFFD435465035EA7B8F77C19318DB60EBCA1525CD19973CC9EE39BEE13DA9F1B",
+      "runnerSha256": "12B6DE10F7CA1B3AA568E6634F9B999F741D56851B89A9997D85615F44C24492",
+      "suites": [
+        {
+          "suite": "Foundation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "48566CAAC2E4D6D9FBBBBA20FD6BBA582F587003C51142425EFA135603232857",
+          "executableSha256": "A9BECB99C11A3AE7377BB66F738E6467FF492CF3DCE6FA749AE592135205A1D4"
+        },
+        {
+          "suite": "Embedded",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "1555437926FF041905735CA55FE4D4C75C24F5A5CD929E7583AA6ECB7F54B196",
+          "executableSha256": "702A2001792915C94D4DFC7E019A511E05691A2E6D9497B994E68DACF93E4676"
+        },
+        {
+          "suite": "Grid",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "6BAB4D99FDF50076B65F7A69460DE9261E64A4C23BBBC1469F15A7D5A8C23C70",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Theme",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "045C21BDE967DD91763015D3AD56FD3F09DD4BCC588AEB413FEEBFFDFBC732BC",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Control",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "B6CE6594BA3FA2ADCFFE991E2D2EF49A96A2762A5FD9DF6E504B3CAF99A85643",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "MenuExitLifetime",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "EAB091632FAAFB15E274B9C6C9F402007FD7A0D05A07F3028C312102DB031E36",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "NewControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "1B6B97AB3A9D5EA0217AFD7F5CDD7775BB03CA5716648EC930489C9CA5416856",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "EditorControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "03E0F2677BCF7018EED8AAC527714891023BCB88937804A7F69CCDD5FE6A0D95",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "TextField",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "FF6B3F1BB0EB8A512014AFD85DD3EDDCACF2B068D04E8BDBA1A74C553F6D9F7B",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "MultilineText",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "4762DEFAEC99BB17DC89B1E92785A6392E47AD0BAD458634D59A9FD6C528D6FE",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "ReadOnly",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "81DC7093233BA5C77E8B9E5269B6E26EBD3A75061DA17BB68DCEF93F2E0B4CCE",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "ComboBox",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "4E7965E67CF67A53960EA774B08D453D99EA640A71947EF07442EE7E8F3C4DAC",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Tree",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "019271B4F6CE345BEDB237E2B88BA8CFCCB36136DFB5998EE7EAA5E18D8A0A56",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Tooltip",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "BB7C0482E6370C026188B722F3EC9137D3E3A40EBD03836F6A6EB8175F66FDBD",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Rendering",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "4AB6EB9FF46C364A3901BD0DB556CF5B3FDDB0B79179B2740AE92A1753CFB04C",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Animation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "525140ED986EF9DA9F71441C1E50E88844AB0C53ECE0F7C57C22B1831BDBC938",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "Accessibility",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "A388D3C24EA0AF1D739E48FB3DE388FA991A6B9605735FED4B8E9E9C1727BA90",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "WindowHost",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "B5600760C171CEBA7B06A4AE47BAEE256854F6300B56F7639C953EC8EB4D2FFD",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        },
+        {
+          "suite": "InteractiveLease",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "569D56A6ABE502A63E84F6E98793A9D312B4CA83CA3938D6F145D5CE1758D44A",
+          "executableSha256": "137B7B4A2018C49447EDAD05C61F7ABBD179613B101FD980BD15B2A9271BA1F5"
+        }
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "nativeRuntime": true,
+      "sourceFingerprint": "07A535F1834CEC5CC79379184C50271DA8776A4D083DF4C4D19015453EE9CB1C",
+      "buildInputIdentity": "b27de5ad47239e6f1be2520f5c234321a1068fe48bd3079785948b76d9b16251",
+      "buildArtifactIdentity": "fa89a27b8ebd9c892be521766f7765bd8964bbb687a4dbabc90528737050493c",
+      "buildAttestationIdentity": "fe0edba53e137639f5769398044618c9cc5ccfcfbf651007734121142bd78fdd",
+      "beforeSha256": "770CF72F82CBBC76A7D6FD12DFE574E2B6CFE50C97C4344758504C4E7060499E",
+      "afterSha256": "770CF72F82CBBC76A7D6FD12DFE574E2B6CFE50C97C4344758504C4E7060499E",
+      "runnerSha256": "D9AD63A15B9A46323FE70B4280EDF20FC4E7B2723188DA2B659688E301D7FDF5",
+      "suites": [
+        {
+          "suite": "Foundation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "954BD08BA46248044FDE7C53EAB295EA38F266464E05D115F21BF90C4373CF44",
+          "executableSha256": "49288E2C39ACA419ABD1EAB8722073063248E82E3F33F2527F16D123E8E15537"
+        },
+        {
+          "suite": "Embedded",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "A0ED7A900CBFB7A153C678929937C620DC51EAF94468C1289CB17EA9E7729BA8",
+          "executableSha256": "FF29257F4B37AE2ED8CE3B7F37CA9C68DA238A48BA195B9720A6D1455452CFC3"
+        },
+        {
+          "suite": "Grid",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "A27DFFA41B7B0C89BA5E05F788C1974B22606C1A967AEC59E247F6EFDE9F9833",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Theme",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "2894123EBF40CC8B56BCF74EEDCFB6AC49E7F163C60B926760B639F7F9E1D616",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Control",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "B41FE237E14144E5C60FF5C9E889A150F16F52232AB30DD21141178C0E21E3E2",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "MenuExitLifetime",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "4329EFF3B18CCFDAE2E145FBDC0C7F65765AC5621639111DF8BE303F9F6775FF",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "NewControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "FC966C7CFD3E0E21F23804DA1994768CE67891FD9AC7390076F894968E2DEB85",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "EditorControls",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "8CB3C90197746D0AE33E9B44C4F49FA25353E12A7B20814E82BBAA82C2234B01",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "TextField",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "27C2D037C1A0052E9CA49FBE61D05FD8C195FCC4BA0C5E65DEC611D3F79E8C8D",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "MultilineText",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "6991A2370640714765E4F54C9B8EC7F7CE81649652DD6E3A5957E2E09CB77A04",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "ReadOnly",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "66744F29EBE33183F92BE955D994F2FDDF596DE71F824030E945C36EF774ECD8",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "ComboBox",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "1DD7FA486B818852342A7B70CF9D4BBD81137FFAF98495FFCEAA003E70D2672A",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Tree",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "CC40FCB5BD0D85CAFF28D395C6404FD9C38B3959334608CC6AFCF5DE43B16B85",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Tooltip",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "E44F87049758C8AA612D7D58C4FC7E0DF3C2169FFAB8BFC6B25E4AC3AC7953A0",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Rendering",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "6FA52AA0C88911DF0F686C17DA05B95D940D2DAB7CA52A160AAC151D75FF32A6",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Animation",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "FC8B301C953B6467999FF170DEBE3DAEC157A1035463661A64ADA690BF61E220",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "Accessibility",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "F6B5565D112ECF095582E9AAC0A36CED647C4D33FA30BD6D08D6C777A4E9E9EA",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "WindowHost",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "AD32E58DD09075996757F4A2FCE5629AE386B078A3229B180EDBAD02AC2EBB06",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        },
+        {
+          "suite": "InteractiveLease",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "receiptSha256": "74FC8CCD3C0BE5C79AC007A5E5C895595CD1E6D2CD2C4054546B134B6F79BBD8",
+          "executableSha256": "294F8CACDD4BC953829D5DC60AC9F38A3137832AECAD1C8191BC8E84C37DFAC6"
+        }
+      ]
+    }
+  ],
+  "sanitizerPositiveProbe": true,
+  "directed": {
+    "nativeTests": [
+      "TestRichTextEditorNativeFileReferencePaste",
+      "TestRichTextApplicationImageClipboard"
+    ],
+    "embeddedRunnerSha256": "F1434CD81BDB171BEE457F7F4C43DB23F1888552E18A2EBE9C99FC3F1502AF98",
+    "exitCode": 0,
+    "nativeRunnerSha256": "50F3B7222B0AB9870702EFF37EE8F0DDD5BEE755A1B8E0D0F5B7D9B2231DA54D",
+    "embeddedArgument": "--test-rich-file-reference-paste"
+  },
+  "remaining": [
+    "Native ARM64 runtime",
+    "Physical IME/AT and agreed foreground scopes",
+    "M5g.3 final image resource acceptance",
+    "D4c paired performance HOLD",
+    "Other RichTextEditor plan milestones and consumer adoption"
+  ],
+  "benchmarkInputs": {
+    "Tests/Support/Scope.Tests.RichImagePaths.h": "BA1DB2F67609D4FDCE5D1A6B0EE79D49138EB661FAA3B8BEAEB42611FFC70634",
+    "Tests/Controls/Scope.Tests.RichTextEditor.cpp": "0BFC1A80E1EDEDC8E188F127B0667C96FE971C1FE6AA1D481208443A9A4392F0",
+    "Tests/Controls/Scope.Tests.RichTextInput.cpp": "B4D791FC2AE231E171DA656923DDE6A6503A79C5014BB1A7549E2E7EADF36D56",
+    "Tests/Embedded/Scope.Tests.RichTextResources.h": "BDFDB6FB4E7F24667A0E31F6BBE6A5B5E6F6194229AC949128C8664FE1E233D5",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "B0290A002A6B6FCF07D5EA200ACD3348FFA323C203E13210C611AC106C5B2875",
+    "profile-harness.ps1.receipt.txt": "AA4A296F03E07C0C286A0E8A61F4CC90A7A1BF56584642CADFF0A20DDE991B0E",
+    "embedded-directed.receipt.txt": "F1434CD81BDB171BEE457F7F4C43DB23F1888552E18A2EBE9C99FC3F1502AF98"
+  }
+}

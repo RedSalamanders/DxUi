@@ -303,7 +303,7 @@ inline bool LocalPathsShareRoot(const ParsedLocalFilePath& from, const ParsedLoc
         return EqualWindowsPathInsensitive(from.Slice(from.server), to.Slice(to.server)) && from.Slice(from.share) == to.Slice(to.share);
     return EqualWindowsPathInsensitive(std::wstring_view(from.text).substr(0u, 2u), std::wstring_view(to.text).substr(0u, 2u));
 }
-inline bool AppendDocumentRelativeImagePath(const ParsedLocalFilePath& from, const ParsedLocalFilePath& to, std::wstring& output)
+inline bool AppendDocumentRelativeFilePath(const ParsedLocalFilePath& from, const ParsedLocalFilePath& to, std::wstring& output)
 {
     if (! LocalPathsShareRoot(from, to))
         return false;
@@ -377,15 +377,19 @@ inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool dri
         }
     }
 }
-inline std::optional<std::wstring> BuildMarkdownImagePath(std::wstring_view document, std::wstring_view clipboard)
+// Recognized image suffixes produce displayed images; every other absolute
+// file path produces a text link. Both use the same lexical destination rules.
+// No existence/type query, file copy or link activation occurs during paste.
+inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view document, std::wstring_view clipboard)
 {
     while (! clipboard.empty() && (clipboard.back() == L'\r' || clipboard.back() == L'\n'))
         clipboard.remove_suffix(1u);
     if (clipboard.size() > 1u && clipboard.front() == L'"' && clipboard.back() == L'"')
         clipboard = clipboard.substr(1u, clipboard.size() - 2u);
-    ParsedLocalFilePath image;
-    if (! ParseLocalFilePath(clipboard, image) || ! HasImageFileExtension(image))
+    ParsedLocalFilePath file;
+    if (! ParseLocalFilePath(clipboard, file))
         return std::nullopt;
+    const bool image = HasImageFileExtension(file);
     std::wstring destination(0u, L' '), raw(0u, L' ');
     bool relative{};
     if (! document.empty())
@@ -393,32 +397,33 @@ inline std::optional<std::wstring> BuildMarkdownImagePath(std::wstring_view docu
         ParsedLocalFilePath doc;
         if (! ParseLocalFilePath(document, doc))
             throw std::invalid_argument("document location must be an absolute file path");
-        relative = AppendDocumentRelativeImagePath(doc, image, raw);
+        relative = AppendDocumentRelativeFilePath(doc, file, raw);
     }
     if (relative)
         AppendUriPath(raw, destination);
     else
     {
-        raw.assign(image.text, 0u, image.rootEnd);
-        for (const auto part : image.parts)
-            raw.append(L"\\").append(image.Slice(part));
+        raw.assign(file.text, 0u, file.rootEnd);
+        for (const auto part : file.parts)
+            raw.append(L"\\").append(file.Slice(part));
         std::ranges::replace(raw, L'\\', L'/');
-        destination.append(image.unc ? L"file:" : L"file:///");
-        AppendUriPath(raw, destination, ! image.unc);
+        destination.append(file.unc ? L"file:" : L"file:///");
+        AppendUriPath(raw, destination, ! file.unc);
     }
-    const auto filename  = image.Slice(image.parts.back());
-    const auto dot       = filename.find_last_of(L'.');
-    const auto name      = dot && dot != filename.npos ? filename.substr(0u, dot) : filename;
-    std::size_t altUnits = name.size();
+    const auto filename    = file.Slice(file.parts.back());
+    const auto dot         = filename.find_last_of(L'.');
+    const auto name        = image && dot && dot != filename.npos ? filename.substr(0u, dot) : filename;
+    std::size_t labelUnits = name.size();
     for (const auto c : name)
         if (c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')))
-            ++altUnits;
+            ++labelUnits;
     // Check the complete escaped source before allocating its final buffer.
-    if (altUnits + 5u > Document::MaximumUnits || destination.size() > Document::MaximumUnits - altUnits - 5u)
-        throw std::length_error("image Markdown source capacity exceeded");
+    const auto markerUnits = image ? 5u : 4u;
+    if (labelUnits + markerUnits > Document::MaximumUnits || destination.size() > Document::MaximumUnits - labelUnits - markerUnits)
+        throw std::length_error("file reference Markdown source capacity exceeded");
     std::wstring result(0u, L' ');
-    result.reserve(altUnits + destination.size() + 5u);
-    result.append(L"![");
+    result.reserve(labelUnits + destination.size() + markerUnits);
+    result.append(image ? L"![" : L"[");
     for (const auto c : name)
     {
         if (c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')))
@@ -427,7 +432,7 @@ inline std::optional<std::wstring> BuildMarkdownImagePath(std::wstring_view docu
     }
     result.append(L"](").append(destination).append(L")");
     if (result.size() > Document::MaximumUnits)
-        throw std::length_error("image Markdown source capacity exceeded");
+        throw std::length_error("file reference Markdown source capacity exceeded");
     return std::optional<std::wstring>(std::in_place, result);
 }
 } // namespace DxUi::RichText::Detail

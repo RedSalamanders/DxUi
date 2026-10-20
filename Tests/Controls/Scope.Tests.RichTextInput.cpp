@@ -374,6 +374,22 @@ void TestRichTextApplicationImageClipboard()
             "one service commit inserts exact Unicode image source");
     Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} && ! editor->CanUndo(),
             "service image paste restores backward selection in one undo");
+    clipboard.content.filePaths = {L"C:\\docs\\a.png", L"C:\\docs\\files\\report.pdf", L"D:\\other.txt"};
+    prepare();
+    notices = 0u;
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "mixed references traverse the real embedded TSF service");
+    Require(editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](files/report.pdf)\r\n\r\n[other\\.txt](file:///D:/other.txt)" && notices == 1u,
+            "embedded service preserves mixed order and chooses relative or absolute file destinations per item");
+    Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} && ! editor->CanUndo(),
+            "embedded mixed paste restores source and backward selection in one undo");
+    clipboard.content.filePaths.clear();
+    clipboard.content.text = L"\"C:\\docs\\files\\report.pdf\"";
+    prepare();
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "embedded text path traverses the file-reference transform");
+    Require(editor->GetText() == L"[report\\.pdf](files/report.pdf)" && editor->Undo() && editor->GetText() == L"replace",
+            "embedded text file reference retains its full label and one undo boundary");
+    clipboard.content.text.clear();
+    clipboard.content.filePaths = {L"C:\\docs\\report.pdf"};
     for (unsigned mutation = 0u; mutation < 3u; ++mutation)
     {
         editor->SetSelection({7u, 0u});
@@ -397,7 +413,7 @@ void TestRichTextApplicationImageClipboard()
     editor->SetReadOnly(true);
     const auto reads = clipboard.reads;
     Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == E_ACCESSDENIED && clipboard.reads == reads,
-            "read-only service rejects image paste before clipboard access");
+            "read-only service rejects file-reference paste before clipboard access");
     editor->SetReadOnly(false);
     prepare();
     RequireSucceeded(view.ReadTextInput(snapshot), "image clipboard composition snapshot");
@@ -406,7 +422,7 @@ void TestRichTextApplicationImageClipboard()
     preview.compositionEndIndex   = 1u;
     RequireSucceeded(view.ApplyTextInput(snapshot.revision, preview, EmbeddedTextInputAction::Preview), "image clipboard opens source composition");
     Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == S_FALSE && clipboard.reads == reads,
-            "active composition rejects image paste before clipboard access");
+            "active composition rejects file-reference paste before clipboard access");
     services.ClearClient();
     client->Disconnect();
     services.Detach();

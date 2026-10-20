@@ -2840,9 +2840,10 @@ public:
     bool CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image);
     void ReloadImages();
     [[nodiscard]] RichText::RichImageResourceStatistics GetImageResourceStatistics() const noexcept;
-    // Prepare one source replacement for the native/app clipboard route. Image
-    // paths become relative Markdown in canonical rich contexts; unsaved or
-    // cross-root paths use absolute file URIs. Raw source/code stays literal.
+    // Prepare one source replacement for the native/app clipboard route. File
+    // paths become Markdown images or named links in canonical rich contexts.
+    // Destinations are document-relative; unsaved/cross-root uses file URIs.
+    // Raw source/code stays literal. Files are never copied or opened here.
     // No edit/callback occurs; false leaves replacement unchanged.
     bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const;
     [[nodiscard]] uint64_t Revision() const noexcept;
@@ -2966,7 +2967,7 @@ private:
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
-    [[nodiscard]] bool CanPasteMarkdownImages() const noexcept;
+    [[nodiscard]] bool CanPasteMarkdownFileReferences() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true);
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);

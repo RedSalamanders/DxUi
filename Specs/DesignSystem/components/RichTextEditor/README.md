@@ -49,6 +49,6 @@ navigation; disabled/composing/stale targets refuse it. Source-contiguous
 selection can paint disjoint main/footer fragments. Dedicated object editing,
 generated backlink keyboard traversal and final M5 qualification remain open.
 
-Image paths paste as displayed Markdown with explicit document-relative metadata. Local PNG/JPEG/BMP/GIF/TIFF decoding belongs to an application worker. Publication preserves source/selection/history and UIA alternative names; selection tints opaque pixels, and hide/device replacement retires/recreates native resources. The [image guide and actual harness captures](../../../../docs/rich-text.md) show the raster preview. Final platform/resource/performance gates remain in the active plan.
+File paths paste as displayed Markdown images or full-filename text links with explicit document-relative metadata. Mixed lists preserve order and one undo boundary. File links use existing inert underlined link styling; paste adds no navigation or drag-and-drop. Local PNG/JPEG/BMP/GIF/TIFF decoding belongs to an application worker. Publication preserves source/selection/history and UIA alternative names; selection tints opaque pixels, and hide/device replacement retires/recreates native resources. The [image guide and actual harness captures](../../../../docs/rich-text.md) show the raster preview. Final platform/resource/performance gates remain in the active plan.
 
 The preview is a static HTML rendition using `bundle.css`; the populated harness gallery is the authoritative Direct2D capture.

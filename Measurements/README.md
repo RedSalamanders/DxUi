@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [Unicode file-reference paste, 2026-10-20](RichText/2026-10-20-file-reference-paste/README.md):
+  mixed image/link paste with document-relative destinations, native/embedded
+  transport, semantic/history and allocation-failure checks; all six builds and
+  57 ordinary x64 scope runs pass. Performance remains unpaired; D4c stays HOLD.
 - [Unicode image-path paste, 2026-10-20](RichText/2026-10-20-image-path-paste/README.md):
   focused native/app TSF/embedded paste, wide file-list transport, exact undo,
   stale-state guards, 31 allocation points and seven ordinary host suites.

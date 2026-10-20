@@ -105,7 +105,7 @@ static void TestRichImagePathAllocationFailures()
         try
         {
             const auto result =
-                RichText::Detail::BuildMarkdownImagePath(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
+                RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
             Check(! failure && result && *result == L"![\u6771\U0001f600 \\[x\\]\\#\\%](../images/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.png)",
                   "image destination and escaped source retry exactly");
         }
@@ -124,6 +124,21 @@ static void TestRichImagePathAllocationFailures()
         Check(failure ? result == E_OUTOFMEMORY : result == S_OK, "file list allocation failures return a named HRESULT");
         Check(content.filePaths.size() == 2u && content.filePaths[0] == L"C:\\images\\\u6771\U0001f600.png",
               "failed file decode leaves previously published content exact");
+    });
+    sweep([&](bool failure)
+    {
+        bool rejected{};
+        try
+        {
+            const auto result = RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"C:\\notes\\files\\\u6771\U0001f600 [x]#%.pdf");
+            Check(! failure && result && *result == L"[\u6771\U0001f600 \\[x\\]\\#\\%\\.pdf](../files/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.pdf)",
+                  "file-link destination and full label retry exactly");
+        }
+        catch (const std::bad_alloc&)
+        {
+            rejected = true;
+        }
+        Check(rejected == failure, "every observed file-link allocation failure propagates without termination");
     });
     sweep([&](bool failure)
     {
@@ -1441,6 +1456,69 @@ static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
     Check(view.TransformClipboardPaste(snapshot.revision, snapshot.focusId, content, replacement) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
           "document-location change rejects stale embedded clipboard preparation");
     Check(editor->GetText() == L"ok " && ! editor->CanUndo() && ! view.Controls().GetHwnd(), "embedded transform creates no HWND or source transaction");
+}
+static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "file reference shared device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "file reference embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    RichImagePathTests::FileReferences(Check);
+    RichImagePathTests::RetainedFileReferences(*editor, [&] { Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "file reference preparation"); }, Check);
+    Check(! view.Controls().GetHwnd(), "file reference paste creates no embedded HWND");
+    editor->SetText(L"replace");
+    editor->SetSelection({7u, 0u});
+    Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "mixed paste failure fixture");
+    TextClipboardContent content;
+    content.filePaths    = {L"C:\\docs\\a.png", L"C:\\docs\\report.pdf", L"D:\\other.txt"};
+    const auto source    = editor->GetText();
+    const auto revision  = editor->Revision();
+    const auto selection = editor->GetSelection();
+    std::wstring expected(0u, L' ');
+    std::size_t requests{};
+    {
+        const bool oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const bool transformed        = editor->TryPrepareClipboardPaste(content, expected);
+        countAllocations              = false;
+        requests                      = allocations;
+        Check(transformed && requests > 0u && requests < 512u, "mixed file paste has an observed bounded allocation schedule");
+    }
+    for (std::size_t point = 0u; point < requests; ++point)
+    {
+        std::wstring replacement = L"sentinel";
+        bool rejected{};
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = point;
+            try
+            {
+                static_cast<void>(editor->TryPrepareClipboardPaste(content, replacement));
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && replacement == L"sentinel" && editor->GetText() == source && editor->Revision() == revision && editor->GetSelection() == selection &&
+                  ! editor->CanUndo(),
+              "failed mixed paste leaves caller output, source, selection and history exact");
+        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "mixed paste retries every allocation failure exactly");
+    }
+    std::cout << "mixed file paste allocation points=" << requests << '\n';
 }
 static void TestEmbeddedRetainedObjectSourceEditing(GraphicsFixture& gpu)
 {

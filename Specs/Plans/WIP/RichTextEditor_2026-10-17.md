@@ -3021,6 +3021,26 @@ unchanged because this CPU service is not yet connected to editor painting.
     exact retry. That historical preparation packet is under
     `.build/reports/rich-image-path-m5g1-20261020`; the later Iteration3 packet
     above qualifies the integrated clipboard transports. It does not qualify raster display.
+  - [x] M5g.1b (functionally qualified, owner addition, 2026-10-20): Extend paste to file references only;
+    recognized images remain displayed images, other file paths become named
+    Markdown links with full filename labels. Mixed file lists preserve order,
+    relative destinations, source EOL and one undo transaction. Unsaved/cross-root
+    paths use file URIs. Keep source/code contexts literal and retain complete
+    fallback for an unrepresentable path. Add native Ctrl+V/CF_HDROP, embedded
+    TSF, shared semantic/history and observed-allocation failure tests. No
+    drag-and-drop, file activation or implicit asset copy belongs to this slice.
+    All six canonical builds and all 19 ordinary suites in each x64 Debug,
+    Release and ASan profile pass (57 scopes, zero skips), including the positive
+    sanitizer probe and before/after source/artifact identity checks. Shared
+    semantic/history tests, native Ctrl+V/CF_HDROP and the real embedded TSF
+    adapter pass. Debug sweeps all 56 observed mixed-paste allocations plus 94
+    pure path/file/codec/URI points with exact retry. See the
+    [qualification packet](../../../Measurements/RichText/2026-10-20-file-reference-paste/README.md).
+    No native repair was required. D4c, M5g.3 and physical/platform/consumer
+    gates remain open; ordinary performance output is unpaired diagnostic data.
+    Gallery review: this paste policy reuses the existing image/link rendering
+    and changes no default gallery source, layout, typography or pixels; the
+    existing captures remain historical examples and need no regeneration.
   - [x] M5g.2 (functional implementation qualified): Resolve local assets through
     caller/host scheduling, immutable bounded CPU pixels, current-source/base/
     binding identities, cancellation and stale-result rejection, and prepared
