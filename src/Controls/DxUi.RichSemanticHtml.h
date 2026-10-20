@@ -280,7 +280,8 @@ struct NativeHtmlPlan
                 continue; // Alternatives are atomic literal labels.
             if (node.firstChild != MarkdownNoNode)
                 pending.push_back(node.firstChild);
-            if (node.kind == MarkdownInlineKind::Link)
+            const auto* footnote = node.kind == MarkdownInlineKind::FootnoteReference ? syntax.FootnoteReferenceFor(index) : nullptr;
+            if (node.kind == MarkdownInlineKind::Link || (footnote && footnote->footnote != MarkdownNoNode && footnote->occurrence))
                 markdownLinks.push_back(node.source);
             if (node.kind != MarkdownInlineKind::Html)
                 continue;

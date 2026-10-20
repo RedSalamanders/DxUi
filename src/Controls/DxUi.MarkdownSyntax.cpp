@@ -377,11 +377,17 @@ struct MarkdownParser::Preparation
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
     void ScanBlockUnit()
     {
+        if (blocks.AdvanceTableCell())
+            return;
         const auto& source = syntax->source_;
         if (cursor == source.size())
         {
             if (lineFirst < cursor)
+            {
                 blocks.Line(lineFirst, cursor, cursor);
+                lineFirst = cursor;
+                return; // A final row's generated cells must finish before compaction.
+            }
             blocks.Finish();
             syntax->blockStatistics_ = blocks.Statistics();
             rootNode                 = syntax->nodes_[0].firstChild;

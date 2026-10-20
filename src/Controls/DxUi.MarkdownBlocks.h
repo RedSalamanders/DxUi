@@ -3,11 +3,13 @@
 #include "DxUi.MarkdownTableCells.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
+#include <optional>
+#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
 // Private block recognizer. It owns no source or host. The public parser owns
-// staging and calls one physical-line transition at a time after scanning it.
+// staging and calls one physical-line or generated-table-cell event at a time.
 class MarkdownBlocks
 {
     using Kind = MarkdownBlockKind;
@@ -23,6 +25,16 @@ class MarkdownBlocks
     std::size_t acceptedEnd_{};
     std::array<std::size_t, 3> lastOtherMarker_{};
     MarkdownBlockStatistics statistics_;
+    struct TableRowPreparation
+    {
+        TableRowPreparation() : alignment(0u), cells(0u)
+        {
+        }
+        std::size_t row{}, column{};
+        std::vector<MarkdownAlignment> alignment;
+        std::vector<MarkdownRange> cells;
+    };
+    std::optional<TableRowPreparation> tableRow_;
 
     static bool Space(wchar_t c) noexcept
     {
@@ -419,20 +431,20 @@ class MarkdownBlocks
     }
     void TableRow(std::size_t table, MarkdownContentLine line, const std::vector<MarkdownAlignment>& alignment, bool header)
     {
+        // Padded cells amplify short sparse rows. Admit the complete row and
+        // all its columns against the remaining document budget before any row
+        // or cell allocation; subtraction avoids overflow in large products.
+        if (alignment.size() >= MarkdownSyntax::MaximumNodeRecords - nodes_.size())
+            throw std::length_error("Markdown table node capacity exceeded");
         const auto row            = Add(Kind::TableRow, table);
         nodes_[row].tableHeader   = header;
         nodes_[row].block.source  = {header ? nodes_[table].block.source.first : lineFirst_, line.source.last};
         nodes_[row].block.content = line.source;
         const auto cells          = Cells(line.source);
-        for (std::size_t i = 0; i < alignment.size(); ++i)
-        {
-            const auto range          = i < cells.size() ? cells[i] : MarkdownRange{nodes_[row].block.content.last, nodes_[row].block.content.last};
-            const auto cell           = Add(Kind::TableCell, row);
-            nodes_[cell].alignment    = alignment[i];
-            nodes_[cell].tableHeader  = header;
-            nodes_[cell].block.source = nodes_[cell].block.content = range;
-            nodes_[cell].lines.push_back({range, 0u});
-        }
+        tableRow_.emplace();
+        tableRow_->row = row;
+        tableRow_->alignment.assign(alignment.begin(), alignment.end());
+        tableRow_->cells.assign(cells.begin(), cells.end());
     }
     bool StartTable(Cursor cursor, std::size_t bodyEnd)
     {
@@ -494,6 +506,8 @@ class MarkdownBlocks
     }
     std::size_t Add(Kind kind, std::size_t parent)
     {
+        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
+            throw std::length_error("Markdown block node capacity exceeded");
         const auto index = nodes_.size();
         nodes_.emplace_back();
         tails_.push_back(MarkdownNoNode);
@@ -843,6 +857,29 @@ class MarkdownBlocks
     }
 
 public:
+    bool AdvanceTableCell()
+    {
+        if (! tableRow_)
+            return false;
+        auto& pending = *tableRow_;
+        if (pending.column == pending.alignment.size())
+        {
+            tableRow_.reset();
+            return true;
+        }
+        const auto column         = pending.column++;
+        const auto row            = pending.row;
+        const auto end            = nodes_[row].block.content.last;
+        const auto range          = column < pending.cells.size() ? pending.cells[column] : MarkdownRange{end, end};
+        const auto cell           = Add(Kind::TableCell, row);
+        nodes_[cell].alignment    = pending.alignment[column];
+        nodes_[cell].tableHeader  = nodes_[row].tableHeader;
+        nodes_[cell].block.source = nodes_[cell].block.content = range;
+        nodes_[cell].lines.push_back({range, 0u});
+        if (pending.column == pending.alignment.size())
+            tableRow_.reset();
+        return true;
+    }
     MarkdownBlocks(std::wstring_view source,
                    MarkdownProfile profile,
                    std::vector<MarkdownNode>& nodes,

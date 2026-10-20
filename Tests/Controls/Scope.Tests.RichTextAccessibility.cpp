@@ -1486,6 +1486,19 @@ void SemanticFootnoteNavigation(bool embedded)
                     "a source range containing original list text and moved footer text has the document as its common display ancestor");
         }
     }
+    const std::wstring overlapping = L"one <a href='#x'>known[^n]</a>\n\n[^n]: note\n";
+    fixture.editor->SetText(overlapping);
+    fixture.Publish();
+    auto literalRoot = fixture.Simple();
+    auto onlyLink    = FindSemanticPart(*literalRoot.get(), UIA_HyperlinkControlTypeId);
+    Require(onlyLink &&
+                ReadProviderStringProperty(*onlyLink.get(), UIA_NamePropertyId, "nonoverlapping fallback action") == L"Return to reference 1 for footnote 1",
+            "native/embedded overlapping HTML anchors retain literal source and expose only the footer's independent backlink action");
+    wil::com_ptr_nothrow<IInvokeProvider> fallbackBacklink;
+    RequireSucceeded(onlyLink.query_to(fallbackBacklink.put()), "literal source backlink Invoke");
+    RequireSucceeded(fallbackBacklink->Invoke(), "backlink to literal overlapping anchor source");
+    const auto marker = overlapping.find(L"[^n]");
+    Require(fixture.editor->GetSelection() == Selection{marker, marker + 4u}, "literal fallback navigation still selects the exact original raw marker");
 }
 void SemanticStructureAndTasks(bool embedded)
 {

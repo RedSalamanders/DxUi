@@ -18,6 +18,18 @@ struct RichTextEditor::State
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
     std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
+    struct MarkdownCapacityRejection
+    {
+        RichText::SourceSnapshot source;
+        uint64_t revision{};
+        RichText::MarkdownProfile profile{};
+    };
+    std::optional<MarkdownCapacityRejection> markdownCapacityRejected;
+    bool HasCurrentMarkdownCapacityRejection() const noexcept
+    {
+        return markdownCapacityRejected && markdownProfile && markdownCapacityRejected->revision == document.Revision() &&
+               markdownCapacityRejected->profile == *markdownProfile && markdownCapacityRejected->source.IsSameRevision(document.Snapshot());
+    }
     std::shared_ptr<RichText::Detail::AccessibilityEpoch> accessibilityEpoch;
     bool markdownRendering  = false;
     size_t semanticAdvances = 0, lastAdvanceSemanticWork = 0;
@@ -64,6 +76,7 @@ RichTextEditor::~RichTextEditor() noexcept
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
+    _state->markdownCapacityRejected.reset();
     RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->scrollDip       = 0;
@@ -117,6 +130,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         return;
     RetireSemanticAccessibility();
     _state->markdown.Clear();
+    _state->markdownCapacityRejected.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
@@ -168,6 +182,8 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
 {
     if (! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
         return MarkdownRenderingStatus::Disabled;
+    if (_state->HasCurrentMarkdownCapacityRejection())
+        return MarkdownRenderingStatus::SourceFallback;
     const auto syntax = GetMarkdownSyntax();
     if (syntax && _state->semanticRejected == syntax)
         return MarkdownRenderingStatus::SourceFallback;
@@ -390,6 +406,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         _state->markdown.Cancel();
         _state->semantic.Cancel();
         _state->semanticRejected.reset();
+        _state->markdownCapacityRejected.reset();
         _state->markdownRequestActive = false;
         _state->requestActive         = false;
         RequestContentPreparation(false);
@@ -464,7 +481,8 @@ bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
     const auto viewport = TextViewport();
     return GetHost() == &host && state.layout.Ready() && state.layout.Revision() == state.document.Revision() &&
            state.layoutWidth == std::max(1.0f, viewport.right - viewport.left) && state.typographyRevision == host.GetTypographyRevision() &&
-           state.resourceGeneration == host.GetResourceGeneration() && (! state.markdownProfile || GetMarkdownSyntax());
+           state.resourceGeneration == host.GetResourceGeneration() &&
+           (! state.markdownProfile || GetMarkdownSyntax() || state.HasCurrentMarkdownCapacityRejection());
 }
 bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 {
@@ -500,31 +518,45 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             UpdateCaretScroll();
             return S_OK;
         }
-        if (state.markdownProfile && ! GetMarkdownSyntax())
+        if (state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
         {
-            if (! state.markdownRequestActive || state.markdownRequestRevision != Revision() || ! state.markdown.HasPendingPreparation())
+            try
             {
-                // Exact bounded source admission/copy is still indivisible.
-                // Parsing resumes its own cursors, without DirectWrite or a
-                // per-control worker. Semantic preparation consumes only a
-                // completed current tree on a later bounded stage.
-                state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
-                state.markdownRequestRevision = Revision();
-                state.markdownRequestActive   = true;
+                if (! state.markdownRequestActive || state.markdownRequestRevision != Revision() || ! state.markdown.HasPendingPreparation())
+                {
+                    // Exact bounded source admission/copy is still indivisible.
+                    // Parsing resumes its own cursors, without DirectWrite or a
+                    // per-control worker. Semantic preparation consumes only a
+                    // completed current tree on a later bounded stage.
+                    state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
+                    state.markdownRequestRevision = Revision();
+                    state.markdownRequestActive   = true;
+                }
+                ++state.markdownAdvances;
+                const auto advance            = state.markdown.Advance();
+                state.lastAdvanceMarkdownWork = advance.workUnits;
+                if (advance.status == RichText::MarkdownPreparationStatus::Pending)
+                    return S_FALSE;
+                state.markdownRequestActive = false;
             }
-            ++state.markdownAdvances;
-            const auto advance            = state.markdown.Advance();
-            state.lastAdvanceMarkdownWork = advance.workUnits;
-            if (advance.status == RichText::MarkdownPreparationStatus::Pending)
-                return S_FALSE;
-            state.markdownRequestActive = false;
+            catch (const std::length_error&)
+            {
+                // This exact request cannot fit the rich preview. Retain its
+                // shared source identity without copying text or inventing a
+                // partial tree. Memory failures remain separately retryable.
+                state.markdown.Cancel();
+                state.markdownRequestActive = false;
+                state.semantic.Clear();
+                state.semanticRejected.reset();
+                state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
+            }
         }
         std::shared_ptr<const RichText::SemanticDocument> semanticDocument;
         if (state.markdownRendering && state.mode == RichText::ViewMode::Rich)
         {
             const auto syntax = GetMarkdownSyntax();
             semanticDocument  = GetSemanticDocument();
-            if (! semanticDocument && state.semanticRejected != syntax)
+            if (syntax && ! semanticDocument && state.semanticRejected != syntax)
             {
                 try
                 {

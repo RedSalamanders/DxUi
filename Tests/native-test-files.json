@@ -106,6 +106,7 @@
   "Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h",
   "Tests/Support/Scope.Tests.Footnotes.h",
   "Tests/Support/Scope.Tests.MarkdownBlocks.h",
+  "Tests/Support/Scope.Tests.MarkdownCapacity.h",
   "Tests/Support/Scope.Tests.MarkdownHtml.h",
   "Tests/Support/Scope.Tests.MarkdownInlines.h",
   "Tests/Support/Scope.Tests.NativeFlowchartCorpus.h",

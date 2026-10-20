@@ -1330,6 +1330,33 @@ graphs from 92 unsupported definitions and 20 other diagram families. Rejection
 is compatibility accounting, never rendered conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
+### Bounded Markdown staging and source fallback
+
+`MarkdownSyntax::MaximumNodeRecords` is 32,768 combined block/inline staging
+records. Source length admission remains 65,536 UTF-16 units. Temporary shells
+count until their compaction pass completes. A table row MUST admit its row plus
+all header-width real/padded cells against the remaining global node budget
+before allocating that row; separate tables cannot reset the budget. Inline
+append and opaque HTML roots share the remaining combined budget. Overflow
+throws `length_error`, retires staging and preserves the previous publication.
+No excessive/partial tree may be published for later semantic admission to reject.
+
+Each generated table cell MUST consume a separate resumable parser event. No
+following physical line or final block compaction may run while a row has pending
+cells. Cancellation/source replacement can discard a partially prepared row;
+published source/identities remain immutable. Bounds apply before amplification,
+not after allocating a product of body rows and header width.
+
+Retained parser-capacity fallback MUST bind the exact source snapshot, document
+revision and analysis profile. It prepares usable source geometry while preserving
+the requested view, text, directional selection and undo/redo. Current rejection
+permits source-layout acknowledgement without an unavailable syntax tree; idle,
+flow/typography or resource preparation MUST NOT repeatedly parse that same request.
+Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
+`bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
+These limits do not establish larger-document or worst-case latency qualification;
+raw NUL admission and final capacity/performance profiles remain separate M6 work.
+
 ### RichMarkdown footnote definition grammar
 
 `DxUiFootnotes1` is a separate RichMarkdown extension; CommonMark0312 and Gfm029
@@ -1433,3 +1460,8 @@ External destinations remain inert. Source/presentation/binding retirement MUST
 make held navigation providers unavailable before a replacement publication.
 Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
 activates its definition. Generated backlink keyboard traversal remains M5e.
+Resolved footnote references are link actions for native HTML admission. They
+MUST NOT overlap a native `<a>` envelope: preserve the entire conflicting leaf
+literally, as with nested Markdown/native anchors. The footer's independent
+backlinks still target exact raw references. Unresolved literal markers add no
+action and do not invalidate an otherwise supported HTML anchor.

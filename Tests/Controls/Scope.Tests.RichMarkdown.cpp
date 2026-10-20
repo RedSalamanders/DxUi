@@ -1,6 +1,7 @@
 #include "Scope.Tests.RichMarkdown.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownHtml.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
@@ -1084,6 +1085,10 @@ void TestLosslessMarkdownSchedulingCancellationAndIdentity()
     moved.Clear();
     Require(! moved.Published() && moved.Advance().status == MarkdownPreparationStatus::Idle, "clear returns parser to idle");
 }
+void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
+{
+    MarkdownCapacityTests::ParserBounds(Require);
+}
 } // namespace
 
 void RunRichMarkdownTests()
@@ -1113,4 +1118,5 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestNativeFlowchartPinnedIndependentCorpus);
     DXUI_RUN_TEST(TestNativeFlowchartSchedulingAndAtomicAdmission);
     DXUI_RUN_TEST(TestNativeFlowchartCapacityBeforeGeneratedAllocation);
+    DXUI_RUN_TEST(TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding);
 }

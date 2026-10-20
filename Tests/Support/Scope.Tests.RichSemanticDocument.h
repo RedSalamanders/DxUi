@@ -283,6 +283,22 @@ inline void NativeHtmlAndLinkPresentation()
     Check(empty->Paragraphs()[0u].emptyInsertion == 6u && empty->Map().DisplayRanges({0u, empty->Map().Source().size()}).empty(),
           "empty balanced HTML has a real interior source insertion without generated selection glyphs");
 }
+inline void FootnoteHtmlActionAdmission()
+{
+    const auto overlapping = Build(L"one <a href='#x'>known[^n]</a>\n\n[^n]: note\n", MarkdownProfile::RichMarkdown);
+    Check(overlapping->Map().Display() == L"one <a href='#x'>known[^n]</a>\n1. note\n\u21a91\n",
+          "resolved footnote actions inside native HTML anchors retain the entire overlapping leaf literally");
+    Check(overlapping->Navigation().size() == 1u &&
+              std::ranges::none_of(overlapping->Elements(),
+                                   [](const auto& item) { return item.role == SemanticRole::Link || item.role == SemanticRole::FootnoteReference; }),
+          "literal overlapping anchors publish no competing forward actions while preserving a source-exact footer backlink");
+    const auto styling = Build(L"one <b>known[^n]</b>\n\n[^n]: note\n", MarkdownProfile::RichMarkdown);
+    Check(styling->Map().Display() == L"one known\u00b9\n1. note\n\u21a91\n" && styling->Navigation().size() == 2u,
+          "noninteractive native HTML styles do not suppress supported footnote links");
+    const auto missing = Build(L"one <a href='#x'>missing[^n]</a>\n", MarkdownProfile::RichMarkdown);
+    Check(missing->Map().Display() == L"one missing[^n]\n" && missing->Navigation().empty() && missing->Syntax()->Diagnostics().size() == 1u,
+          "an unresolved literal footnote marker does not invent a nested HTML action or hide its diagnostic");
+}
 inline void SchedulingAndAdmission()
 {
     const auto oldSyntax = Parse(L"old\n");
@@ -331,9 +347,7 @@ inline void SchedulingAndAdmission()
     table.push_back(L'\n');
     for (unsigned row = 0u; row < 300u; ++row)
         table.append(L"| |\n");
-    const auto amplified = Parse(table);
-    Check(amplified->Nodes().size() > SemanticDocument::MaximumElements, "sparse table independently exercises source-to-node amplification");
-    RichSemanticTests::Reject<std::length_error>([&] { builder.Begin(amplified); }, "amplified semantic node graph rejected before staging copies");
+    RichSemanticTests::Reject<std::length_error>([&] { Parse(table); }, "sparse table amplification is rejected before allocating an excessive parser graph");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
 }
 } // namespace RichSemanticDocumentTests

@@ -1181,7 +1181,8 @@ __declspec(noinline) static int RunFunctionalTests()
          std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1242,6 +1243,13 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "capacity isolated borrowed WARP device");
+            TestEmbeddedParserCapacitySourceFallback(gpu);
+            TestParserCapacityMemoryFailureIsRetryable(gpu);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures")
         {
             TestFootnoteBlockAllocationFailures(true);
@@ -1427,6 +1435,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedFlowchartSourceFallbacks(gpu);
     TestEmbeddedFootnoteBlockSourceEdits(gpu);
     TestEmbeddedFootnoteResolutionAndSourceEdits(gpu);
+    TestEmbeddedParserCapacitySourceFallback(gpu);
+    TestParserCapacityMemoryFailureIsRetryable(gpu);
     RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
@@ -1443,6 +1453,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+    RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);

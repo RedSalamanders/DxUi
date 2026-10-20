@@ -95,6 +95,35 @@ tests and owning contract/docs updates before completion):
   The all-newline fixture does not establish a bound for such trees. Worker out-of-order tests are required if
   caller-shared execution is introduced. Physical/platform/performance gates stay
   independently open.
+  - [x] M6a: Combined parser-node admission before table/inline amplification,
+    cooperative generated cells and exact-request native/embedded source fallback.
+    Focused x64 Debug implementation passes: 32,768 staging records, whole-row
+    preflight, one cell/event, immutable prior publication and snapshot/revision/
+    profile rejection latch. Exact-boundary/global/inline/HTML/cancellation checks,
+    retained source geometry, profile/edit/history recovery and transient-memory
+    retries pass in both hosts. Eight directed checks, four isolated probes and
+    complete EditorControls/Accessibility/Embedded scopes pass. Final runtime/
+    build profiles remain M5f/M6c; this does not raise source capacity.
+  - [ ] M6b: Reconcile counted raw NUL through document/codecs/clipboard/TSF/UIA;
+    do not relax unrelated controls' admission or silently truncate transport.
+  - [ ] M6c: Real capacity/pathological latency/storage/resource qualification;
+    retain the existing source limit until measured budgets pass.
+
+M6a focused evidence is retained privately under
+`.build/reports/rich-capacity-m6-20261020/Iteration1`, against base `b299ea2c`.
+The canonical x64 Debug build, all 15 registered/probe/scope runs, five validators,
+complete tooling and pinned format check pass. EditorControls completes in
+56.759 seconds, Accessibility in 121.059 seconds, and ordinary Embedded reports
+52,626 checks with zero tracked C++ allocations during 1,000 warm composites.
+Failure probes cover 790 parser, 2,078 footnote parser/semantic and 660 semantic
+document allocation points, plus retained geometry and the parser-memory retry.
+These timings are diagnostics, not a paired performance acceptance or a new
+baseline. The packet retains exact changed inputs, native artifacts and hashes;
+private old-parser amplification and old-HTML-anchor failures remain separate.
+The footnote/HTML follow-up prevents overlapping native anchor actions while
+retaining the literal source and independently invokable footer backlink. The
+existing gallery scenarios gain no new visible state; diagram/math integration
+will require fresh reviewed captures. M6b/M6c and the overall plan remain open.
 
 - [x] P0: Own Unicode C++ prototype, actual Ghidra MCP exports, meaningful model/
   projection/layout/worker/file/native/app tests and real offscreen capture.

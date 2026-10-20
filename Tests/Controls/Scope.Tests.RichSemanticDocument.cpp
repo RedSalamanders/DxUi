@@ -25,6 +25,7 @@ void TestRichSemanticDocumentSchedulingAndAdmission()
 void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+    RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
 }
 void TestRichSemanticDocumentFrontMatterLiteralFallback()
 {

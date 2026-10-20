@@ -224,6 +224,10 @@ struct MarkdownLexeme
 class MarkdownSyntax
 {
 public:
+    // Combined block/inline staging budget, independent of source length.
+    // Temporary shells count until their compacting pass finishes. Capacity
+    // failure throws length_error without publishing a partial syntax tree.
+    static constexpr std::size_t MaximumNodeRecords  = 32768u;
     MarkdownSyntax(const MarkdownSyntax&)            = delete;
     MarkdownSyntax& operator=(const MarkdownSyntax&) = delete;
     std::wstring_view Source() const noexcept;
@@ -284,7 +288,7 @@ struct MarkdownAdvance
 };
 // Owned parser, no foreign implementation/dependency, worker, host or graphics.
 // Begin copies/validates bounded source. Advance resumes source/lexical cursors,
-// root partitions, reference/inline/autolink preparation, dense forest indexes
+// generated table cells, root partitions, reference/inline/autolink preparation, dense forest indexes
 // and block identity reconciliation. A physical-line transition, reference
 // finalization, construct lookahead and emphasis resolution are bounded
 // indivisible operations; they can inspect more than one source unit. Budgets

@@ -1,6 +1,7 @@
 #pragma once
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include <DxUi/RichSemanticDocument.h>
 
@@ -71,7 +72,7 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
                                L"- [^n]:\n      > - nested\n      >\n      >   body\n",
                                L"[^\u03b2\U0001f600]: **body**\n[^m]: next\n",
                                L"main[^X] and[^missing]\n\n[^x]: body[^y]\n[^X]: duplicate\n[^y]: body[^x]\n",
-                               L"> - [^n]: **note**\n\nmain[^n] again[^n]\n"})
+                               L"> - [^n]: **note**\n\nmain <a href='#x'>[^n]</a> again[^n]\n"})
     {
         sweep(
             [&]
@@ -601,6 +602,62 @@ static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
         *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded footnote navigation"); }, Check, MK_CONTROL, MK_SHIFT);
 }
 
+static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    class PreparationProbe final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::PrepareContent;
+        using RichTextEditor::RichTextEditor;
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity memory probe borrowed device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "capacity memory probe host");
+    auto owned   = std::make_unique<PreparationProbe>(L"old");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "capacity memory previous publication");
+    const auto previous = editor->GetMarkdownSyntax();
+    editor->SetText(L"new **small**");
+    editor->SetSelection({1u, 2u});
+    HRESULT failure{};
+    {
+        const auto oldFailure = failAllocationAfter;
+        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+        failAllocationAfter   = 0u;
+        // Call the real protected preparation boundary directly so the first
+        // failed allocation is inside parser admission, not host/tree staging.
+        failure = editor->PrepareContent(view.Controls());
+    }
+    Check(failure == E_OUTOFMEMORY && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Pending && editor->GetText() == L"new **small**" &&
+              editor->GetSelection() == RichText::Selection{1u, 2u} && ! editor->CanUndo() && previous->Source() == L"old",
+          "parser memory failure remains retryable and cannot latch source capacity fallback or mutate held source/history");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "retry parser memory failure");
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetMarkdownSyntax()->Source() == L"new **small**",
+          "retry succeeds for the unchanged source request after transient parser admission memory failure");
+}
+static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    MarkdownCapacityTests::ParserBounds(Check);
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity fallback borrowed device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "capacity fallback embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    MarkdownCapacityTests::EditorFallback(
+        *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "capacity source fallback preparation"); }, Check);
+    Check(! view.Controls().GetHwnd(), "capacity fallback acquires no control HWND");
+}
 static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)
 {
     using namespace DxUi;

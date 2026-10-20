@@ -232,6 +232,8 @@ class MarkdownInlines
             nodes_[tail_].source.last = range.last;
             return tail_;
         }
+        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            throw std::length_error("Markdown inline node capacity exceeded");
         const auto index = nodes_.size();
         nodes_.emplace_back();
         previous_.push_back(tail_);
@@ -290,6 +292,8 @@ class MarkdownInlines
     }
     void OpaqueHtmlBlock()
     {
+        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            throw std::length_error("Markdown HTML inline node capacity exceeded");
         const auto index = nodes_.size();
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);

@@ -2,6 +2,7 @@
 #include "../../src/Controls/TextClipboard.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
+#include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.RichMarkdown.h"
@@ -880,6 +881,16 @@ void TestRichTextEditorNativeFootnoteResolutionAndSourceEdits()
     Require(editor->OnCopy(window.Host()) && clipboard.text == source.substr(first, last - first) && editor->CanRedo() == redo && editor->GetText() == source,
             "copy across reordered footers uses the exact raw source interval without touching history or the system clipboard");
 }
+void TestRichTextEditorNativeParserCapacitySourceFallback()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    MarkdownCapacityTests::EditorFallback(*editor, window.Host(), [&] { RenderEditor(window); }, Require);
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -975,4 +986,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartSourceFallbacks);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
+    DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
 }

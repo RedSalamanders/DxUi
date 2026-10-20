@@ -29,6 +29,15 @@ note-aware structural commands and final extension qualification remain open.
 Selection across reordered content still selects one raw source interval, which
 can highlight several visual fragments; source copy/deletion follows that interval.
 
+Parser staging is independently bounded to 32,768 combined block/inline records.
+Sparse table rows preflight their entire header width before allocation, then
+prepare one real/padded cell per resumable event. Capacity failure retains the
+previous syntax publication. The editor displays exact source fallback and
+remembers only that snapshot/revision/profile, avoiding repeated idle parsing.
+Edits and profile changes retry; transient memory failures remain retryable.
+The focused admission/fallback implementation is in development under M6; final
+capacity/latency/NUL qualification remains open and the source limit stays 65,536.
+
 ## Retained editor preview (D2c)
 
 For explicit semantic coordinate preparation, include `DxUi/RichSemantic.h`.
@@ -1029,6 +1038,10 @@ or focus acquisition. Read-only navigation is allowed. Ctrl+click activates an
 internal link, Ctrl+Enter at a reference activates its definition, and UIA exposes
 Hyperlink/Invoke with the host's existing thread/publication guards. External
 destinations remain inert.
+Resolved references participate in the native HTML no-overlapping-anchor rule.
+A conflicting `<a>` leaf remains entirely literal rather than exposing competing
+actions; its footer backlink still selects the exact raw reference. Unknown
+literal markers do not introduce an action or invalidate ordinary HTML styling.
 
 Selection remains one raw anchor/caret interval. Dragging or Shift+Down from main
 text into a footer can highlight disjoint fragments. Copy, keyboard deletion,
