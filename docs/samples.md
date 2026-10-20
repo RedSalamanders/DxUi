@@ -34,6 +34,14 @@ HTML tags and original mixed EOLs remain raw editable source.
 Table materialization, structural commands and semantic style UIA remain in the
 active plan. Add `--output image.png` for a deterministic headless capture.
 
+For file-reference paste, add `--document-path 'C:\notes\note.md'` to `--rich-text`.
+This sets location metadata; it does not load or save the file. Copy files in
+Explorer and press Ctrl+V: recognized images become displayed image references
+when serviced by the sample worker; other files become inert full-filename links.
+Destinations are relative to that document folder, or absolute file URIs when no
+compatible base exists. The [drag-and-drop spec and test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
+is pending implementation; dropping files into this sample is not yet supported.
+
 The [benchmark](../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) uses that exact complex scene, with deterministic clean/dirty
 updates and GPU completion measurement. Run [performance.ps1](../performance.ps1) for FPS and memory receipts;
 opening the interactive sample is not itself a benchmark. See [measurement instructions](performance.md) and

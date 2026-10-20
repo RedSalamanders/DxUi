@@ -814,6 +814,14 @@ unserviced or declined resources retain their alternative. File links retain
 the existing inert link presentation. Paste MUST NOT activate/open a file, query
 existence or register drag-and-drop; classification uses the path suffix only.
 
+The separate [file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) specifies
+pending drag-and-drop support with the same displayed-image/relative-file-link
+policy. Its insertion target MUST be a prepared source caret at the drop point;
+preview MUST NOT move the existing selection, and one accepted file list MUST
+produce one atomic insertion whose undo restores that selection. Native and
+embedded transports MUST share path/context rules and the application-owned image
+pipeline. This planned capability is not implemented by file-reference paste.
+
 Pure structural command/deletion planning MUST reject syntax carrying a
 presentation-only source-region hint before staging any document change, even
 when the requested selection lies outside that region. Callers obtain canonical

@@ -2,6 +2,11 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
+Displayed image references and relative links for other files reuse the paste
+policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
+are specified; implementation and runtime qualification have not started.
+
 - **ACTIVE**: [Owned Unicode rich-text editor](RichTextEditor_2026-10-17.md). Core, retained preview, source
 TSF/IME/UIA ranges, Unicode 17 segmentation and parser M1-M3 are functionally qualified.
 M4 bounded semantic rendering, source caret sites, hanging markers, inert links,

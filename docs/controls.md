@@ -1,5 +1,8 @@
 # Control guide
 
+RichTextEditor supports file-reference paste and caller-serviced native images.
+File drag-and-drop remains a [pending specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
+
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
 uses the primary button. Pointer and keyboard menu anchors account for nested scroll offsets, including through
 PageHost and for Tree/Grid delegates. Extracting a RadioButton with `TakeChild` removes its effective association with the

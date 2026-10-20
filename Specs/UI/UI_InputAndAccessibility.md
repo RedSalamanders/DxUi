@@ -681,6 +681,17 @@ full-filename links through the same native/embedded source replacement contract
 Mixed lists MUST remain ordered and commit once. Source/code contexts retain
 literal text; the transport MUST NOT open, move or copy referenced files.
 
+File drag-and-drop remains pending under the
+[file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md). Its intended contract
+is a Unicode external file list, application-owned OLE registration and COPY-only
+reference insertion at a prepared source caret. Preview MUST preserve source,
+selection and focus; a successful drop MUST commit once and preserve the prior
+directional selection in undo. Native and embedded routes MUST reject stale
+ownership/geometry/source/base, composition, unavailable targets and malformed
+data before mutation. The future adapter MUST reuse the paste image/link policy
+without clipboard access or synchronous file I/O. This requirement does not
+claim an implemented drop capability or completed drop tests.
+
 This implements a TSF/clipboard service, not a real IME/AT product pass. The generic consumer connection, full
 display-attribute/IME acceptance, real touch/IME/screen-reader checks and matched text/UIA performance remain open
 on RedXe AV (`embedded-host-text-uia-bridge`). Library `AttachAccessibility` is a separate supported API; it does

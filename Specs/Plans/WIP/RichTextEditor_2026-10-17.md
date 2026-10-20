@@ -3041,6 +3041,10 @@ unchanged because this CPU service is not yet connected to editor painting.
     Gallery review: this paste policy reuses the existing image/link rendering
     and changes no default gallery source, layout, typography or pixels; the
     existing captures remain historical examples and need no regeneration.
+  - [ ] M5g.1c (owner addition, 2026-10-20): File drag-and-drop follows the
+    [dedicated WIP spec and native/embedded test plan](RichTextFileDrop_2026-10-20.md).
+    Planning is complete; implementation/runtime tests have not started. The owner
+    explicitly limited this change to the spec/test plan and a PR for existing work.
   - [x] M5g.2 (functional implementation qualified): Resolve local assets through
     caller/host scheduling, immutable bounded CPU pixels, current-source/base/
     binding identities, cancellation and stale-result rejection, and prepared

@@ -51,4 +51,10 @@ generated backlink keyboard traversal and final M5 qualification remain open.
 
 File paths paste as displayed Markdown images or full-filename text links with explicit document-relative metadata. Mixed lists preserve order and one undo boundary. File links use existing inert underlined link styling; paste adds no navigation or drag-and-drop. Local PNG/JPEG/BMP/GIF/TIFF decoding belongs to an application worker. Publication preserves source/selection/history and UIA alternative names; selection tints opaque pixels, and hide/device replacement retires/recreates native resources. The [image guide and actual harness captures](../../../../docs/rich-text.md) show the raster preview. Final platform/resource/performance gates remain in the active plan.
 
+The [file-drop spec and native/embedded test plan](../../../Plans/WIP/RichTextFileDrop_2026-10-20.md)
+defines a future drop-at-caret gesture with the same image/link presentation.
+Drag-and-drop remains unimplemented. Preview must preserve selection/focus and use
+the normal OLE allowed/refused cursor; no new drop-marker visual is required by
+the first implementation. This spec-only change leaves gallery pixels unchanged.
+
 The preview is a static HTML rendition using `bundle.css`; the populated harness gallery is the authoritative Direct2D capture.

@@ -194,6 +194,9 @@ Text file links use the existing inert underlined link presentation; paste does
 not open a file or add navigation. File type classification is lexical and does
 not check existence. Drag-and-drop and copying assets into the document folder
 are outside this paste feature.
+The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
+defines future drop-at-caret insertion with the same image/link policy.
+Drag-and-drop is not implemented in the current sample or control.
 The [file-reference qualification packet](../Measurements/RichText/2026-10-20-file-reference-paste/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault
