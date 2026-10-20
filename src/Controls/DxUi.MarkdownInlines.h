@@ -1203,6 +1203,32 @@ class MarkdownInlines
     {
         const auto first = cursor_;
         const auto c     = text_[first];
+        if (profile_ == MarkdownProfile::RichMarkdown &&
+            (c == L'$' || (c == L'\\' && first + 1u < text_.size() && (text_[first + 1u] == L'(' || text_[first + 1u] == L'['))))
+        {
+            const bool dollars = c == L'$';
+            const auto width   = dollars && std::wstring_view(text_).substr(first, 2u) != L"$$" ? 1u : 2u;
+            const bool display = width == 2u && (dollars || text_[first + 1u] == L'[');
+            const auto closer  = dollars ? (width == 1u ? L"$" : L"$$") : text_[first + 1u] == L'(' ? L"\\)" : L"\\]";
+            const auto content = first + width;
+            if (content < text_.size() && (display || ! SourceSpace(text_[content])))
+                for (auto end = content; end < std::min(text_.size(), content + 4097u); ++end)
+                {
+                    if (! display && text_[end] == L'\n')
+                        break;
+                    if (std::wstring_view(text_).substr(end, width) != closer)
+                        continue;
+                    std::size_t slashes{};
+                    for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
+                        ++slashes;
+                    if (slashes % 2u || end == content ||
+                        (! display && (SourceSpace(text_[end - 1u]) || (end + width < text_.size() && Digit(text_[end + width])))))
+                        continue;
+                    cursor_ = end + width;
+                    Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, end - content));
+                    return;
+                }
+        }
         if (c == L'`')
         {
             auto end = first;

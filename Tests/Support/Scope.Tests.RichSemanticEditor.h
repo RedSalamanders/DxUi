@@ -251,6 +251,40 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "structural command callback can retire its owner without a stale continuation");
     prepare();
 }
+template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepare&& prepare)
+{
+    for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n",
+                                      L"```mermaid\nstateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\n```\n",
+                                      L"```mermaid\nclassDiagram\nAnimal <|-- Bird\nBird : +fly()\n```\n"})
+    {
+        auto root    = std::make_unique<RichTextEditor>(source);
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        prepare();
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+        Check(semantic && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic,
+              "native and embedded owners prepare mathematical and broader diagram objects");
+        const auto object = std::ranges::find_if(
+            semantic->Elements(), [](const auto& element) { return element.role == SemanticRole::Math || element.role == SemanticRole::Diagram; });
+        Check(object != semantic->Elements().end(), "prepared object exists");
+        const auto index  = static_cast<std::size_t>(object - semantic->Elements().begin());
+        const auto bounds = editor->GetSemanticElementBounds(host, index);
+        Check(bounds && bounds->right > bounds->left && bounds->bottom - bounds->top > 20, "prepared native object reserves actual in-document geometry");
+        editor->SetSelection({object->source.first, object->source.last});
+        const auto selection = editor->GetSelection();
+        editor->SetViewMode(ViewMode::Source);
+        prepare();
+        Check(editor->GetText() == source && editor->GetSelection() == selection && ! editor->CanUndo(),
+              "source switch preserves original spelling, selection and history");
+        editor->SetViewMode(ViewMode::Rich);
+        prepare();
+        Check(editor->ReplaceSelection(L"replacement") && editor->Undo() && editor->GetText() == source,
+              "atomic source object replacement and undo preserve exact source");
+        prepare();
+    }
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";

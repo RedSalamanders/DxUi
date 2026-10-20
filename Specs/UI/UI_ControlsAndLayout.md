@@ -1465,7 +1465,8 @@ resource, device-loss and host object qualification remain separate requirements
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 13 admitted
-graphs from 92 unsupported definitions and 20 other diagram families. Rejection
+graphs from 92 unsupported definitions; the state example now has five nodes and
+six transitions, while the other 19 original family examples remain unsupported. Rejection
 is compatibility accounting, never rendered conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -1700,3 +1701,42 @@ MUST NOT overlap a native `<a>` envelope: preserve the entire conflicting leaf
 literally, as with nested Markdown/native anchors. The footer's independent
 backlinks still target exact raw references. Unresolved literal markers add no
 action and do not invalidate an otherwise supported HTML anchor.
+
+## Native in-document mathematics and broader diagrams (RedTilde continuation)
+
+RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
+inline leaves. Single-dollar math is single-line and requires nonspace content edges;
+a closing dollar followed by a digit is currency text. Escaped delimiters, code spans,
+fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
+Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
+and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
+selection and history remain authoritative; one successful formula owns one atomic
+native display position and a `SemanticRole::Math` child named with its TeX notation.
+
+`RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
+fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
+operator symbols, named functions, text/operator names, roman/bold/italic and
+blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
+aligned and gathered rows. Matrix rows use `\\` and cells use `&`; rows must have
+consistent columns. User macros, packages, file input, evaluation and full LaTeX
+compatibility are unsupported. Rejection retains the complete literal equation with
+a source-ranged diagnostic, rather than drawing a misleading partial expression.
+
+Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
+cells per formula, 4,096 total mathematical records and 128 combined native objects.
+Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
+DirectWrite glyphs and line geometry draw in the owner's target with caller brushes;
+no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and
+device replacement regenerate prepared geometry without changing source.
+
+The native Mermaid engine additionally accepts a bounded `stateDiagram` /
+`stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
+`[*]` initial/final states, transitions with colon labels and state descriptions.
+The bounded `classDiagram` profile accepts direction, simple class declarations,
+colon members, directed/undirected associations and inheritance (`<|--`, `--|>`).
+State/class layouts use the deterministic native graph router; members are plain
+multiline node labels. Inheritance uses the native triangle arrow. This is not
+Mermaid coordinate compatibility. Composite states, class namespaces/generics,
+block member declarations, relationship multiplicities, stereotypes, styling,
+interaction directives and other diagram families remain exact fenced source.
+The existing flowchart grammar and source-provenance rules remain unchanged.

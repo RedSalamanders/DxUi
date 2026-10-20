@@ -387,8 +387,12 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
     {
         parser.Begin(family.source, 1u);
         const auto result = Complete(parser, 1u);
-        check(result->outcome == FlowchartOutcome::Unsupported && result->source == family.source && result->nodes.empty() && result->edges.empty(),
-              "every other declared Mermaid diagram family has explicit unsupported source fallback");
+        if (family.document == L"stateDiagram.md")
+            check(result->outcome == FlowchartOutcome::Prepared && result->source == family.source && result->nodes.size() == 5u && result->edges.size() == 6u,
+                  "the original state-diagram example has independently specified nodes and transitions");
+        else
+            check(result->outcome == FlowchartOutcome::Unsupported && result->source == family.source && result->nodes.empty() && result->edges.empty(),
+                  "the other original family examples retain explicit unsupported source fallback");
     }
     check(prepared == 13u && unsupported == 92u && std::size(NativeFlowchartCorpus::unsupportedFamilies) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");

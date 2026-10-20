@@ -314,6 +314,38 @@ struct SemanticBuilder::Preparation
         }
         const auto flags = markdownFlags | html.flags;
         auto parent      = visit.parent;
+        if (node.kind == MarkdownInlineKind::Math)
+        {
+            auto expression  = std::make_shared<MathExpression>(ParseMath(node.value));
+            auto& extensions = Extensions();
+            const auto count = [](auto&& self, const MathNode& value) -> std::size_t
+            {
+                std::size_t result = 1;
+                for (const auto& child : value.children)
+                    result += self(self, child);
+                return result;
+            };
+            const auto records = count(count, expression->root);
+            if (*expression && records <= 4096u - extensions.mathRecords &&
+                extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() < Detail::SemanticExtensions::MaximumObjects)
+            {
+                const auto element = Element(SemanticRole::Math, node.source, parent);
+                output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
+                auto& formula        = document->elements_[element];
+                formula.display.last = output.text.size();
+                formula.name         = node.value;
+                formula.title        = L"Mathematical expression. Exact TeX source is available as document text.";
+                extensions.maths.push_back({element, std::move(expression)});
+                extensions.mathRecords += records;
+            }
+            else
+            {
+                extensions.diagnostics.push_back({SemanticDiagnosticKind::UnsupportedMath, node.source, visit.parent});
+                document->elements_[visit.parent].title = L"Unsupported or oversized native equation. Exact source is preserved.";
+                output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
+            }
+            return;
+        }
         if (node.kind == MarkdownInlineKind::Link || node.kind == MarkdownInlineKind::Image)
         {
             // A Markdown style container can cross an HTML anchor boundary.
@@ -612,7 +644,10 @@ struct SemanticBuilder::Preparation
                 direction = L"left to right";
             else if (graph.direction == Detail::FlowchartDirection::RightLeft)
                 direction = L"right to left";
-            if (! DiagramAlternative({L"Flowchart, ", direction, L". Nodes: "}))
+            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
+                                : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
+                                                                                     : L"Flowchart, ";
+            if (! DiagramAlternative({family, direction, L". Nodes: "}))
                 return;
             work.phase = Phase::Nodes;
             return;
@@ -660,7 +695,9 @@ struct SemanticBuilder::Preparation
         extensions.records += graph.nodes.size() + graph.edges.size();
         auto& element  = document->elements_[work.visit.element];
         element.role   = SemanticRole::Diagram;
-        element.title  = L"Flowchart. Source is available as document text.";
+        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
+                                                                              : L"Flowchart. Source is available as document text.";
         auto close     = BeginLeafParagraph(work.visit);
         result.display = {output.text.size(), output.text.size() + 1u};
         output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, work.visit.flags, work.visit.heading);

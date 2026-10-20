@@ -6,6 +6,14 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
+RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
+
+- [x] Native inline/display mathematical objects, bounded TeX, matrix/alignment and scalable delimiters.
+- [x] Broader native Mermaid state/class models with source-exact fallback.
+- [ ] Source/history, native/embedded geometry, accessibility, resource/device tests and six build configurations.
+- [ ] Documentation/gallery and consumer handoff evidence. Physical/native ARM64 and D4c remain separate.
+
+
 PR #89 readiness, 2026-10-20:
 
 - [x] Integrate `main` `f65e4a4b` at merge `2ceb1da5`; resolve the five conflicts

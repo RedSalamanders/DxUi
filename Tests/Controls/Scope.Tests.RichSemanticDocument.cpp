@@ -1,13 +1,68 @@
 #include "Scope.Tests.RichSemanticDocument.h"
+#include "../../src/Controls/DxUi.NativeFlowchart.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
+#include <DxUi/RichMath.h>
+#include <type_traits>
 
 namespace
 {
+void TestRichSemanticNativeMathematicsAndBroaderMermaid()
+{
+    using namespace DxUi::RichText;
+    static_assert(! std::is_nothrow_default_constructible_v<MathNode> && ! std::is_nothrow_default_constructible_v<MathExpression>);
+    const std::wstring source = L"Before $a_i^2+\\frac{1}{2}$ after.\r\n\r\n"
+                                L"$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n\r\n"
+                                L"\\(\\sqrt[3]{x}+\\alpha\\)\r\n\r\n`$literal$` and \\$escaped and $5 and $10.\r\n\r\n"
+                                L"```tex\n$x$\n```\n";
+    const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    RichSemanticDocumentTests::CheckGraph(*document);
+    Require(std::ranges::count(document->Elements(), SemanticRole::Math, &SemanticElement::role) == 3,
+            "inline, display and slash math become objects; code, escapes and currency remain literal");
+    for (const auto& element : document->Elements())
+        if (element.role == SemanticRole::Math)
+        {
+            Require(element.display.last == element.display.first + 1u && document->Map().Display()[element.display.first] == L'\ufffc',
+                    "native math owns one atomic display position");
+            Require(! element.name.empty() && element.source.first < element.source.last, "math exposes exact source and accessible notation");
+        }
+    const auto common = RichSemanticDocumentTests::Build(source, MarkdownProfile::CommonMark0312);
+    Require(std::ranges::count(common->Elements(), SemanticRole::Math, &SemanticElement::role) == 0, "CommonMark does not acquire math syntax");
+    for (const auto formula : {L"\\frac12",
+                               L"x_1^2",
+                               L"\\sqrt[3]{x}",
+                               L"\\overline{AB}+\\vec{v}",
+                               L"\\begin{aligned}a&=b\\\\c&=d\\end{aligned}",
+                               L"\\text{speed in m/s}",
+                               L"\\int_0^1 x dx",
+                               L"\\left( a \\rightarrow b \\right)",
+                               L"\\mathbb{R}+\\mathcal{F}"})
+        Require(static_cast<bool>(ParseMath(formula)), "documented mathematical notation parses");
+    for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}a&b\\\\c\\end{matrix}", L"\\begin{matrix}x\\end{cases}"})
+        Require(! ParseMath(formula), "malformed, unsafe or unsupported equations reject the complete formula");
+    const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
+    Require(fallback->Map().Display().find(L"$\\input{private}$") != std::wstring::npos && ! fallback->Diagnostics().empty(),
+            "rejected math retains exact editable notation and diagnostic");
+    using namespace DxUi::RichText::Detail;
+    for (const auto body : {L"stateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\nActive --> [*]\n",
+                            L"classDiagram\nCreature <|-- Duck\nDuck : +move()\nDuck --> Pond : visits\n"})
+    {
+        NativeFlowchartParser parser;
+        parser.Begin(body, 7);
+        while (parser.HasPendingPreparation())
+            parser.Advance(37);
+        const auto graph = parser.Published();
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() >= 3 && graph->edges.size() >= 2,
+                "state and class diagrams publish complete source-owned models");
+        const auto semantic = RichSemanticDocumentTests::Build(L"```mermaid\n" + std::wstring(body) + L"```\n", MarkdownProfile::RichMarkdown);
+        RichSemanticDocumentTests::CheckGraph(*semantic);
+        Require(std::ranges::count(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1, "broader models become native diagram objects");
+    }
+}
 void TestRichSemanticDocumentStructuralStyleValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
@@ -147,6 +202,7 @@ void TestRichSemanticOpaqueSourceRegionGrammarAndCaret()
 }
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticNativeMathematicsAndBroaderMermaid);
     DXUI_RUN_TEST(TestRichSemanticOpaqueSourceRegionGrammarAndCaret);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourcePresentation);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourceGeometry);

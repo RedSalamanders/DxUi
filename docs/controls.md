@@ -328,3 +328,5 @@ editable source and retries when the view changes. F2/UIA Invoke opens exact
 code/HTML/metadata source in place; Esc/F2/Ctrl+Enter finishes without undoing
 committed edits. Invalid fences stay literal and repairable. Real IME/AT, final extension,
 platform and performance acceptance remain under the active plan.
+
+RichMarkdown also supplies native inline/display mathematics and bounded state/class Mermaid diagrams. See [the exact syntax and limits](rich-text.md#native-in-document-mathematics-and-broader-diagrams-redtilde-continuation). These objects preserve raw source ACPs and the existing document history.

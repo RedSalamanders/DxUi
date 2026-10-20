@@ -118,7 +118,8 @@ enum class MarkdownInlineKind
     Link,
     Image,
     Html,
-    FootnoteReference
+    FootnoteReference,
+    Math
 };
 // Resolved inline values, with original spelling retained in Source(). Indices
 // are revision-local. source encloses delimiters and any stripped line prefixes;

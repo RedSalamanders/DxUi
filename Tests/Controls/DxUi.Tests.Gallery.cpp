@@ -1097,10 +1097,17 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
-        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ flowchart", 2u, 400.0f);
-        auto* editor =
-            scene.root->AddChild<RichTextEditor>(L"### Source-backed native diagram\n\n```mermaid\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\n```\n\n"
-                                                 L"Unsupported families retain editable source:\n\n```mermaid\nsequenceDiagram\nA->>B: hello\n```\n");
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ mathematics", 2u, 480.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"### Mathematics stays in the document\n\nInline $E=mc^2$ and display notation:\n\n"
+                                                               L"$$x=\\frac{-b+\\sqrt{b^2-4ac}}{2a}$$\n\n$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\n");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ diagrams", 2u, 480.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"```mermaid\nstateDiagram-v2\ndirection LR\n[*] --> Draft\nDraft --> Published : Save\n```\n\n"
+                                                               L"```mermaid\nclassDiagram\ndirection LR\nDocument <|-- Markdown\nMarkdown : +save()\n```\n");
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetBounds(tile.content);
