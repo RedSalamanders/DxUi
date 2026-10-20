@@ -17,12 +17,17 @@ unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Diagram layout, rich objects and editing/UIA integration
 are still pending; the current editor displays exact code-fence source fallback.
 
-RichMarkdown footnote definition containers are in development with exact labels,
-four-column continuation, multiple paragraphs and literal definition fallback.
-Source editing remains available; structural commands over that fallback are
-guarded. Global label binding, diagnostics and reachable numbering are now in
-development as immutable syntax data; the display remains literal source.
-Rendered footer/backlinks and their accessibility actions are still pending.
+RichMarkdown footnote definition containers, Unicode label binding, diagnostics
+and reachable numbering have focused native/embedded checks. The footer preview
+renders numbered references, reordered definition
+bodies and distinct generated backlinks preserve exact source ACPs. Unused and
+duplicate definitions retain literal fallback; structural commands over those
+envelopes remain guarded. Internal navigation selects and scrolls without editing
+history; read-only navigation is allowed. Ctrl+click, Ctrl+Enter at references
+and UIA Invoke share publication guards. Generated backlink keyboard traversal,
+note-aware structural commands and final extension qualification remain open.
+Selection across reordered content still selects one raw source interval, which
+can highlight several visual fragments; source copy/deletion follows that interval.
 
 ## Retained editor preview (D2c)
 
@@ -116,8 +121,9 @@ request no caret animation.
 This is an explicit bounded v0 preview. The D2d source adapters described below
 use the existing shared OS services; real IME/candidate-window, screen-reader and
 physical-input qualification is still required before production acceptance.
-There is no incremental large-document layout, complete CommonMark/GFM or
-math/Mermaid/footnote/front-matter rendering. Unsupported syntax remains source.
+Large-document layout, math/diagram rendering and validated metadata objects
+remain open. The newer analysis, semantic, structural and footnote previews below
+extend this original v0 surface. Unsupported presentation remains editable source.
 No consumer pin is changed automatically.
 
 ## Source text services and accessibility (D2d)
@@ -311,8 +317,9 @@ and paragraphs. Unknown/incomplete syntax remains editable source. Source and
 rich projections carry source/display mapping and explicit revision/mode. Hidden
 markers have leading/trailing affinities. ToggleMarker supports `**`, `*`,
 backtick and `~~` source transactions, including backwards selections. This is
-not complete CommonMark/GFM. Math, Mermaid, footnotes, front matter, tables,
-links, images and extended rich editing are unimplemented.
+not complete CommonMark/GFM. This legacy `Project` API does not implement math,
+Mermaid, footnotes, front matter, tables, links, images or structural editing;
+use the newer lossless syntax/semantic APIs below for their declared previews.
 
 Preparation borrows a DirectWrite factory synchronously and owns its resulting
 layout with WIL. Font/monospace families, locale (including DirectWrite
@@ -676,8 +683,9 @@ semantic rendering option uses the bounded native HTML policy below.
 The native tests preserve all 652 CommonMark and 672 GFM original example inputs
 and check all named entity values against independently transcribed standard data.
 The independent M3 semantic checks described below additionally compare every
-original expected HTML output. Semantic rendering/editing, math, Mermaid,
-footnotes/front matter and end-to-end NUL admission remain future work.
+original expected HTML output. Later sections cover implemented semantic editing,
+footnote presentation and metadata envelopes; math/diagram rendering, metadata
+content validity and end-to-end NUL admission remain open.
 Pinned inputs, attribution and offline generators are described in
 [ThirdParty/Markdown](../ThirdParty/Markdown/README.md). The control catalog,
 styles and existing gallery example remain unchanged; embedded exact-pixel tests
@@ -719,8 +727,9 @@ if (auto syntax = parser.Published(); !parser.HasPendingPreparation() && syntax)
 
 An optional fourth Begin argument selects `MarkdownExtensions` explicitly.
 CommonMark defaults to None and rejects GFM options; Gfm029 and RichMarkdown
-default to All. Request identity includes the options. RichMarkdown still awaits
-its math/Mermaid/footnote/front-matter stage. Published inline indices belong to
+default to All. Request identity includes the options. RichMarkdown adds leading
+metadata envelopes and footnote syntax/binding; math/diagram rendering and metadata
+validation remain in development. Published inline indices belong to
 one revision; stable block IDs do not validate reference-dependent semantics.
 Reference edits re-resolve links even when the referring paragraph is unchanged.
 
@@ -838,8 +847,9 @@ The [native presentation qualification packet](../Measurements/RichText/2026-10-
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
-Source-exact structural editing and semantic UIA are described below. Math, Mermaid,
-footnotes/front matter and physical IME/AT/platform/performance gates stay open.
+Source-exact structural editing and semantic UIA are described below. The footnote
+preview is implemented; math/diagram rendering, metadata validation/object editing
+and physical IME/AT/platform/performance qualification remain open.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
 branch's interactive semantic preview. It uses the sample application's existing
@@ -995,3 +1005,41 @@ content-validity diagnostics and the dedicated object source editor remain later
 M5 work. Envelope and diagnostic transport tests pass in focused Debug/native/
 embedded checks, including actual clients and allocation failures. Final qualification
 pending; this does not establish YAML/TOML conformance or complete M5 support.
+
+## Footnote rendering and navigation (M5b preview)
+
+Select `MarkdownProfile::RichMarkdown` and enable semantic rendering for the
+`DxUiFootnotes1` extension. CommonMark0312 and Gfm029 keep their pinned grammar.
+Definitions use `[^label]: body`, with four-column body continuation. Unicode
+case folding and whitespace collapse resolve labels without changing spelling.
+The first definition wins; duplicate and missing labels retain ranged diagnostics.
+
+References become atomic superscript numbers. Primary used definitions move to
+root footer bodies in reachable first-reference order, with a distinct generated
+backlink for every occurrence. Internal body lists/quotes retain their structure;
+the declaration's outside container cannot add another bullet or gutter. Unused
+and duplicate definitions keep their exact literal fallback.
+
+`SemanticDocument::Navigation()` and `NavigationTarget(element)` separate action
+targets from display/source ownership. A reference targets the definition content;
+each zero-source backlink targets its complete original marker. Use the current
+acknowledged document with `NavigateSemanticElement`; stale, disabled or composing
+targets refuse the action. Navigation selects and scrolls without history edits
+or focus acquisition. Read-only navigation is allowed. Ctrl+click activates an
+internal link, Ctrl+Enter at a reference activates its definition, and UIA exposes
+Hyperlink/Invoke with the host's existing thread/publication guards. External
+destinations remain inert.
+
+Selection remains one raw anchor/caret interval. Dragging or Shift+Down from main
+text into a footer can highlight disjoint fragments. Copy, keyboard deletion,
+undo, TSF and UIA preserve that exact source interval. Generated backlinks add
+neither raw text nor line units. UIA source enclosure accounts for moved content;
+explicit `RangeFromChild` keeps its requested child identity and raw envelope.
+
+Focused x64 Debug proof includes both retained hosts, actual clients, complete
+EditorControls/Accessibility/Embedded runs, 18 independent binding/rendering
+fixtures, exact line/atomic-EOL cases, source edits and observed allocation
+failures. The five themed gallery tiles show numbered/styled bodies and repeated
+backlinks. Final runtime/build profiles remain M5f. Generated backlink keyboard
+traversal, dedicated source editing and note-aware structural commands remain M5e;
+this preview does not close metadata, math, diagrams or performance acceptance.

@@ -62,22 +62,22 @@ void TestRichSemanticDocumentFootnoteDefinitionLiteralFallback()
                 element->name.starts_with(L"[^n]: **first &amp;**"),
             "literal note fallback has one named source owner without rendering its parsed child subtree a second time");
 }
-void TestRichSemanticDocumentFootnoteBindingsKeepLiteralReferenceSource()
+void TestRichSemanticDocumentFootnoteFooterAndSourceOwnership()
 {
     for (const auto& scenario : FootnoteResolutionTests::scenarios)
     {
         const auto document = RichSemanticDocumentTests::Build(scenario.source, DxUi::RichText::MarkdownProfile::RichMarkdown);
         RichSemanticDocumentTests::CheckGraph(*document);
         FootnoteResolutionTests::CheckSyntax(*document->Syntax(), scenario, Require);
-        for (const auto& node : document->Syntax()->Inlines())
-            if (node.kind == DxUi::RichText::MarkdownInlineKind::FootnoteReference)
-            {
-                const auto ranges = document->Map().DisplayRanges(node.source);
-                Require(ranges.size() == 1u &&
-                            document->Map().Display().substr(ranges[0u].first, ranges[0u].last - ranges[0u].first) == document->Syntax()->Slice(node.source),
-                        "CPU binding cannot drop or decode a literal raw reference before footer presentation is implemented");
-            }
+        FootnoteResolutionTests::CheckSemantic(*document, Require);
     }
+    const auto ordered =
+        RichSemanticDocumentTests::Build(L"[^z]: **Z**\n[^a]: A\n\nmain[^a] and[^z] again[^a].\n", DxUi::RichText::MarkdownProfile::RichMarkdown);
+    Require(ordered->Map().Display() == L"main\u00b9 and\u00b2 again\u00b9.\n1. A\n\u21a91 \u21a92\n2. Z\n\u21a91\n",
+            "independent footer oracle renders body styles and first-reference order without raw labels or duplicate definitions");
+    for (const auto source : {L"- [^n]: note\n\nmain[^n]\n", L"> [^n]: note\n\nmain[^n]\n", L"> - [^n]: note\n\nmain[^n]\n"})
+        Require(RichSemanticDocumentTests::Build(source, DxUi::RichText::MarkdownProfile::RichMarkdown)->Map().Display() == L"main\u00b9\n1. note\n\u21a91\n",
+                "a moved note cannot inherit a bullet from its original list/quote declaration container");
 }
 void TestRichSemanticDocumentPinnedSourceCases()
 {
@@ -127,6 +127,6 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDocumentPinnedSourceCases);
     DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteDefinitionLiteralFallback);
-    DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteBindingsKeepLiteralReferenceSource);
+    DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteFooterAndSourceOwnership);
     DXUI_RUN_TEST(TestRichSemanticDocumentFrontMatterLiteralFallback);
 }

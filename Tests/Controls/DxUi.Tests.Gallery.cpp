@@ -1091,6 +1091,14 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
+                                                               L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);

@@ -70,7 +70,8 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
     for (const auto* source : {L"[^n]: first\r\n\r\n    second\r\n",
                                L"- [^n]:\n      > - nested\n      >\n      >   body\n",
                                L"[^\u03b2\U0001f600]: **body**\n[^m]: next\n",
-                               L"main[^X] and[^missing]\n\n[^x]: body[^y]\n[^X]: duplicate\n[^y]: body[^x]\n"})
+                               L"main[^X] and[^missing]\n\n[^x]: body[^y]\n[^X]: duplicate\n[^y]: body[^x]\n",
+                               L"> - [^n]: **note**\n\nmain[^n] again[^n]\n"})
     {
         sweep(
             [&]
@@ -99,7 +100,7 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
             [](const auto& value) { return value->Map().Source(); },
             source);
     }
-    std::cout << "note block/binding parser/semantic allocation scenarios=8 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
@@ -591,9 +592,13 @@ static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
                                                  [&](const auto& syntax)
     {
         const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        if (semantic)
+            FootnoteResolutionTests::CheckSemantic(*semantic, Check);
         return semantic && semantic->Syntax() == syntax && semantic->Map().Source() == syntax->Source() && ! view.Controls().GetHwnd();
     },
                                                  Check);
+    FootnoteResolutionTests::ExerciseNavigation(
+        *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded footnote navigation"); }, Check, MK_CONTROL, MK_SHIFT);
 }
 
 static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)

@@ -29,6 +29,107 @@ inline void Complete(PreparedSemanticGeometry& geometry)
     }
     Check(geometry.Ready(), "semantic geometry publishes one complete ready state");
 }
+inline void ReorderedFootnoteCaretSitesAndSourceLines()
+{
+    auto factory                    = Factory();
+    const std::wstring_view cases[] = {
+        L"[^z]: Z body\n[^a]: A first\n\n    A second\n\nmain[^a] then[^z].\n",
+        L"[^n]:\n\nmain[^n]\n",
+        L"main[^n]\r\n\r\n[^n]: first\r\n\r\n    second\r\n",
+        L"[^n]:\n    | h | other |\n    | --- | --- |\n    | x |\n\nmain[^n]\n",
+    };
+    for (const auto source : cases)
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip = 360.0f;
+        geometry.Begin(factory.get(), document, options);
+        std::size_t turns{};
+        while (geometry.Pending())
+        {
+            const auto step = geometry.Advance({1u, 1u});
+            Check(step.blockSteps <= 1u && step.layoutsPrepared <= 1u && ++turns < 20000u,
+                  "footnote sorting/indexing yields between declared owner events and SDK calls");
+        }
+        Check(geometry.Ready(), "reordered footnotes publish complete native geometry");
+        std::size_t raw{};
+        for (const auto& line : geometry.SourceLines())
+        {
+            Check(line.first == raw && line.second >= line.first && line.second <= source.size() && IsEditBoundary(source, line.first) &&
+                      IsEditBoundary(source, line.second),
+                  "source visual line units stay an ordered raw-source partition after footer reordering");
+            raw = line.second;
+        }
+        Check(raw == source.size() && geometry.SourceLines().back() == std::pair{source.size(), source.size()},
+              "reordered source lines include the exact source extent and one trailing EOF unit");
+        if (source == cases[0u])
+        {
+            const std::pair<std::size_t, std::size_t> expected[] = {{0u, 13u}, {13u, 27u}, {27u, 28u}, {28u, 41u}, {41u, 42u}, {42u, 61u}, {61u, 61u}};
+            Check(std::ranges::equal(geometry.SourceLines(), expected), "adjacent reordered definition lines retain their own exact original newline units");
+        }
+        const auto main      = source.find(L"main");
+        const auto mainCaret = geometry.SourceCaret(main);
+        for (const auto& note : document->Syntax()->Footnotes())
+            if (note.ordinal && document->Syntax()->Nodes()[note.definition].block.source.last == source.size())
+                Check(geometry.SourceCaret(source.size()).y > mainCaret.y,
+                      "a trailing source EOF site follows its owning footer rather than the main-text segment");
+        for (std::size_t i = 0u; i < document->Elements().size(); ++i)
+            if (document->Elements()[i].role == SemanticRole::Footnote)
+            {
+                const auto bounds = geometry.ElementBounds(i);
+                Check(bounds && bounds->top > mainCaret.y, "used definitions appear below main text regardless of their source position");
+            }
+        for (const auto needle : {L"Z body", L"A first", L"A second", L"second", L"x"})
+        {
+            const auto at = source.find(needle);
+            if (at == std::wstring_view::npos)
+                continue;
+            const auto caret = geometry.SourceCaret(at);
+            const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+            Check(hit.position == at, "footer body hit testing returns the exact earlier raw source ACP");
+        }
+        for (const auto& empty : document->Syntax()->EmptyLines())
+        {
+            auto owner = empty.owner;
+            while (owner != MarkdownNoNode && document->Syntax()->Nodes()[owner].block.kind != MarkdownBlockKind::FootnoteDefinition)
+                owner = document->Syntax()->Nodes()[owner].parent;
+            if (owner == MarkdownNoNode)
+                continue;
+            const auto caret = geometry.SourceCaret(empty.insertion);
+            Check(caret.y > mainCaret.y, "definition-only and internal blank caret sites follow their footer instead of source-order main text");
+        }
+        const auto ranges = geometry.SourceRange({0u, source.size()});
+        Check(! ranges.empty(), "whole-source selection paints reordered real text without owning generated backlinks");
+    }
+    const auto atomic = RichSemanticDocumentTests::Build(L"![a very long image alternative that wraps over many SDK lines](local)\n");
+    PreparedSemanticGeometry wrapped;
+    LayoutOptions narrow;
+    narrow.widthDip = 36.0f;
+    wrapped.Begin(factory.get(), atomic, narrow);
+    Complete(wrapped);
+    const auto end                                          = atomic->Map().Source().size();
+    const std::pair<std::size_t, std::size_t> atomicLines[] = {{0u, end}, {end, end}};
+    Check(std::ranges::equal(wrapped.SourceLines(), atomicLines), "a wrapped atomic alternative and its EOL own one raw line without an EOL-only duplicate");
+    std::optional<float> footerTextEdge;
+    for (const auto source : {L"[^n]: note\n\nmain[^n]\n",
+                              L"- [^n]: note\n\nmain[^n]\n",
+                              L"> [^n]: note\n\nmain[^n]\n",
+                              L"> - [^n]: note\n\nmain[^n]\n",
+                              L"- outer\n  [^n]: note\n\nmain[^n]\n"})
+    {
+        const auto footer = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry relocated;
+        LayoutOptions options;
+        options.widthDip = 360.0f;
+        relocated.Begin(factory.get(), footer, options);
+        Complete(relocated);
+        const auto caret = relocated.SourceCaret(std::wstring_view(source).find(L"note"));
+        if (! footerTextEdge)
+            footerTextEdge = caret.x;
+        Check(std::abs(caret.x - *footerTextEdge) < .01f, "a root footer excludes its former outside list/quote gutter while preserving its own body geometry");
+    }
+}
 inline void LiteralFootnoteBlockCaretSites()
 {
     auto factory = Factory();

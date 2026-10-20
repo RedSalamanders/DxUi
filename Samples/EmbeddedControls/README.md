@@ -9,7 +9,7 @@ Run the executable to interact, or pass `--output image.png` for a headless rend
 canvases (480x240 or 1280x720); adaptive layout and full host bridges are outside this minimal sample.
 `GraphicsFixture.h` contains fixture-only readback/PNG output. No consumer checkout or plugin is required.
 
-Use `--rich-text` for a 980x720 editable Unicode CommonMark/GFM semantic preview
+Use `--rich-text` for a 980x720 editable Unicode RichMarkdown semantic preview
 with headings, styles, tables (including empty/padded cells), quotes, tasks,
 code and image alternatives. This mode enables the same text-service bridge as
 `--text-input`; the switches are mutually exclusive. Empty source lines retain
@@ -18,7 +18,11 @@ text; links are underlined and keep inert destinations. The bounded native HTML
 subset preserves original source; unsupported CSS/markup retains a literal leaf.
 The two toolbar rows exercise lists/indentation, heading conversion, Markdown
 styles, inert link/unlink, tasks, table creation and row/column edits through the
-retained source-exact API. The sample Link action uses an inert `#sample` target.
+retained source-exact API. Numbered footnotes support repeated references,
+reordered styled footer bodies and generated backlinks. Ctrl+click an internal
+reference/backlink, or Ctrl+Enter at a reference, to select and reveal its exact
+source target. External destinations and the sample Link action's `#sample`
+target remain inert. Generated backlink keyboard traversal remains in development.
 Select a compatible paragraph/item/cell first; unavailable actions explain that
 target requirement. Enter continues a list or inserts a table row; Tab/Shift+Tab
 navigates cells or indents/outdents lists, otherwise it traverses focus normally.

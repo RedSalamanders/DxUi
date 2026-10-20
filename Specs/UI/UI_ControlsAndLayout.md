@@ -1333,9 +1333,9 @@ bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 ### RichMarkdown footnote definition grammar
 
 `DxUiFootnotes1` is a separate RichMarkdown extension; CommonMark0312 and Gfm029
-MUST retain their pinned grammar. Initial definition containers and literal
-fallback are in development. Label binding, numbering, footer presentation and
-backlinks remain pending; recognizing a container is not complete footnote support.
+MUST retain their pinned grammar. Definition containers, global label binding
+and reachable numbering have focused native/embedded coverage. Footer projection
+and navigation are in development; final M5 qualification remains open.
 
 A definition starts with `[^label]:` after at most three space columns beyond
 the current quote/list prefixes. The nonblank label has at most 999 Unicode
@@ -1361,8 +1361,8 @@ Future note-aware structural commands require their own prefix/transaction tests
 
 Global resolution uses the existing Unicode 17 default case-fold and ASCII
 whitespace collapse without changing label source. No NFC/NFKC or entity decoding
-is applied to identities. Binding/numbering is in development; rendering and
-backlink navigation remain separate M5b/M5e obligations.
+is applied to identities. Binding/numbering is immutable syntax data; rendering
+and backlink navigation are separate semantic/native obligations.
 
 `MarkdownSyntax::Footnotes()` MUST expose unique rows sorted by normalized label.
 A row names the first source definition, its reachable ordinal (zero if unused)
@@ -1390,9 +1390,46 @@ Cycles MUST terminate, repeated references share a number and get distinct
 one-based occurrences, and unused/duplicate bodies MUST NOT affect numbering.
 Bindings and diagnostics stay immutable across later edits/cancellation and
 cannot be reused solely because a numeric revision matches. No host, SDK, worker
-or source editing occurs in this CPU pass. Until footer presentation is ready,
-reference tokens and definitions MUST remain source-exact literal fallback.
+or source editing occurs in this CPU pass.
 
 Reordered footer definitions require display-order caret-site ownership,
 complete visual-line indexing and source-exact selection/edit/UIA navigation
 before rendered footnote support can close.
+
+The semantic projection MUST append each reachable primary definition once as
+a document-root `Footnote` element, in ordinal order, with its original raw
+definition envelope and parsed body descendants. Unused/duplicate definitions
+remain literal Code leaves in their source positions. Resolved references use
+superscript decimal numbers, atomically owning the complete raw marker; missing
+references remain literal. The first body descendant carries a generated note
+number. An empty definition retains a real source insertion site.
+The moved body MUST NOT inherit list markers/gutters or quote indentation from
+its original declaration ancestors. Its own nested lists/quotes remain intact.
+Original container source envelopes can overlap a moved definition; generic UIA
+enclosure MUST consider the selected primary display fragments, so a range
+spanning retained container content and a footer encloses the document. Hidden
+definition labels/blank source positions belong to the footer's semantic tree.
+Explicit `RangeFromChild` retains its requested child identity and raw envelope.
+
+Each occurrence MUST have a named generated backlink with zero source ownership
+inside the original definition. `SemanticDocument::NavigationTarget` carries its
+separate complete raw reference target; forward links target the definition
+content insertion. Generated navigation MUST NOT acquire raw text ownership or
+enclose unrelated raw ranges at a shared ACP. Native preparation MUST merge empty
+sites by display order and index visual line units as an ordered raw-source
+partition; generated backlink-only rows add no raw line units. Reordered note
+data MUST remain optional, without enlarging ordinary inline records.
+
+Retained selection remains one source-contiguous anchor/caret pair. A selection
+crossing main text and a footer may highlight disjoint visual fragments. Copy,
+deletion, composition replacement and UIA ranges MUST retain that exact raw
+interval; display order MUST NOT silently create a multi-fragment source edit.
+`NavigateSemanticElement` MUST require current acknowledged geometry/publication,
+an enabled binding and no active composition. It selects and scrolls without
+editing history or acquiring keyboard focus; read-only navigation is allowed.
+UIA exposes internal references/backlinks as Hyperlink + Invoke, dispatching
+native mutations to the owner and rejecting embedded foreign-thread mutation.
+External destinations remain inert. Source/presentation/binding retirement MUST
+make held navigation providers unavailable before a replacement publication.
+Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
+activates its definition. Generated backlink keyboard traversal remains M5e.

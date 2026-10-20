@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <tuple>
 #include <wil/resource.h>
 
 namespace DxUi::RichText::Detail
@@ -123,7 +124,11 @@ struct PreparedSemanticGeometry::State
             return site;
         for (std::size_t i = 0u; i < boxes.size(); ++i)
             if (boxes[i]->sourceCaret && Belongs(*boxes[i], source))
-                return i;
+            {
+                const auto& owner = document->Elements()[boxes[i]->paragraph.element];
+                if (owner.role != SemanticRole::Paragraph || owner.source.first != owner.source.last)
+                    return i; // Generated backlinks cannot steal a shared source seam.
+            }
         const auto* chosen = &BoxAt(document->Map().ToDisplay(source));
         const auto found   = std::find_if(boxes.begin(), boxes.end(), [&](const auto& box) { return box.get() == chosen; });
         return static_cast<std::size_t>(found - boxes.begin());
@@ -155,10 +160,13 @@ struct PreparedSemanticGeometry::Preparation
     {
         IndexElements,
         IndexLiteralDefinitions,
+        IndexCaretAnchors,
+        IndexCaretSites,
         CountSites,
         MarkerLayouts,
         Layouts,
         RowPlacement,
+        IndexSourceBoxes,
         SourceLines,
         InlineBounds,
         ParentBounds,
@@ -168,26 +176,120 @@ struct PreparedSemanticGeometry::Preparation
         : state(std::make_unique<State>(std::move(document), factory, options)),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
-          literalDefinitionNodes(0u)
+          literalDefinitionNodes(0u),
+          footerRanges(0u),
+          nodeSections(0u),
+          caretAnchors(0u),
+          caretSites(0u),
+          sourceBoxes(0u)
     {
     }
     std::unique_ptr<State> state;
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
     std::vector<bool> literalDefinitionNodes;
+    struct FooterRange
+    {
+        MarkdownRange source, display;
+        std::size_t section{};
+    };
+    struct CaretAnchor
+    {
+        MarkdownRange source, display;
+        std::size_t section{};
+    };
+    struct CaretSite
+    {
+        std::size_t index{}, display{};
+    };
+    std::vector<FooterRange> footerRanges;
+    std::vector<std::size_t> nodeSections;
+    std::vector<CaretAnchor> caretAnchors;
+    std::vector<CaretSite> caretSites;
+    std::vector<std::size_t> sourceBoxes;
     Phase phase = Phase::IndexElements;
     std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{};
     float y{}, rowHeight{};
     bool rowActive{};
     std::size_t emptyLine{}, plannedBoxes{}, markerIndex{}, lastLayoutCalls{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
+    std::size_t EmptyIndex(std::size_t index) const noexcept
+    {
+        return caretSites.empty() ? index : caretSites[index].index;
+    }
+    const MarkdownEmptyLine& EmptyLine(std::size_t index) const noexcept
+    {
+        return state->document->Syntax()->EmptyLines()[EmptyIndex(index)];
+    }
+    std::size_t SectionAt(std::size_t source) const noexcept
+    {
+        const auto next =
+            std::upper_bound(footerRanges.begin(), footerRanges.end(), source, [](auto offset, const auto& row) { return offset < row.source.first; });
+        if (next == footerRanges.begin())
+            return 0u;
+        const auto& row = *std::prev(next);
+        return source < row.source.last ? row.section : 0u;
+    }
+    std::size_t CaretSection(const MarkdownEmptyLine& line) const noexcept
+    {
+        auto section    = nodeSections[line.owner];
+        const auto size = state->document->Map().Source().size();
+        if (! section && line.source.first == size && size)
+            section = SectionAt(size - 1u);
+        return section;
+    }
+    std::size_t CaretDisplay(const MarkdownEmptyLine& line) const
+    {
+        const auto section = CaretSection(line);
+        const auto found   = std::lower_bound(caretAnchors.begin(), caretAnchors.end(), std::pair{section, line.insertion}, [](const auto& anchor, auto key) {
+            return anchor.section < key.first || (anchor.section == key.first && anchor.source.last <= key.second);
+        });
+        if (found != caretAnchors.end() && found->section == section)
+        {
+            if (found->source.first <= line.insertion)
+                return state->document->Map().ToDisplay(line.insertion);
+            const auto paragraphs     = state->document->Paragraphs();
+            const auto foundParagraph = std::lower_bound(
+                paragraphs.begin(), paragraphs.end(), found->display.first, [](const auto& content, auto display) { return content.display.last <= display; });
+            // Generated number/marker prefixes precede their first raw glyph.
+            // A preceding empty site belongs before the complete paragraph/row,
+            // never between that prefix and its table cells or body glyphs.
+            return foundParagraph == paragraphs.end() ? found->display.first : foundParagraph->display.first;
+        }
+        if (found != caretAnchors.begin() && std::prev(found)->section == section)
+            return std::prev(found)->display.last;
+        if (section)
+        {
+            const auto owner = state->nodeElements[section - 1u];
+            return state->document->Elements()[owner].display.first;
+        }
+        // An all-hidden main document has a source insertion before its footer.
+        return 0u;
+    }
+    bool EmptyBefore(std::size_t index, const SemanticParagraph& content) const
+    {
+        if (caretSites.empty())
+            return EmptyLine(index).source.first <= SourceFirst(content);
+        auto first = content.display.first;
+        if (content.table != MarkdownNoNode)
+        {
+            const auto row = state->document->Syntax()->Nodes()[content.syntaxNode].parent;
+            first          = state->document->Elements()[state->nodeElements[row]].display.first;
+        }
+        return caretSites[index].display <= first;
+    }
+    bool EmptyOwnsParagraph(std::size_t index, const SemanticParagraph& content) const noexcept
+    {
+        const auto& owner = state->document->Elements()[content.element];
+        return content.syntaxNode == EmptyLine(index).owner && (owner.role != SemanticRole::Paragraph || owner.source.first != owner.source.last);
+    }
     bool LiteralDefinitionLine(std::size_t index) const noexcept
     {
         const auto& syntax = *state->document->Syntax();
         // This membership is prepared once per node, not an ancestor walk per
         // blank line. Deep containers and repeated prefix-free blank lines must
         // not multiply geometry work. No table is allocated without a fallback.
-        return ! literalDefinitionNodes.empty() && literalDefinitionNodes[syntax.EmptyLines()[index].owner];
+        return ! literalDefinitionNodes.empty() && literalDefinitionNodes[syntax.EmptyLines()[EmptyIndex(index)].owner];
     }
     static bool SplitMarker(const SemanticParagraph& paragraph) noexcept
     {
@@ -201,8 +303,13 @@ struct PreparedSemanticGeometry::Preparation
         // Container indentation already caps at 64 levels. Marker columns use
         // the same bounded ancestor walk and are clamped again to the viewport.
         for (unsigned depth = 0u; node != MarkdownNoNode && depth < 64u; ++depth, node = nodes[node].parent)
+        {
+            const auto element = state->nodeElements[node];
+            if (element != MarkdownNoNode && state->document->Elements()[element].role == SemanticRole::Footnote)
+                break;
             if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
                 result += gutters[nodes[node].parent];
+        }
         if (! std::isfinite(result))
             throw std::overflow_error("Nonfinite semantic marker gutter");
         return result;
@@ -278,7 +385,7 @@ struct PreparedSemanticGeometry::Preparation
             if (! next.boxes.empty())
             {
                 next.height = std::max(next.options.fontSizeDip, y);
-                phase       = Phase::SourceLines;
+                phase       = footerRanges.empty() ? Phase::SourceLines : Phase::IndexSourceBoxes;
                 return;
             }
         }
@@ -297,20 +404,20 @@ struct PreparedSemanticGeometry::Preparation
             content          = paragraphs[paragraph];
             consumeParagraph = true;
         }
-        if (emptyLine < emptyLines.size() && (paragraph == paragraphs.size() || emptyLines[emptyLine].source.first <= SourceFirst(content)))
+        if (emptyLine < emptyLines.size() && (paragraph == paragraphs.size() || EmptyBefore(emptyLine, content)))
         {
-            caretLine        = emptyLines[emptyLine];
+            caretLine        = EmptyLine(emptyLine);
             consumeEmptyLine = true;
             // An empty list item's generated marker already owns this visual
             // line. Attach its insertion site instead of making a second row.
-            consumeParagraph = paragraph < paragraphs.size() && content.syntaxNode == caretLine->owner;
+            consumeParagraph = paragraph < paragraphs.size() && EmptyOwnsParagraph(emptyLine, content);
             if (! consumeParagraph)
             {
                 content            = {};
                 content.syntaxNode = caretLine->owner;
                 content.element    = next.nodeElements[caretLine->owner];
-                content.indent     = caretLine->indent;
-                const auto display = next.document->Map().ToDisplay(caretLine->insertion);
+                content.indent     = caretLine->indent + (! nodeSections.empty() && CaretSection(*caretLine) ? 1u : 0u);
+                const auto display = caretSites.empty() ? next.document->Map().ToDisplay(caretLine->insertion) : caretSites[emptyLine].display;
                 content.display    = {display, display};
                 caretOnly          = true;
             }
@@ -333,7 +440,11 @@ struct PreparedSemanticGeometry::Preparation
         box->sourceCaret = caretLine;
         const auto& node = next.document->Syntax()->Nodes()[content.syntaxNode];
         if (content.emptyInsertion != MarkdownNoNode)
-            box->sourceCaret = MarkdownEmptyLine{node.block.source, content.emptyInsertion, content.syntaxNode, content.indent};
+        {
+            const auto& owner = next.document->Elements()[content.element];
+            if (! box->sourceCaret || owner.role != SemanticRole::Footnote)
+                box->sourceCaret = MarkdownEmptyLine{owner.source, content.emptyInsertion, content.syntaxNode, content.indent};
+        }
         if (! box->sourceCaret && node.block.content.first == node.block.content.last)
         {
             box->sourceCaret = MarkdownEmptyLine{table ? node.block.content : node.block.source, node.block.content.first, content.syntaxNode, content.indent};
@@ -497,13 +608,21 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.boundsIndex == elements.size())
                 {
                     work.boundsIndex = 0u;
-                    work.phase       = work.literalDefinitionNodes.empty() ? Preparation::Phase::CountSites : Preparation::Phase::IndexLiteralDefinitions;
+                    std::ranges::sort(work.footerRanges, {}, [](const auto& row) { return row.source.first; });
+                    work.phase = work.literalDefinitionNodes.empty() && work.footerRanges.empty() ? Preparation::Phase::CountSites
+                                                                                                  : Preparation::Phase::IndexLiteralDefinitions;
                     continue;
                 }
                 const auto index = work.boundsIndex++;
                 if (elements[index].syntaxNode != MarkdownNoNode)
                 {
                     work.state->nodeElements[elements[index].syntaxNode] = index;
+                    if (elements[index].role == SemanticRole::Footnote)
+                    {
+                        if (work.nodeSections.empty())
+                            work.nodeSections.assign(work.state->nodeElements.size(), 0u);
+                        work.footerRanges.push_back({elements[index].source, elements[index].display, elements[index].syntaxNode + 1u});
+                    }
                     if (elements[index].role == SemanticRole::Code &&
                         work.state->document->Syntax()->Nodes()[elements[index].syntaxNode].block.kind == MarkdownBlockKind::FootnoteDefinition &&
                         work.literalDefinitionNodes.empty())
@@ -516,21 +635,55 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.boundsIndex == nodes.size())
                 {
                     work.boundsIndex = 0u;
-                    work.phase       = Preparation::Phase::CountSites;
+                    work.phase       = work.footerRanges.empty() ? Preparation::Phase::CountSites : Preparation::Phase::IndexCaretAnchors;
                     continue;
                 }
                 const auto index  = work.boundsIndex++;
                 const auto parent = nodes[index].parent;
                 if (parent != MarkdownNoNode && parent >= index)
                     throw std::logic_error("Invalid block ancestor order");
-                const auto element                 = work.state->nodeElements[index];
-                work.literalDefinitionNodes[index] = (parent != MarkdownNoNode && work.literalDefinitionNodes[parent]) ||
-                                                     (nodes[index].block.kind == MarkdownBlockKind::FootnoteDefinition && element != MarkdownNoNode &&
-                                                      work.state->document->Elements()[element].role == SemanticRole::Code);
+                const auto element = work.state->nodeElements[index];
+                if (! work.literalDefinitionNodes.empty())
+                    work.literalDefinitionNodes[index] = (parent != MarkdownNoNode && work.literalDefinitionNodes[parent]) ||
+                                                         (nodes[index].block.kind == MarkdownBlockKind::FootnoteDefinition && element != MarkdownNoNode &&
+                                                          work.state->document->Elements()[element].role == SemanticRole::Code);
+                if (! work.nodeSections.empty())
+                    work.nodeSections[index] = element != MarkdownNoNode && work.state->document->Elements()[element].role == SemanticRole::Footnote
+                                                   ? index + 1u
+                                               : parent != MarkdownNoNode ? work.nodeSections[parent]
+                                                                          : 0u;
+            }
+            else if (work.phase == Preparation::Phase::IndexCaretAnchors)
+            {
+                const auto spans = work.state->document->Map().Spans();
+                if (work.boundsIndex == spans.size())
+                {
+                    std::ranges::sort(work.caretAnchors, {}, [](const auto& anchor) { return std::pair{anchor.section, anchor.source.first}; });
+                    work.boundsIndex = 0u;
+                    work.phase       = Preparation::Phase::IndexCaretSites;
+                    continue;
+                }
+                const auto& span = spans[work.boundsIndex++];
+                if (span.primary && span.source.first != span.source.last)
+                    work.caretAnchors.push_back({span.source, span.display, work.SectionAt(span.source.first)});
+            }
+            else if (work.phase == Preparation::Phase::IndexCaretSites)
+            {
+                const auto lines = work.state->document->Syntax()->EmptyLines();
+                if (work.boundsIndex == lines.size())
+                {
+                    std::ranges::sort(
+                        work.caretSites, {}, [&](const auto& site) { return std::tuple{site.display, lines[site.index].source.first, site.index}; });
+                    work.boundsIndex = 0u;
+                    work.phase       = Preparation::Phase::CountSites;
+                    continue;
+                }
+                const auto index = work.boundsIndex++;
+                work.caretSites.push_back({index, work.CaretDisplay(lines[index])});
             }
             else if (work.phase == Preparation::Phase::CountSites)
             {
-                // Preflight the same source-order merge, one metadata event at
+                // Preflight the same display-order merge, one metadata event at
                 // a time. Overflow never spends thousands of SDK layout calls
                 // before discovering that source fallback was required.
                 const auto paragraphs = work.state->document->Paragraphs();
@@ -548,10 +701,9 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     continue;
                 }
                 std::size_t additional = 1u;
-                if (work.emptyLine < lines.size() &&
-                    (work.paragraph == paragraphs.size() || lines[work.emptyLine].source.first <= work.SourceFirst(paragraphs[work.paragraph])))
+                if (work.emptyLine < lines.size() && (work.paragraph == paragraphs.size() || work.EmptyBefore(work.emptyLine, paragraphs[work.paragraph])))
                 {
-                    if (work.paragraph < paragraphs.size() && paragraphs[work.paragraph].syntaxNode == lines[work.emptyLine].owner)
+                    if (work.paragraph < paragraphs.size() && work.EmptyOwnsParagraph(work.emptyLine, paragraphs[work.paragraph]))
                     {
                         if (Preparation::SplitMarker(paragraphs[work.paragraph]))
                             ++additional;
@@ -585,6 +737,28 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             }
             else if (work.phase == Preparation::Phase::RowPlacement)
                 work.PlaceRowOne();
+            else if (work.phase == Preparation::Phase::IndexSourceBoxes)
+            {
+                const auto& boxes = work.state->boxes;
+                if (work.lineBox == boxes.size())
+                {
+                    // UIA Line units remain an ordered raw-source partition,
+                    // independently of footer display order. Each native line
+                    // is still measured once, never duplicated for backlinks.
+                    const auto first = [&](std::size_t index)
+                    {
+                        const auto& box = *boxes[index];
+                        if (box.sourceCaret && box.paragraph.table == MarkdownNoNode)
+                            return box.sourceCaret->source.first;
+                        return work.SourceFirst(box.paragraph);
+                    };
+                    std::ranges::sort(work.sourceBoxes, {}, [&](auto index) { return std::pair{first(index), index}; });
+                    work.lineBox = 0u;
+                    work.phase   = Preparation::Phase::SourceLines;
+                    continue;
+                }
+                work.sourceBoxes.push_back(work.lineBox++);
+            }
             else if (work.phase == Preparation::Phase::SourceLines)
             {
                 auto& prepared  = *work.state;
@@ -601,11 +775,14 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.phase = Preparation::Phase::InlineBounds;
                     continue;
                 }
-                const auto& box = *prepared.boxes[work.lineBox];
-                if (box.markerOnly)
+                const auto boxIndex = work.sourceBoxes.empty() ? work.lineBox : work.sourceBoxes[work.lineBox];
+                const auto& box     = *prepared.boxes[boxIndex];
+                const auto& owner   = prepared.document->Elements()[box.paragraph.element];
+                if (box.markerOnly || (owner.role == SemanticRole::Paragraph && owner.source.first == owner.source.last))
                 {
                     ++work.lineBox;
                     work.lineOffset = 0u;
+                    ++result.blockSteps;
                     continue; // Its body's first line owns the same raw prefix.
                 }
                 if (box.sourceCaret && box.paragraph.table == MarkdownNoNode)
@@ -631,14 +808,26 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.sourceLineStart = std::max(work.sourceLineStart, line.source.last);
                     ++work.lineBox;
                     work.lineOffset = 0u;
+                    ++result.blockSteps;
                     continue;
                 }
                 const auto length = box.paragraph.display.last - box.paragraph.display.first;
                 auto end          = box.layout.LineBoundary(work.lineOffset, true);
                 if (end < length && map.Display()[box.paragraph.display.first + end] == L'\n')
                     ++end;
-                const auto snapped   = map.SnapDisplayBoundary(box.paragraph.display.first + end, MappingAffinity::Trailing);
-                const auto sourceEnd = map.ToSource(snapped, MappingAffinity::Trailing);
+                const auto snapped = map.SnapDisplayBoundary(box.paragraph.display.first + end, MappingAffinity::Trailing);
+                auto sourceEnd     = map.ToSource(snapped, MappingAffinity::Trailing);
+                if (snapped >= box.paragraph.display.last && box.paragraph.table == MarkdownNoNode &&
+                    (owner.role == SemanticRole::Paragraph || owner.role == SemanticRole::Heading || owner.role == SemanticRole::Code ||
+                     owner.role == SemanticRole::Html || owner.role == SemanticRole::Metadata))
+                {
+                    // The final raw line owns its hidden closing syntax/EOL,
+                    // even when the next source leaf is displayed elsewhere.
+                    // An atomic value can snap to this end on its first SDK
+                    // fragment; absorb the EOL there rather than inventing an
+                    // EOL-only source line when that object wraps visually.
+                    sourceEnd = std::max(sourceEnd, owner.source.last);
+                }
                 // Atomic objects can wrap over several SDK lines. One source
                 // line unit owns the whole object; later overlapping fragments
                 // must not create reversed or duplicate raw ACP intervals.
@@ -665,7 +854,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 const auto index    = work.boundsIndex++;
                 const auto& element = elements[index];
-                if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Task)
+                if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Task ||
+                    element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
                     for (const auto& rectangle : RangeFromState(*work.state, element.display.first, element.display.last))
                         Union(work.state->bounds[index], rectangle);
             }

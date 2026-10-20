@@ -70,17 +70,20 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
     }
 }
 
-static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false)
+static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
     auto factory        = RichSemanticGeometryTests::Factory();
     const auto previous = RichSemanticDocumentTests::Build(L"previous\n");
     const auto candidate =
-        literalFootnotes ? RichSemanticDocumentTests::Build(L"[^n]: first\n\n    > - second\n    >\n    >   third\n\nAfter\n", MarkdownProfile::RichMarkdown)
-                         : RichSemanticDocumentTests::Build(
-                               L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n9. "
-                               L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
+        renderedFootnotes  ? RichSemanticDocumentTests::Build(
+                                 L"[^unused]: literal\n[^z]: Z body\n[^a]: first\n\n    second\n\n[^empty]:\n\nmain[^a] and[^z] again[^a] empty[^empty]\n",
+                                 MarkdownProfile::RichMarkdown)
+        : literalFootnotes ? RichSemanticDocumentTests::Build(L"[^n]: first\n\n    > - second\n    >\n    >   third\n\nAfter\n", MarkdownProfile::RichMarkdown)
+                           : RichSemanticDocumentTests::Build(
+                                 L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n9. "
+                                 L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
     size_t requests  = 0u;
@@ -160,5 +163,6 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool lite
     geometry.Clear();
     countAllocations = false;
     Check(allocations == oldCalls, "semantic geometry coalescing, scalar geometry queries and retirement allocate no owned C++ storage");
-    std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " completeFailures=" << requests << " idle/retireAllocations=0\n";
+    std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " renderedFootnotes=" << renderedFootnotes
+              << " completeFailures=" << requests << " idle/retireAllocations=0\n";
 }

@@ -1,4 +1,4 @@
-<!-- @dsCard group="Input" height=480 -->
+<!-- @dsCard group="Input" height=740 -->
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>RichTextEditor — preview</title></head>
@@ -11,7 +11,14 @@
 <table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tr><th style="border:1px solid currentColor;text-align:left;padding:6px">Language</th><th style="border:1px solid currentColor;text-align:right;padding:6px">Text</th></tr><tr><td style="border:1px solid currentColor;padding:6px">Greek</td><td style="border:1px solid currentColor;text-align:right;padding:6px">β</td></tr><tr><td style="border:1px solid currentColor;padding:6px">Japanese</td><td style="border:1px solid currentColor;text-align:right;padding:6px">日本語 😀</td></tr></table>
 <ul style="margin:0 0 16px;padding-inline-start:24px"><li><span style="font-family:'Segoe UI Symbol'">&#x2611;</span> Checked task</li><li><span style="font-family:'Segoe UI Symbol'">&#x2610;</span> Unchecked task</li></ul>
 <div>Source-preserving semantic preview</div></div>
-<span class="dx-cap">Source-exact list, heading, style, link, task and table editing; semantic style accessibility and physical IME/AT qualification pending</span>
+<span class="dx-cap">Source-exact structural editing; external links stay inert</span>
+<div class="dx-field dx-rich-editor" style="min-height:210px">
+<strong class="dx-rich-heading">Internal footnote navigation</strong>
+<div style="margin-bottom:20px">First<sup style="text-decoration:underline">1</sup>, second<sup style="text-decoration:underline">2</sup>, repeated<sup style="text-decoration:underline">1</sup>.</div>
+<div>1. <b>Styled</b> note body.</div><div style="text-decoration:underline;margin-bottom:8px">↩1 ↩2</div>
+<div>2. Unicode β and exact source.</div><div style="text-decoration:underline">↩1</div>
+</div>
+<span class="dx-cap">Source-exact footnotes and internal navigation preview; final extension/physical/platform/performance qualification pending</span>
 </div></div>
 </body>
 </html>

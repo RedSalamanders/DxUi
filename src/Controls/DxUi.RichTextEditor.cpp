@@ -228,6 +228,30 @@ bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr
     const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
     return ApplySourceEdits(Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
 }
+bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
+{
+    if (! expected || GetHost() != &host || ! IsEnabled() || GetAcknowledgedSemanticDocument(host) != expected)
+        return false;
+    const auto target = expected->NavigationTarget(element);
+    if (! target)
+        return false;
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    const auto lifetime = GetLifetimeToken();
+    if (! ScrollSourceRangeIntoView(host, target->first, target->last, true))
+        return false;
+    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != expected)
+        return false;
+    // Selection synchronization can re-enter or destroy the owner. Complete
+    // scrolling first and never access this control after SetSelection returns.
+    SetSelection({target->first, target->last});
+    return true;
+}
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
     _state->readOnly = readOnly;
@@ -1321,6 +1345,14 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         if (control)
         {
+            if (key == VK_RETURN && ! shift)
+                if (const auto document = GetAcknowledgedSemanticDocument(host))
+                    for (const auto& navigation : document->Navigation())
+                    {
+                        const auto& source = document->Elements()[navigation.element].source;
+                        if (source.first < source.last && GetSelection().caret >= source.first && GetSelection().caret < source.last)
+                            return NavigateSemanticElement(host, document, navigation.element);
+                    }
             switch (key)
             {
                 case 'A': return OnSelectAll(host);
@@ -1462,6 +1494,12 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             host.GetFocusControl() != this)
             return true;
         const auto source = HitSource(host, point);
+        if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
+            if (const auto document = GetAcknowledgedSemanticDocument(host))
+                for (const auto& navigation : document->Navigation())
+                    if (const auto bounds = GetSemanticElementBounds(host, navigation.element);
+                        bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
+                        return NavigateSemanticElement(host, document, navigation.element);
         std::shared_ptr<const RichText::MarkdownCommandPlan> taskPlan;
         D2D1_RECT_F taskRect{};
         if (Editable() && ! ModifiersContainShift(modifiers))

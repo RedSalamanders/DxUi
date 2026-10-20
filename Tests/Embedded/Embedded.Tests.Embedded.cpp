@@ -1246,6 +1246,7 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             TestFootnoteBlockAllocationFailures(true);
             TestRichSemanticGeometryFailureBudgets(true, true);
+            TestRichSemanticGeometryFailureBudgets(true, false, true);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
             TestNativeFlowchartAllocationFailureAtomicity(true);
@@ -1450,9 +1451,11 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
     RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
+    RichSemanticTests::Run(RichSemanticGeometryTests::ReorderedFootnoteCaretSitesAndSourceLines);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, true); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, true); });
     TestFootnoteBlockAllocationFailures();
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
     {

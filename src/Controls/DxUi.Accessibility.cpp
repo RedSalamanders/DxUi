@@ -12191,7 +12191,9 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
     if (request.semanticProvider)
     {
-        request.result = request.kind == AccessibilityUiActionKind::Toggle ? request.semanticProvider->Toggle() : UIA_E_NOTSUPPORTED;
+        request.result = request.kind == AccessibilityUiActionKind::Toggle   ? request.semanticProvider->Toggle()
+                         : request.kind == AccessibilityUiActionKind::Invoke ? request.semanticProvider->Invoke()
+                                                                             : UIA_E_NOTSUPPORTED;
         return true;
     }
     if (request.provider)

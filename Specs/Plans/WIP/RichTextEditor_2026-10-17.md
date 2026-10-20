@@ -2651,16 +2651,73 @@ development checks from final frozen qualification:
     - [x] M5b.2b: Label/ref binding, missing/duplicate diagnostics and reachable
       deterministic numbering pass focused Debug/native/embedded and allocation
       checks. Numeric/footer presentation remains M5b.3; final profiles remain M5f.
-  - [ ] M5b.3: Footer rendering and repeated reference/backlink source ownership.
-    Added dependency: geometry currently merges empty-line caret sites in source
-    order. Prepare display-order ownership for reordered definitions, and test
-    differing definition/reference order plus empty/multi-paragraph definitions
-    in both hosts before closing footnote rendering/accessibility.
-    - [ ] Added integration audit: visual source-line indexing also accumulates
-      a monotonic `sourceLineStart`. Reordered footer lines must retain correct
-      source line units. Verify retained drag/keyboard selection and deletion
-      across a main/footer boundary; abstract SourceDisplayMap reorder tests do
-      not establish the end-to-end control behavior.
+  - [x] M5b.3: Footer rendering and repeated reference/backlink source ownership
+    pass focused x64 Debug qualification; final extension profiles remain M5f.
+    Implemented source-bearing superscript references,
+    root footers in ordinal order, generated zero-source backlinks with separate
+    raw navigation targets, optional display-order empty-site/anchor indexes and
+    source-order visual line indexing. UIA Invoke shares revision/owner-thread
+    guards with retained navigation. Complete native EditorControls (46.950 s),
+    Accessibility (117.247 s) and ordinary Embedded (35,959 counted checks) pass
+    on the fourth canonical Debug build (4:24), as do all eight directed runs.
+    All 2,080 observed parser/semantic allocation points across ten preparations,
+    163 literal-geometry and 671 rendered-geometry points pass. Warm composition
+    allocates no tracked C++ storage (1,000 composites, 7,651 us; diagnostic only).
+    The 18 independent binding/rendering fixtures, exact source line/atomic-EOL
+    cases, original-container geometry/ancestry, drag/keyboard selection,
+    deletion/undo, composition, provider retirement and actual clients run in
+    both relevant hosts. A native injected clipboard additionally verifies raw
+    cross-footer copy without touching the system clipboard. Reviewed new footnote tiles in all five themes,
+    the full dark sheet, standalone embedded capture and complex sample capture
+    are retained with exact build/source provenance. Earlier failures and retries
+    below remain evidence, not a claim of full M5 acceptance.
+    A private four-case geometry diagnostic caught a generated backlink stealing
+    the following main paragraph's shared source seam; preserve its failed source,
+    executable/logs under `rich-footnotes-m5b3-20261020/Failed-GeometryReorder1`.
+    Corrected private diagnostics pass 14 semantic fixtures and four geometry
+    cases. These are development probes, not full native qualification.
+    The first canonical Debug build passes (4:47), all eight directed native
+    EditorControls/Accessibility runs pass, and observed parser/semantic (1,480),
+    literal-geometry (163) and rendered-geometry (671) allocation schedules pass.
+    Preserve exact inputs/artifacts/logs in `rich-footnotes-m5b3-20261020/Iteration1`.
+    A stronger independent line oracle against that frozen native library then
+    fails: adjacent source definitions split at 12 instead of 13, assigning the
+    first EOL to the next raw line. The correction retains each final leaf EOL,
+    including a wrapped atomic object's EOL, and passes private before/after
+    diagnostics. Canonical revalidation, expanded real drag/keyboard selection,
+    presentation/rebind retirement and reviewed gallery captures are next.
+    Iteration2 Debug build passes (5:08); exact line units, strict corpora and all
+    directed UIA/composition/retirement cases pass. The stronger retained drag
+    test fails because prior navigation scrolled the drag origin offscreen:
+    pressing it reveals the caret and invalidates the already sampled destination.
+    Preserve `Iteration2` and `Failed-HostedDragCoordinates`. A private 160-DIP
+    supplied-device probe against that same frozen library records the mismatch
+    (raw selection 28,55 rather than 28,20). Revealing the origin before sampling
+    both coordinates passes the same library, including Shift+Down/delete/undo.
+    This is a fixture correction, not a claimed control fix. Full validators and
+    tooling pass for Iteration2; the corrected fixture still needs canonical proof.
+    Iteration3 canonical Debug (4:39), all eight directed runs and isolated
+    allocation schedules pass, including the corrected drag/keyboard/delete/undo
+    and injected raw-copy fixture. Exact inputs/artifacts/logs are retained.
+    A subsequent private original-container oracle fails against the frozen
+    native library: list/quote-list definitions inherit an outside bullet when
+    moved to the footer. Stop prefix/marker/gutter ancestry at the moved definition
+    while preserving internal containers. Extend the shared corpus from 14 to
+    18 cases, add root/container geometry equivalence and both-host UIA ancestry
+    checks. Source/display enclosure also needs to reject an original container
+    for a range spanning retained content and its moved definition. The native
+    fix/tests and expanded ten-preparation allocation schedule need revalidation.
+    Display-order caret-site ownership and source-order line indexing now cover
+    differing definition/reference order plus empty/multi-paragraph definitions.
+    - [x] Integration audit: source-line indexing preserves raw units after footer
+      reordering, including each leaf's hidden EOL and wrapped atomic objects.
+      Retained drag/Shift+Down, injected source copy and keyboard deletion/undo
+      cross the main/footer boundary; proof is not limited to abstract map tests.
+    - [x] Focused closeout: native/embedded UIA composition/retirement, actual client
+      source text, repeated backlinks, raw deletion/undo, themed gallery captures,
+      observed allocation failures and reviewed themed captures. Final runtime/
+      build profiles remain M5f; generated link keyboard traversal, dedicated
+      object editing and note-aware structural commands remain explicit M5e.
 - [ ] M5c: Implement the named native math command/environment corpus and layout:
   identifiers/numbers/operators/groups, fractions, roots, scripts, stretchy
   delimiters, accents, large operators/limits, matrices/cases/aligned and text.

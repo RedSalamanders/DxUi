@@ -1,5 +1,6 @@
 #pragma once
 #include <DxUi/MarkdownSyntax.h>
+#include <DxUi/RichSemanticDocument.h>
 #include <algorithm>
 
 namespace FootnoteResolutionTests
@@ -23,6 +24,7 @@ inline constexpr ExpectedNote table[]      = {{L"a\\|b", L"a\\|b", 1u, 1u}};
 inline constexpr ExpectedNote escaped[]    = {{L"a\\]b", L"A\\]B", 1u, 1u}};
 inline constexpr ExpectedNote emphasis[]   = {{L"a_b", L"a_b", 1u, 1u}};
 inline constexpr ExpectedNote noNfc[]      = {{L"\u00e9", L"\u00e9", 0u, 0u}};
+inline constexpr ExpectedNote container[]  = {{L"n", L"n", 1u, 1u}};
 struct Scenario
 {
     std::wstring_view source;
@@ -44,6 +46,10 @@ inline constexpr Scenario scenarios[] = {
     {L"[^a_b]: body\n\n*ref[^a_b]*\n", emphasis},
     {L"[^\u00e9]: body\n\nref[^e\u0301]\n", noNfc, 1u},
     {L"---\n[^n]: metadata\n---\n\n```\n[^n]\n```\n\n<div>\n[^n]\n</div>\n", {}},
+    {L"- [^n]: note\n\nmain[^n]\n", container},
+    {L"> [^n]: note\n\nmain[^n]\n", container},
+    {L"> - [^n]: note\n\nmain[^n]\n", container},
+    {L"- outer\n  [^n]: note\n\nmain[^n]\n", container},
 };
 inline std::shared_ptr<const MarkdownSyntax> Complete(MarkdownParser& parser, std::size_t budget = 1u)
 {
@@ -120,6 +126,120 @@ template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, 
     }
     check(missing == scenario.missing && duplicates == scenario.duplicates, "missing and duplicate definitions match independently counted diagnostics");
 }
+template <typename Check> inline void CheckSemantic(const SemanticDocument& document, Check&& check)
+{
+    const auto& syntax = *document.Syntax();
+    std::size_t footerCount{}, expectedFooters{}, expectedReferences{};
+    for (const auto& note : syntax.Footnotes())
+    {
+        expectedFooters += note.ordinal != 0u;
+        expectedReferences += note.references.size();
+    }
+    const auto elements = document.Elements();
+    for (std::size_t index = 0u; index < elements.size(); ++index)
+    {
+        const auto& element = elements[index];
+        const auto target   = document.NavigationTarget(index);
+        if (element.role == SemanticRole::Footnote)
+        {
+            check(element.parent == 0u && element.source == syntax.Nodes()[element.syntaxNode].block.source,
+                  "each used primary definition is a root footer retaining its exact source envelope");
+            ++footerCount;
+        }
+        if (element.role == SemanticRole::FootnoteReference)
+        {
+            const auto raw    = syntax.Slice(element.source);
+            const auto ranges = document.Map().DisplayRanges(element.source);
+            check(target.has_value() && raw.starts_with(L"[^") && raw.ends_with(L"]") && ranges.size() == 1u && ranges[0u] == element.display,
+                  "a numbered reference atomically owns its entire raw Unicode marker");
+        }
+        if (element.role == SemanticRole::FootnoteBacklink)
+        {
+            check(target.has_value() && syntax.Slice(*target).starts_with(L"[^") && element.source.first == element.source.last &&
+                      elements[element.parent].source == element.source && document.Map().SourceRanges(element.display).empty(),
+                  "a generated backlink owns no raw text and carries a separate exact reference navigation target");
+        }
+    }
+    check(footerCount == expectedFooters && document.Navigation().size() == expectedReferences * 2u,
+          "only reachable primary notes render once with one source link and backlink for every reachable occurrence");
+}
+template <typename Editor, typename Host, typename Prepare, typename Check>
+inline void ExerciseNavigation(Editor& editor, Host& host, Prepare&& prepare, Check&& check, unsigned controlModifier, unsigned shiftModifier)
+{
+    const std::wstring source = L"[^z]: Z body\n[^a]: A body\n\nmain[^a] and[^z] again[^a].\n";
+    editor.SetText(source);
+    prepare();
+    const auto document = editor.GetAcknowledgedSemanticDocument(host);
+    check(document != nullptr, "footnote navigation starts with acknowledged native geometry");
+    CheckSemantic(*document, check);
+    const auto revision = editor.Revision();
+    const auto before   = host.GetFocusControl();
+    for (const auto& action : document->Navigation())
+    {
+        check(editor.NavigateSemanticElement(host, document, action.element) && editor.GetSelection() == Selection{action.target.first, action.target.last},
+              "native/embedded navigation selects each independent exact target");
+        check(editor.GetText() == source && editor.Revision() == revision && ! editor.CanUndo() && host.GetFocusControl() == before,
+              "navigation preserves source, revision, history and logical keyboard focus");
+    }
+    editor.SetReadOnly(true);
+    check(editor.NavigateSemanticElement(host, document, document->Navigation().front().element), "read-only footnotes still allow internal navigation");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    const auto heldSelection = editor.GetSelection();
+    check(! editor.NavigateSemanticElement(host, document, document->Navigation().front().element) && editor.GetSelection() == heldSelection,
+          "disabled internal navigation cannot change selection");
+    editor.SetEnabled(true);
+    prepare();
+    const auto& forward     = document->Navigation().front();
+    const auto rawReference = document->Elements()[forward.element].source;
+    host.SetFocusControl(&editor, false);
+    prepare();
+    editor.SetSelection({rawReference.first, rawReference.first});
+    check(editor.OnKeyDown(host, L'\r', controlModifier) && editor.GetSelection() == Selection{forward.target.first, forward.target.last},
+          "Ctrl+Enter at a reference uses the same source-exact guarded definition target");
+    check(editor.ScrollSourceRangeIntoView(host, rawReference.first, rawReference.last, true), "prepare reference pointer visibility");
+    const auto bounds = editor.GetSemanticElementBounds(host, forward.element);
+    check(bounds.has_value(), "numbered source reference has visible native hit bounds");
+    check(editor.OnMouseDown(host, {(bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f}, false, controlModifier) &&
+              editor.GetSelection() == Selection{forward.target.first, forward.target.last},
+          "Ctrl+click activates the internal reference without editing source");
+    const auto body = source.find(L"A body"), main = source.find(L"main");
+    // Navigation may have scrolled the main line above a short viewport.
+    // Reveal the drag origin before sampling both coordinates: pressing there
+    // must not invalidate the precomputed destination by revealing the caret.
+    check(editor.ScrollSourceRangeIntoView(host, main, main + 1u, true), "stabilize the visible drag origin after footer navigation");
+    const auto start = editor.TryGetTextInputCaretRect(host, main + 1u), finish = editor.TryGetTextInputCaretRect(host, body + 1u);
+    check(start && finish, "main/footer drag endpoints have current source caret geometry");
+    check(editor.OnMouseDown(host, {start->left, (start->top + start->bottom) * .5f}, false, 0u) &&
+              editor.OnMouseMove(host, {finish->left, (finish->top + finish->bottom) * .5f}, 0u) &&
+              editor.OnMouseUp(host, {finish->left, (finish->top + finish->bottom) * .5f}, false, 0u),
+          "retained native/embedded pointer drag crosses the reordered main/footer boundary");
+    check(editor.GetSelection() == Selection{main + 1u, body + 1u}, "cross-footer drag retains its actual raw anchor and caret");
+    const auto painted = editor.TryGetTextInputRangeRects(host, body + 1u, main + 1u);
+    check(painted && painted->size() >= 2u, "one source-contiguous cross-footer selection exposes disjoint visible highlight fragments");
+    // Win32 VK_DOWN/VK_DELETE values keep this CPU fixture header independent
+    // of Windows/UI headers while exercising the real retained input methods.
+    constexpr unsigned downKey = 0x28u, deleteKey = 0x2eu;
+    editor.SetSelection({main + 1u, main + 1u});
+    bool reachedFooter{};
+    for (unsigned step = 0u; step < 8u && ! reachedFooter; ++step)
+    {
+        check(editor.OnKeyDown(host, downKey, shiftModifier), "Shift+Down extends selection through reordered native lines");
+        const auto selection = editor.GetSelection();
+        check(selection.anchor == main + 1u, "vertical selection keeps its original raw anchor");
+        reachedFooter = selection.caret >= body && selection.caret <= body + 6u;
+    }
+    check(reachedFooter, "vertical keyboard selection reaches the first displayed footer body");
+    const auto erase = editor.GetSelection();
+    check(editor.OnKeyDown(host, deleteKey, 0u), "keyboard deletion handles cross-footer source selection as one transaction");
+    check(editor.GetText() == source.substr(0u, erase.Start()) + source.substr(erase.End()) && editor.CanUndo(),
+          "reordered display never changes the raw interval chosen by source selection");
+    check(! editor.NavigateSemanticElement(host, document, document->Navigation().front().element),
+          "an edited source immediately rejects held footer navigation");
+    check(editor.Undo() && editor.GetText() == source, "cross-footer deletion restores exact source in one undo");
+    prepare();
+    check(editor.GetAcknowledgedSemanticDocument(host) != document, "undo prepares a fresh footer publication instead of resurrecting stale actions");
+}
 template <typename Editor, typename Prepare, typename IsCurrent, typename Check>
 inline void ExerciseSourceEdits(Editor& editor, Prepare&& prepare, IsCurrent&& isCurrent, Check&& check)
 {
@@ -131,7 +251,7 @@ inline void ExerciseSourceEdits(Editor& editor, Prepare&& prepare, IsCurrent&& i
         check(syntax != nullptr, "hosted footnote resolution finishes on owner turns");
         CheckSyntax(*syntax, scenario, check);
         check(isCurrent(syntax) && editor.GetText() == scenario.source && ! editor.CanUndo(),
-              "hosted resolution preserves exact source/history with an acknowledged literal fallback");
+              "hosted resolution preserves exact source/history with acknowledged semantic geometry");
     }
     const std::wstring source = L"main[^a]\n\n[^a]: body\n";
     editor.SetText(source);

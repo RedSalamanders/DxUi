@@ -1332,6 +1332,161 @@ void SemanticFrontMatterDiagnostics(bool embedded)
         Require(retired(*metadata.get()), "same-host rebinding cannot resurrect an older semantic epoch");
     }
 }
+wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root, std::wstring_view name, unsigned depth = 0u)
+{
+    Require(depth < 24u, "named semantic provider walk is bounded");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, child;
+    RequireSucceeded(root.QueryInterface(IID_PPV_ARGS(fragment.put())), "named semantic fragment");
+    RequireSucceeded(fragment->Navigate(NavigateDirection_FirstChild, child.put()), "named first child");
+    while (child)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(child.query_to(simple.put()), "named child simple");
+        if (ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "named semantic part") == name)
+            return simple;
+        auto nested = FindNamedSemanticPart(*simple.get(), name, depth + 1u);
+        if (nested)
+            return nested;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(child->Navigate(NavigateDirection_NextSibling, next.put()), "named next sibling");
+        child = std::move(next);
+    }
+    return {};
+}
+void SemanticFootnoteNavigation(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"[^n]: **body**\n\nmain[^n] again[^n]\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple    = fixture.Simple();
+    auto reference = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    auto backlink1 = FindNamedSemanticPart(*simple.get(), L"Return to reference 1 for footnote 1");
+    auto backlink2 = FindNamedSemanticPart(*simple.get(), L"Return to reference 2 for footnote 1");
+    Require(reference && backlink1 && backlink2, "both hosts expose independently reachable footnote reference and repeated backlink providers");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> referenceRange, backlinkRange;
+    RequireSucceeded(text->RangeFromChild(reference.get(), referenceRange.put()), "numbered reference raw range");
+    Require(ReadTextRangeText(*referenceRange.get(), -1, "raw reference spelling") == L"[^n]", "superscript UIA child retains the exact raw marker");
+    RequireSucceeded(text->RangeFromChild(backlink2.get(), backlinkRange.put()), "generated backlink raw range");
+    Require(ReadTextRangeText(*backlinkRange.get(), -1, "generated backlink source").empty(), "backlinks invent no raw text or replacement interval");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> enclosing;
+    RequireSucceeded(backlinkRange->GetEnclosingElement(enclosing.put()), "explicit backlink enclosing identity");
+    Require(ReadProviderStringProperty(*enclosing.get(), UIA_NamePropertyId, "explicit backlink identity") == L"Return to reference 2 for footnote 1",
+            "equal-ACP generated children retain explicit RangeFromChild identity");
+    wil::com_ptr_nothrow<IUnknown> invocation;
+    RequireSucceeded(reference->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "footnote Invoke availability");
+    wil::com_ptr_nothrow<IInvokeProvider> forward, back1, back2;
+    Require(invocation != nullptr, "internal footnote links advertise Invoke");
+    RequireSucceeded(invocation.query_to(forward.put()), "forward Invoke");
+    RequireSucceeded(backlink1.query_to(back1.put()), "first backlink Invoke");
+    RequireSucceeded(backlink2.query_to(back2.put()), "second backlink Invoke");
+    const auto revision = fixture.editor->Revision();
+    const auto focus    = fixture.controls->GetFocusControl();
+    const auto body     = source.find(L"**body**");
+    const auto first = source.find(L"[^n]", source.find(L"main")), second = source.find(L"[^n]", first + 1u);
+    RequireSucceeded(forward->Invoke(), "forward internal navigation");
+    Require(fixture.editor->GetSelection() == Selection{body, body}, "forward navigation enters the exact definition content source");
+    RequireSucceeded(back1->Invoke(), "first repeated backlink");
+    Require(fixture.editor->GetSelection() == Selection{first, first + 4u}, "first backlink selects its complete original marker");
+    RequireSucceeded(back2->Invoke(), "second repeated backlink");
+    Require(fixture.editor->GetSelection() == Selection{second, second + 4u}, "second backlink selects its distinct original marker");
+    Require(fixture.editor->Revision() == revision && ! fixture.editor->CanUndo() && fixture.controls->GetFocusControl() == focus,
+            "UIA navigation preserves source/history and logical focus");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    RequireSucceeded(forward->Invoke(), "read-only footnote navigation");
+    fixture.editor->SetReadOnly(false);
+    fixture.Publish();
+    std::atomic<bool> done = false;
+    HRESULT dispatched     = E_FAIL;
+    std::jthread worker([&]
+    {
+        dispatched = back2->Invoke();
+        done.store(true, std::memory_order_release);
+    });
+    const auto deadline = GetTickCount64() + 12000u;
+    while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    {
+        fixture.Pump();
+        Sleep(1u);
+    }
+    Require(done.load(std::memory_order_acquire), "footnote Invoke dispatch completes within its independent deadline");
+    worker.join();
+    Require(dispatched == (embedded ? RPC_E_WRONG_THREAD : S_OK), "native footnote Invoke dispatches to owner while embedded refuses foreign mutation");
+    fixture.editor->SetEnabled(false);
+    fixture.Publish();
+    Require(forward->Invoke() == UIA_E_ELEMENTNOTENABLED, "disabled footnote Invoke is unavailable");
+    fixture.editor->SetEnabled(true);
+    fixture.Publish();
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    const auto link   = FindClientPart(client, editor, UIA_HyperlinkControlTypeId);
+    Require(link && client.TextRangeFromChild(editor, link) == L"[^n]",
+            "actual native/application-bridged clients see exact source behind superscript references");
+    fixture.editor->SetMarkdownRenderingEnabled(false);
+    Require(forward->Invoke() == UIA_E_ELEMENTNOTAVAILABLE && back2->Invoke() == UIA_E_ELEMENTNOTAVAILABLE,
+            "presentation withdrawal immediately retires internal navigation providers");
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.Publish();
+    reference = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    forward.reset();
+    RequireSucceeded(reference.query_to(forward.put()), "navigation after presentation re-enable");
+    const auto publication = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    auto* sourceAdapter    = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    sourceAdapter->RebindForTest(nullptr);
+    sourceAdapter->RebindForTest(fixture.controls);
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls) == publication && forward->Invoke() == UIA_E_ELEMENTNOTAVAILABLE,
+            "owner rebinding retires actions even when immutable CPU footnotes are reused");
+    reference = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    backlink2 = FindNamedSemanticPart(*simple.get(), L"Return to reference 2 for footnote 1");
+    forward.reset();
+    back2.reset();
+    RequireSucceeded(reference.query_to(forward.put()), "navigation from rebound owner");
+    RequireSucceeded(backlink2.query_to(back2.put()), "backlink from rebound owner");
+    fixture.editor->SetText(source + L"changed");
+    Require(forward->Invoke() == UIA_E_ELEMENTNOTAVAILABLE && back2->Invoke() == UIA_E_ELEMENTNOTAVAILABLE,
+            "source mutation immediately retires old reference and backlink actions before another publication");
+    for (const std::wstring_view nested : {L"- [^n]: note\n\nmain[^n]\n", L"> - [^n]: note\n\nmain[^n]\n", L"- outer\n  [^n]: note\n\nmain[^n]\n"})
+    {
+        fixture.editor->SetText(std::wstring(nested));
+        fixture.Publish();
+        auto sourceText  = TextProvider(fixture);
+        const auto label = nested.find(L"[^n]");
+        auto hidden      = AsciiRange(*sourceText.get(), static_cast<int>(label), static_cast<int>(label + 1u));
+        wil::com_ptr_nothrow<IRawElementProviderSimple> owner;
+        RequireSucceeded(hidden->GetEnclosingElement(owner.put()), "moved definition hidden-label source owner");
+        bool inFooter{};
+        for (unsigned depth = 0u; owner && depth < 12u; ++depth)
+        {
+            if (ReadProviderStringProperty(*owner.get(), UIA_NamePropertyId, "moved source ancestry") == L"Footnote 1")
+            {
+                inFooter = true;
+                break;
+            }
+            wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, parent;
+            RequireSucceeded(owner.query_to(fragment.put()), "moved source fragment");
+            RequireSucceeded(fragment->Navigate(NavigateDirection_Parent, parent.put()), "moved source semantic parent");
+            owner.reset();
+            if (parent)
+                RequireSucceeded(parent.query_to(owner.put()), "moved source parent provider");
+        }
+        Require(inFooter, "hidden definition source belongs to the footer tree instead of its former declaration list");
+        const auto outer = nested.find(L"outer");
+        if (outer != std::wstring_view::npos)
+        {
+            const auto note = nested.find(L"note");
+            auto mixed      = AsciiRange(*sourceText.get(), static_cast<int>(outer), static_cast<int>(note + 1u));
+            owner.reset();
+            RequireSucceeded(mixed->GetEnclosingElement(owner.put()), "source selection spanning retained list and moved footer");
+            Require(ReadProviderLongProperty(*owner.get(), UIA_ControlTypePropertyId, "mixed source common ancestor") == UIA_DocumentControlTypeId,
+                    "a source range containing original list text and moved footer text has the document as its common display ancestor");
+        }
+    }
+}
 void SemanticStructureAndTasks(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
@@ -1458,7 +1613,7 @@ void SemanticStructureAndTasks(bool embedded)
     fixture.Publish();
     Require(table->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement disconnects structured parts");
 }
-void SemanticTaskComposition(bool nativeAdapter)
+void SemanticActionComposition(bool nativeAdapter, bool footnote = false)
 {
     // A borrowed surface provides prepared semantic geometry without an HWND.
     // Its native backend exercises the real IMM adapter without desktop focus;
@@ -1469,10 +1624,11 @@ void SemanticTaskComposition(bool nativeAdapter)
         fixture.controls->SetTextInputBackend(TextInputBackend::Native);
         fixture.controls->SetFocusControl(fixture.editor, false);
     }
-    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    const std::wstring source = L"- [ ] task\r\n";
+    fixture.editor->SetMarkdownAnalysisProfile(footnote ? RichText::MarkdownProfile::RichMarkdown : RichText::MarkdownProfile::Gfm029);
+    const std::wstring source = footnote ? L"main[^n]\r\n\r\n[^n]: body\r\n" : L"- [ ] task\r\n";
+    const auto insertion      = footnote ? 4u : 10u;
     fixture.editor->SetText(source);
-    fixture.editor->SetSelection({10u, 10u});
+    fixture.editor->SetSelection({insertion, insertion});
     fixture.Publish();
     auto simple = fixture.Simple();
     if (! nativeAdapter)
@@ -1480,11 +1636,11 @@ void SemanticTaskComposition(bool nativeAdapter)
         EmbeddedTextInputSnapshot snapshot;
         RequireSucceeded(fixture.view.ReadTextInput(snapshot), "read semantic task composition base");
         auto preview = snapshot.state;
-        preview.text.insert(10u, L"\u4eee");
-        preview.caretIndex = 11u;
+        preview.text.insert(insertion, L"\u4eee");
+        preview.caretIndex = insertion + 1u;
         preview.selectionAnchorIndex.reset();
-        preview.compositionStartIndex = 10u;
-        preview.compositionEndIndex   = 11u;
+        preview.compositionStartIndex = insertion;
+        preview.compositionEndIndex   = insertion + 1u;
         RequireSucceeded(fixture.view.ApplyTextInput(snapshot.revision, preview, EmbeddedTextInputAction::Preview), "preview task source composition");
     }
     else
@@ -1500,12 +1656,23 @@ void SemanticTaskComposition(bool nativeAdapter)
         Require(handled, "production native adapter accepts the synthetic source preview");
     }
     fixture.Publish();
-    auto task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
-    wil::com_ptr_nothrow<IToggleProvider> toggle;
-    RequireSucceeded(task.query_to(toggle.put()), "composing task action");
+    auto action              = FindSemanticPart(*simple.get(), footnote ? UIA_HyperlinkControlTypeId : UIA_CheckBoxControlTypeId);
     const auto previewSource = fixture.editor->GetText();
-    Require(toggle->Toggle() == UIA_E_INVALIDOPERATION && fixture.editor->GetText() == previewSource && ! fixture.editor->CanUndo(),
-            "active native/embedded composition blocks semantic UIA task edits without history");
+    HRESULT result{};
+    if (footnote)
+    {
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        RequireSucceeded(action.query_to(invoke.put()), "composing footnote action");
+        result = invoke->Invoke();
+    }
+    else
+    {
+        wil::com_ptr_nothrow<IToggleProvider> toggle;
+        RequireSucceeded(action.query_to(toggle.put()), "composing task action");
+        result = toggle->Toggle();
+    }
+    Require(result == UIA_E_INVALIDOPERATION && fixture.editor->GetText() == previewSource && ! fixture.editor->CanUndo(),
+            "active native/embedded composition blocks semantic task edits and footnote selection changes without history");
     if (! nativeAdapter)
     {
         EmbeddedTextInputSnapshot snapshot;
@@ -1523,7 +1690,8 @@ void SemanticTaskComposition(bool nativeAdapter)
 }
 void SemanticCompositionBindingAndRetirement(bool embedded)
 {
-    SemanticTaskComposition(! embedded);
+    SemanticActionComposition(! embedded);
+    SemanticActionComposition(! embedded, true);
     // This fixture separately qualifies the native HWND/application-bridged
     // semantic provider lifetime. Neither fixture takes desktop focus.
     RichAccessibilityFixture fixture(embedded, true, true);
@@ -1592,6 +1760,14 @@ void TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics()
 {
     EmbeddedCase(SemanticFrontMatterDiagnostics);
 }
+void TestRichTextAccessibilityWindowFootnoteNavigation()
+{
+    SemanticFootnoteNavigation(false);
+}
+void TestRichTextAccessibilityEmbeddedFootnoteNavigation()
+{
+    EmbeddedCase(SemanticFootnoteNavigation);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
@@ -1605,6 +1781,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);

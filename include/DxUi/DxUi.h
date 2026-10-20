@@ -2853,6 +2853,10 @@ public:
     // Revision-local accessible task action. Preserves the source selection;
     // one exact state-character edit/undo, without acquiring keyboard focus.
     bool ToggleSemanticTask(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    // Revision-local footnote/reference navigation. Selects the exact source
+    // target and scrolls without editing history or acquiring keyboard focus.
+    // Enabled read-only controls allow navigation; pending/composing ones do not.
+    bool NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
     void SetReadOnly(bool readOnly) noexcept;
     [[nodiscard]] bool IsReadOnly() const noexcept;
     // Programmatic edit commands obey read-only/disabled state. Only successful

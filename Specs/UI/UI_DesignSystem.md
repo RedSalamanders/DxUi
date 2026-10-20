@@ -76,3 +76,12 @@ buttons with readable action/status labels, without changing control tokens or
 the gallery tile's resting appearance. Semantic style/structure accessibility
 adds prepared UIA metadata and actions without changing visual tokens or pixels;
 the static HTML preview is design guidance, never native rendering evidence.
+The RichMarkdown footnote variant adds superscript references, numbered styled
+bodies and repeated underlined backlinks using existing body/selected/disabled
+ink. A footer has its own root indentation; original declaration-list gutters
+do not follow it. Empty source lines remain real caret sites. Generated backlink
+labels add no source text or selection ink. Internal Ctrl+click/Ctrl+Enter/UIA
+navigation selects/reveals source without history edits; external links stay inert.
+The populated native tile is captured in all five themes, separately from the
+existing semantic preview. Final M5 and physical/platform/performance gates remain
+open; no new palette token or deployed browser runtime is introduced.

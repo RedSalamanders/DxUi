@@ -31,10 +31,10 @@ struct EmbeddedScene
             status->SetBounds(D2D1::RectF(24, 34, 950, 58));
             rich = root->AddChild<DxUi::RichTextEditor>();
             rich->SetBounds(D2D1::RectF(24, 144, 950, 690));
-            rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::Gfm029);
+            rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             rich->SetMarkdownRenderingEnabled(true);
             rich->SetText(L"# Owned Unicode rich text\r\n\r\n"
-                          L"Edit **bold**, *italic*, ~~deleted~~ and `code`. Try an [underlined link](https://example.invalid).\r\n\r\n"
+                          L"Edit **bold**, *italic*, ~~deleted~~ and `code`.[^unicode] Try an [underlined link](https://example.invalid).\r\n\r\n"
                           L"<p>Native <b>HTML</b>, <u>underline</u>, <a href='#sample' title='Inert link'>a link</a> and &copy;.</p>\r\n\r\n"
                           L"- [x] A checked task\r\n- [ ] An unchecked task\r\n\r\n"
                           L"## Tables and Unicode\r\n\r\n"
@@ -45,9 +45,11 @@ struct EmbeddedScene
                           L"9. A long ordered item demonstrates a measured hanging marker column. Wrapped text stays aligned with the first text line.\r\n"
                           L"10. The two-digit marker shares the same text column.\r\n\r\n    A loose continuation keeps its text aligned.\r\n\r\n"
                           L"```cpp\r\n// Source spelling and Unicode are preserved.\r\nconst auto message = L\"Hello\";\r\n```\r\n\r\n"
-                          L"An image alternative: ![small example](example.png)\r\n\r\n"
+                          L"An image alternative: ![small example](example.png). Source remains exact.[^unicode][^editing]\r\n\r\n"
                           L"Unsupported HTML stays literal: <span class='custom'>editable source</span>.\r\n\r\n"
-                          L">\r\n\r\n- \r\n\r\n");
+                          L">\r\n\r\n- \r\n\r\n"
+                          L"[^editing]: Selection and editing use original source positions, even when footers move.\r\n"
+                          L"[^unicode]: **Unicode footnotes** retain raw labels, mixed formatting and \u03b2 \U0001f642.\r\n");
             using namespace DxUi::RichText;
             using Action = std::pair<std::wstring_view, MarkdownCommandRequest>;
             const std::array<Action, 18u> actions{{{L"Bold", {.command = MarkdownCommand::ToggleStyle}},

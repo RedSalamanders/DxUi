@@ -866,9 +866,19 @@ void TestRichTextEditorNativeFootnoteResolutionAndSourceEdits()
                                                  [&](const auto& syntax)
     {
         const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
+        if (semantic)
+            FootnoteResolutionTests::CheckSemantic(*semantic, Require);
         return semantic && semantic->Syntax() == syntax && semantic->Map().Source() == syntax->Source();
     },
                                                  Require);
+    FootnoteResolutionTests::ExerciseNavigation(*editor, window.Host(), [&] { RenderEditor(window); }, Require, MK_CONTROL, MK_SHIFT);
+    RichEditorClipboard clipboard;
+    const auto source = editor->GetText();
+    const auto first = source.find(L"A body") + 1u, last = source.find(L"main") + 1u;
+    editor->SetSelection({last, first});
+    const auto redo = editor->CanRedo();
+    Require(editor->OnCopy(window.Host()) && clipboard.text == source.substr(first, last - first) && editor->CanRedo() == redo && editor->GetText() == source,
+            "copy across reordered footers uses the exact raw source interval without touching history or the system clipboard");
 }
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {

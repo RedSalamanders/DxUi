@@ -31,11 +31,49 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND, AccessibilityUiActionR
     if (range.start == 0u && range.end == document.Map().Source().size())
         return 0u; // DocumentRange always encloses the text provider itself.
     size_t enclosing = 0u;
+    std::optional<RichText::MarkdownRange> displayEnvelope;
+    if (! document.Navigation().empty())
+    {
+        // A moved definition can overlap its former source container's raw
+        // envelope while being a different display/root child. Inspect source
+        // owners once, without allocations or a spans-by-elements nested walk.
+        for (const auto& span : document.Map().Spans())
+        {
+            const auto first = std::max(range.start, span.source.first), last = std::min(range.end, span.source.last);
+            if (! span.primary || first >= last)
+                continue;
+            const bool linear = span.kind == RichText::DisplaySpanKind::Source;
+            const RichText::MarkdownRange display{linear ? span.display.first + first - span.source.first : span.display.first,
+                                                  linear ? span.display.first + last - span.source.first : span.display.last};
+            if (! displayEnvelope)
+                displayEnvelope = display;
+            else
+            {
+                displayEnvelope->first = std::min(displayEnvelope->first, display.first);
+                displayEnvelope->last  = std::max(displayEnvelope->last, display.last);
+            }
+        }
+        for (size_t index = 1u; index < elements.size(); ++index)
+        {
+            const auto& element = elements[index];
+            if (element.role == RichText::SemanticRole::Footnote && element.source.first <= range.start && element.source.last >= range.end &&
+                (range.start != range.end || range.start < element.source.last))
+            {
+                enclosing = index; // Includes hidden definition labels and blank source positions.
+                break;
+            }
+        }
+    }
     for (size_t index = 1u; index < elements.size(); ++index)
     {
         const auto& element = elements[index];
+        if (element.role == RichText::SemanticRole::FootnoteBacklink ||
+            (element.role == RichText::SemanticRole::Paragraph && element.source.first == element.source.last))
+            continue; // Generated navigation does not enclose another raw range.
         if (element.source.first > range.start || element.source.last < range.end ||
             (range.start == range.end && range.start == element.source.last && element.source.first != element.source.last))
+            continue;
+        if (displayEnvelope && (element.display.first > displayEnvelope->first || element.display.last < displayEnvelope->last))
             continue;
         // Depth-first semantic order gives the innermost descendant, without
         // allowing an unrelated padded sibling at the same ACP to replace it.
@@ -50,6 +88,7 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND, AccessibilityUiActionR
 
 class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public IRawElementProviderFragment,
+                                          public IInvokeProvider,
                                           public IToggleProvider,
                                           public IGridProvider,
                                           public ITableProvider,
@@ -96,6 +135,8 @@ public:
             *result = static_cast<IRawElementProviderSimple*>(this);
         else if (id == __uuidof(IRawElementProviderFragment))
             *result = static_cast<IRawElementProviderFragment*>(this);
+        else if (id == __uuidof(IInvokeProvider))
+            *result = static_cast<IInvokeProvider*>(this);
         else if (id == __uuidof(IToggleProvider))
             *result = static_cast<IToggleProvider*>(this);
         else if (id == __uuidof(IGridProvider))
@@ -152,7 +193,9 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto role = record->RichSemantic()->Elements()[element_].role;
-        if (id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
+        if (id == UIA_InvokePatternId && record->RichSemantic()->NavigationTarget(element_))
+            *result = static_cast<IInvokeProvider*>(this);
+        else if (id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
         else if (id == UIA_GridPatternId && role == RichText::SemanticRole::Table)
             *result = static_cast<IGridProvider*>(this);
@@ -182,17 +225,17 @@ public:
         {
             case UIA_ControlTypePropertyId:
             {
-                const auto type = element.role == Task                                ? UIA_CheckBoxControlTypeId
-                                  : element.role == Link                              ? UIA_HyperlinkControlTypeId
-                                  : element.role == Image                             ? UIA_ImageControlTypeId
-                                  : element.role == Table                             ? UIA_TableControlTypeId
-                                  : element.role == List                              ? UIA_ListControlTypeId
-                                  : element.role == ListItem                          ? UIA_ListItemControlTypeId
-                                  : element.role == Row                               ? UIA_DataItemControlTypeId
-                                  : element.role == Cell && element.tableHeader       ? UIA_HeaderItemControlTypeId
-                                  : element.role == Quote || element.role == Metadata ? UIA_GroupControlTypeId
-                                  : element.role == Rule                              ? UIA_SeparatorControlTypeId
-                                                                                      : UIA_TextControlTypeId;
+                const auto type = element.role == Task                                                                            ? UIA_CheckBoxControlTypeId
+                                  : element.role == Link || element.role == FootnoteReference || element.role == FootnoteBacklink ? UIA_HyperlinkControlTypeId
+                                  : element.role == Image                                                                         ? UIA_ImageControlTypeId
+                                  : element.role == Table                                                                         ? UIA_TableControlTypeId
+                                  : element.role == List                                                                          ? UIA_ListControlTypeId
+                                  : element.role == ListItem                                                                      ? UIA_ListItemControlTypeId
+                                  : element.role == Row                                                                           ? UIA_DataItemControlTypeId
+                                  : element.role == Cell && element.tableHeader                                                   ? UIA_HeaderItemControlTypeId
+                                  : element.role == Quote || element.role == Metadata || element.role == Footnote                 ? UIA_GroupControlTypeId
+                                  : element.role == Rule                                                                          ? UIA_SeparatorControlTypeId
+                                                                                                                                  : UIA_TextControlTypeId;
                 *result         = VariantFromInt(type);
                 return S_OK;
             }
@@ -365,6 +408,42 @@ public:
         // Do not touch editor after this call: its committed notification
         // may destroy/rebind the owner. The snapshot keeps only data alive.
         return editor->ToggleSemanticTask(*host, record->RichSemantic(), element_) ? S_OK : UIA_E_INVALIDOPERATION;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        return E_INVALIDARG;
+    }
+    HRESULT STDMETHODCALLTYPE Invoke() noexcept override
+    try
+    {
+        const auto snapshot = CaptureSnapshot();
+        if (! snapshot)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (GetCurrentThreadId() != (target_->embedded ? target_->threadId : snapshot->windowThreadId))
+        {
+            if (target_->embedded)
+                return RPC_E_WRONG_THREAD;
+            AccessibilityUiActionRequest request{.stringValue = std::wstring(0u, L' '), .textRangeBoundsDip = std::vector<D2D1_RECT_F>(0u)};
+            request.semanticProvider = this;
+            request.kind             = AccessibilityUiActionKind::Invoke;
+            return DispatchAccessibilityUiActionToWindowThread(hwnd_, request);
+        }
+        const auto* record = Record(snapshot);
+        if (! record || ! record->RichSemantic()->NavigationTarget(element_))
+            return UIA_E_NOTSUPPORTED;
+        if (! record->controlEnabled)
+            return UIA_E_ELEMENTNOTENABLED;
+        auto* host   = target_->ResolveHost();
+        auto* editor = host ? dynamic_cast<RichTextEditor*>(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
+        if (! editor || ! IsControlPathVisible(host->GetRoot(), path_))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
+            return UIA_E_ELEMENTNOTENABLED;
+        return editor->NavigateSemanticElement(*host, record->RichSemantic(), element_) ? S_OK : UIA_E_INVALIDOPERATION;
     }
     catch (const std::bad_alloc&)
     {

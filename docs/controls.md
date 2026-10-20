@@ -316,5 +316,7 @@ DxUi.lib, together with the retained RichTextEditor v0 preview in the 34-control
 catalog/gallery. Both use caller/host services without a private HWND/device/worker.
 The preview supplies shared native/embedded source TSF/IME and UIA range
 adapters, with Unicode 17 logical character boundaries. Rich structural/style
-semantics and real IME/AT, conformance, platform and performance acceptance
-remain under the active plan.
+semantics include source-exact structural commands and the opt-in RichMarkdown
+footnote preview: numbered references, reordered styled bodies and repeated
+backlinks share guarded internal/UIA navigation. Real IME/AT, final extension,
+platform and performance acceptance remain under the active plan.

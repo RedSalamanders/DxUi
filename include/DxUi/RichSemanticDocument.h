@@ -1,6 +1,7 @@
 #pragma once
 #include <DxUi/RichMarkdown.h>
 #include <DxUi/RichSemantic.h>
+#include <optional>
 
 namespace DxUi::RichText
 {
@@ -21,7 +22,10 @@ enum class SemanticRole
     Image,
     Task,
     Rule,
-    Metadata
+    Metadata,
+    Footnote,
+    FootnoteReference,
+    FootnoteBacklink
 };
 struct SemanticElement
 {
@@ -52,6 +56,14 @@ struct SemanticParagraph
     // prefix retains its original display ownership and syntax ListItem owner.
     std::size_t markerEnd{}, markerOwner = MarkdownNoNode;
     std::size_t emptyInsertion = MarkdownNoNode;
+};
+// Internal document navigation has no URL semantics and never changes source.
+// Generated backlinks own an empty source range inside their definition; their
+// separate target points to the complete original reference marker.
+struct SemanticNavigation
+{
+    std::size_t element{};
+    MarkdownRange target;
 };
 // One immutable semantic publication. Raw source remains in Syntax(); rendered
 // values never replace source ACPs. Only the documented balanced native HTML
@@ -86,6 +98,11 @@ public:
     {
         return paragraphs_;
     }
+    std::span<const SemanticNavigation> Navigation() const noexcept
+    {
+        return navigation_;
+    }
+    std::optional<MarkdownRange> NavigationTarget(std::size_t element) const noexcept;
     std::span<const StyleRun> Runs() const noexcept
     {
         return runs_;
@@ -105,6 +122,7 @@ private:
     std::shared_ptr<const SourceDisplayMap> map_;
     std::vector<SemanticElement> elements_;
     std::vector<SemanticParagraph> paragraphs_;
+    std::vector<SemanticNavigation> navigation_;
     std::vector<StyleRun> runs_, sourceRuns_;
     friend class SemanticBuilder;
 };
