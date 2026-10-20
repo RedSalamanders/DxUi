@@ -34,7 +34,7 @@ struct SemanticBuilder::Preparation
         std::size_t node{}, parent = MarkdownNoNode, element = MarkdownNoNode, paragraph = MarkdownNoNode;
         std::size_t table = MarkdownNoNode, row{}, column{}, columns{};
         unsigned flags{}, heading{}, indent{};
-        bool inlineNode{}, close{}, footerRoot{}, backlink{};
+        bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{};
     };
     struct DiagramWork
     {
@@ -54,7 +54,7 @@ struct SemanticBuilder::Preparation
             Publish
         } phase{};
     };
-    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax)
+    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
           visits(0u),
@@ -63,7 +63,8 @@ struct SemanticBuilder::Preparation
           footerByNode(0u),
           footerOrder(0u)
     {
-        const auto notes = document->syntax_->Footnotes();
+        document->sourceBlock_ = sourceBlock;
+        const auto notes       = document->syntax_->Footnotes();
         if (std::ranges::any_of(notes, [](const auto& note) { return note.ordinal != 0u; }))
         {
             footerByNode.assign(document->syntax_->Nodes().size(), MarkdownNoNode);
@@ -641,14 +642,16 @@ struct SemanticBuilder::Preparation
         visits.push_back(close);
         diagram.reset();
     }
-    Visit BeginLeafParagraph(Visit visit)
+    Visit BeginLeafParagraph(Visit visit, bool exactSource = false)
     {
         const auto& nodes = document->syntax_->Nodes();
         const auto& node  = nodes[visit.node];
         auto close        = visit;
         close.close       = true;
+        close.exactSource = exactSource;
         close.paragraph   = Paragraph(visit, visit.element);
-        Prefix(visit, visit.element);
+        if (! exactSource)
+            Prefix(visit, visit.element);
         auto& paragraph = document->paragraphs_[close.paragraph];
         if (output.text.size() > paragraph.display.first)
         {
@@ -672,6 +675,23 @@ struct SemanticBuilder::Preparation
         const auto& syntax = *document->syntax_;
         const auto& node   = syntax.Nodes()[visit.node];
         auto close         = visit;
+        if (document->sourceBlock_ == visit.node)
+        {
+            // A scoped editor needs the original envelope, not a reconstructed
+            // or normalized body. One linear span keeps all Unicode source
+            // ACPs, container prefixes and CRLF pairs directly addressable.
+            visit.flags     = Code;
+            visit.heading   = 0u;
+            auto& element   = document->elements_[visit.element];
+            element.role    = SemanticRole::Code;
+            element.heading = 0u;
+            element.title   = L"Editing exact block source.";
+            html.Reset();
+            close = BeginLeafParagraph(visit, true);
+            output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
+            visits.push_back(close);
+            return;
+        }
         Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
         if (node.block.kind == MarkdownBlockKind::HtmlBlock)
             html.Block(normalized);
@@ -761,7 +781,8 @@ struct SemanticBuilder::Preparation
                 paragraph.display.last = output.text.size();
                 CloseElement(visit.element);
                 if (output.text.empty() || output.text.back() != L'\n')
-                    output.Generated(visit.table != MarkdownNoNode && visit.column + 1u < visit.columns ? L"\t" : L"\n", node.block.content.last);
+                    output.Generated(visit.table != MarkdownNoNode && visit.column + 1u < visit.columns ? L"\t" : L"\n",
+                                     visit.exactSource ? node.block.source.last : node.block.content.last);
             }
             else
                 CloseElement(visit.element);
@@ -977,6 +998,10 @@ SemanticBuilder::SemanticBuilder() noexcept  = default;
 SemanticBuilder::~SemanticBuilder() noexcept = default;
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
 {
+    Begin(std::move(syntax), MarkdownNoNode);
+}
+void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock)
+{
     if (! syntax)
         throw std::invalid_argument("Semantic preparation requires syntax");
     if (! IsValidUtf16(syntax->Source()))
@@ -984,14 +1009,34 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
     if (syntax->Source().size() > Document::MaximumUnits || syntax->Nodes().size() > SemanticDocument::MaximumElements ||
         syntax->Inlines().size() > SemanticDocument::MaximumElements - syntax->Nodes().size())
         throw std::length_error("Semantic source/node admission exceeded");
-    if (next_ && next_->document->syntax_ == syntax)
+    if (sourceBlock != MarkdownNoNode)
+    {
+        if (sourceBlock >= syntax->Nodes().size())
+            throw std::invalid_argument("Source presentation target is outside the syntax");
+        const auto& node = syntax->Nodes()[sourceBlock];
+        const auto kind  = node.block.kind;
+        if (node.firstChild != MarkdownNoNode || (kind != MarkdownBlockKind::FencedCode && kind != MarkdownBlockKind::IndentedCode &&
+                                                  kind != MarkdownBlockKind::HtmlBlock && kind != MarkdownBlockKind::FrontMatter))
+            throw std::invalid_argument("Source presentation requires a code, HTML or metadata leaf");
+        // Unreferenced/duplicate note declarations are themselves one literal
+        // semantic leaf. Their parsed descendants are not rendered targets.
+        // Reject before staging so a reported scope always has a live element.
+        for (auto parent = node.parent; parent != MarkdownNoNode; parent = syntax->Nodes()[parent].parent)
+            if (syntax->Nodes()[parent].block.kind == MarkdownBlockKind::FootnoteDefinition)
+            {
+                const auto note = std::ranges::find(syntax->Footnotes(), parent, &MarkdownFootnote::definition);
+                if (note == syntax->Footnotes().end() || ! note->ordinal)
+                    throw std::invalid_argument("Source target is inside a literal footnote declaration");
+            }
+    }
+    if (next_ && next_->document->syntax_ == syntax && next_->document->sourceBlock_ == sourceBlock)
         return;
-    if (published_ && published_->syntax_ == syntax)
+    if (published_ && published_->syntax_ == syntax && published_->sourceBlock_ == sourceBlock)
     {
         next_.reset();
         return;
     }
-    auto next = std::make_unique<Preparation>(std::move(syntax));
+    auto next = std::make_unique<Preparation>(std::move(syntax), sourceBlock);
     next_.swap(next);
 }
 MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)

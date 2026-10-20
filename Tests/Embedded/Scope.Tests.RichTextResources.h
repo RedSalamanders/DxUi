@@ -107,6 +107,155 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
     std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
+static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto oldSyntax      = RichSemanticDocumentTests::Parse(L"previous", MarkdownProfile::RichMarkdown);
+    const auto pendingSyntax  = RichSemanticDocumentTests::Parse(L"pending", MarkdownProfile::RichMarkdown);
+    const auto finishSemantic = [](auto& builder)
+    {
+        while (builder.HasPendingPreparation())
+            builder.Advance(7u);
+    };
+    std::size_t semanticTotal{}, geometryTotal{};
+    const auto sweep = [&](auto make, auto request, auto finish, auto pending, auto key, auto verify, auto clear)
+    {
+        auto measured = make();
+        std::size_t requests{};
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=]() noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            request(*measured);
+            finish(*measured);
+            countAllocations = false;
+            requests         = allocations;
+        }
+        Check(requests > 0u && requests < 4096u, "scoped source preparation has a finite independently observed allocation schedule");
+        for (std::size_t point = 0u; point < requests; ++point)
+        {
+            if (trace)
+                std::fprintf(stderr, "scoped source failure=%zu/%zu\n", point, requests);
+            auto state     = make();
+            const auto old = key(*state);
+            bool rejected{}, began{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = point;
+                try
+                {
+                    request(*state);
+                    began = true;
+                    finish(*state);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && key(*state) == old && pending(*state) != began,
+                  "scoped source failures preserve publication/generation and retain old pending work only when Begin failed");
+            if (! began)
+                finish(*state);
+            request(*state);
+            finish(*state);
+            verify(*state);
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = 0u;
+                clear(*state);
+            }
+        }
+        return requests;
+    };
+    for (const auto scenario : {0u, 2u, 4u, 6u, 8u, 13u})
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(SemanticSourceBlockTests::cases[scenario], MarkdownProfile::RichMarkdown);
+        const auto node   = SemanticSourceBlockTests::SourceBlock(*syntax);
+        semanticTotal += sweep(
+            [&]
+        {
+            auto builder = std::make_unique<SemanticBuilder>();
+            builder->Begin(oldSyntax);
+            finishSemantic(*builder);
+            builder->Begin(pendingSyntax);
+            return builder;
+        },
+            [&](auto& builder) { builder.Begin(syntax, node); },
+            finishSemantic,
+            [](const auto& builder) { return builder.HasPendingPreparation(); },
+            [](const auto& builder) { return std::pair{builder.Published().get(), std::uint64_t{}}; },
+            [&](const auto& builder)
+        {
+            Check(builder.Published()->Syntax() == syntax && builder.Published()->SourceBlock() == node,
+                  "explicit source-mode retry restores the requested exact scope");
+        },
+            [](auto& builder)
+        {
+            builder.Cancel();
+            builder.Clear();
+        });
+    }
+    const auto write          = PreparedFlowchartTests::WriteFactory();
+    const auto drawing        = PreparedFlowchartTests::DrawingFactory();
+    const auto oldDocument    = SemanticDiagramTests::Build(L"previous", Check);
+    const auto finishGeometry = [](auto& geometry)
+    {
+        while (geometry.Pending())
+            geometry.Advance({1u, 3u});
+    };
+    for (const auto scenario : {0u, 13u})
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(SemanticSourceBlockTests::cases[scenario], MarkdownProfile::RichMarkdown);
+        const auto node   = SemanticSourceBlockTests::SourceBlock(*syntax);
+        SemanticBuilder builder;
+        builder.Begin(syntax, node);
+        finishSemantic(builder);
+        const auto document = builder.Published();
+        LayoutOptions options;
+        options.widthDip = 1024.f;
+        geometryTotal += sweep(
+            [&]
+        {
+            auto geometry       = std::make_unique<PreparedSemanticGeometry>();
+            auto oldOptions     = options;
+            oldOptions.widthDip = 800.f;
+            geometry->Begin(write.get(), oldDocument, oldOptions, drawing.get(), {1u, 1u});
+            finishGeometry(*geometry);
+            oldOptions.widthDip = 900.f;
+            geometry->Begin(write.get(), oldDocument, oldOptions, drawing.get(), {2u, 2u});
+            return geometry;
+        },
+            [&](auto& geometry) { geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u}); },
+            finishGeometry,
+            [](const auto& geometry) { return geometry.Pending(); },
+            [](const auto& geometry) { return std::pair{&geometry.Document(), geometry.Generation()}; },
+            [&](const auto& geometry)
+        {
+            Check(geometry.Ready() && &geometry.Document() == document.get() && geometry.HasNativeObjects() == (scenario == 13u),
+                  "source-mode geometry retries with the same exact raw scope and unaffected neighboring native graph");
+        },
+            [](auto& geometry)
+        {
+            geometry.Cancel();
+            geometry.Invalidate();
+            geometry.Clear();
+        });
+    }
+    std::cout << "scoped source failure semanticScenarios=6 sweptRequests=" << semanticTotal << " geometryScenarios=2 sweptRequests=" << geometryTotal
+              << " preservedPublication=1 preservedPendingBegin=1 retry=1 retirementAllocations=0\n";
+}
+
 static void TestSemanticDiagramAllocationFailures(bool trace = false)
 {
     using namespace DxUi::RichText;

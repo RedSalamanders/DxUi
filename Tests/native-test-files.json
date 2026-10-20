@@ -118,6 +118,7 @@
   "Tests/Support/Scope.Tests.RichSemanticEditor.h",
   "Tests/Support/Scope.Tests.RichSemanticGeometry.h",
   "Tests/Support/Scope.Tests.SemanticDiagrams.h",
+  "Tests/Support/Scope.Tests.SemanticSourceBlock.h",
   "Tests/Support/Support.Tests.DesktopLease.h",
   "Tests/Support/Support.Tests.FailureReports.h",
   "Tests/Support/Support.Tests.ForegroundThief.h",

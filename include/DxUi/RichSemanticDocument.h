@@ -126,6 +126,13 @@ public:
     // Native extension diagnostics own exact raw source ranges. Human-readable
     // explanations live in the named element's title; Syntax() remains immutable.
     std::span<const SemanticDiagnostic> Diagnostics() const noexcept;
+    // Revision-local syntax index of the code/HTML/metadata leaf presented as
+    // exact source, including fences/prefixes/EOLs. Other leaves keep semantics.
+    // MarkdownNoNode denotes the ordinary semantic presentation.
+    std::size_t SourceBlock() const noexcept
+    {
+        return sourceBlock_;
+    }
     std::span<const StyleRun> Runs() const noexcept
     {
         return runs_;
@@ -150,6 +157,7 @@ private:
     // Optional document-level state keeps native graphs out of ordinary inline
     // values and unrelated controls. No SDK/host resource belongs to semantics.
     std::shared_ptr<Detail::SemanticExtensions> extensions_;
+    std::size_t sourceBlock_ = MarkdownNoNode;
     friend class SemanticBuilder;
     friend struct Detail::SemanticExtensionAccess;
 };
@@ -165,6 +173,10 @@ public:
     SemanticBuilder(const SemanticBuilder&)            = delete;
     SemanticBuilder& operator=(const SemanticBuilder&) = delete;
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax);
+    // One current source-bearing block; this does not alter syntax or source.
+    // Invalid/non-leaf and hidden literal-declaration descendants are rejected
+    // before replacing pending work.
+    void Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock);
     MarkdownAdvance Advance(std::size_t maximumEvents = 4096u);
     void Cancel() noexcept;
     void Clear() noexcept;

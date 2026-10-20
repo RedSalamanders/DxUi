@@ -5,6 +5,7 @@
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
+#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "../Support/Support.Tests.FailureReports.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
@@ -1262,6 +1263,7 @@ __declspec(noinline) static int RunFunctionalTests()
             TestNativeFlowchartLayoutAllocationFailureAtomicity(true);
             TestPreparedFlowchartAllocationFailures(true);
             TestSemanticDiagramAllocationFailures(true);
+            TestScopedSemanticSourceAllocationFailures(true);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
         {
@@ -1439,6 +1441,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartRenderingAndFallbacks(gpu);
     SemanticDiagramTests::Core(Check);
+    SemanticSourceBlockTests::Core(Check);
+    SemanticSourceBlockTests::Geometry(Check);
     SemanticDiagramTests::Geometry(Check);
     SemanticDiagramTests::PositionedRaster(Check);
     TestEmbeddedDiagramViewCapacityRecovery(gpu);
@@ -1519,6 +1523,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestPreparedFlowchartAllocationFailures();
     TestSemanticDiagramAllocationFailures();
+    TestScopedSemanticSourceAllocationFailures();
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
     PreparedFlowchartTests::RasterOracle(Check);
     PreparedFlowchartTests::EdgeLabelRasterOracle(Check);

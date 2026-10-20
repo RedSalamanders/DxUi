@@ -1405,6 +1405,21 @@ publication must match the same source, binding, typography and resource request
 The diagram child exposes Image semantics, a meaningful alternative and an exact
 raw fence range. Source changes and presentation withdrawal retire old children.
 Dedicated source-entry actions remain the separate object-editing integration.
+The pure `SemanticBuilder::Begin(syntax, sourceBlock)` overload prepares one
+revision-local fenced/indented-code, HTML-block or front-matter leaf as exact
+source. `SemanticDocument::SourceBlock()` identifies that requested syntax index;
+`MarkdownNoNode` restores ordinary semantics. The caller MUST take the index
+from the supplied immutable syntax. Other/container targets are invalid.
+Code descendants inside an unreferenced/duplicate footnote declaration are
+invalid targets: their declaration is already presented as one literal leaf.
+The scoped leaf MUST retain its complete raw envelope, prefixes and original
+EOLs in linear source/display spans, including a closing fence without final
+EOL. It MUST bypass value decoding/native diagram parsing and avoid duplicating
+generated list/footnote markers. Surrounding leaves keep their ordinary semantic
+rendering. A source-block request is part of coalescing/publication identity;
+invalid admission MUST preserve existing publication and pending work. No SDK
+resource belongs to this pure request. This supporting component does not by
+itself expose interactive source-entry commands on RichTextEditor.
 Selected native objects MUST retain the resolved selection text/surface pair,
 including high contrast. Their opaque node and edge-label backing uses the
 selection surface composited over the ordinary opaque object surface; it MUST

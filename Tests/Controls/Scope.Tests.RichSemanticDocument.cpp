@@ -2,6 +2,7 @@
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
+#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
 
@@ -132,8 +133,18 @@ void TestRichSemanticDiagramPositionedRaster()
 {
     SemanticDiagramTests::PositionedRaster(Require);
 }
+void TestRichSemanticScopedBlockSourcePresentation()
+{
+    SemanticSourceBlockTests::Core(Require);
+}
+void TestRichSemanticScopedBlockSourceGeometry()
+{
+    SemanticSourceBlockTests::Geometry(Require);
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticScopedBlockSourcePresentation);
+    DXUI_RUN_TEST(TestRichSemanticScopedBlockSourceGeometry);
     DXUI_RUN_TEST(TestRichSemanticDiagramSourceProvenanceAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDiagramSdkGeometryAndSourceCarets);
     DXUI_RUN_TEST(TestRichSemanticDiagramPositionedRaster);

@@ -34,6 +34,15 @@ object source entry and final extension build/runtime/resource qualification
 remain pending. The generated gallery includes the native diagram and a literal
 unsupported-family example in every theme.
 
+The supporting semantic API also has a scoped source request, with focused
+x64 Debug/native/embedded qualification:
+`SemanticBuilder::Begin(syntax, sourceBlock)` presents a code, HTML or metadata
+leaf's exact envelope while keeping other paragraphs rendered. The index belongs
+to that immutable syntax; `SourceBlock()` reports it and `MarkdownNoNode` returns
+to ordinary semantics. Hidden descendants of literal footnote declarations and
+invalid indices are rejected before replacing pending work. Retained keyboard,
+editing and UIA source-entry actions are still being integrated under M5e.
+
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
 and reachable numbering have focused native/embedded checks. The footer preview
 renders numbered references, reordered definition

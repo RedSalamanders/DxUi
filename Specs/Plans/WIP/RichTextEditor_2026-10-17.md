@@ -2836,6 +2836,38 @@ unchanged because this CPU service is not yet connected to editor painting.
 - [ ] M5e: Integrate source-bearing object editing and caret entry/exit, diagnostics,
   structural source transactions, native/embedded UIA alternatives/actions,
   preparation cancellation/coalescing/staleness and the complex sample/gallery.
+  - [x] M5e.1: Prepare scoped exact block-source presentation in the pure semantic
+    service, including Unicode/envelope/EOL affinity, mixed semantic/native
+    neighbors, transactional admission/cancellation and native text geometry.
+    Code and registered shared native/embedded tests pass focused x64 Debug
+    qualification, including fourteen source scenarios and both-direction SDK
+    geometry. An initially overbroad test assumed the end of all
+    display must map to document EOF; the existing ordinary trailing paragraph
+    also maps before its raw EOL. Preserve that failure and test the exact local
+    source-envelope trailing boundary instead; the failed diagnostic is retained.
+    Iteration1 builds in 3:37 and passes 19 directed checks, 2,187 observed
+    allocation failures (including 722 scoped semantic and 344 scoped geometry
+    points) and full EditorControls/Accessibility/Embedded. A separate probe then
+    exposes a valid parsed code index inside an unreferenced note that is absent
+    from the rendered tree. Upfront ancestor visibility admission now rejects
+    unreferenced/duplicate declaration descendants; shared tests also reject
+    out-of-range targets while preserving publication and pending work. Both
+    private diagnostics pass after repair. Canonical Iteration2 builds in 3:25;
+    all 19 directed checks, 2,187 allocation points, full EditorControls (39.638 s),
+    Accessibility (115.378 s) and Embedded (434,436 checks) pass. The 1,000 warm
+    composites take 7,047 us with zero tracked C++ allocations. These are unpaired
+    diagnostics, not performance acceptance. Complete validation/tooling and
+    pinned formatting pass. The frozen input/artifact/build/v2 identity packet
+    is `.build/reports/rich-source-object-m5e-20261020/Iteration2`; its before/after
+    identity check passes. The supporting API is implemented; retained source
+    entry/editing and full extension profiles remain M5e.2/M5f, and D4c stays HOLD.
+  - [ ] M5e.2: Connect retained entry/exit/caret commands and editable source scopes
+    to document transactions, source-range tracking through edits and IME,
+    cancellation/staleness and guarded native/embedded UIA source actions.
+  - [ ] M5e.3: Complete generated backlink keyboard traversal, note-aware
+    structural commands, diagnostic selection and the complex sample/gallery.
+    Math/inline object entry follows the accepted M5c objects without narrowing
+    their target; no component checkbox closes the whole integration.
 - [ ] M5f: Freeze and qualify final native/embedded behavior, independent corpora,
   observed valid/invalid allocation schedules, resources/device loss, all required
   local build/runtime profiles, validators/format and reviewed themed captures.
