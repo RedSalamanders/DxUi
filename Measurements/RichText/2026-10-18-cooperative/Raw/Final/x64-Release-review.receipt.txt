@@ -1,8 +1,0 @@
-{
-  "configuration": "Release",
-  "skips": 0,
-  "exactPixelPairs": 108,
-  "nativeSuites": 19,
-  "classification": "Independent current-profile count/hash replay; not final six-profile or performance acceptance",
-  "verifiedUtc": "2026-10-18T14:34:09.6949219Z"
-}

@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"program\":\"user32.dll\",\"success\":true,\"console_output\":\"=== GHIDRA SCRIPT EXECUTION ===\\nScript: C:\\\\Users\\\\eric\\\\ghidra_scripts\\\\ReadRichEditCooperativeEvidence.java\\nProgram: user32.dll\\nTime: Sun Oct 18 13:37:27 CEST 2026\\n\\nFound script: C:\\\\Users\\\\eric\\\\ghidra_scripts\\\\ReadRichEditCooperativeEvidence.java\\nSize: 5229 bytes\\n\\nScript provider: JavaScriptProvider\\n\\n--- SCRIPT OUTPUT ---\\nVerified eight saved Office work/completion functions; source program unchanged; active program remains /windows-edit/user32.dll\\r\\n\\n\\n=== SCRIPT COMPLETED SUCCESSFULLY ===\\n\"}"
-    }
-  ],
-  "isError": false
-}

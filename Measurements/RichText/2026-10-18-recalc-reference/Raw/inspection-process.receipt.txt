@@ -1,9 +1,0 @@
-{
-  "processId": 30748,
-  "drained": true,
-  "ownedBudgetSeconds": 120,
-  "scope": "Read-only MCP stdio catalog/metadata, no raw HTTP or server policy change.",
-  "elapsedSeconds": 3.3087417,
-  "exitCode": 0,
-  "timedOut": false
-}

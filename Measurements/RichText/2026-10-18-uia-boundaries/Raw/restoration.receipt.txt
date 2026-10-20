@@ -1,6 +1,0 @@
-{
-  "baselineRoot": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\rich-uia-controlled\\20261017T204937Z-71059fb94c12\\baseline",
-  "head": "71059fb94c12c8966056e3afe626d1548ab1030b",
-  "restoredClean": true,
-  "capturedUtc": "2026-10-17T22:17:06.7966107Z"
-}

@@ -1,7 +1,0 @@
-{
-  "baseCommit": "09b371601d4d64197a3dcc135f637a5b437edfa7",
-  "sourceDraftSha256": "A46956633FFEE32F78ABD5E436F3E8A167A691A9B7C57BAF988C5307DD962B9A",
-  "test": "TestRichDocumentLayoutRawLineOriginDiagnostics",
-  "status": "Candidate adopted in existing test module; uncompiled, no production renderer change",
-  "librarySourceFingerprint": "4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C"
-}

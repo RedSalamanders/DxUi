@@ -1,9 +1,0 @@
-[
-  "2026-10-18 13:36:48,404 - bridge_mcp_ghidra - INFO - Lazy tool loading: only function,listing,program on connect. Call search_tools()/load_tool_group() for the rest, or pass --no-lazy (or set GHIDRA_MCP_LAZY=0) to advertise every group up front.",
-  "2026-10-18 13:36:49,416 - bridge_mcp_ghidra - INFO - Auto-connecting via TCP (http://127.0.0.1:8089) to notepad (UDS unavailable on this Python)",
-  "2026-10-18 13:36:49,466 - bridge_mcp_ghidra - INFO - Auto-registered 67 tools from notepad",
-  "2026-10-18 13:36:49,466 - bridge_mcp_ghidra - INFO - Starting MCP bridge (stdio)",
-  "2026-10-18 13:36:49,484 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest",
-  "2026-10-18 13:36:50,570 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest",
-  "2026-10-18 13:36:50,574 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest"
-]

@@ -1,6 +1,0 @@
-{
-  "stagedTree": "3ec2d51db856b00eb332bc16c06502e24a267ccd",
-  "exitCode": 2,
-  "verifiedUtc": "2026-10-18T17:02:31.1096802Z",
-  "classification": "Original staged whitespace failure retained before repair; nested saved Git attributes were active archive policy files"
-}

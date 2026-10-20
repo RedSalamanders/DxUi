@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\Measurements\RichText\2026-10-17-uia-profiling\Analyze.ps1:23
-Line |
-  23 |          throw "Packet hash mismatch: $($Matches[2])"
-     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Packet hash mismatch: Paired/Default-A01.json

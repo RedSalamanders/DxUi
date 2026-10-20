@@ -1,7 +1,0 @@
-{
-  "error": "Dot-sourced analyzer parameter cleared the test output parameter. The tool wrapper continued to print directory status and returned zero; this was not a successful analyzer test.",
-  "wrapperExitCode": 0,
-  "scriptExitCode": null,
-  "correction": "The earlier private note mislabeled an inner script exception as exitCode 1. Preserve that note and use this explicit invocation/wrapper distinction.",
-  "scriptInvocationExceptionObserved": true
-}

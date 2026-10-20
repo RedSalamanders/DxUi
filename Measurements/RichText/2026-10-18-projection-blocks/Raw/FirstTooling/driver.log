@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-incremental-preparation-20261018\Invoke-ToolingQualification.ps1:27
-Line |
-  27 |  … imedOut -or -not$drained){throw "Tooling step failed: $($step.name)"}
-     |                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Tooling step failed: validation-full

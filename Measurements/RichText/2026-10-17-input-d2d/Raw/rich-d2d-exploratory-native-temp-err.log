@@ -1,2 +1,0 @@
-Exception: SkipBuild refused: benchmark source, dependencies, resolved toolchain or artifacts changed, or no attested build
-exists. Run build.ps1 or performance.ps1 without -SkipBuild.

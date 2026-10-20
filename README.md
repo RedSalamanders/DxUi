@@ -33,7 +33,7 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 - [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless Unicode block/inline parsing and configurable GFM analysis,
   qualified against 1,324 original semantic expectations with cooperative preparation
   and opt-in RichTextEditor hosting. Complete semantic rendering/editing and the
-  accepted math/diagram extensions remain in progress; see [M3 evidence](Measurements/RichText/2026-10-18-markdown-inlines/README.md).
+  accepted math/diagram extensions remain in progress; see [M3 evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md).
 - [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.

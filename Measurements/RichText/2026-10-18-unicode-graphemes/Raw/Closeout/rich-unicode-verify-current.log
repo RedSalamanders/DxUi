@@ -1,3 +1,0 @@
-Generated 833 disjoint property ranges and all 766 conformance vectors.
-Verified pinned corpus generation, red predicates, 57 native success/log bindings, six builds, specific ASan diagnosis and three resource profiles.
-Performance acceptance, physical input/AT, native ARM64 execution and the remaining rich engine are still unqualified.

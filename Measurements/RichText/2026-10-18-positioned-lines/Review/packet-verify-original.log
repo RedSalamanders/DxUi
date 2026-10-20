@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\Measurements\RichText\2026-10-18-positioned-lines\Verify.ps1:75
-Line |
-  75 |  … name+' (')){throw 'Required boundary or native/embedded UIA test did  …
-     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Required boundary or native/embedded UIA test did not complete.

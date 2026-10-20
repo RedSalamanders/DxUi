@@ -1,1 +1,0 @@
-- Index immutable Unicode source pieces with cumulative ends in their existing descriptor storage, enabling binary-search offset lookup and bounded slice traversal while preserving transactional edits, snapshots and history; add fragmented/coalesced Unicode and concurrent-read oracles with descriptive lookup diagnostics.

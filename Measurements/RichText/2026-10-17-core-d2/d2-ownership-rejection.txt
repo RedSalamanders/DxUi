@@ -1,1 +1,0 @@
-Consumer enumerates canonical DxUi cpp instead of linking its archive: Z:\src\richedit\Dependencies\DxUi\source\302f3783a5d2ef60f201ca3abf508c1158fde039\src\Controls\DxUi.RichDocument.cpp

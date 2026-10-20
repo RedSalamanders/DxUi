@@ -1,9 +1,0 @@
-{
-  "exitCode": 0,
-  "configuration": "Debug",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
-  "buildAttestationIdentity": "c8c236b578eb2c448f9ab0827e74cd8de0dd94f1db90362ddb1542820fd164fe",
-  "sha256": "A66407D993C2B4A9FC4323AE7E7220F0AE88582F21C33940AB45F71E503F8FFF",
-  "classification": "isolated diagnostic allocation sweep",
-  "argument": "--test-rich-layout-clear"
-}

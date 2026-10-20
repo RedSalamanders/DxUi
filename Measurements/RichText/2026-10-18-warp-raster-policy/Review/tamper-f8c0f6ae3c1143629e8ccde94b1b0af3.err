@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-warp-threading-20261018\tamper-f8c0f6ae3c1143629e8ccde94b1b0af3\Verify.ps1:9
-Line |
-   9 |  . lPath $path).Hash -cne $Expected){throw "SHA-256 differs: $Relative"}
-     |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | SHA-256 differs: Native/Embedded-x64-Release.receipt.txt

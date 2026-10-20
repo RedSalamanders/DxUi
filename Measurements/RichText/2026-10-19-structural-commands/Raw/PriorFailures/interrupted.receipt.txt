@@ -1,7 +1,0 @@
-{
-  "sourceCommit": "63ea4e3b39701844e087fa0fdb9e1f6cdc5b26a2",
-  "reason": "Source review found EmbeddedHost DispatchKey bypasses control Tab handling; stop this owned incomplete qualification for a dispatcher fix and end-to-end host tests",
-  "processId": 101188,
-  "utc": "2026-10-19T17:40:10.3245447Z",
-  "qualificationComplete": false
-}

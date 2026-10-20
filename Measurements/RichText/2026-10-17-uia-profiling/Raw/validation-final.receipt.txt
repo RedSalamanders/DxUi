@@ -1,6 +1,0 @@
-{
-  "name": "affected-Tooling",
-  "exitCode": 0,
-  "completedUtc": "2026-10-17T21:49:18.2394600Z",
-  "format": "Prior pinned 22.1.3 check passed; no owned C++ file changed during packaging repair."
-}

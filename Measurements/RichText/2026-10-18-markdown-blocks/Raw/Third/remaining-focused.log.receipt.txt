@@ -1,8 +1,0 @@
-[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
-[START] EditorControls
-  [START] TestLosslessMarkdownBlockScenariosAndNodeIdentity
-  [DONE] TestLosslessMarkdownBlockScenariosAndNodeIdentity (0.000 s)
-  [START] TestLosslessMarkdownContentSpansAndDependencies
-  [DONE] TestLosslessMarkdownContentSpansAndDependencies (0.000 s)
-  [START] TestLosslessMarkdownRootLeafBlocks
-FAILED: invalid root marker remains exact paragraph source

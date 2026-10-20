@@ -1,9 +1,0 @@
-{
-  "classification": "isolated diagnostic allocation sweep",
-  "sha256": "79EE44EBB81810FBB4E28C188A4F631593AE3F83EDC5EB70A5E1E5DD148A9B1A",
-  "exitCode": 0,
-  "argument": "--test-rich-layout-clear",
-  "configuration": "Debug",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
-  "buildAttestationIdentity": "2cbf580206cf9f6403b1d9344105369ab23e277784e14e3648472bdf130c97c2"
-}

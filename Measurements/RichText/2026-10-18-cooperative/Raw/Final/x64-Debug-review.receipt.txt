@@ -1,8 +1,0 @@
-{
-  "exactPixelPairs": 108,
-  "nativeSuites": 19,
-  "verifiedUtc": "2026-10-18T14:12:41.1968144Z",
-  "configuration": "Debug",
-  "classification": "Independent current-profile count/hash replay; not final six-profile or performance acceptance",
-  "skips": 0
-}

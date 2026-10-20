@@ -1,7 +1,0 @@
-{
-  "classification": "Intentional interruption before accepting M2: bounded indentation lookahead fix required by review",
-  "processId": 42424,
-  "utc": "2026-10-18T18:09:18.4856243Z",
-  "commandLine": "\"C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe\" -NoProfile -NonInteractive -File Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\build.ps1 -Platform x64 -Configuration Debug",
-  "ownerProcessId": 97336
-}

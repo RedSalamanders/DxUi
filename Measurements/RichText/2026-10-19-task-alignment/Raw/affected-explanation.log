@@ -1,8 +1,0 @@
-Native test naming: 123 files checked.
-Test plan: Affected (x64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
-  Samples/EmbeddedControls/EmbeddedScene.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
-  src/Controls/DxUi.RichTextLayout.cpp: owned rich-text preparation core; shared archive and supplied target behavior => EditorControls, Embedded
-  Tests/Controls/Scope.Tests.RichSemanticGeometry.cpp: owned rich-text core contracts in the EditorControls suite => EditorControls
-  Tests/Embedded/Embedded.Tests.Embedded.cpp: embedded scenarios and benchmark => Embedded
-  Tests/Support/Scope.Tests.RichSemanticEditor.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
-  Tests/Support/Scope.Tests.RichSemanticGeometry.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling

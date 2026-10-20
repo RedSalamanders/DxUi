@@ -1,5 +1,0 @@
-{
-  "origin": "The three timing methods use original BeforeSource copies. The two unchanged storage budgets use the previous committed a92bd7db packet Source, not a reconstructed baseline artifact.",
-  "referenceCommit": "a92bd7db",
-  "referencePacket": "Measurements/RichText/2026-10-18-piece-tree"
-}

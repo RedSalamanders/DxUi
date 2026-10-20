@@ -1,7 +1,0 @@
-{
-  "archiveSha256": "530D9D19FEE5A8769B31E44E45ACE2191A974898718351455BFD32113D7340E7",
-  "executableSha256": "BBA8B40984985BD1540D2B226E8227AE5C5A4EEF1BF96F10B9E460B7FB46EB94",
-  "classification": "Unattested fixed-library diagnostic; root qualification still required",
-  "exitCode": 0,
-  "timedOut": false
-}

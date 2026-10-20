@@ -1,5 +1,0 @@
-{
-  "newPath": "Source/Tests/Controls/DxUi.ControlTests.vcxproj.receipt.txt",
-  "oldPath": "Source/Tests/Controls/DxUi.ControlTests.vcxproj",
-  "reason": "Classify the exact archived project source as a receipt rather than an active native project. No source bytes change."
-}

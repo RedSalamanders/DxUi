@@ -1,7 +1,0 @@
-Verified current v2 build/source/artifact state x64-Debug; runtime=True
-Verified current v2 build/source/artifact state x64-Release; runtime=True
-Verified current v2 build/source/artifact state x64-ASanDebug; runtime=True
-Verified current v2 build/source/artifact state ARM64-Debug; runtime=False
-Verified current v2 build/source/artifact state ARM64-Release; runtime=False
-Verified current v2 build/source/artifact state ARM64-ASanDebug; runtime=False
-Audited 208 archived files and 57 ordinary scope/profile bindings.

@@ -754,7 +754,7 @@ numeric source revisions alone never establish compatibility. A nonfinal chunk's
 phantom terminal line must not add height. Native/embedded geometry, exact WARP
 pixels, complete observed C++ allocation schedules and source-limit resource
 evidence pass in all three x64 profiles, with all ARM64 cross-builds and tooling.
-The [qualification packet](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains original failures and exact source/artifact bindings. It provides no shared
 worker, arbitrary-thread DirectWrite access or complete Markdown engine.
 The qualified positioned-line implementation seeds each noninitial layout with an invisible
@@ -771,7 +771,7 @@ retained. All three x64 profiles pass geometry and 108 exact WARP pairs each,
 including default/fractional/large-origin cases, height-changing edits, hidden-only
 suffixes and real FFFC source. Default 13-DIP native/embedded editors avoid whole
 work; native/embedded UIA scrolling preserves exact source. All six build profiles
-pass; ARM64 remains compile-only. The [positioned-line record](../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+pass; ARM64 remains compile-only. The [positioned-line record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
 retains the unchanged five-trial observations without timing acceptance. Shared
 preparation, full syntax/semantic editing and platform/performance gates stay open.
 Clear must not construct
@@ -918,7 +918,7 @@ The pinned dialect's seven HTML-block forms are opaque literal source, with
 container/EOF termination and their appropriate closing/blank-line conditions.
 CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
 Resolved inline forests and GFM extension metadata are implemented in M3; its
-bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/2026-10-18-markdown-inlines/README.md); semantic rendering/editing remains pending.
+bounded profile qualification is retained in the [sealed M3 packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md); semantic rendering/editing remains pending.
 BlockStatistics records deterministic prefix-inspection and container-finalization
 work. Indentation lookahead stops at its required threshold; a line's marker
 metadata rejects incompatible thematic suffixes without rescanning each nested
@@ -1120,7 +1120,7 @@ builder uses the bounded native HTML policy below, with balanced validation and
 source-preserving literal fallback. Rendering, source caret sites,
 structural commands are specified in M4e below. The semantic UIA contract is in
 [input/accessibility](UI_InputAndAccessibility.md). The bounded M4f implementation
-is [functionally qualified](../../Measurements/RichText/2026-10-20-semantic-uia/README.md);
+is [functionally qualified](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md);
 physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open.
 
 These pure primitives remain independent of graphics. The explicit retained
@@ -1269,7 +1269,7 @@ codec, clipboard or source text-store admission contract. End-to-end NUL editing
 complete pinned grammar/HTML output, extensions and semantic commands remain open.
 
 The bounded base block-tree/identity slice is qualified in the
-[M2 evidence packet](../../Measurements/RichText/2026-10-18-markdown-blocks/README.md):
+[M2 evidence packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-blocks/README.md):
 568 independent block-section expectations, all source inputs, native/embedded
 behaviors, Unicode edge identities, prefix-work/resource/failure predicates,
 57 ordinary x64 scope obligations, six builds and 324 exact raster pairs pass.

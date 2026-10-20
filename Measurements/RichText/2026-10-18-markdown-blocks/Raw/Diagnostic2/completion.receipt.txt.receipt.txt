@@ -1,7 +1,0 @@
-{
-  "executableSha256": "BFD4D61C1B21AFB2B2208FA101058D8570A85122E95C86676F34551AC1C5B95C",
-  "source": " README.md                                      |    2 +-\r\n Specs/Core/Core_PerformanceAndResources.md     |   23 +-\r\n Specs/Plans/WIP/RichTextEditor_2026-10-17.md   |   24 +\r\n Specs/Rendering/Rendering_EmbeddedD3D11.md     |    5 +\r\n Specs/UI/UI_ControlsAndLayout.md               |   86 +-\r\n Specs/UI/UI_InputAndAccessibility.md           |    4 +\r\n Tests/Controls/Scope.Tests.MarkdownCorpus.h    | 1329 ++++++++++++++++++++++++\r\n Tests/Controls/Scope.Tests.RichMarkdown.cpp    |  368 ++++++-\r\n Tests/Controls/Scope.Tests.RichTextEditor.cpp  |   70 ++\r\n Tests/Embedded/Embedded.Tests.Embedded.cpp     |   12 +\r\n Tests/Embedded/Scope.Tests.RichTextResources.h |   82 +-\r\n Tests/native-test-files.json                   |    1 +\r\n ThirdParty/Markdown/README.md                  |   12 +-\r\n Tools/Generate-MarkdownTestData.ps1            |   14 +-\r\n capabilities.json                              |    1 +\r\n docs/rich-text.md                              |   33 +-\r\n include/DxUi/MarkdownSyntax.h                  |   71 +-\r\n src/Controls/DxUi.MarkdownSyntax.cpp           |  336 +++---\r\n src/Controls/DxUi.RichTextEditor.cpp           |    2 +-\r\n 19 files changed, 2284 insertions(+), 191 deletions(-)\r\n",
-  "exitCode": 0,
-  "utc": "2026-10-18T18:54:46.8721684Z",
-  "classification": "Successful diagnostic only; no attested root/profile qualification"
-}

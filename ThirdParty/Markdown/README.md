@@ -30,7 +30,7 @@ or deployed. The owned native math parser/layout remains M5 work.
 The parser implementation is owned Unicode C++ in `src/Controls/DxUi.MarkdownSyntax.cpp`.
 MD4C, Discount and cmark-gfm inform API boundaries; none is linked or used as the
 implementation. Exact earlier research snapshots remain in the cooperative
-[reference packet](../../Measurements/RichText/2026-10-18-cooperative/README.md).
+[reference packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md).
 
 `whatwg-2026-10-18/entities.json` is the original authoritative WHATWG character
 reference data, downloaded from [the HTML standard](https://html.spec.whatwg.org/entities.json).

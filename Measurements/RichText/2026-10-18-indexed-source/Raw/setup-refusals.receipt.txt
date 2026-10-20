@@ -1,6 +1,0 @@
-{
-  "diagnosticSetupScopeRefusal": "The initial Test-Changes -Explain refused the new boundary header until it was registered in Tests/native-test-files.json; no native process was launched.",
-  "diagnosticSetupValidatorTypo": "An early invocation named nonexistent validate-tests.ps1; the actual five validators and full validate.ps1 subsequently passed. The original tool transcript retains that command error.",
-  "lookupBaselineRefusal": "The first filtered baseline test was started before linking completed. Test-TestFilter.ps1 refused the missing DxUi.ControlTests.exe before native execution. The later completed baseline is retained separately.",
-  "rule": "These are setup/command refusals, not native test failures or performance observations. No qualifying result was substituted for a failed measured process."
-}

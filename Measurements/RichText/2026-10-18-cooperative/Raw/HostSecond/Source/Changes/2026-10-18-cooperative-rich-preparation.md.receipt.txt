@@ -1,2 +1,0 @@
-- Add cancellable staged rich-text geometry preparation with independent layout and block-work budgets, preserving atomic source/geometry publication.
-  Shared native/embedded scheduling, stale-result checks and configuration qualification are active implementation work.

@@ -1,9 +1,0 @@
-{
-  "sha256": "A0E73CBC9FB9171F5D72BFB5DE83007E08FEE62872F2915BBD67FDAEB50FB6DF",
-  "argument": "--test-rich-markdown-failures",
-  "configuration": "Debug",
-  "classification": "isolated diagnostic allocation sweep",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
-  "buildAttestationIdentity": "357e870480f794feac910990fc86a259e7ab72d69ccbe0f2449f5381c68a0ace",
-  "exitCode": 0
-}

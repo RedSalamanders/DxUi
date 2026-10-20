@@ -1,1 +1,0 @@
-- Add bounded Unicode Markdown inline forests, global reference resolution and configurable GFM table/task/strike/autolink/tagfilter analysis, with original semantic corpora and native/embedded tests. The native renderer remains the v0 preview; semantic rendering/editing, accepted math/diagram extensions and platform/performance acceptance remain separate gates.

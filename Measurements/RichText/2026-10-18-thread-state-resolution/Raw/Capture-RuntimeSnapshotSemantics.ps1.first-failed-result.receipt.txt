@@ -1,4 +1,0 @@
-{
-  "error": "Read-only IL formatting encountered a member with null DeclaringType. No benchmark child or runtime state was changed.",
-  "exitCode": 1
-}

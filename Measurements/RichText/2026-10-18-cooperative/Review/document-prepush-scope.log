@@ -1,6 +1,0 @@
-Native test naming: 106 files checked.
-Test plan: PrePush (x64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
-INTERACTIVE_NOT_RUN: Menu - menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
-INTERACTIVE_NOT_RUN: MenuResources - menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
-INTERACTIVE_NOT_RUN: MenuResourceScaling - menu resource fixtures require the person's interactive desktop [Tests/Controls/DxUi.Tests.MenuResources.h]
-INTERACTIVE_NOT_RUN: NativeTextInput - native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]

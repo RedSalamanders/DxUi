@@ -1,1 +1,0 @@
-- Add source-preserving RichMarkdown YAML/TOML envelopes, literal fallback, source diagnostics and UIA explanations; retire semantic UIA caches on source/presentation/binding changes, with native/embedded and allocation-failure tests. Metadata validation and remaining native extensions stay in development.

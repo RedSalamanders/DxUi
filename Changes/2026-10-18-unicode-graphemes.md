@@ -1,1 +1,0 @@
-- Share pinned Unicode 17 extended grapheme rules across text editors, rich layout and UIA character commands; retain all 766 conformance vectors, deterministic generator checks and native/embedded behavior tests. Reject oversized UTF-8 rich-text input before allocating its UTF-16 result.

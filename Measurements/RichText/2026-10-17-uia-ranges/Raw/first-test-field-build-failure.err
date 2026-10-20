@@ -1,6 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\build.ps1:180
-Line |
- 180 |      throw "DxUi build failed. Log: $log"
-     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | DxUi build failed. Log:
-     | Z:\src\DxUi-worktrees\rich-text-core-d2\.build\logs\build-x64-Debug-0745d24ffb684399ae73ddf8ab348f86.log

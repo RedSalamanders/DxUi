@@ -80,7 +80,7 @@ so its own effect needs measurement before attributing
 the variability. CPU-time quantization also makes some clean-window deltas zero; raw cycle counts are consumption
 observations rather than elapsed durations. See the retained packet for exact ranges and validation limits.
 
-The [RichTextEditor source-command investigation](../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [RichTextEditor source-command investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
 retains a corrected matching-profile 48-process Default study and eight CPU/cache
 profiles. Its clean-frame p95 paired effect is -1.31%, with both judges agreeing
 on all 26 within-noise verdicts. All 24 controls flag some drift; 13 cross the

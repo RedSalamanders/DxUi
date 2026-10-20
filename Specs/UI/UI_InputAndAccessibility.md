@@ -197,7 +197,7 @@ signed movement without negation overflow or repeated prefix scans. Zero-count
 pure helper calls preserve the clamped input offset. The command adds no index,
 cache, retained text or C++ allocation; prepared layout supplies its existing
 boundary index for collapsed deletion.
-The [source-command qualification](../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+The [source-command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-ranges/README.md)
 records functional tests separately from the open performance and real AT gates.
 
 Shared text-element segmentation uses a pure allocation-free forward walker,

@@ -1,1 +1,0 @@
-- Add Unicode document-relative Markdown image-path paste for native and embedded RichTextEditor, bounded wide Explorer file-list transport, exact undo and stale-state guards; keep literal paste in source/code contexts and reject noncanonical structural command inputs. Decoded image rendering remains pending.

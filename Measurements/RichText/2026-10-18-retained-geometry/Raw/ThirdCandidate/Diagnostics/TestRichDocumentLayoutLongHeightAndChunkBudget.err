@@ -1,5 +1,0 @@
-[WATCHDOG] each test may run 80 s; a test that outlives it ends the run with exit code 124
-[START] EditorControls
-  [START] TestRichDocumentLayoutLongHeightAndChunkBudget
-complete chunked height matches DirectWrite whole-document metrics actual=1.56905e+06 expected=1.57016e+06
-FAILED: complete chunked height matches DirectWrite whole-document metrics

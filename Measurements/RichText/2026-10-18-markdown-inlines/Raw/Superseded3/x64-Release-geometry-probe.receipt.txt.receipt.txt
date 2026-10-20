@@ -1,9 +1,0 @@
-{
-  "sha256": "BCC070A0FE5C3E12555D8DB96396674368B431B8D7956D30C9C3B47F2268B69A",
-  "argument": "--test-rich-geometry-failures",
-  "configuration": "Release",
-  "classification": "isolated diagnostic allocation sweep",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
-  "buildAttestationIdentity": "4aa2dc8b8fe7069443e0e52c782eba80685c583fb66dd6baf2f07f1857d4ff36",
-  "exitCode": 0
-}

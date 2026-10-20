@@ -1,9 +1,0 @@
-{
-  "symbolsSha256": "567438BF4880CFC18BC8D3FF2D68C7DB0D1D0B5BEAD134A14999D3E1447A06CA",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-line-origins-20261018\\FourthPositioned\\ExactArtifacts\\DxUi.ControlTests.exe",
-  "sha256": "A1DA7ACB0E28451F738D72D5A2208B395319040C363198FE742CFDC0B6F2D48A",
-  "classification": "Exact already-preserved affected Release artifact also executed by the explicit fixed-method trials",
-  "verifiedUtc": "2026-10-18T11:10:12.0875382Z",
-  "receiptSha256": "3C101126A5B103B5E35216ECB5724224672B6D22D941A7EF59CE1F72DFAD515F",
-  "symbols": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-line-origins-20261018\\FourthPositioned\\ExactArtifacts\\DxUi.ControlTests.pdb"
-}

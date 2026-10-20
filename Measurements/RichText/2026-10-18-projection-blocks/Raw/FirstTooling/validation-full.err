@@ -1,8 +1,0 @@
-Changelog fragment 2026-10-18-rich-projection-blocks.md: holds 2 entries; record one change and indent its sub-bullets
-Exception: Specification validation failed with 1 finding(s).
-warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\validate.ps1:18
-Line |
-  18 |  . ed.Count) { throw "Validation failed: $(($failed | ForEach-Object { $ .
-     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Validation failed: validate-specs.ps1

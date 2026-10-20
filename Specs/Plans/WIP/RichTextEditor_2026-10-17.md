@@ -6,6 +6,26 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
+PR #89 readiness, 2026-10-20:
+
+- [x] Integrate `main` `f65e4a4b` at merge `2ceb1da5`; resolve the five conflicts
+  while preserving both test/project inventories and documentation records.
+- [x] Archive all 19,117 original evidence/changelog blobs with byte verification;
+  replace PR-only raw measurements with a concise
+  [validation summary](../../../Measurements/RichText/README.md) and one changelog
+  fragment. Main-owned historical records remain unchanged.
+- [ ] Qualify the merged source with the enabled PR native/build/consumer matrix,
+  local affected checks, validators and pinned formatting. Run local foreground
+  suites with the owner's approved 30-second automatic-Start countdown and verify
+  restoration. Pending CI is not a successful result.
+- [ ] Investigate D4c using frozen main/candidate identities, controlled matched
+  runs, bounded clear/readback and scheduler admission, retaining all original
+  failures/outliers. No compilation or functional suites overlap local timing.
+- [ ] Record the separate unqualified-base-policy blocker and independent review
+  requirement. Do not self-approve the policy, relax budgets or suppress checks.
+- [ ] Fix reproduced failures, update contracts/docs/results, push all changes,
+  and mark the PR ready only when the required merge gates are satisfied.
+
 Build an owned Unicode C++ rich-text/Markdown editor informed by actual Office
 RichEditD2D decompilation through Ghidra MCP. The standalone prototype lives at
 `Z:\src\richedit`; its source, tests, specification and timestamped receipts are
@@ -43,7 +63,7 @@ tests and owning contract/docs updates before completion):
 - [x] M1: Lossless source/block/lexeme partitions, explicit transformed-value
   affinity, bounded resumable root/lexical scans and opt-in host analysis.
   Code/tests/docs pass all 57 ordinary x64 suites, six profile builds and full
-  tooling/format checks. See the [sealed parser-stage evidence](../../../Measurements/RichText/2026-10-18-markdown-parser/README.md).
+  tooling/format checks. See the [sealed parser-stage evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-parser/README.md).
   This qualifies root/lexical analysis, not complete CommonMark/GFM rendering.
 - [x] M2: Complete dependency-aware base container/leaf blocks, exact content-line
   spans and conservative document/node reconciliation across structural edits.
@@ -55,7 +75,7 @@ tests and owning contract/docs updates before completion):
   and interrupted/failed attempts remain preserved. All 57 ordinary x64 scope
   obligations (55 fresh plus two exact reused), six root builds, eight failure
   probes, 324 exact raster pairs and full tooling/format checks pass. See the
-  [sealed M2 evidence](../../../Measurements/RichText/2026-10-18-markdown-blocks/README.md).
+  [sealed M2 evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-blocks/README.md).
   Source stays capped at 65,536 UTF-16 units; line/reference/compaction work is
   indivisible, and full inline/extension/semantic/platform/performance gates remain.
 - [x] M3: Complete inline precedence and delimiters, code spans, links/images,
@@ -66,7 +86,7 @@ tests and owning contract/docs updates before completion):
   original semantic outputs, 42 directed three-profile fixtures, unique padded
   cell IDs, parser NUL labels and native/embedded edit/history checks pass.
   All 57 fresh ordinary x64 scopes, six root builds, 12 probes, 324 exact raster
-  pairs and full validation/format pass. See the [sealed M3 evidence](../../../Measurements/RichText/2026-10-18-markdown-inlines/README.md).
+  pairs and full validation/format pass. See the [sealed M3 evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md).
   Semantic native rendering/editing and the accepted extensions remain M4/M5.
   Resolved inline forests, global Unicode reference folding, extension options
   and opaque HTML tagfilter metadata are implemented. Native/embedded reference
@@ -80,7 +100,7 @@ tests and owning contract/docs updates before completion):
   transactions, structural commands and structured accessibility. Integrate the
   parser tree into the renderer only after independent coordinate/editing oracles.
   Bounded component acceptance is complete; see the
-  [M4 accessibility/closeout packet](../../../Measurements/RichText/2026-10-20-semantic-uia/README.md).
+  [M4 accessibility/closeout packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md).
   This does not close D4c/D4d performance, physical AT or native ARM64 runtime gates.
 - [ ] M5: Explicit front matter, footnote, math and Mermaid profiles, native
   editable source-bearing objects/alternatives and pending/error source
@@ -270,7 +290,7 @@ scope. No old receipt is restamped as current integration evidence.
 
 ## Retained pre-change evidence
 
-The [DxUi-only Release baseline](../../../Measurements/RichText/2026-10-17-prechange/README.md)
+The [DxUi-only Release baseline](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-prechange/README.md)
 was collected successfully through the existing v2 build/measurement path before
 any compiled library source changed. It is unpaired and exercises the existing
 Default complex-UI workload; it is not a new-editor benchmark or non-regression
@@ -336,7 +356,7 @@ our source-preserving v0 grammar, not parsing code recovered from Rich Edit.
 
 ## Core qualification checkpoint
 
-[Reviewed core receipts](../../../Measurements/RichText/2026-10-17-core-d2/README.md)
+[Reviewed core receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-core-d2/README.md)
 retain exact source/artifact identities. All 57 normal native suite executions
 passed with zero capability skips; all six builds and the intentional ASan
 heap-use-after-free diagnosis passed. Ten named core scenarios are registered
@@ -417,7 +437,7 @@ Functional/build/gallery/performance closeout is recorded below after execution.
 
 ## D2c closeout
 
-[The retained qualification](../../../Measurements/RichText/2026-10-17-retained-d2c/README.md)
+[The retained qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-retained-d2c/README.md)
 records six final successful builds, 57 ordinary x64 suite passes with zero skips,
 20 named rich-text scenarios per x64 configuration, 5,082 embedded checks and the
 real ASan heap-use-after-free runtime probe. The final library source fingerprint
@@ -477,7 +497,7 @@ those operations; rich structural semantics and real AT remain separate gates.
 
 ## D2d bounded source-adapter closeout
 
-The [D2d receipts](../../../Measurements/RichText/2026-10-17-input-d2d/README.md)
+The [D2d receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-input-d2d/README.md)
 bind six final builds and 57 ordinary x64 suite passes, with zero capability skips,
 to library fingerprint FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941.
 There are 31 named rich-text control scenarios per x64 configuration; the embedded
@@ -524,7 +544,7 @@ scroll/selection rendering; the gallery's fixture and appearance are unchanged.
 
 ### Source-command qualification and performance hold
 
-The [source-command receipts](../../../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+The [source-command receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-ranges/README.md)
 bind final library fingerprint
 E3437165FCDB1374DE2AA8A2AE0AA791CB4581AB9528180ACA91D90508ECFDCA
 to all six builds and 57 ordinary x64 suite passes with zero capability skips.
@@ -590,7 +610,7 @@ power/priority/affinity policy, kill independent applications or silently replac
 any scheduled process. These bounds and the two-scene qualification omission are
 explicit diagnostic scope; acceptance/merge and D4c remain on HOLD.
 
-The [controlled investigation](../../../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [controlled investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
 completed all 48 canonical and eight diagnostic reports. Corrected preflight and
 every measured identity agree. The paired clean-frame p95 effect is -1.31%
 (Holm-adjusted p=1); both frozen judges agree on all 26 within-noise verdicts.
@@ -633,7 +653,7 @@ omitted-command controls are not independently measured GPU costs.
 - [ ] Continue D2a/D4a and remaining feature gates after this diagnostic slice;
   no passing diagnostic closes the engine, trusted-policy or physical AT gates.
 
-The [boundary packet](../../../Measurements/RichText/2026-10-18-uia-boundaries/README.md)
+The [boundary packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-uia-boundaries/README.md)
 retains all eight processes (234.312 seconds), 2,560 native probe frames and
 byte-identical populated captures. Full-frame same-p95 blocking-Map shares center
 at 96.586% / 96.520%. Omitted-command and timers-off/on controls remain variable,
@@ -660,7 +680,7 @@ projection/layout, indexed large-document trees, shared preparation scheduling,
 full Markdown/extensions and physical input/AT qualification remain active work.
 No visual/control/gallery state changes are intended by lookup indexing.
 
-The [indexed-source packet](../../../Measurements/RichText/2026-10-18-indexed-source/README.md)
+The [indexed-source packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-indexed-source/README.md)
 retains 57 passing ordinary x64 suite/log pairs with zero skips, all six builds,
 the specific sanitizer heap-use-after-free probe, four unpaired canonical reports,
 six post-change timer/profile branch diagnostics, the complete tooling/validator
@@ -681,7 +701,7 @@ rich-only segmentation implementation or OS/font-dependent navigation is added.
 
 - [x] Collect and hash-pin Unicode 17.0.0 GraphemeBreakProperty, emoji-data,
   DerivedCoreProperties/InCB, the complete GraphemeBreakTest and license. An
-  [reference PowerShell prototype](../../../Measurements/RichText/2026-10-18-unicode-preparation/README.md)
+  [reference PowerShell prototype](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-unicode-preparation/README.md)
   generates 833 disjoint property intervals and
   all 766 original conformance vectors; its rule state machine matches all 766.
   This is reference/prototype evidence, not implemented native capability.
@@ -702,7 +722,7 @@ corpus vector 1, offset 0 (old helper incorrectly joins an extender after a
 control), and rejection of 65,537 ASCII bytes requested 131,127 C++ heap bytes.
 Both failures are retained. After the fix all 766 vectors and both rich UIA host
 cases pass; oversized rejection requests zero C++ bytes in both tested cases.
-The [Unicode qualification](../../../Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
+The [Unicode qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
 retains 57 passing ordinary x64 suites with zero skips, six attested builds,
 47 named rich-text cases per profile, complete native corpus checks and the
 specific ASan diagnosis. Each embedded profile passes 5,161 checks and 1,000 warm
@@ -762,7 +782,7 @@ The implementation uses shared deletion-range policy, existing prepared stops fo
 rich queries, overflow-safe signed movement and at most three forward passes for
 bulk movement. Official-corpus deletion/command oracles, maximal provider actions,
 legacy/rich undo and C++ allocation budgets pass. The
-[command qualification](../../../Measurements/RichText/2026-10-18-grapheme-commands/README.md)
+[command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-grapheme-commands/README.md)
 retains three original failing runs, 57 passing ordinary x64 suite runs with zero
 native skips, six attested builds, full tooling/validators and formatting.
 Embedded records 5,167 checks and 1,000 allocation-free warm composites in each
@@ -837,7 +857,7 @@ retain the original measured method bodies, then rerun all six profiles. Header/
 archive signatures remain source-coordinated; object sizes and API revision 4
 remain unchanged, without claiming compatibility with an older built archive.
 
-The [persistent-storage qualification](../../../Measurements/RichText/2026-10-18-piece-tree/README.md)
+The [persistent-storage qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-piece-tree/README.md)
 seals library fingerprint 8EE9BD21B0CE810E1B6B39EBE30D00EF62945764CDF52D8C9AB8D65D8B8EFD99.
 All 57 final ordinary x64 suites pass with zero native skips, including 57 named
 rich cases in each profile. Six successful build attestations, full tooling/
@@ -914,7 +934,7 @@ scalar, CRLF, empty/whole replacement tests before rerunning affected suites.
 
 ### Bounded source-change qualification
 
-The [source-change packet](../../../Measurements/RichText/2026-10-18-source-changes/README.md)
+The [source-change packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-source-changes/README.md)
 seals library fingerprint 3FEED65870EA98787EAC461CCB7AA6BA1CD9E5BC73C21684AB650B873517BAC4.
 All 57 ordinary native suite runs pass with zero skips across x64 Release,
 Debug and ASan, alongside all six build profiles and full tooling/format checks.
@@ -981,7 +1001,7 @@ uses all19 scopes in each x64 profile and all ARM64 configurations; no prelimina
 Release receipt is relabeled as current after this source change.
 ### Fresh read-only Ghidra recalculation evidence
 
-The [Office recalculation packet](../../../Measurements/RichText/2026-10-18-recalc-reference/README.md)
+The [Office recalculation packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-recalc-reference/README.md)
 contains six actual MCP decompilations from the saved Office 16.0.20430.20032
 reference, SHA-256 7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41.
 An owned stdio MCP client sees the registered tools without raw plugin HTTP or
@@ -997,7 +1017,7 @@ copy Office's per-control timer into DxUi; reuse existing host scheduling. These
 new exports are evidence for the next implementation, not proof that it exists.
 ### Qualified v0 projection blocks
 
-The [projection-block packet](../../../Measurements/RichText/2026-10-18-projection-blocks/README.md)
+The [projection-block packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-projection-blocks/README.md)
 seals library fingerprint 574862352141C18EDBC27BEB54037E53B2566E8D8663891511F087872965B9F0.
 All 57 ordinary x64 suites pass with zero native skips, all six build profiles
 pass, and all four final isolated Debug/ASan allocation diagnostics return zero.
@@ -1119,7 +1139,7 @@ test executable; canonical measurement inputs gain no symbol-reporting work.
 
 ### Qualified guarded geometry and observer-resolution closeout
 
-The [geometry packet](../../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [geometry packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
 binds source fingerprint 4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C.
 All 57 ordinary x64 suite executions pass with zero skips; all six build profiles
 and four isolated Debug/ASan diagnostics pass. The twelve-operation matrix finishes
@@ -1144,7 +1164,7 @@ behavior-preserving compatibility component, not an accepted speed improvement.
 Keep that cost visible while implementing exact retained line placement/drawing;
 do not accept the unsafe fast draft, loosen an oracle or silently rebaseline.
 
-The [thread-state packet](../../../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+The [thread-state packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
 preserves Off/On/On/Off same-binary controls after build/tooling activity stopped.
 All 1,280 frames and four populated captures match their invariants; all native
 children exit zero. The native main-thread identity and common QPC clock are
@@ -1237,7 +1257,7 @@ now freezes all source/test/spec/doc inputs across the declared profile matrix.
 
 ### Qualified WARP-policy diagnostic and explicit timing selection
 
-The [policy packet](../../../Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
+The [policy packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
 binds the unchanged library fingerprint 4927C4EE and canonical fixture E9DE4125.
 All six build profiles and 57 ordinary x64 suite runs pass, with zero skips.
 Six isolated Debug/ASan children pass clear, copy/normal/forced-whole geometry
@@ -1394,7 +1414,7 @@ controls, quiet-host proof, a causal speed claim, 1 MiB p95 input-to-paint evide
 or frame acceptance. The original clear/readback/scheduler HOLD remains open.
 Canonical benchmark/judges/thresholds/baseline and consumer pins are unchanged.
 
-The [positioned-line packet](../../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+The [positioned-line packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
 records source, original failures, receipts, exact images and replay. Documentation
 and gallery review finds no intended visual change: the independent whole-layout
 pixel oracle is unchanged, and every new retained image matches it exactly. No
@@ -1482,7 +1502,7 @@ released-delta oracles pass. SDK-private heaps are excluded from C++ counts.
 The fixed 14-operation matrix finishes in 3176.330 seconds; full five-
 validator/tooling validation and formatter 22.1.3 finish in 340.817
 seconds. Evidence sealing/replay and final document checks are separate closeout
-records in the [cooperative packet](../../../Measurements/RichText/2026-10-18-cooperative/README.md).
+records in the [cooperative packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md).
 
 | Attempt | Observed result retained |
 | --- | --- |
@@ -1637,11 +1657,11 @@ D2a, M4-M6, D4c, D4d and D5 remain open, including semantic rendering/structural
 editing, accepted extensions, physical IME/AT/native ARM64 and the original
 frame-performance HOLD. Foreground suites have not been run without agreed time.
 
-The reviewed [M3 evidence packet](../../../Measurements/RichText/2026-10-18-markdown-inlines/README.md)
+The reviewed [M3 evidence packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md)
 is sealed as `654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276`.
 An independent exact copy and a Git-only staged archive both verify. Deliberately
 modified native receipt and PNG bytes are rejected; restored/original packets
-verify again. The [replay receipt](../../../Measurements/RichText/2026-10-18-markdown-inlines-verification.receipt.txt)
+verify again. The [replay receipt](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines-verification.receipt.txt)
 records the external seal, packet file count and extracted Git tree/archive hash.
 Compiled-source identity is unchanged by documentation/evidence closeout.
 
@@ -2287,7 +2307,7 @@ host loop and text-service bridge. Its deterministic `--output` path produced
 the actual 980 x 720 sample capture; the source/executable/image hashes match.
 No consumer pin was changed.
 
-The [reviewed source-caret packet](../../../Measurements/RichText/2026-10-19-source-caret-sites/README.md)
+The [reviewed source-caret packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-source-caret-sites/README.md)
 publishes final raw receipts/logs, private artifact hashes, isolated failure traces,
 sample capture/provenance and the warning below. Original binaries and the full
 failed/interrupted history remain in the private report directory.
@@ -2443,7 +2463,7 @@ The retained Release Default baseline/candidate diagnostic completed with `advic
 
 clean.frameP95Ms: 0.7127 to 0.5211 (-26.88%); dirty.frameP95Ms: 2.5741 to 1.8649 (-27.55%). Frame values are milliseconds. These are single before/after observations of completed WARP frames with clear/blocking readback. They establish neither causality nor performance acceptance. Baseline, candidate, comparison and exit record are preserved; no rebaseline or passing-repeat substitution was made. D4c remains HOLD. Any acceptance change needs the separately controlled paired/scheduler investigation and developer advice if degradation is confirmed, with measured optimization, scope reduction or deferral/revert choices.
 
-The [reviewed native presentation packet](../../../Measurements/RichText/2026-10-19-native-markup/README.md)
+The [reviewed native presentation packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-native-markup/README.md)
 contains final scope/driver logs and receipts, the independent artifact audit,
 SDK failure probes, actual sample/provenance, gallery pixel audit and preserved
 diagnostic results. Public JSON archives retain their payload bytes using the
@@ -2499,7 +2519,7 @@ their staged allocation scenarios extend the core sweep before final freeze.
 ### M4e qualification closeout (2026-10-19)
 
 M4e is complete at implementation `159b77c7700e5e1746bd9846265938cd6d0dbe0b`.
-The [reviewed structural-command packet](../../../Measurements/RichText/2026-10-19-structural-commands/README.md)
+The [reviewed structural-command packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-structural-commands/README.md)
 retains the frozen source/build/runtime receipts, independent audits, actual
 sample capture, visual review, diagnostic and separately identified failures.
 This closes M4e only; the complete plan remains WIP.
@@ -2584,7 +2604,7 @@ The pre-fix baseline and failing probe are retained; neither counts as candidate
 qualification. The existing M4e packet remains immutable historical evidence.
 
 The alignment correction is complete at `5bc432845cf29683b2121101130085f153d8bda7`;
-see the [reviewed task-alignment packet](../../../Measurements/RichText/2026-10-19-task-alignment/README.md).
+see the [reviewed task-alignment packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-task-alignment/README.md).
 All 57 ordinary scope/profile runs passed across x64 Debug, Release and ASan
 Debug, with zero capability skips. ASan's isolated detection passed. All three
 ARM64 builds passed, remaining compile-only. Fresh parallel ARM64 Debug/Release
@@ -2665,7 +2685,7 @@ and implement the native grammar and preserve unsupported diagrams as source.
 
 ### M4f/M4g component closeout (2026-10-20)
 
-The [sealed semantic accessibility packet](../../../Measurements/RichText/2026-10-20-semantic-uia/README.md)
+The [sealed semantic accessibility packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md)
 qualifies frozen native source `5717ff85a7e0aecb5374cd2ff7d276f368d9e578`.
 All 57 ordinary x64 scope/profile runs pass with zero capability skips, as do
 the intentional ASan detection probe and all three ARM64 builds. ARM64 remains
@@ -2965,7 +2985,7 @@ unchanged because this CPU service is not yet connected to editor painting.
       `.build/reports/rich-source-region-m5e2-20261020/Iteration4`;
       failures and superseded packets remain beside it.
       The reviewed portable component receipt and application captures are
-      [retained here](../../../Measurements/RichText/2026-10-20-source-editing/README.md).
+      [retained here](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-source-editing/README.md).
       Gallery regeneration/publishing is reviewed; differences in three sheets
       affect only existing Slider touch-pressed/Tooltip hover variants, outside
       RichTextEditor. Preserve new sheets/difference receipts privately and keep
@@ -3009,7 +3029,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     pinned format and before/after v2 input/artifact checks pass. Embedded records
     443,742 checks and zero tracked C++ allocations in 1,000 warm composites;
     that 7,824-us timing and the complex-UI report are unpaired diagnostics.
-    [Reviewed portable evidence](../../../Measurements/RichText/2026-10-20-image-path-paste/README.md)
+    [Reviewed portable evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-image-path-paste/README.md)
     binds tested native sources and artifacts. Original missing-include and
     include-closure attestation failures are retained. Final profiles, physical
     input/AT and D4c HOLD remain open; this component does not close raster display.
@@ -3035,7 +3055,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     semantic/history tests, native Ctrl+V/CF_HDROP and the real embedded TSF
     adapter pass. Debug sweeps all 56 observed mixed-paste allocations plus 94
     pure path/file/codec/URI points with exact retry. See the
-    [qualification packet](../../../Measurements/RichText/2026-10-20-file-reference-paste/README.md).
+    [qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-file-reference-paste/README.md).
     No native repair was required. D4c, M5g.3 and physical/platform/consumer
     gates remain open; ordinary performance output is unpaired diagnostic data.
     Gallery review: this paste policy reuses the existing image/link rendering
@@ -3085,7 +3105,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     allocation points (441 total). Actual bitmap probes cover first/later memory/
     device HRESULT failures, explicit retry, upload deduplication and 128 native
     placements while retaining an excess alternative.
-    [Reviewed functional evidence](../../../Measurements/RichText/2026-10-20-native-images/README.md)
+    [Reviewed functional evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-native-images/README.md)
     binds current native inputs and artifacts. Full raw packets, source snapshots
     and negative receipts remain under `.build/reports/rich-image-native-m5g2-20261020`.
     They retain line-cell bounds, Unicode run splitting, duplicate-event counting,

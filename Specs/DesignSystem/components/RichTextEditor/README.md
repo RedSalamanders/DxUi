@@ -28,7 +28,7 @@ source-format attributes after coherent preparation. Tasks have an undoable
 Toggle action; external links remain inert. Source TextPattern/TSF offsets stay exact.
 Child identity retires on source/publication or owner-binding replacement, while
 geometry-only reflow updates prepared bounds. Queries take no focus. The bounded
-M4f implementation is [functionally qualified](../../../../Measurements/RichText/2026-10-20-semantic-uia/README.md).
+M4f implementation is [functionally qualified](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md).
 Physical/extension/platform gates remain in the active plan; D4c stays HOLD.
 The M4f slice changed no pixels or typography tokens. Its earlier five-theme
 capture receipt remains historical evidence for that source.

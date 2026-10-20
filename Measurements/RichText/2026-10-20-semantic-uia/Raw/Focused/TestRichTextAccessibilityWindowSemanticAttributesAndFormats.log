@@ -1,9 +1,0 @@
-[WATCHDOG] each test may run 180 s; a test that outlives it ends the run with exit code 124
-[START] Accessibility
-  [START] TestRichTextAccessibilityWindowSemanticAttributesAndFormats
-    [TRACE] attached host dtor: begin
-    [TRACE] attached host dtor: host detached
-    [TRACE] attached host dtor: hwnd reset
-  [DONE] TestRichTextAccessibilityWindowSemanticAttributesAndFormats (0.635 s)
-[DONE] Accessibility (0.637 s)
-All DxUi tests passed.

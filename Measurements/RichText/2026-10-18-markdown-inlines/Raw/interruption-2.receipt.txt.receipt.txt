@@ -1,6 +1,0 @@
-{
-  "reason": "Isolated copied-ASan-archive reproducer confirms reference-only paragraph plus table delimiter bounds assertion; retire leaf and add shared/fault regressions.",
-  "interruptedUtc": "2026-10-18T21:11:50.7174229Z",
-  "processId": 22936,
-  "commandLine": "\"C:\\Users\\eric\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe\" -Command \"try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n$formatter='Z:\\src\\DxUi\\.build\\format\\clang_format\\data\\bin\\clang-format.exe'; & $formatter -i src/Controls/DxUi.MarkdownInlines.h Tests/Support/Scope.Tests.MarkdownInlines.h; $env:TEMP='Z:\\DxUiPerfTemp\\uia-ranges'; $env:TMP=$env:TEMP; $env:MSBUILDDISABLENODEREUSE='1'; & .build/reports/rich-markdown-inline-20261018/Invoke-Final.ps1 -Root $PWD\""
-}

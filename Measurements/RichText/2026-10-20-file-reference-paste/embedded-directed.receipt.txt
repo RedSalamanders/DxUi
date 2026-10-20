@@ -1,5 +1,0 @@
-mixed file paste allocation points=56
-image preparation allocation points=24
-image preparation allocation points=7
-image preparation allocation points=24
-image preparation allocation points=39

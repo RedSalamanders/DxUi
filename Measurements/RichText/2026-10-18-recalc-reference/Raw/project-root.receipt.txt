@@ -1,9 +1,0 @@
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"project_name\":\"notepad\",\"current_folder\":\"/\",\"folders\":[\"windows-edit\"],\"files\":[{\"name\":\"notepad.exe\",\"path\":\"/notepad.exe\",\"content_type\":\"Program\",\"version\":1,\"latest_version\":0,\"is_versioned\":false,\"is_checked_out\":false,\"is_checked_out_exclusive\":false,\"is_read_only\":false}]}"
-    }
-  ],
-  "isError": false
-}

@@ -1,5 +1,0 @@
-element=0 role=0 parent=18446744073709551615 display=0,19
-element=1 role=1 parent=0 display=0,18
-element=2 role=11 parent=1 display=4,5
-element=3 role=12 parent=1 display=6,18
-allChildrenFitParents=1

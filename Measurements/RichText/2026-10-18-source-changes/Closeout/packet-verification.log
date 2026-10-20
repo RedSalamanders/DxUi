@@ -1,3 +1,0 @@
-Verified 57 final native successes, six builds, both original failures, unchanged measured methods, bounded transient storage and allocation failure sweeps.
-The baseline supervisor attached after launch; it did not capture an exit code. Starter/native receipts record expected exit 1. Frame acceptance remains HOLD.
-Recomputed all 30 descriptive observations and six medians from the original before/final Release logs.

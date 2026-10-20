@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-markdown-parser-20261018\Invoke-DocumentChecks.ps1:30
-Line |
-  30 |  . ot$drained){throw "Post-closeout document check failed: $($step.name) .
-     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Post-closeout document check failed: specs

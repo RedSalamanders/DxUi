@@ -1,7 +1,0 @@
-{
-  "notes": "Retained baseline before cooperative implementation. User-launched standalone demo stays running; no quiet-host performance claim or consumer-pin update.",
-  "baselinePacket": "Measurements/RichText/2026-10-18-positioned-lines",
-  "baselineSourceFingerprint": "852642DBAFCA43F38DCE9218EDF8FB78A84DC703FC641E6AD6623E7B446EDCCF",
-  "baseCommit": "34c3fabae4cd6f319749345d317aa18d692139c2",
-  "startedUtc": "2026-10-18T12:12:19.4386513Z"
-}

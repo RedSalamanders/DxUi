@@ -1,9 +1,0 @@
-{
-  "buildAttestationIdentity": "8c7498321630a33d358b47caaa6d8959da288ecd44e3372795d09fa47760bd8f",
-  "sha256": "82C72F6CF0F71F6346812CF54E45AFDD5807A5096EA3376EA5C4644851244B2F",
-  "argument": "--test-rich-projection-failures",
-  "configuration": "ASan Debug",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
-  "exitCode": 0,
-  "classification": "isolated-successful-allocation-sweep"
-}

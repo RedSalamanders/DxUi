@@ -1,2 +1,0 @@
-- Add bounded v0 line-block projection preparation with immutable reuse, exact source/display affinities, atomic failure handling and explicit retention/mapping tests. Retained geometry, shared scheduling and complete Markdown profiles remain separate plan gates.
-  Propagate snapshot-slice allocation failure through a throwing empty-string constructor; add direct Debug/ASan sweep diagnostics and preserve the original noexcept failure.

@@ -1,7 +1,0 @@
-Qualification: x64-Release
-Qualification: x64-Debug
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-piece-tree-20261018\Invoke-Qualification.ps1:46
-Line |
-  46 |  … r -not $drained -or $code -ne 0){throw "Qualification failed: $stem"}
-     |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Qualification failed: x64-Debug

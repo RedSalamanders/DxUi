@@ -1,6 +1,0 @@
-{
-  "expandedProjectIdentity": "E58750CA51F703F40D31FC7018A88FDF5D89976C51D4D0F179FD646F631EC7C8",
-  "compileItemsIdentity": "66501684de574c07a31f821136b90b1f849061c104938402c335d4e10c4b14e9",
-  "resolvedItemsIdentity": "82e06a8638cec1191825efe6c714210479d6251e3d507ac43654854c564cd068",
-  "profileIdentity": "475eaca7fbb53a057ce555a6b8e6cfbd6ebcd5f5e403be9744aa9beecd54ef1b"
-}

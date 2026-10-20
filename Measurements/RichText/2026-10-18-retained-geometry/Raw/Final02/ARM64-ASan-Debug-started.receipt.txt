@@ -1,5 +1,0 @@
-{
-  "platform": "ARM64",
-  "configuration": "ASan Debug",
-  "startedUtc": "2026-10-18T07:42:51.2979907Z"
-}

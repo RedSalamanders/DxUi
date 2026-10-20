@@ -1,2 +1,0 @@
-- Add cooperative Unicode rich-text preparation through shared native/embedded owner turns, with cancellable/coalesced requests, stale-key rejection and pending-safe source/IME/UIA behavior.
-  Cover native hide/zero-size lifecycle, failure/resource/pixel scenarios and all required build profiles; update contracts, usage and preserved evidence. Full grammar and performance acceptance remain separate.

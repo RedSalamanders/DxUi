@@ -1,8 +1,0 @@
-{
-  "classification": "original-flat-helper-passed-no-defect-reproduced",
-  "executableSha256": "2C22F1B66436DFE0D2C11F644EECCE6250A75E86718E7AB28A72CE159028F814",
-  "exitCode": 0,
-  "librarySourceUnchanged": true,
-  "buildAttestationIdentity": "c3755b38db6bcec42d84d843173d4690ee2a67d60207f66844d485dc13353885",
-  "sourceFingerprint": "4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C"
-}

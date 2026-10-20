@@ -1,7 +1,0 @@
-{
-  "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp",
-  "action": "replaced",
-  "createdDirectories": [],
-  "sha256": "243E75A8FE209EB6FD8AC6576FBDA49B2D13C2357C08DD39174D5B54BEFD874A",
-  "originalSha256": "0EF178A970BD59C3C67DC7E28BB1BF009B27C8E62B53D34D3CBDF5A7B3B5DD71"
-}

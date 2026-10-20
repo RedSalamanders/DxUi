@@ -472,7 +472,7 @@ and JSON construction/parsing. A subtraction is a derived non-heap residual, not
 effect. Differing profiles MUST NOT imply convergence or isolate a heap observer effect. Coarse cumulative CPU times may yield zero deltas during real work; available
 cycle deltas MUST remain raw consumption counters rather than fabricated time or scheduler-delay estimates.
 
-The [source-command Default investigation](../../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [source-command Default investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
 retains 48 matching-profile interleaved reports and eight diagnostic profiles.
 Its paired clean-p95 effect is -1.31%, with no judged regression, but all 24
 controls flag drift somewhere and 13 cross the clean-p95 band. A within-noise
@@ -500,7 +500,7 @@ attribution requires an actual aligned trace and its loss/completeness checks;
 a permission refusal leaves that gate open. This diagnostic changes no acceptance
 workload, judge, policy, threshold or historical receipt.
 
-The [external thread-state controls](../../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+The [external thread-state controls](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
 verify owned-child main-thread identity and a common native/managed QPC clock.
 WaitReason is read only for Wait. Require the entire acquisition bracket inside
 a frame/segment before assigning a sampled state; retain mixed/outside samples,
@@ -723,9 +723,9 @@ The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB reta
 and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
 bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
 limits exclude SDK-private heaps and do not establish whole-process acceptance.
-The [guarded geometry record](../../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [guarded geometry record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains all failure schedules, geometry/pixel oracles and original negative runs.
-The [positioned-line record](../../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+The [positioned-line record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
 adds 324 exact WARP pairs, default-font native/embedded reuse, complete observed
 copy/chunk/whole/flat failure schedules and all six build profiles. Clear,
 unchanged queries and cached composition allocate no tracked C++ storage. Its
@@ -749,7 +749,7 @@ pending turn may request one continuation; a failed turn must not self-reschedul
 Clean/hidden work does not poll; new source after failure can request explicit
 retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
 
-The [cooperative preparation record](../../Measurements/RichText/2026-10-18-cooperative/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
+The [cooperative preparation record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
 
 The opt-in M4d semantic path uses the same host turns with separate bounded CPU
 semantic events (default 4,096), SDK layout calls (4) and geometry metadata events

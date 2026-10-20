@@ -1,1 +1,0 @@
-FAIL: fragmented source plus capped history retains at most four MiB of C++ storage

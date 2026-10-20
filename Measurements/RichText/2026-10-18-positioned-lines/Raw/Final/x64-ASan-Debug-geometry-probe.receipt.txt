@@ -1,9 +1,0 @@
-{
-  "configuration": "ASan Debug",
-  "exitCode": 0,
-  "argument": "--test-rich-geometry-failures",
-  "sha256": "8B1251D2632AB2031D84E2AF201FBD06D4D68C52DB0EBBB1B80A4242A406C43B",
-  "classification": "isolated diagnostic allocation sweep",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
-  "buildAttestationIdentity": "dd1c547a049130da636447ad3166dadad2843984f8cc0910402e22c14669b75c"
-}

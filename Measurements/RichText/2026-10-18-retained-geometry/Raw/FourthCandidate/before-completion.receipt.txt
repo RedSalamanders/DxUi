@@ -1,9 +1,0 @@
-{
-  "exitCode": 0,
-  "attempted": 1,
-  "timedOut": false,
-  "elapsedSeconds": 565.7481414,
-  "drained": true,
-  "scheduled": 1,
-  "processId": 73632
-}

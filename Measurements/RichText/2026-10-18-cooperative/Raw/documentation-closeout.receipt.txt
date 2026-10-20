@@ -1,6 +1,0 @@
-{
-  "toolingSeconds": 340.8174865,
-  "completedUtc": "2026-10-18T14:56:30.8965820Z",
-  "classification": "Post-qualification prose closeout only; compiled code/test bytes match the frozen manifest",
-  "matrixSeconds": 3176.3302589
-}

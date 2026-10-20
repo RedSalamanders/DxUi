@@ -1,28 +1,8 @@
 # Independent DxUi measurements
 
-- [Unicode file-reference paste, 2026-10-20](RichText/2026-10-20-file-reference-paste/README.md):
-  mixed image/link paste with document-relative destinations, native/embedded
-  transport, semantic/history and allocation-failure checks; all six builds and
-  57 ordinary x64 scope runs pass. Performance remains unpaired; D4c stays HOLD.
-- [Unicode image-path paste, 2026-10-20](RichText/2026-10-20-image-path-paste/README.md):
-  focused native/app TSF/embedded paste, wide file-list transport, exact undo,
-  stale-state guards, 31 allocation points and seven ordinary host suites.
-  Decoded image painting, final profiles and D4c HOLD remain open.
-
-- [Retained block source editing, 2026-10-20](RichText/2026-10-20-source-editing/README.md):
-  focused x64 Debug/native/embedded source editing, composition/UIA guards,
-  2,350 allocation points, preserved failure probes and actual application captures.
-  Final profiles, physical/platform/resources and D4c HOLD remain open.
-
-- [Guarded rich geometry, 2026-10-18](RichText/2026-10-18-retained-geometry/README.md):
-  57 ordinary x64 suite passes, six builds, 162 exact WARP pairs, observed allocation
-  schedules and bounded storage; original geometry/pixel/Debug failures retained.
-  Whole-layout compatibility, full syntax and performance acceptance remain open.
-
-- [Thread-state resolution, 2026-10-18](RichText/2026-10-18-thread-state-resolution/README.md):
-  four same-binary controls, 1,280 frames and matching populated captures; the query
-  is too coarse for frame attribution. Empty aligned histograms do not close the
-  trace-policy or performance HOLD.
+- [RichTextEditor validation summary](RichText/README.md): implemented scope, original
+  component qualification, current PR checks and open performance/platform gates.
+  Detailed packets are archived outside the current repository tree.
 
 - [PR #87 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr87-postmerge/README.md):
   six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact

@@ -1,2 +1,0 @@
-NUL label normalized; linked output length=30
-All six table cells retain distinct identities

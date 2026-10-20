@@ -1,7 +1,0 @@
-{
-  "source": "<div>\n<script/unknown> <script/> <SCRIPT\u000b>\n</div>\n",
-  "expected": "<div>\n<script/unknown> &lt;script/> &lt;SCRIPT\u000b>\n</div>\n",
-  "matched": false,
-  "actual": "<div>\n<script/unknown> &lt;script/> <SCRIPT\u000b>\n</div>\n",
-  "exitCode": 0
-}

@@ -1,5 +1,0 @@
-{
-  "configuration": "Release",
-  "platform": "ARM64",
-  "startedUtc": "2026-10-18T14:38:16.8359349Z"
-}

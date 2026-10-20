@@ -1,6 +1,0 @@
-{
-  "sourceCommit": "a72ab562e5440cf4cb91917590c4729310d85ce3",
-  "exitCode": 1,
-  "purpose": "Single before/after diagnostic only; D4c remains HOLD",
-  "completedUtc": "2026-10-19T15:47:39.8527510Z"
-}

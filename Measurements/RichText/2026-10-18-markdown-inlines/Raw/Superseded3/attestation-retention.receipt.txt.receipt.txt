@@ -1,6 +1,0 @@
-{
-  "missingBuildReceipts": "Superseded3 x64 Debug build/incremental JSON had already been retired by the next root build. Its exact root build identity remains bound by Superseded3 probe receipts, and the successful build/run logs and exact artifact copies remain preserved. No regenerated attestation is substituted.",
-  "classification": "preserved superseded evidence",
-  "utc": "2026-10-19T02:21:46.4169520Z",
-  "availableBuildReceipts": 10
-}

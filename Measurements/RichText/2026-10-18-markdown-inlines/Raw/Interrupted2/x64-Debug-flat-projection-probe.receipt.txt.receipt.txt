@@ -1,9 +1,0 @@
-{
-  "buildAttestationIdentity": "42be8819354ed09874ec777c0a2cf8a68be98e281d3171f0f77c74283f41696b",
-  "exitCode": 0,
-  "classification": "isolated diagnostic allocation sweep",
-  "sha256": "6E601549B83A92303F06BAFA2436B42D2D2FC95D0E6126FDF1744D6CFE9CC353",
-  "configuration": "Debug",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
-  "argument": "--test-rich-flat-projection"
-}

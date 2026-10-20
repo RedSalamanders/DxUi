@@ -1,5 +1,0 @@
-{
-  "utc": "2026-10-19T02:08:52.1320472Z",
-  "status": "completed-but-superseded",
-  "reason": "Independent probe: duplicate padded table cell identity on revision 2. Earlier matrix was successful for its frozen source and is not current-source qualification."
-}

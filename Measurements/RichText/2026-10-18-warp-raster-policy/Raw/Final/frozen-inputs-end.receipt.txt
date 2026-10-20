@@ -1,8 +1,0 @@
-{
-  "manifestSha256": "A53DE440C3A5353AE9B3E132710EFF46D01BC1A94EFEF7BFD6B18AA53AD0CDA5",
-  "classification": "Exact start/end identity of all changed nonignored source/test/project/spec/doc inputs across the declared fixed matrix",
-  "baseCommit": "667591744481c26e79c2f6b2ca92df44e81c0ec2",
-  "verifiedUtc": "2026-10-18T09:28:25.5454672Z",
-  "matrixSha256": "FB34AB1237162DE64193EA276187ED5DA676992CD7FF8F90ED50548BF742CAF1",
-  "fileCount": 11
-}

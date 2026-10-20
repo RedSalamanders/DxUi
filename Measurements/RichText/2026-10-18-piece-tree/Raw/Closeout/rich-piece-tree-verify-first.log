@@ -1,3 +1,0 @@
-Verified 57 final native successes, six builds, original resource and Debug failures, unchanged measured methods, storage bounds and failure sweeps.
-Edit/read/single-step timings remain descriptive; frame performance acceptance and physical/native-platform gates remain open.
-Recomputed all 30 descriptive observations and six medians from the original before/final Release logs.

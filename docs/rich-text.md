@@ -58,7 +58,7 @@ envelope/session. Moving selection outside the envelope finishes its presentatio
 Read-only inspection is allowed; active native/embedded composition blocks entry
 and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
 and do not acquire OS focus. Math/inline object entry follows those M5 objects.
-See the [focused source-editing evidence and actual application captures](../Measurements/RichText/2026-10-20-source-editing/README.md).
+See the [focused source-editing evidence and actual application captures](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-source-editing/README.md).
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
 and reachable numbering have focused native/embedded checks. The footer preview
@@ -197,11 +197,11 @@ are outside this paste feature.
 The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
 defines future drop-at-caret insertion with the same image/link policy.
 Drag-and-drop is not implemented in the current sample or control.
-The [file-reference qualification packet](../Measurements/RichText/2026-10-20-file-reference-paste/README.md)
+The [file-reference qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-file-reference-paste/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault
-recovery. The earlier [image-only qualification packet](../Measurements/RichText/2026-10-20-image-path-paste/README.md)
-records source/binary identities, scope results and remaining gates. The later [native image packet](../Measurements/RichText/2026-10-20-native-images/README.md) qualifies the decoder, async service and native/embedded raster implementation.
+recovery. The earlier [image-only qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-image-path-paste/README.md)
+records source/binary identities, scope results and remaining gates. The later [native image packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-native-images/README.md) qualifies the decoder, async service and native/embedded raster implementation.
 
 Native image rendering now uses immutable `RichText::RichImage` resources and
 owner-thread request/completion APIs. All 19 ordinary suites pass in each x64 Debug, Release and ASan profile. Checks cover actual
@@ -504,30 +504,30 @@ so API revision stays 4. Consume an exact clean pin via the normal
 
 The standalone prototype consumes exact code pin
 302f3783a5d2ef60f201ca3abf508c1158fde039 through an immutable consumer checkout.
-[Core and broader qualification](../Measurements/RichText/2026-10-17-core-d2/README.md)
+[Core and broader qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-core-d2/README.md)
 records 57 normal suite runs and all six builds. Consumer linkage/ownership and
 application smoke are separate receipts. Performance comparisons remain
 advice-required; the original baseline and both warning reports are retained.
 
-The [D2c qualification](../Measurements/RichText/2026-10-17-retained-d2c/README.md)
+The [D2c qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-retained-d2c/README.md)
 retains the native/embedded, sanitizer, build, gallery and timing evidence for
 this bounded preview. Full OS input/accessibility and conformance are separate
 from these passing v0 gates.
 
-The [D2d qualification](../Measurements/RichText/2026-10-17-input-d2d/README.md)
+The [D2d qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-input-d2d/README.md)
 retains the source-adapter protocol/client, history, retirement, geometry and
 constant-size UIA range allocation evidence. It includes 57 ordinary x64 suite
 passes and six builds. Physical IME/AT, rich structural UIA semantics, native
 ARM64 execution and controlled performance acceptance remain open; both diagnostic
 memory-warning reports are retained.
 
-The [source range-command qualification](../Measurements/RichText/2026-10-17-uia-ranges/README.md)
+The [source range-command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-ranges/README.md)
 records 57 ordinary x64 suite passes, six builds and 41 named rich-text scenarios
 per x64 profile. Native/embedded command semantics and real-client actions/events
 pass. Performance acceptance is on hold after repeated Default clean-frame p95
 warnings; both failed comparisons and the original baseline are retained.
 
-The [controlled Default investigation](../Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [controlled Default investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
 retains 48 interleaved reports and eight CPU/cache profiles. Its paired clean-p95
 effect is -1.31%, with no judged regression; 13 of 24 same-binary controls cross
 the clean-p95 band and all 24 flag some drift. A consistent slowdown and
@@ -535,14 +535,14 @@ non-regression acceptance are both unestablished. Policy qualification,
 rich-editor workload performance and the original historical gates remain open;
 no library source, threshold, baseline or consumer pin changed.
 
-The [clear/readback follow-up](../Measurements/RichText/2026-10-18-uia-boundaries/README.md)
+The [clear/readback follow-up](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-uia-boundaries/README.md)
 retains eight fixed processes with timers-off/on and omitted-command controls.
 Blocking Map accounts for about 96.5% of each side's same-p95 full-frame tail;
 controls remain variable and Windows refused scheduler tracing. This identifies
 a wait boundary, without proving GPU duration, scheduler delay or non-regression.
 The canonical workload and all original acceptance gates remain unchanged.
 
-The [indexed-source qualification](../Measurements/RichText/2026-10-18-indexed-source/README.md)
+The [indexed-source qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-indexed-source/README.md)
 retains its 57 ordinary x64 suite runs, six builds and both boundary-timer
 modes in each x64 profile. The fragmented Unicode oracle and concurrent snapshot
 reads pass; the fixed lookup-trial median moves from 6.5310 to 0.7234 ms in Release.
@@ -550,7 +550,7 @@ That observation is descriptive, with no paired performance acceptance. ARM64
 runtime, full Markdown/extensions, incremental preparation and physical IME/AT
 remain open. No consumer pin or gallery content changed.
 
-The [Unicode 17 qualification](../Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
+The [Unicode 17 qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
 retains the original corpus/allocation failures, 57 passing ordinary x64 suite
 runs, six attested builds and all pinned generation inputs. Every profile passes
 the 766-vector corpus and native/embedded behavior cases. The 49,152-unit forward
@@ -558,7 +558,7 @@ walk requests no C++ heap storage; oversized UTF-8 rejection also requests zero
 C++ bytes in both tested cases. The refused ARM64 build-input mutation and its
 two successful recovery builds remain separately recorded.
 
-The [character-command qualification](../Measurements/RichText/2026-10-18-grapheme-commands/README.md)
+The [character-command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-grapheme-commands/README.md)
 adds linear, allocation-free bulk movement and complete-grapheme deletion from
 collapsed interior ACP carets. Explicit noncollapsed source selections retain
 their exact semantics. All 57 ordinary x64 suite runs and six builds pass,
@@ -568,7 +568,7 @@ queries request zero C++ bytes. Original failures and descriptive timing trials
 are retained. The performance hold, incremental preparation,
 remaining engine and manual acceptance gates continue under the plan.
 
-The [persistent-storage qualification](../Measurements/RichText/2026-10-18-piece-tree/README.md)
+The [persistent-storage qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-piece-tree/README.md)
 retains all original resource failures, the intermediate Debug proxy failure and
 the successful six-profile rerun. All 57 ordinary x64 suite runs pass, with zero
 native skips. The fragmented source and capped history retain about 1.21 MB of
@@ -580,7 +580,7 @@ caller buffers after return and verify that document content survives. Exact obs
 edit/read/backward-query timings are in the packet. Incremental/shared
 preparation, full Markdown/extensions and the performance/manual gates stay open.
 
-The [bounded source-change qualification](../Measurements/RichText/2026-10-18-source-changes/README.md)
+The [bounded source-change qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-source-changes/README.md)
 retains all 57 ordinary x64 suite successes, six cross/native build profiles,
 original failures and unchanged fixed operation methods. Source-change queries
 allocate zero C++ bytes; localized transient previews retain about 23 KB in the
@@ -615,7 +615,7 @@ intact. `Clear()` releases its state and rejects content/mapping queries until
 prepared again. This helper still uses v0 syntax. Its original qualification
 preceded the guarded geometry integration below and provides no shared host
 scheduling. No complete Markdown claim follows.
-The [projection-block qualification](../Measurements/RichText/2026-10-18-projection-blocks/README.md)
+The [projection-block qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-projection-blocks/README.md)
 retains the original reuse and Debug noexcept failures, 57 final native suite
 successes, six builds, allocation/retention observations and unchanged operation
 methods. Snapshot slicing now propagates allocation failure. Valid block mapping
@@ -649,14 +649,14 @@ linear in line count. Positioned lines pass all three x64 profiles and ARM64
 cross-builds. The original height/pixel failures stay preserved; no oracle
 or performance threshold is relaxed to accept the new cache.
 
-The [geometry packet](../Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [geometry packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
 retains 57 passing ordinary x64 suite runs, six builds, complete observed
 copy/geometry allocation sweeps, 162 exact WARP image pairs and fixed storage
 bounds. The original Debug point-173 noexcept move failure is preserved. The
 earlier native 13-DIP fixture needed whole-layout compatibility: its descriptive
 128-edit median was 53,381.5 ms versus 51,102.6 ms before, with no controlled timing
 acceptance. New affected Release checks avoid whole work in native and embedded
-13-DIP editors. The [positioned-line packet](../Measurements/RichText/2026-10-18-positioned-lines/README.md)
+13-DIP editors. The [positioned-line packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
 adds 324 exact pixel pairs across default/fractional/large-origin profiles, 57
 ordinary x64 suite successes and all six builds. The unchanged five-trial method
 records medians of 145.909 ms initial preparation and 2,166.98 ms for 128 edits,
@@ -664,7 +664,7 @@ versus the original 522.474/51,102.6 ms. These descriptive shared-host observati
 provide no controlled causal speedup, large-document latency or frame acceptance.
 Universal incremental work and shared preparation remain active work.
 
-The [thread-state follow-up](../Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+The [thread-state follow-up](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
 preserves four same-binary observer controls and 1,280 clear/readback frames.
 All captures match, but 17–25 ms query p95 cannot resolve 0.45–0.57 ms frame p95;
 none of 35 acquisition brackets fits inside a frame. There is no Map wait-reason
@@ -689,7 +689,7 @@ binary. The first collector used the ordinary receipt name and failed after the
 native run passed; the filtered receipt/log and all samples were recovered without
 a native rerun. Both the collector failure and recovery remain retained.
 
-The [WARP policy packet](../Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
+The [WARP policy packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
 retains all 57 ordinary x64 successes, six build profiles, six isolated Debug/ASan
 probes, full tooling/format checks, four native CLI refusals and legacy v1 smoke.
 All 11 changed inputs match their frozen start/end hashes. Flat Project passes
@@ -754,7 +754,7 @@ lossless anchors, explicit UTF-8/UTF-16 mappings where applicable, the accepted
 extensions and full corpus qualification. An HTML output renderer or private
 Microsoft engine does not replace the owned Unicode control.
 
-The [cooperative preparation record](../Measurements/RichText/2026-10-18-cooperative/README.md) retains native/build/pixel/fault/resource evidence, all original failed/interrupted attempts and pinned Ghidra/parser references. This closes the scheduling component; the full engine and original frame-performance HOLD remain open.
+The [cooperative preparation record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md) retains native/build/pixel/fault/resource evidence, all original failed/interrupted attempts and pinned Ghidra/parser references. This closes the scheduling component; the full engine and original frame-performance HOLD remain open.
 
 ## Owned lossless Markdown preparation
 
@@ -836,9 +836,9 @@ Pinned inputs, attribution and offline generators are described in
 styles and existing gallery example remain unchanged; embedded exact-pixel tests
 compare the same preview with optional analysis disabled and enabled.
 
-The [parser-stage qualification](../Measurements/RichText/2026-10-18-markdown-parser/README.md) retains all 57 ordinary x64 suite receipts, six root builds, 324 exact rendering pairs, complete parser failure traces/storage measurements and the original failed fixture. Full grammar/HTML conformance, semantic rendering/editing, extensions and the original platform/performance gates remain open.
+The [parser-stage qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-parser/README.md) retains all 57 ordinary x64 suite receipts, six root builds, 324 exact rendering pairs, complete parser failure traces/storage measurements and the original failed fixture. Full grammar/HTML conformance, semantic rendering/editing, extensions and the original platform/performance gates remain open.
 
-The [M2 block-tree qualification](../Measurements/RichText/2026-10-18-markdown-blocks/README.md)
+The [M2 block-tree qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-blocks/README.md)
 adds 568 independent pinned block-structure/code-content/ordered-start expectations,
 conservative snapshot-based node IDs and native/embedded grammar/Unicode edge tests.
 All 57 ordinary x64 scope obligations, six root builds, eight isolated failure
@@ -896,7 +896,7 @@ that output convention while the syntax retains every wrapper/source delimiter.
 Original standards and expected values are unchanged. Directed core/native/
 embedded tests also cover Unicode and profile boundaries, global reference
 edit/undo/redo, immutable old trees, option identity and deep iterative forests.
-The [sealed M3 qualification](../Measurements/RichText/2026-10-18-markdown-inlines/README.md)
+The [sealed M3 qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md)
 retains 57 fresh complete ordinary x64 scope/profile runs, six root builds,
 12 isolated probes, 324 exact raster pairs and full validation/format checks.
 Both hosts also verify padded-cell identity across edits/undo/redo. Parser-only
@@ -951,7 +951,7 @@ not modify source or add undo entries. Hidden/generated source ranges still
 have no selection glyph rectangles. Empty physical-line deletion uses raw
 Unicode graphemes/whole CRLF; a cell scaffold owns no token to delete.
 
-The [source-caret qualification packet](../Measurements/RichText/2026-10-19-source-caret-sites/README.md)
+The [source-caret qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-source-caret-sites/README.md)
 records the native/embedded scenarios, nine x64 scope passes, three ARM64 builds,
 fault/resource observations and actual sample capture. The separate performance
 HOLD remains open, including the retained clean-frame diagnostic warning.
@@ -964,7 +964,7 @@ ink stays outside source selection ownership and adds no synthetic arrow stop.
 Task checkboxes use `Segoe UI Symbol` for both states, avoiding color-emoji
 fallback and keeping their bullet column, hit box and text stable when toggled.
 This affects owned task glyphs only; body text and list numbers keep their fonts.
-The [task-alignment evidence](../Measurements/RichText/2026-10-19-task-alignment/README.md)
+The [task-alignment evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-task-alignment/README.md)
 includes source/interaction regressions, native captures, profile receipts and
 the unresolved performance diagnostic.
 
@@ -988,7 +988,7 @@ caret, double-clicks select source text, and the control opens no URL/resource.
 HTML lists/tables/images and DOM/CSS recovery/layout remain outside this subset.
 Their supported Markdown counterparts retain native rendering.
 
-The [native presentation qualification packet](../Measurements/RichText/2026-10-19-native-markup/README.md)
+The [native presentation qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-native-markup/README.md)
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
@@ -1083,7 +1083,7 @@ The sample toolbar exercises all these families with the same retained API.
 At the M4e checkpoint, structured UIA was still pending; M4f is described below.
 Extended Markdown, physical IME/AT,
 native ARM64 execution, consumer adoption and the D4c performance HOLD remain
-separate gates. The [M4e evidence packet](../Measurements/RichText/2026-10-19-structural-commands/README.md)
+separate gates. The [M4e evidence packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-structural-commands/README.md)
 records 57 ordinary x64 scope/profile passes, all three ARM64 build-only results,
 allocation-failure and actual transport/client tests, the reviewed toolbar sample
 and gallery, preserved failures and the unresolved performance diagnostic.
@@ -1130,7 +1130,7 @@ an edited, replaced or rebound successor. Reacquire children after a semantic
 structure invalidation. Pure CPU semantics may survive geometry-only changes.
 
 The bounded M4f implementation and M4 component closeout are
-[functionally qualified](../Measurements/RichText/2026-10-20-semantic-uia/README.md):
+[functionally qualified](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md):
 all 57 ordinary x64 scope/profile runs, three ARM64 builds, failure/resource
 probes, validation and formatting pass. Native/embedded client tests are distinct
 from physical Narrator/NVDA/IME and native ARM64 acceptance. This accessibility

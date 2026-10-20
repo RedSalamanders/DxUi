@@ -1,3 +1,0 @@
-rich layout copy allocation-failure sweptRequests=9
-rich document geometry allocation-failure whole=0 sweptRequests=251
-rich document geometry allocation-failure whole=1 sweptRequests=362

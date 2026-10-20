@@ -1,1 +1,0 @@
-- Retain a controlled 48-process Default baseline/candidate study and eight CPU/cache profiles for RichTextEditor source UIA commands, with exact replay, setup-refusal evidence and synchronized performance guidance. The original slowdown is not established consistently; unstable controls and the unqualified policy keep performance acceptance on hold.

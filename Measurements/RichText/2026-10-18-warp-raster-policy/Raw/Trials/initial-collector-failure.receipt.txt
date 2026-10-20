@@ -1,9 +1,0 @@
-{
-  "classification": "Collector failure after successful owned root/native execution; not a native failure",
-  "collectorExitCode": 1,
-  "reason": "The property 'tests' cannot be found on this object. Verify that the property exists.",
-  "incorrectReceipt": "EditorControls-x64-Release.json",
-  "actualReceipt": "EditorControls-x64-Release.filtered.json",
-  "recordedUtc": "2026-10-18T09:36:33.6208580Z",
-  "initialSourceSha256": "5BA836D776B57711F176DBEF904ECFFEE64321CAF92096D4B6D0E5DDAAF44D69"
-}

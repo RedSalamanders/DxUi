@@ -1,7 +1,0 @@
-MSBuild version 18.11.0-1.26427.13+9353559c2 for .NET Framework
-
-  1>Checking Build System
-  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/reports/rich-markdown-inline-20261018/TableReferenceProbe/CMakeLists.txt
-  main.cpp
-  MarkdownTableReferenceProbe.vcxproj -> Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-markdown-inline-20261018\TableReferenceProbe\build\Debug\MarkdownTableReferenceProbe.exe
-  Building Custom Rule Z:/src/DxUi-worktrees/rich-text-core-d2/.build/reports/rich-markdown-inline-20261018/TableReferenceProbe/CMakeLists.txt

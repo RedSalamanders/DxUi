@@ -1,3 +1,0 @@
-MSBuild version 18.11.0-1.26427.13+9353559c2 for .NET Framework
-
-C:\Program Files\Microsoft Visual Studio\18\Insiders\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(468,5): error MSB8013: This project doesn't contain the Configuration and Platform combination of Release|x64. [Z:\src\richedit\build-dxui-x64-AsanDebug\ZERO_CHECK.vcxproj]

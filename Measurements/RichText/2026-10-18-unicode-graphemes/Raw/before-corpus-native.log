@@ -1,5 +1,0 @@
-[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
-[START] EditorControls
-  [START] TestUnicode17DefaultGraphemeCorpus
-Unicode17 vector=1 offset=0 next=2/1 previous=0/0
-FAILED: shared character navigation matches the full independent Unicode 17 corpus at every UTF-16 offset

@@ -1,5 +1,0 @@
-{
-  "exitCode": 1,
-  "target": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\reports\\rich-incremental-preparation-20261018\\tamper-1275641c731e4a32b79aac38eb2e7cbf",
-  "alteration": "One copied README byte XOR 1."
-}

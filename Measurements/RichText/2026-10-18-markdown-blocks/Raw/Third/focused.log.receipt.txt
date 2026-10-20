@@ -1,9 +1,0 @@
-[WATCHDOG] each test may run 120 s; a test that outlives it ends the run with exit code 124
-[START] EditorControls
-  [START] TestLosslessMarkdownOriginalCorporaPreservation
-  [DONE] TestLosslessMarkdownOriginalCorporaPreservation (0.004 s)
-  [START] TestLosslessMarkdownIndependentBlockCorpus
-block profile 0 example 325: expected <ul><li><p></p><ul><li></li></ul><p></p></li></ul> actual <ul><li><ul><li></li></ul></li></ul>
-block profile 1 example 305: expected <ul><li><p></p><ul><li></li></ul><p></p></li></ul> actual <ul><li><ul><li></li></ul></li></ul>
-independent block-section structural expectations: 568; failures: 2
-FAILED: every pinned CommonMark/GFM block-section example matches independent structural HTML expectations

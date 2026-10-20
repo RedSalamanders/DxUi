@@ -1,7 +1,0 @@
-{
-  "classification": "Functional tests of frame containment and statistics only",
-  "reversedIntervalRejected": true,
-  "analyzerSha256": "C6EDD639715761D0E7928917A47FD7719BC50B183F535E029EF4EC96B930FF0D",
-  "syntheticCases": 8,
-  "nearestRankCases": 2
-}

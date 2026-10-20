@@ -1,6 +1,0 @@
-Qualification: x64-Release
-Qualification: x64-Debug
-Qualification: x64-ASan-Debug
-Qualification: ARM64-Debug
-Qualification: ARM64-Release
-Qualification: ARM64-ASan-Debug

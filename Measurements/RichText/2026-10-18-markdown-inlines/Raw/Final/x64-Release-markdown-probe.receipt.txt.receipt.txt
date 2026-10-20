@@ -1,9 +1,0 @@
-{
-  "configuration": "Release",
-  "executable": "Z:\\src\\DxUi-worktrees\\rich-text-core-d2\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
-  "classification": "isolated diagnostic allocation sweep",
-  "argument": "--test-rich-markdown-failures",
-  "buildAttestationIdentity": "f7f031c7ff3c054ac5cd3510e6908df374b631871bd2feef674d81947fff61e0",
-  "sha256": "4CF0CA498E2EEB5B084CAEA1CE6B3AFD4987E5091298B1D31D1EF16A2182E131",
-  "exitCode": 0
-}

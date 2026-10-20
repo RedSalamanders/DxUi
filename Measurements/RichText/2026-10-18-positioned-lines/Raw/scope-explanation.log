@@ -1,3 +1,0 @@
-Native test naming: 106 files checked.
-Test plan: Affected (x64 Debug); scopes: EditorControls
-  Tests/Controls/Scope.Tests.RichDocumentLayout.cpp: owned rich-text core contracts in the EditorControls suite => EditorControls

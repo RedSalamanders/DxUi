@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "outcome": "PASSED",
-  "identity": "c8d8bac9e84657294cbcb81be7a341ad3d41528d49cec278bcdebb8a9167e5e4",
-  "completedUtc": "2026-10-18T01:06:09.6634087Z",
-  "digest": "6e390cc0fe5dcfeb95836a2e942199effc31b3c274e55ad16bf8b4cf80cb9582"
-}

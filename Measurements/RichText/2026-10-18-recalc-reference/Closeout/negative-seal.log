@@ -1,5 +1,0 @@
-Exception: Z:\src\DxUi-worktrees\rich-text-core-d2\.build\reports\rich-ghidra-mcp-session-20261018\tamper-33680c2b9dd940279f37e958068f476a\Verify.ps1:9
-Line |
-   9 |  … Path $target).Hash -cne $Matches[1]){throw 'Reference seal differs.'}
-     |                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Reference seal differs.

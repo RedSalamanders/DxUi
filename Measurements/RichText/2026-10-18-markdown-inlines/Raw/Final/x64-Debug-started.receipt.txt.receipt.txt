@@ -1,5 +1,0 @@
-{
-  "configuration": "Debug",
-  "platform": "x64",
-  "startedUtc": "2026-10-19T02:15:14.1939560Z"
-}
