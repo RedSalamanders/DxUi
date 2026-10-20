@@ -18,6 +18,13 @@ struct RichTextEditor::State
     RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
+    struct SourceEditingSession
+    {
+        RichText::MarkdownSourceRegion region;
+        RichText::SourceSnapshot snapshot;
+    };
+    std::optional<SourceEditingSession> sourceEditing;
+    uint64_t nextSourceEditingSession = 1u;
     std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
     struct NativeGeometryRejection
     {
@@ -92,6 +99,7 @@ RichTextEditor::~RichTextEditor() noexcept
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
+    _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
     _state->nativeGeometryRejected.reset();
     RetireSemanticAccessibility();
@@ -129,7 +137,8 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
     if (_state->mode == mode)
         return;
     RetireSemanticAccessibility();
-    _state->mode            = mode;
+    _state->mode = mode;
+    _state->sourceEditing.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     RetireLayout();
     SelectionChanged();
@@ -147,6 +156,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         return;
     RetireSemanticAccessibility();
     _state->markdown.Clear();
+    _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
@@ -164,8 +174,11 @@ std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProf
 }
 std::shared_ptr<const RichText::MarkdownSyntax> RichTextEditor::GetMarkdownSyntax() const noexcept
 {
-    const auto syntax = _state->markdown.Published();
-    return syntax && _state->markdownProfile && syntax->Revision() == Revision() && syntax->Profile() == *_state->markdownProfile ? syntax : nullptr;
+    const auto syntax       = _state->markdown.Published();
+    const auto region       = syntax ? syntax->SourceRegion() : std::nullopt;
+    const bool scopeMatches = _state->sourceEditing ? region && region->session == _state->sourceEditing->region.session : ! region;
+    return syntax && scopeMatches && _state->markdownProfile && syntax->Revision() == Revision() && syntax->Profile() == *_state->markdownProfile ? syntax
+                                                                                                                                                  : nullptr;
 }
 void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
 {
@@ -180,7 +193,8 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
         _state->accessibilityEpoch = std::make_shared<RichText::Detail::AccessibilityEpoch>();
     RetireSemanticAccessibility();
     _state->markdownRendering = enabled;
-    _state->sourceCaretSite   = RichText::MarkdownNoNode;
+    _state->sourceEditing.reset();
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
     _state->semanticRejected.reset();
     _state->nativeGeometryRejected.reset();
@@ -297,6 +311,86 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
     SetSelection({target->first, target->last});
     return true;
 }
+bool RichTextEditor::CanChangeSemanticSourcePresentation(ControlHost& host) const
+{
+    if (GetHost() != &host || ! IsEnabled() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
+        return false;
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    return true;
+}
+bool RichTextEditor::BeginSemanticSourceEdit(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
+{
+    if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! CanChangeSemanticSourcePresentation(host))
+        return false;
+    const auto node = expected->SourceEditingNode(element);
+    if (! node || _state->sourceEditing)
+        return false;
+    const auto& block = expected->Syntax()->Nodes()[*node].block;
+    auto session      = _state->nextSourceEditingSession++;
+    if (! session)
+        session = _state->nextSourceEditingSession++;
+    _state->sourceEditing.emplace(State::SourceEditingSession{{block.source, session}, Snapshot()});
+    _state->document.SetSelection({block.content.first, block.content.first});
+    SourcePresentationChanged(host);
+    return true;
+}
+bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
+{
+    if (! _state->sourceEditing || ! CanChangeSemanticSourcePresentation(host))
+        return false;
+    _state->sourceEditing.reset();
+    SourcePresentationChanged(host);
+    return true;
+}
+void RichTextEditor::SourcePresentationChanged(ControlHost& host)
+{
+    RetireSemanticAccessibility();
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
+    _state->dragging        = false;
+    _state->markdownCapacityRejected.reset();
+    RetireLayout();
+    const auto lifetime = GetLifetimeToken();
+    const auto binding = _state->bindingRevision, revision = Revision();
+    const auto region = GetSemanticSourceRegion();
+    // A presentation transition cancels its old gesture. Native ReleaseCapture
+    // can re-enter the owner, so finish mutation before crossing that boundary.
+    if (host.GetCapturedControl() == this)
+        host.ReleaseMouseCapture();
+    if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding || Revision() != revision || GetSemanticSourceRegion() != region)
+        return;
+    SelectionChanged();
+}
+std::optional<RichText::MarkdownSourceRegion> RichTextEditor::GetSemanticSourceRegion() const noexcept
+{
+    return _state->sourceEditing ? std::optional(_state->sourceEditing->region) : std::nullopt;
+}
+void RichTextEditor::UpdateSemanticSourceRegion() noexcept
+{
+    if (! _state->sourceEditing)
+        return;
+    auto& editing      = *_state->sourceEditing;
+    const auto current = Snapshot();
+    const auto change  = current.ChangedRangeFrom(editing.snapshot);
+    if (change.kind == RichText::SourceChangeKind::Unchanged)
+        return;
+    // Local recorded edits, previews, cancellation, undo and redo share the
+    // document's bounded scalar/CRLF-safe change metadata. A foreign/outside
+    // replacement retires presentation rather than guessing another owner.
+    auto& range = editing.region.source;
+    if (change.begin < range.first || change.previousEnd > range.last)
+    {
+        _state->sourceEditing.reset();
+        return;
+    }
+    range.last       = range.last - (change.previousEnd - change.begin) + (change.currentEnd - change.begin);
+    editing.snapshot = current;
+}
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
     _state->readOnly = readOnly;
@@ -341,7 +435,7 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
 RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan)
 {
     using namespace RichText;
-    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich)
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
         return MarkdownCommandStatus::Unavailable;
     const auto syntax = GetMarkdownSyntax();
     if (! syntax)
@@ -376,7 +470,7 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
 RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request)
 {
     using namespace RichText;
-    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich)
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
         return MarkdownCommandStatus::Unavailable;
     const auto syntax = GetMarkdownSyntax();
     if (! syntax)
@@ -423,6 +517,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
+        UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
         _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -466,6 +561,17 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput)
 {
+    if (_state->sourceEditing)
+    {
+        const auto range     = _state->sourceEditing->region.source;
+        const auto selection = GetSelection();
+        if (selection.Start() < range.first || selection.End() > range.last)
+        {
+            _state->sourceEditing.reset();
+            RetireSemanticAccessibility();
+            RetireLayout();
+        }
+    }
     _state->pendingLeadSurrogate = 0;
     _state->preferredCaretX.reset();
     _state->revealCaret  = true;
@@ -559,7 +665,10 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     // Parsing resumes its own cursors, without DirectWrite or a
                     // per-control worker. Semantic preparation consumes only a
                     // completed current tree on a later bounded stage.
-                    state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
+                    if (state.sourceEditing)
+                        state.markdown.BeginSourceRegion(Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile);
+                    else
+                        state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
                     state.markdownRequestRevision = Revision();
                     state.markdownRequestActive   = true;
                 }
@@ -569,6 +678,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                     return S_FALSE;
                 state.markdownRequestActive = false;
+                if (state.sourceEditing)
+                    if (const auto syntax = GetMarkdownSyntax())
+                        state.sourceEditing->region = *syntax->SourceRegion();
             }
             catch (const std::length_error&)
             {
@@ -1021,6 +1133,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     {
         if (changed)
         {
+            UpdateSemanticSourceRegion();
             RetireSemanticAccessibility();
             _state->nativeGeometryRejected.reset();
             RetireLayout();
@@ -1265,7 +1378,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     if (! Editable())
         return false;
     const auto selection = GetSelection();
-    if (GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback)
+    if (_state->sourceEditing || GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback)
     {
         // A view-capacity rejection can retain valid CPU semantics while the
         // visible layout is exact source. Never use that hidden atomic-object
@@ -1414,7 +1527,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             _state->pendingLeadSurrogate = 0;
             if (character == L'\r')
             {
-                if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! ModifiersContainShift(modifiers))
+                if (! _state->sourceEditing && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! ModifiersContainShift(modifiers))
                 {
                     RichText::MarkdownCommandRequest request;
                     request.command = RichText::MarkdownCommand::InsertParagraph;
@@ -1471,6 +1584,31 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         if (ModifiersContainAlt(modifiers))
             return false;
+        if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))
+            return EndSemanticSourceEdit(host);
+        if (key == VK_F2 && ! control && ! shift)
+        {
+            if (const auto document = GetAcknowledgedSemanticDocument(host))
+            {
+                const auto caret = GetSelection().caret;
+                auto trailing    = RichText::MarkdownNoNode;
+                for (std::size_t element = 0u; element < document->Elements().size(); ++element)
+                    if (const auto node = document->SourceEditingNode(element))
+                    {
+                        const auto source = document->Syntax()->Nodes()[*node].block.source;
+                        if (caret >= source.first && caret < source.last)
+                            return BeginSemanticSourceEdit(host, document, element);
+                        if (caret == source.last)
+                            trailing = element;
+                    }
+                // A graphic exposes leading/trailing source carets. Its end
+                // remains an entry site before following ordinary text. Prefer
+                // a new object's leading site when two envelopes touch.
+                if (trailing != RichText::MarkdownNoNode)
+                    return BeginSemanticSourceEdit(host, document, trailing);
+            }
+            return false;
+        }
         if (control)
         {
             if (key == VK_RETURN && ! shift)
@@ -1541,7 +1679,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         switch (key)
         {
             case VK_TAB:
-                if (! control && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
+                if (! control && ! _state->sourceEditing && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                 {
                     RichText::MarkdownCommandRequest request;
                     request.command = shift ? RichText::MarkdownCommand::PreviousTableCell : RichText::MarkdownCommand::NextTableCell;

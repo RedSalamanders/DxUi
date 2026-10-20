@@ -22,6 +22,26 @@ std::optional<MarkdownRange> SemanticDocument::NavigationTarget(std::size_t elem
     const auto found = std::lower_bound(navigation_.begin(), navigation_.end(), element, [](const auto& item, auto index) { return item.element < index; });
     return found != navigation_.end() && found->element == element ? std::optional(found->target) : std::nullopt;
 }
+std::optional<std::size_t> SemanticDocument::SourceEditingNode(std::size_t element) const noexcept
+{
+    if (element >= elements_.size())
+        return std::nullopt;
+    const auto node = elements_[element].syntaxNode;
+    if (node == MarkdownNoNode || node >= syntax_->Nodes().size())
+        return std::nullopt;
+    const auto& value = syntax_->Nodes()[node];
+    if (value.firstChild != MarkdownNoNode)
+        return std::nullopt;
+    switch (value.block.kind)
+    {
+        case MarkdownBlockKind::FencedCode:
+        case MarkdownBlockKind::IndentedCode:
+        case MarkdownBlockKind::HtmlBlock:
+        case MarkdownBlockKind::FrontMatter:
+        case MarkdownBlockKind::SourceEditor: return node;
+        default: return std::nullopt;
+    }
+}
 
 std::span<const SemanticDiagnostic> SemanticDocument::Diagnostics() const noexcept
 {
@@ -154,6 +174,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::AtxHeading:
             case MarkdownBlockKind::SetextHeading: return SemanticRole::Heading;
             case MarkdownBlockKind::FencedCode:
+            case MarkdownBlockKind::SourceEditor:
             case MarkdownBlockKind::FootnoteDefinition:
             case MarkdownBlockKind::IndentedCode: return SemanticRole::Code;
             case MarkdownBlockKind::HtmlBlock: return SemanticRole::Html;
@@ -173,6 +194,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::AtxHeading:
             case MarkdownBlockKind::SetextHeading:
             case MarkdownBlockKind::FencedCode:
+            case MarkdownBlockKind::SourceEditor:
             case MarkdownBlockKind::IndentedCode:
             case MarkdownBlockKind::HtmlBlock:
             case MarkdownBlockKind::FrontMatter:
@@ -998,12 +1020,15 @@ SemanticBuilder::SemanticBuilder() noexcept  = default;
 SemanticBuilder::~SemanticBuilder() noexcept = default;
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
 {
-    Begin(std::move(syntax), MarkdownNoNode);
+    const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
+    Begin(std::move(syntax), sourceBlock);
 }
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock)
 {
     if (! syntax)
         throw std::invalid_argument("Semantic preparation requires syntax");
+    if (syntax->SourceRegionNode() != MarkdownNoNode && sourceBlock != syntax->SourceRegionNode())
+        throw std::invalid_argument("Hinted syntax requires its active source presentation");
     if (! IsValidUtf16(syntax->Source()))
         throw std::invalid_argument("Invalid semantic source UTF-16");
     if (syntax->Source().size() > Document::MaximumUnits || syntax->Nodes().size() > SemanticDocument::MaximumElements ||
@@ -1015,8 +1040,9 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::s
             throw std::invalid_argument("Source presentation target is outside the syntax");
         const auto& node = syntax->Nodes()[sourceBlock];
         const auto kind  = node.block.kind;
-        if (node.firstChild != MarkdownNoNode || (kind != MarkdownBlockKind::FencedCode && kind != MarkdownBlockKind::IndentedCode &&
-                                                  kind != MarkdownBlockKind::HtmlBlock && kind != MarkdownBlockKind::FrontMatter))
+        if (node.firstChild != MarkdownNoNode ||
+            (kind != MarkdownBlockKind::FencedCode && kind != MarkdownBlockKind::IndentedCode && kind != MarkdownBlockKind::HtmlBlock &&
+             kind != MarkdownBlockKind::FrontMatter && kind != MarkdownBlockKind::SourceEditor))
             throw std::invalid_argument("Source presentation requires a code, HTML or metadata leaf");
         // Unreferenced/duplicate note declarations are themselves one literal
         // semantic leaf. Their parsed descendants are not rendered targets.

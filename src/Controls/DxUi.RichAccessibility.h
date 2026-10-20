@@ -193,7 +193,7 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto role = record->RichSemantic()->Elements()[element_].role;
-        if (id == UIA_InvokePatternId && record->RichSemantic()->NavigationTarget(element_))
+        if (id == UIA_InvokePatternId && (record->RichSemantic()->NavigationTarget(element_) || record->RichSemantic()->SourceEditingNode(element_)))
             *result = static_cast<IInvokeProvider*>(this);
         else if (id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
@@ -246,7 +246,15 @@ public:
                                                          : document.Map().Display().substr(named.display.first, named.display.last - named.display.first);
                 return SetVariantFromString(result, name);
             }
-            case UIA_HelpTextPropertyId: return SetVariantFromString(result, element.title.empty() ? element.destination : element.title);
+            case UIA_HelpTextPropertyId:
+                if (const auto source = document.SourceEditingNode(element_))
+                {
+                    if (*source == document.SourceBlock())
+                        return SetVariantFromString(result, L"Invoke or press Esc to leave exact source editing. Edits remain undoable.");
+                    if (element.title.empty())
+                        return SetVariantFromString(result, L"Invoke or press F2 to edit exact source.");
+                }
+                return SetVariantFromString(result, element.title.empty() ? element.destination : element.title);
             case UIA_IsControlElementPropertyId:
             case UIA_IsContentElementPropertyId: *result = VariantFromBool(true); return S_OK;
             case UIA_IsKeyboardFocusablePropertyId:
@@ -433,7 +441,7 @@ public:
             return DispatchAccessibilityUiActionToWindowThread(hwnd_, request);
         }
         const auto* record = Record(snapshot);
-        if (! record || ! record->RichSemantic()->NavigationTarget(element_))
+        if (! record || (! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingNode(element_)))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
@@ -443,7 +451,18 @@ public:
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
             return UIA_E_ELEMENTNOTENABLED;
-        return editor->NavigateSemanticElement(*host, record->RichSemantic(), element_) ? S_OK : UIA_E_INVALIDOPERATION;
+        const auto& document = record->RichSemantic();
+        if (const auto source = document->SourceEditingNode(element_))
+        {
+            // Publication/binding/epoch guards precede every owner mutation.
+            // Neither source inspection nor its reverse action takes OS focus.
+            if (editor->GetAcknowledgedSemanticDocument(*host) != document)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            return (*source == document->SourceBlock() ? editor->EndSemanticSourceEdit(*host) : editor->BeginSemanticSourceEdit(*host, document, element_))
+                       ? S_OK
+                       : UIA_E_INVALIDOPERATION;
+        }
+        return editor->NavigateSemanticElement(*host, document, element_) ? S_OK : UIA_E_INVALIDOPERATION;
     }
     catch (const std::bad_alloc&)
     {

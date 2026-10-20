@@ -56,7 +56,10 @@ enum class MarkdownBlockKind
     TableRow,
     TableCell,
     FrontMatter,
-    FootnoteDefinition
+    FootnoteDefinition,
+    // Explicit source-edit presentation hint, never inferred by ordinary
+    // CommonMark/GFM parsing. Its complete physical lines remain opaque.
+    SourceEditor
 };
 struct MarkdownBlock
 {
@@ -198,6 +201,12 @@ struct MarkdownBlockStatistics
     // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
     std::size_t prefixInspectionUnits{}, containerFinalizations{};
 };
+struct MarkdownSourceRegion
+{
+    MarkdownRange source;
+    std::uint64_t session{};
+    bool operator==(const MarkdownSourceRegion&) const = default;
+};
 // Context-free lexical candidates. Inline precedence (code, HTML, links,
 // delimiters) must resolve them before using their values for rich rendering.
 // In particular, an entity-looking candidate inside code is still literal code.
@@ -241,6 +250,10 @@ public:
     std::span<const MarkdownEmptyLine> EmptyLines() const noexcept;
     std::uint64_t DocumentIdentity() const noexcept;
     MarkdownBlockStatistics BlockStatistics() const noexcept;
+    // A hinted syntax is an editing presentation, not a canonical grammar
+    // result. The effective envelope expands to complete physical lines.
+    std::optional<MarkdownSourceRegion> SourceRegion() const noexcept;
+    std::size_t SourceRegionNode() const noexcept;
     const std::vector<MarkdownLexeme>& Lexemes() const noexcept;
     // Dense semantic forest rooted by each leaf's firstInline. Opaque HTML
     // blocks also have an Html value. Retired delimiter/bracket shells are gone.
@@ -257,7 +270,11 @@ public:
     std::size_t LexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing = false) const;
 
 private:
-    explicit MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions);
+    explicit MarkdownSyntax(std::wstring_view source,
+                            std::uint64_t revision,
+                            MarkdownProfile profile,
+                            MarkdownExtensions extensions,
+                            std::optional<MarkdownSourceRegion> sourceRegion);
     std::wstring source_;
     std::uint64_t revision_{};
     MarkdownProfile profile_{};
@@ -272,6 +289,8 @@ private:
     std::vector<MarkdownFootnoteReference> footnoteReferences_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
+    std::optional<MarkdownSourceRegion> sourceRegionRequest_;
+    std::size_t sourceRegionNode_ = MarkdownNoNode;
     friend class MarkdownParser;
 };
 
@@ -321,6 +340,14 @@ public:
                std::uint64_t revision,
                MarkdownProfile profile                      = MarkdownProfile::CommonMark0312,
                std::optional<MarkdownExtensions> extensions = std::nullopt);
+    // One current-model, scalar/CRLF-safe editing envelope. A nonzero session
+    // distinguishes independent scopes even at equal source/revision numbers.
+    // All normal Begin overloads omit this noncanonical presentation hint.
+    void BeginSourceRegion(const SourceSnapshot& source,
+                           std::uint64_t revision,
+                           MarkdownSourceRegion region,
+                           MarkdownProfile profile                      = MarkdownProfile::RichMarkdown,
+                           std::optional<MarkdownExtensions> extensions = std::nullopt);
     MarkdownAdvance Advance(std::size_t maximumWorkUnits = 4096);
     bool HasPendingPreparation() const noexcept;
     std::shared_ptr<const MarkdownSyntax> Published() const noexcept;
@@ -333,7 +360,11 @@ private:
     std::shared_ptr<const MarkdownSyntax> published_;
     std::uint64_t documentIdentity_{}, nextNodeIdentity_ = 1u;
     std::optional<SourceSnapshot> publishedSource_;
-    void BeginSource(
-        std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<SourceChangeRange> change);
+    void BeginSource(std::wstring_view source,
+                     std::uint64_t revision,
+                     MarkdownProfile profile,
+                     MarkdownExtensions extensions,
+                     std::optional<SourceChangeRange> change,
+                     std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt);
 };
 } // namespace DxUi::RichText

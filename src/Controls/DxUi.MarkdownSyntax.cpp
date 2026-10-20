@@ -137,7 +137,8 @@ bool Detail::DecodeMarkdownCharacterReference(std::wstring_view input, std::size
     return CharacterReference(input, first, token);
 }
 
-MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions)
+MarkdownSyntax::MarkdownSyntax(
+    std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<MarkdownSourceRegion> sourceRegion)
     : source_(ValidateSource(source, profile)),
       revision_(revision),
       profile_(profile),
@@ -149,12 +150,23 @@ MarkdownSyntax::MarkdownSyntax(std::wstring_view source, std::uint64_t revision,
       inlines_(0u),
       diagnostics_(0u),
       footnotes_(0u),
-      footnoteReferences_(0u)
+      footnoteReferences_(0u),
+      sourceRegionRequest_(sourceRegion)
 {
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
 {
     return source_;
+}
+std::optional<MarkdownSourceRegion> MarkdownSyntax::SourceRegion() const noexcept
+{
+    if (! sourceRegionRequest_ || sourceRegionNode_ == MarkdownNoNode)
+        return std::nullopt;
+    return MarkdownSourceRegion{nodes_[sourceRegionNode_].block.source, sourceRegionRequest_->session};
+}
+std::size_t MarkdownSyntax::SourceRegionNode() const noexcept
+{
+    return sourceRegionNode_;
 }
 std::uint64_t MarkdownSyntax::Revision() const noexcept
 {
@@ -240,10 +252,14 @@ std::size_t MarkdownSyntax::LexemeSourceAnchor(std::size_t index, std::size_t va
 
 struct MarkdownParser::Preparation
 {
-    explicit Preparation(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions)
+    explicit Preparation(std::wstring_view source,
+                         std::uint64_t revision,
+                         MarkdownProfile profile,
+                         MarkdownExtensions extensions,
+                         std::optional<MarkdownSourceRegion> sourceRegion)
         // The private constructor prevents exposing unparsed mutable shells.
         // shared_ptr owns immediately and deletes on control-block failure too.
-        : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions)))
+        : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions, sourceRegion)))
     {
     }
     std::shared_ptr<MarkdownSyntax> syntax;
@@ -296,6 +312,8 @@ struct MarkdownParser::Preparation
         }
         const auto nodeIndex = identityCursor++;
         auto& node           = syntax->nodes_[nodeIndex];
+        if (node.block.kind == MarkdownBlockKind::SourceEditor)
+            syntax->sourceRegionNode_ = nodeIndex;
         // Reuse the existing resumable final-node pass; never rescan all nodes
         // on a host input/read path just to discover incomplete envelopes.
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
@@ -307,6 +325,9 @@ struct MarkdownParser::Preparation
         }
         auto first = node.block.source.first, last = node.block.source.last;
         bool mapped = previous && ! discardOldIdentities;
+        if (node.block.kind == MarkdownBlockKind::SourceEditor && (! previous || ! previous->sourceRegionRequest_ || ! syntax->sourceRegionRequest_ ||
+                                                                   previous->sourceRegionRequest_->session != syntax->sourceRegionRequest_->session))
+            mapped = false;
         // Only unchanged prefix/suffix and a single enclosing edited node map.
         // The ancestry check prevents identities migrating between containers.
         if (first >= commonNewEnd && previous)
@@ -350,7 +371,7 @@ struct MarkdownParser::Preparation
         if (! node.identity)
             node.identity = nextIdentity++;
     }
-    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_};
+    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_, syntax->sourceRegionRequest_};
     Detail::MarkdownInlines inlines{syntax->source_,
                                     syntax->profile_,
                                     syntax->extensions_,
@@ -514,7 +535,7 @@ void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision,
     const auto enabled = ValidateExtensions(profile, extensions);
     const auto change  = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
     if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile &&
-        published_->Extensions() == enabled)
+        published_->Extensions() == enabled && ! published_->sourceRegionRequest_)
     {
         Cancel();
         publishedSource_ = source;
@@ -527,12 +548,35 @@ void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision,
     else
         publishedSource_ = source;
 }
-void MarkdownParser::BeginSource(
-    std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<SourceChangeRange> change)
+void MarkdownParser::BeginSourceRegion(
+    const SourceSnapshot& source, std::uint64_t revision, MarkdownSourceRegion region, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+{
+    if (! region.session)
+        throw std::invalid_argument("Source editing requires a nonzero session");
+    if (region.source.first > region.source.last || ! source.IsBoundary(region.source.first) || ! source.IsBoundary(region.source.last))
+        throw std::out_of_range("Invalid source editing envelope");
+    const auto enabled = ValidateExtensions(profile, extensions);
+    const auto change  = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    const auto flat    = source.Text();
+    BeginSource(flat, revision, profile, enabled, change, region);
+    if (preparation_)
+        preparation_->snapshot = source;
+    else
+        publishedSource_ = source;
+}
+void MarkdownParser::BeginSource(std::wstring_view source,
+                                 std::uint64_t revision,
+                                 MarkdownProfile profile,
+                                 MarkdownExtensions extensions,
+                                 std::optional<SourceChangeRange> change,
+                                 std::optional<MarkdownSourceRegion> sourceRegion)
 {
     ValidateProfile(profile);
     const auto same = [&](const auto& syntax)
-    { return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions && syntax->Source() == source; };
+    {
+        return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions && syntax->Source() == source &&
+               syntax->sourceRegionRequest_ == sourceRegion;
+    };
     const auto sameChange = [](const auto& a, const auto& b)
     { return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd); };
     if (preparation_ && same(preparation_->syntax) && sameChange(preparation_->change, change))
@@ -542,7 +586,7 @@ void MarkdownParser::BeginSource(
         Cancel();
         return;
     }
-    auto staged         = std::make_unique<Preparation>(source, revision, profile, extensions);
+    auto staged         = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion);
     staged->change      = change;
     const auto document = documentIdentity_ ? documentIdentity_ : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
     staged->SetPrevious(published_, document, nextNodeIdentity_);

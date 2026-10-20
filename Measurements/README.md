@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [Retained block source editing, 2026-10-20](RichText/2026-10-20-source-editing/README.md):
+  focused x64 Debug/native/embedded source editing, composition/UIA guards,
+  2,350 allocation points, preserved failure probes and actual application captures.
+  Final profiles, physical/platform/resources and D4c HOLD remain open.
+
 - [Guarded rich geometry, 2026-10-18](RichText/2026-10-18-retained-geometry/README.md):
   57 ordinary x64 suite passes, six builds, 162 exact WARP pairs, observed allocation
   schedules and bounded storage; original geometry/pixel/Debug failures retained.

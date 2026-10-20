@@ -1435,6 +1435,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichTextStateReplacementTests::Core(Check);
     TestRichRecordedWholeTextStorageBudget();
     TestEmbeddedLocalizedRecordedServiceCommit(gpu);
+    TestEmbeddedRetainedObjectSourceEditing(gpu);
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichSourceChangeAllocationBudget();
@@ -1457,6 +1458,7 @@ __declspec(noinline) static int RunFunctionalTests()
     MarkdownSourceCorrelationTests::ParserIdentities(Check);
     SemanticSourceBlockTests::Core(Check);
     SemanticSourceBlockTests::Geometry(Check);
+    SemanticSourceBlockTests::SourceRegions(Check);
     SemanticDiagramTests::Geometry(Check);
     SemanticDiagramTests::PositionedRaster(Check);
     TestEmbeddedDiagramViewCapacityRecovery(gpu);

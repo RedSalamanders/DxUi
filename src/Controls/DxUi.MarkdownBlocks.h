@@ -35,6 +35,17 @@ class MarkdownBlocks
         std::vector<MarkdownRange> cells;
     };
     std::optional<TableRowPreparation> tableRow_;
+    std::optional<MarkdownSourceRegion> sourceRegion_;
+    bool sourceRegionStarted_{};
+
+    void StartSourceRegion(std::size_t bodyEnd)
+    {
+        CloseLeaf();
+        leaf_                = Add(Kind::SourceEditor, open_.back());
+        sourceRegionStarted_ = true;
+        Content(leaf_, Cursor{source_, lineFirst_, bodyEnd}, bodyEnd);
+        Extend();
+    }
 
     static bool Space(wchar_t c) noexcept
     {
@@ -538,7 +549,8 @@ class MarkdownBlocks
         if (nodes_[node].lines.size() == 1u)
             block.content.first = cursor.offset;
         block.content.last = bodyEnd;
-        if (block.kind == Kind::FencedCode || block.kind == Kind::IndentedCode || block.kind == Kind::HtmlBlock || block.kind == Kind::FrontMatter)
+        if (block.kind == Kind::FencedCode || block.kind == Kind::IndentedCode || block.kind == Kind::HtmlBlock || block.kind == Kind::FrontMatter ||
+            block.kind == Kind::SourceEditor)
             block.content.last = lineEnd_;
         block.source.last = lineEnd_;
     }
@@ -884,7 +896,8 @@ public:
                    MarkdownProfile profile,
                    std::vector<MarkdownNode>& nodes,
                    std::vector<MarkdownEmptyLine>& emptyLines,
-                   MarkdownExtensions extensions)
+                   MarkdownExtensions extensions,
+                   std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt)
         : source_(source),
           nodes_(nodes),
           emptyLines_(emptyLines),
@@ -892,6 +905,7 @@ public:
           tails_(0u),
           previousSibling_(0u),
           blank_(0u),
+          sourceRegion_(sourceRegion),
           sourceProfile_(profile),
           extensions_(extensions)
     {
@@ -916,6 +930,26 @@ public:
     {
         lineFirst_ = first;
         lineEnd_   = end;
+        // The editing envelope takes precedence over every grammar rule,
+        // including its first line. Preserve the already open surrounding
+        // containers, but never interpret typed fences, prefixes, definitions
+        // or metadata inside the raw scope. A broken fence must stay repairable.
+        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::SourceEditor)
+        {
+            if (first < sourceRegion_->source.last)
+            {
+                Content(leaf_, Cursor{source_, first, bodyEnd}, bodyEnd);
+                Extend();
+                return;
+            }
+            CloseLeaf();
+        }
+        if (sourceRegion_ && ! sourceRegionStarted_ && sourceRegion_->source.first >= first &&
+            (sourceRegion_->source.first < end || (sourceRegion_->source.first == end && end == source_.size() && bodyEnd == end)))
+        {
+            StartSourceRegion(bodyEnd);
+            return;
+        }
         if (FrontMatterLine(first, bodyEnd, end))
             return;
         lastOtherMarker_.fill(MarkdownNoNode);
@@ -1253,9 +1287,17 @@ public:
     }
     void Finish()
     {
-        const bool trailingInLeaf = leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
-                                    (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode ||
-                                     nodes_[leaf_].block.kind == Kind::HtmlBlock || nodes_[leaf_].block.kind == Kind::FrontMatter);
+        if (sourceRegion_ && ! sourceRegionStarted_)
+        {
+            // Empty documents and the insertion line after a final EOL have
+            // no Line event. Retain a real zero-span editable leaf at EOF.
+            lineFirst_ = lineEnd_ = source_.size();
+            StartSourceRegion(source_.size());
+        }
+        const bool trailingInLeaf =
+            leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
+            (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode || nodes_[leaf_].block.kind == Kind::HtmlBlock ||
+             nodes_[leaf_].block.kind == Kind::FrontMatter || nodes_[leaf_].block.kind == Kind::SourceEditor);
         CloseLeaf();
         for (const auto container : open_)
         {

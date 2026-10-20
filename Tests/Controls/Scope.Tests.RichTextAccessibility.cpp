@@ -1288,9 +1288,9 @@ void SemanticFrontMatterDiagnostics(bool embedded)
         Require(client.TryDescribe(child, retiredInfo) == UIA_E_ELEMENTNOTAVAILABLE, "actual foreign UIA queries reject an older metadata epoch");
         fixture.Publish();
         const auto replacement = FindClientPart(client, editor, UIA_GroupControlTypeId);
-        Require(replacement && client.StringProperty(replacement, UIA_HelpTextPropertyId).empty() &&
+        Require(replacement && client.StringProperty(replacement, UIA_HelpTextPropertyId) == L"Invoke or press F2 to edit exact source." &&
                     fixture.editor->GetMarkdownSyntax()->Diagnostics().empty() && fixture.editor->GetText() == closed && ! fixture.editor->CanUndo(),
-                "closing metadata removes its diagnostic without rewriting source or fabricating history");
+                "closing metadata replaces its diagnostic with source-entry help without rewriting source or fabricating history");
         metadata        = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
         const auto held = fixture.editor->GetSemanticDocument();
         fixture.editor->SetViewMode(RichText::ViewMode::Source);
@@ -1392,6 +1392,87 @@ void SemanticDiagramAlternatives(bool embedded)
     fixture.Publish();
     Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "restoring presentation cannot resurrect an old graphic provider");
+}
+void SemanticObjectSourceEditing(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring fence = L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
+    const auto source        = fence + L"\r\nafter **bold**\r\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto image  = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(image->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "diagram source-edit Invoke pattern");
+    Require(pattern != nullptr, "source-bearing diagram advertises exact source entry");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "diagram source-entry action");
+    const auto revision    = fixture.editor->Revision();
+    auto* focus            = fixture.controls->GetFocusControl();
+    std::atomic<bool> done = false;
+    HRESULT dispatched     = E_FAIL;
+    std::jthread worker([&]
+    {
+        dispatched = invoke->Invoke();
+        done.store(true, std::memory_order_release);
+    });
+    const auto deadline = GetTickCount64() + 12000u;
+    while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    {
+        fixture.Pump();
+        Sleep(1u);
+    }
+    Require(done.load(std::memory_order_acquire), "source Invoke owner dispatch completes within the independent deadline");
+    worker.join();
+    Require(dispatched == (embedded ? RPC_E_WRONG_THREAD : S_OK),
+            "native source actions dispatch to their owner; embedded actions reject foreign-thread mutation");
+    if (embedded)
+        RequireSucceeded(invoke->Invoke(), "owner-thread embedded source entry");
+    Require(fixture.editor->GetSemanticSourceRegion() && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
+                ! fixture.editor->CanUndo() && fixture.controls->GetFocusControl() == focus,
+            "source Invoke changes presentation without source/history or focus mutation");
+    wil::unique_variant retired;
+    Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE && invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE,
+            "entry immediately retires old semantic providers before new geometry or a new snapshot is published");
+    fixture.Publish();
+    auto raw = FindNamedSemanticPart(*simple.get(), fence);
+    Require(raw != nullptr, "active source editor has an independently reachable named semantic child");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text->RangeFromChild(raw.get(), range.put()), "raw object source range");
+    Require(ReadTextRangeText(*range.get(), -1, "raw source object text") == fence, "raw source UIA range includes exact fences and CRLF");
+    pattern.reset();
+    RequireSucceeded(raw->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "raw editor finish Invoke pattern");
+    Require(pattern != nullptr, "the active source child advertises a reverse presentation action");
+    invoke.reset();
+    RequireSucceeded(pattern.query_to(invoke.put()), "raw editor finish action");
+    fixture.editor->SetEnabled(false);
+    fixture.Publish();
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTENABLED, "disabled raw source actions cannot mutate owner presentation");
+    fixture.editor->SetEnabled(true);
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    RequireSucceeded(invoke->Invoke(), "read-only source inspection can finish through UIA");
+    Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->GetText() == source && ! fixture.editor->CanUndo() &&
+                raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "finishing source inspection retires its raw provider without rewriting source");
+    fixture.Publish();
+    image = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    pattern.reset();
+    RequireSucceeded(image->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "restored image source pattern");
+    invoke.reset();
+    RequireSucceeded(pattern.query_to(invoke.put()), "restored image source action");
+    RequireSucceeded(invoke->Invoke(), "enabled read-only image permits source inspection");
+    fixture.Publish();
+    raw           = FindNamedSemanticPart(*simple.get(), fence);
+    auto* adapter = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    adapter->RebindForTest(nullptr);
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "detachment immediately retires a source editor provider");
+    adapter->RebindForTest(fixture.controls);
+    fixture.Publish();
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "rebinding cannot resurrect old source presentation providers");
 }
 void SemanticFootnoteNavigation(bool embedded)
 {
@@ -1741,6 +1822,95 @@ void SemanticActionComposition(bool nativeAdapter, bool footnote = false)
     fixture.Publish();
     Require(fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "composition cancellation restores exact CRLF task source");
 }
+void SemanticSourceActionComposition(bool nativeAdapter)
+{
+    using namespace RichText;
+    for (const bool alreadyEditing : {false, true})
+    {
+        // Native IMM on a borrowed surface uses the production text store
+        // without taking OS focus. Physical HWND IME remains a separate gate.
+        RichAccessibilityFixture fixture(true, true, true);
+        if (nativeAdapter)
+        {
+            fixture.controls->SetTextInputBackend(TextInputBackend::Native);
+            fixture.controls->SetFocusControl(fixture.editor, false);
+        }
+        fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        const std::wstring source = L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
+        const auto insertion      = source.find(L'A');
+        fixture.editor->SetText(source);
+        fixture.editor->SetSelection({insertion, insertion});
+        fixture.Publish();
+        if (alreadyEditing)
+        {
+            Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "enter source before composition");
+            fixture.editor->SetSelection({insertion, insertion});
+            fixture.Publish();
+        }
+        if (nativeAdapter)
+        {
+            bool handled = false;
+            fixture.controls->HandleMessage(nullptr, WM_IME_STARTCOMPOSITION, 0, 0, handled);
+            Require(handled, "native source action composition starts");
+            NativeTextInputImePayload payload;
+            payload.hasCompositionString = true;
+            payload.compositionString    = L"\u4eee";
+            fixture.controls->DebugSetNativeTextInputImePayloadForTest(payload);
+            fixture.controls->HandleMessage(nullptr, WM_IME_COMPOSITION, 0, GCS_COMPSTR, handled);
+            Require(handled, "native source preview uses the production adapter");
+        }
+        else
+        {
+            EmbeddedTextInputSnapshot snapshot;
+            RequireSucceeded(fixture.view.ReadTextInput(snapshot), "read object source composition base");
+            auto preview = snapshot.state;
+            preview.text.insert(insertion, L"\u4eee");
+            preview.caretIndex = insertion + 1u;
+            preview.selectionAnchorIndex.reset();
+            preview.compositionStartIndex = insertion;
+            preview.compositionEndIndex   = insertion + 1u;
+            RequireSucceeded(fixture.view.ApplyTextInput(snapshot.revision, preview, EmbeddedTextInputAction::Preview), "embedded raw object preview");
+        }
+        fixture.Publish();
+        const auto semantic = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(semantic != nullptr, "composing object retains acknowledged literal/native semantics");
+        auto simple = fixture.Simple();
+        wil::com_ptr_nothrow<IRawElementProviderSimple> object;
+        for (std::size_t i = 0u; i < semantic->Elements().size(); ++i)
+            if (semantic->SourceEditingNode(i))
+            {
+                object = FindNamedSemanticPart(*simple.get(), semantic->Elements()[i].name);
+                break;
+            }
+        Require(object != nullptr, "composing source action remains a reachable fragment");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(object->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "composing source action pattern");
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        RequireSucceeded(pattern.query_to(invoke.put()), "composing source action");
+        const auto previewSource = fixture.editor->GetText();
+        Require(invoke->Invoke() == UIA_E_INVALIDOPERATION && ! fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u) &&
+                    fixture.editor->GetSemanticSourceRegion().has_value() == alreadyEditing && fixture.editor->GetText() == previewSource &&
+                    ! fixture.editor->CanUndo(),
+                "active native/embedded composition blocks both source entry and exit without source/history mutation");
+        if (nativeAdapter)
+        {
+            bool handled = false;
+            fixture.controls->HandleMessage(nullptr, WM_IME_ENDCOMPOSITION, 0, 0, handled);
+            Require(handled, "native object source preview cancels");
+        }
+        else
+        {
+            EmbeddedTextInputSnapshot snapshot;
+            RequireSucceeded(fixture.view.ReadTextInput(snapshot), "read object cancellation identity");
+            RequireSucceeded(fixture.view.ApplyTextInput(snapshot.revision, snapshot.state, EmbeddedTextInputAction::Cancel),
+                             "cancel embedded object source preview");
+        }
+        fixture.Publish();
+        Require(fixture.editor->GetText() == source && ! fixture.editor->CanUndo() && fixture.editor->GetSemanticSourceRegion().has_value() == alreadyEditing,
+                "composition cancellation restores exact source and its prior presentation session");
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "source presentation action works again after composition cancellation");
+    }
+}
 void SemanticCompositionBindingAndRetirement(bool embedded)
 {
     SemanticActionComposition(! embedded);
@@ -1821,6 +1991,22 @@ void TestRichTextAccessibilityEmbeddedDiagramAlternatives()
 {
     EmbeddedCase(SemanticDiagramAlternatives);
 }
+void TestRichTextAccessibilityWindowObjectSourceEditing()
+{
+    SemanticObjectSourceEditing(false);
+}
+void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
+{
+    EmbeddedCase(SemanticObjectSourceEditing);
+}
+void TestRichTextAccessibilityWindowSourceEditingComposition()
+{
+    EmbeddedCase([](bool) { SemanticSourceActionComposition(true); });
+}
+void TestRichTextAccessibilityEmbeddedSourceEditingComposition()
+{
+    EmbeddedCase([](bool) { SemanticSourceActionComposition(false); });
+}
 void TestRichTextAccessibilityWindowFootnoteNavigation()
 {
     SemanticFootnoteNavigation(false);
@@ -1844,6 +2030,10 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedObjectSourceEditing);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceEditingComposition);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceEditingComposition);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);

@@ -82,7 +82,11 @@ Selection composites that backing with the resolved selected surface, including
 high contrast. Intrinsic diagrams keep readable scale: a view/font capacity
 rejection shows exact editable source, while unsupported syntax keeps a literal
 code leaf and explanation. The populated native gallery demonstrates both paths
-in every theme; dedicated object source-entry actions remain separate work.
+in every theme. F2/UIA Invoke presents an object's exact source using the existing
+monospace input typography and caret. Other paragraphs keep semantic rendering.
+Esc/F2/Ctrl+Enter finishes presentation; source edits keep ordinary undo/redo.
+The sample's caption explains entry/exit. No palette or resting gallery token
+changes accompany this interaction; math/inline object entry follows M5 objects.
 The RichMarkdown footnote variant adds superscript references, numbered styled
 bodies and repeated underlined backlinks using existing body/selected/disabled
 ink. A footer has its own root indentation; original declaration-list gutters

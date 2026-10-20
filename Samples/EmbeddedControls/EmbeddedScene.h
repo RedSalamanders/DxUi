@@ -25,9 +25,9 @@ struct EmbeddedScene
         auto root = std::make_unique<DxUi::Panel>();
         if (richText)
         {
-            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - Enter continues; Tab edits lists/tables; Ctrl+B/I; Ctrl+Z/Y");
+            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - F2 edits object source; Esc finishes; Ctrl+Z/Y undo/redo");
             caption->SetBounds(D2D1::RectF(24, 8, 950, 32));
-            auto* status = root->AddChild<DxUi::Label>(L"Select text, a list item or a table cell, then choose an action.");
+            auto* status = root->AddChild<DxUi::Label>(L"Click a diagram or code block and press F2. Select ordinary text for formatting actions.");
             status->SetBounds(D2D1::RectF(24, 34, 950, 58));
             rich = root->AddChild<DxUi::RichTextEditor>();
             rich->SetBounds(D2D1::RectF(24, 144, 950, 690));

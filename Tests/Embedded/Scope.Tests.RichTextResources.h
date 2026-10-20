@@ -6,6 +6,7 @@
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
+#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 
 static void TestFootnoteBlockAllocationFailures(bool trace = false)
@@ -118,7 +119,7 @@ static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
         while (builder.HasPendingPreparation())
             builder.Advance(7u);
     };
-    std::size_t semanticTotal{}, geometryTotal{};
+    std::size_t semanticTotal{}, geometryTotal{}, parserTotal{};
     const auto sweep = [&](auto make, auto request, auto finish, auto pending, auto key, auto verify, auto clear)
     {
         auto measured = make();
@@ -178,6 +179,38 @@ static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
         }
         return requests;
     };
+    for (const auto source : {L"", L"~~broken\r\n[^n]: **&amp;**\r\n---\r\n", L"> ```\nmissing prefix\n> ```\n"})
+    {
+        const Document model(source);
+        const auto finishParser = [](auto& parser)
+        {
+            while (parser.HasPendingPreparation())
+                parser.Advance(1u);
+        };
+        parserTotal += sweep(
+            [&]
+        {
+            auto parser = std::make_unique<MarkdownParser>();
+            parser->Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+            finishParser(*parser);
+            parser->Begin(L"pending", 2u, MarkdownProfile::RichMarkdown);
+            return parser;
+        },
+            [&](auto& parser) { parser.BeginSourceRegion(model.Snapshot(), model.Revision(), {{0u, model.Length()}, 19u}); },
+            finishParser,
+            [](const auto& parser) { return parser.HasPendingPreparation(); },
+            [](const auto& parser) { return std::pair{parser.Published().get(), std::uint64_t{}}; },
+            [&](const auto& parser)
+        {
+            Check(parser.Published()->SourceRegion() == MarkdownSourceRegion{{0u, model.Length()}, 19u},
+                  "opaque parser source retry restores the requested region, including empty EOF and malformed syntax");
+        },
+            [](auto& parser)
+        {
+            parser.Cancel();
+            parser.Clear();
+        });
+    }
     for (const auto scenario : {0u, 2u, 4u, 6u, 8u, 13u})
     {
         const auto syntax = RichSemanticDocumentTests::Parse(SemanticSourceBlockTests::cases[scenario], MarkdownProfile::RichMarkdown);
@@ -252,8 +285,8 @@ static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
             geometry.Clear();
         });
     }
-    std::cout << "scoped source failure semanticScenarios=6 sweptRequests=" << semanticTotal << " geometryScenarios=2 sweptRequests=" << geometryTotal
-              << " preservedPublication=1 preservedPendingBegin=1 retry=1 retirementAllocations=0\n";
+    std::cout << "scoped source failure parserScenarios=3 sweptRequests=" << parserTotal << " semanticScenarios=6 sweptRequests=" << semanticTotal
+              << " geometryScenarios=2 sweptRequests=" << geometryTotal << " preservedPublication=1 preservedPendingBegin=1 retry=1 retirementAllocations=0\n";
 }
 
 static void TestSemanticDiagramAllocationFailures(bool trace = false)
@@ -1179,6 +1212,20 @@ static void TestEmbeddedLocalizedRecordedServiceCommit(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(owned));
     RichTextStateReplacementTests::Service(*editor, view.Controls(), Check);
     Check(! view.Controls().GetHwnd(), "recorded embedded import needs no control HWND");
+}
+static void TestEmbeddedRetainedObjectSourceEditing(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source editing borrowed device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "source editing embedded owner");
+    auto owned   = std::make_unique<SemanticSourceBlockTests::SourceEditingEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    SemanticSourceBlockTests::Retained(
+        *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "source editing owner preparation"); }, Check);
+    Check(! view.Controls().GetHwnd(), "retained source editing creates no embedded control HWND");
 }
 static void TestEmbeddedDiagramSelectionRaster(GraphicsFixture& gpu)
 {

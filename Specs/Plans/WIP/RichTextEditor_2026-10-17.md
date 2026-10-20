@@ -88,6 +88,10 @@ tests and owning contract/docs updates before completion):
   Mermaid subset; smaller deployment and reduced diagram compatibility. No
   JavaScript/headless-browser helper is to be deployed. Pin the supported native
   grammar and retain unsupported diagrams as exact editable source.
+  Owner addition (2026-10-20): display decoded local images and paste image file
+  paths as displayed Markdown images with destinations relative to an explicit
+  document location. M5g owns that source/resource/clipboard integration; current
+  images still use atomic alt-text presentation.
 - [ ] M6: Reconcile raw NUL admission with Document/codecs/clipboard/TSF/UIA;
   qualify cancellation/storage/pathological work and real capacity targets before
   raising the current 65,536-unit limit. Bound generated table padding separately:
@@ -2823,7 +2827,7 @@ development checks from final frozen qualification:
       checks. The preserved independent raster reproducer differs at 945/1,012
       label pixels before repair and zero after a final opaque-backed label pass.
       The registered native/embedded regression now passes in canonical Iteration2.
-  - [ ] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
+  - [x] M5d.3: Integrate source-bearing diagram objects, error/alt presentation,
     source editing and UIA with M5e; graph acceptance alone is not rendered support.
     - [x] M5d.3a: Retained source-backed native diagrams, typed Unicode diagnostics,
       atomic source ownership, budgeted SDK positioning, exact-view fallback and
@@ -2831,7 +2835,8 @@ development checks from final frozen qualification:
       Root/container/footer source provenance, selection colors, raw fallback
       deletion, copy/cut/undo and width recovery have registered tests. All five
       gallery themes and the populated supplied-device sample are reviewed.
-    - [ ] M5d.3b: Object source-entry editing/actions remain with M5e. Final
+    - [x] M5d.3b: Native diagram block source-entry editing/actions pass the
+      focused M5e.2a qualification. Final
       runtime/build profiles and broader resources/device loss remain M5f/M5d.2c.
     The first canonical build exposed a test-only nonexistent clipboard method;
     its failure and exact source are preserved. A separate actual-pixel probe
@@ -2905,6 +2910,73 @@ unchanged because this CPU service is not yet connected to editor painting.
   - [ ] M5e.2: Connect retained entry/exit/caret commands and editable source scopes
     to document transactions, source-range tracking through edits and IME,
     cancellation/staleness and guarded native/embedded UIA source actions.
+    - [x] M5e.2a: Retained code/HTML/metadata block editing has focused x64 Debug
+      native/embedded qualification. Explicit opaque physical-line parser
+      hints survive temporary fence/body damage, scalar/CRLF input and empty
+      EOF. F2/UIA enters; Esc/F2/Ctrl+Enter finishes without undoing committed
+      history. Source edits, previews/cancellation and undo/redo rebase the same
+      session; outside selection or replacement retires it. Read-only inspection,
+      composition refusal and immediate UIA retirement retain host guards.
+      Private pure-parser/semantic/native-caret and borrowed-WARP retained
+      diagnostics pass. Initial empty-scaffold and outside-reference test-oracle
+      failures are preserved under `.build/reports/rich-source-region-m5e2-20261020`.
+      Native/embedded composition/UIA, observed allocation schedules, ordinary
+      scopes, validators/format and frozen canonical identity pass below. Final
+      profile/resource/physical acceptance remains M5f and the existing gates.
+      Canonical Iteration1 builds in 5:11; all 30 directed native checks, four
+      new UIA/composition cases and 2,350 parser/semantic/geometry/graph allocation
+      points pass with exact before/after input/artifact identity. Validators,
+      tooling and pinned formatting pass. An independent captured-drag probe
+      still fails: Esc leaves source presentation without releasing capture.
+      Preserve that failed probe; entry/exit now cancels its old gesture with
+      post-release lifetime/binding guards and shared native/embedded regression.
+      Iteration2 and ordinary affected scopes must qualify that repair.
+      Iteration2 builds in 5:20 and passes all 30 directed checks, 2,350
+      allocation points and complete EditorControls (56.294 s). Full
+      Accessibility stops on an older metadata HelpText assertion: closed
+      metadata now has source-entry help rather than an empty help string.
+      Preserve that failed full run. The updated actual-client oracle requires
+      the exact F2 help, no syntax diagnostic, exact source and no fabricated
+      history. Existing missing-fence diagnostics still take priority unchanged.
+      Iteration3 must finish ordinary scopes and identity qualification. Two
+      documentation example paths were also rejected as links; retain the
+      failed validator receipt and use fenced Markdown for the example.
+      Iteration3 builds in 5:10; all 30 directed checks, 2,350 allocation points,
+      Foundation, full EditorControls (58.349 s), Accessibility (122.742 s) and
+      Embedded (443,607 checks) pass with exact before/after v2 identity.
+      The 1,000 warm composites take 8,296 us with zero tracked C++ allocations;
+      this is unpaired diagnostic evidence, not performance acceptance. Full
+      validation/tooling and pinned format pass. Actual headless EmbeddedScene
+      rendered/source-editing captures are reviewed without desktop activation.
+      A separate frozen-library probe exposes F2 refusal at an object's trailing
+      ACP before a following paragraph. Preserve `TrailingEntryProbe`; entry now
+      prefers a containing/leading object, then uses a preceding trailing object
+      fallback. Shared tests cover every existing raw block case, adjacent
+      objects and entry/exit before preparation. Iteration4 qualifies that repair.
+      Iteration4 builds in 5:00. All 37 recorded runs pass: 30 directed checks,
+      2,350 allocation points, full Foundation/EditorControls/Accessibility/
+      Embedded and recorded-source/history probes. EditorControls takes
+      47.856 s, Accessibility 118.927 s and Embedded reports 443,652 checks.
+      The 1,000 warm composites take 7,937 us with zero tracked C++ allocations;
+      this is unpaired diagnostic evidence and does not clear D4c HOLD. Full
+      validation/tooling, pinned formatting and frozen before/after v2 identity
+      pass. Actual current-library sample captures match the reviewed rendered
+      and source-editing images byte for byte. The focused packet is
+      `.build/reports/rich-source-region-m5e2-20261020/Iteration4`;
+      failures and superseded packets remain beside it.
+      The reviewed portable component receipt and application captures are
+      [retained here](../../../Measurements/RichText/2026-10-20-source-editing/README.md).
+      Gallery regeneration/publishing is reviewed; differences in three sheets
+      affect only existing Slider touch-pressed/Tooltip hover variants, outside
+      RichTextEditor. Preserve new sheets/difference receipts privately and keep
+      existing published sheets rather than include unrelated visual updates.
+    - [ ] M5e.2b: Connect accepted math/inline objects after M5c implementation;
+      the block component does not narrow or close that target.
+    - [ ] M5e.2c (admission follow-through): Explicitly reject noncanonical
+      source-region hints in pure Markdown command planning, before staging,
+      with inside/outside-region tests. Retained commands already refuse active
+      source editing; pure callers must obtain ordinary syntax for structural
+      commands. Complete this guard with the next native/embedded code slice.
   - [ ] M5e.3: Complete generated backlink keyboard traversal, note-aware
     structural commands, diagnostic selection and the complex sample/gallery.
     Math/inline object entry follows the accepted M5c objects without narrowing
@@ -2913,6 +2985,37 @@ unchanged because this CPU service is not yet connected to editor painting.
   observed valid/invalid allocation schedules, resources/device loss, all required
   local build/runtime profiles, validators/format and reviewed themed captures.
   Preserve failures and the D4c HOLD; physical/platform/consumer gates stay distinct.
+- [ ] M5g (owner addition, 2026-10-20): Display decoded images and paste image
+  file paths as displayed Markdown images with relative file destinations. The owner
+  explicitly selected image syntax rather than a text-only link. This adds
+  raster display beyond the existing atomic alt-text presentation.
+  - [ ] M5g.1: Add explicit document file/base location and pure Unicode relative
+    destination construction; paste quoted Unicode text paths and Explorer file
+    paths as one source transaction. Preserve filename spelling and Markdown/URI
+    escaping, selection/history and callback/stale clipboard guards. Define
+    unsaved/cross-volume fallback explicitly; never invent a document directory
+    from the process working directory or silently copy/move an image.
+    A private C++ path prototype passes eight independent path/Unicode/escaping
+    vectors and five rejection cases. Failure injection exposed a terminating
+    MSVC Debug std::filesystem path-iterator proxy allocation at point 9. The
+    preserved guarded stack identifies path::begin; bounded owned path parsing
+    replaces that dependency and passes all 67 observed allocation failures with
+    exact retry. This is preparation evidence under
+    `.build/reports/rich-image-path-m5g1-20261020`, not implemented clipboard or
+    raster support. Integrate and qualify the actual native/embedded transports.
+  - [ ] M5g.2: Resolve local assets through caller/host preparation services,
+    bounded CPU decode/cache, current-source/base/resource identity, cancellation,
+    stale-result rejection and native/embedded prepared raster painting. No I/O,
+    decode, allocation or wait in composition; no private control HWND/device/
+    worker. Preserve alt text/source/UIA and usable missing/invalid/capacity
+    fallbacks. Remote fetching remains outside this local-file addition.
+  - [ ] M5g.3: Qualify native/embedded Unicode/space/escaping/parent/sibling paths,
+    unsaved/cross-drive handling, multiple-file policy, source undo/redo, IME and
+    clipboard failures/reentrancy; actual WARP pixels, DPI/RTL/selection, missing/
+    malformed/oversized images, bounded resources, hidden/device-loss recovery,
+    all final profiles and reviewed sample/gallery captures. Follow the same
+    evidence and physical/platform/performance gates; alt-only or paste-only
+    success does not close decoded image rendering.
 
 M5a implementation in progress: `FrontMatter` syntax leaves carry language,
 exact fence-excluding content and `block.closed`. Only RichMarkdown at absolute

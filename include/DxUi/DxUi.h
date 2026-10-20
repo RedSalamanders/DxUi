@@ -2857,6 +2857,13 @@ public:
     // target and scrolls without editing history or acquiring keyboard focus.
     // Enabled read-only controls allow navigation; pending/composing ones do not.
     bool NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    // F2/UIA source entry changes only local presentation and caret, without
+    // taking OS focus. Exact document text/history remain authoritative. An
+    // active IME composition or stale/unprepared target refuses the transition.
+    bool BeginSemanticSourceEdit(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    // Esc/Ctrl+Enter leaves raw presentation; committed edits remain undoable.
+    bool EndSemanticSourceEdit(ControlHost& host);
+    [[nodiscard]] std::optional<RichText::MarkdownSourceRegion> GetSemanticSourceRegion() const noexcept;
     void SetReadOnly(bool readOnly) noexcept;
     [[nodiscard]] bool IsReadOnly() const noexcept;
     // Programmatic edit commands obey read-only/disabled state. Only successful
@@ -2935,6 +2942,9 @@ private:
     void RequireCurrentLayout(const ControlHost& host) const;
     void UpdateCaretScroll() const;
     void RetireLayout() const noexcept;
+    void UpdateSemanticSourceRegion() noexcept;
+    void SourcePresentationChanged(ControlHost& host);
+    [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true);
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);

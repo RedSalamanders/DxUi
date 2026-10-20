@@ -321,6 +321,7 @@ footnote preview: numbered references, reordered styled bodies and repeated
 backlinks share guarded internal/UIA navigation. The RichMarkdown native C++
 flowchart subset adds source-backed graphics, node/connection alternatives and
 typed literal-source diagnostics. Intrinsic-width/font rejection shows exact
-editable source and retries when the view changes; dedicated object source-entry
-actions remain pending. Real IME/AT, final extension,
+editable source and retries when the view changes. F2/UIA Invoke opens exact
+code/HTML/metadata source in place; Esc/F2/Ctrl+Enter finishes without undoing
+committed edits. Invalid fences stay literal and repairable. Real IME/AT, final extension,
 platform and performance acceptance remain under the active plan.

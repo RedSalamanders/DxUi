@@ -141,8 +141,13 @@ void TestRichSemanticScopedBlockSourceGeometry()
 {
     SemanticSourceBlockTests::Geometry(Require);
 }
+void TestRichSemanticOpaqueSourceRegionGrammarAndCaret()
+{
+    SemanticSourceBlockTests::SourceRegions(Require);
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticOpaqueSourceRegionGrammarAndCaret);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourcePresentation);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourceGeometry);
     DXUI_RUN_TEST(TestRichSemanticDiagramSourceProvenanceAndAdmission);

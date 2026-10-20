@@ -5,6 +5,7 @@
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
+#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.RichMarkdown.h"
 #include <DxUi/ControlCatalog.h>
@@ -950,6 +951,14 @@ void TestRichTextEditorNativeParserCapacitySourceFallback()
     window.Host().SetRoot(std::move(owned));
     MarkdownCapacityTests::EditorFallback(*editor, window.Host(), [&] { RenderEditor(window); }, Require);
 }
+void TestRichTextEditorNativeRetainedObjectSourceEditing()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<SemanticSourceBlockTests::SourceEditingEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    SemanticSourceBlockTests::Retained(*editor, window.Host(), [&] { RenderEditor(window); }, Require);
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -1048,4 +1057,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
+    DXUI_RUN_TEST(TestRichTextEditorNativeRetainedObjectSourceEditing);
 }

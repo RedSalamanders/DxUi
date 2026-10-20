@@ -27,6 +27,22 @@ anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
 exact source; block analysis never silently substitutes native rich-text ranges.
 
+RichTextEditor object source editing shares the authoritative full-source ACP
+store. F2/UIA Invoke opens an acknowledged code/HTML/metadata leaf in place;
+Esc/F2/Ctrl+Enter closes it while preserving committed history and redo. Raw
+Unicode input and native/embedded previews/cancellation rebase one opaque
+physical-line envelope. Entry/exit MUST refuse active composition, stale or
+unprepared targets and disabled/hidden owners. Enabled read-only owners may
+inspect source. UIA actions MUST retain owner-thread dispatch, embedded foreign-
+thread refusal, binding/publication/epoch and lifetime guards, and MUST NOT
+acquire OS focus. Presentation transitions retire old fragments immediately
+even without changing source revision. Old providers cannot reappear after
+reflow, detachment or restoration. Synthetic protocol coverage does not replace
+the separate physical IME/assistive-technology gates.
+Source-bearing leaves without a diagnostic expose source-entry help through
+HelpText. An existing diagnostic explanation takes priority; finishing an
+incomplete metadata fence removes that explanation and restores action help.
+
 Status: normative intended contract
 Last reviewed: 2026-10-18
 

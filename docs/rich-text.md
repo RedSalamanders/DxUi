@@ -8,6 +8,13 @@ UIA adapters are implemented in both hosts. Real IME/assistive-technology
 qualification, complete semantic Markdown editing and accepted extensions remain
 separate gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 The explicit bounded semantic rendering preview is available under M4d below.
+Images currently show atomic alt text. Decoded local image display and pasting
+image paths as displayed Markdown images are accepted work in M5g, including an
+explicit document location and bounded preparation/resource handling:
+
+```markdown
+![description](relative/path.png)
+```
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
@@ -29,9 +36,10 @@ bodies retain original source provenance; unsupported, malformed, empty and
 unclosed definitions remain code with diagnostics. Width/font rejection keeps
 usable exact source and retries after a matching view/resource change. Source
 fallback deletion edits raw graphemes/ranges; native object selection preserves
-the resolved selection surface, including high contrast. Dedicated
-object source entry and final extension build/runtime/resource qualification
-remain pending. The generated gallery includes the native diagram and a literal
+the resolved selection surface, including high contrast. F2 or UIA Invoke opens
+the object's exact source in place. Esc, F2 or Ctrl+Enter finishes source editing;
+committed edits remain undoable. Final extension build/runtime/resource qualification
+remains pending. The generated gallery includes the native diagram and a literal
 unsupported-family example in every theme.
 
 The supporting semantic API also has a scoped source request, with focused
@@ -40,8 +48,17 @@ x64 Debug/native/embedded qualification:
 leaf's exact envelope while keeping other paragraphs rendered. The index belongs
 to that immutable syntax; `SourceBlock()` reports it and `MarkdownNoNode` returns
 to ordinary semantics. Hidden descendants of literal footnote declarations and
-invalid indices are rejected before replacing pending work. Retained keyboard,
-editing and UIA source-entry actions are still being integrated under M5e.
+invalid indices are rejected before replacing pending work. The retained editor
+uses an explicit `BeginSourceRegion` parser hint during editing: complete physical
+lines remain literal even while fences, prefixes or body syntax are broken.
+The authoritative Document, source ACPs, history and Unicode text store stay the
+same. Other paragraphs remain rendered. Empty scopes have real caret geometry;
+ordinary parsing removes the hint. `GetSemanticSourceRegion()` reports the active
+envelope/session. Moving selection outside the envelope finishes its presentation.
+Read-only inspection is allowed; active native/embedded composition blocks entry
+and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
+and do not acquire OS focus. Math/inline object entry follows those M5 objects.
+See the [focused source-editing evidence and actual application captures](../Measurements/RichText/2026-10-20-source-editing/README.md).
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
 and reachable numbering have focused native/embedded checks. The footer preview
@@ -1091,5 +1108,5 @@ EditorControls/Accessibility/Embedded runs, 18 independent binding/rendering
 fixtures, exact line/atomic-EOL cases, source edits and observed allocation
 failures. The five themed gallery tiles show numbered/styled bodies and repeated
 backlinks. Final runtime/build profiles remain M5f. Generated backlink keyboard
-traversal, dedicated source editing and note-aware structural commands remain M5e;
+traversal and note-aware structural commands remain M5e;
 this preview does not close metadata, math, diagrams or performance acceptance.
