@@ -2972,11 +2972,12 @@ unchanged because this CPU service is not yet connected to editor painting.
       existing published sheets rather than include unrelated visual updates.
     - [ ] M5e.2b: Connect accepted math/inline objects after M5c implementation;
       the block component does not narrow or close that target.
-    - [ ] M5e.2c (admission follow-through): Explicitly reject noncanonical
+    - [x] M5e.2c (admission follow-through): Explicitly reject noncanonical
       source-region hints in pure Markdown command planning, before staging,
       with inside/outside-region tests. Retained commands already refuse active
       source editing; pure callers must obtain ordinary syntax for structural
-      commands. Complete this guard with the next native/embedded code slice.
+      commands. Pure inside/outside tests and complete native/embedded Debug
+      scopes pass in the M5g.1 packet.
   - [ ] M5e.3: Complete generated backlink keyboard traversal, note-aware
     structural commands, diagnostic selection and the complex sample/gallery.
     Math/inline object entry follows the accepted M5c objects without narrowing
@@ -2989,12 +2990,29 @@ unchanged because this CPU service is not yet connected to editor painting.
   file paths as displayed Markdown images with relative file destinations. The owner
   explicitly selected image syntax rather than a text-only link. This adds
   raster display beyond the existing atomic alt-text presentation.
-  - [ ] M5g.1: Add explicit document file/base location and pure Unicode relative
+  - [x] M5g.1 (focused x64 Debug qualification): Add explicit document file/base location and pure Unicode relative
     destination construction; paste quoted Unicode text paths and Explorer file
     paths as one source transaction. Preserve filename spelling and Markdown/URI
     escaping, selection/history and callback/stale clipboard guards. Define
     unsaved/cross-volume fallback explicitly; never invent a document directory
     from the process working directory or silently copy/move an image.
+    Implementation now provides explicit file metadata, bounded escaped
+    relative/file-URI construction, wide CF_HDROP transport and native/embedded
+    clipboard routes. Shared tests cover exact source/history, path/Unicode/
+    escaping vectors, opaque contexts and failures; the application adapter test
+    exercises the actual TSF service and stale source/selection/location guards.
+    A fresh-source diagnostic passes paths, codec, retained preparation and pure
+    source-region command admission. Canonical build/runtime qualification passes:
+    build 4:17, five directed tests, 31 allocation points, complete Foundation/
+    EditorControls/Accessibility/Embedded and seven additional ordinary host
+    suites through test.ps1. The 135-file inventory, full validators/tooling,
+    pinned format and before/after v2 input/artifact checks pass. Embedded records
+    443,742 checks and zero tracked C++ allocations in 1,000 warm composites;
+    that 7,824-us timing and the complex-UI report are unpaired diagnostics.
+    [Reviewed portable evidence](../../../Measurements/RichText/2026-10-20-image-path-paste/README.md)
+    binds tested native sources and artifacts. Original missing-include and
+    include-closure attestation failures are retained. Final profiles, physical
+    input/AT and D4c HOLD remain open; this component does not close raster display.
     A private C++ path prototype passes eight independent path/Unicode/escaping
     vectors and five rejection cases. Failure injection exposed a terminating
     MSVC Debug std::filesystem path-iterator proxy allocation at point 9. The
@@ -3009,6 +3027,14 @@ unchanged because this CPU service is not yet connected to editor painting.
     decode, allocation or wait in composition; no private control HWND/device/
     worker. Preserve alt text/source/UIA and usable missing/invalid/capacity
     fallbacks. Remote fetching remains outside this local-file addition.
+    A private decoder prototype now passes PNG exact pixels/premultiplied alpha,
+    BMP/GIF/TIFF lossless pixels, a JPEG color oracle and all eight independent
+    orientation oracles including real TIFF metadata. It fully materializes
+    bounded first-frame pixels and rejects malformed/canceled/capacity cases.
+    This is preparation evidence under `.build/reports/rich-image-native-m5g2-20261020`,
+    without a production resource API, async caller integration or editor raster
+    publication. GIF canvas/frame semantics and production immutable resources,
+    failure injection and source/base/binding cancellation remain to qualify.
   - [ ] M5g.3: Qualify native/embedded Unicode/space/escaping/parent/sibling paths,
     unsaved/cross-drive handling, multiple-file policy, source undo/redo, IME and
     clipboard failures/reentrancy; actual WARP pixels, DPI/RTL/selection, missing/

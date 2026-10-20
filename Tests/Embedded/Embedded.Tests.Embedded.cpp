@@ -1180,8 +1180,9 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
@@ -1259,6 +1260,8 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichSemanticGeometryFailureBudgets(true, true);
             TestRichSemanticGeometryFailureBudgets(true, false, true);
         }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-failures")
+            TestRichImagePathAllocationFailures();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
         {
             TestNativeFlowchartAllocationFailureAtomicity(true);
@@ -1436,6 +1439,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichRecordedWholeTextStorageBudget();
     TestEmbeddedLocalizedRecordedServiceCommit(gpu);
     TestEmbeddedRetainedObjectSourceEditing(gpu);
+    TestEmbeddedImagePathPaste(gpu);
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichSourceChangeAllocationBudget();

@@ -51,6 +51,7 @@ struct ITfThreadMgrEventSink;
 
 namespace DxUi
 {
+struct TextClipboardContent;
 namespace RichText::Detail
 {
 struct AccessibilityEpoch;
@@ -2824,6 +2825,16 @@ public:
     void SetText(std::wstring text);
     [[nodiscard]] std::wstring GetText() const;
     [[nodiscard]] RichText::SourceSnapshot Snapshot() const noexcept;
+    // Absolute Unicode file location used only as explicit resource/paste base.
+    // Empty denotes an unsaved document. No filesystem access or source/history
+    // rewrite occurs; no process working directory is used for relative links.
+    void SetDocumentFilePath(std::wstring path);
+    [[nodiscard]] std::wstring_view GetDocumentFilePath() const noexcept;
+    // Prepare one source replacement for the native/app clipboard route. Image
+    // paths become relative Markdown in canonical rich contexts; unsaved or
+    // cross-root paths use absolute file URIs. Raw source/code stays literal.
+    // No edit/callback occurs; false leaves replacement unchanged.
+    bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const;
     [[nodiscard]] uint64_t Revision() const noexcept;
     void SetSelection(RichText::Selection selection);
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
@@ -2945,6 +2956,7 @@ private:
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
+    [[nodiscard]] bool CanPasteMarkdownImages() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true);
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
@@ -5198,6 +5210,7 @@ public:
 
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
+    [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
 
     LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS

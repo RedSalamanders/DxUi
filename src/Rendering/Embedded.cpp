@@ -819,6 +819,36 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         return E_OUTOFMEMORY;
     }
 }
+HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const auto result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != revision || current.focusId != focusId)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    if (! editor)
+        return E_NOTIMPL;
+    return editor->TryPrepareClipboardPaste(content, replacement) ? S_OK : S_FALSE;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+catch (const std::exception&)
+{
+    return E_INVALIDARG;
+}
 HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept
 {
     if (! _state || ! _state->graphics)

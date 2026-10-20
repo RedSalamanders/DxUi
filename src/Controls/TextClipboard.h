@@ -3,7 +3,10 @@
 namespace DxUi
 {
 HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text) noexcept;
+bool ValidClipboardUnicode(std::wstring_view text) noexcept;
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept;
+HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept;
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept;
 [[nodiscard]] TextClipboard& SystemTextClipboard() noexcept;
 // Test-only override, borrowed on the calling UI thread. Production never installs this.
 #if DXUI_ENABLE_DIAGNOSTICS

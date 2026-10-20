@@ -5,9 +5,69 @@
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
+#include "../Support/Scope.Tests.RichImagePaths.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
+
+static void TestRichImagePathAllocationFailures()
+{
+    using namespace DxUi;
+    const auto sweep = [&](auto&& action)
+    {
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const bool oldCounting = countAllocations;
+        const auto restore     = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        action(false);
+        countAllocations    = false;
+        const auto requests = allocations;
+        Check(requests > 0u && requests < 512u, "image preparation has a bounded observed allocation schedule");
+        for (std::size_t point = 0u; point < requests; ++point)
+        {
+            const auto oldFailure = failAllocationAfter;
+            {
+                const auto recover  = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter = point;
+                action(true);
+            }
+            action(false);
+        }
+        std::cout << "image preparation allocation points=" << requests << '\n';
+    };
+    sweep([&](bool failure)
+    {
+        bool rejected{};
+        try
+        {
+            const auto result =
+                RichText::Detail::BuildMarkdownImagePath(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
+            Check(! failure && result && *result == L"![\u6771\U0001f600 \\[x\\]\\#\\%](../images/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.png)",
+                  "image destination and escaped source retry exactly");
+        }
+        catch (const std::bad_alloc&)
+        {
+            rejected = true;
+        }
+        Check(rejected == failure, "every observed image source allocation failure propagates without termination");
+    });
+    constexpr wchar_t list[] = L"C:\\images\\\u6771\U0001f600.png\0D:\\images\\other.jpg\0";
+    const auto bytes         = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    TextClipboardContent content;
+    sweep([&](bool failure)
+    {
+        const auto result = DecodeClipboardFilePaths(bytes, content);
+        Check(failure ? result == E_OUTOFMEMORY : result == S_OK, "file list allocation failures return a named HRESULT");
+        Check(content.filePaths.size() == 2u && content.filePaths[0] == L"C:\\images\\\u6771\U0001f600.png",
+              "failed file decode leaves previously published content exact");
+    });
+}
 
 static void TestFootnoteBlockAllocationFailures(bool trace = false)
 {
@@ -1212,6 +1272,35 @@ static void TestEmbeddedLocalizedRecordedServiceCommit(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(owned));
     RichTextStateReplacementTests::Service(*editor, view.Controls(), Check);
     Check(! view.Controls().GetHwnd(), "recorded embedded import needs no control HWND");
+}
+static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "image-paste shared device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "image-paste embedded owner");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    RichImagePathTests::Paths(Check);
+    RichImagePathTests::Codec(Check);
+    RichImagePathTests::Retained(*editor, [&] { Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "image paste preparation"); }, Check);
+    view.Controls().SetFocusControl(editor, false);
+    editor->SetText(L"ok ");
+    editor->SetSelection({3u, 3u});
+    Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "image paste transport preparation");
+    EmbeddedTextInputSnapshot snapshot;
+    Hr(view.ReadTextInput(snapshot), "image paste reads expected revision");
+    TextClipboardContent content;
+    content.text             = L"C:\\docs\\a.png";
+    std::wstring replacement = L"sentinel";
+    Check(view.TransformClipboardPaste(snapshot.revision, snapshot.focusId, content, replacement) == S_OK && replacement == L"![a](a.png)",
+          "embedded clipboard preparation uses source snapshot and document location");
+    editor->SetDocumentFilePath(L"D:\\note.md");
+    Check(view.TransformClipboardPaste(snapshot.revision, snapshot.focusId, content, replacement) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "document-location change rejects stale embedded clipboard preparation");
+    Check(editor->GetText() == L"ok " && ! editor->CanUndo() && ! view.Controls().GetHwnd(), "embedded transform creates no HWND or source transaction");
 }
 static void TestEmbeddedRetainedObjectSourceEditing(GraphicsFixture& gpu)
 {

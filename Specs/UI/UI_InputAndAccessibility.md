@@ -666,6 +666,17 @@ line endings and commits once against the captured revision. Embedded controls h
 go through the application service. Automated control suites inject a private clipboard, including their setup/read
 helpers, and never use a desktop clipboard as a test data channel.
 
+Rich image paste optionally uses StructuredTextClipboard with bounded wide
+CF_HDROP and Unicode fallback under one nonblocking clipboard ownership attempt.
+ANSI file lists and malformed/unterminated buffers MUST fail without publishing
+partial content. Limits are 16 files, 32767 UTF-16 units per file and 65536 total
+file units. Existing TextClipboard Read/Write and ordinary text clients remain
+Unicode-only. Application TextClipboardPasteTransform prepares source without
+mutation; EmbeddedHost validates focus/revision before transformation and the
+normal ApplyTextInput commit validates again. A changed document path MUST
+invalidate that transport revision. Read-only/composition checks precede reads;
+stale source, selection, base or ownership MUST NOT commit old clipboard work.
+
 This implements a TSF/clipboard service, not a real IME/AT product pass. The generic consumer connection, full
 display-attribute/IME acceptance, real touch/IME/screen-reader checks and matched text/UIA performance remain open
 on RedXe AV (`embedded-host-text-uia-bridge`). Library `AttachAccessibility` is a separate supported API; it does

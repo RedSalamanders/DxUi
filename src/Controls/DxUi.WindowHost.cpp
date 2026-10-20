@@ -2473,6 +2473,10 @@ std::optional<std::wstring> ControlHost::ReadTextFromClipboard() const noexcept
 {
     return TryReadClipboardUnicodeText(_hwnd);
 }
+bool ControlHost::ReadClipboardContent(TextClipboardContent& content) const noexcept
+{
+    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true) == S_OK;
+}
 
 #if DXUI_ENABLE_DIAGNOSTICS
 void ControlHost::DebugSetPointerDevice(PointerDevice device) noexcept

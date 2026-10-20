@@ -114,6 +114,8 @@ struct MarkdownCommandPlanner
                                                const std::shared_ptr<const MarkdownSyntax>& syntax,
                                                Selection selection)
     {
+        if (syntax && syntax->SourceRegion())
+            throw std::invalid_argument("Markdown commands require canonical syntax outside source editing");
         if (! syntax || syntax->Revision() != revision || syntax->Source().size() != source.Length() || source.Text() != syntax->Source())
             throw std::invalid_argument("Markdown command requires current source analysis");
         if (! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))

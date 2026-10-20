@@ -795,6 +795,24 @@ notification failures leave the committed edit intact. Read-only permits selecti
 copy while rejecting mutation; disabled controls reject input. Incomplete UTF-16
 character pairs never enter the model. AltGr Unicode entry remains accepted.
 
+RichTextEditor document-file metadata MUST be an explicit canonical absolute
+Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
+change source/history/composition. Prepared canonical Rich-mode image-path paste
+MUST generate escaped Markdown image source relative to the document parent;
+unsaved/cross-root paths MUST use an absolute file URI. Component case MUST be
+preserved, including case-sensitive directory correctness. Code/HTML/metadata,
+active source scopes and partial atomic inline contexts MUST retain literal
+paste. Multiple images use blank paragraphs; mixed file lists MUST preserve the
+complete original list as quoted source. One paste MUST record one transaction
+and preserve exact undo/redo and backward selections. Path construction is
+lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
+fetch is implied. Image decoding/raster support remains separately pending.
+
+Pure structural command/deletion planning MUST reject syntax carrying a
+presentation-only source-region hint before staging any document change, even
+when the requested selection lies outside that region. Callers obtain canonical
+syntax for structural planning.
+
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
 source/mode/width/typography/flow/DPI changes and releases on hiding/rebinding.

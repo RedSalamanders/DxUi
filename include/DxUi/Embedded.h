@@ -125,6 +125,9 @@ public:
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
     // S_FALSE means no available focused text control. Bounds are view-local DIPs, not screen pixels.
     HRESULT ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept;
+    // Optional application-side clipboard transform. Checks the current focus
+    // session/revision; prepares source only and never commits or takes focus.
+    HRESULT TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept;
     // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
     // Preview changes displayed text/composition without notifying the model. Commit notifies once relative
     // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.

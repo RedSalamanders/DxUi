@@ -214,6 +214,31 @@ template <typename Check> inline void SourceRegions(Check&& check)
         check(syntax && syntax->SourceRegion() == MarkdownSourceRegion{scenario.effective, 71u},
               "source editing expands only to the explicitly expected complete physical lines, including empty EOF");
         const auto node = syntax->SourceRegionNode();
+        for (const Selection selection : {Selection{scenario.effective.first, scenario.effective.first}, Selection{0u, 0u}})
+        {
+            MarkdownCommandRequest request;
+            request.command = MarkdownCommand::ToggleStyle;
+            bool commandRejected{}, deletionRejected{};
+            try
+            {
+                static_cast<void>(BuildMarkdownCommand(model.Snapshot(), model.Revision(), syntax, selection, request));
+            }
+            catch (const std::invalid_argument&)
+            {
+                commandRejected = true;
+            }
+            const std::array ranges{scenario.effective};
+            try
+            {
+                static_cast<void>(BuildMarkdownDeletion(model.Snapshot(), model.Revision(), syntax, selection, ranges));
+            }
+            catch (const std::invalid_argument&)
+            {
+                deletionRejected = true;
+            }
+            check(commandRejected && deletionRejected && model.Text() == scenario.source && ! model.CanUndo() && parser.Published() == syntax,
+                  "pure structural and deletion planning reject presentation-only syntax inside or outside its active raw region before staging");
+        }
         check(node < syntax->Nodes().size() && syntax->Nodes()[node].block.kind == MarkdownBlockKind::SourceEditor &&
                   syntax->Nodes()[node].firstChild == MarkdownNoNode && syntax->Nodes()[node].firstInline == MarkdownNoNode,
               "the complete editing envelope is one opaque leaf, including first-line grammar and malformed prefixes");

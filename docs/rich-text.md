@@ -158,6 +158,36 @@ rechecks owner/revision/selection after clipboard callbacks. Surrogate pairs
 commit together, orphan halves are discarded, and AltGr Unicode input is accepted.
 This does not qualify full visual bidi/UAX navigation.
 
+Image-path paste uses `SetDocumentFilePath(L"C:\\docs\\note.md")` as explicit
+document metadata. In prepared Rich mode, pasting a quoted absolute Unicode image
+path or Explorer file list inserts Markdown image source. For example:
+
+```markdown
+![photo](images/photo%20one.png)
+```
+
+The destination is relative to the document's parent. An unsaved document or a
+different drive/UNC share uses an absolute `file:` URI. Unicode uses UTF-8 URI
+escapes, punctuation in the filename-derived description is Markdown-escaped,
+and directory component case is preserved. No current-directory lookup, asset
+copy/move or remote request occurs. Location changes do not edit source/history
+or cancel composition. Callers update this metadata when opening or saving a file.
+
+One paste is one undoable source transaction. Multiple image files use blank-line
+separators; a mixed file list preserves every original path as quoted literal
+source. Code, HTML, metadata, active source editing and Source mode keep literal
+text. Partial inline code/link/image contexts also keep literal text. Pending
+analysis uses ordinary Unicode paste. Read-only/disabled/composing editors reject
+mutation. Native and application-owned embedded TSF clipboard routes reject stale
+source/selection/base/owner state. Existing Unicode-only controls retain their
+text clipboard behavior; structured file transport is an optional interface.
+Limits are 16 paths, 32767 UTF-16 units per path and 65536 total path units, plus
+the existing document source limit. Clipboard paths may recognize formats whose
+decoders are not available. **Decoded image rendering remains M5g.2 work; this
+clipboard component alone still displays the existing image alternative.**
+The [focused qualification packet](../Measurements/RichText/2026-10-20-image-path-paste/README.md)
+records source/binary identities, scope results and remaining gates.
+
 The control borrows shared host fonts, DWrite/D2D, brushes, focus/capture, clipboard,
 theme, DPI, invalidation and animation. It owns no HWND/device/swap chain/thread/
 timer. Layout and clipped text/selection/caret rasterization happen during host

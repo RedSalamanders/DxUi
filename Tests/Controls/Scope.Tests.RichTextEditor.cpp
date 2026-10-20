@@ -4,6 +4,7 @@
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include "../Support/Scope.Tests.RichImagePaths.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
@@ -959,6 +960,24 @@ void TestRichTextEditorNativeRetainedObjectSourceEditing()
     window.Host().SetRoot(std::move(owned));
     SemanticSourceBlockTests::Retained(*editor, window.Host(), [&] { RenderEditor(window); }, Require);
 }
+void TestRichTextEditorNativeImagePathPaste()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RichImagePathTests::Paths(Require);
+    RichImagePathTests::Codec(Require);
+    RichImagePathTests::Retained(*editor, [&] { RenderEditor(window); }, Require);
+    RichEditorClipboard clipboard;
+    editor->SetText(L"ok ");
+    editor->SetSelection({3u, 3u});
+    RenderEditor(window);
+    clipboard.text = L"C:\\docs\\a.png";
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"ok ![a](a.png)",
+            "native clipboard action commits generated source through ordinary history");
+    Require(editor->Undo() && editor->GetText() == L"ok ", "native path paste has one undo transaction");
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -1058,4 +1077,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
     DXUI_RUN_TEST(TestRichTextEditorNativeRetainedObjectSourceEditing);
+    DXUI_RUN_TEST(TestRichTextEditorNativeImagePathPaste);
 }

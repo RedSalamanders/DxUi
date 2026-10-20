@@ -1,5 +1,8 @@
 #include "Scope.Tests.RichTextInput.h"
+#include "../../Samples/EmbeddedControls/EmbeddedTextClient.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../Support/Scope.Tests.ClipboardFixture.h"
+#include "../Support/Scope.Tests.RichImagePaths.h"
 #include "../Support/Scope.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/Embedded.h>
@@ -13,6 +16,157 @@ using namespace DxUi::RichText;
 // Expose the protected adapter to exercise malformed service input independently
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
 using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
+
+void TestRichTextImageClipboardTransport()
+{
+    AttachedHostWindow window;
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"unicode fallback"), "structured transport fixture Unicode data");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0D:\\\u6771.jpg\0";
+    const auto bytes         = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Require(clipboard.fileData != nullptr, "structured clipboard fixture owns global storage");
+    auto* data = GlobalLock(clipboard.fileData.get());
+    Require(data != nullptr, "structured fixture locks storage");
+    std::memcpy(data, bytes.data(), bytes.size());
+    GlobalUnlock(clipboard.fileData.get());
+    TextClipboardContent content;
+    content.text = L"sentinel";
+    auto opens = clipboard.opens, closes = clipboard.closes;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, true) == S_OK && content.filePaths.size() == 2u && content.text.empty(),
+            "real structured transport prioritizes wide file lists over Unicode fallback");
+    Require(clipboard.opens == opens + 1u && clipboard.closes == closes + 1u, "structured clipboard transfer owns one nonblocking open/close");
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, false) == S_OK && content.filePaths.empty() &&
+                content.text == L"unicode fallback",
+            "existing Unicode controls ignore CF_HDROP and retain their original text transport");
+    clipboard.busy = true;
+    opens          = clipboard.opens;
+    closes         = clipboard.closes;
+    Require(FAILED(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, true)) && content.text == L"unicode fallback" &&
+                clipboard.opens == opens + 1u && clipboard.closes == closes,
+            "busy structured read preserves output and never closes an unowned clipboard");
+    clipboard.busy = false;
+    data           = GlobalLock(clipboard.fileData.get());
+    Require(data != nullptr, "structured fixture mutates header");
+    static_cast<DROPFILES*>(data)->fWide = FALSE;
+    GlobalUnlock(clipboard.fileData.get());
+    Require(FAILED(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, true)) && content.text == L"unicode fallback",
+            "malformed ANSI file list is explicit failure without silent text fallback");
+    clipboard.fileData.reset();
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, true) == S_OK && content.filePaths.empty() &&
+                content.text == L"unicode fallback",
+            "absent files use the same-open Unicode fallback");
+}
+
+void TestRichTextApplicationImageClipboard()
+{
+    AttachedHostWindow window;
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "application image clipboard WARP");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "application image clipboard pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics), "application image clipboard view");
+    auto owned   = std::make_unique<RichTextEditor>(L"replace");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor, false);
+    auto prepare = [&]
+    {
+        for (unsigned turn = 0u; turn < 1024u; ++turn)
+        {
+            RequireSucceeded(view.Prepare(640u, 240u), "application image clipboard prepares");
+            if (! view.NeedsPreparation())
+                return;
+        }
+        Require(false, "image clipboard preparation completed");
+    };
+    prepare();
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "image clipboard borrows application HWND");
+    EmbeddedTextInputSnapshot snapshot;
+    RequireSucceeded(view.ReadTextInput(snapshot), "image clipboard initial source snapshot");
+    auto client = std::make_shared<EmbeddedTextClient>(view, window.Hwnd(), snapshot.focusId, 96.f);
+    RequireSucceeded(services.SetClient(client), "image clipboard uses the sample's real public adapter");
+    class Clipboard final : public TextClipboard, public StructuredTextClipboard
+    {
+    public:
+        TextClipboardContent content;
+        std::function<void()> afterRead;
+        std::size_t reads{};
+        HRESULT Read(HWND, std::wstring&) noexcept override
+        {
+            return E_UNEXPECTED;
+        }
+        HRESULT Write(HWND, std::wstring_view) noexcept override
+        {
+            return E_NOTIMPL;
+        }
+        HRESULT ReadContent(HWND, TextClipboardContent& result) noexcept override
+        try
+        {
+            ++reads;
+            TextClipboardContent staged(content);
+            result.Swap(staged);
+            if (afterRead)
+                afterRead();
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    } clipboard;
+    clipboard.content.filePaths = {L"C:\\docs\\images\\\u6771\U0001f600.png"};
+    editor->SetSelection({7u, 0u});
+    prepare();
+    std::size_t notices{};
+    editor->SetOnTextChanged([&] { ++notices; });
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "structured image paste traverses production app TSF service");
+    Require(editor->GetText() == L"![\u6771\U0001f600](images/%E6%9D%B1%F0%9F%98%80.png)" && notices == 1u,
+            "one service commit inserts exact Unicode image source");
+    Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} && ! editor->CanUndo(),
+            "service image paste restores backward selection in one undo");
+    for (unsigned mutation = 0u; mutation < 3u; ++mutation)
+    {
+        editor->SetSelection({7u, 0u});
+        prepare();
+        clipboard.afterRead = [&]
+        {
+            if (mutation == 0u)
+                editor->SetSelection({1u, 1u});
+            if (mutation == 1u)
+                editor->SetDocumentFilePath(L"D:\\other.md");
+            if (mutation == 2u)
+                editor->SetText(L"newer");
+        };
+        const auto before = editor->Revision();
+        Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+                "clipboard source/selection/location reentrancy rejects the stale transform");
+        Require((mutation == 2u ? editor->GetText() == L"newer" : editor->GetText() == L"replace") && (mutation == 2u || editor->Revision() == before),
+                "stale clipboard read cannot add a transaction");
+    }
+    clipboard.afterRead = {};
+    editor->SetReadOnly(true);
+    const auto reads = clipboard.reads;
+    Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == E_ACCESSDENIED && clipboard.reads == reads,
+            "read-only service rejects image paste before clipboard access");
+    editor->SetReadOnly(false);
+    prepare();
+    RequireSucceeded(view.ReadTextInput(snapshot), "image clipboard composition snapshot");
+    auto preview                  = snapshot.state;
+    preview.compositionStartIndex = 0u;
+    preview.compositionEndIndex   = 1u;
+    RequireSucceeded(view.ApplyTextInput(snapshot.revision, preview, EmbeddedTextInputAction::Preview), "image clipboard opens source composition");
+    Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == S_FALSE && clipboard.reads == reads,
+            "active composition rejects image paste before clipboard access");
+    services.ClearClient();
+    client->Disconnect();
+    services.Detach();
+}
 
 void TestRichTextTransientSourcePreservesHistory()
 {
@@ -304,6 +458,8 @@ void RunRichTextInputTests()
             CoUninitialize();
     });
     DXUI_RUN_TEST(TestRichTextTransientSourcePreservesHistory);
+    DXUI_RUN_TEST(TestRichTextApplicationImageClipboard);
+    DXUI_RUN_TEST(TestRichTextImageClipboardTransport);
     DXUI_RUN_TEST(TestRichTextNativeLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextEmbeddedLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextServiceValidationAndGeometry);

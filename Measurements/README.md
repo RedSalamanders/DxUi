@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [Unicode image-path paste, 2026-10-20](RichText/2026-10-20-image-path-paste/README.md):
+  focused native/app TSF/embedded paste, wide file-list transport, exact undo,
+  stale-state guards, 31 allocation points and seven ordinary host suites.
+  Decoded image painting, final profiles and D4c HOLD remain open.
+
 - [Retained block source editing, 2026-10-20](RichText/2026-10-20-source-editing/README.md):
   focused x64 Debug/native/embedded source editing, composition/UIA guards,
   2,350 allocation points, preserved failure probes and actual application captures.

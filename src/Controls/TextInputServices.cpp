@@ -837,12 +837,20 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             if (command == TextClipboardCommand::Copy)
                 return S_OK;
         }
-        std::wstring replacement;
+        std::wstring replacement(0u, L' ');
         if (command == TextClipboardCommand::Paste)
         {
-            const HRESULT paste = service.Read(_state->hwnd, replacement);
+            auto* transform = dynamic_cast<TextClipboardPasteTransform*>(client.get());
+            TextClipboardContent content;
+            const bool includeFiles = transform && transform->AcceptsFilePaths(snapshot);
+            if (client != _state->client)
+                return TF_E_DISCONNECTED;
+            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles);
             if (paste != S_OK)
                 return paste;
+            if (client != _state->client)
+                return TF_E_DISCONNECTED;
+            replacement.assign(content.filePaths.empty() ? std::wstring_view(content.text) : std::wstring_view{});
             if (replacement.size() > kMaximumTextUnits || replacement.find(L'\0') != std::wstring::npos)
                 return E_INVALIDARG;
             size_t written = 0;
@@ -860,6 +868,22 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
                 replacement[written++] = character;
             }
             replacement.resize(written);
+            if (transform)
+            {
+                content.text.assign(replacement);
+                std::wstring transformed(0u, L' ');
+                const auto result = transform->TransformPaste(snapshot, content, transformed);
+                if (result == S_OK)
+                    replacement.swap(transformed);
+                else if (FAILED(result) && result != E_NOTIMPL)
+                    return result;
+                else if (! content.filePaths.empty())
+                    return S_FALSE;
+            }
+            else if (! content.filePaths.empty())
+                return S_FALSE;
+            if (replacement.size() > kMaximumTextUnits || ! ValidClipboardUnicode(replacement))
+                return E_INVALIDARG;
         }
         if (client != _state->client)
             return TF_E_DISCONNECTED;
