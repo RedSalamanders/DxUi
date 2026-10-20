@@ -1250,3 +1250,6 @@ Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 block member declarations, relationship multiplicities, stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 The existing flowchart grammar and source-provenance rules remain unchanged.
+Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
+
+Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.

@@ -118,7 +118,7 @@ class Parser
                     Reject();
                 if (! columns)
                     columns = rowColumns;
-                if (columns != rowColumns)
+                if (columns != rowColumns || (environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u))
                     Reject();
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
             }
@@ -432,7 +432,7 @@ public:
 } // namespace
 MathExpression ParseMath(std::wstring_view source)
 {
-    if (source.empty() || source.size() > 4096 || ! IsValidUtf16(source))
+    if (source.empty() || source.size() > MathMaximumSourceUnits || ! IsValidUtf16(source))
         return {{}, L"Equation source is empty, invalid or exceeds 4,096 UTF-16 units. Source is preserved."};
     try
     {

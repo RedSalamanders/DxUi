@@ -3,6 +3,7 @@
 #include "DxUi.MarkdownUnicodeData.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
+#include <DxUi/RichMath.h>
 #include <algorithm>
 #include <array>
 #include <iterator>
@@ -1212,10 +1213,15 @@ class MarkdownInlines
             const auto closer  = dollars ? (width == 1u ? L"$" : L"$$") : text_[first + 1u] == L'(' ? L"\\)" : L"\\]";
             const auto content = first + width;
             if (content < text_.size() && (display || ! SourceSpace(text_[content])))
-                for (auto end = content; end < std::min(text_.size(), content + 4097u); ++end)
+            {
+                bool endedLine = false;
+                for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
                 {
                     if (! display && text_[end] == L'\n')
+                    {
+                        endedLine = true;
                         break;
+                    }
                     if (std::wstring_view(text_).substr(end, width) != closer)
                         continue;
                     std::size_t slashes{};
@@ -1228,6 +1234,17 @@ class MarkdownInlines
                     Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, end - content));
                     return;
                 }
+                if (! endedLine && text_.size() - content > MathMaximumSourceUnits)
+                {
+                    // Conservative capacity fallback: retain the remaining line
+                    // (display: leaf) as one opaque source owner. Do not resume
+                    // Markdown emphasis/link parsing inside oversized notation.
+                    const auto end = display ? text_.size() : text_.find(L'\n', content + MathMaximumSourceUnits + 1u);
+                    cursor_        = end == std::wstring::npos ? text_.size() : end;
+                    Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, cursor_ - content));
+                    return;
+                }
+            }
         }
         if (c == L'`')
         {

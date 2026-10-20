@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichSemanticDocument.h"
 #include "../../src/Controls/DxUi.NativeFlowchart.h"
+#include "../../src/Controls/DxUi.PreparedMath.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
@@ -11,6 +12,36 @@
 
 namespace
 {
+void TestRichMathAlignedCasesAndMatrixGeometry()
+{
+    using namespace DxUi::RichText;
+    const auto factory = PreparedFlowchartTests::WriteFactory();
+    for (const std::wstring environment : {L"aligned", L"cases", L"matrix"})
+    {
+        const auto source     = L"\\begin{" + environment + L"}x&=1\\\\xxxx&=1234\\end{" + environment + L"}";
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        Require(static_cast<bool>(*expression), "alignment fixture parses");
+        Detail::PreparedMath paint(factory.get(), expression, 24.f);
+        unsigned turns{};
+        while (! paint.Advance())
+            Require(++turns <= 16, "one bounded preparation event per text leaf");
+        const auto& glyphs = paint.GlyphLayouts();
+        Require(glyphs.size() == 4 && glyphs[0].origin.y < glyphs[2].origin.y, "two measured rows have four independent operands");
+        if (environment == L"aligned")
+        {
+            Require(std::abs(glyphs[1].origin.x - glyphs[3].origin.x) < .01f, "aligned equality columns share the same left edge");
+            Require(std::abs(glyphs[0].origin.x + glyphs[0].extent.width - glyphs[2].origin.x - glyphs[2].extent.width) < .01f,
+                    "aligned left operands share their right edge");
+        }
+        else if (environment == L"cases")
+            Require(std::abs(glyphs[0].origin.x - glyphs[2].origin.x) < .01f && std::abs(glyphs[1].origin.x - glyphs[3].origin.x) < .01f,
+                    "cases align both expression and condition columns to the left");
+        else
+            Require(std::abs(glyphs[0].origin.x + glyphs[0].extent.width / 2 - glyphs[2].origin.x - glyphs[2].extent.width / 2) < .01f,
+                    "ordinary matrices retain centered columns");
+    }
+    Require(! ParseMath(L"\\begin{gathered}a&b\\end{gathered}"), "gathered rows reject multiple columns");
+}
 void TestRichSemanticNativeMathematicsAndBroaderMermaid()
 {
     using namespace DxUi::RichText;
@@ -47,6 +78,10 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
     Require(fallback->Map().Display().find(L"$\\input{private}$") != std::wstring::npos && ! fallback->Diagnostics().empty(),
             "rejected math retains exact editable notation and diagnostic");
+    const auto oversizedSource = L"$" + std::wstring(5000u, L'x') + L"_y_$ **literal tail**";
+    const auto oversized       = RichSemanticDocumentTests::Build(oversizedSource, MarkdownProfile::RichMarkdown);
+    Require(! oversized->Diagnostics().empty() && oversized->Map().Display().starts_with(oversizedSource) && oversized->Map().Source() == oversizedSource,
+            "over-capacity notation retains the entire literal line without interpreting nested Markdown");
     using namespace DxUi::RichText::Detail;
     for (const auto body : {L"stateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\nActive --> [*]\n",
                             L"classDiagram\nCreature <|-- Duck\nDuck : +move()\nDuck --> Pond : visits\n"})
@@ -202,6 +237,7 @@ void TestRichSemanticOpaqueSourceRegionGrammarAndCaret()
 }
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichMathAlignedCasesAndMatrixGeometry);
     DXUI_RUN_TEST(TestRichSemanticNativeMathematicsAndBroaderMermaid);
     DXUI_RUN_TEST(TestRichSemanticOpaqueSourceRegionGrammarAndCaret);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourcePresentation);

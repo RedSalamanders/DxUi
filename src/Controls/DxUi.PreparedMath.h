@@ -270,7 +270,9 @@ class PreparedMath final
                 above = std::max(above, size * .8f);
                 for (unsigned col = 0; col < node.columns; ++col)
                 {
-                    Place(node.children[row + col], cellX + (widths[col] - Measure(node.children[row + col], size).width) / 2, y + above, size);
+                    const float remaining = widths[col] - Measure(node.children[row + col], size).width;
+                    const float offset    = node.text == L"aligned" ? (col % 2u == 0u ? remaining : 0.f) : node.text == L"cases" ? 0.f : remaining / 2.f;
+                    Place(node.children[row + col], cellX + offset, y + above, size);
                     cellX += widths[col] + size * .65f;
                 }
                 y += std::max(size, above + below) + size * .3f;
@@ -346,6 +348,11 @@ public:
     float Baseline() const noexcept
     {
         return extent.above;
+    }
+    // Immutable measured geometry, also used by independent alignment oracles.
+    const auto& GlyphLayouts() const noexcept
+    {
+        return glyphs;
     }
     void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale) const noexcept
     {

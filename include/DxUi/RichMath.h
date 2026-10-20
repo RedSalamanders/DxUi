@@ -1,10 +1,12 @@
 #pragma once
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace DxUi::RichText
 {
+inline constexpr std::size_t MathMaximumSourceUnits = 4096u;
 // Data-only, bounded native mathematical notation. This never evaluates TeX,
 // reads files, expands user macros, invokes processes or fetches resources.
 enum class MathKind
