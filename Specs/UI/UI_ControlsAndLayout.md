@@ -806,12 +806,54 @@ paste. Multiple images use blank paragraphs; mixed file lists MUST preserve the
 complete original list as quoted source. One paste MUST record one transaction
 and preserve exact undo/redo and backward selections. Path construction is
 lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
-fetch is implied. Image decoding/raster support remains separately pending.
+fetch is implied. Display requires caller-serviced immutable image resources;
+unserviced or declined resources retain their alternative.
 
 Pure structural command/deletion planning MUST reject syntax carrying a
 presentation-only source-region hint before staging any document change, even
 when the requested selection lies outside that region. Callers obtain canonical
 syntax for structural planning.
+
+Rich image resources MUST be immutable premultiplied BGRA, fully decoded before
+owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF/
+TIFF codecs and first static frame; GIF canvas placement/transparency/background
+and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
+the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
+4,194,304 decoded pixels, 32 unique active file sources and 64 MiB unique retained
+CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
+Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
+capacity contracts are unchanged; process/driver and transient staging overhead
+require separate measurement.
+
+Local destination resolution MUST use explicit document metadata, strict UTF-8
+URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
+names, ambiguous extended/trailing-component spellings and malformed/remote URI
+schemes MUST NOT become file requests. Drive/server root case is insensitive;
+directory/share/file component spelling remains exact. Relative paths require
+a saved base; the control MUST NOT query CWD or perform file/network I/O.
+
+Image requests MUST execute in caller-owned scheduling, with callback-free
+cancellation and source/base/binding/visibility validation at owner completion.
+The caller authorizes file access, including any UNC policy. Source replacement,
+presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
+pixels MAY survive unrelated edits and device replacement. Failed/capacity
+completion MUST stop idle retries while preserving editable source/alternative.
+Resource-only completion MUST NOT edit source/history/selection or cancel IME.
+Request preparation processes at most four image candidates per owner turn;
+caller adapters MUST wake valid queued work when draining or cancel-pruning
+results frees a completion reservation; closure MUST serialize posting with
+owner retirement without joining a codec/filesystem call.
+GPU preparation uploads at most one bounded bitmap per turn. Native image
+geometry MUST use actual inline baseline/aspect rather than the larger SDK line
+selection cell. Text ACPs, UIA alternatives and structural atomicity remain intact.
+Only the private SDK layout buffer MAY neutralize image-alternative code units
+to equal-length object placeholders; authoritative source/display strings,
+alternative names and maps MUST remain unchanged. This prevents script/emoji
+analysis from splitting one atomic image into multiple native rectangles.
+Reused placements MUST consume exactly one preparation event, without an extra
+common phase-tail count. Invalid zero semantic budgets MUST preserve staging
+and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
+preserve the prior complete geometry and permit an explicit current retry.
 
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
@@ -1088,7 +1130,8 @@ separate: a completed semantic document can precede its SDK layouts.
 The backend stages independent paragraph/cell DirectWrite layouts, styles,
 indentation, equal-width table columns with declared physical alignment, RTL
 column placement, quote/rule lines and code/image/cell outlines. Destinations are
-inert; images display their owned alternative, not downloaded media. Links use
+inert; images display caller-supplied native pixels when available and otherwise
+their owned alternative. The control does not download media. Links use
 native underlining in inherited text ink. Generated list/task markers are preview
 text; M4e task gestures commit exact source checkbox edits through the host.
 Every host turn bounds SDK calls and metadata events independently. Layout,

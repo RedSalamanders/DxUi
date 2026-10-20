@@ -1,8 +1,10 @@
 #include "Scope.Tests.RichTextInput.h"
 #include "../../Samples/EmbeddedControls/EmbeddedTextClient.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../../Samples/EmbeddedControls/RichImageLoader.h"
 #include "../Support/Scope.Tests.ClipboardFixture.h"
 #include "../Support/Scope.Tests.RichImagePaths.h"
+#include "../Support/Scope.Tests.RichImageResources.h"
 #include "../Support/Scope.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/Embedded.h>
@@ -16,6 +18,248 @@ using namespace DxUi::RichText;
 // Expose the protected adapter to exercise malformed service input independently
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
 using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
+
+void TestRichTextApplicationImageLoading()
+{
+    AttachedHostWindow window;
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "application image loader WARP");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "application image loader pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics), "application image loader view");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor, false);
+    const auto prepare = [&]
+    {
+        for (unsigned turn = 0u; turn < 2048u; ++turn)
+        {
+            RequireSucceeded(view.Prepare(gpu.width, gpu.height), "application image loader preparation");
+            if (! view.NeedsPreparation())
+                return;
+        }
+        Require(false, "image loader preparation settles");
+    };
+    std::array<wchar_t, MAX_PATH> temp{};
+    const auto count = GetTempPathW(static_cast<DWORD>(temp.size()), temp.data());
+    Require(count && count < temp.size(), "loader fixture bounded temporary path");
+    GUID id{};
+    RequireSucceeded(CoCreateGuid(&id), "loader fixture unique identity");
+    std::array<wchar_t, 40u> guid{};
+    Require(StringFromGUID2(id, guid.data(), static_cast<int>(guid.size())) > 0, "loader fixture GUID spelling");
+    std::wstring path(temp.data(), count);
+    path.append(L"DxUi-loader-\u6771\U0001f600-").append(guid.data()).append(L".png");
+    editor->SetDocumentFilePath(std::wstring(temp.data(), count) + L"note.md");
+    bool created{};
+    const auto cleanup = wil::scope_exit([&] noexcept
+    {
+        if (created)
+            DeleteFileW(path.c_str());
+    });
+    wil::com_ptr<IWICImagingFactory> factory;
+    RequireSucceeded(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())), "loader fixture encoder factory");
+    std::vector<BYTE> pixels(96u * 64u * 4u);
+    for (std::size_t at = 0u; at < pixels.size(); at += 4u)
+    {
+        pixels[at]      = 200u;
+        pixels[at + 1u] = 80u;
+        pixels[at + 2u] = 20u;
+        pixels[at + 3u] = 255u;
+    }
+    const auto encoded = RichImageTests::Encode(factory.get(), GUID_ContainerFormatPng, pixels, 96u, 64u);
+    wil::unique_hfile file(
+        CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+    Require(static_cast<bool>(file), "loader fixture owns its new file");
+    created = true;
+    DWORD written{};
+    Require(WriteFile(file.get(), encoded.data(), static_cast<DWORD>(encoded.size()), &written, nullptr) && written == encoded.size(),
+            "loader fixture writes complete PNG");
+    file.reset();
+    prepare();
+    EmbeddedTextInputSnapshot snapshot;
+    RequireSucceeded(view.ReadTextInput(snapshot), "loader fixture source adapter");
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "loader clipboard application service");
+    auto client = std::make_shared<EmbeddedTextClient>(view, window.Hwnd(), snapshot.focusId, 96.f);
+    RequireSucceeded(services.SetClient(client), "loader actual sample text adapter");
+    class Clipboard final : public TextClipboard
+    {
+    public:
+        std::wstring value;
+        HRESULT Read(HWND, std::wstring& output) noexcept override
+        try
+        {
+            output = value;
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+        HRESULT Write(HWND, std::wstring_view) noexcept override
+        {
+            return E_NOTIMPL;
+        }
+    } clipboard;
+    clipboard.value = L"\"" + path + L"\"";
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "actual clipboard-to-Markdown image insertion");
+    prepare();
+    const auto source   = editor->GetText();
+    const auto revision = editor->Revision();
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && requests[0].FilePath() == path, "relative Unicode source resolves to the same physical image");
+    constexpr UINT message  = WM_APP + 0x317u;
+    constexpr WPARAM cookie = 0x72696368u;
+    wil::unique_handle ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(ready), "loader fixture message event");
+    std::size_t messages{};
+    window.SetApplicationMessageHandler([&](UINT current, WPARAM value, LPARAM, LRESULT& result)
+    {
+        if (current != message || value != cookie)
+            return false;
+        ++messages;
+        SetEvent(ready.get());
+        result = 0;
+        return true;
+    });
+    RichImageLoader loader;
+    RequireSucceeded(loader.Initialize(window.Hwnd(), message, cookie), "actual application-owned asynchronous image service");
+    RequireSucceeded(loader.Submit(requests), "application submits bounded image work");
+    RequireSucceeded(loader.Submit(requests), "duplicate application submission coalesces");
+    const auto deadline = GetTickCount64() + 5000u;
+    const HANDLE event  = ready.get();
+    while (! messages)
+    {
+        const auto now = GetTickCount64();
+        Require(now < deadline, "worker posts its owner completion within the fixture deadline");
+        const auto wait = MsgWaitForMultipleObjectsEx(1u, &event, static_cast<DWORD>(deadline - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        Require(wait != WAIT_FAILED && wait != WAIT_TIMEOUT, "application image service wakes through the real owner queue");
+        if (wait == WAIT_OBJECT_0 + 1u)
+            window.PumpMessages(20u);
+    }
+    std::vector<RichImageLoader::Result> results(0u);
+    loader.Drain(results);
+    Require(results.size() == 1u && results[0].status == S_OK && results[0].image && editor->CompleteImageRequest(results[0].request, results[0].image),
+            "one MTA decoded resource is marshaled and accepted on its owner");
+    prepare();
+    gpu.Bind();
+    RequireSucceeded(view.Composite(gpu.context.get(), gpu.Viewport()), "asynchronous loaded image composition");
+    std::vector<std::uint8_t> actual(0u);
+    RequireSucceeded(gpu.Read(actual), "asynchronous loaded image pixels");
+    RichImageResourceTests::Pixel(*editor, view.Controls(), actual, gpu.width, gpu.height, 1.f, Require);
+    Require(editor->GetText() == source && editor->Revision() == revision && editor->Undo() && editor->GetText().empty() && ! editor->CanUndo(),
+            "clipboard plus async display remains exactly one source transaction");
+    window.SetApplicationMessageHandler({});
+    loader.Shutdown();
+    services.ClearClient();
+    client->Disconnect();
+    services.Detach();
+}
+
+void TestRichTextApplicationImageLoaderLifecycle()
+{
+    using DxUi::RichText::Detail::RichImageResources;
+    AttachedHostWindow window;
+    constexpr UINT message  = WM_APP + 0x318u;
+    constexpr WPARAM cookie = 0x696d6167u;
+    std::size_t messages{};
+    window.SetApplicationMessageHandler([&](UINT current, WPARAM value, LPARAM, LRESULT& result)
+    {
+        if (current != message || value != cookie)
+            return false;
+        ++messages;
+        result = 0;
+        return true;
+    });
+    const auto requestBatch = [](RichImageResources& resources, unsigned batch)
+    {
+        std::wstring source(0u, L' ');
+        for (unsigned index = 0u; index < 32u; ++index)
+            source.append(L"![network](file://dxui-image-test.invalid/share/")
+                .append(std::to_wstring(batch))
+                .append(L"-")
+                .append(std::to_wstring(index))
+                .append(L".png)\n\n");
+        resources.Begin(RichImageResourceTests::Semantic(source), {}, 1u, 1u);
+        while (! resources.Advance())
+        {
+        }
+        std::vector<RichImageRequest> requests(0u);
+        resources.Take(requests);
+        Require(requests.size() == 32u, "loader lifecycle fixture owns one maximum unique source batch");
+        return std::vector<RichImageRequest>(requests);
+    };
+    RichImageResources first, second, third;
+    const auto firstJobs = requestBatch(first, 1u), secondJobs = requestBatch(second, 2u), thirdJobs = requestBatch(third, 3u);
+    RichImageLoader loader;
+    RequireSucceeded(loader.Initialize(window.Hwnd(), message, cookie), "bounded loader lifecycle owner");
+    RequireSucceeded(loader.Submit(firstJobs), "maximum loader job batch");
+    RequireSucceeded(loader.Submit(firstJobs), "queued/current/completed duplicate submissions coalesce");
+    const auto waitForMessages = [&](std::size_t expected)
+    {
+        const auto deadline = GetTickCount64() + 5000u;
+        while (messages < expected)
+        {
+            const auto now = GetTickCount64();
+            Require(now < deadline, "bounded loader results reach the actual owner message queue");
+            const auto wait = MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(deadline - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+            Require(wait != WAIT_FAILED && wait != WAIT_TIMEOUT, "loader lifecycle wakes without polling or desktop focus");
+            window.PumpMessages(20u);
+        }
+    };
+    waitForMessages(firstJobs.size());
+    // A full results queue stops the worker. Fill the independent pending queue
+    // before draining it, making overflow deterministic without a thread sleep.
+    RequireSucceeded(loader.Submit(secondJobs), "bounded pending queue while the completion queue is full");
+    Require(loader.Submit(std::span(thirdJobs).first(1u)) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW),
+            "excess submission fails without replacing previously queued work");
+    std::vector<RichImageLoader::Result> results(0u);
+    loader.Drain(results);
+    Require(results.size() == 32u && messages == 32u, "each unique request posts exactly one result within the fixed completion bound");
+    std::array<bool, 32u> seen{};
+    for (const auto& result : results)
+    {
+        const auto found = std::ranges::find(firstJobs, result.request);
+        Require(found != firstJobs.end(), "completion identity belongs to the submitted generation");
+        const auto index = static_cast<std::size_t>(found - firstJobs.begin());
+        Require(! seen[index] && result.status == E_ACCESSDENIED && ! result.image && first.Complete(result.request, {}),
+                "default UNC policy declines every network request before I/O and delivers a unique alternative result");
+        seen[index] = true;
+    }
+    Require(first.Statistics().failedSources == 32u && ! first.Statistics().decodedBytes, "policy refusal retains no decoded pixels or retry loop");
+    // Fill results a second time, then release capacity through cancellation
+    // instead of Drain. A valid third batch must wake without another Submit.
+    waitForMessages(64u);
+    RequireSucceeded(loader.Submit(thirdJobs), "current queued batch behind completed old-generation results");
+    second.Cancel();
+    loader.DiscardCancelled();
+    waitForMessages(96u);
+    loader.Drain(results);
+    Require(results.size() == 32u && messages == 96u, "pruning cancelled results resumes every still-valid queued request exactly once");
+    seen.fill(false);
+    for (const auto& result : results)
+    {
+        const auto found = std::ranges::find(thirdJobs, result.request);
+        Require(found != thirdJobs.end(), "resumed completion never belongs to a cancelled generation");
+        const auto index = static_cast<std::size_t>(found - thirdJobs.begin());
+        Require(! seen[index] && result.status == E_ACCESSDENIED && ! result.image && third.Complete(result.request, {}),
+                "resumed results retain unique identity, policy and explicit fallback completion");
+        seen[index] = true;
+    }
+    third.Cancel();
+    loader.DiscardCancelled();
+    Require(! loader.HasResults(), "cancelled queued/completing requests are pruned without an owner callback");
+    loader.Shutdown();
+    loader.Drain(results);
+    Require(results.empty() && ! loader.HasResults() && loader.Submit(firstJobs) == E_UNEXPECTED,
+            "closure retires queues and rejects new work without joining the decoder");
+    window.SetApplicationMessageHandler({});
+}
 
 void TestRichTextImageClipboardTransport()
 {
@@ -459,6 +703,8 @@ void RunRichTextInputTests()
     });
     DXUI_RUN_TEST(TestRichTextTransientSourcePreservesHistory);
     DXUI_RUN_TEST(TestRichTextApplicationImageClipboard);
+    DXUI_RUN_TEST(TestRichTextApplicationImageLoading);
+    DXUI_RUN_TEST(TestRichTextApplicationImageLoaderLifecycle);
     DXUI_RUN_TEST(TestRichTextImageClipboardTransport);
     DXUI_RUN_TEST(TestRichTextNativeLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextEmbeddedLocalizedServiceCommit);

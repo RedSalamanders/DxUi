@@ -2,6 +2,7 @@
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.RichImagePaths.h"
+#include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
 #include "TextClipboard.h"
@@ -19,6 +20,7 @@ struct RichTextEditor::State
     RichText::Document document;
     std::wstring documentFilePath;
     uint64_t imageLocationRevision = 1u;
+    RichText::Detail::RichImageResources images;
     RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
@@ -103,6 +105,7 @@ RichTextEditor::~RichTextEditor() noexcept
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
+    _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
     _state->nativeGeometryRejected.reset();
@@ -127,6 +130,7 @@ void RichTextEditor::SetDocumentFilePath(std::wstring path)
         return;
     _state->documentFilePath.swap(normalized);
     ++_state->imageLocationRevision;
+    _state->images.Clear();
     RetireSemanticAccessibility();
     _state->nativeGeometryRejected.reset();
     RetireLayout();
@@ -137,6 +141,51 @@ void RichTextEditor::SetDocumentFilePath(std::wstring path)
 std::wstring_view RichTextEditor::GetDocumentFilePath() const noexcept
 {
     return _state->documentFilePath;
+}
+void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests)
+{
+    const auto* host    = GetHost();
+    const auto document = host ? GetAcknowledgedSemanticDocument(*host) : nullptr;
+    if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich || ! document ||
+        ! _state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+    {
+        requests.clear();
+        return;
+    }
+    _state->images.Take(requests);
+}
+bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image)
+{
+    const auto document = GetSemanticDocument();
+    if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich || ! document ||
+        ! _state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        return false;
+    const auto viewport = TextViewport();
+    const auto* host    = GetHost();
+    if (_state->RejectsNativeGeometry(
+            document, std::max(1.0f, viewport.right - viewport.left), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
+        return false;
+    const auto previous = _state->images.Snapshot();
+    if (! _state->images.Complete(request, std::move(image)))
+        return false;
+    if (previous != _state->images.Snapshot())
+    {
+        RetireSemanticAccessibility();
+        RetireLayout();
+        RequestInvalidate();
+    }
+    return true;
+}
+void RichTextEditor::ReloadImages()
+{
+    _state->images.Clear();
+    RetireSemanticAccessibility();
+    RetireLayout();
+    RequestInvalidate();
+}
+RichText::RichImageResourceStatistics RichTextEditor::GetImageResourceStatistics() const noexcept
+{
+    return _state->images.Statistics();
 }
 bool RichTextEditor::CanPasteMarkdownImages() const noexcept
 {
@@ -288,6 +337,7 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         return;
     RetireSemanticAccessibility();
     _state->mode = mode;
+    _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     RetireLayout();
@@ -306,6 +356,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         return;
     RetireSemanticAccessibility();
     _state->markdown.Clear();
+    _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -343,6 +394,7 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
         _state->accessibilityEpoch = std::make_shared<RichText::Detail::AccessibilityEpoch>();
     RetireSemanticAccessibility();
     _state->markdownRendering = enabled;
+    _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->semantic.Clear();
@@ -500,6 +552,7 @@ bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
 }
 void RichTextEditor::SourcePresentationChanged(ControlHost& host)
 {
+    _state->images.Cancel();
     RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->dragging        = false;
@@ -667,6 +720,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
+        _state->images.Cancel();
         UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
@@ -776,6 +830,7 @@ bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 }
 void RichTextEditor::CancelContentPreparation() noexcept
 {
+    _state->images.Cancel();
     RetireLayout();
 }
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
@@ -789,6 +844,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto viewport = TextViewport();
         if (GetHost() != &host || ! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
         {
+            state.images.Cancel();
             if (state.layout.HasPendingPreparation())
                 ++state.cancelledPreparations;
             state.layout.Clear();
@@ -878,6 +934,17 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
         if (semanticDocument && state.RejectsNativeGeometry(semanticDocument, width, IsRightToLeft(), typography, resources))
             semanticDocument.reset();
+        if (semanticDocument)
+        {
+            if (! state.images.Begin(semanticDocument, state.documentFilePath, state.imageLocationRevision, state.bindingRevision) && ! state.images.Advance())
+            {
+                ++state.preparationAdvances;
+                state.lastAdvanceBlockSteps = 4u;
+                return S_FALSE;
+            }
+        }
+        else
+            state.images.Clear();
         const auto effectiveMode =
             state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto revision = Revision(), binding = state.bindingRevision;
@@ -915,8 +982,16 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     THROW_HR(E_UNEXPECTED);
                 context->GetFactory(drawing.put());
             }
-            state.layout.BeginPreparation(
-                factory, state.document.Snapshot(), revision, effectiveMode, options, semanticDocument, drawing.get(), {typography, resources});
+            state.layout.BeginPreparation(factory,
+                                          state.document.Snapshot(),
+                                          revision,
+                                          effectiveMode,
+                                          options,
+                                          semanticDocument,
+                                          drawing.get(),
+                                          {typography, resources},
+                                          state.images.Snapshot(),
+                                          host.GetDeviceContext());
             state.requestRevision   = revision;
             state.requestBinding    = binding;
             state.requestTypography = typography;
@@ -993,6 +1068,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     }
     catch (const std::bad_alloc&)
     {
+        state.images.Cancel();
         state.layout.Invalidate();
         state.markdown.Cancel();
         state.semantic.Cancel();
@@ -1049,7 +1125,8 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->layout.UsesWholeRaster(),
             preparation.wholeLayoutsPrepared,
             preparation.wholeLayoutSourceUnits,
-            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() || _state->semantic.HasPendingPreparation(),
+            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() || _state->semantic.HasPendingPreparation() ||
+                _state->images.Pending(),
             _state->preparationAdvances,
             _state->cancelledPreparations,
             _state->lastAdvanceLayouts,
@@ -1283,6 +1360,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     {
         if (changed)
         {
+            _state->images.Cancel();
             UpdateSemanticSourceRegion();
             RetireSemanticAccessibility();
             _state->nativeGeometryRejected.reset();
@@ -1344,7 +1422,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         context->FillRectangle(translated, selectionBrush);
         context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        state.layout.Draw(context, selectedTextBrush, selectedTextBrush, origin, rectangle.top, rectangle.bottom, selectedDiagramFill);
+        state.layout.Draw(context, selectedTextBrush, selectedTextBrush, origin, rectangle.top, rectangle.bottom, selectedDiagramFill, 0.65f);
     }
     NativeTextInputState input;
     if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
@@ -2079,6 +2157,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
 {
     if (GetHost() != host)
     {
+        _state->images.Cancel();
         RetireSemanticAccessibility();
         ++_state->bindingRevision;
         RetireLayout();
@@ -2116,6 +2195,7 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
 }
 void RichTextEditor::OnHidden() noexcept
 {
+    _state->images.Cancel();
     RetireLayout();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;

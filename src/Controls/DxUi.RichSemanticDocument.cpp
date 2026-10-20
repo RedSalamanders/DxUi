@@ -335,6 +335,9 @@ struct SemanticBuilder::Preparation
                 auto& image        = document->elements_[element];
                 image.display.last = output.text.size();
                 image.name         = alternative;
+                auto& extensions   = Extensions();
+                if (extensions.images.size() < Detail::SemanticExtensions::MaximumObjects)
+                    extensions.images.push_back(element);
                 return;
             }
             auto close    = visit;

@@ -4,7 +4,9 @@
 #include "../Support/Scope.Tests.MarkdownBlocks.h"
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
+#include "../Support/Scope.Tests.RichImage.h"
 #include "../Support/Scope.Tests.RichImagePaths.h"
+#include "../Support/Scope.Tests.RichImageResources.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
@@ -978,6 +980,56 @@ void TestRichTextEditorNativeImagePathPaste()
             "native clipboard action commits generated source through ordinary history");
     Require(editor->Undo() && editor->GetText() == L"ok ", "native path paste has one undo transaction");
 }
+void TestRichTextNativeImageDecoder()
+{
+    RichImageTests::Core(Require);
+    RichImageResourceTests::Admission(Require);
+}
+void TestRichTextEditorNativeImageResources()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    const auto scale = window.Host().GetDpi() / 96.f;
+    Require(SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(320.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "native image fixture has a stable DIP viewport");
+    RichImageResourceTests::Retained(*editor, window.Host(), [&] { RenderEditor(window); }, Require);
+    editor->ReloadImages();
+    RenderEditor(window);
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u, "native retirement fixture has one pending image");
+    const auto retired = requests[0];
+    window.Host().SetRoot(nullptr);
+    Require(retired.Cancelled(), "native control destruction cancels its externally held image job");
+}
+void TestRichTextEditorNativeImagePixels()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    const auto scale = window.Host().GetDpi() / 96.f;
+    Require(SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(320.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "native raster fixture has a stable DIP viewport");
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    RichImageResourceTests::ReadyPicture(*editor, [&] { RenderEditor(window); }, Require, true);
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), "native image raster capture without desktop activation");
+    RichImageResourceTests::PatternPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
+    editor->SetSelection({0u, editor->GetText().size()});
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(capture), "native selected image raster capture");
+    RichImageResourceTests::PatternPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -1078,4 +1130,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
     DXUI_RUN_TEST(TestRichTextEditorNativeRetainedObjectSourceEditing);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePathPaste);
+    DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
+    DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
+    DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

@@ -1,0 +1,49 @@
+[CmdletBinding()]
+param([Parameter(Mandatory)][ValidateSet('Debug','Release','ASan Debug')][string]$Configuration,[string]$Iteration='Iteration6')
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$root='Z:/src/DxUi-worktrees/rich-text-core-d2'
+Set-Location -LiteralPath $root
+$report=Join-Path $root '.build/reports/rich-image-native-m5g2-20261020'
+$name=$Configuration.Replace(' ','-')
+$packet=Join-Path $report "Normal-$Iteration-x64-$name"
+if(Test-Path -LiteralPath $packet){throw 'Refusing to replace an ordinary profile packet'}
+New-Item -ItemType Directory -Path $packet|Out-Null
+Copy-Item -LiteralPath $PSCommandPath -Destination (Join-Path $packet 'harness.ps1')
+$prior=Join-Path $packet 'PriorRunnerReceipts'
+New-Item -ItemType Directory -Path $prior|Out-Null
+Get-ChildItem -LiteralPath (Join-Path $root '.build/reports') -File | Where-Object {$_.Name -like "*x64-$Configuration*"} | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $prior}
+Get-ChildItem -LiteralPath (Join-Path $root '.build/logs') -File | Where-Object {$_.Name -like "test-*-x64-$Configuration*"} | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $prior}
+$taskTestTemp=Join-Path $root ('.build/image-qualification-temp/'+$Iteration+'/build-x64-'+$name.ToLowerInvariant())
+New-Item -ItemType Directory -Path $taskTestTemp -Force|Out-Null
+$oldTemp=$env:TEMP;$oldTmp=$env:TMP;$oldReuse=$env:MSBUILDDISABLENODEREUSE
+$env:TEMP=$taskTestTemp;$env:TMP=$taskTestTemp;$env:MSBUILDDISABLENODEREUSE='1'
+@{TEMP=$taskTestTemp;TMP=$taskTestTemp;note='Process-local fixture/compiler storage; no global setting change'}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $packet 'temporary-storage.json')
+Import-Module (Join-Path $root 'Tools/PerformancePolicy.psm1') -Force
+$before=Get-PerformanceMeasurementState -Root $root -Platform x64 -Configuration $Configuration
+$before|ConvertTo-Json -Depth 24|Set-Content -LiteralPath (Join-Path $packet 'before.json')
+$code=0
+try {
+ & ./test.ps1 -Platform x64 -Configuration $Configuration -Full -SkipBuild -SkipTooling *> (Join-Path $packet 'runner.log')
+ $code=$LASTEXITCODE
+} catch {
+ $_|Out-String|Add-Content -LiteralPath (Join-Path $packet 'runner.log')
+ $code=1
+}
+Set-Content -LiteralPath (Join-Path $packet 'exit-code.txt') -Value $code
+$after=Get-PerformanceMeasurementState -Root $root -Platform x64 -Configuration $Configuration
+$after|ConvertTo-Json -Depth 24|Set-Content -LiteralPath (Join-Path $packet 'after.json')
+Assert-PerformanceMeasurementState -Before $before -After $after
+$receipts=Join-Path $packet 'CurrentRunnerReceipts'
+New-Item -ItemType Directory -Path $receipts|Out-Null
+Get-ChildItem -LiteralPath (Join-Path $root '.build/reports') -File | Where-Object {$_.Name -like "*x64-$Configuration*"} | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $receipts}
+Get-ChildItem -LiteralPath (Join-Path $root '.build/logs') -File | Where-Object {$_.Name -like "test-*-x64-$Configuration*"} | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $receipts}
+foreach($file in @('DxUi.lib','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.FoundationTests.exe','DxUi.EmbeddedControls.exe','DxUi.InteractiveLease.exe')){Copy-Item -LiteralPath (Join-Path $root ".build/x64/$Configuration/$file") -Destination $packet}
+Get-ChildItem -LiteralPath (Join-Path $root ".build/x64/$Configuration") -Filter '*.dll' -File | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $packet}
+Get-ChildItem -LiteralPath $packet -Recurse -File|ForEach-Object{@{path=$_.FullName;hash=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $packet 'files.sha256.json')
+Get-Content (Join-Path $packet 'runner.log') -Tail 22
+$env:TEMP=$oldTemp;$env:TMP=$oldTmp;$env:MSBUILDDISABLENODEREUSE=$oldReuse
+exit $code
+
+
+

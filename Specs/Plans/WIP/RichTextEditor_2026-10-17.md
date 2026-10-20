@@ -3018,30 +3018,73 @@ unchanged because this CPU service is not yet connected to editor painting.
     MSVC Debug std::filesystem path-iterator proxy allocation at point 9. The
     preserved guarded stack identifies path::begin; bounded owned path parsing
     replaces that dependency and passes all 67 observed allocation failures with
-    exact retry. This is preparation evidence under
-    `.build/reports/rich-image-path-m5g1-20261020`, not implemented clipboard or
-    raster support. Integrate and qualify the actual native/embedded transports.
-  - [ ] M5g.2: Resolve local assets through caller/host preparation services,
-    bounded CPU decode/cache, current-source/base/resource identity, cancellation,
-    stale-result rejection and native/embedded prepared raster painting. No I/O,
-    decode, allocation or wait in composition; no private control HWND/device/
-    worker. Preserve alt text/source/UIA and usable missing/invalid/capacity
-    fallbacks. Remote fetching remains outside this local-file addition.
-    A private decoder prototype now passes PNG exact pixels/premultiplied alpha,
-    BMP/GIF/TIFF lossless pixels, a JPEG color oracle and all eight independent
-    orientation oracles including real TIFF metadata. It fully materializes
-    bounded first-frame pixels and rejects malformed/canceled/capacity cases.
-    This is preparation evidence under `.build/reports/rich-image-native-m5g2-20261020`,
-    without a production resource API, async caller integration or editor raster
-    publication. GIF canvas/frame semantics and production immutable resources,
-    failure injection and source/base/binding cancellation remain to qualify.
-  - [ ] M5g.3: Qualify native/embedded Unicode/space/escaping/parent/sibling paths,
-    unsaved/cross-drive handling, multiple-file policy, source undo/redo, IME and
-    clipboard failures/reentrancy; actual WARP pixels, DPI/RTL/selection, missing/
-    malformed/oversized images, bounded resources, hidden/device-loss recovery,
-    all final profiles and reviewed sample/gallery captures. Follow the same
-    evidence and physical/platform/performance gates; alt-only or paste-only
-    success does not close decoded image rendering.
+    exact retry. That historical preparation packet is under
+    `.build/reports/rich-image-path-m5g1-20261020`; the later Iteration3 packet
+    above qualifies the integrated clipboard transports. It does not qualify raster display.
+  - [x] M5g.2 (functional implementation qualified): Resolve local assets through
+    caller/host scheduling, immutable bounded CPU pixels, current-source/base/
+    binding identities, cancellation and stale-result rejection, and prepared
+    native/embedded raster painting. Composition performs no I/O/decode/allocation/
+    wait and the control owns no HWND/device/worker/timer. Alternatives, source,
+    directional selection, history and UIA raw ranges remain intact.
+    - [x] M5g.2a: Built-in PNG/JPEG/BMP/GIF/TIFF static-frame decoding, strict
+      local UTF-8 URI/Unicode path resolution, writer-safe bounded reads and
+      cancellation. Known-pixel, premultiplied-alpha, eight TIFF orientation,
+      partial GIF canvas/background/transparency, malformed/capacity/EOF/read
+      failure and real Unicode-file cases pass. Observed allocation sweeps
+      preserve immutable output and permit exact explicit retry.
+    - [x] M5g.2b: Cooperative coalesced requests, source/base/mode/binding/
+      visibility cancellation, shared CPU/GPU resources and native inline image
+      geometry. Real native/embedded pixels, opaque selection tint, RTL/DPI,
+      hide/show and explicit device replacement pass without source edits or
+      repeat I/O. UIA checks preserve Unicode names, actual bitmap bounds, exact
+      raw RangeFromChild and old-fragment retirement at an unchanged revision.
+      The private equal-length neutral SDK layout buffer prevents Unicode/emoji
+      run splitting while public source/display/alternatives/maps stay exact.
+      Bounds use actual image baseline/aspect rather than the SDK line cell.
+      Each reused placement consumes one event, each turn at most one upload.
+    - [x] M5g.2c: Application-owned bounded MTA loader, owner-message completion,
+      duplicate submission, queue saturation/strong overflow, default UNC
+      refusal, cancellation pruning/resumption and closure. The three-batch
+      lifecycle case receives 96 unique results; pruning full canceled results
+      wakes valid queued work without another submit or timer. Posting is
+      serialized with closure and shutdown never joins a codec/filesystem call.
+      The real clipboard-to-file-decode-to-WARP test remains one source undo.
+      The sample accepts --document-path location metadata for relative paste.
+    Iteration6 passes all six canonical builds: x64 Debug 5:18, Release 5:48,
+    ASan Debug 5:44; ARM64 Debug 5:21, Release 6:32, ASan Debug 4:40. The three
+    x64 profiles each pass all 19 ordinary suites (57 runs, zero capability
+    skips); the deliberate sanitizer probe confirms instrumentation. Runtime
+    before/after v2 input/artifact checks and all cross-build attestations pass.
+    ARM64 builds do not establish native execution. Debug sweeps cover 70 path/
+    URI/clipboard, 12 decode/create, 142 resource-state and 217 loaded geometry
+    allocation points (441 total). Actual bitmap probes cover first/later memory/
+    device HRESULT failures, explicit retry, upload deduplication and 128 native
+    placements while retaining an excess alternative.
+    [Reviewed functional evidence](../../../Measurements/RichText/2026-10-20-native-images/README.md)
+    binds current native inputs and artifacts. Full raw packets, source snapshots
+    and negative receipts remain under `.build/reports/rich-image-native-m5g2-20261020`.
+    They retain line-cell bounds, Unicode run splitting, duplicate-event counting,
+    canceled-result wake-up, C1128 (/bigobj only on the embedded test TU), optimized
+    correlation-test reader C4702, stale failure markers, system-temp exhaustion
+    and a mismatched-environment attestation refusal before execution. The counted
+    sentinel retains the zero-read oracle without warning suppression. Final
+    build/test helpers use the same explicit per-profile workspace TEMP/TMP and
+    node-reuse environment; no system setting or unrelated files are changed.
+  - [ ] M5g.3: Final image resource/physical/performance acceptance remains open.
+    - [x] Functional native/embedded path/clipboard/history/readonly/reentrancy,
+      actual WARP pixels, DPI/RTL/selection, missing/malformed/oversized inputs,
+      bounded CPU/source admission, hidden/device replacement and six build/
+      three x64 runtime profiles have the qualification above.
+    - [x] Actual deterministic light/dark sample captures use explicit synthetic
+      caller pixels plus a missing alternative; canonical bytes match the
+      reviewed published PNGs. The ordinary themed gallery is regenerated and
+      reviewed alongside guide, control/design-system docs and normative specs.
+    - [ ] Close measured process/GPU/transient resource and maximum decoded-image
+      workloads, image/IME-specific and physical IME/AT/agreed foreground checks,
+      native ARM64 execution and the original D4c paired performance HOLD.
+      Unpaired ordinary-run timings and functional passes do not close these
+      gates. Consumer adoption and the other M5/M6 milestones remain separate.
 
 M5a implementation in progress: `FrontMatter` syntax leaves carry language,
 exact fence-excluding content and `block.closed`. Only RichMarkdown at absolute

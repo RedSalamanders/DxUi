@@ -14,12 +14,14 @@ public:
                                              std::uint64_t revision,
                                              ViewMode mode,
                                              const LayoutOptions& options,
-                                             std::shared_ptr<const SemanticDocument> document = {},
-                                             ID2D1Factory* drawing                            = nullptr,
-                                             FlowchartResourceEpoch epochs                    = {})
+                                             std::shared_ptr<const SemanticDocument> document   = {},
+                                             ID2D1Factory* drawing                              = nullptr,
+                                             FlowchartResourceEpoch epochs                      = {},
+                                             std::shared_ptr<const RichImageResourceSet> images = {},
+                                             ID2D1RenderTarget* raster                          = nullptr)
     {
         const bool semantic = mode == ViewMode::Rich && static_cast<bool>(document);
-        const auto result   = semantic ? semantic_.Begin(factory, std::move(document), options, drawing, epochs)
+        const auto result   = semantic ? semantic_.Begin(factory, std::move(document), options, drawing, epochs, std::move(images), raster)
                                        : v0_.BeginPreparation(factory, std::move(source), revision, mode, options);
         requestedSemantic_  = semantic;
         if (semantic)
@@ -178,11 +180,17 @@ public:
     {
         return activeSemantic_ ? semantic_.VisibleRange(top, bottom) : v0_.VisibleRange(top, bottom);
     }
-    void Draw(
-        ID2D1RenderTarget* target, ID2D1Brush* brush, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill = nullptr) const
+    void Draw(ID2D1RenderTarget* target,
+              ID2D1Brush* brush,
+              ID2D1Brush* decoration,
+              D2D1_POINT_2F origin,
+              float top,
+              float bottom,
+              ID2D1Brush* fill   = nullptr,
+              float imageOpacity = 1.0f) const
     {
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill);
+            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity);
         else
             v0_.Draw(target, brush, origin, top, bottom);
     }

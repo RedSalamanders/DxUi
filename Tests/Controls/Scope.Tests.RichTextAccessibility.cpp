@@ -1,6 +1,7 @@
 #include "Scope.Tests.RichTextAccessibility.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../Embedded/Embedded.Tests.EmbeddedUiaBridge.h"
+#include "../Support/Scope.Tests.RichImageResources.h"
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <cmath>
@@ -1393,6 +1394,56 @@ void SemanticDiagramAlternatives(bool embedded)
     Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "restoring presentation cannot resurrect an old graphic provider");
 }
+void SemanticDecodedImages(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    if (fixture.window)
+    {
+        const auto scale = fixture.controls->GetDpi() / 96.f;
+        Require(
+            SetWindowPos(
+                fixture.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(320.f * scale), SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER) !=
+                FALSE,
+            "decoded image UIA fixture viewport");
+    }
+    fixture.editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    const std::wstring source = L"![\u6771\U0001f600](image.png)";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto old    = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(old != nullptr, "image alternative is accessible before decoding");
+    std::vector<RichImageRequest> requests(0u);
+    fixture.editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && fixture.editor->CompleteImageRequest(requests[0], RichImageResourceTests::Picture()),
+            "UIA fixture accepts current decoded pixels");
+    wil::unique_variant retired;
+    Require(old->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "image geometry publication retires old fragments at the same source revision");
+    fixture.Publish();
+    auto image = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(image && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "decoded image alternative") == L"\u6771\U0001f600",
+            "decoded image keeps its Unicode accessible alternative");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    RequireSucceeded(image.query_to(fragment.put()), "decoded image fragment");
+    UiaRect bounds{};
+    RequireSucceeded(fragment->get_BoundingRectangle(&bounds), "decoded image measured UIA bounds");
+    const auto scale = fixture.controls->GetDpi() / 96.0;
+    Require(std::abs(bounds.width - 96.0 * scale) < 0.25 && std::abs(bounds.height - 64.0 * scale) < 0.25,
+            "UIA reports actual image pixels instead of alt glyph or full line-cell dimensions");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> range;
+    RequireSucceeded(text->RangeFromChild(image.get(), range.put()), "decoded image exact source range");
+    Require(ReadTextRangeText(*range.get(), -1, "decoded image raw syntax") == source, "image text ranges retain exact Markdown source");
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    const auto actual = FindClientPart(client, editor, UIA_ImageControlTypeId);
+    Require(actual && client.TextRangeFromChild(editor, actual) == source,
+            "actual native and application-bridged UIA clients retain source behind decoded pixels");
+    fixture.editor->SetText(source + L" tail");
+    Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "source change retires decoded-image children immediately");
+}
 void SemanticObjectSourceEditing(bool embedded)
 {
     using namespace RichText;
@@ -1987,6 +2038,14 @@ void TestRichTextAccessibilityWindowDiagramAlternatives()
 {
     SemanticDiagramAlternatives(false);
 }
+void TestRichTextAccessibilityWindowDecodedImages()
+{
+    SemanticDecodedImages(false);
+}
+void TestRichTextAccessibilityEmbeddedDecodedImages()
+{
+    EmbeddedCase(SemanticDecodedImages);
+}
 void TestRichTextAccessibilityEmbeddedDiagramAlternatives()
 {
     EmbeddedCase(SemanticDiagramAlternatives);
@@ -2030,6 +2089,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecodedImages);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedObjectSourceEditing);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceEditingComposition);

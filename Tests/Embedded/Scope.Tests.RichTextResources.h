@@ -5,11 +5,69 @@
 #include "../Support/Scope.Tests.MarkdownCapacity.h"
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
+#include "../Support/Scope.Tests.RichImage.h"
 #include "../Support/Scope.Tests.RichImagePaths.h"
+#include "../Support/Scope.Tests.RichImageResources.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 
+static void TestRichImageDecoderAllocationFailures()
+{
+    using DxUi::RichText::RichImage;
+    const auto initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    Check(SUCCEEDED(initialized) || initialized == RPC_E_CHANGED_MODE, "image failure fixture initializes or borrows COM");
+    const auto apartment = wil::scope_exit([&] noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> factory;
+    Hr(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())), "image failure factory");
+    std::array<BYTE, 24u> source{};
+    for (unsigned i = 0u; i < 6u; ++i)
+    {
+        source[i * 4u]      = static_cast<BYTE>((i + 1u) * 30u);
+        source[i * 4u + 3u] = 255u;
+    }
+    const auto encoded = RichImageTests::Encode(factory.get(), GUID_ContainerFormatPng, source, 2u, 3u);
+    std::shared_ptr<const RichImage> image;
+    const auto sweep = [&](auto&& request)
+    {
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const bool oldCounting = countAllocations;
+        const auto restore     = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const auto result             = request();
+        countAllocations              = false;
+        Hr(result, "baseline image allocation schedule");
+        const auto requests = allocations;
+        Check(requests > 0u && requests < 128u, "immutable pixel creation has a bounded observed allocation schedule");
+        for (std::size_t point = 0u; point < requests; ++point)
+        {
+            const auto held = image;
+            HRESULT failed{};
+            {
+                const auto previous = failAllocationAfter;
+                const auto reset    = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                failAllocationAfter = point;
+                failed              = request();
+            }
+            Check(failed == E_OUTOFMEMORY && image == held, "every owned image allocation failure preserves the immutable resource");
+            Hr(request(), "explicit image retry");
+            Check(image->Width() == 2u && image->Height() == 3u && image->Pixels()[20u] == std::byte(180u), "image retry retains exact known pixel contents");
+        }
+        std::cout << "immutable image allocation points=" << requests << '\n';
+    };
+    sweep([&] { return RichImage::Decode(factory.get(), std::as_bytes(std::span(encoded)), image); });
+    sweep([&] { return RichImage::CreatePbgra(2u, 3u, std::as_bytes(std::span(source)), image); });
+}
 static void TestRichImagePathAllocationFailures()
 {
     using namespace DxUi;
@@ -66,6 +124,20 @@ static void TestRichImagePathAllocationFailures()
         Check(failure ? result == E_OUTOFMEMORY : result == S_OK, "file list allocation failures return a named HRESULT");
         Check(content.filePaths.size() == 2u && content.filePaths[0] == L"C:\\images\\\u6771\U0001f600.png",
               "failed file decode leaves previously published content exact");
+    });
+    sweep([&](bool failure)
+    {
+        bool rejected{};
+        try
+        {
+            const auto path = DxUi::RichText::Detail::ResolveLocalImagePath(L"C:\\notes\\chapters\\note.md", L"../images/%E6%9D%B1%F0%9F%98%80.png");
+            Check(! failure && path && *path == L"C:\\notes\\images\\\u6771\U0001f600.png", "URI/base resolution retries exact Unicode paths");
+        }
+        catch (const std::bad_alloc&)
+        {
+            rejected = true;
+        }
+        Check(rejected == failure, "URI/base resolution propagates every observed allocation failure");
     });
 }
 
@@ -1272,6 +1344,74 @@ static void TestEmbeddedLocalizedRecordedServiceCommit(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(owned));
     RichTextStateReplacementTests::Service(*editor, view.Controls(), Check);
     Check(! view.Controls().GetHwnd(), "recorded embedded import needs no control HWND");
+}
+static void TestEmbeddedImageResources(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "image resource shared device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "image resource embedded owner");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    const auto prepare = [&] { Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "image resource owner preparation"); };
+    RichImageResourceTests::Retained(*editor, view.Controls(), prepare, Check);
+    RichImageResourceTests::ReadyPicture(*editor, prepare, Check, true);
+    const auto source   = editor->GetText();
+    const auto revision = editor->Revision();
+    const auto capture  = [&](bool selected = false, float scale = 1.f)
+    {
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "image resource actual composition");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "image resource actual readback");
+        RichImageResourceTests::PatternPixels(*editor, view.Controls(), pixels, gpu.width, gpu.height, scale, Check, selected);
+    };
+    capture();
+    editor->SetSelection({0u, source.size()});
+    prepare();
+    capture(true);
+    editor->SetSelection({0u, 0u});
+    prepare();
+    gpu.Bind();
+    const auto before = allocations;
+    countAllocations  = true;
+    for (unsigned frame = 0u; frame < 12u; ++frame)
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "warm image composition");
+    countAllocations = false;
+    Check(allocations == before, "warm image composition allocates no C++ memory or decode graph");
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    capture();
+    Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height, 144.f), "image raster density transition");
+    capture(false, 1.5f);
+    prepare();
+    capture();
+    view.SetVisible(false);
+    Check(! editor->DebugGetState().layoutReady && ! view.NeedsPreparation(), "hidden image view releases prepared pixels without work");
+    view.SetVisible(true);
+    prepare();
+    capture();
+    std::vector<DxUi::RichText::RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Check(requests.empty(), "image show reuses immutable decoded pixels without another file request");
+    GraphicsFixture replacement;
+    replacement.width  = gpu.width;
+    replacement.height = gpu.height;
+    Hr(replacement.Create(), "image replacement WARP device");
+    std::shared_ptr<GraphicsDevice> next;
+    Hr(GraphicsDevice::Create(replacement.device.get(), next), "image replacement shared pool");
+    Hr(view.ReplaceDevice(next), "image resource device replacement");
+    prepare();
+    replacement.Bind();
+    Hr(view.Composite(replacement.context.get(), replacement.Viewport()), "image after replacement composition");
+    std::vector<std::uint8_t> pixels(0u);
+    Hr(replacement.Read(pixels), "image after replacement readback");
+    RichImageResourceTests::PatternPixels(*editor, view.Controls(), pixels, replacement.width, replacement.height, 1.f, Check);
+    editor->TakePendingImageRequests(requests);
+    Check(requests.empty() && editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
+          "device replacement rebuilds GPU images from held pixels without source/history or repeated I/O");
 }
 static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
 {

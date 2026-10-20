@@ -13,7 +13,10 @@ template <typename Check> inline void Reads(Check&& check)
     const auto forbidden = [&](std::size_t) -> wchar_t
     {
         ++reads;
-        throw std::runtime_error("snapshot metadata correlation accessed source units");
+        // The zero-read assertions are the oracle. A returning sentinel keeps
+        // the template's legitimate string-fallback path reachable under /O2;
+        // an always-throwing reader triggers MSVC's C4702 in that instantiation.
+        return L'\0';
     };
     constexpr std::size_t large = 1024u * 1024u;
     for (const auto change :

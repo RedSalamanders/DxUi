@@ -183,10 +183,47 @@ source/selection/base/owner state. Existing Unicode-only controls retain their
 text clipboard behavior; structured file transport is an optional interface.
 Limits are 16 paths, 32767 UTF-16 units per path and 65536 total path units, plus
 the existing document source limit. Clipboard paths may recognize formats whose
-decoders are not available. **Decoded image rendering remains M5g.2 work; this
-clipboard component alone still displays the existing image alternative.**
+decoders are not available. Displaying an image also requires the application to
+service its image request; a paste alone preserves the descriptive alternative.
 The [focused qualification packet](../Measurements/RichText/2026-10-20-image-path-paste/README.md)
-records source/binary identities, scope results and remaining gates.
+records source/binary identities, scope results and remaining gates. The later [native image packet](../Measurements/RichText/2026-10-20-native-images/README.md) qualifies the decoder, async service and native/embedded raster implementation.
+
+Native image rendering now uses immutable `RichText::RichImage` resources and
+owner-thread request/completion APIs. All 19 ordinary suites pass in each x64 Debug, Release and ASan profile. Checks cover actual
+native/embedded pixels, clipboard-to-worker decoding, source/history preservation
+and UIA alternatives/bounds. All six build profiles pass, including ARM64 cross-builds. Final native-platform/resource qualification remains
+open in M5g; this prototype does not close the D4c performance hold.
+
+Applications call `TakePendingImageRequests` after owner preparation, authorize
+each absolute file path and run `RichImage::LoadFile` in their own worker service.
+The caller initializes COM and supplies its WIC factory. It marshals the result
+back to the owner and calls `CompleteImageRequest`; a null result preserves the
+alternative. Source/base/binding/visibility changes cancel tokens and reject stale
+completion. Selection-only changes do not invalidate a file. `ReloadImages`
+explicitly refreshes the cache; the control does not watch the filesystem.
+`Samples/EmbeddedControls/RichImageLoader.h` demonstrates one application-owned
+threadpool callback, fixed queues and owner messages. Its default policy declines
+UNC access; an application can explicitly authorize network files. Neither the
+control nor composition owns a loader, thread, device, HWND or timer. The worker
+uses only its owned request/pixels and posts a cookie-bearing owner message;
+closing retires queues without joining a filesystem or codec call.
+Draining or pruning canceled results wakes valid queued work when it frees a
+completion reservation. Resource statistics describe retained admitted image
+placements/sources, rather than every image token or a cumulative error count.
+
+The raster profile is built-in PNG, JPEG, BMP, GIF and TIFF, with one static first
+frame. GIF respects its logical canvas/offsets/background/transparency; JPEG/TIFF
+EXIF orientation is applied to the pixels. HTTP/data URIs, SVG and unavailable
+formats keep their alternative. The source parser still preserves every original
+destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
+pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
+of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.
+The sample's completion queue has its own 64-MiB bound. Decode/staging/driver
+overhead and transient old/new graphs are separate from those retained limits.
+Cancellation is checked between 64-KiB reads, decoder phases and pixel rows;
+an individual codec call is not preemptible. Painting uses fully materialized
+pixels and prepared bitmaps, preserving image aspect, source ACPs, selection
+tint and Unicode UIA alternatives. Composition still draws the cached surface.
 
 The control borrows shared host fonts, DWrite/D2D, brushes, focus/capture, clipboard,
 theme, DPI, invalidation and animation. It owns no HWND/device/swap chain/thread/
@@ -940,14 +977,32 @@ The [native presentation qualification packet](../Measurements/RichText/2026-10-
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
-Source-exact structural editing and semantic UIA are described below. The footnote
-preview is implemented; math/diagram rendering, metadata validation/object editing
-and physical IME/AT/platform/performance qualification remain open.
+Source-exact structural editing and semantic UIA are described below. The footnote/native diagram previews and native image rendering are implemented; full math/metadata profiles, remaining object editing and physical IME/AT/platform/resource/performance qualification remain open.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
 branch's interactive semantic preview. It uses the sample application's existing
 device, host loop and text-service bridge. `--rich-text --output image.png`
 captures the same scene without desktop takeover. Consumer pins are unchanged.
+
+For document-relative image paste, launch the sample with an explicit location:
+
+```powershell
+./.build/x64/Debug/DxUi.EmbeddedControls.exe --rich-text --document-path 'C:\notes\note.md'
+```
+
+This sets location metadata only; it does not load or save that Markdown file.
+Copy an image file in Explorer, or copy its quoted absolute path, and paste in
+ordinary prepared rich text. The application worker displays supported local
+images. A sample without a document location inserts an absolute file URI.
+
+The deterministic image capture uses the same sample scene and caller-supplied
+synthetic pixels, with a missing-file alternative. The independent worker test
+covers real file decoding. These captures are generated offscreen by
+`DxUi.EmbeddedTests.exe --capture-rich-images output.png Dark` (or `Light`).
+
+![Actual native image sample, dark theme](images/rich-text-local-images-dark.png)
+
+[Light theme capture](images/rich-text-local-images-light.png).
 
 ## Source-exact structural commands (M4e)
 

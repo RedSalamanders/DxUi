@@ -163,3 +163,26 @@ The isolated Embedded diagnostic flags `--test-rich-snapshot-slice-failures` and
 Only those explicit child modes install a terminate handler (exit 197) to record
 an unexpected noexcept failure without a CRT dialog. Correct code returns zero;
 the original Debug failure is a preserved negative diagnostic, never a suite pass.
+## Native rich images
+
+The named `EditorControls` tests cover native resource/pixel publication, the
+real clipboard-to-worker path and bounded loader queues/cancellation/closure.
+The named native/embedded decoded-image tests are in `Accessibility`; ordinary
+`Embedded` adds DPI, RTL, selection, hide/show and device replacement checks.
+
+Isolated failure children retain the same ordinary Embedded assertions:
+
+```powershell
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-resource-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --capture-rich-images output.png Dark
+```
+
+The resource child sweeps observed allocation schedules for staging, dispatch,
+completion and loaded Unicode geometry, then checks actual upload coalescing,
+owner work budgets, first/later bitmap memory/device HRESULT failures and 128
+native placements with excess alternatives preserved. The capture mode uses the
+actual sample scene and deterministic caller-supplied pixels without a desktop
+window. These cases do not establish physical input/AT, native ARM64 execution
+or paired performance acceptance.

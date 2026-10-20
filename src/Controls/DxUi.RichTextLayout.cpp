@@ -138,10 +138,15 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareSemanticOwned(
-    IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, bool marker, IDWriteInlineObject* object, UINT32 objectOffset)
+void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory,
+                                          Projection& projection,
+                                          const LayoutOptions& options,
+                                          bool marker,
+                                          IDWriteInlineObject* object,
+                                          UINT32 objectOffset,
+                                          std::span<const SemanticInlineObject> objects)
 {
-    PrepareOwned(factory, projection, options, 0.0f, true, marker, object, objectOffset);
+    PrepareOwned(factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
 }
 void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
                                   Projection& projection,
@@ -150,7 +155,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
                                   bool semanticDisplay,
                                   bool marker,
                                   IDWriteInlineObject* object,
-                                  UINT32 objectOffset)
+                                  UINT32 objectOffset,
+                                  std::span<const SemanticInlineObject> objects)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -168,6 +174,17 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         throw std::invalid_argument("Invalid rich-text display text");
     if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
         throw std::invalid_argument("Invalid semantic object placement");
+    std::size_t objectEnd{};
+    for (const auto& inlineObject : objects)
+    {
+        if (! semanticDisplay || ! inlineObject.object || ! inlineObject.length || inlineObject.first < objectEnd ||
+            inlineObject.first >= projection.text.size() || inlineObject.length > projection.text.size() - inlineObject.first ||
+            ! IsEditBoundary(projection.text, inlineObject.first) ||
+            ! IsEditBoundary(projection.text, static_cast<std::size_t>(inlineObject.first) + inlineObject.length) ||
+            (object && objectOffset >= inlineObject.first && objectOffset < static_cast<std::size_t>(inlineObject.first) + inlineObject.length))
+            throw std::invalid_argument("Invalid semantic inline object range");
+        objectEnd = static_cast<std::size_t>(inlineObject.first) + inlineObject.length;
+    }
     std::size_t previousDisplay = 0, previousSource = 0;
     for (const auto offset : projection.sourceToDisplay)
     {
@@ -212,7 +229,18 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         positionedText.assign(L"\ufffc\n");
         positionedText.append(projection.text);
     }
-    const auto text = textOffset ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
+    if (! objects.empty())
+    {
+        if (! textOffset)
+            positionedText.assign(projection.text);
+        // The public display/source map retains the Unicode alternative. Only
+        // the private SDK buffer uses neutral object code units of equal
+        // length: otherwise script/font fallback can split a Han/emoji alt
+        // into several inline-object runs and repeat the image metrics.
+        for (const auto& inlineObject : objects)
+            std::fill_n(positionedText.begin() + inlineObject.first + textOffset, inlineObject.length, L'\ufffc');
+    }
+    const auto text = textOffset || ! objects.empty() ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
     Check(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()), "CreateTextLayout");
     wil::com_ptr<IDWriteInlineObject> positioning;
     if (textOffset)
@@ -262,6 +290,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     // native graphics paint explicitly on the owner's known target later.
     if (object)
         Check(layout->SetInlineObject(object, {objectOffset + textOffset, 1u}), "Set semantic object metrics");
+    for (const auto& inlineObject : objects)
+        Check(layout->SetInlineObject(inlineObject.object, {inlineObject.first + textOffset, inlineObject.length}), "Set prepared image metrics");
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};
     Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");

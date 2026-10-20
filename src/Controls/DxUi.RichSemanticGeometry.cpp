@@ -1,5 +1,7 @@
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
+#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -9,8 +11,20 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
+#endif
 namespace
 {
+HRESULT UploadImageBitmap(
+    ID2D1RenderTarget* target, D2D1_SIZE_U size, const void* pixels, UINT32 stride, const D2D1_BITMAP_PROPERTIES& properties, ID2D1Bitmap** bitmap) noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (testRichImageRasterCalls && testRichImageRasterCalls->createBitmap)
+        return testRichImageRasterCalls->createBitmap(target, size, pixels, stride, properties, bitmap);
+#endif
+    return target->CreateBitmap(size, pixels, stride, properties, bitmap);
+}
 // DirectWrite reserves and hit-tests one atomic graphic. Graphics are painted
 // later on the known owner target; the opaque drawingContext is never cast.
 class SemanticObjectPlaceholder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
@@ -73,6 +87,76 @@ struct NativeDiagramGeometry
         return found != placements.end() && found->element == element ? &*found : nullptr;
     }
 };
+struct SemanticBox;
+struct NativeImagePlacement
+{
+    std::size_t element{};
+    MarkdownRange display;
+    std::shared_ptr<const RichImage> pixels;
+    wil::com_ptr<ID2D1Bitmap> bitmap;
+    D2D1_RECT_F bounds{};
+    const SemanticBox* owner{};
+    float caretHeight{};
+};
+struct NativeImageGeometry
+{
+    NativeImageGeometry(const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target)
+        : placements(resources.placements.size()),
+          targetIdentity(target)
+    {
+        if (! target)
+            throw std::invalid_argument("Image raster preparation requires the owner's target");
+        if (placements.size() > RichImageResources::MaximumPlacements)
+            throw NativeObjectCapacity("Too many prepared image placements");
+        std::size_t bytes{};
+        for (std::size_t index = 0u; index < placements.size(); ++index)
+        {
+            const auto& resource = resources.placements[index];
+            if (! resource.image || resource.element >= document.Elements().size() || document.Elements()[resource.element].role != SemanticRole::Image)
+                throw std::invalid_argument("Invalid prepared image resource binding");
+            auto& placement   = placements[index];
+            placement.element = resource.element;
+            placement.display = document.Elements()[resource.element].display;
+            placement.pixels  = resource.image;
+            const auto prior  = std::find_if(resources.placements.begin(),
+                                             resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
+                                             [&](const auto& value) { return value.image == resource.image; });
+            if (prior == resources.placements.begin() + static_cast<std::ptrdiff_t>(index))
+            {
+                if (resource.image->Pixels().size() > RichImageResources::MaximumDecodedBytes - bytes)
+                    throw NativeObjectCapacity("Prepared image pixel capacity exceeded");
+                bytes += resource.image->Pixels().size();
+            }
+        }
+        std::ranges::sort(placements, {}, &NativeImagePlacement::element);
+    }
+    std::vector<NativeImagePlacement> placements;
+    ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
+    bool PrepareOne(std::size_t index, ID2D1RenderTarget* target)
+    {
+        auto& placement  = placements[index];
+        const auto found = std::find_if(
+            placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) { return prior.pixels == placement.pixels; });
+        if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
+        {
+            placement.bitmap = found->bitmap;
+            return false;
+        }
+        const auto properties = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+        THROW_IF_FAILED(UploadImageBitmap(target,
+                                          D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
+                                          placement.pixels->Pixels().data(),
+                                          placement.pixels->Stride(),
+                                          properties,
+                                          placement.bitmap.put()));
+        return true;
+    }
+    bool Placed(std::size_t element) const noexcept
+    {
+        const auto found = std::lower_bound(placements.begin(), placements.end(), element, [](const auto& value, auto index) { return value.element < index; });
+        return found != placements.end() && found->element == element && found->owner;
+    }
+};
 struct SemanticBox
 {
     PreparedLayout layout;
@@ -82,10 +166,23 @@ struct SemanticBox
     std::optional<MarkdownEmptyLine> sourceCaret;
     bool caretOnly{}, markerOnly{};
     const NativeDiagramPlacement* native{};
+    const NativeImageGeometry* images{};
     CaretGeometry Caret(std::size_t local) const
     {
         if (! native)
-            return layout.Caret(local);
+        {
+            auto caret = layout.Caret(local);
+            if (images)
+                for (const auto& image : images->placements)
+                    if (image.owner == this &&
+                        (paragraph.display.first + local == image.display.first || paragraph.display.first + local == image.display.last))
+                    {
+                        caret.height = std::min(image.caretHeight, image.bounds.bottom - image.bounds.top);
+                        caret.y      = image.bounds.bottom - caret.height;
+                        break;
+                    }
+            return caret;
+        }
         const auto object = native->display - paragraph.display.first;
         if (local < object)
         {
@@ -153,16 +250,22 @@ struct PreparedSemanticGeometry::State
           IDWriteFactory* writeFactory,
           const LayoutOptions& inputOptions,
           ID2D1Factory* drawing,
-          FlowchartResourceEpoch epochs)
+          FlowchartResourceEpoch epochs,
+          std::shared_ptr<const RichImageResourceSet> inputImages,
+          ID2D1RenderTarget* raster)
         : document(std::move(input)),
           factory(writeFactory),
           options(inputOptions),
+          imageResources(std::move(inputImages)),
+          imageEpochs(epochs),
           boxes(0u),
           glyphBoxes(0u),
           nodeElements(document->Syntax()->Nodes().size(), MarkdownNoNode),
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
+        if (imageResources && ! imageResources->placements.empty())
+            images = std::make_unique<NativeImageGeometry>(*imageResources, *document, raster);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())
         {
@@ -177,6 +280,9 @@ struct PreparedSemanticGeometry::State
     std::shared_ptr<const SemanticDocument> document;
     wil::com_ptr<IDWriteFactory> factory;
     LayoutOptions options;
+    std::shared_ptr<const RichImageResourceSet> imageResources;
+    FlowchartResourceEpoch imageEpochs;
+    std::unique_ptr<NativeImageGeometry> images;
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     // Source caret boxes are in physical source order, while their zero-width
@@ -260,6 +366,7 @@ struct PreparedSemanticGeometry::Preparation
         IndexCaretSites,
         CountSites,
         NativeObjects,
+        NativeImages,
         MarkerLayouts,
         Layouts,
         RowPlacement,
@@ -273,8 +380,11 @@ struct PreparedSemanticGeometry::Preparation
                          IDWriteFactory* factory,
                          const LayoutOptions& options,
                          ID2D1Factory* drawing,
-                         FlowchartResourceEpoch epochs)
-        : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs)),
+                         FlowchartResourceEpoch epochs,
+                         std::shared_ptr<const RichImageResourceSet> images,
+                         ID2D1RenderTarget* target)
+        : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target)),
+          raster(state->images ? target : nullptr),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
           literalDefinitionNodes(0u),
@@ -286,7 +396,9 @@ struct PreparedSemanticGeometry::Preparation
     {
     }
     std::unique_ptr<State> state;
+    wil::com_ptr<ID2D1RenderTarget> raster; // Retained only across cooperative staging; released before publication.
     std::size_t nativeIndex{};
+    std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
     std::vector<bool> literalDefinitionNodes;
@@ -619,8 +731,75 @@ struct PreparedSemanticGeometry::Preparation
                 placeholder = object.Get();
             }
             const auto objectOffset = native ? static_cast<UINT32>(native->display - content.display.first) : 0u;
-            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset);
+            struct ImageInlines
+            {
+                std::array<PreparedLayout::SemanticInlineObject, RichImageResources::MaximumPlacements> ranges{};
+                std::array<wil::com_ptr<IDWriteInlineObject>, RichImageResources::MaximumPlacements> objects{};
+                std::size_t count{};
+            };
+            std::optional<ImageInlines> imageInlines;
+            if (next.images)
+            {
+                imageInlines.emplace();
+                for (auto& image : next.images->placements)
+                    if (image.display.first >= content.display.first && image.display.last <= content.display.last && image.display.first < image.display.last)
+                    {
+                        const auto scale = std::min(1.0f, options.widthDip / static_cast<float>(image.pixels->Width()));
+                        const auto width = static_cast<float>(image.pixels->Width()) * scale, height = static_cast<float>(image.pixels->Height()) * scale;
+                        const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(DWRITE_INLINE_OBJECT_METRICS{width, height, height, FALSE});
+                        if (! object)
+                            throw std::bad_alloc();
+                        const auto index             = imageInlines->count++;
+                        imageInlines->objects[index] = object.Get();
+                        imageInlines->ranges[index]  = {object.Get(),
+                                                        static_cast<UINT32>(image.display.first - content.display.first),
+                                                        static_cast<UINT32>(image.display.last - image.display.first)};
+                    }
+                std::sort(imageInlines->ranges.begin(),
+                          imageInlines->ranges.begin() + static_cast<std::ptrdiff_t>(imageInlines->count),
+                          [](const auto& a, const auto& b) { return a.first < b.first; });
+            }
+            const auto imageRanges =
+                imageInlines ? std::span(imageInlines->ranges.data(), imageInlines->count) : std::span<PreparedLayout::SemanticInlineObject>{};
+            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
             lastLayoutCalls = 1u;
+            if (imageInlines && imageInlines->count)
+                for (auto& image : next.images->placements)
+                    if (image.display.first >= content.display.first && image.display.last <= content.display.last && image.display.first < image.display.last)
+                    {
+                        const auto rectangles = box->layout.Range(image.display.first - content.display.first, image.display.last - content.display.first);
+                        if (rectangles.size() != 1u)
+                            throw std::logic_error("Prepared image must produce one atomic SDK rectangle");
+                        image.bounds     = rectangles.front();
+                        const auto local = image.display.first - content.display.first;
+                        std::size_t lineStart{};
+                        float lineTop{};
+                        bool located{};
+                        for (const auto& line : box->layout.LineMetrics())
+                        {
+                            if (local < lineStart + line.length)
+                            {
+                                // HitTestTextRange reports the complete line
+                                // cell, including neighboring font descent.
+                                // Paint the image at its actual inline baseline
+                                // and pixel aspect ratio, never stretched to
+                                // that larger SDK selection rectangle.
+                                const auto scale    = std::min(1.0f, options.widthDip / static_cast<float>(image.pixels->Width()));
+                                image.bounds.top    = lineTop + line.baseline - static_cast<float>(image.pixels->Height()) * scale;
+                                image.bounds.bottom = lineTop + line.baseline;
+                                image.bounds.right  = image.bounds.left + static_cast<float>(image.pixels->Width()) * scale;
+                                located             = true;
+                                break;
+                            }
+                            lineStart += line.length;
+                            lineTop += line.height;
+                        }
+                        if (! located)
+                            throw std::logic_error("Prepared image has no SDK line baseline");
+                        image.owner       = box.get();
+                        image.caretHeight = options.fontSizeDip;
+                        box->images       = next.images.get();
+                    }
             if (native)
             {
                 const auto textBounds = box->layout.HorizontalTextBounds();
@@ -710,19 +889,24 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                                         std::shared_ptr<const SemanticDocument> document,
                                                         const LayoutOptions& options,
                                                         ID2D1Factory* drawing,
-                                                        FlowchartResourceEpoch epochs)
+                                                        FlowchartResourceEpoch epochs,
+                                                        std::shared_ptr<const RichImageResourceSet> images,
+                                                        ID2D1RenderTarget* raster)
 {
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         options.fontSizeDip <= 0.0f)
         throw std::invalid_argument("Invalid semantic geometry request");
     const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
+    if (images && images->placements.size() > RichImageResources::MaximumPlacements - std::min(RichImageResources::MaximumPlacements, diagrams.size()))
+        throw NativeObjectCapacity("Combined native image/diagram capacity exceeded");
     if (! diagrams.empty() && ! drawing)
         throw std::invalid_argument("Native semantic objects require a drawing factory");
     if (! diagrams.empty() && options.fontSizeDip > 512.0f)
         throw NativeObjectCapacity("Native object font exceeds its supported extent");
     const auto same = [&](const State& state)
     {
-        return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) &&
+        return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
+               (! state.images || (state.images->targetIdentity == raster && state.imageEpochs == epochs)) &&
                (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs));
     };
     if (next_ && same(*next_->state))
@@ -733,7 +917,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         valid_ = true;
         return LayoutPreparationStatus::Complete;
     }
-    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs);
+    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster);
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
@@ -874,7 +1058,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 const auto diagrams = SemanticExtensionAccess::Diagrams(*state.document);
                 if (work.nativeIndex == diagrams.size())
                 {
-                    work.phase = Preparation::Phase::MarkerLayouts;
+                    work.phase = Preparation::Phase::NativeImages;
                     continue;
                 }
                 if (result.layoutsPrepared == budget.maximumLayouts)
@@ -899,6 +1083,24 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (! advance.blockSteps && ! advance.layoutsPrepared)
                     break;
+                continue;
+            }
+            else if (work.phase == Preparation::Phase::NativeImages)
+            {
+                if (! work.state->images || work.imageIndex == work.state->images->placements.size())
+                {
+                    work.raster.reset();
+                    work.phase = Preparation::Phase::MarkerLayouts;
+                    continue;
+                }
+                const bool uploaded = work.state->images->PrepareOne(work.imageIndex++, work.raster.get());
+                ++result.blockSteps;
+                // One indivisible bounded upload per owner turn. Repeated
+                // placements share a bitmap; no decode/I/O happens here.
+                if (uploaded)
+                    break;
+                // A reused placement already consumed its one event above.
+                // Do not count it again in the common phase-step tail.
                 continue;
             }
             else if (work.phase == Preparation::Phase::MarkerLayouts)
@@ -1112,7 +1314,7 @@ std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 }
 bool PreparedSemanticGeometry::HasNativeObjects() const noexcept
 {
-    return state_ && state_->native;
+    return state_ && (state_->native || state_->images);
 }
 const PreparedSemanticGeometry::State& PreparedSemanticGeometry::Current() const
 {
@@ -1309,7 +1511,7 @@ std::vector<D2D1_RECT_F> PreparedSemanticGeometry::RangeFromState(const State& s
             const auto begin = std::max(first, box.paragraph.display.first), end = std::min(last, box.paragraph.display.last);
             if (begin >= end)
                 continue;
-            for (auto rectangle : box.layout.Range(begin - box.paragraph.display.first, end - box.paragraph.display.first))
+            const auto append = [&](D2D1_RECT_F rectangle)
             {
                 rectangle.left += box.x;
                 rectangle.right += box.x;
@@ -1324,7 +1526,20 @@ std::vector<D2D1_RECT_F> PreparedSemanticGeometry::RangeFromState(const State& s
                 }
                 if (rectangle.right > rectangle.left && rectangle.bottom > rectangle.top)
                     result.push_back(rectangle);
-            }
+            };
+            const NativeImagePlacement* atomic{};
+            if (box.images)
+                for (const auto& image : box.images->placements)
+                    if (image.owner == &box && begin >= image.display.first && end <= image.display.last)
+                    {
+                        atomic = &image;
+                        break;
+                    }
+            if (atomic)
+                append(atomic->bounds);
+            else
+                for (const auto rectangle : box.layout.Range(begin - box.paragraph.display.first, end - box.paragraph.display.first))
+                    append(rectangle);
         }
     return std::vector<D2D1_RECT_F>(result);
 }
@@ -1399,12 +1614,21 @@ std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleRange(float
         }
     return first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
 }
-void PreparedSemanticGeometry::Draw(
-    ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill) const
+void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
+                                    ID2D1Brush* text,
+                                    ID2D1Brush* decoration,
+                                    D2D1_POINT_2F origin,
+                                    float top,
+                                    float bottom,
+                                    ID2D1Brush* fill,
+                                    float imageOpacity) const
 {
     const auto& state = Current();
-    if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
+    if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
+        imageOpacity < 0.0f || imageOpacity > 1.0f)
         throw std::invalid_argument("Invalid semantic raster request");
+    if (state.images && state.images->targetIdentity != target)
+        throw std::logic_error("Prepared image target/resources are incompatible");
     if (state.native && ! fill)
         throw std::invalid_argument("Native diagram drawing needs an opaque fill brush");
     const auto elements = state.document->Elements();
@@ -1414,6 +1638,8 @@ void PreparedSemanticGeometry::Draw(
         if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
             continue;
         const auto rectangle = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
+        if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
+            continue;
         if (elements[i].role == SemanticRole::Cell || elements[i].role == SemanticRole::Code || elements[i].role == SemanticRole::Image)
             target->DrawRectangle(rectangle, decoration);
         else if (elements[i].role == SemanticRole::Quote)
@@ -1448,6 +1674,16 @@ void PreparedSemanticGeometry::Draw(
                                                fill,
                                                D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
                     throw std::logic_error("Native diagram target/resources are incompatible");
+                if (box->images)
+                    for (const auto& image : box->images->placements)
+                        if (image.owner == box.get() && image.bounds.bottom + box->y > top && image.bounds.top + box->y < bottom)
+                            target->DrawBitmap(image.bitmap.get(),
+                                               D2D1::RectF(origin.x + box->x + image.bounds.left,
+                                                           origin.y + box->y + image.bounds.top,
+                                                           origin.x + box->x + image.bounds.right,
+                                                           origin.y + box->y + image.bounds.bottom),
+                                               imageOpacity,
+                                               D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
             }
         }
 }

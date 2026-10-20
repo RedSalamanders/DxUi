@@ -38,6 +38,47 @@ template <typename Check> inline void Paths(Check&& check)
          {L"a.png", L"C:a.png", L"\\a.png", L"C:\\a.txt", L"C:\\a.png\nC:\\b.png", L"\\\\.\\C:\\a.png", L"C:\\..\\a.png", L"C:\\a.png:stream"})
         check(! BuildMarkdownImagePath(L"C:\\note.md", invalid), "ambiguous/non-image/device paths remain ordinary Unicode text");
     check(! BuildMarkdownImagePath(L"", std::wstring(1u, wchar_t(0xd800))), "malformed UTF-16 is never interpreted as an image path");
+    for (const auto* invalid :
+         {L"C:\\NUL.png", L"C:\\com1.jpg", L"C:\\COM\u00b9.png", L"C:\\folder.\\a.png", L"C:\\folder \\a.png", L"\\\\?\\C:\\folder\\..\\a.png"})
+        check(! BuildMarkdownImagePath(L"C:\\note.md", invalid), "DOS devices and ambiguous extended/trailing component spellings remain literal");
+    struct ResolveCase
+    {
+        const wchar_t* document;
+        const wchar_t* destination;
+        const wchar_t* path;
+    };
+    const ResolveCase destinations[] = {
+        {L"C:\\docs\\note.md", L"media/a%20%23.png", L"C:\\docs\\media\\a #.png"},
+        {L"C:\\docs\\note.md", L"../\u6771%F0%9F%98%80.png", L"C:\\\u6771\U0001f600.png"},
+        {L"", L"file:///D:/images/a.png", L"D:\\images\\a.png"},
+        {L"", L"file://localhost/C:/a.png", L"C:\\a.png"},
+        {L"", L"file://server/share/a.png", L"\\\\server\\share\\a.png"},
+        {L"C:\\note.md", L"a%2520.png", L"C:\\a%20.png"},
+    };
+    for (const auto& item : destinations)
+    {
+        const auto result = ResolveLocalImagePath(item.document, item.destination);
+        check(result && *result == item.path, "local image URI resolution preserves exact decoded Unicode and explicit base/root");
+    }
+    for (const auto* invalid : {L"https://example.invalid/a.png",
+                                L"data:image/png;base64,x",
+                                L"file:relative.png",
+                                L"file://localhost/images/a.png",
+                                L"a.png?x",
+                                L"a.png#x",
+                                L"%2f%2fserver/share/a.png",
+                                L"a%5cb.png",
+                                L"a%00.png",
+                                L"a%FF.png",
+                                L"a%2.png",
+                                L"/a.png"})
+        check(! ResolveLocalImagePath(L"C:\\docs\\note.md", invalid),
+              "remote/query/fragment/encoded separators/malformed URI paths never become local requests");
+    check(! ResolveLocalImagePath(L"", L"a.png") && ! ResolveLocalImagePath(L"C:\\note.md", L"../a.png"),
+          "unsaved relative and above-root image destinations remain unresolved");
+    check(SameLocalImagePath(L"C:\\docs\\a.png", L"c:\\docs\\a.png") && SameLocalImagePath(L"\\\\SERVER\\share\\a.png", L"\\\\server\\share\\a.png") &&
+              ! SameLocalImagePath(L"C:\\Docs\\a.png", L"C:\\docs\\a.png"),
+          "resource keys coalesce Windows roots while preserving case-sensitive file/directory spelling");
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
     try
     {
@@ -123,6 +164,12 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a \\#](media/a%20%23.png)" && editor.Revision() == revision,
           "image paste preparation is pure and emits Markdown");
     check(editor.ReplaceSelection(replacement) && editor.GetText() == L"begin\n![a \\#](media/a%20%23.png)", "prepared image commits once as source");
+    prepare();
+    const auto semantic = editor.GetSemanticDocument();
+    check(static_cast<bool>(semantic), "image paste prepares current semantic source");
+    const auto image = std::ranges::find(semantic->Elements(), SemanticRole::Image, &SemanticElement::role);
+    check(image != semantic->Elements().end() && image->name == L"a #" && image->destination == L"media/a%20%23.png",
+          "emitted source independently parses into the intended image alternative and URI");
     check(editor.Undo() && editor.GetText() == L"begin\n" && editor.GetSelection() == selection && ! editor.CanUndo(),
           "one undo restores complete image insertion and selection");
     check(editor.Redo() && editor.GetText().ends_with(replacement), "image insertion is redoable");

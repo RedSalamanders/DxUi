@@ -168,6 +168,8 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Scope.Tests.ComplexUiProfiling.h"
 #include "Scope.Tests.RichDocumentStorageResources.h"
 #include "Scope.Tests.RichGeometryResources.h"
+#include "Scope.Tests.RichImageCapture.h"
+#include "Scope.Tests.RichImageFailures.h"
 #include "Scope.Tests.RichProjectionResources.h"
 #include "Scope.Tests.RichSemanticDocumentResources.h"
 #include "Scope.Tests.RichSemanticGeometryResources.h"
@@ -1177,10 +1179,18 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
+    {
+        const std::wstring_view theme(__wargv[3]);
+        Check(theme == L"Dark" || theme == L"Light", "image capture requires Dark or Light");
+        CaptureRichImageSample(__wargv[2], theme == L"Dark");
+        return 0;
+    }
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
@@ -1262,6 +1272,14 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-failures")
             TestRichImagePathAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures")
+            TestRichImageDecoderAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures")
+        {
+            TestRichImageResourceAllocationFailures();
+            TestRichImageGeometryAllocationFailures();
+            TestRichImageRasterFailureAndBudgets();
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
         {
             TestNativeFlowchartAllocationFailureAtomicity(true);
@@ -1440,6 +1458,14 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedLocalizedRecordedServiceCommit(gpu);
     TestEmbeddedRetainedObjectSourceEditing(gpu);
     TestEmbeddedImagePathPaste(gpu);
+    TestEmbeddedImageResources(gpu);
+    RichImageTests::Core(Check);
+    RichImageResourceTests::Admission(Check);
+    TestRichImagePathAllocationFailures();
+    TestRichImageDecoderAllocationFailures();
+    TestRichImageResourceAllocationFailures();
+    TestRichImageGeometryAllocationFailures();
+    TestRichImageRasterFailureAndBudgets();
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichSourceChangeAllocationBudget();

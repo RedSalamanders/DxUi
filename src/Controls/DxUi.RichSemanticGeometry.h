@@ -1,11 +1,22 @@
 #pragma once
 #include "DxUi.PreparedFlowchart.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
 #include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
+struct RichImageResourceSet;
+// Dormant owner-thread seam for observing real uploads and injecting driver
+// HRESULT failures. It is never consulted during painting/composition.
+struct RichImageRasterCalls
+{
+    HRESULT (*createBitmap)(ID2D1RenderTarget*, D2D1_SIZE_U, const void*, UINT32, const D2D1_BITMAP_PROPERTIES&, ID2D1Bitmap**) noexcept {};
+};
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
+#endif
 class NativeObjectCapacity final : public std::length_error
 {
 public:
@@ -29,8 +40,10 @@ public:
     LayoutPreparationStatus Begin(IDWriteFactory* factory,
                                   std::shared_ptr<const SemanticDocument> document,
                                   const LayoutOptions& options,
-                                  ID2D1Factory* drawing         = nullptr,
-                                  FlowchartResourceEpoch epochs = {});
+                                  ID2D1Factory* drawing                              = nullptr,
+                                  FlowchartResourceEpoch epochs                      = {},
+                                  std::shared_ptr<const RichImageResourceSet> images = {},
+                                  ID2D1RenderTarget* raster                          = nullptr);
     LayoutAdvance Advance(LayoutWorkBudget budget = {});
     void Cancel() noexcept;
     void Invalidate() noexcept;
@@ -65,8 +78,14 @@ public:
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t offset, bool backwards) const;
     std::size_t LineBoundary(std::size_t offset, bool end) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
-    void Draw(
-        ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* decoration, D2D1_POINT_2F origin, float top, float bottom, ID2D1Brush* fill = nullptr) const;
+    void Draw(ID2D1RenderTarget* target,
+              ID2D1Brush* text,
+              ID2D1Brush* decoration,
+              D2D1_POINT_2F origin,
+              float top,
+              float bottom,
+              ID2D1Brush* fill   = nullptr,
+              float imageOpacity = 1.0f) const;
 
 private:
     struct State;

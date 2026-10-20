@@ -25,7 +25,7 @@ struct EmbeddedScene
         auto root = std::make_unique<DxUi::Panel>();
         if (richText)
         {
-            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - F2 edits object source; Esc finishes; Ctrl+Z/Y undo/redo");
+            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - F2 edits code/diagram blocks; Esc finishes; Ctrl+Z/Y undo/redo");
             caption->SetBounds(D2D1::RectF(24, 8, 950, 32));
             auto* status = root->AddChild<DxUi::Label>(L"Click a diagram or code block and press F2. Select ordinary text for formatting actions.");
             status->SetBounds(D2D1::RectF(24, 34, 950, 58));
@@ -34,6 +34,7 @@ struct EmbeddedScene
             rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             rich->SetMarkdownRenderingEnabled(true);
             rich->SetText(L"# Owned Unicode rich text\r\n\r\n"
+                          L"Copy an image file in Explorer, or copy its path, then paste here to display it.\r\n\r\n"
                           L"```mermaid\r\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\r\n```\r\n\r\n"
                           L"Edit **bold**, *italic*, ~~deleted~~ and `code`.[^unicode] Try an [underlined link](https://example.invalid).\r\n\r\n"
                           L"<p>Native <b>HTML</b>, <u>underline</u>, <a href='#sample' title='Inert link'>a link</a> and &copy;.</p>\r\n\r\n"

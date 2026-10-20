@@ -2,6 +2,7 @@
 #include "Configuration.h"
 #include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
+#include "RichImage.h"
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
@@ -2830,6 +2831,15 @@ public:
     // rewrite occurs; no process working directory is used for relative links.
     void SetDocumentFilePath(std::wstring path);
     [[nodiscard]] std::wstring_view GetDocumentFilePath() const noexcept;
+    // Call after owner preparation. The application executes these bounded
+    // local-file requests in its own worker service and marshals completion to
+    // this owner thread. No worker may call a ControlHost or editor directly.
+    void TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests);
+    // True accepts a current completion. Null/capacity keeps the image alt;
+    // false rejects stale/canceled/foreign requests. No source/history edit.
+    bool CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image);
+    void ReloadImages();
+    [[nodiscard]] RichText::RichImageResourceStatistics GetImageResourceStatistics() const noexcept;
     // Prepare one source replacement for the native/app clipboard route. Image
     // paths become relative Markdown in canonical rich contexts; unsaved or
     // cross-root paths use absolute file URIs. Raw source/code stays literal.
