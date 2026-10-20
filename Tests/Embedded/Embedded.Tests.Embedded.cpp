@@ -1181,7 +1181,7 @@ __declspec(noinline) static int RunFunctionalTests()
          std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1242,6 +1242,11 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
             TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures")
+        {
+            TestFootnoteBlockAllocationFailures(true);
+            TestRichSemanticGeometryFailureBudgets(true, true);
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
             TestNativeFlowchartAllocationFailureAtomicity(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
@@ -1419,6 +1424,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedLosslessMarkdownPreparation(gpu);
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartSourceFallbacks(gpu);
+    TestEmbeddedFootnoteBlockSourceEdits(gpu);
     RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
     RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
     RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
@@ -1442,8 +1448,11 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
+    RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
     RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, true); });
+    TestFootnoteBlockAllocationFailures();
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
     {
         DxUi::EmbeddedHost transactionView;

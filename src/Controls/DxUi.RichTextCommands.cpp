@@ -2038,7 +2038,17 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::PreviousTableCell))
+        throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
+    // Initial definition presentation is literal source. Until note-aware
+    // transactions are implemented, never apply a child paragraph/list edit
+    // through its owning definition's label or four-column continuation prefix.
+    for (const auto& node : builder.nodes)
+        if (node.block.kind == MarkdownBlockKind::FootnoteDefinition &&
+            (selection.Start() == selection.End() ? builder.NodeAt(MarkdownBlockKind::FootnoteDefinition, selection.Start()) != MarkdownNoNode
+                                                  : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
+            return builder.Finish();
     switch (request.command)
     {
         case MarkdownCommand::InsertParagraph: builder.Continue(); break;

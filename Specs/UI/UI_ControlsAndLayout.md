@@ -1329,3 +1329,38 @@ remain accounted for. Independent subset expectations distinguish 13 admitted
 graphs from 92 unsupported definitions and 20 other diagram families. Rejection
 is compatibility accounting, never rendered conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
+
+### RichMarkdown footnote definition grammar
+
+`DxUiFootnotes1` is a separate RichMarkdown extension; CommonMark0312 and Gfm029
+MUST retain their pinned grammar. Initial definition containers and literal
+fallback are in development. Label binding, numbering, footer presentation and
+backlinks remain pending; recognizing a container is not complete footnote support.
+
+A definition starts with `[^label]:` after at most three space columns beyond
+the current quote/list prefixes. The nonblank label has at most 999 Unicode
+scalars, retains its exact raw spelling and allows escaped brackets/backslashes.
+Consume one optional space column after the colon; preserve additional initial
+indentation, including partial tabs, for ordinary block recognition. Subsequent
+non-lazy body lines consume four columns relative to the outer container. Ordinary
+paragraph lazy continuation remains valid; blank lines allow multiple paragraphs.
+Empty definitions stay open across blank lines for an indented body, but do not
+capture following unindented non-lazy blocks. A new definition interrupts an
+existing paragraph/definition at its actual outer level. Nested definitions are
+literal body text, and MUST NOT become accidental ordinary link definitions.
+Code, opaque HTML and metadata envelopes do not acquire footnote definitions.
+
+The `FootnoteDefinition` container owns the whole raw source, exact marker/label
+ranges and parsed block children. Definition order, comments/trivia, indentation,
+Unicode, EOL spelling and compatible identity MUST survive untouched edits. During
+the initial fallback stage, render the complete definition literally once with
+source ACPs; do not independently render its parsed child subtree or add extra
+caret rows for its child blank trivia. Structural commands touching this fallback
+MUST be unavailable atomically; raw source replacement and undo/redo remain valid.
+Future note-aware structural commands require their own prefix/transaction tests.
+
+Global resolution will use the existing Unicode 17 default case-fold and ASCII
+whitespace collapse without changing label source. Missing/duplicate definitions,
+repeated references, reachable first-reference numbering and generated backlinks
+remain explicit M5b obligations. Reordered footer definitions require display-order
+caret-site ownership and source-exact UIA navigation before that support can close.

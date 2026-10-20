@@ -154,6 +154,7 @@ struct PreparedSemanticGeometry::Preparation
     enum class Phase
     {
         IndexElements,
+        IndexLiteralDefinitions,
         CountSites,
         MarkerLayouts,
         Layouts,
@@ -166,18 +167,28 @@ struct PreparedSemanticGeometry::Preparation
     explicit Preparation(std::shared_ptr<const SemanticDocument> document, IDWriteFactory* factory, const LayoutOptions& options)
         : state(std::make_unique<State>(std::move(document), factory, options)),
           markers(state->document->Paragraphs().size()),
-          gutters(state->document->Syntax()->Nodes().size(), 0.0f)
+          gutters(state->document->Syntax()->Nodes().size(), 0.0f),
+          literalDefinitionNodes(0u)
     {
     }
     std::unique_ptr<State> state;
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
+    std::vector<bool> literalDefinitionNodes;
     Phase phase = Phase::IndexElements;
     std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{};
     float y{}, rowHeight{};
     bool rowActive{};
     std::size_t emptyLine{}, plannedBoxes{}, markerIndex{}, lastLayoutCalls{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
+    bool LiteralDefinitionLine(std::size_t index) const noexcept
+    {
+        const auto& syntax = *state->document->Syntax();
+        // This membership is prepared once per node, not an ancestor walk per
+        // blank line. Deep containers and repeated prefix-free blank lines must
+        // not multiply geometry work. No table is allocated without a fallback.
+        return ! literalDefinitionNodes.empty() && literalDefinitionNodes[syntax.EmptyLines()[index].owner];
+    }
     static bool SplitMarker(const SemanticParagraph& paragraph) noexcept
     {
         return paragraph.markerOwner != MarkdownNoNode && paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd < paragraph.display.last;
@@ -251,7 +262,12 @@ struct PreparedSemanticGeometry::Preparation
         auto& next            = *state;
         const auto paragraphs = next.document->Paragraphs();
         const auto emptyLines = next.document->Syntax()->EmptyLines();
-        const bool atEnd      = paragraph == paragraphs.size() && emptyLine == emptyLines.size();
+        if (emptyLine < emptyLines.size() && LiteralDefinitionLine(emptyLine))
+        {
+            ++emptyLine;
+            return;
+        }
+        const bool atEnd = paragraph == paragraphs.size() && emptyLine == emptyLines.size();
         if (atEnd)
         {
             if (rowActive)
@@ -481,12 +497,36 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.boundsIndex == elements.size())
                 {
                     work.boundsIndex = 0u;
-                    work.phase       = Preparation::Phase::CountSites;
+                    work.phase       = work.literalDefinitionNodes.empty() ? Preparation::Phase::CountSites : Preparation::Phase::IndexLiteralDefinitions;
                     continue;
                 }
                 const auto index = work.boundsIndex++;
                 if (elements[index].syntaxNode != MarkdownNoNode)
+                {
                     work.state->nodeElements[elements[index].syntaxNode] = index;
+                    if (elements[index].role == SemanticRole::Code &&
+                        work.state->document->Syntax()->Nodes()[elements[index].syntaxNode].block.kind == MarkdownBlockKind::FootnoteDefinition &&
+                        work.literalDefinitionNodes.empty())
+                        work.literalDefinitionNodes.assign(work.state->nodeElements.size(), false);
+                }
+            }
+            else if (work.phase == Preparation::Phase::IndexLiteralDefinitions)
+            {
+                const auto& nodes = work.state->document->Syntax()->Nodes();
+                if (work.boundsIndex == nodes.size())
+                {
+                    work.boundsIndex = 0u;
+                    work.phase       = Preparation::Phase::CountSites;
+                    continue;
+                }
+                const auto index  = work.boundsIndex++;
+                const auto parent = nodes[index].parent;
+                if (parent != MarkdownNoNode && parent >= index)
+                    throw std::logic_error("Invalid block ancestor order");
+                const auto element                 = work.state->nodeElements[index];
+                work.literalDefinitionNodes[index] = (parent != MarkdownNoNode && work.literalDefinitionNodes[parent]) ||
+                                                     (nodes[index].block.kind == MarkdownBlockKind::FootnoteDefinition && element != MarkdownNoNode &&
+                                                      work.state->document->Elements()[element].role == SemanticRole::Code);
             }
             else if (work.phase == Preparation::Phase::CountSites)
             {
@@ -495,6 +535,12 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 // before discovering that source fallback was required.
                 const auto paragraphs = work.state->document->Paragraphs();
                 const auto lines      = work.state->document->Syntax()->EmptyLines();
+                if (work.emptyLine < lines.size() && work.LiteralDefinitionLine(work.emptyLine))
+                {
+                    ++work.emptyLine;
+                    ++result.blockSteps;
+                    continue;
+                }
                 if (work.paragraph == paragraphs.size() && work.emptyLine == lines.size())
                 {
                     work.paragraph = work.emptyLine = 0u;

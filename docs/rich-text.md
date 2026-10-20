@@ -17,6 +17,12 @@ unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Diagram layout, rich objects and editing/UIA integration
 are still pending; the current editor displays exact code-fence source fallback.
 
+RichMarkdown footnote definition containers are in development with exact labels,
+four-column continuation, multiple paragraphs and literal definition fallback.
+Source editing remains available; structural commands over that fallback are
+guarded. Global label resolution, numbering, rendered footer/backlinks and their
+accessibility actions are still pending.
+
 ## Retained editor preview (D2c)
 
 For explicit semantic coordinate preparation, include `DxUi/RichSemantic.h`.

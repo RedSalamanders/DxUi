@@ -70,15 +70,17 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
     }
 }
 
-static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
+static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
     auto factory        = RichSemanticGeometryTests::Factory();
     const auto previous = RichSemanticDocumentTests::Build(L"previous\n");
     const auto candidate =
-        RichSemanticDocumentTests::Build(L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n9. "
-                                         L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
+        literalFootnotes ? RichSemanticDocumentTests::Build(L"[^n]: first\n\n    > - second\n    >\n    >   third\n\nAfter\n", MarkdownProfile::RichMarkdown)
+                         : RichSemanticDocumentTests::Build(
+                               L"# **Heading**\n\n| left | right |\n| :--- | ---: |\n| a |\n\n> - [x] [label](local) and ![alt](image)\n>\n- \n\n9. "
+                               L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
     size_t requests  = 0u;
@@ -158,5 +160,5 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false)
     geometry.Clear();
     countAllocations = false;
     Check(allocations == oldCalls, "semantic geometry coalescing, scalar geometry queries and retirement allocate no owned C++ storage");
-    std::cout << "rich semantic geometry completeFailures=" << requests << " idle/retireAllocations=0\n";
+    std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " completeFailures=" << requests << " idle/retireAllocations=0\n";
 }

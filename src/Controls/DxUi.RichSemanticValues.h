@@ -34,8 +34,9 @@ inline void NormalizeSemanticLeaf(const MarkdownSyntax& syntax, std::size_t node
     // envelope literally, including its fences. Content lines still exclude
     // those fences for the metadata parser; no decoded value edits the source.
     const MarkdownContentLine envelope{node.block.source, 0u};
-    const auto lines = node.block.kind == MarkdownBlockKind::FrontMatter ? std::span<const MarkdownContentLine>(&envelope, 1u)
-                                                                         : std::span<const MarkdownContentLine>(node.lines);
+    const auto lines = node.block.kind == MarkdownBlockKind::FrontMatter || node.block.kind == MarkdownBlockKind::FootnoteDefinition
+                           ? std::span<const MarkdownContentLine>(&envelope, 1u)
+                           : std::span<const MarkdownContentLine>(node.lines);
     for (const auto& line : lines)
     {
         for (unsigned space = 0u; space < line.leadingSpaces; ++space)

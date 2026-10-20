@@ -55,7 +55,8 @@ enum class MarkdownBlockKind
     Table,
     TableRow,
     TableCell,
-    FrontMatter
+    FrontMatter,
+    FootnoteDefinition
 };
 struct MarkdownBlock
 {

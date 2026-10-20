@@ -822,6 +822,36 @@ void TestRichTextEditorNativeFlowchartSourceFallbacks()
                 "every accepted/rejected native diagram definition remains a reversible Unicode source edit");
     }
 }
+void TestRichTextEditorNativeFootnoteBlockSourceEdits()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    for (const auto& scenario : FootnoteBlockTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        RenderEditor(window);
+        const auto syntax = editor->GetMarkdownSyntax();
+        Require(syntax != nullptr, "native note blocks prepare on the host owner turns");
+        FootnoteBlockTests::CheckSyntax(*syntax, scenario, Require);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(semantic && semantic->Syntax() == syntax && editor->GetText() == scenario.source && ! editor->CanUndo(),
+                "native note source and history survive literal semantic preparation");
+    }
+    const std::wstring source = L"[^n]: first\r\n\r\n    second\r\n";
+    editor->SetText(source);
+    RenderEditor(window);
+    const auto at = source.find(L"second");
+    editor->SetSelection({at, at + 6u});
+    for (const auto command : {MarkdownCommand::ToggleStyle, MarkdownCommand::SetHeading, MarkdownCommand::SetList, MarkdownCommand::InsertTable})
+        Require(editor->ExecuteMarkdownCommand({command}) == MarkdownCommandStatus::Unavailable && editor->GetText() == source && ! editor->CanUndo(),
+                "initial native literal note commands reject child prefix reinterpretation atomically");
+    Require(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source && editor->Redo(),
+            "raw native note replacement remains one reversible Unicode transaction");
+}
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
     class SourceAdapterEditor final : public RichTextEditor
@@ -915,4 +945,5 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeInlineGrammarAndReferenceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFrontMatterFencesAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartSourceFallbacks);
+    DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
 }

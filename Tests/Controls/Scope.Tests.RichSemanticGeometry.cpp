@@ -28,6 +28,10 @@ void TestRichSemanticGeometryTaskCheckboxAlignment()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
 }
+void TestRichSemanticGeometryLiteralFootnoteBlockCaretSites()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
+}
 void TestRichSemanticNativeTaskCheckboxAlignment()
 {
     AttachedHostWindow window;
@@ -79,6 +83,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticGeometryHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticGeometryLinkRasterOracle);
     DXUI_RUN_TEST(TestRichSemanticGeometryTaskCheckboxAlignment);
+    DXUI_RUN_TEST(TestRichSemanticGeometryLiteralFootnoteBlockCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeTaskCheckboxAlignment);
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);

@@ -854,6 +854,60 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
     parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
     Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
 }
+void TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation()
+{
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : FootnoteBlockTests::scenarios)
+        {
+            MarkdownParser parser;
+            parser.Begin(scenario.source, 1u, profile);
+            const auto syntax = CompleteMarkdown(parser, 1u);
+            FootnoteBlockTests::CheckSyntax(*syntax, scenario, Require);
+            CheckMarkdownPartitions(*syntax, scenario.source);
+            CheckInlineForest(*syntax);
+        }
+    MarkdownParser parser;
+    parser.Begin(L"[^n]: first\n\n    second\n", 1u, MarkdownProfile::RichMarkdown);
+    const auto old      = CompleteMarkdown(parser);
+    const auto identity = old->Nodes()[1u].identity;
+    parser.Begin(L"[^n]: edited\n\n    second\n", 2u, MarkdownProfile::RichMarkdown);
+    parser.Advance(1u);
+    parser.Cancel();
+    Require(parser.Published() == old, "cancelled note block staging preserves held source and identities");
+    parser.Begin(L"[^n]: edited\n\n    second\n", 2u, MarkdownProfile::RichMarkdown);
+    Require(CompleteMarkdown(parser)->Nodes()[1u].identity == identity && old->Source().starts_with(L"[^n]: first"),
+            "body edits retain compatible note ownership without mutating the held source revision");
+}
+void TestLosslessMarkdownFootnoteLabelCapacityCountsRawScalars()
+{
+    const auto check = [](const std::wstring& label, bool expected)
+    {
+        std::wstring source = L"[^";
+        source += label;
+        source += L"]: body\n";
+        MarkdownParser parser;
+        parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        std::size_t notes{};
+        for (const auto& node : syntax->Nodes())
+            if (node.block.kind == MarkdownBlockKind::FootnoteDefinition)
+                ++notes;
+        Require((notes == 1u) == expected && syntax->Source() == source,
+                "footnote label admission counts raw Unicode scalars including escape spelling without discarding source");
+    };
+    check(std::wstring(999u, L'a'), true);
+    check(std::wstring(1000u, L'a'), false);
+    std::wstring escaped;
+    for (unsigned i = 0u; i < 499u; ++i)
+        escaped += L"\\]";
+    check(escaped + L"a", true);
+    check(escaped + L"\\]", false);
+    std::wstring supplementary;
+    for (unsigned i = 0u; i < 999u; ++i)
+        supplementary += L"\U0001f600";
+    check(supplementary, true);
+    check(supplementary + L"\U0001f600", false);
+}
 void TestNativeFlowchartGrammarAndGraphValues()
 {
     using namespace NativeFlowchartTests;
@@ -1011,6 +1065,8 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
+    DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);
+    DXUI_RUN_TEST(TestLosslessMarkdownFootnoteLabelCapacityCountsRawScalars);
     DXUI_RUN_TEST(TestNativeFlowchartPinnedIndependentCorpus);
     DXUI_RUN_TEST(TestNativeFlowchartSchedulingAndAtomicAdmission);
     DXUI_RUN_TEST(TestNativeFlowchartCapacityBeforeGeneratedAllocation);

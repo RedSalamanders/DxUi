@@ -33,6 +33,7 @@ inline std::wstring BlockSignature(const MarkdownSyntax& syntax)
             case MarkdownBlockKind::BlockQuote: tag = L"blockquote"; break;
             case MarkdownBlockKind::List: tag = node.listMarker == L'.' || node.listMarker == L')' ? L"ol" : L"ul"; break;
             case MarkdownBlockKind::ListItem: tag = L"li"; break;
+            case MarkdownBlockKind::FootnoteDefinition: tag = L"footnote"; break;
             case MarkdownBlockKind::ThematicBreak: tag = L"hr"; break;
             case MarkdownBlockKind::FencedCode:
             case MarkdownBlockKind::IndentedCode: tag = L"pre"; break;
@@ -171,6 +172,68 @@ template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, 
     }
 }
 } // namespace FrontMatterTests
+
+namespace FootnoteBlockTests
+{
+using namespace DxUi::RichText;
+struct Scenario
+{
+    std::wstring_view source, signature, labels;
+};
+inline constexpr Scenario scenarios[] = {
+    {L"[^n]: first\n", L"<footnote><p></p></footnote>", L"n"},
+    {L"[^n]: first\r\n\r\n    second\r\n", L"<footnote><p></p><p></p></footnote>", L"n"},
+    {L"[^n]:\nnext\n", L"<footnote></footnote><p></p>", L"n"},
+    {L"[^n]: first\n[^m]: second\n", L"<footnote><p></p></footnote><footnote><p></p></footnote>", L"n\nm"},
+    {L"intro\n[^n]: note\n", L"<p></p><footnote><p></p></footnote>", L"n"},
+    {L"[^n]: one\nlazy\n\noutside\n", L"<footnote><p></p></footnote><p></p>", L"n"},
+    {L"> [^n]: first\n>     second\n", L"<blockquote><footnote><p></p></footnote></blockquote>", L"n"},
+    {L"- [^n]: first\n      second\n", L"<ul><li><footnote><p></p></footnote></li></ul>", L"n"},
+    {L"[^n]:\n    [^other]: /url\n", L"<footnote><p></p></footnote>", L"n"},
+    {L"```\n[^n]: body\n```\n", L"<pre></pre>", L""},
+    {L"---\n[^n]: body\n---\n", L"", L""},
+    {L"    [^n]: body\n", L"<pre></pre>", L""},
+    {L"[^]: body\n", L"<p></p>", L""},
+    {L"[^   ]: body\n", L"<p></p>", L""},
+    {L"[^n: body\n", L"<p></p>", L""},
+    {L"   [^a b]: body\r", L"<footnote><p></p></footnote>", L"a b"},
+    {L"[^\u03b2\U0001f600]: **body**\r\n    *child*\r\n", L"<footnote><p></p></footnote>", L"\u03b2\U0001f600"},
+    {L"[^a\\]b]: body\n", L"<footnote><p></p></footnote>", L"a\\]b"},
+    {L"- item\n[^n]: body\n", L"<ul><li></li></ul><footnote><p></p></footnote>", L"n"},
+    {L"[^n]:\n\n    - first\n    - second\n", L"<footnote><ul><li></li><li></li></ul></footnote>", L"n"},
+    {L"[^n]:\n\tsecond\n", L"<footnote><p></p></footnote>", L"n"},
+};
+template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, const Scenario& scenario, Check&& check)
+{
+    check(syntax.Source() == scenario.source, "footnote containers retain every raw source unit and line ending");
+    std::wstring labels;
+    for (const auto& node : syntax.Nodes())
+    {
+        if (node.block.kind != MarkdownBlockKind::FootnoteDefinition)
+            continue;
+        check(syntax.Profile() == MarkdownProfile::RichMarkdown && node.contentIndent == 4u && node.firstInline == MarkdownNoNode,
+              "footnote definitions own block children with a four-column continuation rule");
+        check(node.block.source.first <= node.block.info.first && node.block.info.last <= node.block.source.last && node.label.first < node.label.last &&
+                  node.block.content.last <= node.block.source.last,
+              "footnote marker, raw label and body ranges belong to their source-owning container");
+        if (! labels.empty())
+            labels += L'\n';
+        labels += syntax.Slice(node.label);
+        for (auto parent = node.parent; parent != MarkdownNoNode; parent = syntax.Nodes()[parent].parent)
+            check(syntax.Nodes()[parent].block.kind != MarkdownBlockKind::FootnoteDefinition, "footnote definitions do not recursively nest");
+    }
+    if (syntax.Profile() == MarkdownProfile::RichMarkdown)
+    {
+        check(labels == scenario.labels && MarkdownBlockTests::BlockSignature(syntax) == scenario.signature,
+              "footnote source order, exact label spelling and block grammar match independent fixtures");
+        for (const auto& node : syntax.Nodes())
+            if (node.block.kind == MarkdownBlockKind::ReferenceDefinition)
+                check(! syntax.Slice(node.label).starts_with(L"^"), "footnote syntax cannot leak into global ordinary link definitions");
+    }
+    else
+        check(labels.empty(), "CommonMark and GFM retain their existing grammar without footnote containers");
+}
+} // namespace FootnoteBlockTests
 
 namespace NativeFlowchartTests
 {

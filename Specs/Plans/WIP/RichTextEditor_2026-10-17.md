@@ -2644,6 +2644,12 @@ development checks from final frozen qualification:
     failure contracts for the complete named YAML/TOML profiles.
   - [ ] M5b.2: Real footnote block containers before generic reference extraction,
     normalized global resolution/diagnostics and deterministic reachable numbering.
+    - [x] M5b.2a: Definition containers, literal fallback and source guards pass
+      focused Debug/native/embedded checks, 21 block fixtures, raw-scalar label
+      boundaries, caret stress and observed parser/semantic/geometry allocation
+      failures. Final runtime/build profiles remain M5f.
+    - [ ] M5b.2b: Label/ref binding, missing/duplicate diagnostics and reachable
+      deterministic numbering; source-fallback scaffolding is not that support.
   - [ ] M5b.3: Footer rendering and repeated reference/backlink source ownership.
     Added dependency: geometry currently merges empty-line caret sites in source
     order. Prepare display-order ownership for reordered definitions, and test
@@ -2789,6 +2795,39 @@ format checks pass; full tooling validation passed on Iteration2, with unchanged
 tool inputs. Exact private source/artifact/run records remain under
 `.build/reports/rich-flowchart-m5d1-20261020`. Continue M5b/M5c/M5d.2/M5e/M5f,
 M6/D2a and the remaining gates; the plan stays WIP and D4c stays HOLD.
+
+Footnote block development: the first canonical Debug build passed (5:08), all
+four directed native block/semantic/caret/editor tests passed, and complete
+EditorControls passed. Ordinary Embedded passed 31,107 checks with zero tracked
+C++ allocations during 1,000 warm composites. Separate probes swept all 625
+observed parser/semantic allocation points across six preparations and all 158
+literal-note geometry points, preserving old publication and retry behavior.
+The early parser-only failure for an empty definition followed by a blank line
+is retained; its corrected 21-fixture diagnostic passes. This remains literal
+fallback, not footnote binding/numbering/footer support.
+
+Two additional audits are corrected before accepting this substep: a frozen-library
+diagnostic proved that 1,000 raw scalars spelled as 500 escaped brackets were
+accepted despite the 999-scalar contract. Count both raw escape scalars and add
+ASCII/supplementary/escaped boundary cases. Also charge each skipped literal
+child blank-line event to the geometry budget; `continue` must not bypass event
+accounting. A 1,024-blank-line single-event stress case checks source lines and
+absence of duplicate boxes. Corrected parser diagnostics pass; the next frozen
+native build owns runtime qualification. Preserve earlier receipts under
+`.build/reports/rich-footnotes-m5b-20261020`; final profiles still belong to M5f.
+
+The corrected second canonical Debug build passed (4:52). All five directed
+native tests and complete EditorControls (48.765 seconds) pass, including raw
+999/1,000 ASCII/supplementary/escaped label boundaries and the 1,024-blank-line
+caret case. Ordinary Embedded passes 31,107 counted checks plus shared semantic
+oracles; all 625 parser/semantic and 158 geometry allocation-failure points pass.
+The unchanged diagnostic source against this frozen library now rejects the
+overlong escaped label, while its earlier failing receipt remains intact. The
+8,606 microsecond 1,000-composite observation has zero tracked C++ allocations
+and is not a paired performance result. All five validators, complete tooling
+and pinned clang-format 22.1.3 check pass. Exact source/artifact/log/hash evidence
+is retained in `Iteration2`. Continue M5b.2b/global resolution; do not mark
+metadata validity, numbering, footer, backlinks or the parent M5b item complete.
 
 The clean pre-change Release baseline uses metadata commit `bd5d3e49`, through
 the canonical build path. A prior SkipBuild refusal is retained: the capability

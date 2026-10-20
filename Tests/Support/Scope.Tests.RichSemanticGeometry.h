@@ -29,6 +29,42 @@ inline void Complete(PreparedSemanticGeometry& geometry)
     }
     Check(geometry.Ready(), "semantic geometry publishes one complete ready state");
 }
+inline void LiteralFootnoteBlockCaretSites()
+{
+    auto factory = Factory();
+    for (const bool trailing : {false, true})
+    {
+        std::wstring source = L"[^n]: first\n\n    second";
+        if (trailing)
+            source += L'\n';
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip = 480.0f;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        Check(geometry.BoxCount() == (trailing ? 2u : 1u), "literal note child blank trivia cannot create duplicate visual boxes");
+        const auto at    = source.find(L"second");
+        const auto caret = geometry.SourceCaret(at);
+        const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+        Check(hit.position == at, "literal note body caret retains its raw indented source ACP");
+    }
+    const auto manyBlankSource = L"[^n]: first\n" + std::wstring(1024u, L'\n') + L"    second";
+    const auto manyBlank       = RichSemanticDocumentTests::Build(manyBlankSource, MarkdownProfile::RichMarkdown);
+    PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip = 480.0f;
+    geometry.Begin(factory.get(), manyBlank, options);
+    std::size_t turns{};
+    while (geometry.Pending())
+    {
+        const auto result = geometry.Advance({1u, 1u});
+        Check(result.blockSteps <= 1u && result.layoutsPrepared <= 1u, "literal blank-body preparation yields under an independent one-event/one-SDK budget");
+        Check(++turns < 20000u, "large literal blank body completes without spinning an idle owner");
+    }
+    Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
+          "many literal note blank lines remain real source lines without creating duplicate layout boxes");
+}
 inline void LinkRasterOracle()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

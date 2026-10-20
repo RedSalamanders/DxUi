@@ -14,6 +14,7 @@ class MarkdownBlocks
     std::vector<MarkdownNode>& nodes_;
     std::vector<MarkdownEmptyLine>& emptyLines_;
     unsigned containerIndent_{};
+    unsigned activeFootnotes_{};
     std::vector<std::size_t> open_, tails_, previousSibling_;
     std::vector<bool> blank_;
     std::size_t leaf_ = MarkdownNoNode;
@@ -108,6 +109,58 @@ class MarkdownBlocks
             return text.substr(offset, end - offset);
         }
     };
+    struct FootnotePrefix
+    {
+        bool valid{};
+        MarkdownRange label, marker;
+        Cursor content;
+    };
+    FootnotePrefix FootnoteAt(Cursor cursor, bool interruptProbe = false) const
+    {
+        if (sourceProfile_ != MarkdownProfile::RichMarkdown || (! interruptProbe && activeFootnotes_) || cursor.Indent() > 3u)
+            return {};
+        cursor.Trim();
+        const auto first = cursor.offset;
+        if (cursor.Peek() != L'[')
+            return {};
+        cursor.Take();
+        if (cursor.Peek() != L'^')
+            return {};
+        cursor.Take();
+        const auto label = cursor.offset;
+        std::size_t count{};
+        bool nonblank{};
+        while (! cursor.Empty() && cursor.Peek() != L']')
+        {
+            if (cursor.Peek() == L'[')
+                return {};
+            nonblank        = nonblank || ! Space(cursor.Peek());
+            const auto unit = cursor.Peek();
+            cursor.Take();
+            if (unit == L'\\' && (cursor.Peek() == L']' || cursor.Peek() == L'[' || cursor.Peek() == L'\\'))
+            {
+                cursor.Take();
+                ++count; // The raw escape and escaped scalar both own label capacity.
+            }
+            else if (unit >= 0xd800 && unit <= 0xdbff && ! cursor.Empty())
+                cursor.Take();
+            if (++count > 999u)
+                return {};
+        }
+        const auto last = cursor.offset;
+        if (! nonblank || cursor.Empty())
+            return {};
+        cursor.Take();
+        if (cursor.Empty() || cursor.Peek() != L':')
+            return {};
+        cursor.Take();
+        const auto markerEnd = cursor.offset;
+        // Consume one optional column, preserving additional code indentation
+        // and any virtual remainder of a tab for the ordinary block recognizer.
+        if (! cursor.Empty() && Space(cursor.Peek()))
+            cursor.Take();
+        return {true, {label, last}, {first, markerEnd}, cursor};
+    }
     struct Marker
     {
         bool valid{}, ordered{}, empty{};
@@ -488,6 +541,12 @@ class MarkdownBlocks
         const auto closing = open_.back();
         if (nodes_[closing].block.kind == Kind::BlockQuote || nodes_[closing].block.kind == Kind::ListItem)
             --containerIndent_;
+        if (nodes_[closing].block.kind == Kind::FootnoteDefinition)
+        {
+            --activeFootnotes_;
+            --containerIndent_;
+            nodes_[closing].block.content.last = acceptedEnd_;
+        }
         open_.pop_back();
         nodes_[closing].block.source.last = acceptedEnd_;
         ++statistics_.containerFinalizations;
@@ -567,6 +626,10 @@ class MarkdownBlocks
         while (i < text.size() && Space(text[i]))
             ++i;
         if (i == text.size() || text[i++] != L'[')
+            return {};
+        // RichMarkdown reserves this namespace even inside a definition, where
+        // another note opener is literal rather than a nested/global link.
+        if (sourceProfile_ == MarkdownProfile::RichMarkdown && i < text.size() && text[i] == L'^')
             return {};
         result.labelFirst = i;
         unsigned count    = 0;
@@ -860,7 +923,7 @@ public:
                 {
                     auto candidate = cursor;
                     candidate.Trim();
-                    if (! candidate.Empty() || node.firstChild == MarkdownNoNode)
+                    if (! candidate.Empty() || (node.firstChild == MarkdownNoNode && node.block.kind != Kind::FootnoteDefinition))
                         break;
                     cursor = candidate;
                 }
@@ -877,7 +940,8 @@ public:
             // when this line cannot start an interrupting block in its own right.
             const bool listSibling = marker.valid && matched > 1u && nodes_[open_[matched - 1u]].block.kind == Kind::List;
             const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, true) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
-                                     Atx(cursor) || Fence(cursor) || (marker.valid && ! marker.empty && (! marker.ordered || marker.start == 1u));
+                                     Atx(cursor) || Fence(cursor) || FootnoteAt(cursor, true).valid ||
+                                     (marker.valid && ! marker.empty && (! marker.ordered || marker.start == 1u));
             if (paragraph && ! empty && ! interrupts)
             {
                 Content(leaf_, trimmed, bodyEnd);
@@ -955,7 +1019,7 @@ public:
         {
             const auto marker = ListMarker(cursor);
             if (Thematic(cursor) || Atx(cursor) || Fence(cursor) || HtmlStart(cursor, false) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
-                marker.valid)
+                marker.valid || FootnoteAt(cursor).valid)
                 CloseLeaf();
             else
             {
@@ -1016,6 +1080,20 @@ public:
             if (nodes_[open_.back()].block.kind == Kind::List)
             {
                 PopContainer();
+                continue;
+            }
+            if (const auto note = FootnoteAt(cursor); note.valid)
+            {
+                CloseLeaf();
+                const auto index            = Add(Kind::FootnoteDefinition, open_.back());
+                nodes_[index].label         = note.label;
+                nodes_[index].block.info    = note.marker;
+                nodes_[index].block.content = {note.content.offset, end};
+                nodes_[index].contentIndent = 4u;
+                open_.push_back(index);
+                ++activeFootnotes_;
+                ++containerIndent_;
+                cursor = note.content;
                 continue;
             }
             break;
@@ -1147,6 +1225,8 @@ public:
         for (const auto container : open_)
         {
             nodes_[container].block.source.last = acceptedEnd_;
+            if (nodes_[container].block.kind == Kind::FootnoteDefinition)
+                nodes_[container].block.content.last = acceptedEnd_;
             ++statistics_.containerFinalizations;
         }
         // Reference extraction retires a staging paragraph only after its

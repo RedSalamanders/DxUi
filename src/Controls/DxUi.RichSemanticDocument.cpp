@@ -78,6 +78,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::AtxHeading:
             case MarkdownBlockKind::SetextHeading: return SemanticRole::Heading;
             case MarkdownBlockKind::FencedCode:
+            case MarkdownBlockKind::FootnoteDefinition:
             case MarkdownBlockKind::IndentedCode: return SemanticRole::Code;
             case MarkdownBlockKind::HtmlBlock: return SemanticRole::Html;
             case MarkdownBlockKind::FrontMatter: return SemanticRole::Metadata;
@@ -99,6 +100,7 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::IndentedCode:
             case MarkdownBlockKind::HtmlBlock:
             case MarkdownBlockKind::FrontMatter:
+            case MarkdownBlockKind::FootnoteDefinition:
             case MarkdownBlockKind::TableCell:
             case MarkdownBlockKind::ThematicBreak: return true;
             default: return false;
@@ -398,7 +400,7 @@ struct SemanticBuilder::Preparation
             ++visit.indent;
         visit.heading = node.block.heading;
         if (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode ||
-            node.block.kind == MarkdownBlockKind::FrontMatter)
+            node.block.kind == MarkdownBlockKind::FrontMatter || node.block.kind == MarkdownBlockKind::FootnoteDefinition)
             visit.flags |= Code;
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
             document->elements_[visit.element].title = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? L"Missing closing YAML front matter fence."
@@ -438,7 +440,7 @@ struct SemanticBuilder::Preparation
             if (node.block.kind == MarkdownBlockKind::HtmlBlock)
                 html.Block(normalized);
             else if (node.block.kind != MarkdownBlockKind::FencedCode && node.block.kind != MarkdownBlockKind::IndentedCode &&
-                     node.block.kind != MarkdownBlockKind::FrontMatter)
+                     node.block.kind != MarkdownBlockKind::FrontMatter && node.block.kind != MarkdownBlockKind::FootnoteDefinition)
                 html.Inline(syntax, node, normalized);
             else
                 html.Reset();

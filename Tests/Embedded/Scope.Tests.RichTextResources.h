@@ -3,6 +3,102 @@
 #include "../Support/Scope.Tests.MarkdownInlines.h"
 #include <DxUi/RichSemanticDocument.h>
 
+static void TestFootnoteBlockAllocationFailures(bool trace = false)
+{
+    using namespace DxUi::RichText;
+    const auto finish = [](auto& state)
+    {
+        while (state.HasPendingPreparation())
+            state.Advance(7u);
+    };
+    MarkdownParser baseline;
+    baseline.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+    finish(baseline);
+    const auto oldSyntax = baseline.Published();
+    std::size_t total{};
+    const auto sweep = [&](auto make, auto request, auto sourceOf, std::wstring_view expected)
+    {
+        std::size_t requests{};
+        {
+            auto state             = make();
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            request(*state);
+            finish(*state);
+            countAllocations = false;
+            requests         = allocations;
+        }
+        Check(requests > 0u && requests < 2048u, "note preparation has a finite independently observed allocation schedule");
+        for (std::size_t point = 0u; point < requests; ++point)
+        {
+            if (trace)
+                std::fprintf(stderr, "note block allocation failure=%zu/%zu\n", point, requests);
+            auto state     = make();
+            const auto old = state->Published();
+            bool rejected{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = point;
+                try
+                {
+                    request(*state);
+                    finish(*state);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && state->Published() == old && ! state->HasPendingPreparation() && sourceOf(old) == L"previous",
+                  "every note parser/semantic allocation failure preserves the held source and retires staging");
+            request(*state);
+            finish(*state);
+            Check(sourceOf(state->Published()) == expected, "note preparation can explicitly retry after every observed allocation failure");
+        }
+        total += requests;
+    };
+    for (const auto* source :
+         {L"[^n]: first\r\n\r\n    second\r\n", L"- [^n]:\n      > - nested\n      >\n      >   body\n", L"[^\u03b2\U0001f600]: **body**\n[^m]: next\n"})
+    {
+        sweep(
+            [&]
+        {
+            auto value = std::make_unique<MarkdownParser>();
+            value->Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+            finish(*value);
+            return value;
+        },
+            [&](auto& value) { value.Begin(source, 2u, MarkdownProfile::RichMarkdown); },
+            [](const auto& value) { return value->Source(); },
+            source);
+        MarkdownParser parser;
+        parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+        finish(parser);
+        const auto syntax = parser.Published();
+        sweep(
+            [&]
+        {
+            auto value = std::make_unique<SemanticBuilder>();
+            value->Begin(oldSyntax);
+            finish(*value);
+            return value;
+        },
+            [&](auto& value) { value.Begin(syntax); },
+            [](const auto& value) { return value->Map().Source(); },
+            source);
+    }
+    std::cout << "note block parser/semantic allocation scenarios=6 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+}
+
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
 {
     using namespace NativeFlowchartTests;
@@ -436,6 +532,42 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
     Check(idleCalls == 0u, "same-content preparation, completed reads and retirement allocate no C++ storage");
     std::cout << "lossless Markdown sweptRequests=" << requests << " pendingBeginRequests=" << beginRequests << " maximumRetainedCppBytes=" << retained
               << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released << " unchangedAndRetireAllocations=" << idleCalls << '\n';
+}
+
+static void TestEmbeddedFootnoteBlockSourceEdits(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "footnote borrowed WARP resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "footnote embedded host");
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    for (const auto& scenario : FootnoteBlockTests::scenarios)
+    {
+        editor->SetText(std::wstring(scenario.source));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded note block preparation");
+        const auto syntax = editor->GetMarkdownSyntax();
+        Check(syntax != nullptr, "embedded note source preparation completes");
+        FootnoteBlockTests::CheckSyntax(*syntax, scenario, Check);
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(semantic && semantic->Syntax() == syntax && editor->GetText() == scenario.source && ! editor->CanUndo() && ! view.Controls().GetHwnd(),
+              "embedded note syntax shares source and history without a control HWND");
+    }
+    const std::wstring source = L"[^n]: first\r\n\r\n    second\r\n";
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded note edit baseline");
+    const auto at = source.find(L"second");
+    editor->SetSelection({at, at + 6u});
+    for (const auto command : {MarkdownCommand::ToggleStyle, MarkdownCommand::SetHeading, MarkdownCommand::SetList, MarkdownCommand::InsertTable})
+        Check(editor->ExecuteMarkdownCommand({command}) == MarkdownCommandStatus::Unavailable && editor->GetText() == source && ! editor->CanUndo(),
+              "initial embedded literal note commands reject child prefix reinterpretation atomically");
+    Check(editor->ReplaceSelection(L"\u03b2") && editor->Undo() && editor->GetText() == source && editor->Redo(),
+          "raw embedded note replacement remains one reversible Unicode transaction");
 }
 
 static void TestEmbeddedFlowchartSourceFallbacks(GraphicsFixture& gpu)

@@ -46,6 +46,21 @@ void TestRichSemanticDocumentFrontMatterLiteralFallback()
                 "incomplete metadata retains a structured source diagnostic and accessible explanation");
     }
 }
+void TestRichSemanticDocumentFootnoteDefinitionLiteralFallback()
+{
+    using namespace DxUi::RichText;
+    const auto source   = L"[^n]: **first &amp;**\r\n\r\n    second\r\n\r\nAfter\r\n";
+    const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    RichSemanticDocumentTests::CheckGraph(*document);
+    Require(document->Map().Display() == L"[^n]: **first &amp;**\n\n    second\n\nAfter\n",
+            "initial footnote fallback retains literal marker, entity spelling, indentation and blank body lines");
+    const auto element = std::find_if(document->Elements().begin(), document->Elements().end(), [&](const auto& value) {
+        return value.syntaxNode != MarkdownNoNode && document->Syntax()->Nodes()[value.syntaxNode].block.kind == MarkdownBlockKind::FootnoteDefinition;
+    });
+    Require(element != document->Elements().end() && element->role == SemanticRole::Code && element->firstChild == MarkdownNoNode &&
+                element->name.starts_with(L"[^n]: **first &amp;**"),
+            "literal note fallback has one named source owner without rendering its parsed child subtree a second time");
+}
 void TestRichSemanticDocumentPinnedSourceCases()
 {
     using namespace DxUi::RichText;
@@ -93,5 +108,6 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentSchedulingAndAdmission);
     DXUI_RUN_TEST(TestRichSemanticDocumentPinnedSourceCases);
+    DXUI_RUN_TEST(TestRichSemanticDocumentFootnoteDefinitionLiteralFallback);
     DXUI_RUN_TEST(TestRichSemanticDocumentFrontMatterLiteralFallback);
 }
