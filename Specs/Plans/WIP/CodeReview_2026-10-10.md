@@ -2,17 +2,33 @@
 
 ## Current reconciliation — 21 October 2026
 
-Status: ACTIVE on `ej/review-remediation-20261021`. The original review branch remains a recovery reference.
-Current-main baseline: `04cfc530c412bc5c903e966a0cc9ba653937f560`; its Release WARP benchmark and exact build receipt
-were retained before modifying source. Those unpaired observations alone establish no non-regression verdict.
+Status: ACTIVE; [draft PR #96](https://github.com/RedSalamanders/DxUi/pull/96) is prepared on
+`ej/review-remediation-20261021`. The original review branch remains a recovery reference.
+The candidate includes current main `fa5821c87f563a1d5b24ced7832b9c4fb9c1dcab`. The retained pre-change Release WARP
+benchmark used `04cfc530c412bc5c903e966a0cc9ba653937f560`; the intervening main changes affect archive documentation
+and the changelog only. Those unpaired observations alone establish no non-regression verdict. Native validation
+and gallery generation used source `a424c968d2055c7c8bd4683a906d39b6eb9eb685`; subsequent evidence/gallery edits
+do not change the tested library or native fixtures. See the [qualification summary](../../../Measurements/HostControlReviewReconciliation/2026-10-21/README.md)
+and [exact receipt inventory](CodeReview_2026-10-10/qualification-20261021.json).
 
 - [x] Retain the original review and current-main source; measure the current-main fixture before implementation.
 - [x] Port the authored remediation without dropping the newer RichText/Markdown, semantic UIA, preparation, Menu and maintenance contracts.
-- [ ] Qualify and repair reconciliation-specific regressions, including pending rich text, source-only keyboard input, rich range actions and allocation instrumentation.
-- [ ] Reconcile native inventories, contextual filenames, scope/CI identity, documentation and the Changes workflow.
-- [ ] Run affected noninteractive x64 scopes in Debug/Release/ASan and ARM64 builds; retain unavailable foreground/native platform gates explicitly.
-- [ ] Regenerate/review the gallery and compare matched resource/performance evidence without rebaselining.
-- [ ] Review the final patch and prepare the PR with exact evidence and remaining gates.
+- [x] Qualify and repair reconciliation-specific regressions, including pending rich text, source-only keyboard input, rich range actions and allocation instrumentation.
+- [x] Reconcile native inventories, contextual filenames, scope/CI identity, documentation and the Changes workflow (146 active native files).
+- [x] Pass all 19 noninteractive x64 suites in Debug/Release/ASan with zero skips and build the three ARM64 profiles; retain native execution as a separate gate.
+- [x] Pass the API-4 consumer fixture in three x64 profiles, preserving each exact tested pin; this does not update a consumer product.
+- [x] Regenerate and inspect all six gallery captures. Retain the pre-existing empty themed native-diagram tile as a RichText/gallery follow-up below.
+- [x] Review the final patch and prepare draft PR #96 with exact evidence and remaining gates.
+- [ ] Receive the enabled PR CI/native-platform results and the 12-block, three-scenario paired performance verdict; no duplicate local paired run or rebaseline.
+- [ ] Run the four focus-taking suites at an agreed time and satisfy the remaining product/platform/accepted administrative gates before declaring the review plan complete.
+
+The native diagram tile appears empty in Dark, High Contrast and Rainbow Light; these three regenerated PNGs are
+byte-identical to main's corresponding captures. Investigate readiness/theme rendering under the existing
+[RichText plan](RichTextEditor_2026-10-17.md) before visual qualification; the noninteractive passes do not close it.
+The original failed preparation-retry predicate, stale-source build refusals and earlier tooling failures remain
+retained with their hashes. The frozen-source retries above supersede them only for their stated scopes.
+The initial draft CI validation run was deliberately cancelled before final evidence publication; the final PR
+revision receives the complete enabled CI run. Pending CI coverage is never a passed result.
 
 Current repository guidance permits named exception catches only. The reconciled UIA action boundary handles
 `std::exception` and maps `std::bad_alloc` to `E_OUTOFMEMORY`; it has no catch-all. The historical draft's claim

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Publish the reconciled host/control review's gallery and exact local validation summary: 57 noninteractive x64 suite passes with zero skips, six native-profile builds and three exact-pin API-4 consumer fixtures. Preserve failed attempts and keep foreground, native ARM64 execution, matched performance and existing themed diagram visual acceptance explicit in draft PR #96.
 - Name the frozen API revision-4 consumer fixture ConsumerApi.Tests.Revision4.cpp without changing its source bytes.
   Include consumer fixture directories in the native inventory and reject placeholder Scope names; update source/generated references and handoff links.
 - Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
