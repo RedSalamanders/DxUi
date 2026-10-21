@@ -1,5 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
-#include "Scope.Tests.MenuPopupReadiness.h"
+#include "Controls.Tests.MenuPopupReadiness.h"
 
 #include <algorithm>
 #include <array>

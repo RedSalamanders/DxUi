@@ -270,11 +270,12 @@ function Get-VersionedPerformanceJudge {
     $hash = { param([string] $Text) $sha=[Security.Cryptography.SHA256]::Create(); try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Text -replace "`r`n","`n")))) } finally { $sha.Dispose() } }
     $candidateSource = [IO.File]::ReadAllText([IO.Path]::GetFullPath($CandidateModulePath)) -replace "`r`n", "`n"
     $candidateHash = & $hash $candidateSource
-    $lines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $lines.Count -eq 0) {
+    # The committed judge's exact text: its hash is the one its policy approved, whatever its bytes or final newline.
+    $source = Get-GitBlobText -Root $RepositoryRoot -Commit $BaselineCommit -Path 'Tools/PerformanceComparison.psm1'
+    if ([string]::IsNullOrEmpty($source)) {
         return [ordered]@{ module=$null; status='policy-review-required'; reason='The measured base does not contain a readable immutable performance judge.'; baselineCommit=$BaselineCommit; baseJudgeSha256=$null; candidateJudgeSha256=$candidateHash; baseJudgeVersion=$null; candidateJudgeVersion=$null }
     }
-    $source = ($lines -join "`n") + "`n"
+    $source = $source -replace "`r`n", "`n"
     $baseHash = & $hash $source
     try {
         $candidateModule = New-Module -Name "DxUiCandidatePerformanceJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($candidateSource))

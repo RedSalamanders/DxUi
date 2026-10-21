@@ -1,6 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
-#include "Scope.Tests.HostControlRegressions.h"
+#include "Controls.Tests.HostControlRegressions.h"
 
 namespace
 {

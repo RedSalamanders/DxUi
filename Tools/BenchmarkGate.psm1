@@ -47,7 +47,8 @@ function Get-BenchmarkScope {
     <# Whether a change can alter what the paired benchmark measures, and which of its files say so. Anything not named by
        Get-BenchmarkScopeRules is not measured, and Markdown never is: documentation, the specifications, retained
        measurements, changelog fragments, the control and foundation tests and every other tool leave the benchmark's
-       executable, fixture and verdict as they were. #>
+       executable, fixture and verdict as they were. A measured path matches whatever its case: the Windows runner builds
+       `Src/x.cpp` as `src/x.cpp`, and a wrong match only costs a run. #>
     param([Parameter(Mandatory)][AllowEmptyCollection()][AllowEmptyString()][AllowNull()][string[]] $ChangedPaths)
     $rules = @(Get-BenchmarkScopeRules)
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -57,7 +58,7 @@ function Get-BenchmarkScope {
         if (-not $seen.Add($path)) { continue }
         if ($path.EndsWith('.md', [StringComparison]::Ordinal)) { continue }
         foreach ($rule in $rules) {
-            $covered = @($rule['Paths'] | Where-Object { $path -ceq $_ -or $path.StartsWith("$_/", [StringComparison]::Ordinal) }).Count -gt 0
+            $covered = @($rule['Paths'] | Where-Object { $path -ieq $_ -or $path.StartsWith("$_/", [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
             if ($covered) { $hits.Add([ordered]@{ Path = $path; Reason = $rule['Reason'] }); break }
         }
     }
@@ -90,11 +91,57 @@ function Resolve-PullRequestPair {
     return [ordered]@{ Candidate = $commit; Baseline = $base; BaseRef = $BaseRef; Method = "merge base with origin/$BaseRef (the checkout is not a merge commit)" }
 }
 
+function Assert-ExpectedCommitIds {
+    <# Throws unless every given commit is a full lowercase commit id, the spelling the workflow's event payload uses. #>
+    param([AllowEmptyString()][string[]] $Commits)
+    foreach ($commit in @($Commits | Where-Object { $_ })) {
+        if ($commit -cnotmatch '^[0-9a-f]{40}$') { throw "An expected commit must be a full lowercase commit id, not '$commit'." }
+    }
+}
+
+function Assert-ExpectedPullRequestPair {
+    <# Throws unless the pair a checkout resolved is the pair the workflow names: its pull request's base commit as the
+       baseline and its merge commit as the candidate. Scope computed for other commits would judge another change, for
+       example when GitHub rebuilt the merge ref after the base moved. An expected commit left empty is not checked. #>
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Pair, [AllowEmptyString()][string] $ExpectedBaseSha = '', [AllowEmptyString()][string] $ExpectedCandidateSha = '')
+    Assert-ExpectedCommitIds @($ExpectedBaseSha, $ExpectedCandidateSha)
+    if ($ExpectedCandidateSha -and [string]$Pair['Candidate'] -cne $ExpectedCandidateSha) {
+        throw "The checkout is $($Pair['Candidate']), not the expected merge commit $ExpectedCandidateSha."
+    }
+    if ($ExpectedBaseSha -and [string]$Pair['Baseline'] -cne $ExpectedBaseSha) {
+        throw "The base resolved to $($Pair['Baseline']) ($($Pair['Method'])), not the pull request's base commit $ExpectedBaseSha."
+    }
+}
+
+function Invoke-GateGitBytes {
+    <# What git printed, read as UTF-8 whatever the console's code page: path names are git's bytes, not console text. #>
+    param([Parameter(Mandatory)][string] $Repository, [Parameter(Mandatory)][string[]] $Arguments)
+    $start = [Diagnostics.ProcessStartInfo]::new('git')
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+    $start.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
+    foreach ($argument in @('-C', $Repository) + $Arguments) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $errors = $process.StandardError.ReadToEndAsync()
+        $output = $process.StandardOutput.ReadToEnd()
+        $process.WaitForExit()
+        $errorText = $errors.GetAwaiter().GetResult()
+        if ($process.ExitCode -ne 0) { throw "git $($Arguments -join ' ') failed in ${Repository}: $errorText" }
+        return $output
+    } finally { $process.Dispose() }
+}
+
 function Get-PullRequestChangedPaths {
     <# Every path a pull request changes, as git names it. Renames are not detected, so a file moved out of a measured
-       directory is listed under its old name as well as its new one. #>
+       directory is listed under its old name as well as its new one. The names are NUL-separated and read as UTF-8: git
+       quotes a name with a quote, a backslash or a control character in line output, and the console's code page decodes
+       a non-ASCII one, so either would not match the rule that measures it. #>
     param([string] $Repository = '.', [Parameter(Mandatory)][string] $Baseline, [Parameter(Mandatory)][string] $Candidate)
-    return @(Invoke-GateGit $Repository @('-c', 'core.quotepath=off', 'diff', '--name-only', '--no-renames', $Baseline, $Candidate) | Where-Object { $_ })
+    $output = Invoke-GateGitBytes $Repository @('-c', 'core.quotepath=off', 'diff', '--name-only', '--no-renames', '-z', $Baseline, $Candidate)
+    return @($output -split "`0" | Where-Object { $_ })
 }
 
 # --- Control drift --------------------------------------------------------------------------------------------------------
@@ -178,14 +225,32 @@ function Test-PerformanceMetricInventory([System.Collections.IDictionary] $Decis
     return [string]$Decision['status'] -ceq $status -and $seen.SetEquals($expected)
 }
 
-function Test-EquivalentPerformanceVerdicts([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
-    if (-not (Test-PerformanceMetricInventory $Legacy) -or -not (Test-PerformanceMetricInventory $Migrated) -or
-        [string]$Legacy['status'] -cne [string]$Migrated['status']) { return $false }
+function Get-PerformanceVerdictDisagreements([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
+    <# The metrics whose verdicts the two judges give differently, as phase/metric (legacy -> migrated), leaving out the one
+       difference the migration expects: the paired-block judge bounds every round of an exact budget, so a rise of its
+       raw-round maximum alone regresses there and not in the median-based judge (performance-paired.ps1 tolerates the
+       same). $null when the inventories cannot be compared. #>
+    if (-not (Test-PerformanceMetricInventory $Legacy) -or -not (Test-PerformanceMetricInventory $Migrated)) { return $null }
+    $differences = [Collections.Generic.List[string]]::new()
+    $peakOnlyRises = 0
     foreach ($metric in @($Migrated['metrics'])) {
         $old = @($Legacy['metrics'] | Where-Object { [string]$_['phase'] -ceq [string]$metric['phase'] -and [string]$_['metric'] -ceq [string]$metric['metric'] })
-        if ([string]$old[0]['verdict'] -cne [string]$metric['verdict']) { return $false }
+        if ([string]$old[0]['verdict'] -ceq [string]$metric['verdict']) { continue }
+        $peakOnly = [bool]$metric['exact'] -and [bool]$metric['deterministicPeakRise'] -and -not [bool]$metric['deterministicMedianRise'] -and
+            [string]$metric['verdict'] -ceq 'regressed' -and [string]$old[0]['verdict'] -ceq 'within-noise'
+        if ($peakOnly) { $peakOnlyRises++; continue }
+        $differences.Add(('{0}/{1} ({2} -> {3})' -f $metric['phase'], $metric['metric'], $old[0]['verdict'], $metric['verdict']))
     }
-    return $true
+    $statusesAgree = [string]$Legacy['status'] -ceq [string]$Migrated['status'] -or
+        ($peakOnlyRises -gt 0 -and [string]$Legacy['status'] -ceq 'within-noise-budget' -and [string]$Migrated['status'] -ceq 'advice-required')
+    if (-not $statusesAgree) { $differences.Add(('set status ({0} -> {1})' -f $Legacy['status'], $Migrated['status'])) }
+    # The comma keeps an empty list a list: returned bare, it would arrive as $null, the answer for incomparable inventories.
+    return ,([string[]]$differences.ToArray())
+}
+
+function Test-EquivalentPerformanceVerdicts([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
+    $differences = Get-PerformanceVerdictDisagreements -Legacy $Legacy -Migrated $Migrated
+    return $null -ne $differences -and $differences.Count -eq 0
 }
 
 function Test-EquivalentGateDecision([AllowNull()][object] $Left, [AllowNull()][object] $Right) {
@@ -306,26 +371,88 @@ function Test-QualifiedReceiptContext {
     return [ordered]@{valid=$true}
 }
 
+function Get-ExpectedCommitFinding {
+    <# Why a summary does not record the commits the workflow measured, or $null when every commit it records is one of them.
+       The summary is written by the measured pull request's own code, so it cannot choose the commit whose policy and judge
+       are trusted: the workflow names the base and merge commits, and every baseline and candidate commit the summary
+       records must agree (the baseline measured as a revision, the candidate as the checkout). #>
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [AllowEmptyString()][string] $ExpectedBaseSha = '', [AllowEmptyString()][string] $ExpectedCandidateSha = '')
+    try { Assert-ExpectedCommitIds @($ExpectedBaseSha, $ExpectedCandidateSha) } catch { return $_.Exception.Message }
+    if ($ExpectedBaseSha) {
+        $baseline = $Summary['baseline']
+        if ($baseline -isnot [System.Collections.IDictionary] -or [string]$baseline['commit'] -cne $ExpectedBaseSha -or [string]$baseline['kind'] -cne 'revision') {
+            return "The summary's baseline is not the pull request's base commit $ExpectedBaseSha measured as a revision."
+        }
+        $provenance = $Summary['judgeProvenance']
+        $recorded = @(
+            $(if ($Summary.Contains('baselineCommit')) { $Summary['baselineCommit'] })
+            $(if ($provenance -is [System.Collections.IDictionary] -and $provenance.Contains('baselineCommit')) { $provenance['baselineCommit'] })
+            @($Summary['scenarios'] | Where-Object { $_ -is [System.Collections.IDictionary] -and $_['judgeComparison'] -is [System.Collections.IDictionary] } |
+                ForEach-Object { $_['judgeComparison']['baseJudgeCommit'] }))
+        if (@($recorded | Where-Object { [string]$_ -cne $ExpectedBaseSha }).Count) {
+            return "The summary names a base commit other than the pull request's base commit $ExpectedBaseSha."
+        }
+    }
+    if ($ExpectedCandidateSha) {
+        $candidate = $Summary['candidate']
+        if ($candidate -isnot [System.Collections.IDictionary] -or [string]$candidate['commit'] -cne $ExpectedCandidateSha -or [string]$candidate['kind'] -cne 'checkout') {
+            return "The summary's candidate is not the merge commit $ExpectedCandidateSha measured as the checkout."
+        }
+        foreach ($key in @('candidateCommit', 'harnessCommit')) {
+            if ($Summary.Contains($key) -and [string]$Summary[$key] -cne $ExpectedCandidateSha) {
+                return "The summary's $key is not the merge commit $ExpectedCandidateSha."
+            }
+        }
+    }
+    return $null
+}
+
+function Get-JudgeSourceSha256 {
+    <# The hash a policy approves a judge by (Get-VersionedPerformanceJudge): its text with CRLF line ends made LF, as UTF-8. #>
+    param([Parameter(Mandatory)][string] $Path)
+    $source = [IO.File]::ReadAllText([IO.Path]::GetFullPath($Path)) -replace "`r`n", "`n"
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($source)))
+}
+
 function Test-DualJudgeReceiptEvidence {
+    <# Whether a qualified summary's judge decisions reproduce from its retained receipt bytes, with the judges the measured
+       base's policy approves. RepositoryRoot is the trusted tree, whose git objects give the base's policy and judge and whose
+       judge runs; CandidateRoot is the measured pull request's tree, read only as data. Both default to this checkout.
+       ExpectedBaseSha, when given, is the base the workflow names, in place of the one the summary records. #>
     [CmdletBinding()]
     param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory,
         [Parameter(Mandatory)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string] $ApprovedJudgeSha256,
-        [Parameter(Mandatory)][ValidatePattern('^dxui-[A-Za-z0-9-]+$')][string] $ApprovedJudgeVersion)
+        [Parameter(Mandatory)][ValidatePattern('^dxui-[A-Za-z0-9-]+$')][string] $ApprovedJudgeVersion,
+        [AllowEmptyString()][string] $RepositoryRoot = '', [AllowEmptyString()][string] $CandidateRoot = '', [AllowEmptyString()][string] $ExpectedBaseSha = '')
     if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or
         $Summary['allocation'] -cne (Get-PairedAssignmentProtocol)) {
         return [ordered]@{ valid=$false; reason='The summary does not identify the current independent-order regression-qualification protocol.' }
     }
     $provenance = $Summary['judgeProvenance']
-    $baselineCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
+    $baselineCommit = if ($ExpectedBaseSha) { $ExpectedBaseSha } elseif ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
     if ($provenance -isnot [System.Collections.IDictionary] -or $provenance['status'] -cne 'available' -or
         $provenance['baselineCommit'] -cne $baselineCommit -or [string]$provenance['baseJudgeSha256'] -notmatch '^[A-Fa-f0-9]{64}$' -or
         [string]$provenance['candidateJudgeSha256'] -notmatch '^[A-Fa-f0-9]{64}$' -or $baselineCommit -notmatch '^[A-Fa-f0-9]{40}$') {
         return [ordered]@{ valid=$false; reason='The measured base judge was unavailable or its source attestation is incomplete.' }
     }
-    $root = Split-Path -Parent $PSScriptRoot
-    $candidatePath = Join-Path $root 'Tools/PerformanceComparison.psm1'
+    $root = if ($RepositoryRoot) { [IO.Path]::GetFullPath($RepositoryRoot) } else { Split-Path -Parent $PSScriptRoot }
+    $candidateTree = if ($CandidateRoot) { [IO.Path]::GetFullPath($CandidateRoot) } else { $root }
+    $candidatePath = Join-Path $candidateTree 'Tools/PerformanceComparison.psm1'
     if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { return [ordered]@{ valid=$false; reason='The candidate judge source is unavailable.' } }
-    try { $judges = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit $baselineCommit -CandidateModulePath $candidatePath }
+    # The candidate's judge is hashed before anything loads it: only the source the measured base's policy approves ever runs,
+    # and it runs from the trusted tree, so the pull request's judge bytes are data here, never code.
+    try { $candidateSourceHash = Get-JudgeSourceSha256 $candidatePath }
+    catch { return [ordered]@{ valid=$false; reason='The candidate judge source cannot be read.' } }
+    if ($candidateSourceHash -cne $ApprovedJudgeSha256) {
+        return [ordered]@{ valid=$false; reason='The candidate judge source is not explicitly approved by the measured-base policy, so it was not loaded.' }
+    }
+    $trustedJudgePath = Join-Path $root 'Tools/PerformanceComparison.psm1'
+    try { $trustedJudgeHash = if (Test-Path -LiteralPath $trustedJudgePath -PathType Leaf) { Get-JudgeSourceSha256 $trustedJudgePath } else { '' } }
+    catch { $trustedJudgeHash = '' }
+    if ($trustedJudgeHash -cne $candidateSourceHash) {
+        return [ordered]@{ valid=$false; reason='The trusted tree does not hold the approved judge source the candidate carries.' }
+    }
+    try { $judges = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit $baselineCommit -CandidateModulePath $trustedJudgePath }
     catch { return [ordered]@{ valid=$false; reason='The immutable measured-base and candidate judges cannot be loaded.' } }
     if ($judges.status -cne 'available') { return [ordered]@{ valid=$false; reason=[string]$judges.reason } }
     $actualBaseHash = $judges.baseJudgeSha256; $actualCandidateHash = $judges.candidateJudgeSha256
@@ -396,7 +523,9 @@ function Test-DualJudgeReceiptEvidence {
         if ($comparison['reportBytesStable'] -ne $true -or $comparison['baseJudgeCommit'] -cne $baselineCommit -or $comparison['baseJudgeSha256'] -cne $actualBaseHash -or
             $comparison['candidateJudgeSha256'] -cne $actualCandidateHash -or $comparison['verdictAgreement'] -ne $true -or
             -not $verdictsAgree) {
-            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judges do not agree on the same attested base/candidate sources." }
+            $named = Get-PerformanceVerdictDisagreements -Legacy $comparison['legacyJudge'] -Migrated $comparison['migratedJudge']
+            $which = if ($null -eq $named) { ' (their metric inventories differ)' } elseif ($named.Count) { " ($($named -join '; '))" } else { '' }
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judges do not agree on the same attested base/candidate sources$which." }
         }
         if ([int]$comparison['migratedJudge']['schemaVersion'] -ne 3 -or $comparison['migratedJudge']['method'] -cne 'independent-paired-block-sign-flip-holm' -or
             [int]$scenario['set']['schemaVersion'] -ne 3 -or
@@ -519,6 +648,15 @@ function Get-ScenarioConclusion {
             elseif ($metric.Contains('noisePercent')) { [double]$metric['noisePercent'] }
             else { $null }
         $exact = [bool]$metric['exact'] -or ($null -ne $noisePercent -and $noisePercent -eq 0)
+        # The paired-block judge gives an exact budget no block effect, so its change would always read 0%: an exact budget
+        # reports the change of its medians instead (none from a zero baseline, which the row says is a change from zero).
+        $changePercent = $metric['changePercent']
+        if ($exact) {
+            $baselineMedian = $metric['baselineMedian']; $candidateMedian = $metric['candidateMedian']
+            $changePercent = if ($null -ne $baselineMedian -and $null -ne $candidateMedian -and [double]$baselineMedian -ne 0) {
+                ([double]$candidateMedian / [double]$baselineMedian - 1.0) * 100.0
+            } else { $null }
+        }
         $outcome = switch ($metric['verdict']) {
             # A code fingerprint is provenance, not a noise model. A/A timing flags remain unresolved until calibration
             # supplies independent control evidence under a trusted qualified policy.
@@ -530,7 +668,7 @@ function Get-ScenarioConclusion {
                 Phase = [string]$metric['phase']; Metric = [string]$metric['metric']; Exact = $exact; Verdict = [string]$metric['verdict']
                 Outcome = $outcome; Held = [bool]$held; ControlDriftPercent = $(if ($null -ne $seen) { $seen['MaxDriftPercent'] } else { $null })
                 ControlDrifted = $(if ($null -ne $seen) { [bool]$seen['Drifted'] } else { $null })
-                BaselineMedian = $metric['baselineMedian']; CandidateMedian = $metric['candidateMedian']; ChangePercent = $metric['changePercent']
+                BaselineMedian = $metric['baselineMedian']; CandidateMedian = $metric['candidateMedian']; ChangePercent = $changePercent
                 NoisePercent = $noisePercent; PValue = $metric['pValue']; AdjustedPValue = $metric['adjustedPValue']
                 BaselineMaximum = $metric['baselineMaximum']; CandidateMaximum = $metric['candidateMaximum']
                 MedianBudgetVerdict = $metric['medianBudgetVerdict']; PeakBudgetVerdict = $metric['peakBudgetVerdict']
@@ -575,14 +713,27 @@ function Get-BenchmarkConclusion {
        inconclusive, whatever it found.
 
        Two more rules keep a legacy pass honest: an underpowered set cannot clear timing, and matching source fingerprints
-       never turn a timing flag into chance. The migrated pull-request path additionally requires a trusted base policy. #>
-    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory, [switch] $StrictControls, [switch] $RequireQualifiedPolicy)
+       never turn a timing flag into chance. The migrated pull-request path additionally requires a trusted base policy.
+
+       The workflow can name the commits it measured (ExpectedBaseSha, ExpectedCandidateSha): a summary that records any other
+       is invalid evidence, and the named base, not the summary's, is the trust anchor. RepositoryRoot is the trusted tree,
+       whose git objects give the base's policy and judge; CandidateRoot is the measured tree, read only as data. Both default
+       to this checkout. #>
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory, [switch] $StrictControls, [switch] $RequireQualifiedPolicy,
+        [AllowEmptyString()][string] $RepositoryRoot = '', [AllowEmptyString()][string] $CandidateRoot = '',
+        [AllowEmptyString()][string] $ExpectedBaseSha = '', [AllowEmptyString()][string] $ExpectedCandidateSha = '')
+    $expectedFinding = Get-ExpectedCommitFinding -Summary $Summary -ExpectedBaseSha $ExpectedBaseSha -ExpectedCandidateSha $ExpectedCandidateSha
+    if ($expectedFinding) {
+        return [ordered]@{ Conclusion='invalid'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
+            Notes=@("Invalid evidence: $expectedFinding"); Scenarios=@() }
+    }
     $controlsByScenario = $null
     if ($RequireQualifiedPolicy) {
         $recordedPolicy = $Summary['acceptancePolicy']
-        $root = Split-Path -Parent $PSScriptRoot
-        $baseCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
-        $policy = if ($baseCommit) { Get-TrustedPerformancePolicy -BaselineCommit $baseCommit -RepositoryRoot $root -CandidatePolicyPath (Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json') }
+        $root = if ($RepositoryRoot) { [IO.Path]::GetFullPath($RepositoryRoot) } else { Split-Path -Parent $PSScriptRoot }
+        $candidateTree = if ($CandidateRoot) { [IO.Path]::GetFullPath($CandidateRoot) } else { $root }
+        $baseCommit = if ($ExpectedBaseSha) { $ExpectedBaseSha } elseif ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
+        $policy = if ($baseCommit) { Get-TrustedPerformancePolicy -BaselineCommit $baseCommit -RepositoryRoot $root -CandidatePolicyPath (Join-Path $candidateTree 'Tools/PerformanceAcceptancePolicy.v1.json') }
         else { [ordered]@{ trusted=$false; status='policy-review-required'; reason='Baseline commit is missing.' } }
         if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or $policy['trusted'] -ne $true -or $recordedPolicy -isnot [System.Collections.IDictionary] -or $recordedPolicy['policySha256'] -cne $policy['policySha256']) {
             $reason = if ($Summary['studyVersion'] -ne 3) { 'Historic reports are retained for reading but cannot pass migrated qualification.' }
@@ -600,7 +751,8 @@ function Get-BenchmarkConclusion {
                 Notes=@("Qualification requires exactly the complete contract scenario set, each once: $($script:GateScenarios -join ', ')."); Scenarios=@() }
         }
         $dualJudge = Test-DualJudgeReceiptEvidence -Summary $Summary -ReportsDirectory $ReportsDirectory `
-            -ApprovedJudgeSha256 ([string]$policy.policy['approvedJudgeSha256']) -ApprovedJudgeVersion ([string]$policy.policy['judgeVersion'])
+            -ApprovedJudgeSha256 ([string]$policy.policy['approvedJudgeSha256']) -ApprovedJudgeVersion ([string]$policy.policy['judgeVersion']) `
+            -RepositoryRoot $root -CandidateRoot $candidateTree -ExpectedBaseSha $ExpectedBaseSha
         if (-not $dualJudge.valid) {
             return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
                 Notes=@("Policy review required: $($dualJudge.reason)"); Scenarios=@() }
@@ -848,17 +1000,21 @@ function Add-WorkflowSummary {
 }
 
 function Find-PairedSummary {
-    <# The newest retained summary.json under <Root>/.build/paired/<run>/reports, or null. #>
-    param([Parameter(Mandatory)][string] $Root)
-    $paired = Join-Path $Root '.build/paired'
+    <# The newest retained summary.json under <Root>/.build/paired/<run>/reports, or under <PairedRoot>/<run>/reports (a
+       downloaded artifact's runs), or null. With Single, a directory holding more than one run throws: a verdict computed
+       apart from its run must not choose between runs by file time. #>
+    param([string] $Root = '', [string] $PairedRoot = '', [switch] $Single)
+    $paired = if ($PairedRoot) { [IO.Path]::GetFullPath($PairedRoot) } elseif ($Root) { Join-Path $Root '.build/paired' } else { throw 'Name the checkout or the paired runs directory.' }
     if (-not (Test-Path -LiteralPath $paired -PathType Container)) { return $null }
     $found = @(Get-ChildItem -LiteralPath $paired -Directory | ForEach-Object { Join-Path $_.FullName 'reports/summary.json' } |
             Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Sort-Object { (Get-Item -LiteralPath $_).LastWriteTimeUtc } -Descending)
     if ($found.Count -eq 0) { return $null }
+    if ($Single -and $found.Count -gt 1) { throw "$paired holds $($found.Count) paired runs; a verdict judges exactly one." }
     return $found[0]
 }
 
 Export-ModuleMember -Function Get-BenchmarkGateScenarios, Get-BenchmarkGateBlocks, Format-RepositoryPath, Get-BenchmarkScopeRules,
-    Get-BenchmarkScope, Resolve-PullRequestPair, Get-PullRequestChangedPaths, Get-ControlDrift, Test-DualJudgeReceiptEvidence, Get-BenchmarkConclusion,
+    Get-BenchmarkScope, Resolve-PullRequestPair, Assert-ExpectedCommitIds, Assert-ExpectedPullRequestPair, Get-PullRequestChangedPaths, Get-ControlDrift,
+    Get-ExpectedCommitFinding, Test-DualJudgeReceiptEvidence, Get-BenchmarkConclusion,
     Get-BenchmarkHeadline, ConvertTo-BenchmarkMarkdown, Format-WorkflowCommand, Get-BenchmarkAnnotations, Add-WorkflowOutput,
     Add-WorkflowSummary, Find-PairedSummary, Read-GateJson

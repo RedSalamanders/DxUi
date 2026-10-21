@@ -126,6 +126,18 @@ and callable-capture cleanup. Physical retirement at a dispatch boundary remains
 callbacks or accessibility publication cannot reenter. Whole-host destruction within a callback remains separately
 unqualified.
 
+Before that cancellation, `TakeChild` and a TabControl's tab removal call the protected `Panel::OnDescendantDetaching`
+on the panel and on every enclosing panel, walking the parent chain across non-panel containers such as PageHost, while
+the subtree is still attached. The new virtual changes the class layout, so consumers rebuild against it. A container that
+tracks its own hover or capture inside the subtree ends them there: `ScrollPanel` delivers the inner control's capture
+loss and hover end, and releases the host capture it held for that control. It decides both before the first callback
+can retire the subtree and asks nothing of a subtree that callback destroyed. Its forwarded gesture also ends when the
+host's capture no longer carries it (a child released capture without a capture-loss callback), and neither it nor the
+host captures for a press whose handler already ended the press (a blocking menu loop read the release) or gave the
+pointer to another window. Containers also revalidate such observers
+by lifetime and branch at every use, so a descendant removed by any other path is forgotten without being
+dereferenced; a pressed descendant that disappears keeps its gesture until the release, which reaches no other child.
+
 Borrowed Tree/Grid queries capture the control lifetime, model pointer and private mutation revision. Replacing a
 model, assigning a delegate or notifying model changes invalidates an older query, including replacing and restoring
 the same pointer. Parent paint, tick and hit-test traversal reacquires child storage after virtual callbacks and
@@ -134,7 +146,17 @@ An action distinguishes a delegate's completed `NotifyDataChanged` edit from rep
 it can acknowledge a freshly verified completed edit while discarding the old query/animation transaction, but
 binding replacement or physical retirement still ends the old request.
 Queries also capture host identity and interaction geometry revision, so a flow, density or metric change inside a
-getter or focus callback ends the old read before it can commit a newly resolved action against earlier pixels.
+getter ends the old read before it can commit a newly resolved action against earlier pixels.
+Delegate callbacks, focus handlers and UI Automation event delivery are application code that may legitimately change the
+model or any control's layout. After one, a Tree or Grid operation continues while the control lives in the same host
+with the same model and delegate (`ResumeAfterCallback`): the change becomes the new baseline, rows are re-resolved by
+stable id and geometry is recomputed. Its later reports, reveal, context menu, drag arming, checkbox toggle, animation and
+UI Automation result still happen, so a callback that only enables a toolbar button changes nothing about the gesture.
+A pointer press or double-click whose focus handlers moved, scrolled, mirrored or refreshed the control itself is
+consumed when the target under the pointer is no longer the one aimed at: the same part, place and stable row, group
+or item id. A right-click opens the menu for the pressed row found again by id after the selection callbacks (none
+when they removed it), a checkbox toggles only while its column id is still in the pressed place, and a Tree expansion
+request that the delegate answered by publishing succeeds only when the item now has the requested state.
 Model and page mutations also invalidate host geometry. A page replacement during painting retains a private pending
 layout request; the next preparation synchronizes current and outgoing page bounds before paint. The host scans the
 current owned tree only when such a request is pending, revalidating each owner after virtual callbacks, and allocates

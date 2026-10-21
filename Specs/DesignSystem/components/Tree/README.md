@@ -30,7 +30,8 @@ visible index, stable item ID, text, depth, child presence, and expanded state.
 Treat shared source identity as a semantic epoch. Keep the same source while the ordered visible rows and each row's
 ID, text, depth, `hasChildren`, and `expanded` values are unchanged. Publish a new source identity when any changes,
 including a sequence reorder or a same-count replacement. Selection is independent and does not require a new source.
-The identity lets accessibility snapshots invalidate old Tree children without traversing rows to compare them.
+The identity lets accessibility snapshots invalidate old Tree children without traversing rows to compare them. The
+focused item, read from the old and the new source with `FindItem`, also reports its own expansion change.
 
 Text is borrowed from the source. Keep its backing storage valid for every read while any shared reference to the
 source can be read; storing row strings in the immutable shared snapshot is a straightforward way to provide this

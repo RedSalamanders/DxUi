@@ -165,10 +165,20 @@ struct GridResolvedRowVisuals final
 {
     D2D1_COLOR_F fill  = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
     D2D1_COLOR_F text  = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F focus = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    bool showFocus     = false;
     bool usesRainbow   = false;
     bool roundedFill   = false;
     bool showSeparator = true;
 };
+
+// The focused (current) row owns the focus ring, selected or not, by the rule Tree shares (ResolveRowFocusVisuals).
+void ResolveGridRowFocus(const ThemePalette& theme, bool selected, bool current, bool focused, bool keyboardFocused, GridResolvedRowVisuals& visuals) noexcept
+{
+    const RowFocusVisuals focus = ResolveRowFocusVisuals(theme, visuals.fill, selected, current, focused, keyboardFocused);
+    visuals.focus               = focus.color;
+    visuals.showFocus           = focus.shown;
+}
 
 struct GridResolvedCellVisuals final
 {
@@ -1153,6 +1163,9 @@ void Grid::SetModel(IGridModel* model) noexcept
     ++_modelBindingRevision;
     if (_modelBindingRevision == 0u)
         ++_modelBindingRevision;
+    ++_modelAssignment;
+    if (_modelAssignment == 0u)
+        ++_modelAssignment;
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     ++_modelRevision;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
@@ -1172,7 +1185,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     const std::optional<uint64_t> previousFocus = _currentRowId;
     ReleaseCellTextResources(); // Also returns tables the old model grew.
     _model = model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
     _columnWidths.clear();
@@ -1181,6 +1194,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     _hoveredRow.reset();
     _hoveredColumn.reset();
     _activeColumn.reset();
+    _showCurrentCell = false;
     _pressedHeaderColumn.reset();
     _dragReorderColumn.reset();
     _dragReorderTargetDisplayIndex = 0u;
@@ -1239,36 +1253,9 @@ void Grid::SetModel(IGridModel* model) noexcept
     {
         return;
     }
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
     {
-        // The delegate may rebuild the controls and destroy this grid.
-        try
-        {
-            _delegate->OnGridSelectionChanged(*this);
-        }
-        catch (const std::exception&)
-        {
-            return;
-        }
-        if (! guard.IsCurrent())
-        {
-            return;
-        }
-    }
-    if (_delegate && previousFocus != _currentRowId)
-    {
-        try
-        {
-            _delegate->OnGridFocusedRowChanged(*this, _currentRowId);
-        }
-        catch (const std::exception&)
-        {
-            return;
-        }
-        if (! guard.IsCurrent())
-        {
-            return;
-        }
+        return;
     }
     RefreshAccessibilitySnapshot();
 }
@@ -1311,7 +1298,7 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     std::vector<uint64_t> previousSelection;
     try
     {
@@ -1321,7 +1308,8 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
     {
         return;
     }
-    _selectionMode = mode;
+    const std::optional<uint64_t> previousFocus = _currentRowId;
+    _selectionMode                              = mode;
     if (_selectionMode == GridSelectionMode::Single && _selectionModel.GetCount() > 1u)
     {
         const auto selection = _selectionModel.GetOrderedSelection();
@@ -1337,21 +1325,10 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
             }
         }
     }
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    // Collapsing a multi-selection keeps the focused row when it was selected, else moves the focus to the kept row.
+    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
     {
-        // The delegate may rebuild the controls and destroy this grid.
-        try
-        {
-            _delegate->OnGridSelectionChanged(*this);
-        }
-        catch (const std::exception&)
-        {
-            return;
-        }
-        if (! guard.IsCurrent())
-        {
-            return;
-        }
+        return;
     }
     RefreshAccessibilitySnapshot();
 }
@@ -1480,9 +1457,16 @@ void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
         return;
     }
 
+    // The glyph cross-fades on its host's animation clock; with no host nothing ticks it, so it moves at once.
+    const ControlHost* const host = GetHost();
+    if (! host)
+    {
+        _sortGlyphTransition = {};
+        return;
+    }
     _sortGlyphTransition.from        = previousSortSpec;
     _sortGlyphTransition.to          = sortSpec;
-    _sortGlyphTransition.startTickMs = ::GetTickCount64();
+    _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
     _sortGlyphTransition.active      = true;
 }
 
@@ -1633,7 +1617,7 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     try
     {
         if (! model || ! _delegate)
@@ -1660,7 +1644,7 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
         }
 
         std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-        const std::optional<uint64_t> previousFocus = _currentRowId;
+        std::optional<uint64_t> previousFocus = _currentRowId;
         std::vector<uint64_t> groupIds;
         const std::vector<GridGroupDesc> initialGroups = CollectOrderedGroups(model, &guard);
         if (! guard.IsCurrent())
@@ -1704,16 +1688,15 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
             {
                 return;
             }
-            if (! guard.IsCurrent())
+            // A delegate usually publishes each toggle with NotifyDataChanged, which also reports the selection it
+            // changed. The next group is found again in the published model.
+            if (! guard.ResumeAfterCallback())
             {
                 return;
             }
             previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-            changed = true;
-            if (_delegate != delegateBeforeCallbacks)
-            {
-                break;
-            }
+            previousFocus = _currentRowId;
+            changed       = true;
         }
 
         if (! changed)
@@ -1737,24 +1720,12 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
         {
             return;
         }
-        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
         {
-            _delegate->OnGridSelectionChanged(*this);
-            if (! guard.IsCurrent())
-            {
-                return;
-            }
-        }
-        if (_delegate && previousFocus != _currentRowId)
-        {
-            _delegate->OnGridFocusedRowChanged(*this, _currentRowId);
-            if (! guard.IsCurrent())
-            {
-                return;
-            }
+            return;
         }
         RefreshAccessibilitySnapshot();
-        if (guard.IsCurrent())
+        if (guard.ResumeAfterCallback())
         {
             RequestInvalidate();
         }
@@ -1803,7 +1774,7 @@ void Grid::NotifyDataChanged()
         ++_modelRevision;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const model           = _model;
-        const GridModelQueryGuard guard(*this, lifetime, model);
+        GridModelQueryGuard guard(*this, lifetime, model);
         _lastPaintHadAnimatedVisibleCells = false;
         _animatedVisibleCellStateValid    = false;
         const bool hasGroups              = model && model->GetGroupCount() > 0u;
@@ -1852,20 +1823,9 @@ void Grid::NotifyDataChanged()
         {
             return;
         }
-        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
         {
-            // The delegate may rebuild the controls and destroy this grid.
-            if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
-            {
-                return;
-            }
-        }
-        if (_delegate && previousFocus != _currentRowId)
-        {
-            if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
-            {
-                return;
-            }
+            return;
         }
         RefreshAccessibilitySnapshot();
     }
@@ -2718,7 +2678,8 @@ void Grid::SetFocusedRowId(std::optional<uint64_t> rowId) noexcept
     _currentRowId      = rowId;
     _focusedRowIndex   = rowId ? focusedIndex : std::nullopt;
     RefreshAccessibilitySnapshot();
-    if (changed && guard.IsCurrent())
+    // Event delivery may run application code; the repaint only needs the same grid.
+    if (changed && guard.IsBindingCurrent())
     {
         RequestInvalidate();
     }
@@ -2769,6 +2730,12 @@ Grid::GridDebugPointerState Grid::DebugGetPointerState() const noexcept
 
 bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, GridDebugRowVisualState& out) const noexcept
 {
+    const ControlHost* const host = GetHost();
+    return DebugGetRowVisualState(theme, rowIndex, host && host->IsKeyboardFocusVisible(), out);
+}
+
+bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, bool keyboardFocusVisible, GridDebugRowVisualState& out) const noexcept
+{
     out                               = {};
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
@@ -2790,8 +2757,10 @@ bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, Gr
     {
         return false;
     }
-    const GridResolvedRowVisuals visuals =
+    GridResolvedRowVisuals visuals =
         ResolveGridRowVisuals(theme, style, rowIndex, rowSelected, HasFocus(), _hoveredRow && _hoveredRow.value() == rowIndex, _visualMode);
+    const bool current = _currentRowId && *_currentRowId == rowId;
+    ResolveGridRowFocus(theme, rowSelected, current, HasFocus(), current && HasFocus() && keyboardFocusVisible, visuals);
     const GridProgressVisualStyle progressStyle = ResolveGridProgressVisualStyle(theme, visuals.fill, visuals.text, rowSelected);
     out.fillArgb                                = PackColor(visuals.fill);
     out.textArgb                                = PackColor(visuals.text);
@@ -2799,8 +2768,16 @@ bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, Gr
     out.busyArgb                                = PackColor(ResolveGridBusyColor(theme, visuals.text, rowSelected));
     out.progressTrackArgb                       = PackColor(progressStyle.track);
     out.progressFillArgb                        = PackColor(progressStyle.fill);
+    out.focusArgb                               = visuals.showFocus ? PackColor(visuals.focus) : 0u;
     out.usesRainbow                             = visuals.usesRainbow;
     out.selected                                = rowSelected;
+    out.current                                 = current;
+    out.showFocus                               = visuals.showFocus;
+    if (! TryControlCallback([&] { EnsureColumnWidths(); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    out.showCurrentCell = visuals.showFocus && _showCurrentCell && _activeColumn && *_activeColumn < _columnWidths.size() && _columnDisplayOrder.size() > 1u;
     return true;
 }
 
@@ -2944,7 +2921,7 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     if (! model || ! IsEnabled())
     {
         return false;
@@ -2992,36 +2969,25 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
     {
         return false;
     }
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
     {
-        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
-        {
-            return false;
-        }
-    }
-    if (_delegate && previousFocus != _currentRowId)
-    {
-        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
-        {
-            return false;
-        }
+        return false;
     }
     RefreshAccessibilitySnapshot();
-    if (guard.IsCurrent())
+    if (! guard.ResumeAfterCallback())
+        return false;
+    if (ControlHost* host = GetHost())
     {
-        if (ControlHost* host = GetHost())
-        {
-            Invalidate(*host);
-        }
+        Invalidate(*host);
     }
-    return guard.IsCurrent();
+    return true;
 }
 
 bool Grid::RequestRemoveRowSelection(size_t rowIndex)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     if (! IsEnabled() || ! model)
     {
         return false;
@@ -3059,24 +3025,21 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
     }
     _selectionModel.SetAnchor(previousAnchor);
 
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    // The delegate may rebuild the controls and destroy this grid; the caller revalidates its element.
+    if (! NotifySelectionAndFocusChanges(previousSelection, _currentRowId) || ! guard.ResumeAfterCallback())
     {
-        // The delegate may rebuild the controls and destroy this grid; the caller revalidates its element.
-        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
-        {
-            return false;
-        }
+        return false;
     }
     RefreshAccessibilitySnapshot();
 
-    return guard.IsCurrent();
+    return guard.ResumeAfterCallback();
 }
 
 bool Grid::RequestFocusRow(size_t rowIndex)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     if (! IsEnabled() || ! model)
     {
         return false;
@@ -3107,27 +3070,26 @@ bool Grid::RequestFocusRow(size_t rowIndex)
     }
     if (_delegate && previousFocus != _currentRowId)
     {
-        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.ResumeAfterCallback())
         {
             return false;
         }
     }
     RefreshAccessibilitySnapshot();
-    if (guard.IsCurrent())
+    if (! guard.ResumeAfterCallback())
+        return false;
+    if (ControlHost* host = GetHost())
     {
-        if (ControlHost* host = GetHost())
-        {
-            Invalidate(*host);
-        }
+        Invalidate(*host);
     }
-    return guard.IsCurrent();
+    return true;
 }
 
 bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     if (! IsEnabled() || ! model)
     {
         return false;
@@ -3152,64 +3114,27 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
     {
         return false;
     }
-
-    const auto revealColumn = [this, columnIndex, &guard]()
-    {
-        EnsureColumnWidths();
-        if (! guard.IsCurrent())
-        {
-            return false;
-        }
-        const D2D1_RECT_F viewport = GetContentRect();
-        if (! guard.IsCurrent())
-        {
-            return false;
-        }
-        const float viewportWidth = viewport.right - viewport.left;
-        if (viewportWidth <= 0.0f || columnIndex >= _columnWidths.size())
-        {
-            return true;
-        }
-
-        const float cellLeft = GetColumnLeftDip(columnIndex);
-        if (! guard.IsCurrent())
-        {
-            return false;
-        }
-        const float cellRight = cellLeft + _columnWidths[columnIndex];
-        float scrollDip       = _horizontalScrollDip;
-        if (_columnWidths[columnIndex] >= viewportWidth)
-        {
-            // Align the logical leading edge: left in LTR and right in RTL.
-            scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellLeft - viewport.left;
-        }
-        else if (cellLeft < viewport.left)
-        {
-            scrollDip += IsRightToLeft() ? viewport.left - cellLeft : cellLeft - viewport.left;
-        }
-        else if (cellRight > viewport.right)
-        {
-            scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellRight - viewport.right;
-        }
-        const float horizontalExtent = GetHorizontalScrollableExtent();
-        if (! guard.IsCurrent())
-        {
-            return false;
-        }
-        _horizontalScrollDip = ClampScroll(scrollDip, horizontalExtent);
-        return true;
-    };
-
-    _activeColumn = columnIndex;
-    if (! revealColumn() || ! guard.IsCurrent() || ! RequestFocusRow(rowIndex) || ! guard.IsCurrent())
+    std::wstring columnId;
+    if (! TryControlCallback([&] { columnId = model->GetColumn(columnIndex).id; }) || ! guard.IsCurrent())
     {
         return false;
     }
 
-    // The row-focus callback may reorder model rows or reset transient Grid state. Revalidate the requested
+    _activeColumn = columnIndex;
+    if (! RevealColumn(columnIndex) || ! guard.IsCurrent() || ! RequestFocusRow(rowIndex) || ! guard.ResumeAfterCallback())
+    {
+        return false;
+    }
+
+    // The row-focus callback may reorder model rows or columns or reset transient Grid state. Revalidate the requested
     // cell before restoring its column and revealing it again.
     const size_t currentColumnCount = model->GetColumnCount();
     if (! guard.IsCurrent() || columnIndex >= currentColumnCount)
+    {
+        return false;
+    }
+    std::wstring currentColumnId;
+    if (! TryControlCallback([&] { currentColumnId = model->GetColumn(columnIndex).id; }) || ! guard.IsCurrent() || currentColumnId != columnId)
     {
         return false;
     }
@@ -3224,13 +3149,14 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
         return false;
     }
 
-    _activeColumn = columnIndex;
-    if (! revealColumn() || ! guard.IsCurrent())
+    _activeColumn    = columnIndex;
+    _showCurrentCell = true;
+    if (! RevealColumn(columnIndex) || ! guard.IsCurrent())
     {
         return false;
     }
     RefreshAccessibilitySnapshot();
-    if (! guard.IsCurrent())
+    if (! guard.ResumeAfterCallback())
     {
         return false;
     }
@@ -3238,7 +3164,221 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
     {
         Invalidate(*host);
     }
-    return guard.IsCurrent();
+    return true;
+}
+
+bool Grid::RevealColumn(size_t columnIndex)
+{
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const D2D1_RECT_F viewport = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const float viewportWidth = viewport.right - viewport.left;
+    if (viewportWidth <= 0.0f || columnIndex >= _columnWidths.size())
+    {
+        return true;
+    }
+
+    const float cellLeft = GetColumnLeftDip(columnIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const float cellRight = cellLeft + _columnWidths[columnIndex];
+    float scrollDip       = _horizontalScrollDip;
+    if (_columnWidths[columnIndex] >= viewportWidth)
+    {
+        // Align the logical leading edge: left in LTR and right in RTL.
+        scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellLeft - viewport.left;
+    }
+    else if (cellLeft < viewport.left)
+    {
+        scrollDip += IsRightToLeft() ? viewport.left - cellLeft : cellLeft - viewport.left;
+    }
+    else if (cellRight > viewport.right)
+    {
+        scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellRight - viewport.right;
+    }
+    const float horizontalExtent = GetHorizontalScrollableExtent();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    _horizontalScrollDip = ClampScroll(scrollDip, horizontalExtent);
+    return true;
+}
+
+std::optional<size_t> Grid::FindKeyboardStartRow(std::span<const size_t> visibleRows) const
+{
+    const IGridModel* const model = _model;
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const auto visibleRowOf = [&](uint64_t rowId) -> std::optional<size_t>
+    {
+        const std::optional<size_t> row = model->FindRowByStableId(rowId);
+        if (! guard.IsCurrent() || ! row || std::ranges::find(visibleRows, *row) == visibleRows.end())
+        {
+            return std::nullopt;
+        }
+        return row;
+    };
+    if (_currentRowId)
+    {
+        if (const std::optional<size_t> focusedRow = visibleRowOf(*_currentRowId))
+        {
+            return focusedRow;
+        }
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
+    }
+    // A selection the application published without a focused row still tells the keys where they are.
+    const std::span<const uint64_t> selection = _selectionModel.GetOrderedSelection();
+    return selection.empty() ? std::nullopt : visibleRowOf(selection.back());
+}
+
+std::optional<std::pair<size_t, size_t>> Grid::FindFocusedCell() const
+{
+    const IGridModel* const model = _model;
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
+    if (! model || ! _currentRowId)
+    {
+        return std::nullopt;
+    }
+    const std::optional<size_t> row = model->FindRowByStableId(*_currentRowId);
+    if (! guard.IsCurrent() || ! row)
+    {
+        return std::nullopt;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(*row);
+    const size_t columnCount            = model->GetColumnCount();
+    if (! guard.IsCurrent() || ! ordinal || columnCount == 0u)
+    {
+        return std::nullopt;
+    }
+    EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const size_t column = _activeColumn && *_activeColumn < columnCount ? *_activeColumn : GetModelColumnIndexForDisplayIndex(0u);
+    return column < columnCount ? std::optional<std::pair<size_t, size_t>>(std::pair{*row, column}) : std::nullopt;
+}
+
+bool Grid::InspectFocusedCell() noexcept
+try
+{
+    ControlHost* const host           = GetHost();
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! host || ! model || ! IsEnabled())
+    {
+        return false;
+    }
+    const std::optional<std::pair<size_t, size_t>> cell = FindFocusedCell();
+    if (! guard.IsCurrent() || ! cell)
+    {
+        return false;
+    }
+    const auto [row, column] = *cell;
+    GridCellData cellData{};
+    model->GetCellData(row, column, cellData);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    // A cell with nothing to show leaves the grid where it is.
+    std::wstring text = BuildGridCellCopyText(cellData);
+    if (text.empty())
+    {
+        return false;
+    }
+    // An offscreen focused cell has nothing to anchor the surface to: reveal it first.
+    EnsureRowVisible(row);
+    if (! guard.IsCurrent() || ! RevealColumn(column) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    const auto rect = GetVisibleCellRect(row, column);
+    if (! guard.IsCurrent() || ! rect)
+    {
+        return false;
+    }
+    _activeColumn = column;
+    Invalidate(*host);
+    return host->InspectTooltip(std::move(text), D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f));
+}
+catch (const std::exception&)
+{
+    return false;
+}
+
+bool Grid::IsFocusedCellClipped() const noexcept
+try
+{
+    const ControlHost* const host = GetHost();
+    const IGridModel* const model = _model;
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
+    if (! host || ! model)
+    {
+        return false;
+    }
+    const std::optional<std::pair<size_t, size_t>> cell = FindFocusedCell();
+    if (! guard.IsCurrent() || ! cell)
+    {
+        return false;
+    }
+    const auto [row, column]                  = *cell;
+    const GridCellLayoutMetrics layoutMetrics = GetCellLayoutMetrics(*host, row, column);
+    GridCellData cellData{};
+    model->GetCellData(row, column, cellData);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    // The cell as it draws once revealed: its own text rectangle bounds what shows.
+    return UsesMultilineCellText(cellData) ? IsMultilineCellTextClipped(*host, cellData, layoutMetrics.textRect, layoutMetrics.textRect)
+                                           : IsSingleLineCellTextClipped(*host, cellData, layoutMetrics.textRect, layoutMetrics.textRect);
+}
+catch (const std::exception&)
+{
+    return false;
+}
+
+bool Grid::MoveCurrentColumn(ControlHost& host, bool forward)
+{
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    EnsureColumnWidths();
+    // With one column there is no current column to choose: the key stays the application's.
+    if (! guard.IsCurrent() || _columnDisplayOrder.size() < 2u)
+    {
+        return false;
+    }
+    // Without a current column the first displayed one is current, as FindFocusedCell resolves it.
+    const size_t lastDisplayIndex = _columnDisplayOrder.size() - 1u;
+    const size_t currentDisplay =
+        _activeColumn && *_activeColumn < _columnDisplayIndexByModel.size() ? (std::min)(_columnDisplayIndexByModel[*_activeColumn], lastDisplayIndex) : 0u;
+    const size_t nextDisplay = forward ? (std::min)(currentDisplay + 1u, lastDisplayIndex) : (currentDisplay == 0u ? 0u : currentDisplay - 1u);
+    _activeColumn            = GetModelColumnIndexForDisplayIndex(nextDisplay);
+    _showCurrentCell         = true;
+    if (! RevealColumn(*_activeColumn) || ! guard.IsCurrent())
+    {
+        return true;
+    }
+    Invalidate(host);
+    return true;
 }
 
 bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
@@ -3831,7 +3971,7 @@ void Grid::Paint(ControlHost& host) const
             dc->DrawLine(D2D1::Point2F(headerRect.left, headerRect.bottom - 0.5f), D2D1::Point2F(headerRect.right, headerRect.bottom - 0.5f), brush, 1.0f);
         }
         const bool reducedMotion                            = theme.reducedMotion;
-        const uint64_t animationTickMs                      = reducedMotion ? 0u : ::GetTickCount64();
+        const uint64_t animationTickMs                      = reducedMotion ? 0u : host.GetAnimationTickMs();
         bool needsAnimation                                 = false;
         const std::optional<size_t> busyHeaderColumn        = ResolveHeaderBusyColumn();
         const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
@@ -4009,10 +4149,12 @@ void Grid::Paint(ControlHost& host) const
             {
                 return;
             }
-            const D2D1_RECT_F rowRect               = item.rectDip;
-            const GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, rowStyle, rowIndex, rowSelected, HasFocus(), rowHovered, _visualMode);
-            const D2D1_COLOR_F rowFill              = rowVisuals.fill;
-            const D2D1_COLOR_F rowText              = rowVisuals.text;
+            const D2D1_RECT_F rowRect         = item.rectDip;
+            GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, rowStyle, rowIndex, rowSelected, HasFocus(), rowHovered, _visualMode);
+            const bool rowCurrent             = _currentRowId && *_currentRowId == rowId;
+            ResolveGridRowFocus(theme, rowSelected, rowCurrent, HasFocus(), rowCurrent && HasFocus() && host.IsKeyboardFocusVisible(), rowVisuals);
+            const D2D1_COLOR_F rowFill = rowVisuals.fill;
+            const D2D1_COLOR_F rowText = rowVisuals.text;
 
             if (rowFill.a > 0.0f)
             {
@@ -4257,6 +4399,30 @@ void Grid::Paint(ControlHost& host) const
                     DrawCellText(host, cellData, layout.textRect, rowText);
                 }
             }
+
+            // Over the cells and their separators, so that no column boundary cuts the ring.
+            auto* const focusBrush = rowVisuals.showFocus ? host.GetSolidBrush(rowVisuals.focus) : nullptr;
+            if (focusBrush)
+            {
+                const D2D1_RECT_F focusRect = InflateRect(visibleItemRect, -1.5f, -1.5f);
+                if (IsNonEmptyRect(focusRect))
+                {
+                    const float radius               = rowVisuals.roundedFill ? 2.0f : 0.0f;
+                    const D2D1_ROUNDED_RECT ringRect = D2D1::RoundedRect(focusRect, radius, radius);
+                    dc->DrawRoundedRectangle(&ringRect, focusBrush, 1.0f);
+                }
+                // Once the keyboard chose a column, the focused row also outlines that cell (the one InspectFocusedCell opens).
+                if (_showCurrentCell && _activeColumn && *_activeColumn < _columnWidths.size() && _columnDisplayOrder.size() > 1u)
+                {
+                    const float cellLeft           = GetColumnLeftDip(*_activeColumn);
+                    const D2D1_RECT_F cellRect     = D2D1::RectF(cellLeft, rowRect.top, cellLeft + _columnWidths[*_activeColumn], rowRect.bottom);
+                    const D2D1_RECT_F cellRingRect = InflateRect(ClipRectToRect(cellRect, bodyRect), -3.5f, -3.5f);
+                    if (IsNonEmptyRect(cellRingRect))
+                    {
+                        dc->DrawRectangle(cellRingRect, focusBrush, 1.0f);
+                    }
+                }
+            }
         }
         dc->PopAxisAlignedClip();
         popBodyClip.release();
@@ -4393,6 +4559,11 @@ bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
     {
         Invalidate(host);
     }
+    if (! sortGlyphAnimating)
+    {
+        // A settled glyph paints like the resting sort column, so ticks other animations drive stop repainting it.
+        _sortGlyphTransition.active = false;
+    }
     return ticking;
 }
 
@@ -4484,12 +4655,7 @@ float Grid::ComputeSortGlyphTransitionProgress(uint64_t nowTickMs) const noexcep
         return 1.0f;
     }
 
-    if (nowTickMs <= _sortGlyphTransition.startTickMs)
-    {
-        return 0.0f;
-    }
-
-    const uint64_t elapsedMs = nowTickMs - _sortGlyphTransition.startTickMs;
+    const uint64_t elapsedMs = ElapsedTickMs(_sortGlyphTransition.startTickMs, nowTickMs);
     return std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(kSortGlyphTransitionDurationMs), 0.0f, 1.0f);
 }
 
@@ -4497,8 +4663,10 @@ GridSortGlyphVisualState Grid::ResolveSortGlyphVisualState(const ThemePalette& t
 {
     GridSortGlyphVisualState state{};
     const bool currentColumnMatches = _sortSpec.direction != SortDirection::None && _sortSpec.columnIndex == columnIndex;
-    if (! _sortGlyphTransition.active)
+    const float progress            = (_sortGlyphTransition.active && ! theme.reducedMotion) ? ComputeSortGlyphTransitionProgress(nowTickMs) : 1.0f;
+    if (progress >= 1.0f)
     {
+        // A settled or suppressed transition paints, and reserves title space, exactly like the resting sort column.
         if (currentColumnMatches)
         {
             state.currentDirection = _sortSpec.direction;
@@ -4508,31 +4676,10 @@ GridSortGlyphVisualState Grid::ResolveSortGlyphVisualState(const ThemePalette& t
         return state;
     }
 
-    const bool reducedMotion = theme.reducedMotion;
-    const float progress     = reducedMotion ? 1.0f : ComputeSortGlyphTransitionProgress(nowTickMs);
-    const bool animating     = ! reducedMotion && progress < 1.0f;
-
     const bool previousColumnMatches = _sortGlyphTransition.from.direction != SortDirection::None && _sortGlyphTransition.from.columnIndex == columnIndex;
     const bool targetColumnMatches   = _sortGlyphTransition.to.direction != SortDirection::None && _sortGlyphTransition.to.columnIndex == columnIndex;
     state.reservesSpace              = previousColumnMatches || targetColumnMatches;
-
-    if (! animating)
-    {
-        if (targetColumnMatches)
-        {
-            state.currentDirection = _sortGlyphTransition.to.direction;
-            state.currentAlpha     = 1.0f;
-        }
-        else if (currentColumnMatches)
-        {
-            state.currentDirection = _sortSpec.direction;
-            state.currentAlpha     = 1.0f;
-            state.reservesSpace    = true;
-        }
-        return state;
-    }
-
-    state.animating = true;
+    state.animating                  = true;
     if (previousColumnMatches)
     {
         state.previousDirection = _sortGlyphTransition.from.direction;
@@ -4928,7 +5075,7 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         const D2D1_RECT_F headerBounds                = D2D1::RectF(GetBounds().left, GetBounds().top, contentRect.right, GetBounds().top + _headerHeightDip);
         const D2D1_RECT_F headerClipRect              = ClipRectToRect(hit.rectDip, headerBounds);
-        const GridSortGlyphVisualState sortGlyphState = ResolveSortGlyphVisualState(host.GetTheme(), hit.columnIndex, ::GetTickCount64());
+        const GridSortGlyphVisualState sortGlyphState = ResolveSortGlyphVisualState(host.GetTheme(), hit.columnIndex, host.GetAnimationTickMs());
         float titleRight                              = headerClipRect.right - 8.0f;
         if (sortGlyphState.reservesSpace)
         {
@@ -4983,22 +5130,30 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     if (! model)
     {
         return false;
     }
 
+    const HitInfo aimed = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     if (! FocusControlAndSurvive(host, *this))
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    // Focus handlers are application code. One that changes another control (a toolbar enabling its commands) leaves the
+    // click alone; one that moves, mirrors or refreshes this grid consumes it, since it would otherwise act on whatever
+    // now lies under the pointer.
+    if (! guard.ResumeAfterCallback())
     {
         return true;
     }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
-    if (! guard.IsCurrent())
+    if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
     {
         return true;
     }
@@ -5042,8 +5197,9 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                 }
                 if (hit.groupIndex < groups.size())
                 {
+                    // The delegate usually publishes the toggle with NotifyDataChanged before it returns.
                     const GridGroupDesc& group = groups[hit.groupIndex];
-                    if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, ! group.collapsed); }) || ! guard.IsCurrent())
+                    if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, ! group.collapsed); }) || ! guard.ResumeAfterCallback())
                     {
                         return true;
                     }
@@ -5071,16 +5227,12 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     {
                         return true;
                     }
-                    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus))
-                    {
-                        return true;
-                    }
-                    if (! guard.IsCurrent())
+                    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
                     {
                         return true;
                     }
                     RefreshAccessibilitySnapshot();
-                    if (guard.IsCurrent())
+                    if (guard.ResumeAfterCallback())
                     {
                         Invalidate(host);
                     }
@@ -5090,9 +5242,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         case HitZone::Cell:
         {
             _activeColumn                             = hit.columnIndex;
+            _showCurrentCell                          = false;
             const IGridModel* const modelBeforeSelect = model;
             bool clickedCheckbox                      = false;
-            std::optional<uint64_t> clickedCheckboxRowId;
+            std::wstring clickedCheckboxColumnId;
             size_t rowCount    = 0u;
             size_t columnCount = 0u;
             if (! modelBeforeSelect || ! TryControlCallback([&] { rowCount = modelBeforeSelect->GetRowCount(); }) || ! guard.IsCurrent() ||
@@ -5115,59 +5268,62 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                         return true;
                     }
                     clickedCheckbox = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
-                    if (clickedCheckbox)
+                    if (clickedCheckbox &&
+                        (! TryControlCallback([&] { clickedCheckboxColumnId = modelBeforeSelect->GetColumn(hit.columnIndex).id; }) || ! guard.IsCurrent()))
                     {
-                        clickedCheckboxRowId = modelBeforeSelect->GetStableRowId(hit.rowIndex);
-                        if (! guard.IsCurrent())
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }
-            const bool preserveRightClickSelection = rightButton && _selectionMode == GridSelectionMode::Extended && modelBeforeSelect &&
-                                                     hit.rowIndex < rowCount && _selectionModel.GetCount() > 1u && [&]()
-            {
-                const uint64_t rowId = modelBeforeSelect->GetStableRowId(hit.rowIndex);
-                return guard.IsCurrent() && _selectionModel.IsSelected(rowId);
-            }();
-            if (! guard.IsCurrent())
-            {
-                return true;
-            }
+            const bool preserveRightClickSelection =
+                rightButton && _selectionMode == GridSelectionMode::Extended && _selectionModel.GetCount() > 1u && _selectionModel.IsSelected(hit.stableId);
             if (! preserveRightClickSelection && ! SelectRow(hit.rowIndex, modifiers))
             {
                 return true;
             }
+            // The selection callbacks are application code: the pressed row is found again by id, and its checkbox
+            // toggles only while the pressed column is still in the same place.
+            if (! guard.ResumeAfterCallback())
+            {
+                return true;
+            }
+            const std::optional<size_t> pressedRow = modelBeforeSelect->FindRowByStableId(hit.stableId);
             if (! guard.IsCurrent())
             {
                 return true;
             }
-            if (! rightButton && clickedCheckbox && clickedCheckboxRowId.has_value() && hit.columnIndex < columnCount)
+            if (clickedCheckbox && pressedRow)
             {
-                const auto resolvedRowIndex = modelBeforeSelect->FindRowByStableId(clickedCheckboxRowId.value());
-                if (! guard.IsCurrent())
+                std::wstring columnId;
+                if (! TryControlCallback(
+                        [&]
+                {
+                    if (hit.columnIndex < modelBeforeSelect->GetColumnCount())
+                        columnId = modelBeforeSelect->GetColumn(hit.columnIndex).id;
+                }) ||
+                    ! guard.IsCurrent())
                 {
                     return true;
                 }
-                if (resolvedRowIndex)
+                if (columnId == clickedCheckboxColumnId)
                 {
-                    if (ToggleCheckboxCell(host, resolvedRowIndex.value(), hit.columnIndex))
+                    if (ToggleCheckboxCell(host, pressedRow.value(), hit.columnIndex))
                     {
                         return true;
                     }
-                    if (! guard.IsCurrent())
+                    if (! guard.ResumeAfterCallback())
                     {
                         return true;
                     }
-                    Invalidate(host);
-                    return true;
                 }
+                Invalidate(host);
+                return true;
             }
             Invalidate(host);
             if (rightButton)
             {
-                return OnContextMenu(host, false, point);
+                // The menu opens for the pressed row, wherever the callbacks moved it; one they removed opens none.
+                return ! pressedRow || OpenRowContextMenu(host, pressedRow.value(), point);
             }
             return true;
         }
@@ -5268,24 +5424,35 @@ void Grid::OnCaptureLost(ControlHost& host)
 
 bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    // A second right-click within the double-click time is another press: the row's menu opens again.
+    if (rightButton)
+    {
+        return OnMouseDown(host, point, rightButton, modifiers);
+    }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
-    if (! model || rightButton)
+    if (! model)
     {
         return false;
     }
 
+    const HitInfo aimed = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     if (! FocusControlAndSurvive(host, *this))
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    // As for a press: only a focus handler that changed this grid's own layout consumes the double-click.
+    if (! guard.ResumeAfterCallback())
     {
         return true;
     }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
-    if (! guard.IsCurrent())
+    if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
     {
         return true;
     }
@@ -5318,7 +5485,8 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return OnMouseDown(host, point, rightButton, modifiers);
     }
 
-    _activeColumn = hit.columnIndex;
+    _activeColumn    = hit.columnIndex;
+    _showCurrentCell = false;
 
     const IGridModel* const modelBeforeSelect = model;
     const uint64_t clickedRowId               = modelBeforeSelect->GetStableRowId(hit.rowIndex);
@@ -5395,55 +5563,16 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         }
     }
 
-    if (! clickedCheckbox && host.GetPointerDevice() == PointerDevice::Touch)
-    {
-        if (! SelectRow(hit.rowIndex, modifiers))
-        {
-            return true;
-        }
-        if (! guard.IsBindingCurrent())
-        {
-            return true;
-        }
-        // Selection delegates may notify a reorder in the same binding. Discard all ordinals and query its current identities.
-        guard                  = GridModelQueryGuard(*this, lifetime, modelBeforeSelect);
-        const auto columnIndex = resolveClickedColumn();
-        if (! guard.IsCurrent() || ! columnIndex)
-        {
-            return true;
-        }
-        const auto rowIndex = modelBeforeSelect->FindRowByStableId(clickedRowId);
-        if (! guard.IsCurrent() || ! rowIndex)
-        {
-            return true;
-        }
-        const auto rect = GetVisibleCellRect(*rowIndex, *columnIndex);
-        if (! guard.IsCurrent())
-        {
-            return true;
-        }
-        if (rect)
-        {
-            _activeColumn = *columnIndex;
-            if (! TryControlCallback([&] { modelBeforeSelect->GetCellData(*rowIndex, *columnIndex, cellData); }) || ! guard.IsCurrent())
-            {
-                return true;
-            }
-            const D2D1_POINT_2F origin = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
-            static_cast<void>(host.InspectTooltip(BuildGridCellCopyText(cellData), origin));
-        }
-        return true;
-    }
-
+    // A double-tap activates the row, as a double-click does. Inspection is the application's command (InspectFocusedCell),
+    // which a press-and-hold reaches through the context menu.
     if (! SelectRow(hit.rowIndex, modifiers))
     {
         return true;
     }
-    if (! guard.IsBindingCurrent())
+    if (! guard.ResumeAfterCallback())
     {
         return true;
     }
-    guard                  = GridModelQueryGuard(*this, lifetime, modelBeforeSelect);
     const auto columnIndex = resolveClickedColumn();
     if (! guard.IsCurrent())
     {
@@ -5462,7 +5591,7 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             {
                 return true;
             }
-            if (! guard.IsCurrent())
+            if (! guard.ResumeAfterCallback())
             {
                 return true;
             }
@@ -5631,7 +5760,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
+    GridModelQueryGuard guard(*this, lifetime, model);
     size_t rowCount = 0u;
     if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowCount == 0u)
     {
@@ -5649,7 +5778,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return false;
     }
 
-    if (ModifiersContainCtrl(modifiers))
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         if (virtualKey == 'A')
         {
@@ -5659,55 +5788,21 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             return OnCopy(host);
         }
+        // Ctrl+Left and Ctrl+Right choose the current column (the cell InspectFocusedCell opens), in display order and
+        // mirrored in RTL. Neither the selection nor the focused row changes.
+        if (! ModifiersContainShift(modifiers) && (virtualKey == VK_LEFT || virtualKey == VK_RIGHT))
+        {
+            return MoveCurrentColumn(host, IsRightToLeft() ? virtualKey == VK_LEFT : virtualKey == VK_RIGHT);
+        }
     }
 
-    if (virtualKey == VK_F1 && ! ModifiersContainAlt(modifiers))
+    // The keys start from the focused row, else from the last selected row, else from the first row.
+    const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
+    if (! guard.IsCurrent())
     {
-        const std::optional<size_t> focusedRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
-        if (! guard.IsCurrent())
-        {
-            return true;
-        }
-        size_t columnCount = 0u;
-        if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent())
-        {
-            return true;
-        }
-        const size_t columnIndex = _activeColumn && *_activeColumn < columnCount ? *_activeColumn : 0u;
-        if (focusedRow && columnCount > 0u)
-        {
-            GridCellData cellData{};
-            if (! TryControlCallback([&] { model->GetCellData(*focusedRow, columnIndex, cellData); }) || ! guard.IsCurrent())
-            {
-                return true;
-            }
-            const auto rect = GetVisibleCellRect(*focusedRow, columnIndex);
-            if (! guard.IsCurrent())
-            {
-                return true;
-            }
-            if (rect)
-            {
-                const D2D1_POINT_2F origin = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
-                static_cast<void>(host.InspectTooltip(BuildGridCellCopyText(cellData), origin));
-            }
-        }
-        return true;
+        return false;
     }
-
-    size_t currentRow = visibleRows.front();
-    if (_currentRowId)
-    {
-        const std::optional<size_t> focusedRow = model->FindRowByStableId(*_currentRowId);
-        if (! guard.IsCurrent())
-        {
-            return false;
-        }
-        if (focusedRow && std::ranges::find(visibleRows, *focusedRow) != visibleRows.end())
-        {
-            currentRow = *focusedRow;
-        }
-    }
+    size_t currentRow = startRow.value_or(visibleRows.front());
 
     const auto toggleGroupFromKeyboard = [&](size_t groupIndex, bool collapsed)
     {
@@ -5722,7 +5817,8 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
         }
 
-        if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, collapsed); }) || ! guard.IsCurrent())
+        // The delegate usually publishes the toggle with NotifyDataChanged before it returns.
+        if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, collapsed); }) || ! guard.ResumeAfterCallback())
         {
             return true;
         }
@@ -5779,16 +5875,12 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
         }
         // The selection's delegate may rebuild the controls and destroy this grid, and UI Automation event delivery may too.
-        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus))
-        {
-            return true;
-        }
-        if (! guard.IsCurrent())
+        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
         {
             return true;
         }
         RefreshAccessibilitySnapshot();
-        if (guard.IsCurrent())
+        if (guard.ResumeAfterCallback())
         {
             Invalidate(host);
         }
@@ -5837,7 +5929,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             if (const auto groupIndex = findOwningExpandedGroup(); groupIndex.has_value())
             {
                 bool handled = false;
-                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), true); }) || ! guard.IsCurrent())
+                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), true); }) || ! guard.ResumeAfterCallback())
                 {
                     return true;
                 }
@@ -5849,7 +5941,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             if (const auto groupIndex = findAssociatedCollapsedGroup(); groupIndex.has_value())
             {
                 bool handled = false;
-                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), false); }) || ! guard.IsCurrent())
+                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), false); }) || ! guard.ResumeAfterCallback())
                 {
                     return true;
                 }
@@ -5898,8 +5990,10 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         default: return false;
     }
 
+    // As in Tree: Ctrl with any movement key moves the focus alone (Ctrl+Space then toggles the row it reached), Shift
+    // extends the range from the anchor, and a plain key selects the row it lands on.
     const size_t nextRow = visibleRows[nextVisibleIndex];
-    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && (virtualKey == VK_UP || virtualKey == VK_DOWN))
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
     {
         static_cast<void>(RequestFocusRow(nextRow));
         return true;
@@ -5908,29 +6002,23 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         return true;
     }
+    // The selection callbacks may refresh the model or change any control's layout: reveal the focused row where it is now.
+    if (! guard.ResumeAfterCallback())
+    {
+        return true;
+    }
+    const std::optional<size_t> focusedRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
     if (! guard.IsCurrent())
     {
         return true;
     }
-    const D2D1_RECT_F contentRect = GetContentRect();
-    if (! guard.IsCurrent())
+    if (focusedRow)
     {
-        return true;
-    }
-    const float rowTop    = GetRowTopDip(groups, nextRow);
-    const float rowBottom = rowTop + _rowHeightDip;
-    if (rowTop < _verticalScrollDip)
-    {
-        _verticalScrollDip = rowTop;
-    }
-    else if (rowBottom > (_verticalScrollDip + (contentRect.bottom - contentRect.top)))
-    {
-        _verticalScrollDip = rowBottom - (contentRect.bottom - contentRect.top);
-    }
-    ClampScrollOffsets();
-    if (! guard.IsCurrent())
-    {
-        return true;
+        EnsureRowVisible(*focusedRow);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
     }
     Invalidate(host);
     return true;
@@ -5962,19 +6050,13 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
             return false;
         }
 
-        rowIndex                               = visibleRows.front();
-        const std::optional<size_t> primaryRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
+        // The menu opens for the row the keys would act on.
+        const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
         if (! guard.IsCurrent())
         {
             return false;
         }
-        if (primaryRow)
-        {
-            if (std::ranges::find(visibleRows, primaryRow.value()) != visibleRows.end())
-            {
-                rowIndex = primaryRow.value();
-            }
-        }
+        rowIndex = startRow.value_or(visibleRows.front());
 
         const D2D1_RECT_F contentRect = GetContentRect();
         if (! guard.IsCurrent())
@@ -5987,7 +6069,8 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         const float maxX      = std::max(minX, contentRect.right - 4.0f);
         const float minY      = contentRect.top + 4.0f;
         const float maxY      = std::max(minY, contentRect.bottom - 4.0f);
-        anchorDip             = D2D1::Point2F(std::clamp(GetBounds().left + 16.0f, minX, maxX), std::clamp((rowTop + rowBottom) * 0.5f, minY, maxY));
+        const float startX    = IsRightToLeft() ? GetBounds().right - 16.0f : GetBounds().left + 16.0f;
+        anchorDip             = D2D1::Point2F(std::clamp(startX, minX, maxX), std::clamp((rowTop + rowBottom) * 0.5f, minY, maxY));
     }
     else
     {
@@ -6002,15 +6085,25 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         }
         rowIndex = hit.rowIndex;
     }
+    return OpenRowContextMenu(host, rowIndex, anchorDip);
+}
 
-    const POINT screenPoint = Control::ResolveContextMenuAnchor(host, false, anchorDip);
+bool Grid::OpenRowContextMenu(ControlHost& host, size_t rowIndex, D2D1_POINT_2F anchorDip)
+{
+    if (! _delegate)
+    {
+        return false;
+    }
+    const POINT screenPoint = ResolveContextMenuAnchor(host, false, anchorDip);
     static_cast<void>(TryControlCallback([&] { _delegate->OnGridContextMenu(*this, rowIndex, screenPoint); }));
     return true;
 }
 
 bool Grid::OnCopy(ControlHost& host)
 {
-    return host.CopyTextToClipboard(BuildSelectionTsv());
+    // With nothing to copy the key is left unhandled, for the application, and the clipboard keeps what it holds.
+    const std::wstring text = BuildSelectionTsv();
+    return ! text.empty() && host.CopyTextToClipboard(text);
 }
 
 bool Grid::OnSelectAll(ControlHost& host)
@@ -6019,7 +6112,7 @@ bool Grid::OnSelectAll(ControlHost& host)
     {
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const model           = _model;
-        const GridModelQueryGuard guard(*this, lifetime, model);
+        GridModelQueryGuard guard(*this, lifetime, model);
         if (! model || _selectionMode == GridSelectionMode::Single)
         {
             return false;
@@ -6048,23 +6141,12 @@ bool Grid::OnSelectAll(ControlHost& host)
         {
             return true;
         }
-        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
         {
-            // The delegate may rebuild the controls and destroy this grid.
-            if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
-            {
-                return true;
-            }
-        }
-        if (_delegate && previousFocus != _currentRowId)
-        {
-            if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
-            {
-                return true;
-            }
+            return true;
         }
         RefreshAccessibilitySnapshot();
-        if (guard.IsCurrent())
+        if (guard.ResumeAfterCallback())
         {
             Invalidate(host);
         }
@@ -6215,6 +6297,7 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
             {
                 hit.zone       = HitZone::GroupHeader;
                 hit.groupIndex = item.groupIndex;
+                hit.stableId   = item.groupIndex < groups.size() ? groups[item.groupIndex].stableId : 0u;
                 hit.rectDip    = item.rectDip;
                 return hit;
             }
@@ -6237,7 +6320,12 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
                 hit.zone        = HitZone::Cell;
                 hit.rowIndex    = item.rowIndex;
                 hit.columnIndex = columnIndex;
+                hit.stableId    = model->GetStableRowId(item.rowIndex);
                 hit.rectDip     = cellRect;
+                if (! guard.IsCurrent())
+                {
+                    return {};
+                }
                 return hit;
             }
         }
@@ -6251,6 +6339,15 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
     {
         return {};
     }
+}
+
+bool Grid::IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept
+{
+    // The same part of the same row, group and column at the same place: the grid itself neither moved, scrolled,
+    // mirrored nor changed its rows. A refresh that left another row (by stable id) in the same place changed them.
+    return before.zone == after.zone && before.rowIndex == after.rowIndex && before.groupIndex == after.groupIndex && before.columnIndex == after.columnIndex &&
+           before.stableId == after.stableId && before.onScrollbarThumb == after.onScrollbarThumb && before.rectDip.left == after.rectDip.left &&
+           before.rectDip.top == after.rectDip.top && before.rectDip.right == after.rectDip.right && before.rectDip.bottom == after.rectDip.bottom;
 }
 
 void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
@@ -6460,21 +6557,20 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
 
 bool Grid::NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus)
 {
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    IGridModel* const model           = _model;
-    const GridModelQueryGuard guard(*this, lifetime, model);
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    // The delegate may rebuild the controls and destroy this grid, refresh the model or change other controls. Each report
+    // reads the state current at that moment; only losing this grid, its model or its delegate ends the sequence.
+    GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()) &&
+        (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.ResumeAfterCallback()))
     {
-        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsBindingCurrent())
-        {
-            return false;
-        }
+        return false;
     }
-    if (_delegate && previousFocus != _currentRowId)
+    if (_delegate && previousFocus != _currentRowId &&
+        (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.ResumeAfterCallback()))
     {
-        static_cast<void>(TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }));
+        return false;
     }
-    return guard.IsBindingCurrent();
+    return true;
 }
 
 std::wstring Grid::BuildSelectionTsv() const
@@ -6672,6 +6768,85 @@ void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> group
             _focusedRowIndex = *fallbackRowIndex;
         }
     }
+}
+
+void Grid::SetSelectedRowIds(std::span<const uint64_t> rowIds) noexcept
+try
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model)
+    {
+        return;
+    }
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    const std::vector<uint64_t> visibleRowIds = CollectVisibleOrderedRowIds(model, groups, &guard);
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    const std::unordered_set<uint64_t> visible(visibleRowIds.begin(), visibleRowIds.end());
+    // The last listed id that is a visible row becomes the focus and the range anchor.
+    std::optional<uint64_t> last;
+    for (auto it = rowIds.rbegin(); it != rowIds.rend() && ! last; ++it)
+    {
+        if (visible.contains(*it))
+        {
+            last = *it;
+        }
+    }
+
+    GridSelectionModel nextSelection;
+    if (last)
+    {
+        nextSelection.SetSingle(*last);
+        if (! nextSelection.IsSelected(*last))
+            return;
+        if (_selectionMode != GridSelectionMode::Single)
+        {
+            for (const uint64_t rowId : rowIds)
+            {
+                if (rowId != *last && visible.contains(rowId) && ! nextSelection.IsSelected(rowId))
+                {
+                    nextSelection.Toggle(rowId);
+                    if (! nextSelection.IsSelected(rowId))
+                        return;
+                }
+            }
+            nextSelection.PreserveOrdered(visibleRowIds);
+        }
+        nextSelection.SetAnchor(last);
+    }
+    const std::optional<size_t> lastRow = last ? model->FindRowByStableId(*last) : std::nullopt;
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    _selectionModel  = std::move(nextSelection);
+    _currentRowId    = last;
+    _focusedRowIndex = lastRow;
+    if (lastRow)
+    {
+        EnsureRowVisible(*lastRow);
+    }
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+    {
+        RequestInvalidate();
+    }
+}
+catch (const std::exception&)
+{
+    // A failed model collection or staged selection leaves the previously committed selection intact.
 }
 
 size_t Grid::CountGroupHeadersBeforeRow(std::span<const GridGroupDesc> groups, size_t rowIndex) const noexcept
@@ -7656,30 +7831,28 @@ bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnI
     _activeColumn = columnIndex;
     if (_delegate)
     {
+        const uint64_t revisionBeforeToggle = _modelRevision;
         if (! TryControlCallback([&] { _delegate->OnGridCheckboxToggled(*this, rowIndex, columnIndex, ! cellData.checked); }))
         {
             return false;
         }
-        if (! guard.IsCurrent())
+        if (! guard.IsBindingCurrent())
         {
             return true;
         }
-        // A model change that moved the selection runs the selection's delegate, which may rebuild the controls and destroy
-        // this grid, and so may UI Automation event delivery while it publishes.
-        NotifyDataChanged();
-        if (! guard.IsCurrent())
+        // A delegate that has not published its edit gets it published here; one that called NotifyDataChanged already
+        // has. A model change that moved the selection runs the selection's delegate, which may rebuild the controls and
+        // destroy this grid, and so may UI Automation event delivery while it publishes.
+        if (_modelRevision == revisionBeforeToggle)
         {
-            return true;
-        }
-        if (_model != model)
-        {
-            return true;
+            NotifyDataChanged();
+            if (! guard.IsBindingCurrent())
+            {
+                return true;
+            }
         }
     }
-    if (guard.IsCurrent())
-    {
-        Invalidate(host);
-    }
+    Invalidate(host);
     return true;
 }
 

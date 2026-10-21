@@ -642,6 +642,16 @@ Invoke-FixtureCase 'an approved automatic request still refuses a CI desktop bef
     Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none')) 'automatic mode keeps the existing desktop refusal'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no test or build output was written'
 }
+Invoke-TestCase 'a native lease runs attached to the console, never piped, so Ctrl+C reaches it instead of ending it' {
+    # CR-31 of the 10 October review: the lease was piped through Out-Host, and PowerShell kills a native command whose output
+    # it reads when Ctrl+C stops the pipeline, before the lease restores the desktop.
+    $pwsh = (Get-Process -Id $PID).Path
+    $answer = @(Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', "[Console]::Out.WriteLine('[LEASE] native progress'); exit 7"))
+    Assert-Equal 1 $answer.Count 'only its exit code is returned: the lease writes its progress to the console itself'
+    Assert-Equal 7 $answer[0] 'the exit code is the lease''s'
+    $module = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../InteractiveRun.psm1'))
+    Assert-True $module.Contains('Invoke-DxUiLeaseExecutable -Executable $Executable -Arguments $arguments') 'the lease core starts a native lease that way'
+}
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'
     @'
@@ -799,5 +809,31 @@ Invoke-TestCase 'hosted ARM desktop preparation refuses incomplete runner author
     } finally {
         foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $original[$name]) }
     }
+    # Off ARM64 the system architecture alone refuses above, so the script must take its whole decision from the one guard that
+    # the next case checks condition by condition, before it loads Win32 or writes the registry.
+    $script = [Management.Automation.Language.Parser]::ParseFile($preparation, [ref]$null, [ref]$null)
+    $guard = @($script.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Test-DxUiHostedArmDesktopRunner' }, $true))
+    $firstChange = @($script.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -in @('Add-Type', 'New-Item', 'New-ItemProperty') }, $true) |
+        ForEach-Object { $_.Extent.StartOffset } | Sort-Object)[0]
+    Assert-True ($guard.Count -eq 1 -and $guard[0].CommandElements.Count -eq 1) 'the preparation asks the shared guard once, about this process and this machine'
+    Assert-True ($guard[0].Extent.StartOffset -lt $firstChange) 'and before it loads Win32 or writes the registry'
+    Assert-True (-not ((Get-Content -Raw -LiteralPath $preparation) -match 'RUNNER_ARCH|OSArchitecture')) 'no second runner condition lives in the script itself'
+}
+Invoke-TestCase 'hosted ARM desktop preparation requires every hosted marker, an ARM64 runner and a native ARM64 system' {
+    $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }
+    Assert-True (Test-DxUiHostedArmDesktopRunner -Environment $valid -OSArchitecture Arm64) 'a verified hosted ARM64 job on a native ARM64 system qualifies'
+    foreach ($architecture in @('X64', 'X86', 'Arm')) {
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $valid -OSArchitecture $architecture)) "a $architecture system never qualifies"
+    }
+    foreach ($name in $valid.Keys) {
+        $mutation = $valid.Clone()
+        $mutation[$name] = 'invalid'
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $mutation -OSArchitecture Arm64)) "an invalid $name never qualifies"
+        $mutation.Remove($name)
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $mutation -OSArchitecture Arm64)) "a missing $name never qualifies"
+    }
+    $lowercase = $valid.Clone()
+    $lowercase['RUNNER_ARCH'] = 'arm64'
+    Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $lowercase -OSArchitecture Arm64)) 'RUNNER_ARCH is matched exactly as GitHub sets it'
 }
 Complete-TestRun 'Interactive mode'

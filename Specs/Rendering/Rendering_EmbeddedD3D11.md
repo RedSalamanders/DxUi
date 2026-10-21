@@ -107,12 +107,14 @@ remain pending after preparation. The caller advances animation only when NeedsA
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
 
-Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
-milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime
-from application time. Native hosting retains its dispatcher clock. Hiding/zero-sizing still suspends ticks under
-the existing retained-motion contract. These two controls' epoch regressions do not qualify every legacy clock
-consumer; the [qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md#remaining-legacy-clock-audit)
-tracks the remaining Button, editor, Tree/Grid and initial-tooltip clock audit.
+An embedded view keeps one animation clock, `ControlHost::GetAnimationTickMs`. AdvanceAnimation adds the difference
+between its application milliseconds and the previous tick's; the first tick after a pause in ticking (no animation
+requested, hidden, zero-sized, a new attachment) only sets the baseline, a tick that goes back adds nothing, and the
+clock saturates rather than wrapping. Every control stamps its transitions, caret phase, sort glyph, Tree expansion and
+tooltip deadlines with that clock, and Tick receives it, so no control mixes system uptime with application time and no
+application epoch changes a transition. A new attachment continues from the clock the host read before it, so the clock
+never goes back. Native hosting uses the UI thread's dispatcher timeline as the same clock. Hiding/zero-sizing still
+suspends ticks under the existing retained-motion contract.
 
 Preparation rechecks the root after DPI notification and between paint and overlay calls. Root retirement or
 interaction-geometry replacement during painting returns `E_ABORT`, retains pending preparation and leaves the

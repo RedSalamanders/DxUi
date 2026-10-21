@@ -75,7 +75,7 @@ function Set-FormNativeReport([string] $Root, $Report) {
 }
 function New-FormRunnerFixture([string] $Root, [uint32] $Seed = 20261010, [int] $Blocks = 1, [string] $Configuration = 'Release') {
     Copy-Item -LiteralPath (Join-Path $repository 'performance-forms.ps1') -Destination (Join-Path $Root 'performance-forms.ps1')
-    Set-FixtureFile $Root 'Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h' 'synthetic fixture header'
+    Set-FixtureFile $Root 'Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h' 'synthetic fixture header'
     Set-FixtureFile $Root 'Tests/Embedded/Embedded.Tests.Embedded.cpp' 'synthetic minimal dispatcher'
     Set-FixtureFile $Root 'src/Layout.cpp' 'synthetic library input'
     Set-FixtureFile $Root 'dependency.txt' 'synthetic dependency input'
@@ -144,7 +144,7 @@ Set-Item -Path ('Function:global:' + $exe) -Value {
     if ($mode -eq 'missing') { return }
     [IO.File]::WriteAllBytes($Output, [IO.File]::ReadAllBytes((Join-Path $root 'native-report.txt')))
     $mutations = @{
-        'input-drift'='src/Layout.cpp'; 'fixture-drift'='Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h'
+        'input-drift'='src/Layout.cpp'; 'fixture-drift'='Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h'
         'dispatcher-drift'='Tests/Embedded/Embedded.Tests.Embedded.cpp'; 'runner-drift'='performance-forms.ps1'
         'dependency-drift'='dependency.txt'; 'artifact-drift'=".build/$platform/$configuration/DxUi.EmbeddedTests.exe"
     }
@@ -204,7 +204,7 @@ Invoke-FixtureCase 'a valid SkipBuild diagnostic binds exact extra inputs, retai
     $nativeHash = (Get-FileHash -LiteralPath (Join-Path $root 'native-report.txt') -Algorithm SHA256).Hash
     Assert-Equal $nativeHash (Get-FileHash -LiteralPath $receipt.rawReportPath -Algorithm SHA256).Hash 'exact raw bytes retained'
     Assert-Equal $nativeHash $receipt.rawReportSha256 'raw hash'
-    foreach ($path in @('Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','performance-forms.ps1')) {
+    foreach ($path in @('Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','performance-forms.ps1')) {
         Assert-Equal (Get-FileHash -LiteralPath (Join-Path $root $path) -Algorithm SHA256).Hash $receipt.formBenchmarkInputs[$path] "exact extra input $path"
     }
     Assert-True $run.Text.Contains('no gate or policy qualification verdict') 'public output distinguishes diagnostic'

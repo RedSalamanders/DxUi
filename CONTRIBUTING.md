@@ -20,7 +20,8 @@ on pushes to main, not on pushes to other branches (start it by hand for a branc
 request that changes documentation alone skips its six native jobs. The formatting workflow checks PRs;
 its manual apply mode can commit formatting on a selected branch. After a merge, the manual "Publish docs gallery"
 workflow regenerates `docs/gallery` on a native x64 Release build and commits it to a selected branch, only when a
-sheet, the index or the README changed; review the committed sheets in its diff.
+sheet, the index or the README changed; review the committed sheets in its diff. `.github/CODEOWNERS` names the owner
+of the workflows, `Tools`, the performance scripts and the agent instructions.
 
 Formatting requires clang-format 22.1.3. To use the same checksum-pinned Windows x64 tool as CI from the repository root:
 

@@ -9,6 +9,7 @@
 #include <limits>
 
 #include <msctf.h>
+#include <olectl.h>
 #include <textstor.h>
 
 namespace DxUi
@@ -16,6 +17,8 @@ namespace DxUi
 namespace
 {
 constexpr TsViewCookie kTextStoreView = 1u;
+// The most UTF-16 units one TSF edit inserts; the document itself has no ceiling of the store's.
+constexpr size_t kMaximumTextStoreEditUnits = 65'536u;
 
 [[nodiscard]] LONG ToAcp(size_t value) noexcept
 {
@@ -162,31 +165,6 @@ struct AcpRange
     return ClipTextStoreRectToBounds(raw, bounds);
 }
 
-[[nodiscard]] bool TextStoreControlBelongsToTree(const Control* root, const Control* target) noexcept
-{
-    if (! root || ! target)
-    {
-        return false;
-    }
-    if (root == target)
-    {
-        return true;
-    }
-    const auto* panel = dynamic_cast<const Panel*>(root);
-    if (! panel)
-    {
-        return false;
-    }
-    for (const auto& child : panel->GetChildren())
-    {
-        if (child && TextStoreControlBelongsToTree(child.get(), target))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 [[nodiscard]] bool TryGetCompositionAcpRange(ITfCompositionView* composition, ITfRange* suppliedRange, size_t& start, size_t& end) noexcept
 {
     start = 0u;
@@ -236,7 +214,7 @@ public:
         ControlHost* const host = _host;
         Control* const control  = _control;
         const auto lifetime     = _controlLifetime;
-        if (_compositionBase && host && control && ! lifetime.expired() && TextStoreControlBelongsToTree(host->GetRoot(), control))
+        if (_compositionBase && host && control && ! lifetime.expired() && IsControlInTree(host->GetRoot(), control))
         {
             // Deactivation invalidates the dispatch cookie before Pop. Allow the retiring store to
             // roll back its own still-visible preview only when no replacement TSF session won reentry.
@@ -634,7 +612,7 @@ public:
     }
     [[nodiscard]] Control* GetLiveControl() const noexcept
     {
-        if (! _host || ! _control || _controlLifetime.expired() || ! TextStoreControlBelongsToTree(_host->GetRoot(), _control))
+        if (! _host || ! _control || _controlLifetime.expired() || ! IsControlInTree(_host->GetRoot(), _control))
         {
             return nullptr;
         }
@@ -1151,7 +1129,20 @@ public:
         }
         if (_sink)
         {
-            return E_FAIL;
+            // The advised sink advising again changes its mask; another sink is refused, as ITextStoreACP::AdviseSink says.
+            wil::com_ptr_nothrow<IUnknown> requestedIdentity;
+            wil::com_ptr_nothrow<IUnknown> advisedIdentity;
+            if (FAILED(punk->QueryInterface(__uuidof(IUnknown), requestedIdentity.put_void())) ||
+                FAILED(_sink->QueryInterface(__uuidof(IUnknown), advisedIdentity.put_void())) || ! requestedIdentity || ! advisedIdentity)
+            {
+                return E_FAIL;
+            }
+            if (requestedIdentity.get() != advisedIdentity.get())
+            {
+                return CONNECT_E_ADVISELIMIT;
+            }
+            _sinkMask = dwMask;
+            return S_OK;
         }
 
         ITextStoreACPSink* rawSink = nullptr;
@@ -1706,10 +1697,10 @@ public:
             return TS_E_INVALIDPOS;
         if (state.readOnly)
             return E_ACCESSDENIED;
-        const AcpRange range     = GetSelectionRange(state);
-        constexpr size_t maximum = 65536;
-        const size_t retained    = state.text.size() - (range.end - range.start);
-        if (retained > maximum || cch > maximum - retained)
+        const AcpRange range = GetSelectionRange(state);
+        // One edit inserts at most 65,536 UTF-16 units. The document is as long as its field allows: a long multiline
+        // field takes IME, emoji and dictation edits like a short one.
+        if (cch > kMaximumTextStoreEditUnits)
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         if (! queryOnly)
         {
@@ -1793,12 +1784,10 @@ private:
         }
 
         const std::wstring_view replacement(pchText ? pchText : L"", static_cast<size_t>(cch));
-        const size_t newCaret             = range.start + replacement.size();
-        const bool selfEditChanged        = state.text.compare(range.start, range.end - range.start, replacement) != 0 || state.caretIndex != newCaret ||
-                                            state.selectionAnchorIndex.has_value();
-        constexpr size_t maximumTextUnits = 65536;
-        const size_t retainedUnits        = state.text.size() - (range.end - range.start);
-        if (retainedUnits > maximumTextUnits || replacement.size() > maximumTextUnits - retainedUnits)
+        const size_t newCaret      = range.start + replacement.size();
+        const bool selfEditChanged = state.text.compare(range.start, range.end - range.start, replacement) != 0 || state.caretIndex != newCaret ||
+                                     state.selectionAnchorIndex.has_value();
+        if (replacement.size() > kMaximumTextStoreEditUnits)
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         try
         {

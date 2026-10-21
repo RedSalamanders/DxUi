@@ -402,6 +402,19 @@ Invoke-TestCase 'the exact rank test gives the closed-form p-value of complete s
     }
 }
 
+Invoke-TestCase 'the exact rank test counts nineteen and twenty blocks without overflowing' {
+    # N-20 of the 10 October review: the counts were 64-bit integers, which overflow from 38 runs a side, where the subset
+    # count of one rank sum passes 9.2e18 and the judge threw.
+    foreach ($size in 36, 38, 40) {
+        $combinations = 1.0
+        foreach ($index in 1..$size) { $combinations = $combinations * ($size + $index) / $index }
+        $test = Get-MannWhitneyTest ([double[]](1..$size)) ([double[]](($size + 1)..(2 * $size)))
+        $expected = 2.0 / $combinations
+        Assert-True ([Math]::Abs($test['pValue'] / $expected - 1.0) -lt 1e-12) "p-value of $size against $size is $($test['pValue']), not $expected"
+    }
+    Assert-True ((Get-MinimumAttainableP 38 38) -gt 0) 'the smallest attainable p of nineteen blocks is a probability'
+}
+
 Invoke-TestCase 'the exact rank test reproduces the documented reference example' {
     # Hollander and Wolfe's permeability data, as in R's wilcox.test help: W = 35 and a one-sided p of 0.1272 for the larger group.
     $larger = [double[]](0.80, 0.83, 1.89, 1.04, 1.45, 1.38, 1.91, 1.64, 0.73, 1.46)

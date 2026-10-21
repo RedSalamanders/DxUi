@@ -43,7 +43,8 @@ jobs:
           name: formatting-patch
           path: formatting.patch
   reformat:
-    if: github.event_name == 'workflow_dispatch' && inputs.apply_changes && startsWith(github.ref, 'refs/heads/')
+    # Never main: its pull-request rule rejects a direct push, and nothing may push to it unreviewed.
+    if: github.event_name == 'workflow_dispatch' && inputs.apply_changes && startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main'
     runs-on: windows-2025-vs2026
     permissions:
       contents: write

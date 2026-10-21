@@ -16,6 +16,9 @@ including ancestors separated by PageHost. Tree/Grid delegate anchors use that s
 Controls retain state independently of GPU resources. Buttons, toggles, sliders, selectors and text fields are shared
 implementations, not application-local clones. An active gesture has a defined preview, commit and cancel lifecycle.
 External state acknowledgement is separate from local intent. Hidden controls leave focus and accessibility trees.
+A host owns its root's bounds: a window host sets them to its client area when it installs the root, resizes, changes
+DPI and paints, and an embedded view sets them to its prepared size at every preparation. Equal bounds change nothing;
+an application insets content inside the root, never by moving the root.
 
 If both requested and fallback solid-brush creation fail, painters omit that primitive without passing null to
 Direct2D. Other prepared content and later recovery remain usable. Overlay dismissal revalidates container lifetime
@@ -36,8 +39,9 @@ Minimum and intrinsic extents remain authoritative when the available parent ext
 reports overflow instead of silently shrinking an interactive target or truncating measured content.
 
 Label, Button, Toggle, Checkbox, TextField, ComboBox and NumericStepper measure with the current host's
-DirectWrite font roles, flow direction and density. Wrapping requires an explicit opt-in and finite width;
-single-line measurement preserves its natural text extent. Toggle reserves the larger of its two localized
+DirectWrite font roles, flow direction and density. Wrapping requires an explicit opt-in and finite width, and
+wrapped text measures without the space that ends each wrapped line, which hangs past that width; single-line
+measurement preserves its natural text extent, trailing space included. Toggle reserves the larger of its two localized
 state labels. Single-line editors measure stable font/chrome requirements and use the owning layout's minimum
 or explicit preferred width; typing, selecting an item or nudging a value does not resize the editor. A masked
 multiline field measures its displayed mask. Shaping is bounded to 65,536 UTF-16 units per measured text value and
@@ -45,19 +49,28 @@ per container pass across cache misses and nested measures. `MeasureContext::rem
 an existing pass budget; nested containers preserve it and cached results consume no units. Excess input fails
 before text-layout allocation. No character-count width approximation is a measurement fallback.
 
-`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 logical child
-slots. It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
+`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 live child
+controls (a slot `TakeChild` emptied does not count). It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
 constraints, cross-axis alignment and positive growth. A child maximum caps growth; remaining growth is
 redistributed among eligible siblings. Hidden children occupy no flow space. RTL mirrors physical rectangles
 while preserving logical ownership and focus/accessibility order. Measurement cache identity includes the
 child's measurement revision, constraints, host typography revision, DPI, flow and density. Content, font,
 wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
 checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
-per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again.
+per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again. Showing a
+control asks the host for that preparation even when no layout owner sits on its own ancestor chain, so an owner
+below a plain container that was hidden (an unselected tab page) is laid out when the container is shown.
 
 Intrinsic owners request work through the shared pending-layout traversal used by native painting and embedded
-`Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A failed or superseded layout
-prevents the host from publishing that preparation. The layout owner stages all numeric geometry before the first
+`Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A superseded layout (a callback
+that changed the tree mid-pass) prevents the host from publishing that preparation and requests another one. A
+layout that fails (text beyond the shaping budget, an unsupported child without an explicit size, arithmetic
+overflow) keeps the owner's previous geometry, which the frame paints, and is reported once through the diagnostics
+sink; the owner is laid out again when its content, constraints or bounds change. A failure never blanks the
+window. Measure invalidation moves no geometry until that preparation, so it leaves the interaction revision alone:
+pending layout neither drops input nor cancels a press. After a successful deferred pass the native host
+republishes the UI Automation snapshot, whose bounds an earlier publication may have read before the pass. The
+layout owner stages all numeric geometry before the first
 extensible bounds callback and leaves child bounds unchanged on validation, allocation, measurement or arithmetic
 failure. After custom measurement or bounds callbacks it rechecks lifetime, ownership, host, geometry and input
 revisions. A callback that retires, reparents or replaces the owner/child, changes sibling geometry, or starts a
@@ -67,7 +80,9 @@ callbacks are not rolled back, and the incomplete outer pass does not publish it
 Flex arrangement stages absolute endpoints in logical line order. Positive intrinsic extents, gaps and padding that collapse at a
 finite origin fail with arithmetic overflow before any bounds callback. An inward-rounded endpoint advances
 outward, with following anchors consuming that corrected edge; represented minima, gaps, order and applicable
-growth maxima remain authoritative. Optional Grow/Stretch additions can round inward while preserving the
+growth maxima remain authoritative. A fixed extent (minimum equal to maximum) whose span no float endpoint represents
+exactly takes the nearest endpoint, at most one representable step past the maximum, while that step is under
+1/1024 of the extent; coordinates too coarse for the extent still fail. Optional Grow/Stretch additions can round inward while preserving the
 intrinsic minimum; an uncapped minimum-size overflow remains valid when no smaller endpoint preserves that minimum.
 Bounded trailing insets are checked against the represented parent far edge;
 End alignment uses the represented line endpoint. `Measure` returns the preferred extent; successful `ApplyLayout`
@@ -85,7 +100,7 @@ usable. Description and error text wrap in the editor lane. Flow direction mirro
 logical ownership, tab order, editor identity, selection, draft or composition. Footer actions remain separate
 siblings arranged by their owner, using the existing measured-action helper when required.
 
-A form supports at most 256 logical field slots. `AddField` requires a nonempty, unique identity and bounds its
+A form supports at most 256 live fields (a removed field frees its place). `AddField` requires a nonempty, unique identity and bounds its
 identity/initial label to 65,536 UTF-16 units. Arbitrary visible non-field children fail form layout rather than
 being silently ignored. A field owns one editor and three text parts; a custom editor returning `E_NOTIMPL`
 uses the explicitly supplied preferred editor size, whose default is 180 by 32 DIP. Preferred width is at least
@@ -265,10 +280,17 @@ physical application DPI presentation and real assistive-technology journeys req
   torn down hear nothing. So a control that keeps an arrangement for them (steppers, the color picker, tab headers,
   stack layouts, tree and grid row metrics) is current in its new place, and one that keys its layout on them (the
   menu bar) was never stale. A child leaves a panel by moving its owning pointer out of `Panel::GetChildren()` (while
-  the panel and the child's host still exist); the empty slot is skipped by every panel operation.
+  the panel and the child's host still exist); the empty slot is skipped by every panel operation, and
+  `CompactChildren()` removes the empty slots in order: indices after a removed slot shift, a flex child keeps its
+  options and a radio group its choice.
   PageHost participates in the same inheritance chain as Panel; its pages resolve through the PageHost rather than
   directly through the host. Root replacement snapshots the incoming control's previous inherited values before
   interaction-reset callbacks can retire its old parent, then reparents without dereferencing that old chain.
+- Tree walks go through logical children (`Control::GetLogicalChildCount`/`GetLogicalChild`): a Panel's children and a
+  PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
+  ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
+  focus by Tab, receives IME and TSF input and has UI Automation elements exactly as the same content in a Panel does.
+  Element paths index logical children.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -517,7 +539,7 @@ listed visible row is the primary, focus and anchor) and `SetFocusedItemId` move
 
 A first key on a tree with no focused item starts from the first row, which only takes the focus, so that
 Ctrl+Space selects it and Shift+Down selects it and the next. Grid's current row is also independent of its selected set.
-Ctrl+Up and Ctrl+Down move Grid focus without changing membership, Ctrl+Space toggles the focused row, and Space
+Ctrl with any movement key moves Grid focus without changing membership, Ctrl+Space toggles the focused row, and Space
 toggles a checkbox in the active row. Shift movement extends selection from the anchor. In both controls Ctrl
 toggles the touched row and makes it the new range anchor. A tree has no checkboxes and a focused item apart from its
 selection, so it follows the list-view convention in which Ctrl with a movement key moves the focus and Ctrl+Space
@@ -577,25 +599,42 @@ items, and is where the invalidation is raised (see the collapsed semantic root 
 
 ### Grid focus, selection and inspection
 
-Grid focus is a stable row identity independent of selected membership. `RequestFocusRow`, Ctrl+Up/Down and UIA
-`SetFocus` move focus without selecting a row or changing the range anchor. `RequestFocusCell(row, column)` also makes
-that column active and reveals it horizontally; it does not alter selection or anchor. `GetFocusedRowId` names the
-focused row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
+Grid focus is a stable row identity independent of selected membership. The focused row draws a focus ring of its own,
+selected or not, while keyboard focus is visible (always in high contrast while the grid has focus), with Tree's ring
+metrics and contrast rule. `RequestFocusRow`, Ctrl with any movement key (Up, Down, Home, End, Page Up, Page Down) and
+UIA `SetFocus` move focus without selecting a row or changing the range anchor. `RequestFocusCell(row, column)` also makes
+that column current and reveals it horizontally; Ctrl+Left and Ctrl+Right choose the current column in display order,
+mirrored in RTL (a one-column grid leaves both keys unhandled), and once the keyboard chose a column the focused row
+also outlines its cell until the next click or a new model. None
+of these alters selection or anchor. `GetFocusedRowId` names the focused row. A selection the application publishes
+(`GetSelectionModel()` then `NotifyDataChanged`) leaves the focus as it is, so a focus the application cleared stays
+cleared and publication raises no focused-row callback; `SetSelectedRowIds` silently selects the listed visible rows and
+makes the last one the focused row and the anchor. The keys start from the focused row, else from the last selected row,
+else from the first row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
 Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Space toggles the focused
 row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
 empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
 preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.
 
 Selection callbacks report membership changes and focused-row callbacks report focus changes. State is committed before
-callbacks; callers stop if callback reentrancy retires the Grid. Model reconciliation drops rows that are no longer
-visible and clears an anchor whose row left the visible model. UIA focus and selection operations do not activate rows.
+callbacks; callers stop if callback reentrancy retires the Grid or replaces its model or delegate. A callback that
+refreshes the model or changes any control's layout does not end the gesture: its remaining reports, reveal, context
+menu, checkbox toggle, group restoration and UIA result follow, with rows re-resolved by stable id (see
+[the architecture contract](../Core/Core_Architecture.md)). The same holds for Tree. Model reconciliation drops rows that
+are no longer visible and clears an anchor whose row left the visible model. UIA focus and selection operations do not
+activate rows.
 
 Ctrl+C copies the selected rows in visible selection order and columns in displayed order. Fields containing quotes,
-tabs or line breaks use quoted TSV syntax and embedded quotes are doubled; all other Unicode values are preserved. F1
-inspects the full value in the focused row and active column. Touch double-tap on a cell opens the same persistent,
-scrollable inspection surface. After a selection callback, inspection and activation resolve the touched stable row
-again; inspection also resolves a nonempty column ID again and reads the current cell. Removing that row or column,
-or replacing the model, cancels the action. Unnamed columns retain their ordinal contract. Group collapse reports
+tabs or line breaks use quoted TSV syntax and embedded quotes are doubled; all other Unicode values are preserved. With
+nothing selected Ctrl+C is left unhandled and the clipboard keeps what it holds. The grid binds no key to full-value
+inspection, since F1 is the application's Help: `InspectFocusedCell` reveals the focused row's cell in the current
+column and opens the persistent, scrollable inspection surface on its full value, and returns false when nothing is
+inspected (no focused visible row, no column, an empty value, or a grid outside a host). `IsFocusedCellClipped` reports
+whether that cell draws less than its whole value, so that an application offers an Inspect command (typically in its
+context menu, which a touch press-and-hold also opens) only when it helps. A touch double-tap activates its row, as a
+double-click does. After a selection callback, activation resolves the touched stable row again, and a checkbox double-
+click resolves a nonempty column ID again. Removing that row or column, or replacing the model, cancels the action.
+Unnamed columns retain their ordinal contract. Group collapse reports
 any replacement focus through the focused-row callback and stops when that callback retires the Grid.
 RTL mirrors column geometry, adornments, keyboard left/right behavior and horizontal
 scrollbar direction; offscreen cell focus reveals the cell using the same logical scroll offset.
