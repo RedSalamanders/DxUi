@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
+  consolidating 9,382 verified duplicate payload copies into read-only shared storage; independently verify every
+  path, retained hashes, live references and the focused ReFS sandbox behavior, with original metadata journaled.
 - Inventory 13 existing project `.Perf` roots and remove 679 SHA-256-verified redundant cache files in 114
   directories, preserving retained build archives, unique qualification evidence and active targets; verify all
   22 live junctions and fresh ReFS success plus the expected NTFS capability skip, with prior runs preserved.

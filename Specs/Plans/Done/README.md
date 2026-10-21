@@ -1,5 +1,7 @@
 # Completed plans
 
+- [RedPrism qualification archive content audit](RedPrismArchiveDedup_2026-10-21.md) — content-hash all 754 distinct archive records, consolidate only verified duplicate payloads, preserve run provenance and metadata, and independently verify retained hashes, references and focused sandbox behavior.
+
 - [Completed batch review and integration](CompletedBatchesReview_2026-10-21.md) — reviewed archive/policy and generated-output batches across five projects, qualified the focused RedSalamander sandbox repair, published reviewed PRs and preserved concurrent work. CI availability and remaining qualification gates are explicit.
 
 - [Verified .Perf archive and cache cleanup](PerfArchiveCleanup_2026-10-21.md) — completed 2026-10-21: inspect 13 roots, remove 679 fully verified redundant cache files in 114 directories, preserve unique archives and prior runs, verify 22 live junctions and fresh ReFS success/NTFS skip, and pass complete repository validation.
