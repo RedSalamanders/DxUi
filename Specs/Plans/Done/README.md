@@ -50,3 +50,5 @@
 - [Documentation and performance evidence](DocumentationAndPerformance_2026-09-05.md) — completed 2026-09-05.
 
 Historical plans do not override normative domain contracts.
+
+- [Test-run evidence retention](TestRunEvidence_2026-10-21.md) — completed workflow implementation; product qualification boundaries remain explicit.

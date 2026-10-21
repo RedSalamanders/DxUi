@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve unique successful, failed and interrupted test output in verified per-run evidence; retain shared read-only payloads and existing qualification checks.
 - Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
   consolidating 9,382 verified duplicate payload copies into read-only shared storage; independently verify every
   path, retained hashes, live references and the focused ReFS sandbox behavior, with original metadata journaled.

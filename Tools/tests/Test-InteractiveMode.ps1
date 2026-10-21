@@ -100,12 +100,12 @@ function Get-OutputFiles([string] $Root) {
 
 function Get-RunnerLeasePresentation($Result, $Warnings = $null) {
     # Only the runner's final presentation block, with a synthetic result: no suite, desktop probe or lease runs here.
-    $statements = @($testAst.EndBlock.Statements | Where-Object {
-        $_ -is [Management.Automation.Language.IfStatementAst] -and
-        $_.Clauses[0].Item1.Extent.Text -match '^\$foregroundLeaseRequired(?:\s+-and\b|$)' -and
-        $_.Clauses[0].Item2.Extent.Text -match 'Foreground lease|The suites left the pointer|Get-DxUiLeaseSummary'
-    })
-    Assert-True ($statements.Count -gt 0) 'test.ps1 has a guarded foreground lease presentation'
+    $statements = @($testAst.FindAll({ param($node)
+        $node -is [Management.Automation.Language.IfStatementAst] -and
+        $node.Clauses[0].Item1.Extent.Text -match '^\$foregroundLeaseRequired(?:\s+-and\b|$)' -and
+        $node.Clauses[0].Item2.Extent.Text -match 'Foreground lease|The suites left the pointer|Get-DxUiLeaseSummary'
+    }, $true))
+    Assert-Equal 1 $statements.Count 'test.ps1 has one guarded foreground lease presentation, including inside evidence finalization'
     $show = [scriptblock]::Create(($statements.Extent.Text -join "`n"))
     $records = @(& {
         param($leaseResult, $show)
