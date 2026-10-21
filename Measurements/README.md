@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [Explicit native WARP policy, 2026-10-21](RichText/2026-10-21-native-host-policy/README.md): six builds,
+  57 default noninteractive suite passes with zero skips, software-adapter/conflict/device-replacement checks
+  and retained failures. Complex-UI reports are unpaired diagnostics; application evidence and qualification stay separate.
+
 - [RichTextEditor validation summary](RichText/README.md): implemented scope, original
   component qualification, current PR checks and open performance/platform gates.
   Detailed packets are archived outside the current repository tree.

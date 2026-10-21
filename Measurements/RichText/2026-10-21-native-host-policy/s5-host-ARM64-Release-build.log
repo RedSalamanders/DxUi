@@ -1,0 +1,136 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                 ⚡  RELEASE  /  ARM64  /  REBUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: Release
+  Platform:      ARM64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\Intermediate\ARM64\Release\DxUi\DxUiCompositePS.cso
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichSemantic.cpp
+  DxUi.RichTextCommands.cpp
+  DxUi.RichSemanticDocument.cpp
+  DxUi.RichSemanticGeometry.cpp
+  DxUi.MarkdownSyntax.cpp
+  DxUi.NativeFlowchart.cpp
+  DxUi.NativeMath.cpp
+  DxUi.NativeFlowchartLayout.cpp
+  DxUi.PreparedFlowchart.cpp
+  DxUi.RichTextLayout.cpp
+  DxUi.RichDocumentLayout.cpp
+  DxUi.RichTextEditor.cpp
+  DxUi.RichImage.cpp
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  Generating Code...
+  Compiling...
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  Compiling...
+  DxUi.TextElements.cpp
+  Generating Code...
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.lib
+  Foundation.Tests.Foundation.cpp
+  Main.cpp
+  InteractiveLease.Tests.Runner.cpp
+  Embedded.Tests.Embedded.cpp
+  Scope.Tests.RichDocument.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  Scope.Tests.RichSourceChanges.cpp
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.FoundationTests.exe
+  DxUi.InteractiveLease.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.EmbeddedControls.exe
+  Scope.Tests.RichMarkdown.cpp
+  Scope.Tests.RichSemantic.cpp
+  Scope.Tests.RichSemanticDocument.cpp
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.EmbeddedTests.exe
+  Scope.Tests.RichSemanticGeometry.cpp
+  Scope.Tests.RichProjectionBlocks.cpp
+  Scope.Tests.RichTextLayout.cpp
+  Scope.Tests.RichDocumentLayout.cpp
+  Scope.Tests.RichTextEditor.cpp
+  Scope.Tests.RichTextInput.cpp
+  Scope.Tests.RichTextAccessibility.cpp
+  DxUi.Tests.Accessibility.cpp
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  Scope.Tests.HostControlRegressions.cpp
+  Scope.Tests.MenuPopupReadiness.cpp
+  DxUi.Tests.Animation.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Scope.Tests.TextElements.cpp
+  Scope.Tests.TextElementMovement.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\ARM64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 04:40
+Output: C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\redtilde-math-mermaid\DxUi\.build\logs\build-ARM64-Release-cc5714e17dc14a398c6df2b9b08c3d5a.log
+========================================

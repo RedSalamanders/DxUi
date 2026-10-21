@@ -8,14 +8,21 @@ Owner request: 2026-10-17. Starting revision:
 
 RedTilde S5 continuation, 2026-10-21 (`ej/redtilde-s5-host-policy`):
 
-- [ ] Add native WARP pool selection, inheritance, conflict refusal and device-replacement coverage.
-- [ ] Validate affected default/native/embedded scopes and six build profiles; retain baseline/candidate resource diagnostics.
+- [x] Add native WARP pool selection, inheritance, conflict refusal and device-replacement coverage.
+- [x] Validate affected default/native/embedded scopes and six build profiles; retain baseline/candidate resource diagnostics.
 - [ ] Hand off an exact consumer pin and keep product/physical/performance acceptance separate.
 
 The retained pre-change complex-UI baseline belongs in the independent library packet; application edit/latency
 and lifecycle studies stay in RedTilde. This is a device-selection option, with unchanged geometry, tokens and
 default rendering pixels; existing gallery tiles require no visual update. Native WARP validation does not
 qualify physical device removal, native ARM64 execution or the upstream D4c policy.
+
+Runtime source `dd619ef0c5855307eb57758072658f2e3b777fd8` builds in all six profiles. Its 19 default
+noninteractive suites pass in each x64 Debug/Release/ASan profile (57 zero-skip passes), including the isolated
+native software-adapter/conflict/device-loss case; real ASan detection, aggregate validation and pinned formatting
+also pass. The [library-only packet](../../../Measurements/RichText/2026-10-21-native-host-policy/README.md)
+retains all suite/build receipts, failures and complex-UI diagnostics. Consumer lifecycle assessment remains in
+progress. The complex-UI comparison is unpaired; these functional results do not establish performance non-regression.
 
 RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
 
