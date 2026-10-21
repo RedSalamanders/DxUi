@@ -2,8 +2,6 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Completed uncommitted batch integration](CompletedBatchesReview_2026-10-21.md). Review completed archive/policy, sandbox and generated-output changes across five repositories; preserve active work and qualify each selected batch before publication.
-
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests

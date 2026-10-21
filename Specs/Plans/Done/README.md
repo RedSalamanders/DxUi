@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Completed batch review and integration](CompletedBatchesReview_2026-10-21.md) — reviewed archive/policy and generated-output batches across five projects, qualified the focused RedSalamander sandbox repair, published reviewed PRs and preserved concurrent work. CI availability and remaining qualification gates are explicit.
+
 - [Verified .Perf archive and cache cleanup](PerfArchiveCleanup_2026-10-21.md) — completed 2026-10-21: inspect 13 roots, remove 679 fully verified redundant cache files in 114 directories, preserve unique archives and prior runs, verify 22 live junctions and fresh ReFS success/NTFS skip, and pass complete repository validation.
 
 - [Changes workflow review fixes across five projects](ChangesWorkflowReviewFixes_2026-10-21.md) — tab-separated release boundaries, bounded owned-child cleanup, 105 passing shared-case executions and preserved concurrent guidance; local tooling scope, publication status in Git/PRs.
