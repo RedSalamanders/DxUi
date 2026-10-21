@@ -6,6 +6,17 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
+RedTilde S5 continuation, 2026-10-21 (`ej/redtilde-s5-host-policy`):
+
+- [ ] Add native WARP pool selection, inheritance, conflict refusal and device-replacement coverage.
+- [ ] Validate affected default/native/embedded scopes and six build profiles; retain baseline/candidate resource diagnostics.
+- [ ] Hand off an exact consumer pin and keep product/physical/performance acceptance separate.
+
+The retained pre-change complex-UI baseline belongs in the independent library packet; application edit/latency
+and lifecycle studies stay in RedTilde. This is a device-selection option, with unchanged geometry, tokens and
+default rendering pixels; existing gallery tiles require no visual update. Native WARP validation does not
+qualify physical device removal, native ARM64 execution or the upstream D4c policy.
+
 RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
 
 - [x] Native inline/display mathematical objects, bounded TeX, matrix/alignment and scalable delimiters.

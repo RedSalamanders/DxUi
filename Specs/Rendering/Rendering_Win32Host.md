@@ -32,6 +32,11 @@ Repeating Attach for the same HWND and presentation mode is idempotent; switchin
 Attach attempted synchronously from a teardown callback fails with `ERROR_BUSY`; a later attachment after Detach
 returns remains supported. Teardown cannot acquire a new HWND or resurrect focus or a native text-input session.
 A rejected attachment preserves the existing host, accessibility peers, payloads and shared-resource accounting.
+`AttachOptions::forceWarp` chooses software rendering before the owner thread's native graphics pool is in use.
+Default attachments inherit that pool's policy, including native peers/menus. A forced request incompatible with
+an attached/default-created pool fails with `ERROR_INVALID_STATE`; it never replaces peers' resources. Matching
+repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it.
+This additive option supports deterministic native validation and leaves the default hardware/fallback path intact.
 The host registry is bounded to 128 concurrent attachments. Exhaustion fails with a diagnostic and recovers when
 an attachment is released; it never replaces an existing owner.
 

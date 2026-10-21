@@ -157,6 +157,7 @@ struct SharedWindowHostGraphicsResources
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     uint64_t generation            = 1u;
     uint32_t attachedHostCount     = 0u;
+    bool forceWarp                 = false;
 };
 
 struct WindowHostDirtyRectMetrics
@@ -623,7 +624,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     resourcesByThread.clear();
 }
 
-[[nodiscard]] bool RegisterSharedWindowHostAttachment(ControlHost* host, HWND hwnd, DWORD ownerThreadId) noexcept
+[[nodiscard]] bool RegisterSharedWindowHostAttachment(ControlHost* host, HWND hwnd, DWORD ownerThreadId, bool forceWarp) noexcept
 {
     const std::scoped_lock lock(GetAttachedWindowHostsMutex(), GetSharedWindowHostGraphicsResourcesMutex());
     auto& hosts = GetAttachedWindowHosts();
@@ -637,15 +638,23 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         return false;
     }
+    auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
+    const auto existing     = resourcesByThread.find(ownerThreadId);
+    if (forceWarp && existing != resourcesByThread.end() && ! existing->second.forceWarp &&
+        (existing->second.attachedHostCount != 0u || existing->second.d3dDevice))
+    {
+        SetLastError(ERROR_INVALID_STATE);
+        return false;
+    }
     try
     {
         hosts.push_back({host, hwnd, ownerThreadId});
         try
         {
-            auto& resourcesByThread   = GetSharedWindowHostGraphicsResourcesByThread();
             const auto [it, inserted] = resourcesByThread.try_emplace(ownerThreadId);
             if (inserted)
                 it->second.ownerThreadId = ownerThreadId;
+            it->second.forceWarp = it->second.forceWarp || forceWarp;
             ++it->second.attachedHostCount;
         }
         catch (const std::bad_alloc&)
@@ -722,8 +731,13 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
 #endif
     D3D_FEATURE_LEVEL levels[]        = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1};
     D3D_DRIVER_TYPE createdDriverType = D3D_DRIVER_TYPE_UNKNOWN;
-    const HRESULT hr                  = CreateD3D11DeviceWithWarpFallback(
-        creationFlags, levels, false, resources.d3dDevice.addressof(), &resources.featureLevel, resources.d3dContext.addressof(), &createdDriverType);
+    const HRESULT hr                  = CreateD3D11DeviceWithWarpFallback(creationFlags,
+                                                                          levels,
+                                                                          resources.forceWarp,
+                                                                          resources.d3dDevice.addressof(),
+                                                                          &resources.featureLevel,
+                                                                          resources.d3dContext.addressof(),
+                                                                          &createdDriverType);
     if (FAILED(hr) || ! resources.d3dDevice || ! resources.d3dContext)
     {
         Debug::Error(L"DxUi::ControlHost: shared D3D11CreateDevice failed: 0x{:08X}", hr);
@@ -1268,7 +1282,17 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     if (_hwnd)
     {
         if (_hwnd == hwnd && _presentationMode == options.presentationMode)
-            return true;
+        {
+            if (! options.forceWarp)
+                return true;
+            const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
+            const auto& resources = GetSharedWindowHostGraphicsResourcesByThread();
+            const auto current    = resources.find(windowThreadId);
+            if (current != resources.end() && current->second.forceWarp)
+                return true;
+            SetLastError(ERROR_INVALID_STATE);
+            return false;
+        }
         SetLastError(ERROR_ALREADY_EXISTS);
         return false;
     }
@@ -1279,7 +1303,7 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
         SetLastError(ERROR_ALREADY_EXISTS);
         return false;
     }
-    if (! RegisterSharedWindowHostAttachment(this, hwnd, windowThreadId))
+    if (! RegisterSharedWindowHostAttachment(this, hwnd, windowThreadId, options.forceWarp))
     {
         Debug::Error(L"DxUi::ControlHost: attachment ownership/registry reservation failed ({})", GetLastError());
         return false;

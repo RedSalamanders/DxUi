@@ -5095,6 +5095,10 @@ public:
     struct AttachOptions final
     {
         PresentationMode presentationMode = PresentationMode::HwndSwapChain;
+        // Select WARP before the owner thread's native graphics pool is in use.
+        // Default attachments inherit that policy. Conflicting forced requests
+        // fail with ERROR_INVALID_STATE without changing existing peers.
+        bool forceWarp = false;
     };
 
     ControlHost() = default;
