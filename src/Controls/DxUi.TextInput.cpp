@@ -2528,9 +2528,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (_caretIndex > 0 && ! _text.empty())
         {
-            const size_t eraseFrom = StepToPreviousTextElement(_text, _caretIndex);
-            _text.erase(eraseFrom, _caretIndex - eraseFrom);
-            _caretIndex = eraseFrom;
+            const auto range = GetTextElementDeletionRange(_text, _caretIndex, true);
+            _text.erase(range.first, range.last - range.first);
+            _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
             {
@@ -2558,8 +2558,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (_caretIndex < _text.size())
         {
-            const size_t eraseTo = StepToNextTextElement(_text, _caretIndex);
-            _text.erase(_caretIndex, eraseTo - _caretIndex);
+            const auto range = GetTextElementDeletionRange(_text, _caretIndex, false);
+            _text.erase(range.first, range.last - range.first);
+            _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
             {
@@ -3279,7 +3280,7 @@ const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() con
     size_t sourceIndex = 0u;
     while (sourceIndex < _text.size())
     {
-        const size_t nextIndex = StepToNextTextElement(_text, sourceIndex);
+        const size_t nextIndex = FindNextTextElementBoundary(_text, sourceIndex);
         if (nextIndex <= sourceIndex)
         {
             _maskedSourceTextElementBoundaries.push_back(_text.size());

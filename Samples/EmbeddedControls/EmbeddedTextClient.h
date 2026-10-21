@@ -5,7 +5,7 @@
 #include <msctf.h>
 
 // Module-local adapter using only public headers. Disconnect before destroying the view or HWND.
-class EmbeddedTextClient final : public DxUi::TextInputClient
+class EmbeddedTextClient final : public DxUi::TextInputClient, public DxUi::TextClipboardPasteTransform
 {
 public:
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)
@@ -23,6 +23,16 @@ public:
     void SetDpi(float dpi) noexcept
     {
         _dpi = dpi;
+    }
+    bool AcceptsFilePaths(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
+    {
+        return _view && snapshot.focusId == _focus && dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+    }
+    HRESULT TransformPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot,
+                           const DxUi::TextClipboardContent& content,
+                           std::wstring& replacement) noexcept override
+    {
+        return _view ? _view->TransformClipboardPaste(snapshot.revision, _focus, content, replacement) : TF_E_DISCONNECTED;
     }
     HRESULT Read(DxUi::EmbeddedTextInputSnapshot& snapshot) noexcept override
     {

@@ -2257,17 +2257,21 @@ void PageHost::SyncChildBounds() noexcept
 
 bool ControlHost::PreparePendingPageLayout() noexcept
 {
-    if (! _pendingPageLayout && ! _pendingIntrinsicLayout)
+    const bool prepareAllContent = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
+    _contentPreparationContinues = false;
+    if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent)
         return true;
-    _pendingPageLayout      = false;
-    _pendingIntrinsicLayout = false;
-    bool intrinsicPending   = false;
-    bool complete           = true;
-    bool preparedIntrinsic  = false;
-    Control* const root     = _root.get();
-    const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
-    const auto rootCurrent  = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
-    const auto prepare      = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
+    _pendingPageLayout         = false;
+    _pendingIntrinsicLayout    = false;
+    _pendingContentPreparation = false;
+    bool contentPending        = false;
+    bool intrinsicPending      = false;
+    bool complete              = true;
+    bool preparedIntrinsic     = false;
+    Control* const root        = _root.get();
+    const auto rootLifetime    = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto rootCurrent     = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
+    const auto prepare         = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
     {
         const auto lifetime = GetControlLifetimeToken(control);
         const bool visible  = ancestorsVisible && control.IsVisible();
@@ -2293,6 +2297,22 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             page->SyncChildBounds();
             if (lifetime.expired() || ! rootCurrent())
                 return;
+        }
+        if (visible && control._contentPreparationEnabled && (prepareAllContent || control._contentPreparationPending))
+        {
+            control._contentPreparationPending = false;
+            const HRESULT content              = control.PrepareContent(*this);
+            if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
+            {
+                complete = false;
+                return;
+            }
+            if (content == S_FALSE || FAILED(content))
+                control._contentPreparationPending = true;
+            if (FAILED(content))
+                complete = false;
+            if (content == S_OK)
+                _contentGeometryChanged = true;
         }
         const size_t visitBudget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! rootCurrent())
@@ -2334,11 +2354,17 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         if (lifetime.expired() || ! rootCurrent())
             return;
         intrinsicPending = intrinsicPending || (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending);
+        contentPending   = contentPending || (visible && control._contentPreparationEnabled && control._contentPreparationPending);
     };
     if (root)
         prepare(prepare, *root, true);
     if (! root || rootCurrent())
+    {
         _pendingIntrinsicLayout = intrinsicPending;
+        // A later callback may dirty an owner already visited in this pass.
+        // Keep that request; an extra no-work traversal is safer than losing it.
+        _pendingContentPreparation = _pendingContentPreparation || contentPending;
+    }
     if (complete && preparedIntrinsic && rootCurrent() && _capturedControl)
     {
         Control* const captured     = _capturedControl;
@@ -2357,7 +2383,79 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         }
     }
     // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
-    return complete && (! root || rootCurrent()) && ! _pendingPageLayout && ! _pendingIntrinsicLayout;
+    if (contentPending && rootCurrent() && _capturedControl)
+    {
+        // Pending geometry cannot receive the matching Up. Cancel the logical
+        // gesture rather than leave capture/drafts active across reflow.
+        CancelCapturedControlInteraction();
+        ClearPendingPointerDoubleClick();
+    }
+    const bool layoutComplete    = complete && (! root || rootCurrent()) && ! _pendingPageLayout && ! _pendingIntrinsicLayout;
+    _contentPreparationContinues = layoutComplete && _pendingContentPreparation;
+    if (layoutComplete)
+    {
+        _preparedContentResources  = GetResourceGeneration();
+        _preparedContentTypography = GetTypographyRevision();
+    }
+    return layoutComplete && ! _pendingContentPreparation;
+}
+void ControlHost::CancelPreparedContent() noexcept
+{
+    _contentGeometryChanged      = false;
+    _pendingContentPreparation   = true;
+    _contentPreparationContinues = false;
+    Control* const root          = _root.get();
+    const auto rootLifetime      = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto current           = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
+    const auto cancel            = [&](auto&& self, Control& control) noexcept -> void
+    {
+        const auto lifetime = GetControlLifetimeToken(control);
+        if (control._contentPreparationEnabled)
+        {
+            control.CancelContentPreparation();
+            if (lifetime.expired() || ! current() || control.GetHost() != this)
+                return;
+            control._contentPreparationPending = true;
+        }
+        const auto budget = control.GetLogicalChildCount();
+        if (lifetime.expired() || ! current())
+            return;
+        size_t index = 0u;
+        for (size_t visits = 0u; visits < budget; ++visits)
+        {
+            const auto count = control.GetLogicalChildCount();
+            if (lifetime.expired() || ! current() || index >= count)
+                return;
+            auto* child = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! current())
+                return;
+            const auto childLifetime = child ? GetControlLifetimeToken(*child) : std::weak_ptr<int>{};
+            if (child)
+                self(self, *child);
+            if (lifetime.expired() || ! current())
+                return;
+            auto* after = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! current())
+                return;
+            if (! child || (! childLifetime.expired() && child == after))
+                ++index;
+        }
+        if (auto* page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+            self(self, *page->_outgoingPage);
+    };
+    if (root)
+        cancel(cancel, *root);
+}
+void ControlHost::PublishPreparedContent() noexcept
+{
+    if (! _contentGeometryChanged || HasPendingContentPreparation())
+        return;
+    _contentGeometryChanged = false;
+    // Pixels have completed before text services/UIA learn the new extents.
+    // Both callbacks may replace controls; no borrowed control is used afterward.
+    if (auto* focused = GetFocusControl())
+        SyncTextInput(focused);
+    RefreshAccessibilitySnapshot();
 }
 
 bool PageHost::FinishTransition() noexcept

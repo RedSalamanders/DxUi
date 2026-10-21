@@ -2,14 +2,19 @@
 #include "EmbeddedScene.h"
 #include "EmbeddedTextClient.h"
 #include "GraphicsFixture.h"
+#include "RichImageLoader.h"
 #include <iostream>
 #include <windowsx.h>
 #pragma comment(lib, "user32.lib")
 namespace
 {
-constexpr UINT RenderMessage = WM_APP + 1;
+constexpr UINT RenderMessage     = WM_APP + 1;
+constexpr UINT ImageReadyMessage = WM_APP + 2;
 struct App
 {
+    App() : pendingImages(0u)
+    {
+    }
     GraphicsFixture gpu;
     EmbeddedScene scene;
     std::unique_ptr<ComplexUiScene> complex;
@@ -21,11 +26,20 @@ struct App
     wil::unique_hwnd window;
     DxUi::TextInputServices textServices;
     std::shared_ptr<EmbeddedTextClient> textClient;
-    bool textInput = false;
+    RichImageLoader imageLoader;
+    std::vector<DxUi::RichText::RichImageRequest> pendingImages;
+    std::array<RichImageLoader::Result, RichImageLoader::MaximumResults> imageResults{};
+    bool imageLoading = false;
+    bool textInput    = false;
+    bool richText     = false;
     ~App()
     {
+        imageLoader.Shutdown();
         ClearText();
         textServices.Detach();
+        // Window teardown can reenter Proc. Keep every referenced application
+        // service alive until WM_NCDESTROY has completed.
+        window.reset();
     }
     void ClearText() noexcept
     {
@@ -83,6 +97,23 @@ struct App
     HRESULT Render()
     {
         queued = false;
+        if (imageLoading && scene.rich && imageLoader.HasResults())
+        {
+            const auto count = imageLoader.Drain(std::span(imageResults));
+            for (std::size_t index = 0u; index < count; ++index)
+            {
+                auto& result = imageResults[index];
+                try
+                {
+                    static_cast<void>(scene.rich->CompleteImageRequest(result.request, std::move(result.image)));
+                }
+                catch (const std::bad_alloc&)
+                {
+                    static_cast<void>(scene.rich->CompleteImageRequest(result.request, {}));
+                }
+                result = {};
+            }
+        }
         if (window)
         {
             RECT client{};
@@ -101,6 +132,21 @@ struct App
         }
         const HRESULT prepared = View().Prepare(gpu.width, gpu.height, dpi);
         RETURN_IF_FAILED(prepared);
+        if (imageLoading && scene.rich)
+        {
+            try
+            {
+                scene.rich->TakePendingImageRequests(pendingImages);
+            }
+            catch (const std::bad_alloc&)
+            {
+                pendingImages.clear();
+            } // Preserve the alternative; retry on a later requested frame.
+            if (! pendingImages.empty() && FAILED(imageLoader.Submit(pendingImages)))
+                for (const auto& request : pendingImages)
+                    static_cast<void>(scene.rich->CompleteImageRequest(request, {}));
+            pendingImages.clear();
+        }
         RefreshText();
         if (prepared == S_OK)
             textServices.NotifyLayoutChanged();
@@ -148,6 +194,10 @@ struct App
                 case RenderMessage:
                     if (FAILED(app->Render()))
                         PostQuitMessage(1);
+                    return 0;
+                case ImageReadyMessage:
+                    if (wp == reinterpret_cast<WPARAM>(app))
+                        app->Request();
                     return 0;
                 case WM_LBUTTONDOWN:
                     SetFocus(hwnd);
@@ -207,10 +257,16 @@ struct App
                     app->Request();
                     return 0;
                 }
-                case WM_SHOWWINDOW: app->View().SetVisible(wp != 0); break;
+                case WM_SHOWWINDOW:
+                    app->View().SetVisible(wp != 0);
+                    app->imageLoader.DiscardCancelled();
+                    break;
                 case WM_SIZE:
                     if (wp == SIZE_MINIMIZED)
+                    {
                         app->View().SetVisible(false);
+                        app->imageLoader.DiscardCancelled();
+                    }
                     else
                     {
                         app->View().SetVisible(true);
@@ -222,6 +278,8 @@ struct App
                 case WM_NCDESTROY:
                     app->ClearText();
                     app->textServices.Detach();
+                    app->View().SetVisible(false);
+                    app->imageLoader.Shutdown();
                     SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
                     break;
                 default: break;
@@ -254,7 +312,7 @@ struct App
         AdjustWindowRectEx(&bounds, style, FALSE, 0);
         window.reset(CreateWindowExW(0,
                                      wc.lpszClassName,
-                                     L"DxUi - supplied Direct3D device",
+                                     richText ? L"DxUi - Unicode RichTextEditor semantic preview" : L"DxUi - supplied Direct3D device",
                                      style,
                                      CW_USEDEFAULT,
                                      CW_USEDEFAULT,
@@ -266,6 +324,11 @@ struct App
                                      this));
         if (! window)
             return HRESULT_FROM_WIN32(GetLastError());
+        if (richText)
+        {
+            RETURN_IF_FAILED(imageLoader.Initialize(window.get(), ImageReadyMessage, reinterpret_cast<WPARAM>(this)));
+            imageLoading = true;
+        }
         wil::com_ptr_nothrow<IDXGIDevice> dxgi;
         RETURN_IF_FAILED(gpu.device->QueryInterface(IID_PPV_ARGS(dxgi.put())));
         wil::com_ptr_nothrow<IDXGIAdapter> adapter;
@@ -320,27 +383,41 @@ int wmain(int argc, wchar_t** argv)
     const auto com = wil::scope_exit([] { CoUninitialize(); });
     try
     {
-        bool complex          = false;
-        bool textInput        = false;
-        const wchar_t* output = nullptr;
+        bool complex                = false;
+        bool textInput              = false;
+        bool richText               = false;
+        const wchar_t* documentPath = nullptr;
+        const wchar_t* output       = nullptr;
         for (int i = 1; i < argc; ++i)
         {
             if (std::wstring_view(argv[i]) == L"--complex-ui" && ! complex)
                 complex = true;
             else if (std::wstring_view(argv[i]) == L"--text-input" && ! textInput)
                 textInput = true;
+            else if (std::wstring_view(argv[i]) == L"--rich-text" && ! richText)
+                richText = true;
             else if (std::wstring_view(argv[i]) == L"--output" && ! output && i + 1 < argc)
                 output = argv[++i];
+            else if (std::wstring_view(argv[i]) == L"--document-path" && ! documentPath && i + 1 < argc)
+                documentPath = argv[++i];
             else
             {
-                std::wcerr << L"Usage: DxUi.EmbeddedControls [--complex-ui | --text-input] [--output image.png]\n";
+                std::wcerr << L"Usage: DxUi.EmbeddedControls [--complex-ui | --text-input | --rich-text [--document-path absolute.md]] [--output image.png]\n";
                 return 2;
             }
         }
-        if (complex && textInput)
+        if ((complex && (textInput || richText)) || (textInput && richText))
+            return 2;
+        if (documentPath && ! richText)
             return 2;
         App app;
-        app.textInput = textInput;
+        app.textInput = textInput || richText;
+        app.richText  = richText;
+        if (richText)
+        {
+            app.gpu.width  = 980;
+            app.gpu.height = 720;
+        }
         if (textInput)
             app.gpu.height = 340;
         if (complex)
@@ -352,10 +429,24 @@ int wmain(int argc, wchar_t** argv)
         if (FAILED(app.gpu.Create()))
             return 1;
         const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
-        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks) : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput)))
+        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)
+                           : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput, richText)))
             return 1;
+        // Location metadata only: the sample never opens/saves the Markdown
+        // document or derives a base from the process working directory.
+        if (documentPath)
+            app.scene.rich->SetDocumentFilePath(documentPath);
         if (output)
         {
+            // Headless capture has no message pump to drain cooperative preparation.
+            if (richText)
+            {
+                for (unsigned turn = 0; turn < 1024u && app.scene.rich->GetMarkdownRenderingStatus() != DxUi::MarkdownRenderingStatus::Semantic; ++turn)
+                    if (FAILED(app.Render()))
+                        return 1;
+                if (app.scene.rich->GetMarkdownRenderingStatus() != DxUi::MarkdownRenderingStatus::Semantic)
+                    return 1;
+            }
             if (FAILED(app.Render()))
                 return 1;
             if (textInput)

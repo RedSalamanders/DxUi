@@ -2057,7 +2057,9 @@ bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeText
     }
     catch (const std::bad_alloc&)
     {
-        outState = {};
+        // As for an absent cache, false means the caller must ignore outState.
+        // An empty aggregate can allocate noexcept MSVC Debug iterator proxies
+        // while the allocator is exhausted. Do not construct one here.
         return false;
     }
 }

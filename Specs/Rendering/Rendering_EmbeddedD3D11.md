@@ -1,7 +1,32 @@
 # Embedded D3D11 hosting
 
+Opt-in RichTextEditor Markdown analysis uses this host's existing preparation
+traversal and continuation coalescing. Pending parsing returns S_FALSE before
+geometry/raster publication and never advances during Composite, source reads
+or UIA queries. Hiding, either zero dimension, detach/root retirement or resource
+replacement cancels the pending owner job. Immutable published source-only
+analysis may survive geometry changes and retained readers may outlive a view.
+Analysis adds no HWND, worker, timer, device or swap chain. Analysis alone keeps
+v0 formatted pixels; the separate explicit semantic preview uses the same owner
+turns for CPU lowering, no-wrap marker measurement, body/cell/caret geometry and
+raster preparation. Its bounded native HTML policy uses owned text/role metadata
+and existing brushes, with no DOM or resource loading. Composition consumes only
+the acknowledged cached surface and adds no layout, allocation or periodic work.
+Block-tree preparation uses the same owner traversal. Snapshot ancestry and node
+reconciliation belong to source preparation, never Composite. Equal source in a
+second view has a separate document identity; geometry-only changes may retain a
+completed pure syntax. Dependent fence/container edits must not reuse stale
+line-local block classifications.
+
+M3 reference/inline/extension preparation and dense forest publication share the
+same traversal. Analysis still contributes no rendered primitives or host/device
+resources. Native and embedded fixtures compare literal semantic expectations for
+each grammar family and re-resolve global references through edit/undo/redo while
+holding immutable older trees. A second embedded view retains independent syntax.
+The v0 pixel comparison remains required; M4 owns semantic renderer integration.
+
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-17
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -44,6 +69,31 @@ rerasterizing unchanged content. Consumers map input to the displayed view and a
 Their widget, overlay, plugin and host-service contracts belong in their own repositories, not this library spec.
 
 ### Implemented public contract
+
+RichTextEditor v0 uses this same ControlHost preparation/cache/composition path.
+It borrows host fonts, brushes, DWrite/D2D and owner scheduling, creating no
+embedded HWND/device/worker/timer. Unicode source, selection and history survive
+surface suspension and device-generation replacement. Its layout retires when
+hidden and rebuilds on demand; clean composition does no rich-text work.
+DispatchCharacter and the D2d source text-service/UIA adapters are available.
+DispatchKey offers Tab/Shift+Tab to the focused control first, allowing semantic
+list/cell editing before ordinary focus traversal. A declined callback that
+retires/unbinds the control or changes focus consumes the old input frame;
+it cannot traverse a successor. Character input uses the same control route as
+native WM_CHAR. No physical keyboard/focus takeover is needed for these tests.
+Applications retain HWND/TSF client, focusId/revision and screen-placement ownership;
+prepare changed composition/scroll/DPI before publishing geometry or accessibility.
+Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
+
+Cooperative content preparation: Prepare returns
+S_FALSE with NeedsPreparation=true while owner work remains; the application
+callback requests the next event-driven turn. No partial surface is composed.
+One outstanding notification coalesces further changes even while pixels remain
+dirty. Failure schedules no automatic retry. Geometry/pointer input stays
+unavailable; an explicitly opted-in focused rich editor may export/edit current
+source and run revision-checked IME transactions. Tree/bounds/visibility/focus/
+resource changes revoke pending text permission. Replacement, hiding, zero extent
+and detach cancel obsolete staging.
 
 `GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
 embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared

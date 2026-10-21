@@ -21,14 +21,20 @@ Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git 
 ```
 
 The last command opens a generic effect toggle and intensity slider. Add `--complex-ui` for the independent 83-control workload, or `--output image.png` for a headless PNG. See [samples](docs/samples.md) and [library measurements](Measurements/README.md).
-`gallery.ps1` generates all 33 public controls and variants in five themes plus an HTML index under `.build/gallery`.
+`gallery.ps1` generates all 34 public controls and variants in five themes plus an HTML index under `.build/gallery`.
 Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API construction and event handling.
 
 ## Public API and ownership
 
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
-- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 33 concrete controls.
+- [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
+  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor with shared Unicode 17 grapheme navigation and native/embedded source TSF/IME and UIA adapters. V0 formatting remains the default; `SetMarkdownRenderingEnabled(true)` adds the bounded semantic native rendering preview, measured hanging list gutters, underlined inert links and a validated native HTML subset with whole-leaf literal fallback. Distinct source caret sites cover empty/container/trailing lines, empty/padded cells and empty balanced HTML. Structural/style UIA, real IME/AT and accepted extensions remain pending.
+- [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless Unicode block/inline parsing and configurable GFM analysis,
+  qualified against 1,324 original semantic expectations with cooperative preparation
+  and opt-in RichTextEditor hosting. Complete semantic rendering/editing and the
+  accepted math/diagram extensions remain in progress; see [M3 evidence](Measurements/RichText/README.md).
+- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.
 

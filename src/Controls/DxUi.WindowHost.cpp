@@ -2303,6 +2303,14 @@ uint64_t ControlHost::GetTypographyRevision() const noexcept
 {
     return _typographyRevision;
 }
+uint64_t ControlHost::GetResourceGeneration() const noexcept
+{
+    return _resourceGeneration;
+}
+bool ControlHost::HasPendingContentPreparation() const noexcept
+{
+    return _pendingContentPreparation || _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
+}
 
 uint64_t ControlHost::GetInteractionRevision() const noexcept
 {
@@ -2464,6 +2472,10 @@ bool ControlHost::CopyTextToClipboard(std::wstring_view text) const noexcept
 std::optional<std::wstring> ControlHost::ReadTextFromClipboard() const noexcept
 {
     return TryReadClipboardUnicodeText(_hwnd);
+}
+bool ControlHost::ReadClipboardContent(TextClipboardContent& content) const noexcept
+{
+    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true) == S_OK;
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -2867,6 +2879,10 @@ try
             }
             else
             {
+                // Retire staged/published control content without discarding
+                // the swap chain (including WM_SETREDRAW's asymmetric hide).
+                // The next real visible preparation rebuilds current geometry.
+                CancelPreparedContent();
                 DeactivateNativeTextInputSession();
             }
             handled = false;
@@ -3213,6 +3229,8 @@ try
                     }
                     return 0;
                 }
+                if (keyTarget && (keyTargetLifetime.expired() || liveKeyTarget != keyTarget || _focusedControl != keyTarget))
+                    return 0; // A declined callback retired/rebound the old interaction.
                 handled = HandleTabNavigation(ModifiersContainShift(GetModifierState()));
                 return 0;
             }
@@ -3593,6 +3611,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
     SharedWindowHostGraphicsResources& shared = GetSharedWindowHostGraphicsResources();
     if (_sharedGraphicsGeneration != 0u && _sharedGraphicsGeneration != shared.generation)
     {
+        CancelPreparedContent();
         DiscardSizeDependentResources(L"shared-generation-change");
         _dcompVisual.reset();
         _dcompTarget.reset();
@@ -3650,6 +3669,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
     }
 
     _sharedGraphicsGeneration = shared.generation;
+    ++_resourceGeneration;
     _d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
     RecreateBrushCache();
@@ -3873,6 +3893,9 @@ void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) 
 
 void ControlHost::DiscardDeviceResources() noexcept
 {
+    CancelPreparedContent();
+    ++_resourceGeneration;
+    _contentGeometryChanged = false;
     if (_d2dContext || _targetBitmap || _swapChain || _d3dContext)
     {
         PrepareForSwapChainResize();
@@ -3963,6 +3986,8 @@ try
         }
         if (! PreparePendingPageLayout())
         {
+            if (_contentPreparationContinues)
+                Invalidate();
             paintPerf.SetHr(E_ABORT);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
@@ -4116,6 +4141,8 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+        PublishPreparedContent();
 #endif
 }
 catch (const std::exception&)
@@ -4209,6 +4236,8 @@ try
         }
         if (! PreparePendingPageLayout())
         {
+            if (_contentPreparationContinues)
+                Invalidate();
             paintPerf.SetHr(E_ABORT);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
@@ -4385,6 +4414,8 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+        PublishPreparedContent();
 }
 catch (const std::exception&)
 {
@@ -4397,6 +4428,10 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 {
     _widthPx  = widthPx;
     _heightPx = heightPx;
+    // Height-only suspension may leave a rich editor's shaping width unchanged.
+    // Cancel explicitly before publishing zero-sized text/UIA geometry.
+    if (_widthPx == 0u || _heightPx == 0u)
+        CancelPreparedContent();
     if (_root)
     {
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));

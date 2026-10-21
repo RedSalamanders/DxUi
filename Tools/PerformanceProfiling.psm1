@@ -256,11 +256,88 @@ function Assert-ProfilingReport {
     return $completeness
 }
 
+function Assert-BoundaryReport {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Receipt, [bool] $Timers,
+        [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release', [int] $ProcessId,
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
+    Assert-ProfilingObject $Receipt 'report'
+    if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
+    $schema=if ($WarpRasterMode) { 2 } else { 1 }
+    foreach ($pair in @(@('schema',$schema),@('fixture',"dxui-complex-ui-boundaries-v$schema"),@('classification','diagnostic-only'),@('renderer','WARP'),
+            @('scenario','Default'),@('heapSampling',$false),@('boundaryTimers',$Timers),@('width',1280),@('height',720),@('dpi',96),
+            @('controls',83),@('modelRows',1000),@('warmFrames',200),@('probeFrames',320),@('hiddenPreparations',0),@('hiddenComposites',0),
+            @('hiddenSurfaceBytes',0),@('pointerBits',64),@('iteratorDebugLevel',$(if ($Configuration -eq 'Release') { 0 } else { 2 })))) {
+        Assert-ProfilingExact $Receipt $pair[0] $pair[1] 'report'
+    }
+    if ($WarpRasterMode) {
+        # Exact SDK creation flags: BGRA support, plus the opt-in WARP profiling
+        # flag for calling-thread rasterization. Neither is a library default change.
+        $expectedFlags=if ($WarpRasterMode -ceq 'CallingThread') { 40 } else { 32 }
+        Assert-ProfilingExact $Receipt 'warpRasterMode' $WarpRasterMode 'report'
+        Assert-ProfilingExact $Receipt 'requestedDeviceFlags' $expectedFlags 'report'
+        Assert-ProfilingExact $Receipt 'deviceCreationFlags' $expectedFlags 'report'
+    } elseif ($Receipt.Contains('warpRasterMode') -or $Receipt.Contains('requestedDeviceFlags') -or $Receipt.Contains('deviceCreationFlags')) {
+        throw 'Invalid boundary report: undeclared WARP execution policy in a v1 report.'
+    }
+    foreach ($key in @('compiler','processId','mainThreadId','mainThreadCreation100ns','fixedDiagnosticStorageBytes')) {
+        Assert-ProfilingNumber $Receipt $key 'report' -Integer
+        if ($Receipt[$key] -le 0) { throw "Invalid boundary report: $key must be positive." }
+    }
+    if ($Receipt['fixedDiagnosticStorageBytes'] -gt 1MB) { throw 'Invalid boundary report: diagnostic storage exceeds its budget.' }
+    if ($ProcessId -gt 0) { Assert-ProfilingExact $Receipt 'processId' $ProcessId 'report' }
+    foreach ($key in @('timingScope','schedulingScope')) {
+        if ($Receipt[$key] -isnot [string] -or [string]::IsNullOrWhiteSpace($Receipt[$key])) { throw "Invalid boundary report: $key is absent." }
+    }
+    $clock=$Receipt['clock']; Assert-ProfilingObject $clock 'report.clock'
+    Assert-ProfilingExact $clock 'implementation' 'QueryPerformanceCounter' 'report.clock'
+    Assert-ProfilingNumber $clock 'ticksPerSecond' 'report.clock' -Integer
+    Assert-ProfilingNumber $clock 'tickNanoseconds' 'report.clock'
+    if ($clock['ticksPerSecond'] -le 0 -or [Math]::Abs($clock['tickNanoseconds'] * $clock['ticksPerSecond'] - 1e9) -gt 0.01) {
+        throw 'Invalid boundary report: QPC units differ.'
+    }
+    Assert-ProfilingArray $Receipt 'windows' 8 'report'
+    $complete=$true; $history=@{}; $previous=[decimal]0
+    for ($index=0; $index -lt 8; $index++) {
+        $window=$Receipt['windows'][$index]; $context="report.windows[$index]"; Assert-ProfilingObject $window $context
+        $kind=if ($index -lt 4) { $index } else { 7-$index }
+        Assert-ProfilingExact $window 'clear' ($kind -in @(0,1)) $context
+        Assert-ProfilingExact $window 'composite' ($kind -in @(0,2)) $context
+        foreach ($key in @('startedQpc','endedQpc')) { Assert-ProfilingNumber $window $key $context -Integer }
+        if ($window['startedQpc'] -lt $previous -or $window['endedQpc'] -le $window['startedQpc']) { throw 'Invalid boundary report: window QPC order differs.' }
+        foreach ($edge in @('cpuBefore','cpuAfter')) {
+            if (-not (Assert-ProfilingCounters $window[$edge] "$context.$edge")) { $complete=$false }
+            foreach ($kindCpu in @('main','process')) { Assert-ProfilingCpuHistory $window[$edge][$kindCpu] $history $kindCpu "$context.$edge.$kindCpu" }
+        }
+        Assert-ProfilingArray $window 'frames' 40 $context
+        $previous=[decimal]$window['startedQpc']
+        foreach ($frame in $window['frames']) {
+            Assert-ProfilingObject $frame "$context.frames"
+            Assert-ProfilingExact $frame 'cppAllocations' 0 "$context.frames"
+            Assert-ProfilingArray $frame 'qpc' 9 "$context.frames"
+            for ($edge=0; $edge -lt 9; $edge++) {
+                $value=@{ tick=$frame['qpc'][$edge] }; Assert-ProfilingNumber $value 'tick' "$context.frames.qpc" -Integer
+                if (-not $Timers -and $edge -gt 0 -and $edge -lt 8) {
+                    if ($value.tick -ne 0) { throw 'Invalid boundary report: disabled interior timer is nonzero.' }
+                    continue
+                }
+                if ($value.tick -lt $previous -or $value.tick -gt $window['endedQpc']) { throw 'Invalid boundary report: frame QPC order or bounds differ.' }
+                $previous=[decimal]$value.tick
+            }
+            if ($frame.qpc[8] -le $frame.qpc[0]) { throw 'Invalid boundary report: frame must have positive duration.' }
+        }
+        $previous=[decimal]$window['endedQpc']
+    }
+    $completeness=if ($complete) { 'complete' } else { 'partial' }
+    Assert-ProfilingExact $Receipt 'telemetryCompleteness' $completeness 'report'
+    return $completeness
+}
+
 function Get-ProfilingMeasurementState {
     param([Parameter(Mandatory)][string] $Root, [string] $Platform, [string] $Configuration)
     $state = Get-PerformanceMeasurementState -Root $Root -Platform $Platform -Configuration $Configuration
     $inputs = [ordered]@{}
-    foreach ($path in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+    foreach ($path in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
             'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
             'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h',
             'performance-profile.ps1','Tools/PerformanceProfiling.psm1','Tools/PerformancePolicy.psm1','Tools/ScopedTesting.psm1')) {
@@ -397,7 +474,16 @@ function Assert-ProfilingPng([string] $Path) {
 function Invoke-ProfilingMeasurement {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [string] $Platform, [string] $Configuration,
-        [ValidateSet('Default','MultilineGrid')][string] $Scenario, [bool] $Heap, [Parameter(Mandatory)][string] $OutputPath)
+        [ValidateSet('Default','MultilineGrid')][string] $Scenario, [bool] $Heap, [Parameter(Mandatory)][string] $OutputPath,
+        [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
+    # PowerShell ValidateSet accepts alternate casing; native arguments have an
+    # exact spelling. Normalize before constructing commands or validating output.
+    $Scenario=if ($Scenario -ieq 'Default') { 'Default' } else { 'MultilineGrid' }
+    if ($BoundaryTimers) { $BoundaryTimers=if ($BoundaryTimers -ieq 'On') { 'On' } else { 'Off' } }
+    if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
+    if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
+    if ($WarpRasterMode -and -not $BoundaryTimers) { throw 'WARP raster mode requires boundary diagnostics.' }
     $OutputPath = [IO.Path]::GetFullPath($OutputPath)
     if ([IO.Path]::GetExtension($OutputPath) -ine '.json') { throw 'Profiling output must name a JSON report.' }
     $rootPrefix = [IO.Path]::GetFullPath($Root) + [IO.Path]::DirectorySeparatorChar
@@ -414,7 +500,9 @@ function Invoke-ProfilingMeasurement {
     $temporary = $OutputPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     $rawTemporary = $rawPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
-        $arguments = @('--benchmark-complex-ui-profile',$OutputPath,$Scenario,$(if ($Heap) { 'On' } else { 'Off' }))
+        $arguments = if ($BoundaryTimers) { @('--benchmark-complex-ui-boundaries',$OutputPath,$BoundaryTimers) }
+            else { @('--benchmark-complex-ui-profile',$OutputPath,$Scenario,$(if ($Heap) { 'On' } else { 'Off' })) }
+        if ($WarpRasterMode) { $arguments += $WarpRasterMode }
         $child = Invoke-OwnedProfilingProcess -Executable $exe -WorkingDirectory $Root -Arguments $arguments
         [IO.File]::WriteAllText(($OutputPath + '.log'), ($child.stdout + $child.stderr), [Text.UTF8Encoding]::new($false))
         $metadata = [ordered]@{}
@@ -434,7 +522,8 @@ function Invoke-ProfilingMeasurement {
         Assert-PerformanceMeasurementState -Before $before -After $after
         Assert-PerformanceBuildAttestation -Root $Root -Platform $Platform -Configuration $Configuration -State $after
         $receipt = [Text.UTF8Encoding]::new($false, $true).GetString($bytes) | ConvertFrom-Json -AsHashtable -Depth 32
-        $completeness = Assert-ProfilingReport -Receipt $receipt -Scenario $Scenario -Heap $Heap -Configuration $Configuration -ProcessId $child.processId
+        $completeness = if ($BoundaryTimers) { Assert-BoundaryReport -Receipt $receipt -Timers ($BoundaryTimers -eq 'On') -Configuration $Configuration -ProcessId $child.processId -WarpRasterMode $WarpRasterMode }
+            else { Assert-ProfilingReport -Receipt $receipt -Scenario $Scenario -Heap $Heap -Configuration $Configuration -ProcessId $child.processId }
         if ((Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash -cne $rawHash) { throw 'Profiling native bytes changed during validation.' }
         if ((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash -cne $captureHash) { throw 'Profiling capture bytes changed during validation.' }
         foreach ($key in $before.Keys) { $receipt[$key] = $before[$key] }
@@ -464,4 +553,4 @@ function Invoke-ProfilingMeasurement {
     }
 }
 
-Export-ModuleMember -Function Assert-ProfilingReport, Get-ProfilingMeasurementState, Invoke-OwnedProfilingProcess, Invoke-ProfilingMeasurement
+Export-ModuleMember -Function Assert-ProfilingReport, Assert-BoundaryReport, Get-ProfilingMeasurementState, Invoke-OwnedProfilingProcess, Invoke-ProfilingMeasurement

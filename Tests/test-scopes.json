@@ -106,6 +106,64 @@
   ],
   "rules": [
     {
+      "pattern": "src/Controls/DxUi.Markdown*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "owned lossless parser and opt-in native/embedded source preparation"
+    },
+    {
+      "pattern": "include/DxUi/Markdown*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "public lossless syntax and source-anchor contracts"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.Markdown*",
+      "scopes": ["EditorControls"],
+      "reason": "original lossless corpus vectors used by the owned parser tests"
+    },
+    {
+      "pattern": "ThirdParty/Markdown/*",
+      "scopes": ["EditorControls", "Embedded", "Tooling"],
+      "reason": "pinned parser standard data, original corpus inputs and license validation"
+    },
+    {
+      "pattern": "src/Controls/DxUi.RichTextEditor.cpp",
+      "scopes": ["EditorControls", "Embedded", "Rendering", "WindowHost", "Theme", "ReadOnly", "Animation", "Accessibility"],
+      "reason": "retained rich-text uses shared host raster, composition, text-store and provider services"
+    },
+    {
+      "pattern": "Tests/Embedded/Scope.Tests.RichTextResources.h",
+      "scopes": ["Embedded"],
+      "reason": "supplied-device rich-text resources and callback retirement"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.RichTextAccessibility.*",
+      "scopes": ["Accessibility"],
+      "reason": "native and application-bridged embedded rich source provider/client contracts"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.Rich*",
+      "scopes": [
+        "EditorControls"
+      ],
+      "reason": "owned rich-text core contracts in the EditorControls suite"
+    },
+    {
+      "pattern": "include/DxUi/Rich*",
+      "scopes": [
+        "EditorControls",
+        "Embedded"
+      ],
+      "reason": "additive Unicode document, Markdown projection and borrowed layout core"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Rich*",
+      "scopes": [
+        "EditorControls",
+        "Embedded"
+      ],
+      "reason": "owned rich-text preparation core; shared archive and supplied target behavior"
+    },
+    {
       "pattern": "Tests/Controls/Scope.Tests.IntrinsicLayout.*",
       "scopes": ["Control"],
       "reason": "intrinsic leaf measurement and FlexPanel behavior in the owning Control suite"
@@ -563,6 +621,6 @@
       "platform": "ARM64"
     }
   ],
-  "prWorkflowDigest": "40364aa8eb11dc7529fddbbecdffdbeb595c719ea9970bbf87e953446423538e",
+  "prWorkflowDigest": "586440b7a24e9c7cf338fbeb03b13f31b287c1d63bceaf49e1c1cd72fc104270",
   "prNativeScopeModule": "Tools/NativeScope.psm1"
 }

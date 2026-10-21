@@ -24,7 +24,8 @@ struct AccessibilityTextUnitSpan final
 
 // Pure UIA boundary policy shared by DxUi controls and plugin-owned providers.
 // Unsupported units advance to the next larger supported unit as required by
-// UI Automation: Format -> Word, Paragraph -> Line, Page -> Document.
+// UI Automation: Format -> Word, Paragraph/Page -> Document. The bounded source
+// provider does not expose a distinct paragraph or page unit.
 [[nodiscard]] TextUnit NormalizeAccessibilityTextUnit(TextUnit unit) noexcept;
 [[nodiscard]] TextRangeUnitMoveResult MoveAccessibilityTextPositionByUnit(std::wstring_view text, size_t position, TextUnit unit, int count) noexcept;
 [[nodiscard]] AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_view text, size_t position, TextUnit unit) noexcept;

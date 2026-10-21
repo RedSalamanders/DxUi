@@ -22,6 +22,20 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
+0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
+example's declared extension flags; execute its two `disabled` task examples
+with task recognition instead of skipping them. The independent test serializer
+uses the owned AST and original expected outputs. Nine GFM printed expectations
+collapse directly nested redundant strong tags; record this HTML convention
+without discarding the source wrappers or changing the original expected data.
+Core tests validate a dense, bounded, acyclic inline forest, Unicode/version
+boundaries, cancellation, extension request identity and iterative deep nesting.
+Both retained hosts run the directed grammar fixtures and reference edit/history
+tests. Expanded fault probes must inject every observed admission/inline/extension
+allocation, including MSVC Debug proxies. Qualification still requires the normal
+native/build/tooling matrix; a focused diagnostic is not full qualification.
+
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
 unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;
@@ -84,6 +98,14 @@ truncation flags, exact log bindings, quiet intervals and matching callback/prov
 entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.
 A quiet interval does not guarantee no later delivery. Provider attempts MUST NOT substitute for semantic event
 payloads or delivery success, and partial callback completion MUST NOT be reported as a complete timeline.
+
+The paired setup regression tests MUST cover common benchmark-project options,
+changed-project SkipBuild refusal, timestamp byte preservation/restoration/partial
+failure, new versus reused roots, complete cross-side identities and preflight
+ordering before measurements. Relocated public-consumer qualification MUST copy
+the image-loader sample header, compile all eight rich-text public headers as
+first/only includes, and render the rich sample with explicit document metadata.
+Missing headers and absent rich capture files fail qualification.
 
 Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
 while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
@@ -177,12 +199,18 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
 instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI bounds `test.ps1` at 25 minutes on x64 and 45 minutes on ARM64, and each clean-pin
+how close any of their tests comes. Native CI bounds `test.ps1` at 35 minutes on x64 and 65 minutes on ARM64, and each clean-pin
 consumer qualification at 15 minutes, including hangs the per-test watchdog cannot reach (Foundation, Embedded, the consumer).
-The enclosing budgets are 45 minutes for x64 Debug/Release, 60 for x64 ASan Debug, 65 for ARM64 Debug/Release and 80 for ARM64
+The enclosing budgets are 55 minutes for x64 Debug/Release, 70 for x64 ASan Debug, 85 for ARM64 Debug/Release and 100 for ARM64
 ASan Debug. Each row includes its selected Full stage, regular consumer, separate annotations-disabled consumer when ASan,
 and five minutes for setup, resource/gallery work and artifact collection. The per-test watchdogs, six standard consumer qualifications, both
 annotations-disabled ASan qualifications and failure accounting remain required.
+PR #89's retained x64 ASan and ARM64 Release runs exceeded the previous 25/45-minute
+combined cold-build/provenance/Full windows; ARM64 Release was still compiling before
+its first native suite at minute 45. Their incomplete native results remain
+failures, while the separately completed consumers retain their own scope. The
+new finite windows require fresh complete receipts; no per-test watchdog, assertion,
+suite inventory, consumer limit or performance-policy budget is relaxed.
 The [source-bound cold-build investigation](../../Measurements/CiBudget/2026-10-11-cold-build/README.md) records PR #73's
 three ARM64 Full timeouts: cold compilation plus v2 provenance consumed almost all the prior 25-minute window.
 Debug/Release were interrupted before ordinary suites; ASan completed 14 suites before being interrupted in Rendering.
@@ -499,6 +527,16 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   must fail the healthy-state assertion; the one-second state and three-second capture bounds stay unchanged.
   Each fixture starts its three-second handler-entry wait at probe preparation after readiness, so slow
   initialization cannot pre-release the deliberate stall. The 1,200/4,000 ms release delays and elapsed bands stay unchanged.
+  The state-probe sequence and standard shortcut-column layout sequence MUST run as bounded whole foreground
+  attempts with a fresh owner, popup and driver state. Only an observed foreground loss or explicit activation
+  refusal admits another attempt; a held behavioral failure MUST reach the original assertion. The existing
+  five-attempt policy applies. Controlled regressions MUST cancel a discovered popup after simulated activation
+  loss and then require a fresh held attempt to satisfy every original probe/layout assertion.
+  `TestContextMenuDebugStateProbeRestartsAfterForegroundLossDuringVisibleInitialization` and
+  `TestMenuShortcutLayoutRestartsAfterForegroundLoss` cover the two sequences. Discarded attempts retain bounded
+  loss/failure diagnostics. A later pass neither removes the original failure nor attributes an untraced CI failure.
+  The shortcut regression waits for actual popup destruction before requiring an unavailable layout query:
+  cancelling the modal loop alone can leave a still-live popup able to answer sent layout queries.
 - **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
   stopped answering. A failed initial healthy-state assertion also reports the answer flag, elapsed time, item count,
   window validity/visibility and owner match, without publishing raw desktop identities.
@@ -691,7 +729,13 @@ Native refusal precedes desktop inspection or mutation. This mode substitutes ho
 person-facing confirmation; it retains the desktop probe, mutex, warning anchor, failure/skip checks and restoration.
 It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts use `.hosted` and explicitly retain the
 lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
-stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
+stale suite log with the current launch failure. Before replacement, the wrapper MUST preserve any existing log's
+exact bytes in a uniquely named `.unqualified-<id>.log` sibling, without overwriting earlier retained files. Existing
+output may be stale or may have been written after child resume but before a failed foreground grant; it MUST NOT
+qualify the current suite or supply its capability skips. The canonical log MUST name the current launch failure and
+the separate unqualified output. A retention error MUST stop replacement before destroying the original. Missing
+output creates only the current failure marker. Local interactive failures follow the same retention contract;
+retained `.log` files remain included in CI log uploads. Desktop availability alone supplies no foreground permission.
 
 Immediately before a hosted ARM64 foreground lease, `test.ps1` MAY prepare the disposable GitHub runner's
 first-sign-in desktop only when the exact hosted markers and native ARM64 architecture match. The preparation
@@ -743,6 +787,15 @@ retains read-only point/hit-window/geometry/style/region/DPI diagnostics; it sen
 Failed insertion, release, activation or restoration
 MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
 checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
+
+Before creating or resuming each hosted child, the runner MUST verify that its warning still owns the foreground.
+If ordinary activation is refused between children, it MAY reuse the same guarded hosted recovery as startup,
+including every authorization, capture, point-ownership, balanced-input and patch-restoration check above.
+Recovery MUST finish before child launch; failure leaves that child unlaunched with a failed receipt.
+An already-held warning requires no input. No warning click is injected after a child resumes. Ordinary local
+runs retain their existing ordinary pre-launch activation and bounded child-grant retries, without hosted input.
+The native lease self-test MUST cover between-child loss/recovery, no duplicate input while held, ordinary/local
+refusal, authorization loss and active capture. These checks do not replace fresh hosted native execution.
 
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds

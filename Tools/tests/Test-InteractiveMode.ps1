@@ -732,6 +732,56 @@ Invoke-FixtureCase 'a missing lease child replaces an existing suite log with th
     Assert-True $childFailureBranch 'test.ps1 replaces the log in the child launch-failure branch'
     Assert-True (-not $logExistenceGuard) 'log replacement is unconditional and cannot preserve a previous suite log'
 }
+Invoke-FixtureCase 'a refused lease preserves raw prior output without qualifying it' { param($fixture)
+    $log = Join-Path $fixture 'test-[Menu] é space.hosted.log'
+    # Include invalid UTF-8, a NUL, and apparent success/skip output: retention must copy bytes,
+    # while the canonical receipt source must contain only this launch failure.
+    $original = [Text.Encoding]::UTF8.GetBytes("PASS previous child`nSKIPPED old capability`n") + [byte[]]@(0, 0xff, 0xc3, 0x28)
+    [IO.File]::WriteAllBytes($log, $original)
+    Write-DxUiLeaseFailureLog -Path $log -Suite 'Menu'
+    $retained = @(Get-ChildItem -LiteralPath $fixture -File | Where-Object { $_.FullName -ne $log })
+    Assert-Equal 1 $retained.Count 'one prior output file is retained'
+    Assert-Equal '.log' $retained[0].Extension 'the normal CI log glob includes retained output'
+    Assert-Equal ([Convert]::ToBase64String($original)) ([Convert]::ToBase64String([IO.File]::ReadAllBytes($retained[0].FullName))) 'all original bytes survive without decoding'
+    $current = Get-Content -Raw -LiteralPath $log
+    Assert-True ($current.Contains('[LEASE] Menu did not run under the foreground lease')) 'the canonical log still fails this launch'
+    Assert-True (-not $current.Contains('PASS previous child') -and -not $current.Contains('SKIPPED old capability')) 'unqualified output cannot satisfy or skip the current suite'
+}
+Invoke-FixtureCase 'a refused lease without prior output creates only the failure marker' { param($fixture)
+    $log = Join-Path $fixture 'test-NativeTextInput.hosted.log'
+    Write-DxUiLeaseFailureLog -Path $log -Suite 'NativeTextInput'
+    Assert-Equal 1 @(Get-ChildItem -LiteralPath $fixture -File).Count 'missing output does not invent retained evidence'
+    Assert-True ((Get-Content -Raw -LiteralPath $log).Contains('[LEASE] NativeTextInput did not run under the foreground lease')) 'missing output still records failure'
+}
+Invoke-FixtureCase 'repeated lease refusals never overwrite retained output' { param($fixture)
+    $log = Join-Path $fixture 'test-Menu.hosted.log'
+    [IO.File]::WriteAllBytes($log, [byte[]]@(0, 0xff, 1))
+    Write-DxUiLeaseFailureLog -Path $log -Suite 'Menu'
+    $first = @(Get-ChildItem -LiteralPath $fixture -File | Where-Object { $_.FullName -ne $log })
+    Assert-Equal 1 $first.Count 'the first refusal retains one original'
+    $firstHash = (Get-FileHash -LiteralPath $first[0].FullName).Hash
+    [IO.File]::WriteAllBytes($log, [byte[]]@(2, 0xfe, 3))
+    Write-DxUiLeaseFailureLog -Path $log -Suite 'Menu'
+    $retained = @(Get-ChildItem -LiteralPath $fixture -File | Where-Object { $_.FullName -ne $log })
+    Assert-Equal 2 $retained.Count 'a subsequent refusal creates a different retained file'
+    Assert-Equal $firstHash (Get-FileHash -LiteralPath $first[0].FullName).Hash 'the first retained file is unchanged'
+    $second = @($retained | Where-Object { $_.FullName -ne $first[0].FullName })
+    Assert-Equal ([Convert]::ToBase64String([byte[]]@(2, 0xfe, 3))) ([Convert]::ToBase64String([IO.File]::ReadAllBytes($second[0].FullName))) 'the second original is also retained'
+}
+if ($IsWindows) {
+    Invoke-FixtureCase 'failed retention leaves exclusively locked original bytes untouched' { param($fixture)
+        $log = Join-Path $fixture 'test-Menu.hosted.log'
+        $original = [byte[]]@(0, 0xff, 1, 2)
+        [IO.File]::WriteAllBytes($log, $original)
+        # Windows denies the copy while this writer owns the file. This exercises the
+        # retention error path without a desktop or a simulated file-copy implementation.
+        $writer = [IO.File]::Open($log, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        try {
+            Assert-Throws { Write-DxUiLeaseFailureLog -Path $log -Suite 'Menu' } 'retention failure must stop log replacement'
+        } finally { $writer.Dispose() }
+        Assert-Equal ([Convert]::ToBase64String($original)) ([Convert]::ToBase64String([IO.File]::ReadAllBytes($log))) 'failed retention does not destroy original evidence'
+    }
+}
 Invoke-TestCase 'hosted ARM desktop preparation refuses incomplete runner authorization before Windows changes' {
     $preparation = Join-Path $repository 'Tools/Prepare-HostedArmDesktop.ps1'
     $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }

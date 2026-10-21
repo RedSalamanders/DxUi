@@ -16,6 +16,45 @@ manifest, while foreground, consumer, gallery and native-platform qualification 
 
 Native test files use `Scope.Tests.Something.h/.cpp`; register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
+`EditorControls` runs `TestUnicode17DefaultGraphemeCorpus`: all 766 pinned original
+vectors, every UTF-16 offset, next/previous movement, nearest snapping and counts.
+`TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
+`Accessibility` checks rich character range commands, arrows, deletion and undo
+in native and embedded hosts. `Embedded` measures a 49,152-unit mixed-script
+forward walk (16,384 elements, zero C++ allocation calls/bytes) and oversized
+UTF-8 rejection (at most 4 KiB of C++ requests). `EditorControls` also covers exact
+UTF-8 admission limits. These deterministic oracles do not qualify latency,
+physical IME/AT or visual bidi navigation. Offline generator/pin negative tests
+run in the ordinary tooling suite; see [Unicode provenance](../ThirdParty/Unicode/README.md).
+
+The text-element movement cases add a second independent 766-vector oracle for
+signed bulk commands (all offsets, zero counts, +/-3 and INT_MIN/INT_MAX), plus
+indexed/streaming deletion at every interior ACP and boundary. Fixed five-trial
+Release traversal observations retain identical oracle/method bytes before and
+after the change; they have no performance acceptance verdict. Maximum-size
+native and embedded rich providers verify exact moved counts, endpoint collapse,
+explicit selection and unchanged source/history. Interior deletion cases cover
+legacy single/multiline fields, editable ComboBox and both rich hosts, including
+undo/redo and preservation of explicit noncollapsed source intervals. Embedded
+also requires zero C++ allocation calls/bytes for 49,152-unit bulk queries and
+both deletion-query paths. These cases remain ordinary non-activating tests.
+
+RichDocument storage cases retain the same fragmented edit/read oracles across
+the vector/tree change. Split/merge stress uses an independent flat Unicode
+model, captured snapshots, cross-node CRLF joins and undo/redo. Maximum-fragment
+coverage builds 65,536 source pieces and repeatedly grows/collapses the tree.
+Embedded requires
+at most 4 MiB retained C++ bytes after 4,096 interleaved edits with capped history,
+zero tracked delta after destruction and zero C++ allocations for same-content
+replacement. It sweeps every observed allocation point in replace, transient
+replace, reset, undo and redo, comparing complete histories after failure.
+Single-backward movement has a fixed large-source observation and retains the
+complete corpus/count oracle; elapsed times have no acceptance assertion.
+Source-change tests add independent interval reconstruction, scalar/CRLF joins,
+undo/redo/branches, transient-page rollover/expiry, reset, concurrency and moved
+values. Embedded adds zero-allocation queries after retired previews, a 256 KiB
+transient-storage bound and allocation-failure sweeps through page sealing.
+
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification
@@ -27,6 +66,14 @@ diagnostic; repeat with `-Scenario MultilineGrid` and optional `-Heap` in a decl
 phase query failures, bounded worker-thread inventories, raw frame samples and sampling cost. The guarded runner limits
 only its owned child to 120 seconds and requires exact v2 build/source/tool/dependency/artifact identity. Its 20/100/200
 warm-up checkpoints and heap-off/on observations do not change canonical performance acceptance or qualify the CI policy.
+Use `-BoundaryTimers Off` and `-BoundaryTimers On` for the separate Default-only
+clear/composition/readback diagnostic. It records absolute QPC boundaries in fixed
+forward/reverse controls after 200 warm frames, without the phase/heap sampler.
+Declare a finite interleaved fresh-process schedule before measuring. Timers can
+perturb execution, and omitting a command changes the workload; CPU call intervals
+are not GPU duration or scheduler delay. Heap and MultilineGrid options cannot be
+combined with this diagnostic. Exact source/build/raw-byte and child-timeout guards
+still apply; no trace permission or non-regression acceptance is implied.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 The shared UIA client's owner waits wake for incoming COM messages with a bounded message wait. Sender caching and
@@ -101,6 +148,50 @@ restores and verifies the captured foreground window and pointer, and retains fo
 for a visible foreground window. The lease still checks the desktop and exact warning input
 target; preparation cannot turn a failed or skipped foreground suite into a pass. Ordinary
 local and self-hosted runs do not prepare or alter the desktop.
+
+Rich projection-block coverage lives in Scope.Tests.RichProjectionBlocks under
+EditorControls, with mapping/no-op allocations, every changed-preparation failure
+point, 1,024-line retained-history and maximum-source memory cases in
+Scope.Tests.RichProjectionResources under Embedded. Full text/style/source-unit
+and every ACP/affinity comparisons include Unicode edits, line joins/splits,
+branches with equal external revisions, mode/reset/expiry, held immutable payloads,
+moved/retired services and maximum line count. Fixed whole-source/block initial
+and 128-edit trials remain descriptive; they do not qualify retained geometry,
+host scheduling or the completed-frame performance hold.
+The isolated Embedded diagnostic flags `--test-rich-snapshot-slice-failures` and
+`--test-rich-projection-failures` trace the same sweeps as the ordinary suite.
+Only those explicit child modes install a terminate handler (exit 197) to record
+an unexpected noexcept failure without a CRT dialog. Correct code returns zero;
+the original Debug failure is a preserved negative diagnostic, never a suite pass.
+## Native rich images
+
+`test-consumer.ps1` also copies the application-owned image-loader header into
+the relocated sample, compiles all eight public rich-text headers independently,
+and renders the rich sample with explicit document-location metadata. Its receipt
+hashes the new capture. This supplements the existing minimal/complex/text-service
+and multi-module checks; it does not qualify physical IME/AT or performance.
+
+The named `EditorControls` tests cover native resource/pixel publication, the
+real clipboard-to-worker path and bounded loader queues/cancellation/closure.
+The named native/embedded decoded-image tests are in `Accessibility`; ordinary
+`Embedded` adds DPI, RTL, selection, hide/show and device replacement checks.
+
+Isolated failure children retain the same ordinary Embedded assertions:
+
+```powershell
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-resource-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --capture-rich-images output.png Dark
+```
+
+The resource child sweeps observed allocation schedules for staging, dispatch,
+completion and loaded Unicode geometry, then checks actual upload coalescing,
+owner work budgets, first/later bitmap memory/device HRESULT failures and 128
+native placements with excess alternatives preserved. The capture mode uses the
+actual sample scene and deterministic caller-supplied pixels without a desktop
+window. These cases do not establish physical input/AT, native ARM64 execution
+or paired performance acceptance.
 
 The lease logs its original focus capture reason before confirmation and writes `focus.capture.reason` and
 `focus.capture.error` in its native result. The six reasons distinguish absent foreground/thread, minimized

@@ -1,5 +1,18 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
+#include "Scope.Tests.RichDocument.h"
+#include "Scope.Tests.RichDocumentLayout.h"
+#include "Scope.Tests.RichMarkdown.h"
+#include "Scope.Tests.RichProjectionBlocks.h"
+#include "Scope.Tests.RichSemantic.h"
+#include "Scope.Tests.RichSemanticDocument.h"
+#include "Scope.Tests.RichSemanticGeometry.h"
+#include "Scope.Tests.RichSourceChanges.h"
+#include "Scope.Tests.RichTextEditor.h"
+#include "Scope.Tests.RichTextInput.h"
+#include "Scope.Tests.RichTextLayout.h"
+#include "Scope.Tests.TextElementMovement.h"
+#include "Scope.Tests.TextElements.h"
 
 #include "../../include/DxUi/ControlCatalog.h"
 
@@ -1876,7 +1889,7 @@ void TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren()
 
 void TestEditorControlsAreCatalogued()
 {
-    Require(GetControlCatalog().size() == 33u, "the catalog lists 33 controls");
+    Require(GetControlCatalog().size() == 34u, "the catalog lists 34 controls");
     for (const ControlKind kind : {ControlKind::Splitter, ControlKind::NumericStepper, ControlKind::ColorPicker})
     {
         std::unique_ptr<Control> control;
@@ -1921,6 +1934,21 @@ void TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed()
 
 void RunEditorControlTests()
 {
+    RunRichDocumentTests();
+    RunTextElementTests();
+    RunTextElementMovementTests();
+    RunRichSourceChangeTests();
+    RunRichMarkdownTests();
+    RunRichSemanticTests();
+    RunRichSemanticDocumentTests();
+    RunRichSemanticGeometryTests();
+    RunRichProjectionBlockTests();
+    RunRichTextLayoutTests();
+    RunRichDocumentLayoutTests();
+    RunRichTextEditorTests();
+    RunRichTextInputTests();
+    RunRichTextStoreTests();
+
     // Splitter
     DXUI_RUN_TEST(TestSplitterDefaultState);
     DXUI_RUN_TEST(TestSplitterClampsToPaneMinimums);

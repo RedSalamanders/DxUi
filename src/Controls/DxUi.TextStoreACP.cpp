@@ -826,6 +826,9 @@ private:
                 return true;
             }
 
+            if (dynamic_cast<const RichTextEditor*>(control))
+                return control->ExportTextInputState(outState);
+
             return false;
         }
         catch (const std::bad_alloc&)
@@ -837,10 +840,12 @@ private:
 
     [[nodiscard]] bool ApplyControlState(const TextInputState& state, bool notifyChange) noexcept
     {
-        Control* const control           = GetLiveControl();
-        const auto* eligibilityTextField = dynamic_cast<const TextField*>(control);
+        Control* const control            = GetLiveControl();
+        const auto* eligibilityTextField  = dynamic_cast<const TextField*>(control);
+        const auto* eligibilityRichEditor = dynamic_cast<const RichTextEditor*>(control);
         if (! control || ! IsCurrentTextServiceTarget() || state.readOnly || state.masked ||
-            (eligibilityTextField && (eligibilityTextField->IsMasked() || eligibilityTextField->IsReadOnly())))
+            (eligibilityTextField && (eligibilityTextField->IsMasked() || eligibilityTextField->IsReadOnly())) ||
+            (eligibilityRichEditor && eligibilityRichEditor->IsReadOnly()))
         {
             return false;
         }
@@ -848,6 +853,21 @@ private:
         Control* const previousFocus = _host->GetFocusControl();
         try
         {
+            if (auto* editor = dynamic_cast<RichTextEditor*>(control))
+            {
+                if (! control->ImportTextInputState(*_host, state, notifyChange))
+                    return false;
+                // Import can synchronously retire/rebind the owner. Match the
+                // same source and focus before synchronizing the shared cache.
+                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget() || _host->GetFocusControl() != previousFocus ||
+                    editor->GetText() != state.text)
+                    return false;
+                _host->SyncTextInput(control);
+                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget())
+                    return false;
+                _host->Invalidate();
+                return true;
+            }
             if (auto* textField = dynamic_cast<TextField*>(control))
             {
                 if (! control->ImportTextInputState(*_host, state, notifyChange))
@@ -942,7 +962,12 @@ private:
             // policy changes made by the application during composition.
             restore.readOnly = current.readOnly;
             restore.masked   = current.masked;
-            if (auto* textField = dynamic_cast<TextField*>(control))
+            if (dynamic_cast<RichTextEditor*>(control))
+            {
+                if (! control->ImportTextInputState(*_host, restore, false))
+                    return false;
+            }
+            else if (auto* textField = dynamic_cast<TextField*>(control))
             {
                 if (! control->ImportTextInputState(*_host, restore, false))
                     return false;

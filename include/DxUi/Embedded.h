@@ -125,6 +125,9 @@ public:
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
     // S_FALSE means no available focused text control. Bounds are view-local DIPs, not screen pixels.
     HRESULT ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept;
+    // Optional application-side clipboard transform. Checks the current focus
+    // session/revision; prepares source only and never commits or takes focus.
+    HRESULT TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept;
     // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
     // Preview changes displayed text/composition without notifying the model. Commit notifies once relative
     // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.
@@ -153,6 +156,7 @@ private:
     // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
     uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
+    void RequestPreparation() noexcept;
     void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor
     // are enabled and visible. Hiding or disabling it or an ancestor, removing it, or resizing the view still cancels.
@@ -161,5 +165,6 @@ private:
     // preparation allocates exactly one replacement.
     void ReleaseSurface() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
+    [[nodiscard]] bool TextInputIsAvailable() noexcept;
 };
 } // namespace DxUi

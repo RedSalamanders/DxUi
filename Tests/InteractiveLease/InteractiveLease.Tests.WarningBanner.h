@@ -88,6 +88,26 @@ template <typename Operations> [[nodiscard]] HostedWarningInputFailure ActivateH
     return failure;
 }
 
+struct WarningForegroundAcquisition
+{
+    bool acquired                          = false;
+    bool usedHostedInput                   = false;
+    HostedWarningInputFailure inputFailure = HostedWarningInputFailure::None;
+};
+
+// Used at startup and before each hosted child, while no child is running. Windows can
+// refuse ordinary activation again after the preceding child's windows close.
+// Recovery keeps the same hosted-only ownership/input checks as initial admission.
+template <typename Operations> [[nodiscard]] WarningForegroundAcquisition AcquireWarningForeground(bool hosted, Operations& operations) noexcept
+{
+    if (operations.WarningIsForeground() || operations.ActivateOrdinary())
+        return {.acquired = true};
+    if (! ShouldUseHostedWarningInputFallback(hosted, false))
+        return {};
+    const auto failure = ActivateHostedWarningWithInput(operations);
+    return {.acquired = failure == HostedWarningInputFailure::None, .usedHostedInput = true, .inputFailure = failure};
+}
+
 [[nodiscard]] constexpr std::string_view HostedWarningInputFailureText(HostedWarningInputFailure failure) noexcept
 {
     switch (failure)

@@ -1,7 +1,7 @@
 # Architecture and ownership
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -20,6 +20,76 @@ Git history retains earlier bytes. No duplicate original source tree is retained
 application dependencies. The [archive explanation](../Done/SourceImport/README.md) describes why these records remain.
 The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
 
+The bounded Unicode rich-text model, Markdown projection and prepared DirectWrite
+layout are canonical in src/Controls with public RichDocument/RichMarkdown/
+RichTextLayout headers. The standalone prototype is a consumer of DxUi.lib; no
+second reusable implementation is maintained. These pure preparation services
+own no HWND/device/worker. Immutable source snapshots use a persistent piece tree
+with cumulative subtree/piece ends. Edits copy boundary paths and share untouched
+subtrees and source buffers; snapshot reads retain no mutable cache. Node layout
+is private behind the snapshot's existing shared ownership boundary.
+The v0 projection reuses physical-line blocks; retained geometry stages bounded
+chunks through shared owner preparation. Projection/index construction remains
+indivisible, and geometry has explicit whole SDK fallbacks.
+The opt-in lossless parser separately publishes block/inline forests, resolved
+global references and configurable GFM metadata. It owns Unicode 17 folding and
+character-class tables generated offline from pinned licensed data. Its semantic
+strings/raw source enclosures are metadata; editing coordinates use the explicit
+SourceDisplayMap contract. The v0 projection remains the default renderer.
+RichSemantic adds an independent immutable span map with nonmonotonic primary
+coordinates and fragment queries, and snapshot-guarded source edit staging.
+It owns no host/device/worker. It does not relax v0 Projection's ordered-unit
+invariants or activate semantic rendering. Structural adapters must commit its
+edit plans through their existing editable/lifetime/notification guards.
+RichSemanticDocument stages immutable semantic roles, style runs, paragraph/cell
+metadata and exact value-token maps from completed MarkdownSyntax. Its builder
+is an owner-serialized CPU preparation service with event budgets, cancellation,
+coalescing and failure-atomic publication. It owns no graphics or scheduling
+resource. This CPU service alone does not activate rendering or change source
+text-store coordinates. RichTextEditor's explicit semantic preview consumes its
+immutable publication. Semantic preparation also stages a complete source-format
+partition and process-local publication identity. Rich UIA snapshots share this
+immutable graph and retain optional prepared bounds/nominal typography only for
+semantic editors; unrelated controls add no rich strings or rectangle vectors.
+Semantic child providers retain weak graph identity plus the control's host
+binding epoch. Geometry reflow can reuse CPU semantics; detach/rebind cannot
+resurrect old children. Source text stores retain raw UTF-16 coordinates.
+The semantic builder validates the bounded native HTML policy before hiding any
+tag in a leaf. Its character-reference adapter calls the syntax lexer's existing
+pinned decoder. Markdown style state and active HTML anchor ownership remain
+separate, including when their delimiters cross. Unsupported markup publishes
+literal normalized leaf contents while retaining exact raw source.
+Native geometry measures marker prefixes without wrapping, computes shared list
+gutters, then stages marker/body layouts on one first baseline. Both are counted
+against native admission and SDK budgets. Ancestor list gutters apply to loose
+continuations, nested blocks and tables. Marker/caret sites are geometry identity,
+never source ACPs; all source movement preserves logical direction across boxes.
+The retained RichTextEditor v0 preview uses ControlHost
+services for native/embedded source TSF/IME and UIA, including bounded source range
+commands. Explicit semantic rendering adds bounded style/structure providers;
+real IME/AT acceptance remains pending.
+
+MarkdownSyntax is a separate owned Unicode preparation service. Its immutable
+source and exact root-block/lexeme partitions retain original spelling independently
+of the v0 Projection. MarkdownParser stages resumable scanning and atomically
+publishes a complete revision/profile; callers may retain older immutable results.
+It owns no graphics, host, thread or timer. Parser/control calls are serialized on
+their owner; retained immutable syntax can be read on other threads. Atomic
+publication denotes failure-atomic replacement, not concurrent mutation of one
+parser. Optional retained-control analysis uses
+the same native/embedded owner preparation traversal before geometry. Completed
+source-only analysis survives width/DPI changes; pending work is cancelled when
+its control preparation is retired. This first stage does not replace the v0
+renderer or expose structured Markdown through source TSF/UIA offsets.
+
+DxUi.TextElements is the single pure UTF-16 decoder and Unicode 17 default
+extended-grapheme implementation used by the existing text controls, rich
+preparation and UIA character commands. It has no host/font/device, heap storage,
+worker or timer. Its generated table is pinned to licensed Unicode data in
+ThirdParty/Unicode; the generator and complete independent conformance corpus
+belong here. Do not add a parallel rich-only segmentation utility or depend on
+the installed font/OS glyph-cluster rules for logical character navigation.
+
 ## Single library and hosting modes
 
 The single public target is `src/DxUi.vcxproj`, producing **DxUi.lib**. Foundation, controls, embedded rendering,
@@ -27,9 +97,9 @@ native text/accessibility and Win32 hosting are implementation areas of that tar
 Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
-exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 33 concrete controls;
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 34 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
-attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
+attach; RichDocument/RichMarkdown/RichTextLayout expose the bounded preparation core; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 
 `ControlHost` supplies the shared tree, text, theme, focus and drawing services. Its native mode attaches to a
 caller-owned HWND (`WindowHost` is a source compatibility alias). `EmbeddedHost` contains a ControlHost configured
@@ -110,3 +180,20 @@ consumers to rebuild against the matching pinned headers and static library. The
 revision 4 adoption scope; earlier consumer pins are not changed by this implementation.
 This avoids cross-module ownership assumptions of the kind described in Microsoft's
 [CRT boundary guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/potential-errors-passing-crt-objects-across-dll-boundaries?view=msvc-170).
+
+The M4d RichTextEditor semantic preview adds an explicit rendering option and an
+immutable semantic document accessor within API revision 4. Its private retained
+layout adapter stages either existing v0/source geometry or semantic native
+geometry, and switches only after a complete publication. The semantic backend
+retains paragraph/cell DirectWrite layouts and a factory; it borrows raster targets
+and brushes synchronously. The CPU builder remains independent of graphics.
+Both paths use ControlHost owner turns, resource/typography/binding identities,
+retirement and scheduling. No new worker, HWND, device or timer is introduced.
+Consumers must rebuild matching headers/library; their pinned source is unchanged.
+
+M4d.2 adds parser-owned `MarkdownEmptyLine` source trivia and a semantic element's
+revision-local syntax-node index within this same source-coordinated API scope.
+The native geometry backend maintains separate source-order caret boxes and a
+display-order glyph index: generated markers and hidden source can make those
+orders differ. Site affinity is private native state, never a document ACP or
+history coordinate. Both indexes publish together after bounded preparation.
