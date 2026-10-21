@@ -6,11 +6,27 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
-### Resume checkpoint — 21 October 2026
+### Owner integration decision — 21 October 2026
+
+The owner now requests merging all open DxUi PRs into `main` and removing obsolete
+branches/worktrees. This supersedes the earlier keep-draft instruction. Integrate
+PRs #89, #90 and #91 in dependency order, while retaining every unresolved gate
+below. Integration is not independent performance-policy approval or release
+qualification. Do not relax judges, retry rules, test assertions or budgets.
+
+The completed original paired artifact for CI `39587588088` has been preserved
+before publication. Its 144 receipts, retained benchmark executables, both frozen
+judges and 72 controls replay exactly. All three scenario decisions are within
+the noise budget, but **70/72 controls are unstable** and the measured-base policy
+remains unqualified. Performance acceptance stays **HOLD**. The ARM64 Debug B2
+hover failure below remains open; five other native profiles pass. Subsequent
+integration CI must be assessed at its own source identity.
+
+### Historical resume checkpoint — 21 October 2026
 
 Saved at the owner's request before another C++ change. The published repair is
 `b689bddd36749617e44ca318c084bc5a06c3bbaf` on `codex/rich-text-prototype`;
-[PR #89](https://github.com/RedSalamanders/DxUi/pull/89) remains **draft**.
+[PR #89](https://github.com/RedSalamanders/DxUi/pull/89) was **draft** at that checkpoint; the owner decision above supersedes it.
 Its tested merge is `d146ba4a4256a3a61db8f2519a74368ff48b46e4`, based on
 `f65e4a4b9311370b3e3070088e2a8abe29adcb27`. Head and tested merge have identical
 Git trees. A later checkpoint-only documentation commit does not qualify new C++.
@@ -133,16 +149,16 @@ archives and machine metadata outside Git. Important retained readers/results:
   original completed-job logs. Preserve all older failed and successful packets.
 - `Preserve-PublishedB689PairedOriginal.ps1` and
   `Replay-PublishedB689Study.ps1` are prepared with this exact source identity;
-  they have not consumed a completed study yet.
+  they now preserve and replay the completed study; see the owner decision above.
 
-At this checkpoint, paired job `119180236236` is still running. **Before another
+At the historical checkpoint, paired job `119180236236` was still running; it has since completed and its originals are preserved. **Before another
 push**, inspect its state and preserve the original completed study and workflow
 logs; a new PR push cancels this in-progress run. Do not silently discard it,
 substitute an earlier study or claim a pending result. The previous completed
 study `39568060174` has 144 replayed receipts and 71/72 unstable controls; the
 independent same-binary calibration has 69/72 unstable controls. Policy remains
 unqualified in the measured base and the repair changes neither policy nor judges.
-PR #89 must remain draft for independent review, with every performance HOLD retained.
+The earlier draft requirement is superseded by the owner integration decision above; every performance HOLD remains retained.
 
 No local foreground test is active. All earlier time-limited desktop permissions
 are expired or consumed; obtain a new agreed window, including explicit countdown
