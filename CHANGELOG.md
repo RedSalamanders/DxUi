@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Verify retained run inventories using fresh pinned-handle metadata and stable path/stream ordering; preserve before/after move diagnostics and exact safety checks, with stale-metadata and reversed-enumeration regressions.
 - Execute filesystem preservation regressions on Windows, explicitly reporting their coverage as not run in the Linux validator; keep all Windows identity, stream, ACL and reparse-point controls enabled.
 - Preserve unique successful, failed and interrupted test output in verified per-run evidence; retain shared read-only payloads and existing qualification checks.
 - Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while

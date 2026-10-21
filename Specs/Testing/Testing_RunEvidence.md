@@ -36,3 +36,9 @@ Suite JSON compatibility views remain under `.build/reports`; the original recei
 A superseded compatibility view is moved, with streams intact, before publication of the next view. Interactive,
 hosted, filtered and instrumented suffixes remain distinct. Performance comparison receipts are run-specific.
 This changes tooling and artifact storage only; library/gallery pixels, consumer pins and product UI are unchanged.
+
+Inventory attributes and creation/write times come from pinned file handles, rather than cached directory entries.
+Compare inventories in canonical relative-path and stream-name order without relaxing any identity, hash, attribute,
+time or ACL check. Native moves retain the exact intent and observed post-move inventories before comparison; a
+mismatch retains both snapshots and the payload and refuses completion. Independent regression controls keep
+stale provider metadata and reverse enumeration while verifying the actual file and directory metadata exactly.
