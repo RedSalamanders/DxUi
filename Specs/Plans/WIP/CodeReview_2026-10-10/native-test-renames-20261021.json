@@ -77,5 +77,6 @@
   "Tests/Support/Scope.Tests.FlowchartLayout.h": "Tests/Support/Support.Tests.FlowchartLayout.h",
   "Tests/Support/Scope.Tests.SemanticSourceBlock.h": "Tests/Support/Support.Tests.SemanticSourceBlock.h",
   "Tests/Controls/Scope.Tests.RichTextEditor.cpp": "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
-  "Tests/Controls/Scope.Tests.AnimationClock.cpp": "Tests/Controls/Controls.Tests.AnimationClock.cpp"
+  "Tests/Controls/Scope.Tests.AnimationClock.cpp": "Tests/Controls/Controls.Tests.AnimationClock.cpp",
+  "Tools/ConsumerApi/Revision4.cpp": "Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp"
 }

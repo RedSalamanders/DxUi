@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Name the frozen API revision-4 consumer fixture ConsumerApi.Tests.Revision4.cpp without changing its source bytes.
+  Include consumer fixture directories in the native inventory and reject placeholder Scope names; update source/generated references and handoff links.
 - Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
   consolidating 9,382 verified duplicate payload copies into read-only shared storage; independently verify every
   path, retained hashes, live references and the focused ReFS sandbox behavior, with original metadata journaled.

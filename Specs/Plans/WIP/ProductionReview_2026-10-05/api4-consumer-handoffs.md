@@ -5,7 +5,7 @@ reviewed and an exact library commit is available. It does not update consumer p
 qualify any consumer product.
 
 The candidate's public compile/import contract is frozen in
-[`Tools/ConsumerApi/Revision4.cpp`](../../../../Tools/ConsumerApi/Revision4.cpp) and is compiled by the exact-pin
+[`Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp`](../../../../Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp) and is compiled by the exact-pin
 consumer gate. Passing that fixture establishes the library's declared revision-4 source contract only. Each consumer
 must adopt its own exact pin and run its product tests against the published candidate. The current library candidate
 is still in review; this register intentionally names no candidate commit.

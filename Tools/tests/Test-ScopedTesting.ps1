@@ -112,9 +112,9 @@ try {
             Assert-Scope (@($errors).Count -eq 0) 'PrePush accounting script has parse errors'
             $profiles=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.HashtableAst]},$true))
             Assert-Scope ($profiles.Count -eq 6) 'PrePush does not enumerate all six platform/configuration profiles'
-            $fixture=Join-Path $repository 'Tools/ConsumerApi/Revision4.cpp'
+            $fixture=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp'
             $consumer=Join-Path $repository 'test-consumer.ps1'
-            Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApiRevision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
+            Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
         }
     }
     Run-Case 'active names require exact Tests spelling and reject historical inventory membership' {

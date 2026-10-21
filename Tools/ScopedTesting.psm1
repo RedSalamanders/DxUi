@@ -64,12 +64,12 @@ function Assert-ScopedTestNames {
     if (@($declared | Sort-Object -Unique).Count -ne $declared.Count) { throw 'Duplicate native test inventory paths.' }
     foreach ($path in $declared) {
         if ($path -match '^(Specs|Measurements|legacy|External)/') { throw "Historical/external source cannot enter the active test inventory: $path" }
+        if ($path -match '(^|/)Scope\.Tests\.') { throw "Use a component context instead of placeholder Scope in native test source: $path" }
         if ($path -cnotmatch '(^|/)[^/]+\.Tests\.[^/]+\.(cpp|h)$' -or -not (Test-Path -LiteralPath (Join-Path $Root $path) -PathType Leaf)) { throw "Invalid/missing native test source: $path" }
     }
     $live = @(Get-ScopedTrackedPaths $Root | Where-Object {
         $_ -notmatch '^(Specs|Measurements|legacy|External)/' -and
-        $_ -cne 'Tools/TerminalEngine/TerminalEngineGate0ContractTestAdapter.cpp' -and
-        $_ -match '\.(cpp|h)$' -and ($_ -match '^Tests/|/SelfTest/|(^|/)[^/]*(Test|Mock|Fake)[^/]*\.(cpp|h)$') -and
+        $_ -match '\.(cpp|h)$' -and ($_ -match '^Tests/|^Tools/ConsumerApi/|/SelfTest/|(^|/)[^/]*(Test|Mock|Fake)[^/]*\.(cpp|h)$') -and
         (Test-Path -LiteralPath (Join-Path $Root $_) -PathType Leaf)
     })
     foreach ($path in $live) { if ($path -notin $declared) { throw "Native test source is absent from Tests/native-test-files.json: $path" } }

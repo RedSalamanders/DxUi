@@ -716,6 +716,6 @@
     "Tools/ScopedTesting.psm1",
     "Tools/SuiteFailure.psm1"
   ],
-  "prWorkflowDigest": "5fae247d58fbac0b2b2da38ffafcdc1b9126de72c28ea144be0fb669d4e10266",
+  "prWorkflowDigest": "7a16a8ddd3285a39e5320a125732a5f1d332d33d040f4c2120340dd899bfe554",
   "prNativeScopeModule": "Tools/NativeScope.psm1"
 }

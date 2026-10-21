@@ -718,7 +718,7 @@ Items marked [reported] were traced by a reviewer. The lead checked them only ag
     - Menu `Name` versus `HelpText` changed.
     - `ContextMenuSessionCallbacks::flowDirection` was inserted mid-aggregate.
     - `RemoveTab` can now refuse.
-  - `Tools/ConsumerApi/Revision4.cpp` asserts only the revision-4 additions. It never derives from the model or delegate
+  - `Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp` asserts only the revision-4 additions. It never derives from the model or delegate
     interfaces, and nothing pins its bytes.
   - Panel `TakeChild` leaves a null slot, while TabControl's override erases it. `SetRoot(panel->TakeChild(i))` with a
     refused extraction destroys the whole tree.
