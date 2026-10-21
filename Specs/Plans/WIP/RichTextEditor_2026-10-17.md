@@ -40,11 +40,37 @@ PR #89 readiness, 2026-10-21:
   both failures; current full functional acceptance remains open. Eight consumer
   variants and both Release resource fixtures pass separately; docs-gallery is
   skipped after the Release failure. A fresh-source run must qualify the log fix.
+- [x] Preserve and replay all six original native artifacts from `39568060174`
+  at head `d59b7caa`, tested merge `8f49939d`: five profiles pass, including x64
+  Release and ARM64 ASan. ARM64 Debug fails the shortcut-column layout case;
+  125/126 child scope exits pass with zero skips, but its shared lease leaves
+  both foreground children unqualified. Eight consumer variants and both
+  Release resource fixtures pass separately. Earlier failures remain retained.
+- [x] Reproduce visible-initialization foreground loss before repair. Add fresh
+  bounded foreground attempts for state probes and shortcut layout, controlled
+  cancellation regressions, and hosted warning reacquisition before each child.
+  Preserve original deadlines/assertions and ordinary local activation behavior.
+- [x] Qualify the repaired source locally in x64 Debug, Release and ASan:
+  complete Menu and NativeTextInput suites pass in all three profiles, with zero
+  skips, recorded live focus and verified foreground/focus/pointer restoration.
+  Preserve exact executables, receipts and failed attempts. The three focused
+  cancellation/layout cases pass separately; the native lease self-test passes
+  all 81 checks. An initial shortcut regression assumed cancellation immediately
+  invalidated layout; its retained failure is repaired by observing destruction.
+- [ ] Complete fresh-source native CI in all six profiles, including ARM64 ASan
+  Menu, and synchronize its original artifacts and source-specific results.
+  PrePush accounts for native ARM64 builds/runtime through the enabled matrix;
+  forthcoming CI is pending, never accepted coverage.
 - [x] Retain and replay the completed `39555699478` paired study: original ZIP,
   both measured role executables, 144 receipts, both frozen judges and 72 controls.
   Under seed `981054997`, judges agree on metric labels but 70 controls drift
   (22/24, 24/24, 24/24). The publisher and aggregate fail on the unqualified base
   policy. Replay 5,903 observer samples separately; no quiet-host or causal claim.
+- [x] Retain the next complete paired study, `39568060174`: original ZIP,
+  workflow logs, role executables, 144 receipts, both judges and 72 controls replay.
+  Seed `1327683194` has 71 unstable controls (23/24, 24/24, 24/24), despite judge
+  agreement. The publisher rejects the unqualified base policy. Replay its 5,626
+  observer samples separately; retain the independent-review HOLD.
 - [ ] Investigate D4c using frozen main/candidate identities, controlled matched
   runs, bounded clear/readback and scheduler admission, retaining all original
   failures/outliers. No compilation or functional suites overlap local timing.

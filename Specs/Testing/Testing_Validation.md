@@ -527,6 +527,16 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   must fail the healthy-state assertion; the one-second state and three-second capture bounds stay unchanged.
   Each fixture starts its three-second handler-entry wait at probe preparation after readiness, so slow
   initialization cannot pre-release the deliberate stall. The 1,200/4,000 ms release delays and elapsed bands stay unchanged.
+  The state-probe sequence and standard shortcut-column layout sequence MUST run as bounded whole foreground
+  attempts with a fresh owner, popup and driver state. Only an observed foreground loss or explicit activation
+  refusal admits another attempt; a held behavioral failure MUST reach the original assertion. The existing
+  five-attempt policy applies. Controlled regressions MUST cancel a discovered popup after simulated activation
+  loss and then require a fresh held attempt to satisfy every original probe/layout assertion.
+  `TestContextMenuDebugStateProbeRestartsAfterForegroundLossDuringVisibleInitialization` and
+  `TestMenuShortcutLayoutRestartsAfterForegroundLoss` cover the two sequences. Discarded attempts retain bounded
+  loss/failure diagnostics. A later pass neither removes the original failure nor attributes an untraced CI failure.
+  The shortcut regression waits for actual popup destruction before requiring an unavailable layout query:
+  cancelling the modal loop alone can leave a still-live popup able to answer sent layout queries.
 - **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
   stopped answering. A failed initial healthy-state assertion also reports the answer flag, elapsed time, item count,
   window validity/visibility and owner match, without publishing raw desktop identities.
@@ -777,6 +787,15 @@ retains read-only point/hit-window/geometry/style/region/DPI diagnostics; it sen
 Failed insertion, release, activation or restoration
 MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
 checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
+
+Before creating or resuming each hosted child, the runner MUST verify that its warning still owns the foreground.
+If ordinary activation is refused between children, it MAY reuse the same guarded hosted recovery as startup,
+including every authorization, capture, point-ownership, balanced-input and patch-restoration check above.
+Recovery MUST finish before child launch; failure leaves that child unlaunched with a failed receipt.
+An already-held warning requires no input. No warning click is injected after a child resumes. Ordinary local
+runs retain their existing ordinary pre-launch activation and bounded child-grant retries, without hosted input.
+The native lease self-test MUST cover between-child loss/recovery, no duplicate input while held, ordinary/local
+refusal, authorization loss and active capture. These checks do not replace fresh hosted native execution.
 
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds

@@ -16,3 +16,7 @@
   for controlled local profiling and preserve rejected under-load attempts.
   Preserve raw unqualified child output before replacing a foreground-launch
   failure log; keep current receipts failed and retain earlier originals separately.
+  Run state-probe and shortcut-layout checks in fresh bounded foreground attempts
+  with controlled loss regressions. Recover the hosted warning before each child
+  using the existing guarded input path; retain ordinary local behavior, deadlines,
+  failed evidence and the independent performance-policy HOLD.

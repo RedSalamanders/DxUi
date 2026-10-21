@@ -24,6 +24,8 @@ IME/assistive-technology qualification and consumer adoption remain open.
 
 | Source and coverage | Result and limit |
 | --- | --- |
+| Foreground repair, final local source | Complete Menu and NativeTextInput suites pass in x64 Debug, Release and ASan: six zero-skip scope receipts, recorded live keyboard focus and verified foreground/focus/pointer restoration. Original executables and receipts are sealed. Three focused cancellation/layout cases and all 81 native lease self-test checks pass separately. Earlier failed runs and the corrected cancellation-fixture race remain retained; passing repeats do not attribute historical failures. Fresh hosted native CI remains required. |
+| Published head `d59b7caa`, tested merge `8f49939d`, [CI 39568060174](https://github.com/RedSalamanders/DxUi/actions/runs/39568060174) | All six original native ZIPs match GitHub sizes/digests. Five profiles pass, including x64 Release and ARM64 ASan; ARM64 Debug fails shortcut-column layout. Child scope exits pass in 125/126 cases with zero skips; both foreground children sharing its failed lease remain unqualified. Eight consumer variants, both Release resource fixtures and docs-gallery generation pass separately. Uncommitted repairs require fresh qualification. |
 | Feature head `c1a77e42`, tested merge `6110c7e0`, [CI 39555699478](https://github.com/RedSalamanders/DxUi/actions/runs/39555699478) | All six original native ZIPs match GitHub byte counts/digests. Four profiles pass; x64 Release fails foreground admission/restoration and ARM64 ASan fails a Menu probe assertion. Child scope exits pass in 124/126 cases, with zero capability skips; children of failed shared leases remain unqualified. Eight consumer variants and both Release resource fixtures pass separately. Paired collection completes, but its publisher and aggregate fail. Full qualification remains open; Release docs-gallery generation is skipped. |
 | Prior feature head `335c5157`, tested merge `17969dc3`, [CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925) | All six original native artifacts are sealed and independently replayed: 126 native scope passes, zero capability skips, two resource fixtures and eight consumer variants. That tested merge and head have identical trees. Validation, tooling and formatting pass; performance acceptance remains on HOLD. |
 | `61efca4c`, tested merge `6e2f455b`, [CI 39480512299](https://github.com/RedSalamanders/DxUi/actions/runs/39480512299) | Sealed original artifacts verify 126 native scope passes across x64/ARM64 Debug, Release and ASan, zero capability skips, two extra resource fixtures and eight consumer variants. Paired collection succeeded; its publisher and aggregate gate failed on the unqualified measured-base policy. |
@@ -46,6 +48,21 @@ Neither observation establishes a cause. No retry replaces either failure;
 the original jobs/artifacts are preserved. The following log-retention repair
 requires fresh-source CI qualification.
 
+Two Menu sequences now use fresh bounded foreground attempts: the state-probe
+fixture and standard shortcut-column layout. Their controlled regressions cancel
+a discovered popup after activation loss, preserve its diagnostic and require
+every original assertion on a fresh held attempt. A visible-initialization
+regression fails before the repair with the same hidden-popup symptom; this is
+not attribution of the earlier untraced ARM64 failure. Hosted warning recovery
+also completes before each child launches, reusing the existing authorization,
+capture, ownership, balanced-input and restoration checks. Seven added native
+self-test checks cover between-child recovery and refusal paths. Local activation
+behavior and probe/layout deadlines remain unchanged; final-source validation
+is tracked in the implementation plan. The shortcut regression synchronizes
+actual destruction before requiring an unavailable layout query; cancellation
+alone may still permit a sent query. These harness changes alter no control
+pixels or public runtime API, so the documentation gallery requires no new capture.
+
 The launch-failure log wrapper now preserves existing raw bytes in unique
 unqualified `.log` siblings before writing the canonical failure marker. Two
 retention regressions fail before the fix; all 40 interactive-wrapper tooling
@@ -65,7 +82,8 @@ controls. Neither result establishes accepted non-regression or causal regressio
 
 | Retained investigation | Finding |
 | --- | --- |
-| [Current main/candidate CI 39555699478](https://github.com/RedSalamanders/DxUi/actions/runs/39555699478), seed `981054997` | Original 139,034,543-byte ZIP and both role executables are sealed. All 144 receipts, both frozen judges and 72 controls replay. Judges agree on metric labels, but 70/72 controls drift (22/24, 24/24, 24/24). The publisher rejects acceptance because the measured-base policy is unqualified; diagnostic labels do not establish non-regression. |
+| [Main/candidate CI 39568060174](https://github.com/RedSalamanders/DxUi/actions/runs/39568060174), seed `1327683194` | Original 138,880,407-byte ZIP, workflow logs and role executables are sealed. All 144 receipts, both frozen judges and 72 controls replay. Judges agree on metric labels, but 71/72 controls drift (23/24, 24/24, 24/24). The publisher rejects the unqualified measured-base policy. The 5,626-sample observer stream replays separately; neither result establishes accepted non-regression or attribution. |
+| [Main/candidate CI 39555699478](https://github.com/RedSalamanders/DxUi/actions/runs/39555699478), seed `981054997` | Original 139,034,543-byte ZIP and both role executables are sealed. All 144 receipts, both frozen judges and 72 controls replay. Judges agree on metric labels, but 70/72 controls drift (22/24, 24/24, 24/24). The publisher rejects acceptance because the measured-base policy is unqualified; diagnostic labels do not establish non-regression. |
 | [Main/candidate CI 39463272390](https://github.com/RedSalamanders/DxUi/actions/runs/39463272390) | Exact replay of 144 receipts, both frozen judges and 72 controls; 68 controls drifted. Judges disagree on clean preparation. The measured-base policy is unqualified. |
 | [Previous main/candidate CI 39480512299](https://github.com/RedSalamanders/DxUi/actions/runs/39480512299), seed `1202880588` | Original role executables rehashed; all 144 receipts, both judges and 72 controls replay. Judges agree on metric labels, while 65/72 controls drift (21/24, 24/24, 20/24). Required acceptance fails on the unqualified base policy. |
 | [Previous main/candidate CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925), seed `1568326520` | The original ZIP and both role executables are sealed; all 144 receipts, both judges and 72 controls replay. All 72 controls drift. The legacy judge flags MultilineGrid clean composition p95; the migrated judge reports within-noise. Collection succeeds, but the required publisher and aggregate fail on the unqualified base policy. |

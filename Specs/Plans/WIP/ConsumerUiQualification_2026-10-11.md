@@ -299,7 +299,8 @@ pass with zero skips and verified foreground/focus/pointer outcomes. Pre-confirm
 focus is live/recorded; foreground and focus remain unchanged and pointer is restored.
 This qualifies the local run without attributing prior failures or replacing
 hosted acceptance. Original native outputs are retained and executable/lease hashes
-match the receipts. There is no remaining authorization for another local focus run.
+match the receipts. That earlier authorization was consumed; a later window is
+separately approved for the current repairs and does not qualify earlier runs.
 
 The PowerShell launch-failure handler also had a reproduced evidence-retention
 defect: canonical failure replacement destroyed any existing child output. It now
@@ -308,6 +309,43 @@ receipts remain failed. Two new regressions fail before repair and all 40 wrappe
 cases pass afterwards. Missing output, repeated refusals, literal Unicode paths and
 failed retention are covered. This fixes future evidence preservation only;
 foreground behavior and existing probe deadlines are unchanged.
+
+The next published head `d59b7caa`, tested merge `8f49939d`, has five passing
+native profiles in [CI 39568060174](https://github.com/RedSalamanders/DxUi/actions/runs/39568060174),
+including x64 Release and ARM64 ASan. Its newly failing ARM64 Debug Menu case is
+`TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText`. All six original
+ZIPs match GitHub sizes/digests: 125/126 zero-skip child scope exits pass, but both
+children sharing the failed lease remain unqualified. Eight consumer variants,
+both Release resource fixtures and docs-gallery generation pass separately.
+These results neither qualify the uncommitted repairs nor attribute earlier failures.
+
+The repair adds fresh bounded foreground attempts to the visible state-probe
+and shortcut-layout sequences, with forced activation-loss/cancellation coverage.
+A controlled visible-initialization regression first reproduces the hidden-popup
+failure before repair. Hosted startup and between-child admission share the
+existing guarded warning recovery; seven added native self-test checks cover the
+handoff and refusals. Ordinary local activation and all probe/layout bounds stay
+unchanged. Final local Debug, Release and ASan each pass complete Menu and
+NativeTextInput suites: six zero-skip scope receipts with recorded live focus and
+verified foreground/focus/pointer restoration. All 81 native lease self-test
+checks and three focused cancellation/layout cases pass separately. Preserve
+earlier pointer/activation refusals and the first shortcut regression's incorrect
+immediate-invalidation assumption; its corrected fixture observes destruction.
+Passing repeats do not attribute older untraced failures. Keep original binaries,
+receipts and discarded-attempt diagnostics with their actual identities.
+Fresh-source hosted native qualification remains required in all six profiles,
+including ARM64 ASan Menu. PR #89 remains draft for independent policy review.
+
+That next published study also completes. Its original 138,880,407-byte ZIP,
+workflow logs and both role executables are sealed. Under seed `1327683194`,
+all 144 receipts, both frozen judges and 72 controls replay; judges agree on
+metric labels, but 71 controls drift (23/24, 24/24, 24/24). The required publisher
+rejects the independently unqualified measured-base policy. The observer stream
+separately replays 5,626 samples over 5,805.33 seconds, median/p95 collection
+2.15/11.71 ms, maximum collection 6,958.63 ms, maximum sample-start interval
+7.96 seconds and sampled-span CPU
+0.337% of one logical core. These remain diagnostic observations, with no
+quiet-host, causal, scheduler/GPU or accepted non-regression claim.
 
 ### PR #80 paired-control investigation (17 October 2026)
 
