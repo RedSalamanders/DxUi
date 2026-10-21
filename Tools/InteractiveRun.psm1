@@ -363,7 +363,18 @@ function Invoke-DxUiLeaseCore {
 
 function Write-DxUiLeaseFailureLog {
     [CmdletBinding()] param([Parameter(Mandatory)][string] $Path, [Parameter(Mandatory)][string] $Suite)
-    Set-Content -LiteralPath $Path -Value "[LEASE] $Suite did not run under the foreground lease" -Encoding utf8
+    $message = "[LEASE] $Suite did not run under the foreground lease"
+    if (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction Stop) {
+        # A child can write before its foreground grant fails; the file can also be stale.
+        # Retain either as unqualified bytes, never as this run's canonical receipt source.
+        $original = (Get-Item -LiteralPath $Path -ErrorAction Stop).FullName
+        $retained = $original + '.unqualified-' + [guid]::NewGuid().ToString('N') + '.log'
+        # Copy before replacement and refuse to overwrite any retained file. A failed copy
+        # must throw before the original is changed. The .log suffix includes it in CI uploads.
+        [IO.File]::Copy($original, $retained, $false)
+        $message += "`n[LEASE] Unqualified previous output retained separately: $([IO.Path]::GetFileName($retained))"
+    }
+    Set-Content -LiteralPath $Path -Value $message -Encoding utf8 -ErrorAction Stop
 }
 
 function Invoke-DxUiInteractiveLease {

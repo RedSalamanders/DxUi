@@ -379,8 +379,7 @@ bool ToggleMarker(Document& document, std::wstring_view marker)
     const auto snapshot  = document.Snapshot();
     const auto selection = document.GetSelection();
     const auto first = selection.Start(), last = selection.End();
-    // CTxtRange::ReplaceRange (Office RVA 0x360a0) distinguishes signed
-    // selection directions. Apply delimiter deltas to anchor/caret separately
+    // Apply delimiter deltas to anchor and caret separately
     // so a backwards rich selection keeps its active end.
     const auto size = marker.size();
     if (first >= size && size <= snapshot.Length() - last && snapshot.IsBoundary(first - size) && snapshot.IsBoundary(last + size) &&

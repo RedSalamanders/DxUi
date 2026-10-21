@@ -4801,7 +4801,18 @@ void ApplyMenuCursorAtPointer(MenuController& controller) noexcept
 {
     POINT pointer{};
     if (GetCursorPos(&pointer) != FALSE) // getcursorpos-allow: one-shot cursor choice when a menu takes or moves capture
+    {
+        // A keyboard-opened popup may take capture before any move has been
+        // delivered. Seed only missing history so Windows' stationary capture
+        // message preserves keyboard selection. Never overwrite delivered
+        // history: a genuinely pending movement must still update hover.
+        if (! controller.hasLastPointerScreenPoint)
+        {
+            controller.lastPointerScreenPoint    = pointer;
+            controller.hasLastPointerScreenPoint = true;
+        }
         ApplyMenuPointerCursor(controller, pointer, FindPointerTargetPopup(controller, pointer) != nullptr);
+    }
 }
 
 // When the menu closes, the window under the pointer chooses its cursor at once rather than at the next pointer move

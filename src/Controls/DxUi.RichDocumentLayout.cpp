@@ -226,8 +226,8 @@ void PreparedDocumentLayout::CancelPreparation() noexcept
 LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
 {
-    // Office's pending/step/completion routines motivate the separation of these
-    // states, not a private ABI, timer, worker, or arbitrary-thread SDK access.
+    // Retain compatible pending work so the host can resume preparation in
+    // bounded steps on the thread that owns the layout factory.
     if (pending_ && pending_->next->factory.get() == factory && pending_->next->projection.Mode() == mode &&
         pending_->next->projection.Revision() == revision && SameOptions(pending_->next->options, options) &&
         source.ChangedRangeFrom(pending_->next->source).kind == SourceChangeKind::Unchanged)

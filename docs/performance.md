@@ -89,7 +89,7 @@ without excluding metadata or relaxing comparison. SkipBuild preserves attested
 contexts and refuses a changed benchmark project. A successful preflight is setup
 admission, not performance acceptance; the unqualified-policy gate still applies.
 
-The [RichTextEditor source-command investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [RichTextEditor source-command investigation](../Measurements/RichText/README.md)
 retains a corrected matching-profile 48-process Default study and eight CPU/cache
 profiles. Its clean-frame p95 paired effect is -1.31%, with both judges agreeing
 on all 26 within-noise verdicts. All 24 controls flag some drift; 13 cross the
@@ -511,6 +511,15 @@ finite fresh-process schedule and retain all sidecars, failures and outliers.
 Interior timers can alter readiness; omitted-command controls change backend
 dependencies and cannot be subtracted into GPU durations. Scheduler attribution
 requires an actual aligned trace. This adds no acceptance metric or verdict.
+
+Hosted paired artifacts also retain the original measured native outputs and
+attestations. `Tools/Watch-BenchmarkHost.ps1` records continuous cumulative host
+CPU and process CPU/memory observations before the study starts through its end.
+Inspect gaps, observer collection cost and inaccessible processes; this is not
+a scheduler trace or a dedicated-host claim. Download artifacts before their
+14-day expiry. Compiler/SDK hashes do not by themselves retain those original
+bytes. The [shared policy-review proposal](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026)
+keeps that closure limit and independent approval explicit.
 
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as

@@ -1,31 +1,30 @@
-# Explicit native WARP policy: local validation
+# Explicit native WARP policy: evidence summary
 
-Runtime source: `dd619ef0c5855307eb57758072658f2e3b777fd8`, on `ej/redtilde-s5-host-policy`, stacked
-above the native math/diagram feature branch. Subsequent evidence/documentation changes do not move the
-consumer's immutable runtime pin. `SourceManifest.json` records the compiled input fingerprint, actual fixture
-hashes, six build attestations and binary hashes.
+Runtime source `dd619ef0c5855307eb57758072658f2e3b777fd8` originally passes 19
+noninteractive suites in each x64 Debug, Release and ASan Debug profile (57
+zero-skip passes), all six builds, the real expected-failure ASan probe,
+validators and pinned formatting. ARM64 results are cross-builds. No local
+focus-taking tests were authorized for that implementation.
 
-All 19 default noninteractive suites pass in x64 Debug, Release and ASan Debug: **57 passes, zero capability
-skips**. All six x64/ARM64 builds pass; this machine is x64 and does not establish ARM64 runtime support.
-The real ASan expected-failure probe detects heap use after free. Aggregate validation and pinned formatting
-pass. No focus-taking suite was authorized or run.
+The isolated native policy case proves first-attachment WARP selection, actual
+software-adapter flags, inheritance by default peers, idempotence, conflicting
+policy refusal with unchanged attachment counts, replacement generation changes
+and final host retirement. Geometry and default gallery content are unchanged.
 
-The isolated native policy case proves first-attachment WARP selection, actual software-adapter flags,
-inheritance by default peers, matching idempotence, conflict refusal with unchanged attachment accounting,
-device-replacement generation changes and final host retirement. The complete WindowHost, Embedded and
-control suites cover the surrounding default behavior. Geometry, tokens and default gallery content are
-unchanged, so this option requires no new visual baseline.
+[PR #91](https://github.com/RedSalamanders/DxUi/pull/91) retains the implementation
+history. Original source/fixture manifests, binary hashes, complete receipts,
+failed initial build diagnostics and unpaired resource rounds are preserved in
+`pr91-host-original.zip` (SHA-256
+`1FB26D339EA4EEA4198FE572DACC2DA4FBFA1444145B3E88E29F8A675E221777`)
+and the verified pre-integration Git recovery bundle. Every archive entry was
+compared with its original bytes before removing raw files from the merged tree.
+No independent process was terminated to unblock a build.
 
-Suite/build JSON retains its original receipt hash and adds library ownership, fixture hashes and the runtime
-binding. Original private reports remain under `.build`; reviewed logs retain both the initial WIL compile
-failure and the safe build refusal while another test process was being inspected. The corrected build and
-all full suites pass separately. No process was killed to bypass the running-output guard.
-
-`Performance-Before-Unpaired.json` and `Performance-After-Unpaired.json` retain independent complex-UI WARP
-rounds, resource phases and provenance. They were not alternated and other work was active. They are
-diagnostics only: no performance non-regression, new baseline or D4c acceptance is claimed. The application
-completed-frame A/A, A/B and lifecycle evidence belongs in RedTilde's repository, not this library packet.
-
-Physical device removal/occlusion, kernel/GPU lifetime qualification, native ARM64 execution, physical IME/AT,
-time-authorized focus work and D4c remain open. Pending PR CI is not counted as a local pass. The overall
-rich-editor WIP remains active.
+Integration reapplies the two host-policy commits to current main. Earlier
+source-specific results do not qualify the combined source; current affected
+checks and integration CI are separate evidence. The consumer's exact pin remains
+preserved; library integration changes no consumer pin implicitly. Unpaired
+rounds establish no non-regression. Physical device loss/occlusion, GPU lifetime,
+native ARM64 runtime, physical IME/AT, agreed-time focus checks, independent
+performance policy and D4c remain open in the
+[active plan](../../../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).

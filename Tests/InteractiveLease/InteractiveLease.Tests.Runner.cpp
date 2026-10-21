@@ -82,6 +82,13 @@ public:
     {
     }
 
+    [[nodiscard]] bool ActivateOrdinary() noexcept
+    {
+        const bool acquired = _desktop.ActivateAnchor();
+        Print(acquired ? "warning ordinary activation: verified" : "warning ordinary activation: refused");
+        return acquired;
+    }
+
     [[nodiscard]] bool IsAuthorized() const noexcept
     {
         return IsVerifiedGitHubHostedRunner();
@@ -236,7 +243,7 @@ public:
 
     [[nodiscard]] bool WarningIsForeground() const noexcept
     {
-        return GetForegroundWindow() == _banner.Window();
+        return _banner.Window() != nullptr && GetForegroundWindow() == _banner.Window();
     }
 
     [[nodiscard]] bool EndPatch() noexcept
@@ -320,24 +327,7 @@ public:
             return false;
         }
         _desktop.SetAnchor(_banner.Window());
-        const bool ordinaryActivationSucceeded = _desktop.ActivateAnchor();
-        if (IL::ShouldUseHostedWarningInputFallback(_hosted, ordinaryActivationSucceeded))
-        {
-            Print("warning activation was refused; trying the hosted warning's guarded input patch");
-            HostedWarningInputOperations input(_banner, _desktop);
-            const IL::HostedWarningInputFailure failure = IL::ActivateHostedWarningWithInput(input);
-            if (failure != IL::HostedWarningInputFailure::None)
-            {
-                reason = std::format("the hosted warning input fallback failed: {}", IL::HostedWarningInputFailureText(failure));
-                return false;
-            }
-        }
-        else if (! ordinaryActivationSucceeded)
-        {
-            reason = "the warning window could not take the foreground (the system refused)";
-            return false;
-        }
-        return true;
+        return EnsureWarningForeground(reason);
     }
 
     void HideWarning() override
@@ -349,6 +339,17 @@ public:
     [[nodiscard]] TS::ChildResult RunChild(const TS::ChildRun& run, unsigned timeoutSeconds) override
     {
         Log(std::format("{}: started", TS::ToUtf8(run.name)));
+        // Hosted recovery completes before creating/resuming the next child. Local
+        // runs retain their ordinary pre-launch and four-second grant retries;
+        // neither path injects a warning click while the child is running.
+        std::string reason;
+        if (_hosted && ! EnsureWarningForeground(reason))
+        {
+            TS::ChildResult refused{};
+            refused.error = "warning foreground admission before child launch failed: " + reason;
+            Log(std::format("{}: not started: {}", TS::ToUtf8(run.name), refused.error));
+            return refused;
+        }
         // The child can be granted the foreground only by a process that holds it, and the child before it may have left the person's
         // window in front: hold it before the launch, and again if the grant is refused.
         const auto holdForeground = [this]
@@ -380,6 +381,19 @@ public:
     }
 
 private:
+    [[nodiscard]] bool EnsureWarningForeground(std::string& reason)
+    {
+        HostedWarningInputOperations input(_banner, _desktop);
+        const auto acquired = IL::AcquireWarningForeground(_hosted, input);
+        if (acquired.usedHostedInput)
+            Print(acquired.acquired ? "hosted warning recovery: verified" : "hosted warning recovery: refused");
+        if (! acquired.acquired)
+            reason = acquired.usedHostedInput
+                         ? std::format("the hosted warning input fallback failed: {}", IL::HostedWarningInputFailureText(acquired.inputFailure))
+                         : "the warning window could not take the foreground (the system refused)";
+        return acquired.acquired;
+    }
+
     PCWSTR _mutexName;
     bool _hosted = false;
     wil::unique_mutex_nothrow _mutex;
@@ -521,6 +535,7 @@ public:
             return TS::LeaseExit::kUsage;
         ChildProcesses();
         HostedWarningInput();
+        WarningForegroundBetweenChildren();
         SessionLease();
         PrivateDesktop();
         std::error_code ignored;
@@ -635,15 +650,25 @@ private:
             EndPatch
         } failure = Failure::None;
 
-        int hitTests       = 0;
-        int down           = 0;
-        int up             = 0;
-        int pumps          = 0;
-        int authorizations = 0;
-        int buttonChecks   = 0;
-        int captureChecks  = 0;
-        bool began         = false;
-        bool ended         = false;
+        int hitTests                    = 0;
+        int down                        = 0;
+        int up                          = 0;
+        int pumps                       = 0;
+        int authorizations              = 0;
+        int buttonChecks                = 0;
+        int captureChecks               = 0;
+        bool began                      = false;
+        bool ended                      = false;
+        bool foreground                 = false;
+        bool ordinaryActivationSucceeds = false;
+        int ordinaryActivations         = 0;
+
+        [[nodiscard]] bool ActivateOrdinary() noexcept
+        {
+            ++ordinaryActivations;
+            foreground = ordinaryActivationSucceeds;
+            return foreground;
+        }
 
         [[nodiscard]] bool IsAuthorized() noexcept
         {
@@ -682,7 +707,8 @@ private:
         [[nodiscard]] bool PumpUntilForeground() noexcept
         {
             ++pumps;
-            return failure != Failure::ForegroundWait && failure != Failure::ForegroundWaitAndUpPump;
+            foreground = failure != Failure::ForegroundWait && failure != Failure::ForegroundWaitAndUpPump;
+            return foreground;
         }
         [[nodiscard]] bool SendLeftButtonUp() noexcept
         {
@@ -696,7 +722,7 @@ private:
         }
         [[nodiscard]] bool WarningIsForeground() const noexcept
         {
-            return failure != Failure::ForegroundReadback;
+            return foreground && failure != Failure::ForegroundReadback;
         }
         [[nodiscard]] bool EndPatch() noexcept
         {
@@ -756,6 +782,50 @@ private:
             static_cast<void>(IL::ActivateHostedWarningWithInput(fake));
             Check(fake.pumps == 2 && fake.ended, "failed activation or up insertion still attempts bounded release readback before restoring the patch");
         }
+    }
+
+    void WarningForegroundBetweenChildren()
+    {
+        FakeHostedInputOperations alreadyHeld;
+        alreadyHeld.foreground = true;
+        const auto held        = IL::AcquireWarningForeground(true, alreadyHeld);
+        Check(held.acquired && ! held.usedHostedInput && alreadyHeld.ordinaryActivations == 0 && ! alreadyHeld.began,
+              "an already-held warning needs neither activation nor input");
+
+        FakeHostedInputOperations handoff;
+        handoff.ordinaryActivationSucceeds = true;
+        const auto first                   = IL::AcquireWarningForeground(true, handoff);
+        Check(first.acquired && ! first.usedHostedInput && handoff.ordinaryActivations == 1 && ! handoff.began,
+              "initial ordinary activation needs no hosted input");
+        // Model the first child's windows closing into another application's
+        // foreground, followed by Windows refusing the parent's ordinary request.
+        handoff.foreground                 = false;
+        handoff.ordinaryActivationSucceeds = false;
+        const auto second                  = IL::AcquireWarningForeground(true, handoff);
+        Check(second.acquired && second.usedHostedInput && handoff.ordinaryActivations == 2 && handoff.down == 1 && handoff.up == 1 && handoff.ended,
+              "the next child reacquires through the same guarded hosted path as startup");
+        const auto stillHeld = IL::AcquireWarningForeground(true, handoff);
+        Check(stillHeld.acquired && ! stillHeld.usedHostedInput && handoff.ordinaryActivations == 2 && handoff.down == 1,
+              "verified reacquisition does not repeat the warning click");
+
+        FakeHostedInputOperations local;
+        const auto localRefusal = IL::AcquireWarningForeground(false, local);
+        Check(! localRefusal.acquired && ! localRefusal.usedHostedInput && ! local.began && local.down == 0,
+              "ordinary local reacquisition never enables hosted input");
+
+        FakeHostedInputOperations unauthorized;
+        unauthorized.failure = FakeHostedInputOperations::Failure::Unauthorized;
+        const auto refused   = IL::AcquireWarningForeground(true, unauthorized);
+        Check(! refused.acquired && refused.inputFailure == IL::HostedWarningInputFailure::HostedAuthorizationLost && ! unauthorized.began &&
+                  unauthorized.down == 0,
+              "lost hosted authorization refuses reacquisition before input");
+
+        FakeHostedInputOperations captured;
+        captured.failure          = FakeHostedInputOperations::Failure::CaptureActive;
+        const auto captureRefusal = IL::AcquireWarningForeground(true, captured);
+        Check(! captureRefusal.acquired && captureRefusal.inputFailure == IL::HostedWarningInputFailure::MouseCaptureActive && ! captured.began &&
+                  captured.down == 0,
+              "mouse capture still refuses pre-child recovery before patch or input");
     }
 
     void SessionLease()

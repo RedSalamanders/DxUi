@@ -259,7 +259,7 @@ never passes. Preserve original receipts and source/artifact identities.
 The current spec-only change alters no rendering, example state, source or test
 binary: published gallery pixels remain unchanged. No native test/build rerun is
 claimed for this document. The existing file-reference paste qualification remains
-source-specific [evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-file-reference-paste/README.md),
+source-specific [evidence](../../../Measurements/RichText/README.md),
 not drag-and-drop qualification. The draft RichTextEditor PR must name the parent
 plan's remaining gates and any unresolved merge conflicts with current main.
 

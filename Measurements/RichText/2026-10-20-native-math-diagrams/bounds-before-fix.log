@@ -1,6 +1,0 @@
-[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
-[START] EditorControls
-  [START] TestRichSemanticNativeMathematicsAndBroaderMermaid
-  [DONE] TestRichSemanticNativeMathematicsAndBroaderMermaid (0.027 s)
-  [START] TestRichSemanticNativeMathAndBroaderDiagrams
-FAIL rich semantic: prepared native object reserves actual in-document geometry

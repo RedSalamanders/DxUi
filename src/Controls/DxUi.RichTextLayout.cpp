@@ -205,9 +205,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
             ! IsEditBoundary(projection.text, run.start + run.length))
             throw std::invalid_argument("Invalid rich-text style range");
     }
-    // Office TxDrawD2D (RVA 0x15db90) adapts a supplied target to a renderer.
-    // This owned implementation uses public DirectWrite styles and metrics;
-    // it does not call the private Office/LineServices/PTS rendering interfaces.
+    // Create the retained text format through the supplied DirectWrite factory.
     wil::com_ptr<IDWriteTextFormat> format;
     Check(factory->CreateTextFormat(options.fontFamily.c_str(),
                                     nullptr,
