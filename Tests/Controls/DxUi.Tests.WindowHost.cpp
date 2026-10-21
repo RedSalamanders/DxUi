@@ -4,6 +4,7 @@
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.HostControlRegressions.h"
+#include "Scope.Tests.NativeDevicePolicy.h"
 #include <DxUi/NativeMenuInterop.h>
 
 #include <array>
@@ -5634,6 +5635,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot);
     DXUI_RUN_TEST(TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl);
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
+    DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);
     DXUI_RUN_TEST(TestWindowHostPointerInputClearsKeyboardFocusVisible);

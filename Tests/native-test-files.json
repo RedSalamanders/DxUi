@@ -44,6 +44,7 @@
   "Tests/Controls/Scope.Tests.MarkdownCorpus.h",
   "Tests/Controls/Scope.Tests.MenuPopupReadiness.cpp",
   "Tests/Controls/Scope.Tests.MenuPopupReadiness.h",
+  "Tests/Controls/Scope.Tests.NativeDevicePolicy.h",
   "Tests/Controls/Scope.Tests.PreparedTreeAccessibilityEvents.h",
   "Tests/Controls/Scope.Tests.RichDocument.cpp",
   "Tests/Controls/Scope.Tests.RichDocument.h",

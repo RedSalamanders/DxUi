@@ -1,5 +1,11 @@
 # Hosting, input and lifetime
 
+For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
+other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible
+forced request returns false with `ERROR_INVALID_STATE` and preserves existing attachments; detach the last
+attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
+hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
+
 PageHost's current page participates in Tab traversal and UI Automation, including child patterns, labels and
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.

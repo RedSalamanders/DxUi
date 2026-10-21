@@ -303,6 +303,11 @@
       "reason": "owning suite source"
     },
     {
+      "pattern": "Tests/Controls/Scope.Tests.NativeDevicePolicy.h",
+      "scopes": ["WindowHost"],
+      "reason": "native WARP selection, pool conflict and device replacement"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.InteractiveLease.cpp",
       "scopes": [
         "InteractiveLease"

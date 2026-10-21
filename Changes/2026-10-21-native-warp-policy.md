@@ -1,0 +1,1 @@
+- Add explicit native-host WARP selection with shared-thread policy inheritance, conflict refusal and device-replacement coverage for deterministic consumer validation.

@@ -93,6 +93,7 @@
     "bounded-source-exact-markdown-commands-preview",
     "bounded-semantic-style-structure-uia-preview",
     "bounded-native-inline-display-math-preview",
+    "native-window-host-explicit-warp-policy",
     "bounded-native-mermaid-state-class-preview",
     "control-catalog",
     "intrinsic-control-measurement",
