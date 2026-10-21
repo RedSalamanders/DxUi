@@ -119,12 +119,12 @@ try {
     }
     Run-Case 'active names require exact Tests spelling and reject historical inventory membership' {
         $naming=Join-Path $fixture 'naming'
-        foreach($invalid in @('Tests/Scope.tests.Case.cpp','Specs/TestRuns/Scope.Tests.Case.cpp')) {
+        foreach($invalid in @('Tests/Scope.tests.Case.cpp','Tests/Scope.Tests.Case.cpp','Specs/TestRuns/Scope.Tests.Case.cpp')) {
             Write-Fixture (Join-Path $naming $invalid) 'invalid declared source'
             Write-Fixture (Join-Path $naming 'Tests/native-test-files.json') (ConvertTo-Json -InputObject @($invalid) -Compress)
             $message=''
             try {Assert-ScopedTestNames $naming | Out-Null} catch [System.Management.Automation.RuntimeException] {$message=$_.Exception.Message}
-            Assert-Scope ($message -match 'Invalid/missing native test source:|Historical/external source cannot enter') "Invalid inventory accepted: $invalid ($message)"
+            Assert-Scope ($message -match 'Invalid/missing native test source:|Historical/external source cannot enter|Use a component context instead of placeholder Scope') "Invalid inventory accepted: $invalid ($message)"
         }
     }
     Run-Case 'committed, staged, working, deleted, both rename sides and spaced untracked paths count' {
