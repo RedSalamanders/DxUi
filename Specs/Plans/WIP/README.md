@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Completed uncommitted batch integration](CompletedBatchesReview_2026-10-21.md). Review completed archive/policy, sandbox and generated-output changes across five repositories; preserve active work and qualify each selected batch before publication.
+
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
@@ -25,7 +27,7 @@ focused Debug checks; metadata validity and remaining extensions are in progress
 
 - **ACTIVE**: [CI run scope](CiRunScope_2026-10-04.md). The validation workflow runs once per change (pushes validate main alone), and a documentation-only pull request skips the six native jobs; the hosted behavior remains to be observed.
 
-- **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single owner of shared qualification; the API-4 register owns consumer actions. PR #87's exact post-merge run passes six native profiles, eight enabled public-consumer checks and 128 zero-skip suite receipts (Menu 113/113 and NativeTextInput 169/169 per profile). Native ARM64 traces verify the staged-TSF boundary; three shared ARM64 leases still report foreground-minimized/none, leaving focus restoration unverified. The implementation-only merge and green push CI do not qualify the skipped paired gate or unchanged qualified=false policy. Earlier failures, attribution gaps, timing/memory flags, MultilineGrid uncertainty and retention limits remain. All 20 qualification HOLDs, deadlines and thresholds stay unchanged.
+- **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single owner of shared qualification; the API-4 register owns consumer actions. PR #88's exact post-merge run passes six native profiles, eight enabled public-consumer checks and 128 zero-skip suite receipts (Menu 113/113 and NativeTextInput 169/169 per profile), with both intentional ASan probes detected. Three shared ARM64 leases again report foreground-minimized/none, leaving focus restoration unverified; approved ordinary-host/native ARM64 observations with recorded initial focus remain necessary. PR #87 evidence retains its original source identity. Green push CI does not qualify the skipped paired gate or unchanged qualified=false policy. Earlier failures, attribution gaps, timing/memory flags, MultilineGrid uncertainty and retention limits remain. All 20 qualification HOLDs, deadlines and thresholds stay unchanged.
 
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.
 

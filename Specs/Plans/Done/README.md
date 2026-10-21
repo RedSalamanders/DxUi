@@ -1,8 +1,14 @@
 # Completed plans
 
+- [Verified .Perf archive and cache cleanup](PerfArchiveCleanup_2026-10-21.md) — completed 2026-10-21: inspect 13 roots, remove 679 fully verified redundant cache files in 114 directories, preserve unique archives and prior runs, verify 22 live junctions and fresh ReFS success/NTFS skip, and pass complete repository validation.
+
 - [Changes workflow review fixes across five projects](ChangesWorkflowReviewFixes_2026-10-21.md) — tab-separated release boundaries, bounded owned-child cleanup, 105 passing shared-case executions and preserved concurrent guidance; local tooling scope, publication status in Git/PRs.
 
 - [Consistent Changes workflow across five projects](ChangesWorkflow_2026-10-21.md) — shared instructions, validation, immediate folding and 95 passing behavior-case executions; tooling-only scope validated in isolated feature worktrees, with concurrent guidance preserved before publication.
+
+- [Measurement archive repair](MeasurementArchiveRepair_2026-10-21.md) — completed 2026-10-21: SHA-256-verified private preservation of 396 originals, public inventory of 395 raw files, removal of their redundant copies and 25 empty folders, and passing complete repository validation. Qualification HOLDs remain unchanged.
+
+- [Drive-root artifact cleanup](DriveRootArtifactCleanup_2026-10-21.md) — completed 2026-10-21 for verified evidence preservation, removal of 25 development root entries, 22 junction repairs, Git/pointer repair, explicit project-root authorization guidance and the focused RedSalamander ReFS sandbox repair. Existing whole-repository qualification failures and holds remain explicit.
 
 - [Host and control review fixes](HostControlReviewFixes_2026-10-16.md) — completed 2026-10-17 for approved library repairs, ten behavior regressions, six builds and 69 passing x64 suite executions including all twelve foreground runs with zero skips and verified restoration. Shared performance-policy, native-platform, physical-input/IME/AT and consumer gates remain open; earlier failed/refused attempts remain retained.
 

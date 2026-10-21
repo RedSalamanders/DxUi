@@ -4,6 +4,14 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Inventory 13 existing project `.Perf` roots and remove 679 SHA-256-verified redundant cache files in 114
+  directories, preserving retained build archives, unique qualification evidence and active targets; verify all
+  22 live junctions and fresh ReFS success plus the expected NTFS capability skip, with prior runs preserved.
+- Restore the main-qualification packet's summary-only publication boundary: preserve and SHA-256-verify all 396
+  originals privately, inventory 395 raw files publicly, remove their redundant copies and 25 empty folders, and
+  document genuine measurement metadata and consumer path-length requirements without changing qualification gates.
+- Require explicit user authorization for each exact project-specific `.Perf` root, keep other generated output inside approved workspaces, and preserve evidence and live references during artifact cleanup.
+- Record PR #88's verified post-merge results and remaining ARM64 focus-restoration limitation, preserving all 20 qualification HOLDs, deadlines and thresholds.
 - Resolve explicit relative Changes roots against the current PowerShell location; regression coverage verifies validation, preview and folding leave a different process-directory checkout untouched.
 - Keep new entries under Unreleased when a released heading uses a tab separator, and terminate an owned timed-out tooling fixture child tree before cleanup. Add independent released-heading and process-timeout regressions, and preserve the concurrent top-level drive-root guidance layout.
 - Add explicit native-host WARP selection with shared-thread policy inheritance, conflict refusal and device-replacement coverage for deterministic consumer validation.

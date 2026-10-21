@@ -9,6 +9,26 @@ machine, workspace-path and foreground-session metadata. Its SHA-256 is
 That hash identifies the local record if it is reviewed privately; the summary alone is not an
 independent replay of the local diagnostic or resource suites.
 
+## Raw evidence preservation (21 October 2026)
+
+The later untracked raw downloads have been reconciled with this summary-only publication decision. The
+[evidence inventory](evidence-inventory.csv) records each original relative path, byte length and SHA-256 for
+395 raw files (22,525,454 bytes): 288 CI files, the CI status record, 24 local-success files, eight original
+timeout files and 74 pilot files. All were copied to private archive `dxui-main-e0260dde-raw-20261021`, and both
+source and archive hashes were checked before removing the redundant source copies and 25 empty directories.
+The archive additionally retains the original README, for 396 original files and 22,529,203 bytes in total.
+The CSV's SHA-256 is `F7D63433C33D5FA190557EE5232F0B199790A55C7665082C635378B50F464AB2`.
+
+CI suite/status/child receipts and local lease records do not implement the standalone benchmark receipt schema.
+No workload-owner fields, fixture hashes, outcomes or historical paths were invented or rewritten to make them
+validate. Private raw reports retain their original names and bytes, including the diagnostic pilot's source and
+fixture metadata, logs, captures and failed confirmation. Fifteen former repository paths exceeded the consumer
+restore limit by up to 30 characters; they are no longer checkout inputs. The public inventory supports archive
+integrity checking; it does not independently reproduce or qualify the results. The earlier archive hash above
+identifies a separate historical record and has not been reverified by this preservation operation.
+
+All functional, foreground-restoration, performance, platform and consumer qualification limits below remain.
+
 ## Native CI at the merged source
 
 [Main run 38428878942](https://github.com/RedSalamanders/DxUi/actions/runs/38428878942) completed
