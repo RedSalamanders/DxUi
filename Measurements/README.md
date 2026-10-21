@@ -8,6 +8,12 @@
   component qualification, current PR checks and open performance/platform gates.
   Detailed packets are archived outside the current repository tree.
 
+- [PR #88 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr88-postmerge/README.md):
+  six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact
+  merge commit, with both intentional ASan probes detected. Three shared ARM64 leases again lack saved initial
+  keyboard focus; restoration remains unverified. Paired benchmarking is skipped on push, all comparisons are
+  unpaired, and all 20 qualification HOLDs, deadlines and thresholds remain unchanged.
+
 - [PR #87 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr87-postmerge/README.md):
   six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact
   merge commit. Native ARM64 TSF traces pass; focus restoration remains unverified in three shared leases.
@@ -74,6 +80,13 @@
 This directory retains reviewed evidence from DxUi's own samples and benchmarks. Scenarios may be inspired by real
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
+
+Reviewed benchmark/profiling JSON receipts include their actual DxUi workload owner, fixture-input hashes and a neighboring scenario
+explanation. Raw CI downloads, child/status receipts and private foreground diagnostics remain in generated output
+or an authorized private archive; do not add synthetic benchmark metadata to them. Summary-only packets may publish
+an inventory of original paths, sizes and hashes, as in the
+[13 October main packet](Performance/2026-10-13-main-qualification/README.md), while retaining raw bytes privately.
+All files intended for checkout, including evidence, remain subject to the 150-character relative-path limit.
 
 - [Bounded profiling pilot, 2026-10-10](Performance/2026-10-10-profiling/README.md): six original frozen baseline
   reports, twelve guarded diagnostic reports, four native feature cases and 57 zero-skip x64 suite passes;

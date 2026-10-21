@@ -1,5 +1,13 @@
 # Library qualification and consumer adoption
 
+Private evidence relocation, 2026-10-21: historical `Z:/DxUiFocus`, `Z:/DxUiInput`, `Z:/DxUiSetup`
+and related packet names in this ledger now live under `Z:/src/DxUi-maintenance/retained-20261021/`
+with the same leaf name. The former `S:/DxUi-evidence` tree now lives under
+`S:/DxUi.Perf/evidence/root-cleanup-20261021/DxUi-evidence`. The
+[completed maintenance record](../Done/DriveRootArtifactCleanup_2026-10-21.md) describes preservation
+and the private relocation map. Original receipts, failures, identities and qualification verdicts remain
+historical; this relocation closes no acceptance gate below.
+
 - **Status**: ACTIVE; unfinished acceptance split from the original 4 October plan on 11 October 2026.
 - **Scope**: shared library performance/policy, native-platform and physical-input qualification execution, including
   ProductionReview and accepted S0-S2 candidates, plus separately owned
@@ -974,6 +982,36 @@ device removal, real IME/AT/touch, consumer and trusted paired-policy gates stay
 MultilineGrid memory uncertainty and retention limitations remain. All deadlines, thresholds, budgets,
 allocation ceilings and `qualified=false` policy are unchanged. This harness slice changes no library API,
 consumer adapter or control pixels; documentation/gallery review requires no visual regeneration.
+
+### PR #88 post-merge observation (19 October 2026)
+
+[PR #88](https://github.com/RedSalamanders/DxUi/pull/88) merged as
+`f65e4a4b9311370b3e3070088e2a8abe29adcb27` after its documentation-only PR checks passed.
+The [post-merge run 39211934836](https://github.com/RedSalamanders/DxUi/actions/runs/39211934836)
+passes all six native profiles, eight enabled public-consumer checks, validation, Windows tooling, formatting,
+native scope and `ci-gate`, with no failed jobs. The
+[reviewed PR #88 summary](../../../Measurements/TextInput/2026-10-19-pr88-postmerge/README.md)
+binds 126 core suite receipts and two x64 Release characterization receipts to this exact merge source:
+128 successful receipts with zero capability skips. Menu completes 113/113 and NativeTextInput 169/169 in
+every profile. Both ASan configurations detect the intentional heap-use-after-free probe; its expected nonzero
+exit is separate from suite failures. Earlier receipts retain their original source identities.
+
+ARM64 Debug, Release and ASan Debug again record `focusCapture.Reason=foreground-minimized`, query error 0
+and `focus=none`. These are three shared Full leases, with capture/restoration state copied into the Menu and
+NativeTextInput child receipts. Foreground and pointer restoration pass, but the initial keyboard focus was not
+saved, so focus restoration remains unverified. This records missing initial focus before confirmation;
+it does not identify a child focus failure or a restoration timeout. x64 records initial focus and reports it
+unchanged. Retain the captures and obtain separately approved ordinary-host/native ARM64 observations with a
+visible foreground and recorded initial keyboard focus, then verify restoration without changing admission,
+capture/refusal checks, deadlines or attempt bounds.
+
+The push skips paired benchmarking by design; every attached performance comparison is unpaired. Green
+functional CI therefore adds no accepted paired non-regression or qualified policy. All 20 qualification HOLDs
+remain open, with `qualified=false`, all deadlines, thresholds, exact budgets and allocation ceilings unchanged.
+Earlier timing/memory flags, MultilineGrid memory uncertainty, failed/refused/cancelled receipts, attribution gaps
+and retention limits remain. Native ARM64 opt-in resources, physical input/device removal, real IME/AT/touch and
+consumer pins/product acceptance still need their own evidence. This documentation-only update changes no
+library/API, consumer adapter, control pixels or gallery examples; gallery regeneration is unnecessary.
 
 ### PR #87 post-merge observation (19 October 2026)
 

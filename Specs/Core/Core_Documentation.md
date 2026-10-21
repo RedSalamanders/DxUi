@@ -1,7 +1,7 @@
 # Documentation and generated gallery
 
 Status: normative current contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-21
 
 `docs/README.md` is the user entrypoint and MUST be linked from the root README. Documentation covers prerequisites,
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
@@ -50,6 +50,13 @@ applies.
 Intermediate outputs/logs stay in `.build`. Published gallery assets and explicitly reviewed independent receipts
 under `Measurements/` are the deliberate exceptions. Validate all local links, catalog documentation coverage and image hashes with
 `validate-specs.ps1`. A change is incomplete until required docs and gallery updates are present and checked.
+
+Each reviewed benchmark/profiling JSON receipt must carry its real DxUi workload owner, fixture-input hashes and a neighboring
+scenario explanation. Raw CI/status/child reports and private machine/foreground diagnostics stay in generated
+output or an explicitly authorized private archive. A summary-only packet may retain an original-path, size and
+SHA-256 inventory; preserve and verify the raw bytes before removing redundant copies. Do not fabricate benchmark
+metadata or rewrite historical results to satisfy the receipt schema. Evidence intended for checkout obeys the
+[consumer path-length limit](../Build/Build_ToolchainAndConsumption.md).
 
 Gallery fixtures must bound message settling by elapsed time as well as message count. Animated
 full-control sheets can continuously refill the queue under sanitizer instrumentation. An explicit
