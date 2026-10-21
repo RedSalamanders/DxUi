@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cwchar>
 #include <limits>
+#include <shlobj.h>
 
 namespace DxUi
 {
@@ -17,7 +18,20 @@ HRESULT LastClipboardError() noexcept
     const DWORD error = GetLastError();
     return HRESULT_FROM_WIN32(error ? error : ERROR_ACCESS_DENIED);
 }
-class WindowsTextClipboard final : public TextClipboard
+HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
+{
+    if (! data)
+        return S_FALSE;
+    const SIZE_T bytes = GlobalSize(data);
+    if (bytes < sizeof(wchar_t) || bytes % sizeof(wchar_t))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto* value = static_cast<const wchar_t*>(GlobalLock(data));
+    if (! value)
+        return LastClipboardError();
+    const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+    return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
+}
+class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -28,18 +42,43 @@ public:
         const auto& calls = ClipboardCalls();
         if (! calls.open(owner))
             return LastClipboardError();
-        const auto close  = wil::scope_exit([&calls]() noexcept { calls.close(); });
-        const HANDLE data = calls.getData(CF_UNICODETEXT);
-        if (! data)
-            return S_FALSE;
-        const SIZE_T bytes = GlobalSize(data);
-        if (bytes < sizeof(wchar_t) || bytes % sizeof(wchar_t))
-            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-        const auto* value = static_cast<const wchar_t*>(GlobalLock(data));
-        if (! value)
+        const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        return ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), text);
+    }
+    HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept override
+    try
+    {
+        if (! owner)
+            return E_INVALIDARG;
+        TextClipboardContent staged;
+        const auto& calls = ClipboardCalls();
+        if (! calls.open(owner))
             return LastClipboardError();
-        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
-        return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
+        const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        if (const auto data = calls.getData(CF_HDROP))
+        {
+            const auto bytes   = GlobalSize(data);
+            const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+            if (! buffer)
+                return LastClipboardError();
+            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+            const auto result = DecodeClipboardFilePaths(std::span(buffer, bytes), staged);
+            if (result == S_OK)
+            {
+                content.Swap(staged);
+                return S_OK;
+            }
+            if (FAILED(result))
+                return result;
+        }
+        const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
+        if (result == S_OK)
+            content.Swap(staged);
+        return result;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
     }
     HRESULT Write(HWND owner, std::wstring_view text) noexcept override
     {
@@ -85,6 +124,23 @@ HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept
     bytes = (textUnits + 1) * sizeof(wchar_t);
     return S_OK;
 }
+bool ValidClipboardUnicode(std::wstring_view text) noexcept
+{
+    if (text.find(L'\0') != text.npos)
+        return false;
+    for (size_t at = 0u; at < text.size(); ++at)
+    {
+        const auto value = static_cast<uint16_t>(text[at]);
+        if (value >= 0xd800u && value <= 0xdbffu)
+        {
+            if (++at == text.size() || static_cast<uint16_t>(text[at]) < 0xdc00u || static_cast<uint16_t>(text[at]) > 0xdfffu)
+                return false;
+        }
+        else if (value >= 0xdc00u && value <= 0xdfffu)
+            return false;
+    }
+    return true;
+}
 HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text) noexcept
 {
     text.clear();
@@ -96,17 +152,8 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
     if (static_cast<size_t>(end - buffer.data()) > text.max_size())
         return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     // Clipboard contents are external data; reject malformed UTF-16 instead of creating broken caret boundaries.
-    for (const wchar_t* cursor = buffer.data(); cursor != end; ++cursor)
-    {
-        const auto unit = static_cast<uint16_t>(*cursor);
-        if (unit >= 0xd800 && unit <= 0xdbff)
-        {
-            if (++cursor == end || static_cast<uint16_t>(*cursor) < 0xdc00 || static_cast<uint16_t>(*cursor) > 0xdfff)
-                return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-        }
-        else if (unit >= 0xdc00 && unit <= 0xdfff)
-            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-    }
+    if (! ValidClipboardUnicode(std::wstring_view(buffer.data(), static_cast<size_t>(end - buffer.data()))))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     try
     {
         text.assign(buffer.data(), end);
@@ -116,6 +163,67 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
     {
         return E_OUTOFMEMORY;
     }
+}
+HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept
+try
+{
+    if (buffer.size() < sizeof(DROPFILES))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    DROPFILES header{};
+    std::memcpy(&header, buffer.data(), sizeof(header));
+    if (! header.fWide || header.pFiles < sizeof(header) || header.pFiles > buffer.size() || buffer.size() - header.pFiles < 2u * sizeof(wchar_t) ||
+        (buffer.size() - header.pFiles) % sizeof(wchar_t) || reinterpret_cast<uintptr_t>(buffer.data() + header.pFiles) % alignof(wchar_t))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto* paths = reinterpret_cast<const wchar_t*>(buffer.data() + header.pFiles);
+    const auto units =
+        (std::min)((buffer.size() - header.pFiles) / sizeof(wchar_t), TextClipboardContent::MaximumTotalFileUnits + TextClipboardContent::MaximumFiles + 1u);
+    TextClipboardContent staged;
+    staged.filePaths.reserve(TextClipboardContent::MaximumFiles);
+    size_t at{}, total{};
+    while (at < units)
+    {
+        const auto count = (std::min)(units - at, TextClipboardContent::MaximumFileUnits + 1u);
+        const auto* end  = std::wmemchr(paths + at, L'\0', count);
+        if (! end)
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        const auto length = static_cast<size_t>(end - (paths + at));
+        if (! length)
+        {
+            if (staged.filePaths.empty())
+                return at + 1u < units && paths[at + 1u] == L'\0' ? S_FALSE : HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+            content.Swap(staged);
+            return S_OK;
+        }
+        if (staged.filePaths.size() == TextClipboardContent::MaximumFiles || length > TextClipboardContent::MaximumTotalFileUnits - total)
+            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+        total += length;
+        staged.filePaths.emplace_back(0u, L' ');
+        const auto decoded = DecodeClipboardText(std::span(paths + at, length + 1u), staged.filePaths.back());
+        if (decoded != S_OK)
+            return decoded;
+        at += length + 1u;
+    }
+    return HRESULT_FROM_WIN32(ERROR_INVALID_DATA); // A Unicode file list requires its second terminating NUL.
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
+try
+{
+    if (includeFiles)
+        if (auto* structured = dynamic_cast<StructuredTextClipboard*>(&clipboard))
+            return structured->ReadContent(owner, content);
+    TextClipboardContent staged;
+    const auto result = clipboard.Read(owner, staged.text);
+    if (result == S_OK)
+        content.Swap(staged);
+    return result;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
 }
 TextClipboard& SystemTextClipboard() noexcept
 {

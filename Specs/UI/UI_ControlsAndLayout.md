@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -608,3 +608,1095 @@ English defaults (No matches / No data). ComboBox remeasures an open empty-resul
 its string changes; Tree/Grid invalidate their empty view. String updates do not alter selection,
 query text, focus or callbacks. DxUi does not load consumer numeric resource IDs or cache a
 process-global language. Each product/module provides its current translated strings.
+
+## Intended rich-text editor contract
+
+The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
+tracks the retained RichTextEditor v0 preview now implemented in the library and
+catalog. It is bounded to the existing 64 Ki UTF-16/128-history model, with D2d
+shared native/embedded source TSF/IME/UIA adapters. Full rich-text/Markdown and
+real OS/AT qualification remain pending; prototype evidence alone never
+qualifies DxUi behavior.
+
+The intended control owns source revisions, structured rich projections, edits,
+selection and history; its source/formatted/read-only views preserve unchanged
+Markdown bytes and unsupported content. It uses public DirectWrite/Direct2D and
+existing host services without a hidden Microsoft editing/layout engine. Native
+and embedded text/geometry/accessibility contracts, themes/DPI, cancellation,
+read-only/disabled state and control lifetime remain mandatory. Embedded hosting
+adds no private HWND/device/swap chain/worker/timer, and composition performs no
+layout/raster/allocation/I/O/wait. Application persistence and assets stay app-owned.
+
+Before full rich-text support is published, migrate canonical source/tests once, pin parsing and
+extension conformance contracts, populate catalog/gallery/design-system/docs,
+and close the native/embedded/platform/resource/performance gates. Consumer pin
+and product adoption remain separate from library implementation.
+
+## Implemented bounded rich-text preparation core
+
+The reusable v0 source now belongs to DxUi: RichDocument.h, RichMarkdown.h and
+RichTextLayout.h in include/DxUi and DxUi.RichDocument/RichMarkdownProjection/
+RichTextLayout.cpp in src/Controls. The [core guide](../../docs/rich-text.md)
+records exact API/limits. This additive preparation API is distinct from the
+retained RichTextEditor preview above; it remains independently usable without a host.
+
+The source model must preserve Unicode scalar/CRLF boundaries, immutable shared
+snapshots, transactional selection/history and failure atomicity. Piece-aware
+boundary/slice/edit operations must not flatten complete old/new source text.
+
+Logical rich navigation and mouse hit stops use the shared Unicode 17.0.0 default
+extended grapheme service. Prepared layout computes those stops in one forward
+pass; glyph shaping and explicit ACP caret/range geometry remain DirectWrite
+operations. Source edits and text services may retain valid scalar/CRLF offsets
+inside an element. This does not qualify visual bidi/word navigation or physical
+IME/assistive-technology behavior. Password mask indexing uses the same forward
+walker rather than repeatedly recovering the entire preceding context.
+
+PreparedLayout::DeletionRange validates its display offset and readiness, returns
+the complete containing grapheme for an interior ACP, and uses the existing
+prepared stops without allocation. Clear retires this query along with geometry.
+At exact boundaries, backwards/forwards deletion chooses the ordinary neighbor;
+an empty edge yields an empty range. Explicit source-range replacement remains
+independent of this collapsed keyboard policy.
+Immutable storage is a persistent B+ piece tree with maximum fanout 32 and at
+least 16 entries per non-root node. Exclusive cumulative ends index pieces and
+subtrees. Offset lookup is O(log P) for P pieces; a slice of K intersecting pieces
+visits O(log P + K) entries. Edits copy boundary paths, share untouched subtrees,
+skip fully removed middle subtrees, coalesce rewritten contiguous buffer slices
+and rebalance before publication. Only the final root may collapse height.
+No per-read cache or mutable shared index is retained. Worker reads use a captured
+immutable snapshot, not a concurrent call into a mutating Document.
+`Document::ReplaceWholeText(text, selection)` accepts complete service text but
+records only the scalar/CRLF-safe changed interval, sharing untouched source
+pieces. It MUST use the same interval comparison as transient preview updates,
+with ordinary one-transaction undo/redo semantics and exact supplied selection.
+Equal content MUST preserve source identity/revision/history and acknowledge
+selection without allocating source/history storage. Invalid input or allocation
+failure MUST leave source, selection, revision and both histories unchanged.
+Notifying RichTextEditor service imports MUST use this localized recording path;
+preview/cancel imports retain transient semantics. Other controls keep their
+existing adapters. Comparison of bounded complete text remains indivisible;
+this is not a large-file or total constant-time claim.
+Validate future selections against the virtual old-prefix/insertion/old-suffix
+before allocating source storage/history, including a newly joined CRLF. A
+same-content replacement only acknowledges its exact valid selection; it allocates
+no source/history, advances no revision and preserves undo/redo. Stage every
+changed tree and required history copy before publishing. Allocation failure in
+replacement, transient replacement, reset, undo or redo preserves all state.
+Document source-taking operations borrow std::wstring_view synchronously and
+copy changed source into immutable owned buffers before returning. Recognize
+valid no-ops before creating owning strings or staging history. This avoids
+Debug iterator-proxy allocations from string moves and unnecessary default
+history containers. Never retain the caller's view.
+Default, moved-from and fully deleted snapshots behave as empty queryable values.
+ChangedRangeFrom reports an unchanged source, a tracked conservative replacement
+interval or a whole-source fallback. Both coordinate spaces preserve scalar/CRLF
+slice boundaries, including CRLF newly joined by replacement. Tracked intervals
+can contain unchanged context. Immutable revision metadata retains a 32-edit
+active page and at most three sealed numeric pages: the latest 96 edits are
+always available, with at most 128 retained. Undo/redo and copied-document
+branches resolve a bounded common ancestor; reset and missing history fall back.
+Transient previews carry edit metadata without creating undo/redo or retaining
+intermediate preview buffers. Queries allocate nothing and mutate no cache.
+Whole-text transient input must be validated, then narrowed by common prefix/
+suffix to a source replacement with scalar/CRLF-safe boundaries. Compare shared
+fragments without flattening old source; reuse untouched buffers and tree paths.
+Same-content previews acknowledge selection without allocating source/history or
+advancing source revision. No caller view is retained after the call.
+Stage source, revision metadata and history before publication; failed metadata
+allocation or page rollover preserves all state and reports no phantom change.
+Current storage is bounded at 64 Ki UTF-16 units/128 history items. The earlier
+projection-block checkpoint did not establish incremental geometry, host scheduling
+or large-file acceptance. The guarded retained-geometry candidate below is now
+connected to both hosting modes; its remaining qualification is explicit.
+
+PreparedProjection prepares the same v0 grammar as Project in immutable physical
+source-line blocks, including CR/LF/CRLF endings. Source/display prefixes index
+local coordinates; every source ACP, display unit and both source affinities must
+match the canonical flat projection exactly. Adjacent equivalent styles coalesce
+to the same flat runs. Local block revisions are zero; the service's revision and
+mode identify the complete preparation. Source identity matters independently of
+the caller's numeric revision, including copied-document sibling branches.
+Tracked changes widen to complete old physical lines plus a neighbor on each side;
+unchanged outer payloads remain shared. Reset/missing ancestry/mode changes rebuild
+the complete bounded source. Two empty sources may remain semantically unchanged
+across unrelated identities. Adjacent equal physical lines may share one immutable
+payload. Preparation statistics count processed/reused block slots and the widened
+source slice, not individual parser calls or timing acceptance.
+Stage every new payload and prefix index before nonthrowing publication. Failure
+must preserve the entire prior state, revision, statistics and block identities.
+Clear releases all owned prepared state; default/moved/retired services reject
+content/mapping queries. Valid mapping and unchanged preparation allocate nothing.
+DisplayText is explicit materialization; ordinary updates slice only changed
+context. Prefix-index rebuilding remains linear in physical line count. This
+line-local widening is not valid for an unimplemented CommonMark block parser.
+Preparation is owner-thread work; the service owns no worker/device/window/timer.
+
+Prepared DirectWrite state uses WIL ownership, caller font settings and borrowed
+factory/target services. Invalid projection/style/settings must leave the prior
+projection/geometry generation intact. Explicit retirement rejects geometry while
+preserving the separate document. Raster drawing is preparation; embedding must
+not call it from composition. No HWND/device/thread/timer/worker belongs to the
+core. The caller supplies scheduling and stale-result/lifetime checks until the
+retained/shared preparation integration is implemented.
+
+## Retained RichTextEditor v0 preview (D2c)
+
+The bounded retained-geometry component is functionally qualified:
+PreparedDocumentLayout stages immutable projection clones and DirectWrite chunks
+jointly. Geometry chunks target 1,024 source units at physical-line boundaries;
+127 chunk slots plus one optional whole-layout compatibility slot cap published
+layouts at 128, with bounded compaction before further chunk allocation.
+Source edits make geometry unavailable immediately while retaining old chunks
+for owner-thread reuse. Full retirement discards the active graph. Options,
+factory identity, source identity/change interval and mode govern reuse; equal
+numeric source revisions alone never establish compatibility. A nonfinal chunk's
+phantom terminal line must not add height. Native/embedded geometry, exact WARP
+pixels, complete observed C++ allocation schedules and source-limit resource
+evidence pass in all three x64 profiles, with all ARM64 cross-builds and tooling.
+The [qualification packet](../../Measurements/RichText/README.md)
+retains original failures and exact source/artifact bindings. It provides no shared
+worker, arbitrary-thread DirectWrite access or complete Markdown engine.
+The qualified positioned-line implementation seeds each noninitial layout with an invisible
+DirectWrite inline object and line break. The two private UTF-16 units never enter
+source/display maps, Unicode navigation or text-service content. DirectWrite
+accumulates real lines in document coordinates and draws every chunk at the same
+origin, preserving its mixed-font caret and color-font behavior. Reuse requires
+the same vertical origin; a height-changing edit rebuilds dependent suffixes and
+reports all that work. An inexact synthetic line or an empty displayed suffix
+retains canonical whole geometry, including terminal-font behavior.
+Whole-layout preparation/reuse/source units are reported separately and cannot be
+credited as bounded incremental work. Original height/raster failures remain
+retained. All three x64 profiles pass geometry and 108 exact WARP pairs each,
+including default/fractional/large-origin cases, height-changing edits, hidden-only
+suffixes and real FFFC source. Default 13-DIP native/embedded editors avoid whole
+work; native/embedded UIA scrolling preserves exact source. All six build profiles
+pass; ARM64 remains compile-only. The [positioned-line record](../../Measurements/RichText/README.md)
+retains the unchanged five-trial observations without timing acceptance. Shared
+preparation, full syntax/semantic editing and platform/performance gates stay open.
+Clear must not construct
+STL containers inside noexcept retirement. Geometry staging fills fallibly
+constructed projection storage in place rather than depending on optional NRVO;
+the original Debug point-173 termination remains retained.
+
+The control on DxUi.h owns bounded source/selection/history, one guarded
+PreparedDocumentLayout and a vertical scroll offset. It borrows ControlHost DWrite/D2D,
+Body/Monospace typography, brushes, theme/DPI, focus, capture, Unicode clipboard,
+invalidation and event-driven caret animation in both hosting modes. It creates
+no HWND, device, swap chain, thread or timer. All mutation/preparation is owner-
+thread work. Rasterization belongs to preparation, never composition.
+
+Source offsets include hidden markers and obey scalar/CRLF boundaries. View
+changes preserve bytes/history. SetText resets history without notification;
+source commands notify only after an actual committed change. Notifications and
+clipboard operations recheck lifetime/revision/selection where applicable; no
+callback may resume an old mutation after owner retirement/rebinding. Standard
+notification failures leave the committed edit intact. Read-only permits selection/
+copy while rejecting mutation; disabled controls reject input. Incomplete UTF-16
+character pairs never enter the model. AltGr Unicode entry remains accepted.
+
+RichTextEditor document-file metadata MUST be an explicit canonical absolute
+Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
+change source/history/composition. Prepared canonical Rich-mode file-reference paste
+MUST generate escaped Markdown images for recognized image suffixes and named
+Markdown links for other files, relative to the document parent;
+unsaved/cross-root paths MUST use an absolute file URI. Component case MUST be
+preserved, including case-sensitive directory correctness. Code/HTML/metadata,
+active source scopes and partial atomic inline contexts MUST retain literal
+paste. Multiple files MUST use blank paragraphs and preserve clipboard order,
+including mixed images/links. Image descriptions use the filename stem; text link
+labels retain the complete filename. If any structured path is unrepresentable,
+the complete original list MUST remain quoted source. One paste MUST record one transaction
+and preserve exact undo/redo and backward selections. Path construction is
+lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
+fetch is implied. Display requires caller-serviced immutable image resources;
+unserviced or declined resources retain their alternative. File links retain
+the existing inert link presentation. Paste MUST NOT activate/open a file, query
+existence or register drag-and-drop; classification uses the path suffix only.
+
+The separate [file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) specifies
+pending drag-and-drop support with the same displayed-image/relative-file-link
+policy. Its insertion target MUST be a prepared source caret at the drop point;
+preview MUST NOT move the existing selection, and one accepted file list MUST
+produce one atomic insertion whose undo restores that selection. Native and
+embedded transports MUST share path/context rules and the application-owned image
+pipeline. This planned capability is not implemented by file-reference paste.
+
+Pure structural command/deletion planning MUST reject syntax carrying a
+presentation-only source-region hint before staging any document change, even
+when the requested selection lies outside that region. Callers obtain canonical
+syntax for structural planning.
+
+Rich image resources MUST be immutable premultiplied BGRA, fully decoded before
+owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF/
+TIFF codecs and first static frame; GIF canvas placement/transparency/background
+and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
+the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
+4,194,304 decoded pixels, 32 unique active file sources and 64 MiB unique retained
+CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
+Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
+capacity contracts are unchanged; process/driver and transient staging overhead
+require separate measurement.
+
+Local destination resolution MUST use explicit document metadata, strict UTF-8
+URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
+names, ambiguous extended/trailing-component spellings and malformed/remote URI
+schemes MUST NOT become file requests. Drive/server root case is insensitive;
+directory/share/file component spelling remains exact. Relative paths require
+a saved base; the control MUST NOT query CWD or perform file/network I/O.
+
+Image requests MUST execute in caller-owned scheduling, with callback-free
+cancellation and source/base/binding/visibility validation at owner completion.
+The caller authorizes file access, including any UNC policy. Source replacement,
+presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
+pixels MAY survive unrelated edits and device replacement. Failed/capacity
+completion MUST stop idle retries while preserving editable source/alternative.
+Resource-only completion MUST NOT edit source/history/selection or cancel IME.
+Request preparation processes at most four image candidates per owner turn;
+caller adapters MUST wake valid queued work when draining or cancel-pruning
+results frees a completion reservation; closure MUST serialize posting with
+owner retirement without joining a codec/filesystem call.
+GPU preparation uploads at most one bounded bitmap per turn. Native image
+geometry MUST use actual inline baseline/aspect rather than the larger SDK line
+selection cell. Text ACPs, UIA alternatives and structural atomicity remain intact.
+Only the private SDK layout buffer MAY neutralize image-alternative code units
+to equal-length object placeholders; authoritative source/display strings,
+alternative names and maps MUST remain unchanged. This prevents script/emoji
+analysis from splitting one atomic image into multiple native rectangles.
+Reused placements MUST consume exactly one preparation event, without an extra
+common phase-tail count. Invalid zero semantic budgets MUST preserve staging
+and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
+preserve the prior complete geometry and permit an explicit current retry.
+
+The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
+commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
+source/mode/width/typography/flow/DPI changes and releases on hiding/rebinding.
+Caret reveal and wheel scroll remain within the text viewport. D2d enables the
+shared native TSF/IMM and embedded source text adapter plus Document/Text/Text2/
+TextEdit UIA, mapped source geometry and single-transaction composition. Actual
+IME/AT/physical/platform qualification remains separate under the input contract.
+The capability is explicitly a preview, not complete rich-text/Markdown support.
+
+Cooperative preparation: content owners
+opt into ControlHost's shared preparation traversal. S_FALSE retains one pending
+owner request for a later turn; failure permits explicit retry without an
+automatic retry loop. Rich text stages one immutable source/geometry request
+and publishes it atomically. Source/mode/binding/width/typography/resource changes
+cancel obsolete work. Geometry queries must not drain preparation; unavailable
+current geometry returns the existing optional/error result. Source text, Unicode
+logical edits, history and IME transactions remain available while reflow is
+pending. Pixel completion precedes text-service/UIA geometry notification.
+
+Native window hiding and either zero-size dimension cancel retained content,
+including a height-only resize whose shaping width stays unchanged. This does
+not discard the native swap chain on WM_SHOWWINDOW/WM_SETREDRAW. The next real
+visible/sized owner preparation rebuilds the current request; source, selection
+and history survive suspension.
+
+BeginPreparation still constructs the bounded v0 projection/indexes at once.
+Logical pending edits may project bounded source without DirectWrite; neither
+path is a resumable complete Markdown parser. These limits and indivisible
+long-paragraph/whole SDK calls remain pending performance work.
+
+### Lossless Markdown analysis preview
+
+`MarkdownSyntax.h` supplies immutable exact source, a root source partition,
+a linked container/leaf tree and an independent complete lexical partition.
+`Nodes()[0]` is the document; revision-local parent/firstChild/nextSibling indices
+express source order. Container ranges include their raw prefixes and contain
+child ranges. Blank trivia belongs to Source/Blocks rather than semantic nodes.
+Node content-line spans exclude container prefixes and retain any unconsumed
+columns of a partly consumed tab. Delimiters, original line endings and unknown
+content are never reconstructed from decoded values.
+
+Block recognition includes nested quotes and ordered/bullet lists, empty items,
+lazy continuation, interruption precedence, tight/loose lists, indented/fenced
+code, ATX/setext headings, thematic breaks, paragraphs and multiline reference
+definitions. Reference label/destination/title ranges and prefix-stripped lines
+remain exact source; global label folding and resolution follow the block pass.
+The pinned dialect's seven HTML-block forms are opaque literal source, with
+container/EOF termination and their appropriate closing/blank-line conditions.
+CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
+Resolved inline forests and GFM extension metadata are implemented in M3; its
+bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/README.md); semantic rendering/editing remains pending.
+BlockStatistics records deterministic prefix-inspection and container-finalization
+work. Indentation lookahead stops at its required threshold; a line's marker
+metadata rejects incompatible thematic suffixes without rescanning each nested
+list suffix. Open containers share a deferred accepted source end and finalize
+once, preventing lazy lines from updating every ancestor. These counters cover
+the named work, not complete parser CPU or a latency guarantee.
+
+DocumentIdentity scopes nonzero node identities to one parser lifetime until
+Clear; move transfers that scope, and reuse of the moved-from parser creates a
+new one. Revisions retain immutable old trees. Reparse the entire bounded block
+source before reconciling identities; the older projection's line-local widening
+is unsafe for fences/containers/references. Prefer Begin(SourceSnapshot, ...):
+tracked source ancestry distinguishes equal paragraphs and pending sibling edits.
+Trusted unchanged/tracked/full-replacement snapshot metadata MUST be honored
+before reading source units for common-prefix/suffix correlation. A full
+replacement MUST NOT populate an old-child identity index that cannot be reused;
+the parser's document-root identity remains stable and old child identities are
+discarded. String-only input still needs the existing UTF-16 unit comparison.
+This removes redundant correlation work, not source materialization, line scans
+or the remaining bounded parser stages; it is not a wall-clock deadline promise.
+Map unchanged prefix/suffix and compatible enclosing nodes under the same parent
+identity; changed kinds, reparented nodes, lost ancestry and newly created nodes
+receive new identities. Deleted identities are not resurrected from an unbounded
+syntax history. At edit boundaries prefer an exact surviving prefix/suffix node,
+then a compatible enclosing node; deleting its first/last scalar must not replace
+the identity of a paragraph which remains present. Distinct generated missing
+table cells can share one empty source range: reconcile equal keys in their
+source traversal order, consuming each prior identity at most once. Unchanged
+cells retain distinct identities across unrelated edits and undo/redo.
+String Begin uses deterministic
+common-prefix/suffix mapping and
+cannot infer which equal paragraph an external caller removed. Profile changes
+may replace node identities; Clear explicitly starts a new document namespace.
+
+Every result carries its CommonMark0312, Gfm029 or RichMarkdown target, extension
+options and source revision. M3 supplies base inline parsing and specified GFM
+extensions; RichMarkdown math/Mermaid/footnotes/front matter and semantic native
+rendering/editing remain later gates.
+Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
+unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
+matching, consistently with normalized inline text; exact Source() stays intact.
+This parser behavior does not admit NUL through Document or native text services.
+Equal source/revision/profile/change requests coalesce.
+Snapshot admission uses bounded source materialization and tracked change queries;
+unchanged completed snapshots avoid materialization. Invalid/failed Begin keeps
+the old request; failed Advance cancels staging and keeps the prior publication.
+One staged and one published syntax are retained. Source/lexical scanning, root
+partitioning and identity indexing/reconciliation resume at stored cursors.
+Zero budget does no work. Budgets count steps: physical-line transitions,
+paragraph-reference finalization, construct lookahead, emphasis resolution, sorting, comparisons and allocations
+remain bounded indivisible work, not per-character or wall-clock guarantees.
+Lexical candidates cover ASCII escapes, semicolon named/numeric references,
+line endings and NUL replacement. Code/HTML/link/delimiter context must resolve
+candidates before their values can become formatted text.
+
+HTML recognition and standard expected HTML are independent of product rendering.
+The intended native formatted renderer uses an explicit safe supported subset;
+scripts, event attributes and automatic remote resource loading do not execute.
+Unsupported/active HTML stays visible editable source. There is no browser DOM.
+This stage supplies syntax metadata and does not implement semantic HTML display.
+
+### Resolved inline and GFM analysis
+
+`MarkdownSyntax::Inlines()` is a dense immutable forest rooted by each leaf's
+`firstInline`. It resolves ASCII escapes/entities, Unicode punctuation flanking,
+emphasis/strong and the rule of three, exact-length code spans, inline/reference
+links, nested-link exclusion, image alternatives, URI/email autolinks, inline
+HTML and soft/hard breaks. Code and HTML remain opaque to entity/escape decoding.
+Code values normalize physical line endings to spaces and apply the standard
+single leading/trailing-space rule. Exact source spelling is retained separately.
+
+`MarkdownExtensions` defaults to None for CommonMark and All for Gfm029 and
+RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks
+and TagFilter; unknown bits and CommonMark/GFM-option combinations are rejected
+atomically. Options participate in request coalescing/publication identity.
+GFM tables are recognized before cell inlines, retain alignment/header metadata,
+unescape cell pipes even in code, pad missing cells and retain ignored excess
+source. Task metadata belongs to the list item, requires its first paragraph
+and marker whitespace, and does not yet supply an interactive checkbox command.
+Strike requires two tildes under this pinned profile.
+If reference extraction removes an entire candidate paragraph, clear the active
+leaf before processing the table delimiter line. A definition-only paragraph
+cannot serve as a header or be extended/extracted again after retirement.
+
+Extended autolinks respect bracket/code/HTML ownership, consume URL interiors
+before remaining emphasis, and retain literal entity/escape spelling inside the
+URL. Text surrounding them is contextually decoded. Opaque Html values carry
+`filteredHtmlOpeners`: UTF-16 value offsets whose '<' is filtered by the GFM
+tagfilter rule. This is metadata, not sanitization or a browser execution API.
+Tagfilter matches complete names followed by GFM ASCII whitespace (including VT),
+`>` or `/>`; a slash followed by other text is not a tag terminator.
+
+Label comparison uses locale-independent full default Unicode 17 case folding,
+without Unicode normalization. First definition in source order wins. CommonMark
+collapses label spaces/tabs/line endings; legacy GFM also includes VT/FF under
+its ASCII-whitespace definition. CommonMark treats Unicode P/S as punctuation;
+strict GFM uses ASCII punctuation plus Unicode P. Inline declaration rules also
+remain dialect-specific. The pinned GFM printed short-comment expectations are
+retained even where adjacent older prose differs. Strict extended domains require
+a period/nonempty segments and reject underscores in their final two segments;
+Unicode letter/number domains are recognized from pinned data.
+
+Inline indices are revision-local; block identities do not validate inline
+semantics. Any reference edit reparses dependent inlines even when the referring
+paragraph's source/identity did not change. `value`, `destination` and `title`
+are semantic strings; even Text can contain decoded escapes/entities. `source`
+is the enclosing raw span, not an interior ACP map. M4 must provide transformed,
+generated/repeated/object editing affinities before renderer integration.
+
+`LexemeSourceAnchor` keeps transformed-value leading/trailing affinity explicit,
+including a named reference producing two Unicode scalars. Original spelling
+always remains available. Text lexical ACPs are not automatically legal editing
+boundaries; callers retain the model's scalar/CRLF checks. These lexical anchors
+do not replace a complete semantic map.
+
+### Semantic coordinate and transaction primitives (M4a/b)
+
+`RichSemantic.h` adds a preparation-only `SourceDisplayMap`, independent of v0
+Projection's monotonic constraints. Its immutable source/display strings and
+display-ordered spans distinguish exact source-backed spelling, atomic transformed
+values, generated text with empty source ownership and atomic source objects.
+Every display unit belongs to exactly one nonempty span. Primary source ownership
+is disjoint; repeated spans require an exact primary source range and kind.
+Display order may differ from source order. Admission caps source at 65,536 UTF-16
+units, display at 131,072 and spans at 65,536, before copying/index allocation.
+Malformed UTF-16/NUL, scalar/CRLF splits, unknown enums, incomplete coverage and
+ambiguous primary ownership are errors. This does not raise Document capacity.
+
+Leading/trailing affinities resolve shared edges, hidden source and transformed
+interiors explicitly. Source caret lookup uses the declared primary occurrence;
+display hits on a repeated occurrence still resolve to original source. Hidden
+source interiors use the next/previous primary edge, with display end/start as
+outside fallbacks. Exact owned span edges retain their corresponding display
+edge. These are scalar/CRLF coordinates, separate from logical grapheme navigation.
+`SnapDisplayBoundary` moves an arbitrary bounded ACP to the chosen side of an
+atomic span or scalar/CRLF join.
+
+`DisplayRanges` and `SourceRanges` return sorted merged fragments, rather than
+an enclosing endpoint interval. Generated spans contribute no source-selection
+glyphs or replacement ranges. A nonempty intersection with a transformed/object
+span expands to its entire opposite range; empty ranges stay empty. Repeated
+source fragments are deduplicated, so a visual deletion cannot accidentally
+replace unrelated source between reordered occurrences. Callers normalize a
+backward selection before range lookup while retaining its anchor/caret direction.
+
+`ApplySourceEdits` requires the exact immutable expected SourceSnapshot and the
+current Document revision. Numeric revision equality and equal foreign spelling
+are insufficient; `SourceSnapshot::IsSameRevision` compares immutable ownership.
+Edits use ascending disjoint source ranges; touching ranges are allowed but two
+edits with the same start are rejected. Replacement strings are borrowed only
+for the synchronous call. Validate ranges, replacement Unicode and resulting
+capacity, stage one replacement envelope preserving all untouched gaps, then
+delegate future-selection/join validation and publication to Document.Replace.
+A source change records one revision/history entry; unchanged spelling only
+updates a valid selection. Exceptions preserve source, selection, revision and
+both histories. This helper does not bypass a retained control's editable,
+notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdits
+adapter through the existing Changed/SelectionChanged path, enforcing those
+guards and invalidating stale parser/geometry access before notification. It
+preserves the pure helper's single history entry and exact source coordinates.
+
+### Semantic document preparation (M4c bounded preview)
+
+RichSemanticDocument.h defines an immutable SemanticDocument and an owner-serialized
+SemanticBuilder. This CPU component does not enable the retained renderer by
+itself. Begin retains immutable MarkdownSyntax; Advance
+resumes block/inline events and publishes one complete map, style partition,
+role graph and ordered geometry-paragraph metadata. Held publications remain
+immutable. Identical syntax ownership coalesces; a different syntax object with
+an equal numeric revision remains a different request. Failed Begin preserves a
+previous pending request; failed work retires staging and preserves publication.
+Cancel keeps publication; Clear releases builder ownership without invalidating
+held documents. No worker, graphics object, HWND or timer belongs to this service.
+
+Admission bounds the combined block/inline graph to 32,768 nodes and geometry
+paragraphs to 4,096, in addition to Document and SourceDisplayMap capacities.
+These are preview admission limits, not larger-document or all-input latency
+qualification. Raw parser NUL remains outside Document/semantic admission.
+Each event is counted; leaf normalization, value tokenization, image alternative
+flattening and final map/index construction are bounded indivisible operations,
+not hard time deadlines. Empty/padded cells use generated content; amplification
+must fail before SDK work. Ordered list numbering visits each sibling once.
+
+Every resolved Text/Code/Html value must be reproduced from normalized source
+tokens before publishing its interior map. Literal URL labels retain contextual
+entity/escape spelling; ordinary Text decodes lexical references/escapes. Code
+retains opaque spelling, normalizes line endings to spaces and hides its fences
+and standard trimmed spaces. Removed container prefixes stay outside glyph spans.
+Virtual tab columns are generated, not duplicated source ownership. Soft breaks
+become flow spaces and hard breaks become line breaks. Generic source fragments
+do not by themselves implement grammar-aware line joining or empty-format cleanup.
+
+The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
+links, images, task objects and rules. Cells retain header/alignment/row/column
+metadata. Source task markers and image alternatives are atomic source objects;
+list markers and padding are generated. Destinations/titles are inert metadata;
+no resource fetch, script, DOM or implicit navigation follows. The current pure
+builder uses the bounded native HTML policy below, with balanced validation and
+source-preserving literal fallback. Rendering, source caret sites,
+structural commands are specified in M4e below. The semantic UIA contract is in
+[input/accessibility](UI_InputAndAccessibility.md). The bounded M4f implementation
+is [functionally qualified](../../Measurements/RichText/README.md);
+physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open.
+
+These pure primitives remain independent of graphics. The explicit retained
+rendering preview below consumes them. M4e adds source-exact structural editing;
+semantic UIA uses the acknowledged document and prepared source-format runs.
+Profile-only analysis keeps v0 rendering.
+
+### Retained semantic rendering preview (M4d)
+
+`SetMarkdownRenderingEnabled(true)` explicitly opts a RichTextEditor with a
+non-null analysis profile into the semantic native geometry backend. The default
+and profile-only analysis retain v0 pixels. Clearing the profile disables this
+option. Source view always displays exact raw source; the requested Rich view is
+preserved when semantic admission instead requires SourceFallback.
+`GetMarkdownRenderingStatus` distinguishes Disabled, Pending, Semantic and
+SourceFallback. `GetSemanticDocument` returns only the completed current syntax
+owner's immutable CPU document and never prepares work. Geometry readiness is
+separate: a completed semantic document can precede its SDK layouts.
+
+The backend stages independent paragraph/cell DirectWrite layouts, styles,
+indentation, equal-width table columns with declared physical alignment, RTL
+column placement, quote/rule lines and code/image/cell outlines. Destinations are
+inert; images display caller-supplied native pixels when available and otherwise
+their owned alternative. The control does not download media. Links use
+native underlining in inherited text ink. Generated list/task markers are preview
+text; M4e task gestures commit exact source checkbox edits through the host.
+Every host turn bounds SDK calls and metadata events independently. Layout,
+row placement, source line indexing and element bounds must complete before one
+publication; input/paint/geometry queries never drain staging. No HWND, worker,
+timer, graphics device or scheduler belongs to this backend.
+
+#### Native markers, links and HTML (M4d.3)
+
+Native no-wrap prefix measurement establishes a shared maximum marker advance
+per list. Ordinary marker/body layouts share a first baseline; wrapped lines and
+loose continuation paragraphs retain the body's leading text edge. Nested list
+gutters accumulate with the existing bounded container indentation, mirror for
+RTL and apply to nested table frames/clips as well as glyphs. Existing standalone
+marker rows before first-child list/table/code/HTML/rule blocks remain explicit.
+Marker and body layouts count separately toward the 4,096 native layout ceiling.
+Owned checked/unchecked task glyphs MUST use the same monochrome symbol face
+(`Segoe UI Symbol`) within marker layouts. Their advance, baseline and hit-target
+geometry MUST be independent of checkbox state: toggling cannot move the bullet,
+body caret or wrapping, including a list with only one task. Generated ordinals
+and body text retain the requested fonts; ordinary body Unicode is unaffected.
+Generated marker ink has no owned source selection glyphs. Native movement across
+boxes preserves logical direction; equal ACPs are separate stops only for explicit
+source sites such as padded cells. Home on a text body uses its text edge;
+Ctrl+Home retains the exact raw document start.
+
+Only the following native HTML subset is projected. Tag and attribute names use
+ASCII case-insensitive matching; opening/closing tag identities must balance.
+
+| Form | Native behavior and validation |
+| --- | --- |
+| b, strong, i, em, u, s, del, code, span | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. |
+| a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
+| br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
+| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |
+
+One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
+tags, comments/declarations, attributes (including class/style/events), malformed,
+crossed or unclosed tags, depth/tag overflow, overlapping Markdown/native anchors
+and ineligible HTML destinations reject the complete leaf before any tag is
+hidden. The resulting leaf contents use literal monospaced presentation after
+ordinary outer Markdown container normalization. This is a local literal policy;
+the retained backend can still report Semantic. SourceFallback is reserved for
+the existing whole-document/native-admission path.
+
+HTML destination eligibility allows http, https and mailto schemes plus empty,
+relative and fragment values. Decode references first, then reject ASCII spaces,
+C0/C1 controls, quotes, angle brackets, backslashes and other schemes. These values
+remain inert metadata: the control resolves no URL, opens no resource and makes
+no network request. Other HTML structures, including HTML lists/tables/images,
+remain literal; their Markdown counterparts retain their native behavior.
+
+Valid inline HTML preserves surrounding Markdown inline semantics. HTML-block
+contents preserve normalized whitespace/EOLs and treat Markdown spelling as text.
+Character references use the pinned syntax decoder and atomic raw token ownership;
+decoded markup characters remain text and are never scanned again as tags. This
+policy implements native text presentation, without browser DOM/CSS layout or
+recovery semantics. Fenced/inline code and image alternatives retain their existing
+literal ownership. Empty balanced HTML records a real interior insertion site;
+typing changes exact source between the retained tag pairs in one undo transaction.
+Semantic roles/styles do not replace raw TSF/UIA ACPs. Link invocation and full
+structural commands follow M4e below; semantic style accessibility uses source
+Format units and the acknowledged publication under the input contract.
+
+Selection, composition, text-service rectangles and source-range scrolling use
+the map's actual fragments, including atomic transformed/object spans. Hidden
+syntax receives no glyph rectangle. Source line units partition raw ACPs in
+document order, including original EOLs/trivia; cells have their own wrapped line
+units. A wrapping atomic object remains one source unit rather than overlapping
+intervals. Source caret sites are separate from glyph ownership. The block
+recognizer records physically empty and container-only lines with their exact
+raw source/EOL range, insertion ACP and current container owner. The native
+backend cooperatively merges empty caret boxes with semantic paragraphs/cells;
+code-body empty lines reuse their existing SDK geometry. A definitions-only or
+empty document still has a native caret, and source EOF has its trailing line.
+An empty list marker reuses its marker paragraph instead of adding a second row.
+Source line units retain the preceding line's closing syntax/EOL, the empty
+physical line's complete original EOL, and one final empty EOF unit. A trailing
+caret site must not create an additional unit containing only leftover EOL text.
+
+Empty and padded cells retain native visual site affinity when several sites
+share one raw row-end ACP. Pointer placement, logical Left/Right, Home/End,
+vertical navigation, caret scrolling and text-service caret bounds use that
+affinity. It survives same-source reflow/retirement and unchanged text-service
+synchronization; source replacement, explicit selection or mode/profile changes
+clear it. It never becomes document text, a virtual ACP or an undo entry.
+Noncollapsed source range bounds still contain only owned glyph fragments.
+All native marker/body/paragraph/cell/caret layouts share the 4,096-layout ceiling;
+overflow selects exact source fallback once for that immutable syntax.
+
+Collapsed visual deletion expands a source caret inside a transformed/object
+token to the complete owned token and commits mapped fragments in one source
+transaction. Programmatic replacement and TSF retain exact raw ACPs. Generated
+separators require the explicit compatible M4e join policy. M4e owns
+empty-format cleanup and padded-cell materialization. An empty cell
+scaffold has no owned token to delete; an empty physical source line uses raw
+Unicode graphemes and whole CRLF for ordinary deletion. Typing and text-service
+imports retain exact source replacement semantics. Semantic typing at a padded
+site instead materializes the selected cell at its real row-end ACP. Pending geometry uses
+exact source graphemes rather than applying v0 grammar to another dialect.
+
+A semantic length/admission rejection records the exact immutable syntax owner,
+retires staging and prepares exact source geometry once. It preserves requested
+mode, source, selection and history; idle turns do not retry that revision. A
+source/profile/opt-in change permits a new request. Allocation/SDK/internal
+invariant failures remain failed preparation and must not self-reschedule.
+Native/embedded resource, accessibility, gallery and platform qualification stay
+explicit in the WIP plan; this opt-in does not close M4 as a whole.
+
+RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
+disables it. The default and formatted pixels retain their v0 behavior. Analysis
+uses ControlHost turns before geometry, with a 4,096-operation default per turn.
+`GetMarkdownSyntax` never advances preparation and returns only a completed current
+source/revision/profile, or null. Source edits invalidate current-result access
+immediately, cancel pending analysis and preserve held immutable revisions.
+Profile changes preserve source, selection and undo/redo. Hiding, zero extent,
+rebinding and resource retirement cancel pending work. No extra worker/HWND/timer
+is permitted in either host. Completed pure analysis is independent of geometry.
+
+The raw parser's NUL admission deliberately does not change the existing Document,
+codec, clipboard or source text-store admission contract. End-to-end NUL editing,
+complete pinned grammar/HTML output, extensions and semantic commands remain open.
+
+The bounded base block-tree/identity slice is qualified in the
+[M2 evidence packet](../../Measurements/RichText/README.md):
+568 independent block-section expectations, all source inputs, native/embedded
+behaviors, Unicode edge identities, prefix-work/resource/failure predicates,
+57 ordinary x64 scope obligations, six builds and 324 exact raster pairs pass.
+Inline/extension/semantic acceptance stays open. ARM64 is compile-only; source
+limits and indivisible-work caveats above remain normative.
+
+### Source-exact structural editing (M4e)
+
+`RichTextCommands.h` MUST build owned immutable command plans from current syntax,
+snapshot/revision and directional source selection without parsing, advancing
+preparation or calling a host. Applying a plan MUST validate those exact source
+and selection identities and commit all replacements through the M4b transaction.
+Unchanged source bytes and EOLs remain exact. One undo/redo restores source and
+selection. Rejection/allocation/capacity failure preserves source, revision,
+selection, undo and redo. Identical edits and cell navigation add no history.
+
+The retained Execute/ApplyMarkdownCommand API requires editable semantic Rich
+view and current analysis; composition/pending analysis/incompatible targets
+return Unavailable. Stale plans throw before mutation. No command synchronously
+reparses or prepares native geometry. Changes publish through existing host text
+services and may reenter/retire their owner; no continuation may touch a retired
+owner. Pure command plans carry no host binding.
+
+List commands continue/exit markers, change selected sibling list kinds,
+indent/outdent one level, and join compatible single-paragraph siblings/plain
+paragraphs. They MUST preserve unaffected sibling numbering, task spelling,
+labels and line endings. Marker digit-width changes move owned continuation/
+child indentation. Nested ambiguous tabs, missing lazy prefixes and incompatible
+subtrees reject the whole command. Heading levels 0..6 edit ATX/setext markers;
+ATX conversion prefixes each affected physical content line, with empty source
+sites admitted and task/heading conflicts rejected.
+
+Style commands own Markdown strong/emphasis/strike/code delimiters, preserve
+existing nested syntax and safe spelling, protecting literal punctuation from
+altered delimiter/block contexts, and split enclosing styles around
+partial selections. Code conversion MUST use resolved source-unit values and
+escape punctuation when removing code so literal text stays literal. New
+cross-line code spans, partial multiline-code removal and image/HTML conversion
+are unavailable. Link commands own only label wrappers/metadata; reference
+definitions remain untouched. URI/autolink labels MUST retain their
+literal Unicode values when retargeted. Unlink MUST escape literal punctuation
+as needed so GFM does not recreate the same automatic link or expose a new block.
+Validated native anchors preserve quote/case/
+attribute trivia when changing href/title. Removing an opening HTML-block anchor
+MUST be rejected because it would reinterpret the literal block body. Marker
+deltas use tab columns; relocating an owned marker tab across stops is
+unavailable. Destinations obey the native inert
+URI policy. Task commands edit only state units for existing tasks, invert each
+selected task, or insert task markers where permitted by the explicit dialect.
+Removing task syntax MUST reject a literal label that would be reinterpreted as
+another block marker; it must not silently reformat that label.
+
+GFM table commands create/remove tables, insert/delete rows/columns and edit or
+navigate cells. Unaffected cell/escape/alignment/pipe/EOL spelling MUST survive.
+Header deletion promotes the first body row while retaining the delimiter row;
+last row/column deletion removes the table. Padded cells materialize only the
+missing raw delimiters/cells at their real row end; targetCell indexes the exact
+syntax to disambiguate equal ACPs. Navigation keeps native visual affinity;
+forward navigation from the last cell appends a row. Limits are 64 columns,
+256 body rows, 4,096 declared cells and the existing 64 Ki UTF-16 source cap.
+New structure uses local EOL, then first document EOL, then CRLF. Cell source
+must be single-line Unicode with escaped pipes and no dangling escape.
+
+Semantic visual deletion MUST remove empty owned Markdown/validated inline
+HTML wrappers only when their complete body is deleted, recursively. Block HTML
+wrappers remain outside this cleanup. Raw programmatic/TSF replacement MUST NOT
+apply this semantic cleanup policy. Unsupported mixed opaque targets reject
+atomically. These operations do not provide general Markdown reformatting,
+structured UIA publication, extension rendering or consumer qualification.
+
+### RichMarkdown metadata envelopes (M5a)
+
+Status: initial source-envelope implementation in development; validity,
+dedicated object editing and complete M5 qualification remain pending.
+
+Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
+1.0.0) first physical line, optionally preceded by one document BOM. No leading
+blank, indentation, trailing whitespace, container prefix or later thematic
+break qualifies. CommonMark0312/Gfm029 MUST retain their existing block grammar.
+YAML closes with an exact `---` or `...` line; TOML with an exact `+++` line.
+Fence recognition precedes parsing the metadata language, including invalid
+or incomplete quoted values. No JSON front matter is inferred.
+
+The `FrontMatter` leaf MUST retain the exact whole source envelope, a separate
+fence-excluding content range, language and closed state. Missing close consumes
+the source through EOF and reports `block.closed == false`; it MUST NOT discard
+text or fabricate a close. Metadata content MUST NOT define Markdown references,
+headings, lists or inlines in the following document. Unknown fields, comments,
+spelling, order, BOM and original EOLs MUST survive every untouched source range.
+
+Before validated metadata presentation is available, semantic rendering MUST
+display the entire literal envelope, including fences, without entity/Markdown
+decoding. Source ACPs/history remain authoritative. Markdown structural style,
+heading and table commands MUST reject metadata targets atomically; ordinary
+source replacement/undo/redo and source-view selection remain available.
+Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
+extension conformance. Later M5 work owns metadata content-validity diagnostics and source editors.
+An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
+exact opening marker range and revision-local owner node. Semantic UIA HelpText
+MUST explain the missing closing fence. Source edits retire that provider; a
+closed successor MUST have no stale missing-fence issue. This envelope diagnostic
+does not validate the YAML/TOML payload.
+
+### Native Mermaid flowchart profile
+
+The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
+named limited grammar below. The CPU parser and geometric layout are in development; native painting,
+source-object editing and UIA diagram publication remain M5 work. A prepared
+graph MUST NOT be reported as a rendered diagram until those layers qualify.
+
+The body starts with `flowchart` or `graph`, horizontal whitespace and one exact
+direction: `TB`/`TD`, `BT`, `LR` or `RL`. Statements end at a physical CR/LF/CRLF
+or a semicolon outside quoted labels and shapes. Horizontal whitespace is space
+or tab. Ordinary `%%` comments outside labels run to the line end. Diagram-local
+YAML, `%%{...}%%` configuration, directives and other families are unsupported.
+
+An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
+`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click` and
+`linkStyle` are reserved. A node is an identifier alone or followed by `[label]`
+(rectangle), `(label)` (rounded), `((label))` (circle) or `{label}` (diamond).
+Expanded shape syntax is unsupported. An explicit declaration replaces the
+node's previous label/shape; a bare endpoint preserves it. Node order is first
+appearance order and edge order is source order, including cycles/self-loops.
+
+An edge chain is `node (edge node)*`, where edge is `-->` or `---` optionally
+followed by `|label|`. Expanded, dotted, thick, multi-target, reversed and named
+edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
+treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
+Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
+labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
+text. HTML, Markdown labels, entity escapes, icon syntax and inline math labels
+are unsupported; they MUST NOT silently acquire a different label meaning.
+
+Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 edges, 1,024
+nonempty statements including the header, 1,024 decoded label units and 128 ID
+units. Check each bound before adding generated data. Capacity, unsupported and
+malformed outcomes retain the complete body with a source-ranged diagnostic and
+expose no partially prepared graph. Failure of an allocation retires staging,
+preserves the prior immutable publication and permits explicit retry.
+
+The private CPU parser MUST coalesce identical source/revision requests, reject
+invalid source admission without replacing pending work, yield during scanning,
+support cancellation and reject stale publication at its future host adapter.
+One statement parse is an indivisible bounded operation; event budgets are not
+wall-clock guarantees. It owns no worker, HWND, graphics device or timer.
+
+The internal layout service takes one already measured label size per node and
+edge. It MUST NOT create SDK layouts, retain source/device resources in its
+published geometry, or allocate while advancing. Stable first-seen DFS removes
+gray back edges and self-loops from ranking; stable Kahn traversal assigns
+longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
+rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
+diagonal, and diamonds contain twice the padded width/height. Direction changes
+flow without rotating text. Every edge gets a distinct exterior lane; endpoint
+corridors remain outside full rank rows, including for skipped-rank edges,
+cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
+and upstream Mermaid coordinate compatibility are not claimed.
+
+All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
+with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
+an explicit capacity issue with no partial geometry. Invalid/nonfinite/negative
+measurements and failed admission preserve pending work and prior publication.
+Successful replacement and cancellation retire only staging. Cooperative events
+handle a node, edge, DFS transition or rank; stable Kahn selection may inspect up
+to 256 nodes. Published geometry is independent of source and label SDK objects;
+the future owner adapter must budget every actual label-shaping SDK call and
+reject stale results before painting or UIA publication. CPU geometry alone does
+not change the editor's exact source fallback or establish diagram rendering.
+
+Native diagram paint preparation MUST consume the owner's common SDK-layout
+allowance for every actual DirectWrite label creation, including empty node
+labels; empty edge labels need no layout. Formats, label ink/logical extents,
+CPU geometry and bounded diamond/arrow paths are staged before drawing. Label
+metrics retain Unicode/bidi/multiline ink and whitespace, without rotating text
+or clamping excessive extents into a renderable diagram. Plain labels inherit
+the requested host font, size, locale and reading direction. Paragraph width,
+code font and paragraph alignment do not control intrinsic diagram geometry.
+
+Prepared label/path state MUST retain factories with explicit COM ownership,
+with no owned target/device/host/worker. Coalescing checks the graph identity,
+factories, relevant typography and separate typography/resource epochs; epoch
+pairs MUST NOT be reduced to a sum/xor that can alias. Invalid admission leaves
+pending work intact. Failed preparation discards staging and keeps the previous
+publication; callers may explicitly retry. Drawing is raster preparation on a
+compatible caller-owned target, with supplied brushes and BeginDraw/EndDraw. It
+MUST restore the caller transform and create no C++/SDK resources. Edge labels
+paint last with a two-DIP padded opaque backing supplied by the caller, so crossing
+routes cannot obscure their ink. Padding fits within the geometry's eight-DIP
+outer margins. The fill brush MUST be opaque. CPU geometry
+remains source-independent; labels and device-independent factory paths may
+survive replacement borrowed devices with the same factory. Final process/GPU
+resource, device-loss and host object qualification remain separate requirements.
+
+The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
+remain accounted for. Independent subset expectations distinguish 13 admitted
+graphs from 92 unsupported definitions and 20 other diagram families. Rejection
+is compatibility accounting, never rendered conformance. Original reference
+bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
+
+### Source-backed native diagram objects
+
+RichMarkdown recognizes case-sensitive `mermaid` fenced code as a native diagram
+candidate. Trailing horizontal whitespace is accepted; fence options receive an
+unsupported diagnostic. Other language words and the pinned CommonMark/GFM
+profiles retain ordinary code interpretation. Unclosed, malformed, unsupported,
+empty and over-capacity candidates retain code presentation with an accessible
+explanation and an exact selectable source diagnostic. Diagnostics MUST contain
+whole UTF-16 scalars and original CRLF pairs.
+
+Semantic preparation MUST advance graph parsing and alternative construction
+cooperatively. A document admits at most 128 candidates and 32,768 combined native
+node/edge records before adding the next graph. Prepared graphs use one atomic
+object display character owning the complete original fence. Optional document
+state retains the CPU model and code-body provenance, including removed container
+prefixes, virtual indentation and normalized EOLs. Source spelling and source
+text-store offsets remain unchanged. Alternative names include direction, node
+identities/labels and connections. `SemanticDocument::Diagnostics()` references
+original source and the owning semantic element; `Syntax()` remains immutable.
+
+Native geometry MUST consume the same owner SDK allowance for graph labels and
+the positioning paragraph. A no-op DirectWrite inline object reserves intrinsic
+metrics and supports hit testing/selection; native drawing uses the known owner
+target. Carets around a graphic remain text-sized. Prepared geometry and UIA
+publication must match the same source, binding, typography and resource request.
+The diagram child exposes Image semantics, a meaningful alternative and an exact
+raw fence range. Source changes and presentation withdrawal retire old children.
+F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata object's
+exact source in place. Esc, F2 or Ctrl+Enter leaves that presentation. Enabled
+read-only owners permit source inspection; edits still require an editable owner.
+Neither presentation transition edits source/history or acquires OS focus.
+Transitions MUST cancel the editor's old pointer gesture and release its capture
+before publishing the new presentation, with lifetime/binding guards after
+native capture release.
+F2 MUST accept both source caret edges of an object. At a shared boundary,
+another object's leading envelope takes priority over the preceding trailing
+fallback. The previous object's trailing entry remains usable before ordinary
+text and at raw EOF. Entry/exit may coalesce before a preparation turn.
+An active native/embedded composition MUST refuse entry and exit. Old semantic
+providers retire immediately on either transition, including at equal source
+revision. Pending or stale fragments MUST NOT act on another presentation.
+The pure `SemanticBuilder::Begin(syntax, sourceBlock)` overload prepares one
+revision-local fenced/indented-code, HTML-block or front-matter leaf as exact
+source. `SemanticDocument::SourceBlock()` identifies that requested syntax index;
+`MarkdownNoNode` restores ordinary semantics. The caller MUST take the index
+from the supplied immutable syntax. Other/container targets are invalid.
+Code descendants inside an unreferenced/duplicate footnote declaration are
+invalid targets: their declaration is already presented as one literal leaf.
+The scoped leaf MUST retain its complete raw envelope, prefixes and original
+EOLs in linear source/display spans, including a closing fence without final
+EOL. It MUST bypass value decoding/native diagram parsing and avoid duplicating
+generated list/footnote markers. Surrounding leaves keep their ordinary semantic
+rendering. A source-block request is part of coalescing/publication identity;
+invalid admission MUST preserve existing publication and pending work. No SDK
+resource belongs to this pure request.
+
+The retained editor uses `MarkdownParser::BeginSourceRegion(snapshot, revision,
+region)` while a source scope is active. A nonzero session and scalar/CRLF-safe
+ordered range are admitted before replacing pending work. The synthetic
+`SourceEditor` leaf owns complete physical lines, including their first-line
+prefixes, and remains opaque even when fences, references or metadata are
+temporarily invalid. Empty documents/trailing insertion lines retain a zero-span
+leaf and real native caret geometry. `SourceRegion()` reports the effective
+physical-line envelope; `SourceRegionNode()` is a final dense node index. A
+hinted syntax is an explicitly noncanonical editing presentation. Ordinary
+`Begin` overloads MUST remove that hint even at unchanged source/revision, and
+MUST preserve the pinned CommonMark/GFM grammar. The semantic builder's default
+request automatically selects the hinted leaf; conflicting explicit targets
+are invalid. Session identity participates in coalescing and synthetic node
+identity; ordinary interior edits preserve that node within its session.
+
+All source edits, Unicode character input, previews, cancellation, undo and redo
+continue through the one authoritative Document and full source text store.
+Tracked interior changes rebase the editing envelope before callbacks. EOL joins
+expand to complete physical lines on preparation. Outside changes or selection,
+SetText and explicit mode/profile/rendering replacement retire the local scope.
+Raw source input MUST bypass rich list/table/atomic-object deletion commands;
+ordinary source grapheme/range deletion and literal CRLF insertion apply.
+Leaving presentation MUST preserve committed edits and redo; Esc is not a
+second unrecorded rollback. Other paragraphs retain semantic rendering. Math
+and inline-object source entry follow their accepted M5 object implementations.
+Selected native objects MUST retain the resolved selection text/surface pair,
+including high contrast. Their opaque node and edge-label backing uses the
+selection surface composited over the ordinary opaque object surface; it MUST
+NOT repaint selected interiors with the ordinary input fill.
+When native geometry capacity selects source fallback, Delete, Backspace and
+selected-range deletion MUST operate on visible raw source graphemes/ranges.
+Retained CPU object semantics MUST NOT expand those edits to the hidden fence.
+
+An intrinsic diagram that cannot fit the available paragraph width or font/extent
+limits causes usable exact source presentation. This rejection is keyed by the
+semantic document, width, reading direction, typography/resource epochs and host
+binding. Repeated unchanged requests MUST add no parsing/layout work. Width/font/
+resource/binding changes permit retry without altering text, selection or history.
+Transient memory failures remain retryable and MUST NOT create a capacity latch.
+
+### Bounded Markdown staging and source fallback
+
+`MarkdownSyntax::MaximumNodeRecords` is 32,768 combined block/inline staging
+records. Source length admission remains 65,536 UTF-16 units. Temporary shells
+count until their compaction pass completes. A table row MUST admit its row plus
+all header-width real/padded cells against the remaining global node budget
+before allocating that row; separate tables cannot reset the budget. Inline
+append and opaque HTML roots share the remaining combined budget. Overflow
+throws `length_error`, retires staging and preserves the previous publication.
+No excessive/partial tree may be published for later semantic admission to reject.
+
+Each generated table cell MUST consume a separate resumable parser event. No
+following physical line or final block compaction may run while a row has pending
+cells. Cancellation/source replacement can discard a partially prepared row;
+published source/identities remain immutable. Bounds apply before amplification,
+not after allocating a product of body rows and header width.
+
+Retained parser-capacity fallback MUST bind the exact source snapshot, document
+revision and analysis profile. It prepares usable source geometry while preserving
+the requested view, text, directional selection and undo/redo. Current rejection
+permits source-layout acknowledgement without an unavailable syntax tree; idle,
+flow/typography or resource preparation MUST NOT repeatedly parse that same request.
+Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
+`bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
+These limits do not establish larger-document or worst-case latency qualification;
+raw NUL admission and final capacity/performance profiles remain separate M6 work.
+
+### RichMarkdown footnote definition grammar
+
+`DxUiFootnotes1` is a separate RichMarkdown extension; CommonMark0312 and Gfm029
+MUST retain their pinned grammar. Definition containers, global label binding
+and reachable numbering have focused native/embedded coverage. Footer projection
+and navigation are in development; final M5 qualification remains open.
+
+A definition starts with `[^label]:` after at most three space columns beyond
+the current quote/list prefixes. The nonblank label has at most 999 Unicode
+scalars, retains its exact raw spelling and allows escaped brackets/backslashes.
+Consume one optional space column after the colon; preserve additional initial
+indentation, including partial tabs, for ordinary block recognition. Subsequent
+non-lazy body lines consume four columns relative to the outer container. Ordinary
+paragraph lazy continuation remains valid; blank lines allow multiple paragraphs.
+Empty definitions stay open across blank lines for an indented body, but do not
+capture following unindented non-lazy blocks. A new definition interrupts an
+existing paragraph/definition at its actual outer level. Nested definitions are
+literal body text, and MUST NOT become accidental ordinary link definitions.
+Code, opaque HTML and metadata envelopes do not acquire footnote definitions.
+
+The `FootnoteDefinition` container owns the whole raw source, exact marker/label
+ranges and parsed block children. Definition order, comments/trivia, indentation,
+Unicode, EOL spelling and compatible identity MUST survive untouched edits. During
+the initial fallback stage, render the complete definition literally once with
+source ACPs; do not independently render its parsed child subtree or add extra
+caret rows for its child blank trivia. Structural commands touching this fallback
+MUST be unavailable atomically; raw source replacement and undo/redo remain valid.
+Future note-aware structural commands require their own prefix/transaction tests.
+
+Global resolution uses the existing Unicode 17 default case-fold and ASCII
+whitespace collapse without changing label source. No NFC/NFKC or entity decoding
+is applied to identities. Binding/numbering is immutable syntax data; rendering
+and backlink navigation are separate semantic/native obligations.
+
+`MarkdownSyntax::Footnotes()` MUST expose unique rows sorted by normalized label.
+A row names the first source definition, its reachable ordinal (zero if unused)
+and final dense inline indexes in reachable reading order. A
+`FootnoteReference` inline owns its complete raw marker. Optional
+`FootnoteReferences()` records, sorted by final inline index, hold row indexes and
+one-based reachable occurrences; `FootnoteReferenceFor(index)` borrows that
+immutable record or returns null for an ordinary inline. Undefined references
+use `MarkdownNoNode`, and unvisited/undefined occurrences use zero. Extension
+metadata MUST NOT enlarge every ordinary inline node.
+Raw table escape spelling MUST participate in the same identity as a definition.
+Explicit inline/reference links, images, code and escaped bracket openers take
+precedence; nested bracket labels MUST NOT create nested interactive references.
+
+Later duplicate definitions MUST retain their source and publish
+`DuplicateFootnoteDefinition` at the exact later label range. Missing references
+MUST retain literal source and publish `UndefinedFootnote` at the whole marker.
+Diagnostics MUST be ordered by raw source position and name a revision-local
+owning block. The first definition wins without renaming or reordering source.
+
+Number all main-content references first in reading order, skipping definitions
+at their original positions. Then traverse newly reachable primary definition
+bodies in discovery order, each once; references there may queue further bodies.
+Cycles MUST terminate, repeated references share a number and get distinct
+one-based occurrences, and unused/duplicate bodies MUST NOT affect numbering.
+Bindings and diagnostics stay immutable across later edits/cancellation and
+cannot be reused solely because a numeric revision matches. No host, SDK, worker
+or source editing occurs in this CPU pass.
+
+Reordered footer definitions require display-order caret-site ownership,
+complete visual-line indexing and source-exact selection/edit/UIA navigation
+before rendered footnote support can close.
+
+The semantic projection MUST append each reachable primary definition once as
+a document-root `Footnote` element, in ordinal order, with its original raw
+definition envelope and parsed body descendants. Unused/duplicate definitions
+remain literal Code leaves in their source positions. Resolved references use
+superscript decimal numbers, atomically owning the complete raw marker; missing
+references remain literal. The first body descendant carries a generated note
+number. An empty definition retains a real source insertion site.
+The moved body MUST NOT inherit list markers/gutters or quote indentation from
+its original declaration ancestors. Its own nested lists/quotes remain intact.
+Original container source envelopes can overlap a moved definition; generic UIA
+enclosure MUST consider the selected primary display fragments, so a range
+spanning retained container content and a footer encloses the document. Hidden
+definition labels/blank source positions belong to the footer's semantic tree.
+Explicit `RangeFromChild` retains its requested child identity and raw envelope.
+
+Each occurrence MUST have a named generated backlink with zero source ownership
+inside the original definition. `SemanticDocument::NavigationTarget` carries its
+separate complete raw reference target; forward links target the definition
+content insertion. Generated navigation MUST NOT acquire raw text ownership or
+enclose unrelated raw ranges at a shared ACP. Native preparation MUST merge empty
+sites by display order and index visual line units as an ordered raw-source
+partition; generated backlink-only rows add no raw line units. Reordered note
+data MUST remain optional, without enlarging ordinary inline records.
+
+Retained selection remains one source-contiguous anchor/caret pair. A selection
+crossing main text and a footer may highlight disjoint visual fragments. Copy,
+deletion, composition replacement and UIA ranges MUST retain that exact raw
+interval; display order MUST NOT silently create a multi-fragment source edit.
+`NavigateSemanticElement` MUST require current acknowledged geometry/publication,
+an enabled binding and no active composition. It selects and scrolls without
+editing history or acquiring keyboard focus; read-only navigation is allowed.
+UIA exposes internal references/backlinks as Hyperlink + Invoke, dispatching
+native mutations to the owner and rejecting embedded foreign-thread mutation.
+External destinations remain inert. Source/presentation/binding retirement MUST
+make held navigation providers unavailable before a replacement publication.
+Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
+activates its definition. Generated backlink keyboard traversal remains M5e.
+Resolved footnote references are link actions for native HTML admission. They
+MUST NOT overlap a native `<a>` envelope: preserve the entire conflicting leaf
+literally, as with nested Markdown/native anchors. The footer's independent
+backlinks still target exact raw references. Unresolved literal markers add no
+action and do not invalidate an otherwise supported HTML anchor.

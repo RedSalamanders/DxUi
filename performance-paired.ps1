@@ -57,7 +57,77 @@ $harnessRoot = $PSScriptRoot
 # The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both trees
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
-$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1')
+$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1',
+    'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+
+function Get-PairedBuildChanges([object[]] $Records) {
+    # The benchmark project is part of the common harness: per-item flags such as
+    # /bigobj must match, while each side keeps its own library project/source.
+    $changed = @(Get-OverlayCompiledChanges -Records $Records)
+    $changed += @($Records | Where-Object { $_['action'] -cne 'unchanged' -and
+        $_['path'] -ceq 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' } | ForEach-Object { $_['path'] })
+    return @($changed | Select-Object -Unique)
+}
+
+function Set-PairedProjectStamps([string[]] $Roots, [DateTime] $StampUtc=[DateTime]::UtcNow) {
+    # MSBuildAllProjects begins with the newest project/import. A copy preserving
+    # an old timestamp can select Directory.Build.props on only one side. Stage
+    # the common benchmark project after restore, record/restore its timestamps,
+    # and still require exact evaluated profiles; never filter that property out.
+    $records=[Collections.Generic.List[object]]::new()
+    try {
+        foreach ($root in $Roots) {
+            $path=Join-Path $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+            if (-not [IO.File]::Exists($path)) { throw "Missing common benchmark project: $path" }
+            $record=[ordered]@{path=$path;originalUtc=[IO.File]::GetLastWriteTimeUtc($path);stagedUtc=$StampUtc.ToUniversalTime()}
+            $records.Add($record)
+            [IO.File]::SetLastWriteTimeUtc($path,$record.stagedUtc)
+        }
+        return $records.ToArray()
+    } catch {
+        $failure=$_; $restoreErrors=[Collections.Generic.List[string]]::new()
+        foreach ($record in $records) {
+            try { [IO.File]::SetLastWriteTimeUtc($record.path,$record.originalUtc) }
+            catch { $restoreErrors.Add($_.Exception.Message) }
+        }
+        if ($restoreErrors.Count) { throw "Benchmark timestamp staging failed: $failure; rollback failed: $($restoreErrors -join '; ')" }
+        throw $failure
+    }
+}
+
+function Get-PairedProjectStampRoots([object[]] $Sides, [bool] $ReuseBuilds) {
+    return @($Sides | Where-Object { -not $ReuseBuilds -or -not $_.Existing } | ForEach-Object { $_.Root })
+}
+
+function Restore-PairedProjectStamps([object[]] $Records) {
+    $failures=[Collections.Generic.List[string]]::new()
+    foreach ($record in $Records) {
+        try { [IO.File]::SetLastWriteTimeUtc($record.path,$record.originalUtc) }
+        catch { $failures.Add($_.Exception.Message) }
+    }
+    if ($failures.Count) { throw "Benchmark timestamp restoration failed: $($failures -join '; ')" }
+}
+
+function Assert-PairedBuildCompatibility([Collections.IDictionary] $Baseline, [Collections.IDictionary] $Candidate) {
+    foreach ($state in @($Baseline,$Candidate)) {
+        if (-not $state.Contains('buildIdentityVersion') -or
+            ($state['buildIdentityVersion'] -isnot [int] -and $state['buildIdentityVersion'] -isnot [long]) -or $state['buildIdentityVersion'] -ne 2) {
+            throw 'Paired build preflight requires buildIdentityVersion 2 on both sides.'
+        }
+        if (-not $state.Contains('identityStatus') -or $state['identityStatus'] -cne 'verifiable' -or
+            -not $state.Contains('identityScope') -or $state['identityScope'] -cne 'full') {
+            throw 'Paired build preflight requires verifiable full identities on both sides.'
+        }
+        foreach ($key in @('benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity')) {
+            if (-not $state.Contains($key) -or $state[$key] -isnot [string] -or [string]::IsNullOrWhiteSpace($state[$key])) {
+                throw "Paired build preflight is missing a valid $key."
+            }
+        }
+    }
+    foreach ($key in @('benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity')) {
+        if ($Baseline[$key] -cne $Candidate[$key]) { throw "Paired build preflight differs at $key; no measurement slots were consumed." }
+    }
+}
 
 function Resolve-Commit([string] $Revision) {
     $commit = & git -C $harnessRoot rev-parse --verify --quiet "$Revision^{commit}"
@@ -186,6 +256,7 @@ function Get-SideSummary([System.Collections.IDictionary] $Side) {
 
 $results = @()
 $studyCompleted = $false
+$projectStamps = @()
 try {
     foreach ($side in $created) {
         & git -C $harnessRoot worktree add --detach $side.Root $side.Commit
@@ -211,23 +282,40 @@ try {
     }
 
     foreach ($side in $created) { & (Join-Path $side.Root 'vcpkg-install.ps1') -Platform $Platform }
+    $stampRoots = @(Get-PairedProjectStampRoots -Sides $physicalSides -ReuseBuilds ([bool]$SkipBuild))
+    if ($stampRoots.Count) {
+        $projectStamps = @(Set-PairedProjectStamps -Roots $stampRoots)
+        $projectStamps | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reports 'project-timestamps.json') -Encoding utf8
+    }
     foreach ($side in $physicalSides) {
         Assert-HarnessOverlay -Target $side.Root -Records $side.Overlay
         if ($SkipBuild -and $side.Existing) {
             # Only an existing tree has a build to reuse, and only one made from the harness the receipts will name.
             $executable = Join-Path $side.Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
             if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw "-SkipBuild needs an existing $Platform $Configuration build of the $($side.Role); there is none at $executable" }
-            $changed = @(Get-OverlayCompiledChanges $side.Overlay)
+            $changed = @(Get-PairedBuildChanges $side.Overlay)
             if ($changed.Count) { throw "-SkipBuild cannot reuse the $($side.Role)'s build: the harness overlay changed $($changed -join ', '), which that build does not contain. Omit -SkipBuild to build it." }
             Assert-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
             continue
         }
-        # The current wrapper attests old baseline entrypoints too; baseline library and project inputs stay their own.
+        # The wrapper attests old baseline entrypoints too. The benchmark project
+        # is shared; baseline library and library-project inputs stay their own.
         $buildBefore = Start-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
         & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform
         if ($LASTEXITCODE -ne 0) { throw "The $($side.Role) build failed with exit code $LASTEXITCODE." }
         Complete-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration -Before $buildBefore
     }
+
+    $baselineState = Get-PerformanceMeasurementState -Root $baseline.Root -Platform $Platform -Configuration $Configuration
+    $candidateState = Get-PerformanceMeasurementState -Root $candidate.Root -Platform $Platform -Configuration $Configuration
+    $preflight = [ordered]@{ status='not-validated'; baseline=$baselineState; candidate=$candidateState }
+    $preflightPath = Join-Path $reports 'build-preflight.json'
+    $preflight | ConvertTo-Json -Depth 24 | Set-Content -LiteralPath $preflightPath -Encoding utf8
+    Assert-PerformanceBuildAttestation -Root $baseline.Root -Platform $Platform -Configuration $Configuration -State $baselineState
+    Assert-PerformanceBuildAttestation -Root $candidate.Root -Platform $Platform -Configuration $Configuration -State $candidateState
+    Assert-PairedBuildCompatibility -Baseline $baselineState -Candidate $candidateState
+    $preflight.status = 'matched'
+    $preflight | ConvertTo-Json -Depth 24 | Set-Content -LiteralPath $preflightPath -Encoding utf8
 
     if ($Seed -lt 0) { $Seed = [Security.Cryptography.RandomNumberGenerator]::GetInt32(0, [int]::MaxValue) }
     $schedule = Get-RandomizedPairedBlockSchedule -Blocks $Blocks -Seed $Seed
@@ -323,6 +411,9 @@ try {
 } finally {
     # Put every named tree back as it was found, whatever ended the run.
     $restoreFailures = [Collections.Generic.List[string]]::new()
+    # Restore stamps before overlay backups restore the original project files.
+    try { Restore-PairedProjectStamps -Records $projectStamps }
+    catch { $restoreFailures.Add($_.Exception.Message); Write-Warning $_.Exception.Message }
     foreach ($side in $physicalSides) {
         if ($side.Contains('Overlay') -and $side['Backup']) {
             try { Restore-HarnessOverlay -Target $side.Root -Records $side.Overlay -BackupDirectory $side.Backup }

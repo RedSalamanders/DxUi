@@ -76,6 +76,189 @@ Original UIA extra-event and native-input setup cause investigations remain in
 
 ## 2. Paired performance and policy acceptance
 
+### PR #89 calibration contribution and policy-review proposal (20 October 2026)
+
+The owner requested fresh A/A evidence and a review proposal while preparing
+[PR #89](https://github.com/RedSalamanders/DxUi/pull/89). This contribution does
+not qualify the policy or close another candidate's acceptance. The retained
+[RichText summary](../../../Measurements/RichText/README.md) owns its functional
+results and clear/readback investigation.
+
+- [x] Repair reproducible paired-build provenance mismatches before measurement:
+  common benchmark project/options, recorded/restored timestamp staging and full
+  v2 preflight. Keep library sources/projects independent; 31 tooling cases pass.
+- [x] Add continuous Windows host observations and hosted retention of the
+  original native outputs/attestations; retain all failures and sampling costs.
+- [x] Complete the canonical hosted same-binary A/A run with twelve independent
+  blocks and Default, MultilineGrid and MultilineGridDistinct. Seed 1341918500
+  was generated once; all orders/controls are retained, with no favorable retry.
+  The retained 17 October attribution pilot precedes this calibration. Hosted
+  collection used a separate machine and does not qualify this candidate.
+- [x] Complete the fixed eight-process main/candidate boundary pilot in a
+  coordinated build-free window. The first attempt lacked a private dispatcher
+  branch and produced no report; the second ran out of disk and retained an
+  incomplete observer. A third completed/replayed all eight processes, but its
+  continuous observations establish compiler/linker activity. Keep it as
+  under-load diagnostics; repeat the complete protocol without reusing slots.
+  Frozen library sources are main `f65e4a4b` and retained candidate `e325158a`,
+  with a shared diagnostic harness. This attribution pair predates the menu
+  repair and does not qualify runtime/test commit `61efca4c`.
+  A fourth fresh attempt follows the sorting handoff and confirmed RedPrism
+  pause. Four of eight processes replay independently, including 1,280 frames
+  and matching captures; the pre-slot guard refuses process five on compiler
+  presence. Its complete 180-sample observer records advancing compiler CPU
+  before refusal. The owner remains unproven; later live compilers start after
+  the refusal and must not be substituted as its cause. Collection ends and the
+  pause is released. That protocol remains incomplete; none of its slots is reused.
+  A fifth attempt follows actual worker-stop confirmations from both active
+  build chats and a fresh machine-wide preflight. All eight new processes
+  complete in 327.67 seconds; original reports, both retained executables,
+  source/build identities, 2,560 frames and matching captures replay. Its
+  314-sample observer records zero compiler/linker rows and zero other DxUi
+  native-test rows; property-evaluation observations remain separate. Both
+  pauses are released before offline replay. Full-frame same-ranked Map shares
+  are 96.69%/94.80%. Full-frame ordering reverses between timers-off/on; two
+  fresh processes per role/mode do not establish isolated observer overhead or
+  candidate speed. Observer collection median/p95 is 38.98/46.80 ms, maximum
+  sample-start gap 1.081 s and sampled-span CPU 4.41% of one core. Sampling does
+  not exclude unknown work or activity between samples, and supplies no kernel
+  scheduling/GPU attribution. This closes the declared coordinated diagnostic
+  collection, while all canonical acceptance and independent-policy gates stay open.
+- [x] Download/seal the original A/A artifact, replay both frozen judges and all
+  controls from identical bytes, inspect continuous load and every metric, and
+  record the exact source, run and closure limitations here.
+- [ ] Obtain independent review of the following proposal before any separate
+  trusted-policy change in main. PR #89 remains draft until its required gates
+  are satisfied; an A/A diagnostic green check cannot qualify a regression gate.
+
+**Proposed decision: retain the existing policy and HOLD pending the review.**
+The review target remains `dxui-complex-ui-paired-v2`, judge
+`dxui-paired-block-sign-flip-holm-v2`, the existing judge/assignment SHA-256 values
+in `Tools/PerformanceAcceptancePolicy.v1.json`, twelve independent ABBA/BAAB
+blocks, all 26 Holm slots per scenario, alpha 0.05, timing/FPS 5%, memory 2% and
+unchanged exact budgets. No new numeric A/A pass threshold is proposed.
+
+The independent reviewer must decide whether the independent-order design,
+same-byte legacy/migrated differences, all controls/outliers and observed host
+load support this frozen policy. Unstable A/A controls require an explicit
+decision or a separately frozen fixture/judge investigation, not automatic
+dismissal because the executable is identical. Hosted artifacts now retain the
+actual application binaries/library/symbols and attestations; compiler/SDK bytes
+are hashed by build identity but are not redistributed in public artifacts.
+Independently rehashable access to that toolchain/dependency closure remains an
+admission question. A rebuild cannot replace missing original outputs.
+
+Only an independently approved policy seed merged into the measured base can
+provide policy trust. After that seed, rerun the candidate-specific required
+paired gate against that exact main revision. Preserve the unqualified-base
+refusals and earlier failures. This proposal grants no policy approval, baseline
+replacement, performance tradeoff or consumer acceptance.
+
+Fresh collection completed in
+[workflow 39468472800](https://github.com/RedSalamanders/DxUi/actions/runs/39468472800),
+with both explicit revisions pinned to
+`e0fa1d7a2efd81b80bc575978bc4e029a083b0af`. The paired job succeeded
+diagnostically; the workflow aggregate failed its separate older-budget native
+jobs. The A/A roles shared one physical tree/build. Both frozen judges and all
+144 receipts, 72 controls and 26 metrics per scenario replay exactly. Both judges
+label all three sets within budget, with no metric-label disagreement. Nevertheless
+controls drift in 22/24 Default, 24/24 MultilineGrid and 23/24 MultilineGridDistinct
+comparisons: **69/72 unstable controls remain unresolved**. This is not approved
+calibration or accepted candidate non-regression. A single study cannot establish
+family-wise false-positive coverage or qualification across machines.
+
+The original artifact ZIP is 81,369,231 bytes; its downloaded SHA-256 matches
+GitHub's `f4fd1a8864e6e759f5ec7aeb40cedcd8fffff6b1e009db3b1605b54f32fba5d1`.
+The original measured executable rehashes to
+`171FDE902B8125E418927B2B0CB051484E4D2A5B73A257D98F1324D4D6BECC3C`.
+Original outputs/symbols, attestations, reports, observer stream, logs and separate
+replays remain privately retained. The observer completion seal verifies 6,344
+consecutive samples over 6,382.28 s. Median/p95 collection is 2.26/3.50 ms,
+maximum 205.49 ms; maximum start interval is 1,246.76 ms. Sampled-span observer
+CPU is 0.333% of one logical core. Guest OS CPU median/p95 is 26.95/62.69%; coarse
+intervals with a benchmark process present are 52.34/82.42%. These include measured
+work and do not identify external load, exact-frame preemption or physical-host
+activity. The 6,351 inaccessible/exited process observations remain explicit.
+Compiler/SDK/dependency-closure access remains an independent admission question.
+
+The later PR #89 main/candidate study in
+[workflow 39480512299](https://github.com/RedSalamanders/DxUi/actions/runs/39480512299)
+compares main `f65e4a4b` with tested merge `6e2f455b` (head `61efca4c`), seed
+`1202880588`. Its original 138,507,992-byte paired ZIP matches GitHub SHA-256
+`6ecaf47e3ad0bf49df69944923ef6103bd60e434ae5b83f9c25366778b0581fb`.
+Separate replay rehashes both original role executables and verifies all 144
+receipts, both judges and 72 controls. Metric labels agree in this study, while
+controls drift in 21/24 Default, 24/24 MultilineGrid and 20/24 Distinct comparisons
+(65/72 total). Keep the preceding study's disagreements and A/A instability.
+The measurement step succeeded; its required publisher and aggregate gate failed
+because the measured-base policy is not independently qualified. Six sealed
+native artifacts additionally verify 126 native scope passes, zero capability
+skips, two resource fixtures and all eight relocated-consumer variants; those
+functional results do not grant performance acceptance.
+
+After feature-history consolidation, the current head `335c5157` is tested at
+tree-identical merge `17969dc3` in
+[workflow 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925).
+Six downloaded original artifacts verify 126 native scope passes, zero skips,
+two resource fixtures and eight consumer variants. The 138,976,283-byte paired
+ZIP matches GitHub SHA-256
+`9aa72831e97715150236e9f2845cadbff87814ea5830571e6395640d66cf4fa5`.
+All 144 receipts, both original role executables, both judges and 72 controls
+replay under seed `1568326520`. All 72 controls drift. MultilineGrid clean
+composition p95 is flagged by the legacy judge and within-noise under the
+migrated judge; retain both results. The unqualified measured-base policy still
+fails the required publisher and aggregate. This run supplies no policy approval.
+
+The current observer stream verifies 5,753 samples over 5,928.18 s. Collection
+median/p95 is 2.40/5.76 ms, with maximum 5,318.65 ms; maximum sample-start
+interval is 7,772.71 ms. Sampled-span observer CPU is 0.368% of one logical core.
+These bounds do not provide frame-aligned scheduling or physical-host visibility.
+The original packets and previous studies remain retained. A private local-audit
+repair preserves ISO UTC precision and passes French/US positive replays plus
+malformed child/observer timestamp rejection, four checks in total. The broader
+build-process inventory includes CMake/Ninja; its original cl/link subset still
+reproduces 1,283 rows, 1,064 CPU advances and 24 coarse intervals containing timed
+windows. This is checker validation on prior under-load data, not a fresh pilot.
+
+The instability is not limited to sub-microsecond preparation quantization.
+Maximum absolute same-binary Default clean-frame p95 change is 25.48% in A/A
+and 44.59% in study `39480512299`. These are maxima over retained controls,
+not candidate effects or attributed external load. Only 10/26, 10/26 and 14/26
+metric slots in that study hold every control within its declared band
+(A/A: 11/26, 10/26, 16/26). Keep frame/composition and memory stability in the
+review alongside timing resolution; do not infer that one explanation closes all
+observed drift.
+
+The independent review must resolve these concrete questions before a seed is
+proposed for approval; collecting this evidence does not answer them by authority:
+
+| Review question | Current evidence and unresolved decision |
+| --- | --- |
+| Can the fixture hold the declared bands? | Same-executable A/A still has 69/72 unstable controls. Review per-metric drift and the needed frozen stability investigation; do not treat identical binaries as an exemption. |
+| Does the migrated method reproduce every result? | Each retained study replays all 144 receipts, full 26-slot families, assignments and both judges. A/A and the latest candidate labels agree, while the preceding main/candidate study disagrees on clean preparation in all three scenarios. Preserve every result. |
+| Can clean preparation resolve its timing band? | The preceding legacy flags use 0.0005 versus 0.0006 ms. Review raw clocks and resolution against the unchanged 5% band; neither small absolute cost nor a passing migrated label dismisses the flag. |
+| Is this enough calibration? | One predeclared three-scenario A/A study does not estimate false-positive coverage across repeated studies or machines. Freeze any further calibration design before collection. |
+| What does the observer establish? | Sequence/hash/cost/gap replay succeeds; inaccessible/exited observations remain explicit. One-second guest observations cannot establish frame-level scheduling, physical-host quietness or GPU duration. |
+| Can another reviewer close actual-byte identity? | New original executable/library/symbol bytes are retained; older missing outputs cannot be rebuilt into evidence. Compiler/SDK/dependency access still needs independent admission. |
+| What authorizes eventual PR acceptance? | A separately approved trusted policy in main and fresh exact candidate-specific required qualification, with stable controls and unchanged exact budgets. Neither this proposal nor candidate code grants that approval. |
+
+PR #89's local ASan Menu failure is separately under repair. A controlled idle-input
+run retained a stationary captured move changing keyboard index 0 to hover index 1
+with unchanged production Menu source. Four root/submenu sent/posted regression
+cases now accompany a missing-history initialization fix. An earlier attempt had
+actual changing pointer coordinates and is retained as unsuitable stationary-input
+evidence. Original binaries/symbols, failures and restoration receipts are retained
+privately. The repaired source passed the four new cases and the original Right-arrow
+case in focused ASan execution, with zero skips and verified desktop restoration.
+Full current-source hosted qualification is verified above. Latest local Release
+and Debug each pass all four foreground scopes with zero skips; Debug verifies
+complete restoration, while Release fails keyboard-focus restoration. Both saved
+Task Manager, so the passing repeat does not attribute that failure. The earlier
+ASan saved-window disappearance and Explorer focus failure remain explicit local
+restoration limitations. Three earlier passing isolated repeats did not attribute
+or erase the complete-suite failures. Keep further local restoration diagnosis
+separate from the policy review and preserve its strict assertion.
+
 - [ ] Establish accepted paired non-regression and a qualified trusted policy for the S0-S2 candidate.
 - [ ] Attribute or resolve the retained timing/memory excursions and timing/FPS flags using matched fixtures and
   stable controls; retain measured developer advice where degradation is confirmed.

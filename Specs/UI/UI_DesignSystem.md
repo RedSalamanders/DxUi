@@ -55,3 +55,44 @@ performance, native ARM foreground/resource, physical-input and consumer gates s
   implementation and documentation changes.
 - Regenerate changed gallery captures with `gallery.ps1 -PublishDocs`, review them, and commit the resulting
   `docs/gallery` files with the design-system changes. No separate design-system publication is required.
+
+The RichTextEditor M4d preview uses an explicit semantic rendering option. Its
+populated gallery tile and static component preview show resolved styles and a
+Unicode table, measured hanging list columns and underlined inert links. The
+validated native HTML text subset reuses existing styles; unsupported markup
+keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
+selected text ink with no fixed blue or new theme color. Table/code/image outlines, quote strokes and rules reuse the caret
+ink role; selection keeps the existing selected-text/fill roles in every theme.
+Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
+within the bounded viewport, plus measured ancestor list gutters. Native marker
+and body share a first baseline and RTL mirrors the leading column. Empty/trailing/container-only source lines have
+caret boxes with the same typography/indentation; empty/padded cells retain
+distinct visual affinity without adding source text or selection ink. No palette
+token changes. M4e source-exact commands reuse existing host focus/capture and
+transaction visuals: task toggles commit on matching release, empty/padded cell
+typing materializes only the focused cell, and Tab returns to host traversal when
+no list/table command applies. The standalone sample adds two rows of standard
+buttons with readable action/status labels, without changing control tokens or
+the gallery tile's resting appearance. Semantic style/structure accessibility
+adds prepared UIA metadata and actions without changing visual tokens or pixels;
+the static HTML preview is design guidance, never native rendering evidence.
+The RichMarkdown native C++ flowchart variant uses body typography, caret-role
+outlines and the ordinary input surface, with opaque node/edge-label backing.
+Selection composites that backing with the resolved selected surface, including
+high contrast. Intrinsic diagrams keep readable scale: a view/font capacity
+rejection shows exact editable source, while unsupported syntax keeps a literal
+code leaf and explanation. The populated native gallery demonstrates both paths
+in every theme. F2/UIA Invoke presents an object's exact source using the existing
+monospace input typography and caret. Other paragraphs keep semantic rendering.
+Esc/F2/Ctrl+Enter finishes presentation; source edits keep ordinary undo/redo.
+The sample's caption explains entry/exit. No palette or resting gallery token
+changes accompany this interaction; math/inline object entry follows M5 objects.
+The RichMarkdown footnote variant adds superscript references, numbered styled
+bodies and repeated underlined backlinks using existing body/selected/disabled
+ink. A footer has its own root indentation; original declaration-list gutters
+do not follow it. Empty source lines remain real caret sites. Generated backlink
+labels add no source text or selection ink. Internal Ctrl+click/Ctrl+Enter/UIA
+navigation selects/reveals source without history edits; external links stay inert.
+The populated native tile is captured in all five themes, separately from the
+existing semantic preview. Final M5 and physical/platform/performance gates remain
+open; no new palette token or deployed browser runtime is introduced.

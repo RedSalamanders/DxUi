@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [RichTextEditor validation summary](RichText/README.md): implemented scope, original
+  component qualification, current PR checks and open performance/platform gates.
+  Detailed packets are archived outside the current repository tree.
+
 - [PR #87 post-merge evidence, 2026-10-19](TextInput/2026-10-19-pr87-postmerge/README.md):
   six native profiles, eight enabled public-consumer checks and 128 passing zero-skip suite receipts at the exact
   merge commit. Native ARM64 TSF traces pass; focus restoration remains unverified in three shared leases.

@@ -48,3 +48,13 @@ Measurements/UiComposition/2026-10-11-integration/** -text -whitespace
 Measurements/CiBudget/2026-10-11-arm64-asan/** -text -whitespace
 Measurements/Tooling/2026-10-11-linux-portability/** -text -whitespace
 Measurements/CiBudget/2026-10-11-cold-build/** -text -whitespace
+
+# Preserve hashed rich-text qualification/performance receipts byte for byte.
+Measurements/RichText/** -text -whitespace
+# Unicode conformance/property inputs are pinned by exact upstream bytes.
+ThirdParty/Unicode/** -text
+ThirdParty/Markdown/** -text
+ThirdParty/Markdown/corpora/** -whitespace
+# Pinned Mermaid originals retain upstream Markdown/grammar whitespace.
+ThirdParty/Markdown/mermaid-11.4.1/*.txt -whitespace
+ThirdParty/Markdown/katex-0.16.11/*.txt -whitespace

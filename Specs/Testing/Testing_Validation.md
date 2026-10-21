@@ -22,6 +22,20 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
+0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
+example's declared extension flags; execute its two `disabled` task examples
+with task recognition instead of skipping them. The independent test serializer
+uses the owned AST and original expected outputs. Nine GFM printed expectations
+collapse directly nested redundant strong tags; record this HTML convention
+without discarding the source wrappers or changing the original expected data.
+Core tests validate a dense, bounded, acyclic inline forest, Unicode/version
+boundaries, cancellation, extension request identity and iterative deep nesting.
+Both retained hosts run the directed grammar fixtures and reference edit/history
+tests. Expanded fault probes must inject every observed admission/inline/extension
+allocation, including MSVC Debug proxies. Qualification still requires the normal
+native/build/tooling matrix; a focused diagnostic is not full qualification.
+
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
 unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;
@@ -84,6 +98,14 @@ truncation flags, exact log bindings, quiet intervals and matching callback/prov
 entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.
 A quiet interval does not guarantee no later delivery. Provider attempts MUST NOT substitute for semantic event
 payloads or delivery success, and partial callback completion MUST NOT be reported as a complete timeline.
+
+The paired setup regression tests MUST cover common benchmark-project options,
+changed-project SkipBuild refusal, timestamp byte preservation/restoration/partial
+failure, new versus reused roots, complete cross-side identities and preflight
+ordering before measurements. Relocated public-consumer qualification MUST copy
+the image-loader sample header, compile all eight rich-text public headers as
+first/only includes, and render the rich sample with explicit document metadata.
+Missing headers and absent rich capture files fail qualification.
 
 Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
 while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
@@ -177,12 +199,18 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
 instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI bounds `test.ps1` at 25 minutes on x64 and 45 minutes on ARM64, and each clean-pin
+how close any of their tests comes. Native CI bounds `test.ps1` at 35 minutes on x64 and 65 minutes on ARM64, and each clean-pin
 consumer qualification at 15 minutes, including hangs the per-test watchdog cannot reach (Foundation, Embedded, the consumer).
-The enclosing budgets are 45 minutes for x64 Debug/Release, 60 for x64 ASan Debug, 65 for ARM64 Debug/Release and 80 for ARM64
+The enclosing budgets are 55 minutes for x64 Debug/Release, 70 for x64 ASan Debug, 85 for ARM64 Debug/Release and 100 for ARM64
 ASan Debug. Each row includes its selected Full stage, regular consumer, separate annotations-disabled consumer when ASan,
 and five minutes for setup, resource/gallery work and artifact collection. The per-test watchdogs, six standard consumer qualifications, both
 annotations-disabled ASan qualifications and failure accounting remain required.
+PR #89's retained x64 ASan and ARM64 Release runs exceeded the previous 25/45-minute
+combined cold-build/provenance/Full windows; ARM64 Release was still compiling before
+its first native suite at minute 45. Their incomplete native results remain
+failures, while the separately completed consumers retain their own scope. The
+new finite windows require fresh complete receipts; no per-test watchdog, assertion,
+suite inventory, consumer limit or performance-policy budget is relaxed.
 The [source-bound cold-build investigation](../../Measurements/CiBudget/2026-10-11-cold-build/README.md) records PR #73's
 three ARM64 Full timeouts: cold compilation plus v2 provenance consumed almost all the prior 25-minute window.
 Debug/Release were interrupted before ordinary suites; ASan completed 14 suites before being interrupted in Rendering.

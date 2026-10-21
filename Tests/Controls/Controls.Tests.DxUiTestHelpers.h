@@ -401,6 +401,31 @@ inline void RequirePointNear(const POINT& actual, const POINT& expected, const c
         std::exit(1);
     }
 }
+// Tests explicitly drain owner turns; production never calls a synchronous
+// convenience drain from an input/geometry callback. All loops are bounded.
+[[maybe_unused]] inline bool PrepareNativeContentForTests(DxUi::ControlHost& host)
+{
+    for (size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        if (! host.RenderInitialFrameForShow())
+            return false;
+        if (! host.HasPendingContentPreparation())
+            return true;
+    }
+    return false;
+}
+template <class View> HRESULT PrepareEmbeddedContentForTests(View& view, UINT width, UINT height, float dpi = 96.0f)
+{
+    for (size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const HRESULT hr = view.Prepare(width, height, dpi);
+        if (FAILED(hr))
+            return hr;
+        if (! view.NeedsPreparation())
+            return hr;
+    }
+    return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+}
 
 [[nodiscard]] inline std::wstring ReadTextRangeText(ITextRangeProvider& range, int maxLength, const char* context)
 {

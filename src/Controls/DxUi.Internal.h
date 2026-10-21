@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DxUi.TextElements.h"
 #include "DxUi.h"
 
 #include <algorithm>
@@ -616,10 +617,6 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 [[nodiscard]] bool StartsWithInsensitive(std::wstring_view text, std::wstring_view prefix) noexcept;
 
 // Single-line text editing helpers (shared by TextField and ComboBox)
-[[nodiscard]] bool IsUtf16LeadSurrogate(wchar_t ch) noexcept;
-[[nodiscard]] bool IsUtf16TrailSurrogate(wchar_t ch) noexcept;
-[[nodiscard]] size_t StepToPreviousCodePoint(std::wstring_view text, size_t caretIndex) noexcept;
-[[nodiscard]] size_t StepToNextCodePoint(std::wstring_view text, size_t caretIndex) noexcept;
 [[nodiscard]] size_t StepToPreviousTextElement(std::wstring_view text, size_t caretIndex) noexcept;
 [[nodiscard]] size_t StepToNextTextElement(std::wstring_view text, size_t caretIndex) noexcept;
 [[nodiscard]] size_t CountTextElements(std::wstring_view text) noexcept;

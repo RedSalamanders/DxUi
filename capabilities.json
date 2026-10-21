@@ -79,6 +79,19 @@
     "reduced-motion",
     "injected-frame-diagnostics",
     "retained-controls",
+    "unicode-rich-text-core-v0",
+    "retained-rich-text-editor-v0-preview",
+    "retained-rich-text-source-tsf-uia-v0",
+    "bounded-markdown-root-lexical-analysis-preview",
+    "bounded-markdown-block-tree-stable-identities-preview",
+    "bounded-markdown-inline-gfm-analysis-preview",
+    "bounded-rich-semantic-mapping-transactions-preview",
+    "bounded-rich-semantic-document-preview",
+    "bounded-retained-semantic-markdown-rendering-preview",
+    "bounded-semantic-source-caret-sites-preview",
+    "bounded-native-html-links-hanging-markers-preview",
+    "bounded-source-exact-markdown-commands-preview",
+    "bounded-semantic-style-structure-uia-preview",
     "control-catalog",
     "intrinsic-control-measurement",
     "opt-in-flex-layout",
@@ -111,6 +124,8 @@
     "consumer-api-revision-4-adoption",
     "intrinsic-form-consumer-adoption",
     "embedded-host-text-uia-bridge",
+    "rich-text-editor",
+    "rich-text-markdown-extension-conformance",
     "av-control"
   ]
 }

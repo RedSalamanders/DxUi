@@ -1365,6 +1365,33 @@ void TestMaskedTextFieldExactMaskUsesTextElementCount()
     Require(field.GetSecretVisibleDotCount() == 2u, "one BMP character plus one astral character renders exactly two password dots");
 }
 
+void TestMaskedTextFieldUnicode17SourceMapping()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    for (const auto& element : {std::wstring(L"\u1100\u1161\u11a8"), std::wstring(L"\u0915\u094d\u0915"), std::wstring(L"a\u200d")})
+    {
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(element + L"b");
+        field->SetBounds(D2D1::RectF(12.0f, 12.0f, 260.0f, 44.0f));
+        field->SetClearButtonEnabled(false);
+        field->SetMasked(true);
+        field->SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy::Exact);
+        window.Host().SetRoot(std::move(root));
+        window.Host().SetFocusControl(field, false);
+        Require(field->GetSecretVisibleDotCount() == 2u, "Unicode 17 masking counts one logical grapheme per dot");
+        const auto first  = field->TryGetTextInputCaretRect(window.Host(), 0u);
+        const auto middle = field->TryGetTextInputCaretRect(window.Host(), element.size());
+        const auto last   = field->TryGetTextInputCaretRect(window.Host(), element.size() + 1u);
+        Require(first && middle && last && first->left < middle->left && middle->left < last->left,
+                "forward mask indexing maps both independent source elements to their displayed dots");
+        const auto hit = field->TryHitTestTextInputPoint(window.Host(), D2D1::Point2F(middle->left - 0.25f, (middle->top + middle->bottom) * 0.5f));
+        Require(hit && *hit == element.size(), "mask hit testing returns the full grapheme's source boundary");
+        field->SetSelectionRange(element.size(), element.size());
+        Require(field->OnKeyDown(window.Host(), VK_BACK, 0) && field->GetText() == L"b", "masked backspace deletes the complete Unicode 17 element");
+    }
+}
+
 void TestNativeTextFieldEditSelectionPreservesReversedEndpoints()
 {
     using namespace DxUi;
@@ -2326,6 +2353,7 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestSingleLineTextFieldTabDoesNotInsertCharacter);
     DXUI_RUN_TEST(TestMaskedTextFieldPreservesSecretValueAndSuppressesCopy);
     DXUI_RUN_TEST(TestMaskedTextFieldExactMaskUsesTextElementCount);
+    DXUI_RUN_TEST(TestMaskedTextFieldUnicode17SourceMapping);
     DXUI_RUN_TEST(TestNativeTextFieldDoesNotTakeOverHostCaptionMessages);
     DXUI_RUN_TEST(TestNativeTextFieldEditSelectionPreservesReversedEndpoints);
     DXUI_RUN_TEST(TestTextFieldReplaceSelectionSynchronizesBeforeTerminalNotification);

@@ -2,117 +2,12 @@
 
 #include "Controls.Tests.TextInputServices.h"
 
-// Exercise the real clipboard codec/transport using private HGLOBAL storage. Only
-// ownership calls are replaced, so no test opens or mutates the desktop clipboard.
-class ClipboardTransportFixture final
-{
-public:
-    explicit ClipboardTransportFixture(HWND owner) noexcept
-        : owner(owner),
-          _previousFixture(_current),
-          _previousCalls(DxUi::testClipboardSystemCalls),
-          _previousClipboard(DxUi::testTextClipboard)
-    {
-        _calls.open                    = &Open;
-        _calls.close                   = &Close;
-        _calls.getData                 = &GetData;
-        _calls.empty                   = &Empty;
-        _calls.setData                 = &SetData;
-        _calls.allocate                = &Allocate;
-        _current                       = this;
-        DxUi::testClipboardSystemCalls = &_calls;
-        DxUi::testTextClipboard        = &DxUi::SystemTextClipboard();
-    }
-    ~ClipboardTransportFixture()
-    {
-        DxUi::testTextClipboard        = _previousClipboard;
-        DxUi::testClipboardSystemCalls = _previousCalls;
-        _current                       = _previousFixture;
-    }
-    ClipboardTransportFixture(const ClipboardTransportFixture&)            = delete;
-    ClipboardTransportFixture& operator=(const ClipboardTransportFixture&) = delete;
-
-    HWND owner;
-    wil::unique_hglobal data;
-    bool busy              = false;
-    bool failAllocation    = false;
-    bool failEmpty         = false;
-    bool failPublish       = false;
-    size_t opens           = 0;
-    size_t closes          = 0;
-    size_t allocations     = 0;
-    size_t publications    = 0;
-    size_t peakGlobalBytes = 0;
-
-private:
-    static BOOL WINAPI Open(HWND window)
-    {
-        auto& state = *_current;
-        ++state.opens;
-        if (state.busy || window != state.owner)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-            return FALSE;
-        }
-        return TRUE;
-    }
-    static BOOL WINAPI Close()
-    {
-        ++_current->closes;
-        return TRUE;
-    }
-    static HANDLE WINAPI GetData(UINT format)
-    {
-        Require(format == CF_UNICODETEXT, "transport reads only Unicode clipboard data");
-        return _current->data.get();
-    }
-    static BOOL WINAPI Empty()
-    {
-        if (_current->failEmpty)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-            return FALSE;
-        }
-        _current->data.reset();
-        return TRUE;
-    }
-    static HANDLE WINAPI SetData(UINT format, HANDLE value)
-    {
-        Require(format == CF_UNICODETEXT, "transport publishes Unicode clipboard data");
-        if (_current->failPublish)
-        {
-            SetLastError(ERROR_ACCESS_DENIED);
-            return nullptr;
-        }
-        _current->data.reset(static_cast<HGLOBAL>(value));
-        ++_current->publications;
-        return value;
-    }
-    static HGLOBAL WINAPI Allocate(UINT flags, SIZE_T bytes)
-    {
-        auto& state = *_current;
-        ++state.allocations;
-        if (state.failAllocation)
-            return nullptr;
-        HGLOBAL memory = GlobalAlloc(flags, bytes);
-        if (memory)
-        {
-            const size_t retained = state.data ? GlobalSize(state.data.get()) : 0;
-            state.peakGlobalBytes = (std::max)(state.peakGlobalBytes, retained + GlobalSize(memory));
-        }
-        return memory;
-    }
-    DxUi::ClipboardSystemCalls _calls;
-    ClipboardTransportFixture* _previousFixture;
-    const DxUi::ClipboardSystemCalls* _previousCalls;
-    DxUi::TextClipboard* _previousClipboard;
-    inline static thread_local ClipboardTransportFixture* _current = nullptr;
-};
+#include "../Support/Scope.Tests.ClipboardFixture.h"
 
 void TestNativeClipboardTransportBenchmark()
 {
     ClipboardHostWindow window;
-    ClipboardTransportFixture clipboard(window.Hwnd());
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
     const std::wstring input(65536, L'x');
     std::wstring output;
     auto& transport = DxUi::SystemTextClipboard();
@@ -139,7 +34,7 @@ void TestNativeClipboardLargeSelections()
 {
     using namespace DxUi;
     ClipboardHostWindow window;
-    ClipboardTransportFixture clipboard(window.Hwnd());
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
     for (const size_t length : {size_t(65535), size_t(65536), size_t(65537), size_t(100000)})
     {
         std::wstring input(length, L'x');
@@ -167,7 +62,7 @@ void TestNativeClipboardFailuresPreserveText()
 {
     using namespace DxUi;
     ClipboardHostWindow window;
-    ClipboardTransportFixture clipboard(window.Hwnd());
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
     auto& transport = SystemTextClipboard();
     RequireSucceeded(transport.Write(window.Hwnd(), L"sentinel"), "clipboard failure fixture has original data");
     TextField field(L"keep selected text");
@@ -212,7 +107,7 @@ void TestEmbeddedClipboardRejectsLargeNativePayload()
     using namespace DxUi;
     const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
     AttachedHostWindow window;
-    ClipboardTransportFixture clipboard(window.Hwnd());
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
     TextInputServices services;
     RequireSucceeded(services.Attach(window.Hwnd()), "embedded clipboard service attaches to the application HWND");
     auto client = std::make_shared<TestTextClient>();

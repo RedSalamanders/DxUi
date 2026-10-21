@@ -95,6 +95,11 @@ struct EmbeddedHost::State
     bool interactionLayoutAvailable      = false;
     bool zeroSized                       = false;
     bool animationSuspended              = false;
+    bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
+    bool preparing                       = false;
+    bool prepareCallActive               = false;
+    bool contentPending                  = false;
+    uint64_t contentInteractionRevision  = 0u;
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
     EmbeddedStatistics stats{};
@@ -126,6 +131,10 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     const auto hr                  = ReplaceDevice(std::move(graphics));
     if (FAILED(hr))
         Detach();
+    else
+        // Attach starts dirty: the caller supplies the first Prepare. Resource
+        // replacement released its surface state, not an application wakeup.
+        _state->preparationRequested = true;
     return hr;
 }
 void EmbeddedHost::Detach() noexcept
@@ -175,12 +184,19 @@ void EmbeddedHost::MarkDirty() noexcept
 {
     if (! _state)
         return;
-    auto& s            = *_state;
-    const bool changed = ! s.dirty;
-    s.dirty            = true;
+    auto& s = *_state;
+    s.dirty = true;
     ++s.revision;
-    if (changed && s.visible && ! s.zeroSized && s.callbacks.requestPreparation)
-        s.callbacks.requestPreparation(s.callbacks.context);
+    RequestPreparation();
+}
+void EmbeddedHost::RequestPreparation() noexcept
+{
+    if (! _state || ! _state->visible || _state->zeroSized || _state->preparing || _state->preparationRequested || ! _state->callbacks.requestPreparation)
+        return;
+    // Dirty pixels and an outstanding notification are different states. A
+    // cooperative turn can consume a wakeup while the surface remains dirty.
+    _state->preparationRequested = true;
+    _state->callbacks.requestPreparation(_state->callbacks.context);
 }
 void EmbeddedHost::ReleaseSurface() noexcept
 {
@@ -200,6 +216,8 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.stats.surfaceBytes         = 0;
     s.coherent                   = false;
     s.interactionLayoutAvailable = false;
+    s.contentPending             = false;
+    s.preparationRequested       = false;
     s.dirty                      = true;
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
@@ -221,8 +239,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
         _state->animationSuspended        = false;
         _state->dirty                     = true;
-        if (! _state->zeroSized && _state->callbacks.requestPreparation)
-            _state->callbacks.requestPreparation(_state->callbacks.context);
+        RequestPreparation();
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
@@ -261,11 +278,32 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     auto& g = *s.graphics->_state;
     if (g.thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
-    s.zeroSized = ! width || ! height;
+    if (s.prepareCallActive)
+        return E_UNEXPECTED;
+    s.prepareCallActive          = true;
+    bool requestAfterPreparation = false;
+    auto observedRevision        = s.revision;
+    s.preparing                  = true;
+    const auto finishPreparation = wil::scope_exit([&]
+    {
+        s.preparing = false;
+        // Never invoke application scheduling while a control paint or layout
+        // callback is still on the stack. A new reentrant request is distinct
+        // from automatically retrying the same failed work.
+        if (requestAfterPreparation || s.revision != observedRevision)
+            RequestPreparation();
+        s.prepareCallActive = false;
+    });
+    s.preparationRequested       = false;
+    s.contentPending             = false;
+    const bool wasZeroSized      = s.zeroSized;
+    s.zeroSized                  = ! width || ! height;
     if (! s.visible || s.zeroSized)
     {
         // Neither state holds a surface; the next visible sized preparation allocates one.
         ReleaseSurface();
+        if (s.zeroSized && ! wasZeroSized && _host._root)
+            _host._root->OnHidden();
         return S_FALSE;
     }
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -344,11 +382,22 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             if (_host._root)
                 _host._root->SetBounds(D2D1::RectF(0, 0, float(width) * 96 / dpi, float(height) * 96 / dpi));
         }
+        observedRevision = s.revision;
         if (! _host.PreparePendingPageLayout())
+        {
+            s.contentPending             = _host._contentPreparationContinues;
+            s.contentInteractionRevision = _host._interactionRevision;
+            if (s.contentPending)
+            {
+                requestAfterPreparation = true;
+                return S_FALSE;
+            }
             return E_ABORT;
+        }
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
         _host._d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
+        observedRevision               = s.revision;
         const auto revision            = s.revision;
         const auto interactionRevision = _host._interactionRevision;
         auto* dc                       = _host._d2dContext.get();
@@ -380,8 +429,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
-        if (s.dirty && s.callbacks.requestPreparation)
-            s.callbacks.requestPreparation(s.callbacks.context);
+        _host.PublishPreparedContent();
+        s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
+        s.dirty                 = s.revision != revision;
+        requestAfterPreparation = s.dirty;
+        if (! s.coherent)
+            return E_ABORT;
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -527,6 +580,16 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
     // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
 }
+bool EmbeddedHost::TextInputIsAvailable() noexcept
+{
+    if (InputIsCoherent(true))
+        return true;
+    if (! _state || ! _state->visible || _state->zeroSized || ! _state->contentPending || _state->contentInteractionRevision != _host._interactionRevision)
+        return false;
+    auto* target = _host.GetFocusControl();
+    return target && IsControlInTree(_host._root.get(), target) && target->GetHost() == &_host && target->IsEnabled() && target->IsVisible() &&
+           target->HasFocus() && target->AcceptsTextInputDuringPreparation();
+}
 bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
@@ -630,12 +693,12 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 }
 bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
 {
-    if (! InputIsCoherent(true))
+    if (! TextInputIsAvailable())
         return false;
     try
     {
         _host.PruneStaleInteractionState();
-        if (! InputIsCoherent(true))
+        if (! TextInputIsAvailable())
             return false;
         _host.SetInputModality(InputModality::Keyboard);
         if (down && _host.HandleTooltipInspectionKey(key))
@@ -643,7 +706,19 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
         if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
             return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
+        {
+            // A semantic editor owns list/cell Tab before ordinary host focus
+            // traversal, just as under WM_KEYDOWN. A declined callback may also
+            // retire/rebind its owner: never traverse a successor in that frame.
+            auto* target        = _host.GetFocusControl();
+            const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+            if (target && target->OnKeyDown(_host, key, modifiers))
+                return true;
+            if (target &&
+                (lifetime.expired() || _host.GetFocusControl() != target || target->GetHost() != &_host || ! target->IsEnabled() || ! target->IsVisible()))
+                return true;
             return _host.HandleTabNavigation((modifiers & MK_SHIFT) != 0);
+        }
         auto* target = _host.GetFocusControl();
         return target && (down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers));
     }
@@ -654,12 +729,12 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
 }
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
-    if (! InputIsCoherent(true))
+    if (! TextInputIsAvailable())
         return false;
     try
     {
         _host.PruneStaleInteractionState();
-        if (! InputIsCoherent(true))
+        if (! TextInputIsAvailable())
             return false;
         auto* target = _host.GetFocusControl();
         return target && target->OnChar(_host, character, modifiers);
@@ -707,7 +782,7 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         return E_UNEXPECTED;
     if (_state->graphics->_state->thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
-    if (! InputIsCoherent(true))
+    if (! TextInputIsAvailable())
         return S_FALSE;
     _host.PruneStaleInteractionState();
     auto* control = _host.GetFocusControl();
@@ -744,6 +819,36 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         return E_OUTOFMEMORY;
     }
 }
+HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const auto result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != revision || current.focusId != focusId)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    if (! editor)
+        return E_NOTIMPL;
+    return editor->TryPrepareClipboardPaste(content, replacement) ? S_OK : S_FALSE;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+catch (const std::exception&)
+{
+    return E_INVALIDARG;
+}
 HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept
 {
     if (! _state || ! _state->graphics)
@@ -752,7 +857,7 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
         return RPC_E_WRONG_THREAD;
     if (action != EmbeddedTextInputAction::Preview && action != EmbeddedTextInputAction::Commit && action != EmbeddedTextInputAction::Cancel)
         return E_INVALIDARG;
-    if (! InputIsCoherent(true))
+    if (! TextInputIsAvailable())
         return S_FALSE;
     _host.PruneStaleInteractionState();
     if (! revision || revision != _textInputRevision + _state->revision)

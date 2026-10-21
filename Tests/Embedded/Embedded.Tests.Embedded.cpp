@@ -3,14 +3,21 @@
 
 #include "../../Samples/EmbeddedControls/EmbeddedScene.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
+#include "../Support/Scope.Tests.MarkdownSourceCorrelation.h"
+#include "../Support/Scope.Tests.RichTextStateReplacement.h"
+#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "../Support/Support.Tests.FailureReports.h"
+#include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -27,8 +34,23 @@ static thread_local size_t allocations     = 0;
 static thread_local size_t allocationBytes = 0;
 static thread_local bool countLiveBytes    = false;
 static thread_local ptrdiff_t liveBytes    = 0;
+// Opt-in replacement-peak observation for geometry/parser resource fixtures. Dormant
+// for canonical benchmarks and all earlier live-storage measurements.
+static thread_local ptrdiff_t* liveBytesPeak = nullptr;
+// Test-only fault injection is dormant outside an explicit operation sweep.
+static thread_local size_t failAllocationAfter = std::numeric_limits<size_t>::max();
+static void FailAllocationIfRequested()
+{
+    if (failAllocationAfter != std::numeric_limits<size_t>::max())
+    {
+        if (! failAllocationAfter)
+            throw std::bad_alloc();
+        --failAllocationAfter;
+    }
+}
 void* operator new(size_t bytes)
 {
+    FailAllocationIfRequested();
     if (countAllocations)
     {
         ++allocations;
@@ -37,7 +59,11 @@ void* operator new(size_t bytes)
     if (auto* p = malloc(bytes ? bytes : 1))
     {
         if (countLiveBytes)
+        {
             liveBytes += static_cast<ptrdiff_t>(_msize(p));
+            if (liveBytesPeak)
+                *liveBytesPeak = std::max(*liveBytesPeak, liveBytes);
+        }
         return p;
     }
     throw std::bad_alloc();
@@ -70,6 +96,7 @@ void operator delete[](void* p, size_t) noexcept
 }
 void* operator new(size_t bytes, std::align_val_t alignment)
 {
+    FailAllocationIfRequested();
     if (countAllocations)
     {
         ++allocations;
@@ -115,6 +142,21 @@ static void Hr(HRESULT hr, const char* text)
         std::cerr << "HRESULT: " << std::hex << hr << std::dec << '\n';
     Check(SUCCEEDED(hr), text);
 }
+static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, UINT height, float dpi = 96.0f)
+{
+    for (size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const HRESULT hr = view.Prepare(width, height, dpi);
+        if (FAILED(hr))
+            return hr;
+        if (! view.NeedsPreparation())
+            return hr;
+    }
+    return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+}
+#include "../Support/Scope.Tests.RichSemantic.h"
+#include "../Support/Scope.Tests.RichSemanticEditor.h"
+#include "../Support/Scope.Tests.RichSemanticGeometry.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
@@ -122,7 +164,17 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Scope.Tests.ComplexUiBoundaries.h"
 #include "Scope.Tests.ComplexUiProfiling.h"
+#include "Scope.Tests.RichDocumentStorageResources.h"
+#include "Scope.Tests.RichGeometryResources.h"
+#include "Scope.Tests.RichImageCapture.h"
+#include "Scope.Tests.RichImageFailures.h"
+#include "Scope.Tests.RichProjectionResources.h"
+#include "Scope.Tests.RichSemanticDocumentResources.h"
+#include "Scope.Tests.RichSemanticGeometryResources.h"
+#include "Scope.Tests.RichSemanticResources.h"
+#include "Scope.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Scope.Tests.FormLayoutBenchmark.h"
 #endif
@@ -1127,6 +1179,177 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
+    {
+        const std::wstring_view theme(__wargv[3]);
+        Check(theme == L"Dark" || theme == L"Light", "image capture requires Dark or Light");
+        CaptureRichImageSample(__wargv[2], theme == L"Dark");
+        return 0;
+    }
+    if (__argc == 2 &&
+        (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures"))
+    {
+        // Isolate unexpected noexcept termination without a CRT dialog. This
+        // handler belongs only to the explicit diagnostic child, never a suite
+        // or canonical benchmark. Ordinary allocation failures must be caught
+        // by the same atomicity sweep that the complete suite executes below.
+        const auto previous = std::set_terminate([]
+        {
+            std::fputs("rich preparation probe: unexpected noexcept termination\n", stderr);
+            // Bounded addresses need no C++ heap allocation even while the
+            // injection counter is exhausted. Resolve them offline against the
+            // exact retained executable/PDB; never invoke a desktop debugger.
+            void* frames[32]{};
+            const auto count = CaptureStackBackTrace(0u, 32u, frames, nullptr);
+            const auto base  = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+            for (unsigned frame = 0u; frame < count; ++frame)
+                std::fprintf(stderr,
+                             "rich termination frame %u: %p image+0x%llx\n",
+                             frame,
+                             frames[frame],
+                             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(frames[frame]) - base));
+            std::fflush(stderr);
+            std::_Exit(197);
+        });
+        const auto restore  = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
+        if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
+            TestRichPreparedLayoutClearAllocationBudget(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")
+        {
+            TestRichPreparedLayoutValueFailureAtomicity(true);
+            TestRichDocumentGeometryFailureAtomicity(true);
+            TestRichDocumentGeometryFailureAtomicity(true, true);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection")
+            TestRichFlatProjectionFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures")
+            TestRichSemanticGeometryFailureBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures")
+            TestRichSemanticDocumentFailureAndStorageBudgets(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "semantic UIA failure WARP device");
+            TestRichSemanticAccessibilityFailureAtomicity(gpu);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-failures")
+            TestRichMarkdownCommandFailureAtomicity();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "command host failure WARP device");
+            TestRichMarkdownCommandHostFailureAtomicity(gpu);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "query failure isolated borrowed WARP device");
+            TestRichSemanticEditorQueryFailureBudgets(gpu, true);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures")
+            TestRichSnapshotSliceAllocationFailureAtomicity(true);
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "capacity isolated borrowed WARP device");
+            TestEmbeddedParserCapacitySourceFallback(gpu);
+            TestParserCapacityMemoryFailureIsRetryable(gpu);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures")
+        {
+            TestFootnoteBlockAllocationFailures(true);
+            TestRichSemanticGeometryFailureBudgets(true, true);
+            TestRichSemanticGeometryFailureBudgets(true, false, true);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-failures")
+            TestRichImagePathAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste")
+        {
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "file reference isolated WARP device");
+            TestEmbeddedFileReferencePaste(gpu);
+            TestRichImagePathAllocationFailures();
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures")
+            TestRichImageDecoderAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures")
+        {
+            TestRichImageResourceAllocationFailures();
+            TestRichImageGeometryAllocationFailures();
+            TestRichImageRasterFailureAndBudgets();
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
+        {
+            TestNativeFlowchartAllocationFailureAtomicity(true);
+            TestNativeFlowchartLayoutAllocationFailureAtomicity(true);
+            TestPreparedFlowchartAllocationFailures(true);
+            TestSemanticDiagramAllocationFailures(true);
+            TestScopedSemanticSourceAllocationFailures(true);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures")
+        {
+            TestRichMarkdownParserFailureAndStorageBudgets(true);
+            TestRichFrontMatterAllocationFailureAtomicity(true);
+        }
+        else
+            TestRichProjectionPreparationAllocationFailureAtomicity(true);
+        return 0;
+    }
+    // Isolated resource cases retain their individual failing baseline logs;
+    // the ordinary suite below still executes both behavior budgets.
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-document-storage")
+    {
+        const std::wstring_view test(__wargv[2]);
+        Check(test == L"Retained" || test == L"SameContent" || test == L"Recorded" || test == L"RecordedFailures", "known rich source storage case");
+        if (test == L"Retained")
+            TestRichDocumentFragmentedHistoryStorageBudget();
+        else if (test == L"SameContent")
+            TestRichDocumentSameContentAllocationBudget();
+        else if (test == L"Recorded")
+        {
+            RichTextStateReplacementTests::Core(Check);
+            TestRichRecordedWholeTextStorageBudget();
+        }
+        else
+            TestRichDocumentAllocationFailureAtomicity();
+        return 0;
+    }
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
+    {
+        if (__argc != 4 && __argc != 5)
+        {
+            std::fputs("Boundary diagnostic requires output, Off|On and optional Default|CallingThread.\n", stderr);
+            return 1;
+        }
+        const std::wstring_view timers(__wargv[3]);
+        if (timers != L"Off" && timers != L"On")
+        {
+            std::fputs("Unknown boundary diagnostic timer mode.\n", stderr);
+            return 1;
+        }
+        std::optional<ComplexUiBoundaries::WarpRasterMode> mode;
+        if (__argc == 5)
+        {
+            auto parsed = ComplexUiBoundaries::WarpRasterMode::Default;
+            if (! ComplexUiBoundaries::TryParseRasterMode(__wargv[4], parsed))
+            {
+                std::fputs("Unknown boundary diagnostic WARP raster mode.\n", stderr);
+                return 1;
+            }
+            mode = parsed;
+        }
+        ComplexUiBoundaries::Run(__wargv[2], timers == L"On", mode);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -1233,6 +1456,145 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    TestUnicodeGraphemeForwardWalkAllocationBudget();
+    TestUnicodeBulkMovementAndDeletionAllocationBudget();
+    TestRichTextUtf8RejectionAllocationBudget();
+    TestRichDocumentFragmentedHistoryStorageBudget();
+    RichTextStateReplacementTests::Core(Check);
+    TestRichRecordedWholeTextStorageBudget();
+    TestEmbeddedLocalizedRecordedServiceCommit(gpu);
+    TestEmbeddedRetainedObjectSourceEditing(gpu);
+    TestEmbeddedImagePathPaste(gpu);
+    TestEmbeddedFileReferencePaste(gpu);
+    TestEmbeddedImageResources(gpu);
+    RichImageTests::Core(Check);
+    RichImageResourceTests::Admission(Check);
+    TestRichImagePathAllocationFailures();
+    TestRichImageDecoderAllocationFailures();
+    TestRichImageResourceAllocationFailures();
+    TestRichImageGeometryAllocationFailures();
+    TestRichImageRasterFailureAndBudgets();
+    TestRichDocumentSameContentAllocationBudget();
+    TestRichDocumentAllocationFailureAtomicity();
+    TestRichSourceChangeAllocationBudget();
+    TestRichSourceChangeTransientStorageBudget();
+    TestRichSourceChangeRolloverFailureAtomicity();
+    TestRichProjectionMappingAndUnchangedAllocationBudget();
+    TestRichSnapshotSliceAllocationFailureAtomicity();
+    ComplexUiBoundaries::TestDevicePolicies();
+    TestRichFlatProjectionFailureAtomicity();
+    TestRichProjectionPreparationAllocationFailureAtomicity();
+    TestRichProjectionRetainedStorageBudget();
+    TestRichProjectionMaximumSourceStorageBudget();
+    TestRetainedRichTextDefaultFontChunkReuse(gpu);
+    TestRichTextCooperativeSchedulingAndTextInput(gpu);
+    TestEmbeddedLosslessMarkdownPreparation(gpu);
+    TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
+    TestEmbeddedFlowchartRenderingAndFallbacks(gpu);
+    SemanticDiagramTests::Core(Check);
+    MarkdownSourceCorrelationTests::Reads(Check);
+    MarkdownSourceCorrelationTests::ParserIdentities(Check);
+    SemanticSourceBlockTests::Core(Check);
+    SemanticSourceBlockTests::Geometry(Check);
+    SemanticSourceBlockTests::SourceRegions(Check);
+    SemanticDiagramTests::Geometry(Check);
+    SemanticDiagramTests::PositionedRaster(Check);
+    TestEmbeddedDiagramViewCapacityRecovery(gpu);
+    TestEmbeddedDiagramSelectionRaster(gpu);
+    TestEmbeddedFootnoteBlockSourceEdits(gpu);
+    TestEmbeddedFootnoteResolutionAndSourceEdits(gpu);
+    TestEmbeddedParserCapacitySourceFallback(gpu);
+    TestParserCapacityMemoryFailureIsRetryable(gpu);
+    RichSemanticTests::Run(RichSemanticTests::CoordinateOracles);
+    RichSemanticTests::Run(RichSemanticTests::UnicodeAndAdmission);
+    RichSemanticTests::Run(RichSemanticTests::TransactionOracles);
+    RichSemanticTests::Run(RichSemanticTests::TransactionRejections);
+    RichSemanticTests::Run(RichCommandTests::ListsAndHeadings);
+    RichSemanticTests::Run(RichCommandTests::InlineTasksLinks);
+    RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
+    RichSemanticTests::Run(TestRichMarkdownCommandFailureAtomicity);
+    RichSemanticTests::Run([&] { TestRichMarkdownCommandHostFailureAtomicity(gpu); });
+    RichSemanticTests::Run([&] { TestRichSemanticAccessibilityFailureAtomicity(gpu); });
+    RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
+    RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
+    RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+    RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
+    RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
+    RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
+    RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
+    RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
+    RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+    RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
+    RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
+    RichSemanticTests::Run(RichSemanticGeometryTests::ReorderedFootnoteCaretSitesAndSourceLines);
+    RichSemanticTests::Run([] { TestRichSemanticDocumentFailureAndStorageBudgets(); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, true); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, true); });
+    TestFootnoteBlockAllocationFailures();
+    RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
+    {
+        DxUi::EmbeddedHost transactionView;
+        std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;
+        Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), transactionGraphics), "transaction borrowed graphics");
+        Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
+        RichSemanticTests::Run([&]
+        {
+            RichSemanticEditorTests::Transactions(transactionView.Controls(),
+                                                  [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
+            RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
+                                                        [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded structural commands"); });
+            RichSemanticEditorTests::StructuralHostRouting(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded structural host routing");
+            }, [&](UINT key, UINT modifiers) { return transactionView.DispatchKey(key, true, modifiers); }, [&](wchar_t value, UINT modifiers) {
+                return transactionView.DispatchCharacter(value, modifiers);
+            });
+            RichSemanticEditorTests::Rendering(transactionView.Controls(),
+                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
+            RichSemanticEditorTests::RenderingAdmissionFallback(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); });
+            RichSemanticEditorTests::SourceCaretSites(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
+            RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded hanging markers and HTML preparation");
+            });
+            RichSemanticEditorTests::TaskCheckboxAlignment(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded task checkbox alignment preparation");
+            });
+        });
+        transactionView.Detach();
+    }
+    TestRichMarkdownParserFailureAndStorageBudgets();
+    TestRichFrontMatterAllocationFailureAtomicity();
+    TestNativeFlowchartAllocationFailureAtomicity();
+    FlowchartLayoutTests::Geometry(Check);
+    FlowchartLayoutTests::Corpus(Check);
+    FlowchartLayoutTests::Admission(Check);
+    TestNativeFlowchartLayoutAllocationFailureAtomicity();
+    TestPreparedFlowchartAllocationFailures();
+    TestSemanticDiagramAllocationFailures();
+    TestScopedSemanticSourceAllocationFailures();
+    PreparedFlowchartTests::BudgetAndLifecycle(Check);
+    PreparedFlowchartTests::RasterOracle(Check);
+    PreparedFlowchartTests::EdgeLabelRasterOracle(Check);
+    TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
+    TestRetainedRichTextSharedViewsAndResources(gpu);
+    TestRetainedRichTextSharedViewsAndResources(gpu, true);
+    TestRichPreparedLayoutClearAllocationBudget();
+    TestRichPreparedLayoutValueFailureAtomicity();
+    TestRichDocumentGeometryFailureAtomicity();
+    TestRichDocumentGeometryFailureAtomicity(false, true);
+    TestRichDocumentGeometryUnchangedAllocationBudget();
+    TestRichDocumentGeometryMaximumStorageBudget();
+    TestRichDocumentGeometryReplacementPeakBudget();
+    TestEmbeddedRichGeometryReuseAndRetirement(gpu);
+    TestRetainedRichTextSchedulingCanRetireOwner(gpu);
+    TestRetainedRichTextFailedPreparation(gpu);
+    TestRetainedRichTextUiaRangeAllocationBudget(gpu);
     TestPreparationCallbacksCanRetireRoot(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
     TestEmbeddedMultilineGridFrenchCells(gpu);
@@ -1456,7 +1818,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 33, "catalog contains all 33 controls");
+    Check(DxUi::GetControlCatalog().size() == 34, "catalog contains all 34 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

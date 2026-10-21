@@ -80,6 +80,25 @@ so its own effect needs measurement before attributing
 the variability. CPU-time quantization also makes some clean-window deltas zero; raw cycle counts are consumption
 observations rather than elapsed durations. See the retained packet for exact ranges and validation limits.
 
+Paired runs now overlay the benchmark project alongside the fixture, retaining
+each side's library project and source. They stage/restore its timestamp for fresh
+builds and record both full identities before consuming a measurement slot.
+This handles different per-item options and the
+[MSBuild newest-project/import selection](https://github.com/dotnet/msbuild/blob/main/src/Build/Evaluation/Evaluator.cs)
+without excluding metadata or relaxing comparison. SkipBuild preserves attested
+contexts and refuses a changed benchmark project. A successful preflight is setup
+admission, not performance acceptance; the unqualified-policy gate still applies.
+
+The [RichTextEditor source-command investigation](../Measurements/RichText/README.md)
+retains a corrected matching-profile 48-process Default study and eight CPU/cache
+profiles. Its clean-frame p95 paired effect is -1.31%, with both judges agreeing
+on all 26 within-noise verdicts. All 24 controls flag some drift; 13 cross the
+clean-p95 band. About 98% of the same-frame tail remains in the combined target
+bind/clear, copy/readback and other-overhead remainder. This is a boundary for
+further attribution, not scheduler-delay proof. The refused TEMP/TMP setup and
+all historical warnings remain retained. Source causality, full-scene/policy
+qualification and performance acceptance remain open.
+
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)
@@ -483,6 +502,24 @@ The [10 October layout evidence](../Measurements/Layout/2026-10-10/README.md) re
 three Grid retention/heap diagnostics, the six build logs and 57 passing noninteractive suite/log pairs.
 It records the form's bounded additional residency, the original failures and their retests, and the focus
 confirmations that timed out. These descriptive results leave policy calibration and consumer qualification open.
+
+For clear/readback attribution, use the separate Default-only
+`performance-profile.ps1 -BoundaryTimers Off|On -SkipBuild` diagnostic after an
+attested build. It records forward/reverse full, clear-only, composite-only and
+readback-only controls, absolute QPC edges and main/process counters. Declare a
+finite fresh-process schedule and retain all sidecars, failures and outliers.
+Interior timers can alter readiness; omitted-command controls change backend
+dependencies and cannot be subtracted into GPU durations. Scheduler attribution
+requires an actual aligned trace. This adds no acceptance metric or verdict.
+
+Hosted paired artifacts also retain the original measured native outputs and
+attestations. `Tools/Watch-BenchmarkHost.ps1` records continuous cumulative host
+CPU and process CPU/memory observations before the study starts through its end.
+Inspect gaps, observer collection cost and inaccessible processes; this is not
+a scheduler trace or a dedicated-host claim. Download artifacts before their
+14-day expiry. Compiler/SDK hashes do not by themselves retain those original
+bytes. The [shared policy-review proposal](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026)
+keeps that closure limit and independent approval explicit.
 
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as

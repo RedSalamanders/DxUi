@@ -424,6 +424,8 @@ void Control::SetVisible(bool visible) noexcept
         if (_host)
             ++_host->_interactionRevision;
         _visible = visible;
+        if (_host)
+            _host->_pendingContentPreparation = true;
         InvalidateMeasure();
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (! visible)
@@ -1080,6 +1082,36 @@ HRESULT Control::PrepareIntrinsicLayout(const MeasureContext& /*context*/) noexc
 {
     return S_OK;
 }
+void Control::EnableContentPreparation() noexcept
+{
+    _contentPreparationEnabled = true;
+    RequestContentPreparation(false);
+}
+void Control::RequestContentPreparation(bool requestWake) const noexcept
+{
+    if (! _contentPreparationEnabled)
+        return;
+    _contentPreparationPending = true;
+    if (_host)
+    {
+        _host->_pendingContentPreparation = true;
+        // Application scheduling may retire this control. All state is set
+        // before crossing that boundary; nothing is read after it returns.
+        if (requestWake)
+            _host->Invalidate();
+    }
+}
+HRESULT Control::PrepareContent(ControlHost&) noexcept
+{
+    return S_OK;
+}
+void Control::CancelContentPreparation() noexcept
+{
+}
+bool Control::AcceptsTextInputDuringPreparation() const noexcept
+{
+    return false;
+}
 
 void Control::PropagateHost(ControlHost* host) noexcept
 {
@@ -1100,6 +1132,7 @@ void Control::PropagateHost(ControlHost* host) noexcept
     _host              = host;
     if (changed)
     {
+        RequestContentPreparation(false);
         InvalidateMeasure();
         RequestIntrinsicLayout();
     }

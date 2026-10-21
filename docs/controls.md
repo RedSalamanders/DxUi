@@ -1,5 +1,8 @@
 # Control guide
 
+RichTextEditor supports file-reference paste and caller-serviced native images.
+File drag-and-drop remains a [pending specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
+
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
 uses the primary button. Pointer and keyboard menu anchors account for nested scroll offsets, including through
 PageHost and for Tree/Grid delegates. Extracting a RadioButton with `TakeChild` removes its effective association with the
@@ -30,6 +33,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
+| RichTextEditor | Bounded Unicode editor with v0 formatting by default. Use `SetText`, source `SetSelection`, `SetViewMode`, `SetReadOnly`, source transactions and undo/redo. Opt into lossless CommonMark/GFM analysis with `SetMarkdownAnalysisProfile`; add `SetMarkdownRenderingEnabled(true)` for the semantic native rendering preview. `ExecuteMarkdownCommand` / `ApplyMarkdownCommand` provide source-exact lists, headings, styles, inert links, tasks and tables with atomic history. Enter/Tab, Ctrl+B/I and task release share that API. Measured hanging marker columns, inert underlined links and the balanced native HTML subset share native geometry; unsupported markup keeps a literal leaf. Source caret sites distinguish empty/trailing/container-only lines and empty/padded cells without virtual ACPs. Semantic style/structure UIA adds typed source attributes, Format units, children, table/header patterns and task actions; the bounded M4 implementation is functionally qualified (physical/platform/performance gates remain open). Shared native/embedded source TSF/IME and Document/Text/Text2/TextEdit UIA adapters are implemented; real IME/AT qualification remains pending. Explicit document location makes pasted image and file-link destinations document-relative; mixed file lists preserve order and one undo boundary; caller-owned workers publish immutable local raster images with source/UIA alternatives and bounded native/embedded preparation. See [rich text](rich-text.md). |
 | TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. A multiline field draws its caret only inside its text viewport: on a partly visible line it is cut at the viewport's edge, and scrolled out of view it is not drawn. |
 | ComboBox | Supply `Item` records with `SetItems`; use `SetOnSelectionChanged`, text/submission callbacks and popup requests for editable selection. For touch, call `SetMinimumPopupItemHeight(48.0f)`; the gallery Modern open variant uses it. |
 | TagPicker | Call `SetOptions(allLabel, values)`, `SetSelectedValues` and `SetOnSelectionChanged` for multiple named choices. |
@@ -105,7 +109,8 @@ If the process/thread exits with an asynchronous menu still open, controller tea
 capture and windows without invoking application completion callbacks or re-entering finalization.
 A described menu's layouts and accessibility proxies exist only while it is open; closing returns them.
 
-While any menu is open the arrow cursor shows over its popups, whatever cursor the window had set. Outside them a
+When the keyboard opens or switches a popup, a stationary pointer preserves keyboard selection;
+moving it transfers selection to the hovered row. While any menu is open the arrow cursor shows over its popups, whatever cursor the window had set. Outside them a
 window of the menu's thread chooses its own cursor through its usual `WM_SETCURSOR` handling, and chooses again as
 soon as the menu closes; other threads' windows show the arrow.
 
@@ -307,3 +312,20 @@ keeps the prior registration installed. Rebuild consumers with matching headers 
 snapshot valid throughout that call, including after replacement of the picker. Copy values you need afterward;
 the notification does not extend the sender's lifetime.
 If solid-brush creation and its fallback fail, painting omits the affected primitive and can recover on a later frame.
+
+## Rich-text core (supporting API)
+
+[Unicode document/projection/layout preparation](rich-text.md) is available in
+DxUi.lib, together with the retained RichTextEditor v0 preview in the 34-control
+catalog/gallery. Both use caller/host services without a private HWND/device/worker.
+The preview supplies shared native/embedded source TSF/IME and UIA range
+adapters, with Unicode 17 logical character boundaries. Rich structural/style
+semantics include source-exact structural commands and the opt-in RichMarkdown
+footnote preview: numbered references, reordered styled bodies and repeated
+backlinks share guarded internal/UIA navigation. The RichMarkdown native C++
+flowchart subset adds source-backed graphics, node/connection alternatives and
+typed literal-source diagnostics. Intrinsic-width/font rejection shows exact
+editable source and retries when the view changes. F2/UIA Invoke opens exact
+code/HTML/metadata source in place; Esc/F2/Ctrl+Enter finishes without undoing
+committed edits. Invalid fences stay literal and repairable. Real IME/AT, final extension,
+platform and performance acceptance remain under the active plan.

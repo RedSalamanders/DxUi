@@ -37,6 +37,45 @@ public:
     virtual HRESULT Write(HWND owner, std::wstring_view text) noexcept = 0;
 };
 
+// Optional structured paste transport. Existing TextClipboard implementations
+// and Unicode-only controls retain their original Read/Write behavior.
+struct TextClipboardContent
+{
+    static constexpr size_t MaximumFiles = 16u, MaximumFileUnits = 32767u, MaximumTotalFileUnits = 65536u;
+    TextClipboardContent() : text(0u, L' '), filePaths(0u)
+    {
+    }
+    TextClipboardContent(const TextClipboardContent&)            = default;
+    TextClipboardContent& operator=(const TextClipboardContent&) = default;
+    std::wstring text;
+    std::vector<std::wstring> filePaths;
+    void Swap(TextClipboardContent& other) noexcept
+    {
+        text.swap(other.text);
+        filePaths.swap(other.filePaths);
+    }
+};
+class StructuredTextClipboard
+{
+public:
+    virtual ~StructuredTextClipboard() = default;
+    // One nonblocking ownership attempt. A successful file list takes priority
+    // over Unicode text; failures leave the supplied owned result unchanged.
+    virtual HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept = 0;
+};
+// Application-side optional source-paste transform. Called on the attaching UI
+// thread, outside rendering, before the existing revision-checked commit. It
+// prepares text only: no document mutation or clipboard ownership is delegated.
+class TextClipboardPasteTransform
+{
+public:
+    virtual ~TextClipboardPasteTransform()                                                  = default;
+    virtual bool AcceptsFilePaths(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
+    // S_OK supplies a complete replacement; S_FALSE/E_NOTIMPL keeps ordinary
+    // Unicode paste. File-only content requires an explicit supported result.
+    virtual HRESULT TransformPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content, std::wstring& replacement) noexcept = 0;
+};
+
 // One lazy TSF service per application HWND. Borrows the HWND and retains only the active client.
 // Owns no renderer, swap chain, timer or worker. The application initializes COM in its UI STA.
 // ClearClient before page/view removal and on OS focus loss; a retained TSF reference becomes disconnected.

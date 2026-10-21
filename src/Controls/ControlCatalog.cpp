@@ -37,7 +37,8 @@ std::span<const ControlDescriptor> GetControlCatalog() noexcept
                                         ControlDescriptor{ControlKind::ColorPicker, L"ColorPicker"},
                                         ControlDescriptor{ControlKind::FlexPanel, L"FlexPanel"},
                                         ControlDescriptor{ControlKind::FormField, L"FormField"},
-                                        ControlDescriptor{ControlKind::FormPanel, L"FormPanel"}};
+                                        ControlDescriptor{ControlKind::FormPanel, L"FormPanel"},
+                                        ControlDescriptor{ControlKind::RichTextEditor, L"RichTextEditor"}};
     return entries;
 }
 HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexcept
@@ -79,6 +80,7 @@ HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexce
             case ControlKind::FlexPanel: result = std::make_unique<FlexPanel>(); return S_OK;
             case ControlKind::FormField: result = std::make_unique<FormField>(); return S_OK;
             case ControlKind::FormPanel: result = std::make_unique<FormPanel>(); return S_OK;
+            case ControlKind::RichTextEditor: result = std::make_unique<RichTextEditor>(); return S_OK;
             default: return E_INVALIDARG;
         }
     }

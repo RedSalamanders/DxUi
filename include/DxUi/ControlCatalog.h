@@ -36,7 +36,8 @@ enum class ControlKind : uint8_t
     ColorPicker,
     FlexPanel,
     FormField,
-    FormPanel
+    FormPanel,
+    RichTextEditor
 };
 struct ControlDescriptor
 {

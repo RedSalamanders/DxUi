@@ -766,13 +766,27 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
 class MenuHoverTraceForTest final
 {
 public:
-    MenuHoverTraceForTest() noexcept : _previousSink(DxUi::Diagnostics::sink), _previousTrace(_active)
+    explicit MenuHoverTraceForTest(bool capturePointer = false) noexcept
+        : _previousSink(DxUi::Diagnostics::sink),
+          _previousTrace(_active),
+          _capturePointer(capturePointer)
     {
         _active                 = this;
         DxUi::Diagnostics::sink = [](std::wstring_view, std::wstring_view message) noexcept
         {
             if (! _active)
                 return;
+            if (_active->_capturePointer && message.find(L"menu.pointer") != std::wstring_view::npos)
+            {
+                const size_t index = _active->_pointerCount.load(std::memory_order_relaxed);
+                auto& row          = _active->_pointerRows[index % _active->_pointerRows.size()];
+                const size_t size  = (std::min)(message.size(), row.size() - 1u);
+                std::copy_n(message.data(), size, row.data());
+                row[size] = 0;
+                // Publication follows routing, so a driver can wait for a posted
+                // move to be consumed without a fixed-delay assumption or an early state-probe race.
+                _active->_pointerCount.store(index + 1u, std::memory_order_release);
+            }
             constexpr std::array phases{
                 std::pair{L"menu.popup-create-begin", "popup.create.begin"},
                 std::pair{L"menu.popup-create-end", "popup.create.end"},
@@ -815,6 +829,10 @@ public:
     {
         Add(_driver, phase, value0, value1);
     }
+    [[nodiscard]] size_t PointerDispatchCount() const noexcept
+    {
+        return _pointerCount.load(std::memory_order_acquire);
+    }
 
     void Discovery(unsigned flags, std::chrono::steady_clock::duration probeTime = {}) noexcept
     {
@@ -844,6 +862,9 @@ public:
         };
         print("UI", _ui);
         print("driver", _driver);
+        const size_t count = PointerDispatchCount();
+        for (size_t index = count > _pointerRows.size() ? count - _pointerRows.size() : 0u; index < count; ++index)
+            std::wcerr << L"  [POINTER] " << _pointerRows[index % _pointerRows.size()].data() << L'\n';
     }
 
 private:
@@ -879,6 +900,9 @@ private:
     size_t _discoveryCalls       = 0u;
     int64_t _longestTextProbeMs  = 0;
     unsigned _lastDiscoveryFlags = ~0u;
+    bool _capturePointer         = false;
+    std::array<std::array<wchar_t, 2048>, 32> _pointerRows{};
+    std::atomic<size_t> _pointerCount{0u};
 };
 
 HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText, MenuHoverTraceForTest* trace)
@@ -2163,10 +2187,190 @@ void TestMenuKeyboardNavigationSkipsInfoRows()
     Require(! result.has_value(), "closing the info-row navigation menu with Escape returns no invoked command");
 }
 
+void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
+{
+    using namespace DxUi;
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "stationary-capture menu owner activates");
+
+    const std::vector<MenuFlyoutItem> targetItems{{.text = L"Target first", .commandId = 3381}, {.text = L"Target second", .commandId = 3382}};
+    const std::vector<MenuFlyoutItem> initialItems = submenu ? std::vector<MenuFlyoutItem>{{.text = L"Initial", .children = targetItems}}
+                                                             : std::vector<MenuFlyoutItem>{{.text = L"Initial", .commandId = 3380}};
+    const POINT initialAnchor{180, 180};
+    const POINT targetAnchor{580, 360};
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.switchRootFromDirection = [&](bool) -> std::optional<ContextMenuRootSwitchRequest>
+    {
+        ContextMenuRootSwitchRequest request{};
+        request.screenPoint = targetAnchor;
+        request.items       = targetItems;
+        return request;
+    };
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+    auto trace               = std::make_unique<MenuHoverTraceForTest>(true);
+    POINT stationaryPoint{};
+
+    const auto runPhase = [&](bool measure)
+    {
+        std::string driverFailure;
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+            const HWND initial = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), measure && ! submenu ? L"Target first" : L"Initial");
+            if (! initial)
+            {
+                driverFailure = "stationary-capture initial popup appears";
+                return;
+            }
+            if (! measure)
+            {
+                RECT initialRect{};
+                if (! GetWindowRect(initial, &initialRect) || PtInRect(&initialRect, stationaryPoint))
+                {
+                    driverFailure = "stationary pointer starts outside the initial popup";
+                    return;
+                }
+            }
+            ContextMenuPopupDebugState state{};
+            PostMessageW(initial, WM_KEYDOWN, VK_HOME, 0);
+            if (! WaitForContextMenuPopupState(initial, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u}; }, state))
+            {
+                driverFailure = "Home selects the initial first item";
+                return;
+            }
+            HWND target = initial;
+            if (submenu || ! measure)
+            {
+                PostMessageW(initial, WM_KEYDOWN, VK_RIGHT, 0);
+                target = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Target first");
+                if (! target)
+                {
+                    driverFailure = "keyboard opens the target popup";
+                    return;
+                }
+            }
+            if (! WaitForContextMenuPopupState(target, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u}; }, state))
+            {
+                driverFailure = "keyboard capture transfer initially selects the first target item";
+                return;
+            }
+            ScopedMenuPointerFixture targetCoordinates(target);
+            if (measure)
+            {
+                // Observe real row geometry before parking the cursor; no menu
+                // sizing formula or fabricated hit-test expectation is reused.
+                D2D1_RECT_F row{};
+                if (! WaitForContextMenuPopupItemRect(target, 1u, row))
+                {
+                    driverFailure = "second target row has geometry";
+                    return;
+                }
+                stationaryPoint =
+                    POINT{static_cast<LONG>(std::lround((row.left + row.right) * 0.5f * static_cast<float>(state.dpi) / USER_DEFAULT_SCREEN_DPI)),
+                          static_cast<LONG>(std::lround((row.top + row.bottom) * 0.5f * static_cast<float>(state.dpi) / USER_DEFAULT_SCREEN_DPI))};
+                if (! ClientToScreen(target, &stationaryPoint))
+                    driverFailure = "target row converts to physical screen coordinates";
+                return;
+            }
+            const auto deliverMove = [&](POINT point)
+            {
+                const size_t before = trace->PointerDispatchCount();
+                if (postedMove)
+                {
+                    if (! PostCapturedMouseMessageForMenuSuite(target, WM_MOUSEMOVE, 0, point))
+                        return false;
+                }
+                else
+                    static_cast<void>(SendCapturedMouseMessageForMenuSuite(target, WM_MOUSEMOVE, 0, point));
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+                do
+                {
+                    if (trace->PointerDispatchCount() > before)
+                        return true;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                } while (std::chrono::steady_clock::now() < deadline);
+                return false;
+            };
+            if (! deliverMove(stationaryPoint))
+            {
+                driverFailure = "stationary captured move is routed before checking selection";
+                return;
+            }
+            if (! WaitForContextMenuPopupState(
+                    target, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u} && ! value.hoveredIndex; }, state))
+            {
+                driverFailure = "stationary captured move preserves keyboard selection on the first item";
+                return;
+            }
+
+            // A real move still transfers selection to the second row. Nested
+            // fixtures restore our movement and then the person's original cursor.
+            ScopedMenuPointerFixture movedPointer(target);
+            const POINT moved{stationaryPoint.x + 2, stationaryPoint.y};
+            if (! movedPointer.AlignCursor(moved) || ! deliverMove(moved))
+            {
+                driverFailure = "real pointer movement is delivered";
+                return;
+            }
+            if (! WaitForContextMenuPopupState(
+                    target, [](const auto& value) noexcept { return ! value.keyboardIndex && value.hoveredIndex == std::optional<size_t>{1u}; }, state))
+                driverFailure = "real movement after keyboard capture selects the hovered second row";
+        });
+        const auto& items  = measure && ! submenu ? targetItems : initialItems;
+        const POINT anchor = measure && ! submenu ? targetAnchor : initialAnchor;
+        const auto result  = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, theme, callbacks);
+        driver.join();
+        trace->Dump(! driverFailure.empty());
+        if (result && driverFailure.empty())
+            driverFailure = "stationary-capture validation invokes no command";
+        return driverFailure;
+    };
+    std::string failure;
+    const ForegroundRunResult run = RunWhileForegroundHeld(ownerWindow,
+                                                           [&]
+    {
+        ScopedMenuPointerFixture probePointer(ownerWindow.Hwnd());
+        const RECT screen = GetVirtualScreenBounds();
+        Require(probePointer.AlignCursor(POINT{screen.left + 4, screen.top + 4}), "geometry probe parks the cursor away from its menus");
+        failure = runPhase(true);
+        if (! failure.empty())
+            return;
+        ScopedMenuPointerFixture parkedPointer(ownerWindow.Hwnd());
+        Require(parkedPointer.AlignCursor(stationaryPoint), "park the physical pointer before opening the initial menu");
+        DrainPendingMouseMessagesForMenuSuite();
+        failure = runPhase(false);
+    });
+    if (! ForegroundHeldOrSkip(run, "stationary-capture keyboard selection"))
+        return;
+    Require(failure.empty(), failure.c_str());
+}
+
+void TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(false, true);
+}
+void TestMenuKeyboardRootSwitchIgnoresStationarySentMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(false, false);
+}
+void TestMenuKeyboardSubmenuIgnoresStationaryPostedMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(true, true);
+}
+void TestMenuKeyboardSubmenuIgnoresStationarySentMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(true, false);
+}
+
 void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
 {
     using namespace DxUi;
 
+    auto trace = std::make_unique<MenuHoverTraceForTest>(true);
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
@@ -2294,6 +2498,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
 
+    trace->Dump(! driverFailure.empty());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the right-arrow menu loop validation popup with Escape returns no invoked command");
 }
@@ -10203,6 +10408,10 @@ void RunMenuTests()
     runTest("TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately", TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately);
     runTest("TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput", TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput);
     runTest("TestMenuKeyboardNavigationSkipsInfoRows", TestMenuKeyboardNavigationSkipsInfoRows);
+    runTest("TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove", TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove);
+    runTest("TestMenuKeyboardRootSwitchIgnoresStationarySentMove", TestMenuKeyboardRootSwitchIgnoresStationarySentMove);
+    runTest("TestMenuKeyboardSubmenuIgnoresStationaryPostedMove", TestMenuKeyboardSubmenuIgnoresStationaryPostedMove);
+    runTest("TestMenuKeyboardSubmenuIgnoresStationarySentMove", TestMenuKeyboardSubmenuIgnoresStationarySentMove);
     runTest("TestMenuKeyboardRightArrowMatchesWindowsMenuLoop", TestMenuKeyboardRightArrowMatchesWindowsMenuLoop);
     runTest("TestStationaryMouseDoesNotOverrideKeyboardRootSwitch", TestStationaryMouseDoesNotOverrideKeyboardRootSwitch);
     runTest("TestMenuPointerOverSiblingRootSwitchesOpenMenu", TestMenuPointerOverSiblingRootSwitchesOpenMenu);

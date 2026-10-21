@@ -1,7 +1,85 @@
 # Performance and resources
 
+The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
+units), one staged result and one published result per parser. Advance has an
+operation budget; source validation/copy/comparison and allocator work are not
+hard wall-clock bounds. Block transitions inspect one bounded physical line;
+reference finalization, block-tree compaction, construct lookahead, emphasis resolution and sorting are
+indivisible bounded work. Each revision reparses block/inline dependencies before identity reconciliation; this is not
+incremental block reuse. Lexical reference recognition examines at most
+33 source units per candidate and uses a fixed sorted standard-data table.
+Native tests bound scanner/root/index/reconciliation steps by
+16 * (current source units + previous source units) + 32. M3 adds global-reference,
+inline/autolink and dense-forest marking/index/copy passes to the earlier M2
+eight-step fixture bound. This counts steps,
+not all character visits inside block transitions. Prefix inspection fixtures
+independently check 128/512/4096 nested list levels
+and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
+capped, thematic suffix rejection uses one line metadata pass, and containers
+finalize once rather than extending every ancestor per lazy line. BlockStatistics
+exposes those deterministic counts; it is not a total CPU/time counter. The maximum
+all-newline source exercises maximum root-trivia and lexical partition counts; owned
+C++ retained storage must stay within 24 MiB and release completely. Replacing
+that maximum result while retaining its previous publication is bounded to
+32 MiB peak C++ storage. This is not
+a process/SDK/GPU or large-document capacity claim. Same completed requests,
+read-only publication access and retirement allocate no C++ storage. Parser
+allocation-failure sweeps must retain the previous publication and allow explicit
+retry. No parser result changes the existing frame performance HOLD.
+MSVC Debug iterator proxies allocate even in default/noexcept STL container
+constructors. Parser staging and node values use explicit fallible zero-size
+construction and copies rather than noexcept allocator-backed container moves.
+The allocation sweep must cover admission, growth, reference extraction, nested
+inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
+into runs rather than retaining one string per scalar. An 8,193-unit emphasis
+fixture publishes 2,049 nodes iteratively; a maximum plain paragraph has one Text
+value. The expanded mixed-feature fault fixture has an independently counted
+schedule below 2,048 requests (the M2 fixture's 512 ceiling covered fewer stages
+and constructs). Every observed request is still injected individually.
+Diagnostic children may emit bounded raw stack addresses on unexpected
+termination; ordinary suites and canonical benchmarks keep their normal path.
+
+Semantic source-format indexing is prepared once with the immutable semantic
+document, sharing its 65,536-unit admission. UIA collection queries do not parse,
+create layouts or mutate the document. Every observed C++ allocation in semantic
+child/header collection construction must return E_OUTOFMEMORY safely and allow
+retry. Child providers hold weak semantic graph identity; optional rich snapshot
+payloads keep bounds/font strings out of unrelated control records. Preparing
+snapshot rectangles is separate from allocation-free composition and from the
+existing warm caret/visible-range query budget.
+
+Semantic coordinate preparation admits at most 65,536 source units, 131,072
+display units and 65,536 display spans. Primary source intervals are disjoint;
+building their caret indexes visits each owned source unit once plus shared
+edges, rather than once per repeated display occurrence. Sorting primary indices
+and resolving repeat ownership are bounded preparation work, not composition.
+Coordinate/atomic-boundary queries allocate nothing. Fragment queries return
+owned vectors and may allocate; they belong to preparation/input/accessibility
+work, never Composite. Range returns use explicit fallible copies/prvalue elision
+so MSVC Debug iterator-proxy allocation cannot terminate in a noexcept move.
+The simultaneous maximum source/display/span fixture must retain at most eight
+MiB of C++ storage and release it completely. This is a map-only bound, excluding
+parser, geometry, histories, driver and GPU storage. Observe and inject every
+allocation in map creation, both fragment directions and atomic source edit
+staging; failures must leave held maps and complete Document state unchanged.
+The source transaction materializes its enclosing changed interval once and
+preserves all untouched gaps. It introduces no worker, timer or idle polling.
+
+SemanticBuilder additionally bounds the combined syntax graph to 32,768 nodes and
+geometry paragraphs to 4,096 before native SDK work. It traverses block/inline
+events cooperatively. Normalization, one value's tokenization, one image alternative
+and final map/index construction remain indivisible bounded preparation work.
+Ordered markers use one sibling pass, without repeated prefix walks. Every
+resolved value must match its normalized source tokens before publication; a
+mismatch rejects staged work. Failure sweeps cover complete preparation and
+replacing a pending request. Coalesced requests, publication reads and retirement
+allocate nothing. The maximum plain-source fixture must retain at most eight MiB
+of additional tracked C++ storage and release it completely, with its syntax held
+outside the accounting window. This is a named fixture bound, not an all-input,
+parser, process, SDK or GPU bound. General pathological capacity remains M6.
+
 Status: normative current contract
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-21
 
 The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
 the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
@@ -11,6 +89,44 @@ Implemented capabilities are listed in [capabilities.json](../../capabilities.js
 targets are acceptance contracts, not claims of current support.
 
 ## Mandatory performance policy
+
+Paired setup MUST share the benchmark project and its effective compiler options,
+including per-item flags, while retaining each side's own library project/source.
+Fresh builds stage the common benchmark project's timestamp after restore and
+record/restore original timestamps so MSBuild's newest-import selection is
+comparable. Reused builds retain their attested context. Before any measured
+process, both v2 full build states MUST match fixture, harness, compiler,
+dependency and environment identities. A mismatch consumes no measurement slots;
+retain the refused states. No property, flag or threshold is ignored to get a match.
+
+Hosted paired runs retain original measured executables, libraries, symbols and
+build attestations as CI artifacts alongside every report. Continuous host
+observations record native cumulative CPU counters, process CPU/memory, sample
+gaps and collection intervals; a failed observer cannot admit a completed study.
+Inspect observer cost and missing/inaccessible processes explicitly. These
+observations are neither a quiet-host guarantee nor a scheduler/GPU trace.
+Analysis MUST retain the original ISO-8601 UTC timestamp precision and parse it
+independently of the machine's locale. Implicit JSON date conversion followed by
+culture-sensitive string conversion cannot establish process-lifetime bounds.
+Artifact retention does not independently retain proprietary compiler/SDK bytes;
+record that remaining evidence-closure limit during policy review. Download and
+seal expiring artifacts before their retention period ends.
+
+Calling a local study build-free requires checking machine-wide observations,
+including other chats' work. Stopping only the invoking chat's builds is
+insufficient. Retain compiler/linker activity and distinguish MSBuild property
+evaluation from compilation. CPU advances in coarse observation intervals that
+contain timed windows do not identify exact-frame scheduling, but must not be
+hidden by calling the host quiet. Keep that collection as under-load diagnostics
+and coordinate a fresh complete study when build-free admission was required;
+do not reuse selected slots. Never stop independently launched processes to
+manufacture a quiet host. Scheduler/GPU attribution still requires its own evidence.
+
+Boundary diagnostics MUST report subintervals from the same ranked frame as the
+reported frame tail and distinguish window summaries from independent process
+replicates. A fixed-order timers-off/on pilot cannot by itself establish isolated
+instrumentation overhead or candidate speed; retain ordering reversals and all
+processes rather than selecting a favorable mode.
 
 Speed and low memory consumption are primary library requirements for every design, implementation, review and test.
 Among correct designs, minimize steady-state CPU/GPU time, private/resident memory, allocations and copies,
@@ -394,6 +510,116 @@ and JSON construction/parsing. A subtraction is a derived non-heap residual, not
 effect. Differing profiles MUST NOT imply convergence or isolate a heap observer effect. Coarse cumulative CPU times may yield zero deltas during real work; available
 cycle deltas MUST remain raw consumption counters rather than fabricated time or scheduler-delay estimates.
 
+The [source-command Default investigation](../../Measurements/RichText/README.md)
+retains 48 matching-profile interleaved reports and eight diagnostic profiles.
+Its paired clean-p95 effect is -1.31%, with no judged regression, but all 24
+controls flag drift somewhere and 13 cross the clean-p95 band. A within-noise
+judgment under the unqualified policy does not establish non-regression or close
+acceptance. The measured tail's combined bind/clear/copy/readback/other-overhead
+remainder is an attribution boundary, not a separately measured scheduler or
+GPU interval. Original warning/refusal receipts and the full-scene gates remain
+unchanged; this focused record changes no metric, threshold, judge or policy.
+
+`dxui-complex-ui-boundaries-v1` is a separate Default-only diagnostic, selected
+by `performance-profile.ps1 -BoundaryTimers Off|On`. It uses 200 dirty warm frames,
+a populated capture, and eight 40-frame clean windows: full, clear-only,
+composite-only, readback-only, then reverse order. All windows prepare a clean
+view, bind the target and complete a one-pixel copy/Map/Unmap. Interior timers
+record absolute QPC edges after preparation, binding, clear, composition, copy,
+blocking Map and Unmap; Off retains only frame start/end. Fixed frame storage,
+zero C++ allocations, surface reuse and hidden zero-work are checked natively.
+The guarded runner validates complete ordered windows/frames/edges, CPU query
+availability, clock units, PID/thread creation identity and the diagnostic source
+closure, retaining the original bytes and owned-child bounds. Compare fresh
+timers-off/on processes to expose observer effects. Removing commands changes
+backend scheduling and dependencies: neither subtraction across controls nor a
+blocking Map interval is a GPU-duration or scheduler-delay measurement. Scheduler
+attribution requires an actual aligned trace and its loss/completeness checks;
+a permission refusal leaves that gate open. This diagnostic changes no acceptance
+workload, judge, policy, threshold or historical receipt.
+
+The [external thread-state controls](../../Measurements/RichText/README.md)
+verify owned-child main-thread identity and a common native/managed QPC clock.
+WaitReason is read only for Wait. Require the entire acquisition bracket inside
+a frame/segment before assigning a sampled state; retain mixed/outside samples,
+errors and truncation separately. These samples are unweighted observations,
+not occupancy, ready latency, scheduler events or GPU time. In the retained study,
+all 35 brackets exceed/cross native frame boundaries: 17–25 ms query p95 cannot
+resolve 0.45–0.57 ms frame p95. Empty Map histograms mean unavailable evidence.
+Same-binary observer controls do not establish stable overhead or close HOLD.
+Explicit `-WarpRasterMode Default|CallingThread` with `-BoundaryTimers` selects
+`dxui-complex-ui-boundaries-v2`. Its requested and actual device flags must match
+the selected policy; an absent/contradictory policy cannot be accepted as v1.
+CallingThread uses the documented WARP profiling flag, with no canonical/library
+device default change. Omitting the option preserves the v1 command/report. This
+intervention changes work placement/runtime behavior and cannot by itself measure
+  scheduler latency. Device-reported flags prove the accepted request, not actual
+  application-main-thread execution. Keep native qualification and raw results in
+  the rich-text plan; the observed CallingThread runs remain Map dominated.
+
+The shared Unicode 17 grapheme walker retains constant numeric state and requests
+no C++ heap storage. Prepared rich navigation and password mask indexing walk
+established boundaries forward once; arbitrary-caret queries may recover context
+from the beginning. The 49,152-unit mixed-script resource fixture requires exactly
+16,384 elements and zero C++ allocation calls/bytes. This is a deterministic
+resource bound, not a latency or visual bidi qualification.
+
+Bulk UIA Character movement is linear in source length, including extreme signed
+counts: one nearest-boundary recovery, forward traversal or a prefix count plus
+target traversal, with at most three forward passes and constant numeric state.
+Collapsed deletion uses a single forward pass without a prepared index, or
+O(log G) lookup in the prepared layout's G grapheme stops. Neither operation
+requests C++ heap storage. The 49,152-unit mixed-script fixture requires actual
+movement of +/-16,384 elements and zero allocation calls/bytes, including both
+indexed and streaming deletion queries. Input/index construction is outside the
+measured query budget. Fixed Release before/after traversal trials are descriptive
+observations; they do not resolve the independent Default readback HOLD.
+
+DecodeUtf8 rejects byte lengths above three times the 65,536 UTF-16-unit capacity
+before conversion, and checks the decoded length before allocating its result.
+Every admitted Unicode scalar needs at most three UTF-8 bytes per UTF-16 unit.
+The 65,537-byte ASCII and 196,609-byte impossible-input rejection fixtures permit
+at most 4 KiB of C++ allocation requests, excluding caller-owned input. Exact
+three-byte BMP and supplementary-scalar limits must still decode. These bounds
+do not raise capacity or claim to measure Windows/CRT-internal allocations.
+
+RichDocument's bounded immutable snapshots use a persistent balanced piece tree
+for O(log P) offset lookup and O(log P + K) traversal of K intersecting pieces.
+Immutable nodes use cumulative piece/child ends, fanout at most 32 and at least
+16 entries outside the root. Edits copy boundary paths and retain untouched
+subtrees/buffers; fixed staging arrays handle split/merge without temporary heap
+containers. Reads retain no mutable lookup cache. Text/projection/layout still
+materialize the complete bounded source.
+A fixed 8,192-unit seed plus 4,096 interleaved single-unit edits, including the
+capped 128-entry history, must retain at most 4 MiB of tracked C++ storage and
+release that tracked delta on destruction. A caller-prepared same-content
+replacement must request zero C++ allocations/bytes and preserve both histories.
+These measure the C++ override, not Windows/CRT-internal storage. Sweep every
+observed allocation point of changed source/history operations to verify failure
+atomicity. Retain before failures and fixed edit/read/single-step timings.
+Source-change metadata must retain numeric edit pages without a source-root or
+page-parent chain. At most three sealed 32-edit pages accompany the active page;
+bounded queries use stack storage and request zero C++ bytes. The 512-query /
+64-retired-preview fixture must remain tracked and allocation-free. A separate
+8,192-unit / 4,096-preview fixture must retain at most 256 KiB of tracked C++
+storage, with no undo/redo and zero tracked delta after destruction. The existing
+4 MiB fragmented-source/history limit remains fixed. Sweep page-rollover failures
+and retain metadata overhead/timing observations without changing acceptance policy.
+PreparedProjection must reuse immutable unchanged outer line blocks and avoid
+whole-source flattening during tracked edits. Its source/display prefix rebuild
+is linear in bounded physical-line count. Four complete mapping sweeps over the
+512-line fixture, including unchanged preparation, must request zero C++ bytes.
+The 1,024-line / 512-edit projection+source/history fixture retains at most 4 MiB;
+the 65,536-newline and 32,768-unique-line maximum-source fixtures each retain at
+most 16 MiB. Every fixture releases its tracked delta to zero. Share adjacent
+equal line payloads. Sweep each observed changed-preparation allocation failure
+and prove complete prior-state preservation and a successful retry. Measure
+initial and edit preparation separately, retain full-projection comparisons and
+original failures; these supporting-core checks do not qualify retained geometry,
+shared scheduling, composition or completed-frame performance acceptance.
+The fixed fragmented-lookup trials are descriptive test diagnostics, separate from
+the canonical completed-frame fixture and its unresolved acceptance policy.
+
 The opt-in
 `MenuResources` control suite records 96 open/render/capture/close cycles for twelve
 plain or described entries at matched 456-by-300-DIP viewport constraints, including
@@ -513,3 +739,86 @@ smaller selection more slowly than the scan would, a model that keeps the room o
 `PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
 budget. The
 [paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.
+
+Rich snapshot slicing must propagate allocation failure rather than terminate in
+Debug STL proxy construction. Sweep every observed long-slice allocation and
+preserve the captured source, document revision and histories. The isolated
+allocation diagnostics install a terminate handler only in their explicit child;
+normal suites and canonical benchmark dispatch never install it. Retain the
+original failure separately from successful final sweeps and build qualification.
+
+Guarded rich document geometry retains at most 127 chunk layouts plus one optional
+whole-layout compatibility resource, with old/staged replacement bounded together.
+The qualified positioned-line implementation preserves DirectWrite's global coordinate math with
+private invisible origin lines. Reuse additionally requires an identical document
+origin; height-changing edits may rebuild the entire suffix and must report every
+prepared source unit. Inexact origins and empty displayed suffixes fall back
+explicitly; count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
+embedded composition must allocate and prepare nothing. No per-control worker or
+periodic timer follows from reference DLL recalculation code.
+
+The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB retained
+and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
+bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
+limits exclude SDK-private heaps and do not establish whole-process acceptance.
+The [guarded geometry record](../../Measurements/RichText/README.md)
+retains all failure schedules, geometry/pixel oracles and original negative runs.
+The [positioned-line record](../../Measurements/RichText/README.md)
+adds 324 exact WARP pairs, default-font native/embedded reuse, complete observed
+copy/chunk/whole/flat failure schedules and all six build profiles. Clear,
+unchanged queries and cached composition allocate no tracked C++ storage. Its
+unchanged five-trial preparation observations do not establish quiet-host,
+same-binary drift, causal speedup, large-document latency or frame acceptance.
+Clear uses fallibly preconstructed retirement storage; staged projection building
+must not depend on optional NRVO to avoid noexcept Debug proxy termination.
+
+Cooperative rich preparation retains at
+most one published and one staged bounded graph per owner; immutable geometry
+can be shared between them. Each graph keeps the existing 127 chunk plus one
+whole-layout bound. Advancing limits SDK layouts and block/reused-placement work
+separately (default 4 layouts/4,096 steps per visible owner per host turn). Aggregate
+host work also depends on visible owner count. Projection construction, joining
+and one physical paragraph/whole SDK call are indivisible v0 work, so these are
+work-unit ceilings, not hard millisecond guarantees. Cancellation/retirement adds
+no heap work. No per-editor worker, timer, device or HWND is introduced.
+
+One outstanding application wakeup is separate from dirty surface state. A
+pending turn may request one continuation; a failed turn must not self-reschedule.
+Clean/hidden work does not poll; new source after failure can request explicit
+retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
+
+The [cooperative preparation record](../../Measurements/RichText/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
+
+The opt-in M4d semantic path uses the same host turns with separate bounded CPU
+semantic events (default 4,096), SDK layout calls (4) and geometry metadata events
+(4,096). Its graph is bounded by 4,096 native layouts (markers, bodies, cells and caret boxes) and 32,768
+elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
+or final map construction remains indivisible. It retains at most a published
+and staged native geometry graph; source edits currently rebuild semantic leaves
+rather than claiming v0 chunk reuse. Immutable CPU syntax/document ownership can
+outlive native geometry when clients hold it. Raster preparation may allocate;
+composition must not call the builder/layout backend or allocate.
+
+Geometry preparation indexes source line units and bounds cooperatively before
+publication; cancelling or clearing owns no new heap work. Hidden/retired controls
+release SDK graphs. A semantic admission rejection prepares source geometry once,
+remembering exact syntax identity so idle preparation cannot retry in a loop.
+OOM/SDK/internal failures remain failed owner turns with no self-rescheduling.
+Parser admission reserves a physical-line upper bound for empty-line source
+metadata during its bounded source scan/copy. Replacement avoids geometric
+vector-growth peaks; the existing 24 MiB retained/32 MiB parser replacement-peak
+ceilings remain unchanged. Native caret-box counts are preflighted cooperatively
+before SDK calls, including row-wide ordering for padded cells.
+Marker measurement is a separate cooperative owner phase after admission and
+before body placement. Every real no-wrap marker layout and body layout consumes
+one SDK call; a source paragraph may therefore require two native layouts. Cached
+native advances establish the maximum gutter per list, with a bounded 64-level
+ancestor walk. Publication, scalar navigation and composition perform no marker
+measurement. Cancelling a partial marker pass retains the previous publication.
+Native HTML validation permits at most 4,096 tags and 32 simultaneous opening
+tags in one leaf. Validation/attribute decoding and block text projection remain
+bounded indivisible leaf CPU work. Policy rejection chooses literal leaf contents;
+allocation/SDK errors retain the existing failure contract. These bounds do not
+establish hard latency, browser layout equivalence or large-document acceptance.
+Resource/failure sweeps and all-current renderer qualification remain M4g work;
+earlier sealed parser/v0 packets do not establish semantic rendering performance.

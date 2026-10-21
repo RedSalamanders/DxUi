@@ -1078,6 +1078,34 @@ void AddComboItems(ComboBox& combo)
         field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / semantic preview", 2u, 480.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(
+            L"# Owned Unicode\r\n\r\n**Bold**, *italic*, `code`, ~~strike~~, [link](local) and <u>HTML</u> &amp;.\r\n\r\n"
+            L"9. A hanging marker keeps wrapped text aligned with the first text column.\n10. Both items share a text edge.\n\n"
+            L"| Language | Text |\n| :--- | ---: |\n| Greek | \u03b2 |\n| Japanese | \u65e5\u672c\u8a9e \U0001f600 |\n\n"
+            L"- [x] Checked task\n- [ ] Unchecked task\n\n> Source-preserving semantic preview");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
+                                                               L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ flowchart", 2u, 400.0f);
+        auto* editor =
+            scene.root->AddChild<RichTextEditor>(L"### Source-backed native diagram\n\n```mermaid\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\n```\n\n"
+                                                 L"Unsupported families retain editable source:\n\n```mermaid\nsequenceDiagram\nA->>B: hello\n```\n");
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetBounds(tile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);
@@ -1383,6 +1411,7 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
     window.PumpMessages(100u);
 
     WindowHostBitmapCapture capture;
+    Require(PrepareNativeContentForTests(window.Host()), "gallery cooperative controls reach one acknowledged frame");
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;
