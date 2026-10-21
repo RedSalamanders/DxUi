@@ -1,10 +1,24 @@
 # Changelog fragments
 
-Record a change here, not in [CHANGELOG.md](../CHANGELOG.md). Add one file named `<yyyy-mm-dd>-<topic>.md`, the topic in
-lowercase letters, digits and hyphens. It holds one Markdown bullet written as a changelog entry, with every
-continuation line and sub-bullet indented. Two branches that each prepend an entry to `CHANGELOG.md` conflict, so they
-merge one after another and each runs CI again. Two new files never conflict, so changes merge in any order.
+Record each change as `Changes/<yyyy-mm-dd>-<topic>.md`: a real date, a unique lowercase topic using letters,
+digits and hyphens, and one nonempty Markdown `- ` bullet. Indent every continuation line and sub-bullet
+with spaces. Describe behavior, relevant validation and material remaining gates. Use UTF-8.
 
-After a batch of merges, `Tools/Fold-Changelog.ps1` moves the fragments under the changelog's Unreleased heading,
-newest first, and removes them. Run it in a change of its own. `validate-specs.ps1` checks every fragment's name and
-shape.
+Keep fragments while editing so parallel branches can add distinct files. Fold before PrePush and final handoff,
+and immediately after every merge/rebase that introduces fragments, even for one fragment. Do not wait for a
+release, a large batch or a separate cleanup PR. Include the generated changelog and fragment removals in the
+current change. Do not hand-edit generated CHANGELOG.md entries or maintain a second manual list.
+
+```powershell
+./Tools/Test-Changelog.ps1
+./Tools/Fold-Changelog.ps1 -WhatIf
+./Tools/Fold-Changelog.ps1
+./Tools/Fold-Changelog.ps1 -Check
+```
+
+Validation is read-only. Folding puts entries under CHANGELOG.md's single `## Unreleased` heading in descending
+filename order and removes only folded files. It preserves UTF-8 BOM and line endings; retrying interrupted
+cleanup does not duplicate published entries. `-Check` rejects even one pending fragment. The commands never
+stage, commit, push, fetch, build native code or take desktop focus.
+
+See the [normative workflow](../Specs/Core/Core_Changes.md). Existing release notes remain in place.

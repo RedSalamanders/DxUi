@@ -425,6 +425,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Contains $harness 'Tools/ScopedTesting.psm1' 'old baselines receive the current attestation helper'
     Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
     Assert-Contains $harness 'Tools/Changelog.psm1' 'the validator import closure is complete'
+    Assert-Contains $harness 'Tools/Modules/Documentation/Changelog.psm1' 'the shared changelog implementation is in the overlay closure'
     Assert-Contains $harness 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'the benchmark compiler configuration is shared'
     Assert-Equal $harness.Count @($harness | Select-Object -Unique).Count 'the effective driver harness has no duplicates'
     $target = Join-Path $root 'baseline'
@@ -435,6 +436,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'Tools/ScopedTesting.psm1' 'original baseline scoped helper'
     Set-FixtureFile $target 'Tools/Validation.psm1' 'original baseline solution validator'
     Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
+    Set-FixtureFile $target 'Tools/Modules/Documentation/Changelog.psm1' 'original shared changelog implementation'
     Set-FixtureFile $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'original baseline benchmark project'
     $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
     Assert-HarnessOverlay -Target $target -Records $records
@@ -446,6 +448,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
     Assert-Equal 'original baseline solution validator' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Validation.psm1'))) 'the baseline validator was restored'
     Assert-Equal 'original baseline validator dependency' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Changelog.psm1'))) 'the validator dependency was restored'
+    Assert-Equal 'original shared changelog implementation' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Modules/Documentation/Changelog.psm1'))) 'the shared implementation was restored'
     Assert-Equal 'original baseline benchmark project' ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the original benchmark compiler configuration was restored'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/PerformancePolicy.psm1'))) 'created harness files are removed after the study'
 }

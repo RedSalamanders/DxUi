@@ -1,1 +1,0 @@
-- Record the normal S0-S2 remote-main merge, complete final PR evidence, independently replayed performance decisions and reviewed six-profile functional/gallery results; retain S3-S7 proposals and failed/incomplete policy, ARM foreground/resource, physical-input and consumer qualification in separate WIP records.

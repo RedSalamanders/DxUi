@@ -319,16 +319,7 @@ function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
     # A change is recorded as a fragment under Changes/, which its README explains, until Fold-Changelog.ps1 moves it under
     # CHANGELOG.md's Unreleased heading. Every fragment is one dated bullet.
     $failures = [Collections.Generic.List[string]]::new()
-    if (-not [IO.File]::Exists((Join-Path $Root 'Changes/README.md'))) { $failures.Add('Changes/README.md must explain changelog fragments') }
-    $changelog = Join-Path $Root 'CHANGELOG.md'
-    if (-not [IO.File]::Exists($changelog) -or -not [regex]::IsMatch((Read-TextFile $changelog -StripBom), '(?m)^## Unreleased[ \t]*\r?$')) {
-        $failures.Add('CHANGELOG.md must keep its "## Unreleased" heading, under which fragments are folded')
-    }
-    $fragments = Get-ChangelogFragments $Root
-    foreach ($fragment in $fragments) {
-        $problems = Get-ChangelogFragmentProblems $fragment.Name $fragment.Text
-        foreach ($problem in $problems) { $failures.Add("Changelog fragment $problem") }
-    }
+    $failures.AddRange([string[]](Get-ChangelogProblems $Root))
     return New-ValidationResult $failures @()
 }
 

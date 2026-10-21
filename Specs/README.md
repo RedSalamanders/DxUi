@@ -26,3 +26,5 @@ consumer migration does not prevent completing an independently scoped extractio
 Run the three root validation scripts for documentation/dependency changes and the appropriate tests for code.
 Generated measurement reports live under `.build`, never in Specs. Reviewed gallery snapshots live in `docs/gallery`.
 Historical import records are explained under [Done](Done/README.md). See [the active index](Plans/WIP/README.md).
+
+The [Changes workflow](Core/Core_Changes.md) owns fragment format, validation and immediate folding before PrePush/final handoff and after integration.

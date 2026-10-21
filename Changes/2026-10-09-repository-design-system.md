@@ -1,1 +1,0 @@
-- Make the versioned DxUi design system and committed harness gallery the documented publication surface, removing the private artifact dependency from current guidance.

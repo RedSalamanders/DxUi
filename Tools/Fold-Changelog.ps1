@@ -1,37 +1,41 @@
-<# .SYNOPSIS Folds the changelog fragments under Changes/ into CHANGELOG.md, newest first, and removes them.
+<#
+.SYNOPSIS
+Folds pending Changes fragments into CHANGELOG.md, even when only one is pending.
 .DESCRIPTION
-Run it in a change of its own after a batch of merges. A malformed fragment stops the fold before anything changes.
+Validates all input before writing, folds newest filenames first under Unreleased,
+then removes only folded files. Preserves UTF-8 BOM and changelog line endings.
+Run before PrePush/final handoff and immediately after every integration, not in release batches.
+An interrupted cleanup can be retried without duplicating already published entries.
 .PARAMETER Root
-Repository root; defaults to this one. #>
-[CmdletBinding()] param([string] $Root = (Split-Path $PSScriptRoot -Parent))
+Repository root; defaults to the repository containing this command.
+.PARAMETER Check
+Read-only final gate: fails if any fragment remains or the changelog is malformed.
+.OUTPUTS
+Console summary. Replaces CHANGELOG.md and removes folded files unless Check or WhatIf is used.
+.NOTES
+Requires PowerShell 7. No Git, network, build, staging, commits or pushes.
+Invalid input or I/O failure raises a terminating error/nonzero process exit.
+Rejects reparse paths. A checkout-local exclusive lease serializes folds.
+Primary consumers: developers, integration owners and final-handoff checks.
+.EXAMPLE
+./Tools/Fold-Changelog.ps1 -WhatIf
+.EXAMPLE
+./Tools/Fold-Changelog.ps1
+.EXAMPLE
+./Tools/Fold-Changelog.ps1 -Check
+#>
+[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
+param([string] $Root = (Split-Path $PSScriptRoot -Parent), [switch] $Check)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot 'Changelog.psm1') -Force
-
-$Root = [IO.Path]::GetFullPath($Root)
+Import-Module (Join-Path $PSScriptRoot 'Modules/Documentation/Changelog.psm1')
+$Root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Root)
+$problems = Get-ChangelogProblems $Root -RequireFolded:$Check
+if ($problems.Count) { throw "Changelog validation failed:`n$($problems -join "`n")" }
+if ($Check) { Write-Host 'Changelog is valid and fully folded.'; return }
 $fragments = Get-ChangelogFragments $Root
-$problems = [Collections.Generic.List[string]]::new()
-foreach ($fragment in $fragments) {
-    $found = Get-ChangelogFragmentProblems $fragment.Name $fragment.Text
-    $problems.AddRange([string[]]$found)
+if (-not $fragments.Count) { Write-Host 'No changelog fragments to fold.'; return }
+if ($PSCmdlet.ShouldProcess($Root, "Fold $($fragments.Count) changelog fragment(s) and remove their source files")) {
+    $count = Invoke-ChangelogFold $Root
+    Write-Host "Folded $count changelog fragment(s) into CHANGELOG.md, newest first."
 }
-if ($problems.Count) { throw "Fix the changelog fragments first:`n$($problems -join "`n")" }
-if ($fragments.Count -eq 0) {
-    Write-Host 'No changelog fragments to fold.'
-    exit 0
-}
-
-$changelog = Join-Path $Root 'CHANGELOG.md'
-$bytes = [IO.File]::ReadAllBytes($changelog)
-$bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
-$merged = Merge-ChangelogFragments ([IO.File]::ReadAllText($changelog)) $fragments
-[IO.File]::WriteAllText($changelog, $merged, [Text.UTF8Encoding]::new($bom))
-$directory = [IO.Path]::GetFullPath((Join-Path $Root 'Changes'))
-foreach ($fragment in $fragments) {
-    # Only a fragment file directly under Changes/ is removed.
-    if (-not [string]::Equals([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($fragment.Path)), $directory, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove a path outside Changes/: $($fragment.Path)"
-    }
-    Remove-Item -LiteralPath $fragment.Path
-}
-Write-Host "Folded $($fragments.Count) changelog fragments into CHANGELOG.md, newest first: $(@($fragments | ForEach-Object Name) -join ', ')"

@@ -1,1 +1,0 @@
-- Record bounded pre-confirmation focus capture reasons and immediate query errors in desktop-lease logs and child receipts, with deterministic capture, restoration read-back and receipt-validation regressions. Keep unrecorded focus unverified and all remaining qualification gates and thresholds unchanged.

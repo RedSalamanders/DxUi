@@ -1,1 +1,0 @@
-- Verify paired-study harness copies and original backup bytes before execution and restoration, fail closed on corruption, and retain failed attempts. Run verified hosted foreground suites through the restoring desktop lease with a foreground-owning parent and a child-specific grant; keep local confirmation and all failure and skip gates.

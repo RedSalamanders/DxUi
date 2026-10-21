@@ -111,3 +111,5 @@ moving the person's pointer or taking focus. Hosted input acceptance requires fr
 
 Build/test receipts and scratch belong under `.build`. No tool uploads test data or changes audio/camera state.
 Do not introduce a personal Codex path or silently install dependencies as part of validation.
+
+The shared [Changes workflow](../Changes/README.md) uses Test-Changelog.ps1 for read-only validation, Fold-Changelog.ps1 for immediate folding and its -Check final gate, and Test-ChangelogWorkflow.ps1 for fixtures. The old Changelog.psm1 import path forwards to Modules/Documentation/Changelog.psm1; benchmark attestation and overlays retain its full import closure.
