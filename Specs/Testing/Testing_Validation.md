@@ -719,7 +719,13 @@ Native refusal precedes desktop inspection or mutation. This mode substitutes ho
 person-facing confirmation; it retains the desktop probe, mutex, warning anchor, failure/skip checks and restoration.
 It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts use `.hosted` and explicitly retain the
 lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
-stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
+stale suite log with the current launch failure. Before replacement, the wrapper MUST preserve any existing log's
+exact bytes in a uniquely named `.unqualified-<id>.log` sibling, without overwriting earlier retained files. Existing
+output may be stale or may have been written after child resume but before a failed foreground grant; it MUST NOT
+qualify the current suite or supply its capability skips. The canonical log MUST name the current launch failure and
+the separate unqualified output. A retention error MUST stop replacement before destroying the original. Missing
+output creates only the current failure marker. Local interactive failures follow the same retention contract;
+retained `.log` files remain included in CI log uploads. Desktop availability alone supplies no foreground permission.
 
 Immediately before a hosted ARM64 foreground lease, `test.ps1` MAY prepare the disposable GitHub runner's
 first-sign-in desktop only when the exact hosted markers and native ARM64 architecture match. The preparation

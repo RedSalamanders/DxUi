@@ -24,10 +24,11 @@ IME/assistive-technology qualification and consumer adoption remain open.
 
 | Source and coverage | Result and limit |
 | --- | --- |
+| Feature head `c1a77e42`, tested merge `6110c7e0`, [CI 39555699478](https://github.com/RedSalamanders/DxUi/actions/runs/39555699478) | All six original native ZIPs match GitHub byte counts/digests. Four profiles pass; x64 Release fails foreground admission/restoration and ARM64 ASan fails a Menu probe assertion. Child scope exits pass in 124/126 cases, with zero capability skips; children of failed shared leases remain unqualified. Eight consumer variants and both Release resource fixtures pass separately. Paired collection completes, but its publisher and aggregate fail. Full qualification remains open; Release docs-gallery generation is skipped. |
 | Prior feature head `335c5157`, tested merge `17969dc3`, [CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925) | All six original native artifacts are sealed and independently replayed: 126 native scope passes, zero capability skips, two resource fixtures and eight consumer variants. That tested merge and head have identical trees. Validation, tooling and formatting pass; performance acceptance remains on HOLD. |
 | `61efca4c`, tested merge `6e2f455b`, [CI 39480512299](https://github.com/RedSalamanders/DxUi/actions/runs/39480512299) | Sealed original artifacts verify 126 native scope passes across x64/ARM64 Debug, Release and ASan, zero capability skips, two extra resource fixtures and eight consumer variants. Paired collection succeeded; its publisher and aggregate gate failed on the unqualified measured-base policy. |
 | Capture-time menu repair at the same compiled source | Four sent/posted stationary root/submenu regressions and the original Right-arrow case passed focused ASan with zero skips and verified desktop restoration. Existing delivered movement history is preserved. |
-| Local complete foreground runs | Latest Release and Debug each passed all four scopes with zero skips. Debug verified foreground/focus/pointer restoration; Release failed keyboard-focus restoration. Both captured Task Manager. Earlier ASan scopes passed with a disappeared saved focus window; the earlier Debug restoration and Release geometry failures remain retained. Passing repeats do not establish their causes. |
+| Local complete foreground runs | A newly approved exact-`c1a77e42` Release rebuild and bounded four-scope run pass with zero skips: foreground/focus unchanged and pointer restored, with live focus recorded before confirmation. Earlier Task Manager, Explorer, missing-window and geometry failures remain retained and unattributed. The current pass qualifies its own run only. |
 | Earlier parser components | 1,324 pinned CommonMark/GFM semantic expectations, 2,125 independent entity values, Unicode 17 vectors and native/embedded fault/resource checks. These are bounded component results tied to their original source. |
 | Earlier image/paste components | Known pixels, codecs, orientation, UIA alternatives, cancellation/device replacement, independent path roles/destinations, exact undo/selection restoration and allocation-failure sweeps. Historical passes do not qualify a later merge. |
 
@@ -37,6 +38,20 @@ those comment lines yields identical source text; executable statements,
 headers, tests and build configuration are unchanged. The prior CI receipts remain
 attached to their original source; this comparison is not a new native run or
 source/build attestation. Rewritten-head CI remains a separate observation.
+The current ARM64 ASan failure is the visible-initialization Menu probe: its
+healthy query answers false after 12 ms, with the popup still alive but hidden.
+The x64 Release lease separately loses child foreground permission after Menu
+passes; NativeTextInput does not qualify and foreground restoration fails.
+Neither observation establishes a cause. No retry replaces either failure;
+the original jobs/artifacts are preserved. The following log-retention repair
+requires fresh-source CI qualification.
+
+The launch-failure log wrapper now preserves existing raw bytes in unique
+unqualified `.log` siblings before writing the canonical failure marker. Two
+retention regressions fail before the fix; all 40 interactive-wrapper tooling
+cases pass after it, including missing output, repeated refusals, literal Unicode
+paths and a locked-file retention failure. This preserves future diagnostics;
+it neither recovers already overwritten output nor fixes foreground admission.
 The [implementation plan](../../Specs/Plans/WIP/RichTextEditor_2026-10-17.md)
 records source-specific qualification and remaining work. Layout/gallery pixels
 are unchanged by the menu input-state repair.
@@ -50,9 +65,10 @@ controls. Neither result establishes accepted non-regression or causal regressio
 
 | Retained investigation | Finding |
 | --- | --- |
+| [Current main/candidate CI 39555699478](https://github.com/RedSalamanders/DxUi/actions/runs/39555699478), seed `981054997` | Original 139,034,543-byte ZIP and both role executables are sealed. All 144 receipts, both frozen judges and 72 controls replay. Judges agree on metric labels, but 70/72 controls drift (22/24, 24/24, 24/24). The publisher rejects acceptance because the measured-base policy is unqualified; diagnostic labels do not establish non-regression. |
 | [Main/candidate CI 39463272390](https://github.com/RedSalamanders/DxUi/actions/runs/39463272390) | Exact replay of 144 receipts, both frozen judges and 72 controls; 68 controls drifted. Judges disagree on clean preparation. The measured-base policy is unqualified. |
 | [Previous main/candidate CI 39480512299](https://github.com/RedSalamanders/DxUi/actions/runs/39480512299), seed `1202880588` | Original role executables rehashed; all 144 receipts, both judges and 72 controls replay. Judges agree on metric labels, while 65/72 controls drift (21/24, 24/24, 20/24). Required acceptance fails on the unqualified base policy. |
-| [Current main/candidate CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925), seed `1568326520` | The original ZIP and both role executables are sealed; all 144 receipts, both judges and 72 controls replay. All 72 controls drift. The legacy judge flags MultilineGrid clean composition p95; the migrated judge reports within-noise. Collection succeeds, but the required publisher and aggregate fail on the unqualified base policy. |
+| [Previous main/candidate CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925), seed `1568326520` | The original ZIP and both role executables are sealed; all 144 receipts, both judges and 72 controls replay. All 72 controls drift. The legacy judge flags MultilineGrid clean composition p95; the migrated judge reports within-noise. Collection succeeds, but the required publisher and aggregate fail on the unqualified base policy. |
 | [Same-binary A/A 39468472800](https://github.com/RedSalamanders/DxUi/actions/runs/39468472800), `e0fa1d7a`, seed `1341918500` | One physical build; original ZIP/executable sealed. All 144 receipts and 72 controls replay. Judges agree on metric labels, but 69/72 controls drift (22/24, 24/24, 23/24 across the three scenarios). Diagnostic success is not policy approval. |
 | Earlier eight-process boundary pilot, frozen library sources `f65e4a4b` / `e325158a` | All 2,560 frames replay and captures match; same-ranked full-frame Map shares are 97.75%/92.74%. Compiler/linker CPU activity overlaps coarse intervals containing timed windows, so this remains under-load diagnostics. This source pair predates the menu repair and cannot qualify the current PR. |
 | Coordinated boundary attempt four, same frozen sources | Four of eight processes complete and independently replay, including 1,280 frames and matching captures. The machine-wide guard refuses process five when a compiler appears. The observer and refusal are retained; the full protocol remains incomplete. A future attempt must start all eight processes afresh. |
@@ -69,7 +85,10 @@ sampled absence cannot exclude unknown work or activity between samples.
 
 Blocking Map intervals can include deferred work, waits and preemption; they do
 not measure GPU duration or scheduler delay. Coarse thread observations cannot
-attribute sub-ms frames, and Windows refused kernel scheduler tracing. The latest
+attribute sub-ms frames, and Windows refused kernel scheduler tracing. The current
+hosted observer replays 5,903 samples over 6,081.45 s, median/p95 collection
+2.46/5.18 ms, sampled observer CPU 0.363% of one logical core and maximum
+sample-start interval 9.24 s. The previous
 hosted observer replay verifies 5,753 samples over 5,928.18 s, with median/p95
 collection 2.40/5.76 ms and sampled observer CPU 0.368% of one logical core.
 The maximum sample-start interval is 7.77 s. Earlier observer results remain
@@ -88,6 +107,8 @@ acceptance remain open under the
 [shared qualification ledger](../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
 No baseline, judge, threshold or exact budget is relaxed. Compiler/SDK/dependency
 byte retention is not complete independent evidence closure.
+The owner explicitly chose to keep PR #89 draft for independent review on
+21 October 2026; no implementation-only readiness exception is approved.
 
 ## Evidence retention
 

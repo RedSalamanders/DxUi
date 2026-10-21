@@ -267,6 +267,48 @@ separate from the policy review and preserve its strict assertion.
 - [x] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
   allocation checks before policy qualification; independent integration review checks both on the retained raw reports.
 
+### PR #89 current-source follow-through (21 October 2026)
+
+The owner explicitly chose to keep PR #89 draft for independent performance-policy
+review. The retained three-scenario A/A contribution still has 69/72 unstable
+controls; no policy approval or implementation-only readiness exception is supplied.
+
+At head `c1a77e42`, tested merge `6110c7e0`, original workflow `39555699478`
+passes four native profiles. x64 Release fails child foreground admission and
+restoration; ARM64 ASan fails the visible-initialization healthy Menu probe with
+the popup alive but hidden. All six original native ZIPs are retained and verified
+against GitHub sizes/digests. Eight consumer variants and both Release resource
+fixtures pass separately. Docs-gallery generation/upload is skipped after the
+Release failure. This source has no full functional acceptance claim. Preserve
+both failures separately from earlier complete-source passes and any future repeat.
+
+Paired collection completes and its 139,034,543-byte original ZIP matches GitHub
+SHA-256 `fba9638f339acd220b520520262110e025de31e3d50f05edeac75cb5f0b566fd`.
+Under seed `981054997`, both original role executables, all 144 receipts, both
+frozen judges and 72 controls replay. Judges agree on metric labels, but 70/72
+controls drift (22/24 Default, 24/24 MultilineGrid, 24/24 MultilineGridDistinct).
+The publisher rejects acceptance because the measured-base policy is unqualified;
+the aggregate also fails. All original workflow logs are retained. The observer
+replays 5,903 samples over 6,081.45 s, median/p95 collection 2.46/5.18 ms,
+maximum sample-start interval 9.24 s and sampled-span observer CPU 0.363% of one
+logical core. These observations do not establish host quietness, attribution,
+scheduler/GPU duration or accepted non-regression.
+
+A new approved local Release rebuild and one bounded four-scope run at that head
+pass with zero skips and verified foreground/focus/pointer outcomes. Pre-confirmation
+focus is live/recorded; foreground and focus remain unchanged and pointer is restored.
+This qualifies the local run without attributing prior failures or replacing
+hosted acceptance. Original native outputs are retained and executable/lease hashes
+match the receipts. There is no remaining authorization for another local focus run.
+
+The PowerShell launch-failure handler also had a reproduced evidence-retention
+defect: canonical failure replacement destroyed any existing child output. It now
+first copies exact raw bytes to unique unqualified `.log` siblings, while current
+receipts remain failed. Two new regressions fail before repair and all 40 wrapper
+cases pass afterwards. Missing output, repeated refusals, literal Unicode paths and
+failed retention are covered. This fixes future evidence preservation only;
+foreground behavior and existing probe deadlines are unchanged.
+
 ### PR #80 paired-control investigation (17 October 2026)
 
 The [reviewed evidence](../../../Measurements/Performance/2026-10-17-pr80-controls/README.md) binds base `99e8b313`,

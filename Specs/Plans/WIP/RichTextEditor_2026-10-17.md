@@ -24,9 +24,27 @@ PR #89 readiness, 2026-10-21:
   consumer variants. Verify original artifacts, validators and pinned formatting.
   Later documentation and whole-line comment edits change no executable
   statements. Keep this source-specific evidence separate from rewritten-head CI.
-- [ ] Qualify local foreground restoration. The approved automatic-Start runs
-  pass all four Release/Debug scopes, but Release keyboard-focus restoration
-  fails. Keep the failed lease separate from Debug's verified restoration.
+- [x] Qualify one complete local Release foreground run at `c1a77e42`: after a
+  fresh canonical rebuild, all four approved scopes pass with zero skips,
+  foreground/focus unchanged and pointer restored. Pre-confirmation live focus
+  is recorded. Earlier failed restoration attempts remain retained/unattributed;
+  this bounded pass neither explains those failures nor qualifies hosted CI.
+- [x] Preserve existing raw output before writing a launch-failure log. Retain
+  each unqualified original in a unique `.log` sibling; canonical receipts remain
+  failed. Two regression cases fail before the repair and all 40 wrapper tests
+  pass after it, including missing/repeated output and locked-file refusal.
+- [ ] Complete current-head hosted qualification. Original run `39555699478`
+  passes four native profiles, but x64 Release fails foreground admission/
+  restoration and ARM64 ASan fails the visible-initialization healthy Menu
+  probe. All six native ZIPs are retained and GitHub-digest verified. Preserve
+  both failures; current full functional acceptance remains open. Eight consumer
+  variants and both Release resource fixtures pass separately; docs-gallery is
+  skipped after the Release failure. A fresh-source run must qualify the log fix.
+- [x] Retain and replay the completed `39555699478` paired study: original ZIP,
+  both measured role executables, 144 receipts, both frozen judges and 72 controls.
+  Under seed `981054997`, judges agree on metric labels but 70 controls drift
+  (22/24, 24/24, 24/24). The publisher and aggregate fail on the unqualified base
+  policy. Replay 5,903 observer samples separately; no quiet-host or causal claim.
 - [ ] Investigate D4c using frozen main/candidate identities, controlled matched
   runs, bounded clear/readback and scheduler admission, retaining all original
   failures/outliers. No compilation or functional suites overlap local timing.
@@ -49,8 +67,10 @@ PR #89 readiness, 2026-10-21:
   The owner also authorized fresh A/A evidence and a policy-review proposal;
   execution and the independent decision stay in the
   [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026).
-- [ ] Fix reproduced failures, update contracts/docs/results, push all changes,
-  and mark the PR ready only when the required merge gates are satisfied.
+- [ ] Fix reproduced failures, update contracts/docs/results and push changes.
+  Keep PR #89 draft for independent performance-policy review, as explicitly
+  chosen by the owner on 21 October. Readiness requires all required merge gates;
+  no implementation-only exception is approved.
 
 The earlier merged-source CI completed three native profiles and seven consumer variants;
 two other native profiles timed out and one was cancelled. A controlled local ASan

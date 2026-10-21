@@ -14,3 +14,5 @@
   Seal and replay the three-scenario same-binary A/A study, keeping its unstable
   controls and policy HOLD explicit. Require machine-wide build-free admission
   for controlled local profiling and preserve rejected under-load attempts.
+  Preserve raw unqualified child output before replacing a foreground-launch
+  failure log; keep current receipts failed and retain earlier originals separately.
