@@ -1,1 +1,0 @@
-- Record PR #87's verified post-merge native/consumer evidence and remaining ARM64 focus-restoration limitation, preserving all 20 qualification HOLDs, deadlines and thresholds.

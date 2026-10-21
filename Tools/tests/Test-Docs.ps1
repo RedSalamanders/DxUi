@@ -5,6 +5,10 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Validation.psm1') -Force
 
+$changesScratch = Join-Path $PSScriptRoot '../../.build/changelog-fixtures'
+[void][IO.Directory]::CreateDirectory($changesScratch)
+& (Join-Path $PSScriptRoot '../Test-ChangelogWorkflow.ps1') -ScratchRoot $changesScratch
+
 function Set-DocsFixture([string] $Root) {
     Set-FixtureFile $Root 'README.md' '[Docs](docs/README.md)'
     Set-FixtureFile $Root 'include/DxUi/ControlCatalog.h' 'enum class ControlKind { Label, Button };'

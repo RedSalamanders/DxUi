@@ -1,1 +1,0 @@
-- Derive foreground-run restoration summaries from the recorded desktop statuses, preserve missing/failed restoration diagnostics, and avoid attributing pointer movement to a fixture from the restoration report alone.

@@ -4,6 +4,354 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add explicit native-host WARP selection with shared-thread policy inheritance, conflict refusal and device-replacement coverage for deterministic consumer validation.
+- Standardize the Changes workflow across DxUi, RedSalamander, RedXe, RedPrism and RedTilde with shared validation, safe folding and behavioral fixtures. Fold before PrePush/final handoff and immediately after integration, even for one fragment; retain native and product qualification as separate gates.
+- Add the owned Unicode RichTextEditor core, lossless CommonMark/GFM analysis,
+  retained native/embedded editing and accessibility, bounded semantic previews,
+  native image rendering and document-relative image/file-link paste. Specify
+  pending file drag-and-drop and consolidate validation into a concise summary;
+  performance acceptance and remaining extension/platform/product gates stay open.
+  Add relocated rich-sample checks and share/preflight paired benchmark build
+  configuration while preserving original contexts and refusing mismatches.
+  Retain original hosted benchmark outputs and continuous host observations;
+  prepare fresh A/A calibration and an independent policy-review proposal.
+  Initialize missing menu pointer history at capture to preserve keyboard selection
+  under stationary messages, with sent/posted root/submenu regression cases; keep
+  delivered movement history intact. Retain complete native/consumer coverage with
+  finite cold-build CI windows; per-test and performance budgets are unchanged.
+  Seal and replay the three-scenario same-binary A/A study, keeping its unstable
+  controls and policy HOLD explicit. Require machine-wide build-free admission
+  for controlled local profiling and preserve rejected under-load attempts.
+  Preserve raw unqualified child output before replacing a foreground-launch
+  failure log; keep current receipts failed and retain earlier originals separately.
+  Run state-probe and shortcut-layout checks in fresh bounded foreground attempts
+  with controlled loss regressions. Recover the hosted warning before each child
+  using the existing guarded input path; retain ordinary local behavior, deadlines,
+  failed evidence and the independent performance-policy HOLD.
+  Save the five-profile native pass and unresolved ARM64 Debug sibling-hover
+  investigation in the WIP resume checkpoint, retaining original evidence and
+  the independent performance-policy HOLD.
+- Extend RichMarkdown with source-backed inline/display mathematical objects and bounded native state/class diagrams. Keep CommonMark/GFM grammar unchanged, reject unsupported notation as exact source, budget each mathematical text layout, and cover native/embedded presentation and source history.
+- Record PR #87's verified post-merge native/consumer evidence and remaining ARM64 focus-restoration limitation, preserving all 20 qualification HOLDs, deadlines and thresholds.
+- Keep native TSF reconciliation notification counts scoped to the current generation-tagged turn, with bounded diagnostics and queued-geometry regression/counterfactual coverage; qualification gates, deadlines and thresholds remain unchanged.
+- Record PR #85's passing post-merge native and public-consumer evidence, retaining the three shared ARM64 leases' unverified focus restoration, the inconclusive paired result and all remaining qualification gates and unchanged thresholds.
+- Guard the complete native IMM eligibility sequence and distinguish initial activation refusal from a held foreground attempt, with deterministic preview-loss and undo-setup regressions. Preserve activation deadlines, attempt bounds, text-input assertions and all remaining qualification gates and thresholds.
+- Prioritize registered menu-bar hover input before popup paints, with bounded hover-switch diagnostics and a deterministic pending-paint regression that preserves the 900 ms guard and all remaining qualification gates.
+- Record bounded pre-confirmation focus capture reasons and immediate query errors in desktop-lease logs and child receipts, with deterministic capture, restoration read-back and receipt-validation regressions. Keep unrecorded focus unverified and all remaining qualification gates and thresholds unchanged.
+- Separate Menu witness creation from activation, reacquire the owner after setup, service sent callbacks under the existing absolute deadlines and wait for actual thread exit. Add bounded native/UIA setup diagnostics and deterministic readiness, loss-accounting and teardown regressions; retain unresolved failures, qualification gates and unchanged thresholds.
+- Record PR #80's paired-control and judge-disagreement investigation, retained timing/memory witnesses and
+  concrete ConsumerUiQualification next steps, preserving all open gates and existing thresholds.
+- Share menu fixture discovery of visible owned popups and establish modal dispatch readiness within the probe fixtures' existing discovery budget. Cover hidden and visible initialization deterministically, retaining probe deadlines, qualification HOLDs and existing performance thresholds.
+- Record the bounded timing and memory attribution pilot, its observer/capture/allocator evidence and remaining
+  ConsumerUiQualification investigations, keeping qualification gates open and thresholds unchanged.
+- Record ARM64 lease focus evidence, three shared snapshots behind six child receipts, and bounded capture-reason diagnostics and native focus follow-up steps while preserving all remaining qualification gates and thresholds.
+- Correct PageHost keyboard/UIA logical traversal, PageHost/Slider embedded animation epochs, native caret/key routing,
+  scrolled secondary clicks, supplied-context teardown and extracted RadioButton group lifetime; add behavior
+  regressions, make test-filter source checks non-vacuous, regenerate the CI documentation gallery before upload,
+  reconcile completed-plan links and centralize shared qualification ownership without closing consumer gates.
+- Record exact merged-main six-profile CI and approved x64 menu-resource qualification receipts, while retaining unstable performance-policy and remaining ARM64/physical-input gates.
+- Record the normal S0-S2 remote-main merge, complete final PR evidence, independently replayed performance decisions and reviewed six-profile functional/gallery results; retain S3-S7 proposals and failed/incomplete policy, ARM foreground/resource, physical-input and consumer qualification in separate WIP records.
+- Bind qualified paired verdicts to every scheduled role's raw provenance and enforce the fixed whole-frame allocation budgets on all retained rounds.
+- Activate shown modal Menu test owners before opening popups so prior deactivation or hosted warning focus cannot make later fixtures close their initial popup.
+- Stabilize Menu foreground fixtures by activating the modal-loop owner, keeping the cursor target visible, and retrying a Grid UIA event only when another application steals focus; report the foreground or covering window when the tests still cannot run.
+- Prepare the verified GitHub-hosted ARM64 desktop when first-sign-in WWAHost and UserOOBE windows cover foreground tests, and reassert the warning's topmost patch position. Do not capture stale keyboard focus from a minimized foreground window; retain exact hit-test refusal and restoration of the recorded desktop state. Establish a visible foreground owner before the Menu sent-cancellation fixture opens its modal popup.
+- Record completed S0-S2 intrinsic sizing and stable forms in Done, with deferred S3-S7 proposals and unfinished performance, platform and consumer qualification in separate WIP plans.
+- Reset the native IME undo fixture's text and undo history before each admitted foreground attempt, preserving
+  the same editor and its original composition notifications, two-undo sequence and late-result checks.
+  A forced first-loss regression also verifies that a third undo cannot expose a discarded setup edit.
+  Bounded per-attempt diagnostics retain the setup observations. The activation helper services sent messages
+  with the existing 800 ms polling deadline; sent callbacks remain subject to the test watchdog. Foreground
+  authorization and retry limits stay unchanged. Test guidance and the validation contract describe the setup.
+  This fixture/helper repair changes no control rendering, gallery tiles or design-system previews.
+- Retain canceled, failed and successful native focus attempts separately, and add bounded activation/focus/session
+  setup observations to the zero-size NativeTextInput fixture. Reset success per attempt and preserve its assertions,
+  activation order, timeouts and foreground-loss policy. Documentation, specification and design-system/gallery
+  review found no visible product change; published pixels remain applicable.
+  Record four complete ASan foreground-suite passes with zero skips, exact before/after provenance and verified
+  desktop restoration. Preserve the earlier cancellations separately; Release/Debug foreground qualification and
+  original failure attribution remain open.
+- Fix Linux performance tooling fixtures to resolve evaluated native inputs on the host filesystem and identify test-owned helper processes by their exact native creation instance, retaining owned-path rejection, timeout, descendant-survival and bounded-drain checks.
+- Add explicitly approved automatic Start for foreground tests with `test.ps1 -Interactive -InteractiveAutoStart`: a visible 30-second countdown defaults to Start unless cancelled, retaining desktop refusal, warning and verified restoration. Native receipts distinguish automatic and clicked starts, preserve the actual policy/countdown and reject mismatched automatic metadata; ordinary manual confirmation keeps its Cancel default.
+- Marshal embedded form label relationship notifications across COM apartments, preserving bounded coalescing and prepared-source retirement when clients retain event values.
+
+  Real-client regressions distinguish duplicate valid payloads from intermediate values, gate the pending batch
+  explicitly and drain admitted callbacks during teardown. Provider creation failure for a current label drops the
+  relationship event with a diagnostic; native retired-label history still supports genuine clear notifications.
+  Missing form notifications retain bounded client arrivals and owner publication attempts. Shared UIA test waits
+  wake for COM messages while preserving the cached sender and three-second notification deadline. Delivery failures
+  invoke the existing diagnostic path with the property ID/HRESULT; its per-thread sink is not delivery or retry evidence.
+
+  The input/accessibility contract and hosting guide describe the transport. Reviewed gallery tiles and design-system
+  previews remain current: this internal notification change affects no layout, drawing, control state or public API.
+- Preserve finite native CI qualification windows after source-bound ARM64 cold-build/provenance timeouts: Full remains
+  25 minutes on x64 and receives 45 on ARM64; all six enclosing budgets include the unchanged 15-minute consumer
+  qualifications and setup/artifact allowance. Retain the failed runs and regression checks without relaxing native
+  watchdogs, correctness, sanitizer, resource, provenance or performance acceptance.
+- Bound the ARM64 ASan native CI job at 60 minutes while retaining all stage watchdogs and eight consumer qualifications; add workflow budget regression coverage and preserve the source-bound historical cancellation evidence.
+- Verify paired-study harness copies and original backup bytes before execution and restoration, fail closed on corruption, and retain failed attempts. Run verified hosted foreground suites through the restoring desktop lease with a foreground-owning parent and a child-specific grant; keep local confirmation and all failure and skip gates.
+- Fail UIA test-client quiescence timeouts and retain bounded client/provider event timelines for Grid selection diagnostics while preserving semantic event assertions.
+  Validate the retained UIA child/timeline inventory and late or in-flight callback observations with fifteen bounded source-only replay cases; preserve the original intermittent failure and its unproven cause.
+- Reconcile prepared Tree rows and interaction-only preparation with current reentrancy/selection guards; deliver embedded control-property events through bounded marshalled batches, preserve event-sender runtime IDs without retaining row snapshots, and add real-client held/reentrant delivery, fallback, retirement and focus/selection coverage. Consumer prepared-row activation remains separately qualified.
+- Bind benchmark build reuse to compiled source, installed dependencies, the resolved toolchain and actual artifacts;
+  verify unchanged source, executable, fixture, tools, environment and power policy around each measured run, and retain
+  invalid samples separately instead of stamping a stale or concurrently changed executable as current evidence.
+  Version the attestation to retain each side's expanded projects and resolved source inventory while comparing stable
+  compiler, shader-role, linker and librarian profiles. Require a fresh build for old receipts and refuse unsupported
+  heterogeneous compiler options, generators, build events or tool overrides rather than publishing incomplete provenance.
+  Bind the actual solution configuration and build mappings; default-output builds use incremental compilation only when
+  the prior v2 receipt verifies every input, tool and final artifact and a separate receipt binds every intermediate
+  profile path and byte; otherwise rebuild. Keep final-only SkipBuild independent of disposable cache. Hash actual
+  resolved C++/HLSL bytes and all owned native include inputs per side, and all selected MSVC/ATL/SDK/WinRT/VS/NETFX
+  tool inputs, including extensionless headers and optional-root absence. Refuse unsupported external/ignored inputs,
+  response/path overrides and foreign intermediate headers. Allow only each project's canonical MSBuild failed-build
+  status marker so a failed compile can retry with guarded Rebuild; it never authorizes stale reuse or foreign headers.
+  Consumer output roots retain their existing build behavior.
+- Preserve explicit local interactive-test refusal in every CI environment, including fully identified hosted runners. Exercise both marker sets before any build or child work; hosted foreground jobs retain their separate guarded lease mode.
+- Add opt-in intrinsic control measurement and FlexPanel flow with shaped Unicode metrics, explicit wrapping and fallback sizes, stable editor widths, bounded numeric caches, overflow reporting, RTL geometry, and shared native/embedded preparation guarded against reentrant callbacks.
+  - Preserve callback-authored replacement options, retire staged arrangements after nested measurement, and validate represented fractional/extreme-coordinate bounds before child geometry is committed.
+- Match the paired benchmark's allocation to its exact randomization test by independently drawing each block's ABBA/BAAB order. Version the study and judge, bind the assignment generator to policy approval, verify protocol and seeded schedule replay, reject historical globally balanced studies for qualification, and correct the retained accessibility study's statistical interpretation while preserving its measured tradeoff and original records.
+- Recover refused warning activation on verified GitHub-hosted Windows test desktops with a guarded click on an owned,
+  temporarily clipped opaque warning patch; reject held buttons and foreign/uncertain capture, retain refused-target
+  diagnostics, and verify click release and restored window shape/style/layered attributes before granting a child the foreground.
+  Ordinary local confirmation and failed/skipped-suite checks remain mandatory.
+- Retain and independently replay the repaired v2 same-binary A/A calibration: 144 guarded reports and 72 controls.
+  Both judges have zero aggregate regression flags, but every control remains unstable and all timing/memory cells
+  drift. Preserve the original reports, unchanged thresholds and unresolved Grid flags; keep seed-policy and required-CI
+  qualification open and record a bounded initialization/backend/scheduler attribution pilot as the next investigation.
+- Integrate virtual Grid automation and first full-frame presentation with the current lazy accessibility publication, model binding guards and canonical provider identities; preserve the queried model assignment during concurrent row and cell creation. Retain the unfinished prepared-tree work and independent performance-policy qualification.
+- Opt-in FormPanel/FormField composition with stable editors, shared/wrapped labels, descriptions, textual validation and semantic-editor UI Automation relationships. Existing manual layout remains explicit; application values, validation and Apply/Cancel stay in consumers.
+  - Library layout/accessibility tests, control guide and design-system guidance/previews. Consumer pin changes and physical IME/touch/native ARM64 qualification remain separate gates in the indexed plan.
+  - Native and embedded property/text publication stops after a notification destroys, detaches or hides its semantic editor or replaces the attached root. Actions on an unavailable retained editor return UIA_E_ELEMENTNOTAVAILABLE and preserve its draft; providers and snapshots do not keep controls alive.
+- Retain S0-S2 intrinsic/Flex/form validation across all six builds and all 57 x64 noninteractive suite/log pairs,
+  plus twelve successful Debug/Release/ASan foreground suite/log pairs, exact desktop restoration, candidate-only
+  Manual/Form diagnostics and bounded Grid heap/retention runs. Preserve first failures and confirmation timeouts,
+  including ASan's third attempt with no child, failed restoration and a subsequent unavailable-input-desktop
+  check. The fourth locally confirmed ASan run completes the local x64 focus gate; native ARM64, physical-input,
+  consumer and paired-policy acceptance remain separately open.
+- Establish actual desktop foreground ownership in authorized menu/text fixtures by reusing the lease backend's scoped input attachment when a direct activation request is refused. Explicitly activate context-menu owners before opening their popups, keep noninteractive activation blocked, and preserve failure reporting and production deactivation behavior.
+- Preserve callback-owned focus, capture and cross-host ownership during child/tab extraction; stop an older removal
+  when cleanup moves its owner or restores interaction in the requested branch.
+- Derive foreground-run restoration summaries from the recorded desktop statuses, preserve missing/failed restoration diagnostics, and avoid attributing pointer movement to a fixture from the restoration report alone.
+- Keep relocated exact-pin consumer qualification running after a native suite failure in all six CI profiles,
+  including both ASan annotation variants, while respecting cancellation and preserving failed native/aggregate results.
+- Add a separate, bounded ComplexUi startup/CPU/cache/heap diagnostic and guarded runner with exact native receipts and checked batch-driver imports, without changing benchmark acceptance metrics or policy qualification requirements.
+- 2026-10-10: Preserve per-frame complex-UI timing samples and distinguish QPC counter ticks from the C++ clock's nominal period; reject overflowing aggregates and invalid counter frequencies, validate complete diagnostics against the unchanged FPS/percentiles and retain historical receipt compatibility without changing acceptance thresholds or qualifying the proposed policy.
+- Bind migrated benchmark qualification to all three required scenarios, full v2 build identity, all 26 declared metrics and the complete consumed judge decision. Replay both attested judges and every scheduled same-side control from the hashed raw receipt bytes, then consume the canonical control drift without rereading comparison files; reject fabricated or partial evidence while preserving historical and local diagnostic report readability.
+- Stage native TSF document activation and revalidate control/session identity around callback-capable operations; detach old state before teardown callbacks so a reentrant replacement session remains active. Bind production text stores to a per-session dispatch cookie, reconcile edits made during synchronous TSF callbacks on one posted turn, preserve a newer thread-manager focus document during cleanup, and prevent process-exit pop callbacks from restoring editor focus or cache state.
+- Suppress TSF sink text and selection notifications for the store's own ACP edits, defer callback-observed external document changes until the active lock unwinds, and retire native posted work with its TSF session cookie.
+- 2026-10-09: Preserve a different TSF document's focus while restoring a retired native editor's HWND association,
+  including failed staged activation. Revalidate the host transition and resulting document before restoring focus,
+  so a newer callback-selected document survives. Diagnose foreign-document setup separately from retirement.
+- Scoped-testing fixtures restore both environment-variable presence and value, including originally absent and present-empty values, so running tooling cannot alter later native receipt identities.
+- Scoped build and native run evidence now hashes installed platform vcpkg triplet files plus status, package inventory and ABI metadata; missing dependency inputs prevent receipt reuse.
+- 2026-10-09: Use native temporary paths in performance identity fixtures on Windows and Linux. Derive the
+  immutable base judge's version from its actual source, allowing both legacy and versioned bases while retaining
+  source-hash, receipt-byte and version-mismatch rejection checks. Correct the native edit-message fallback fixture
+  to use an edit message and verify HWND caption routing through application/default handlers with and without
+  logical editor focus. Preserve ARM64 foreground failures and add popup, activation and read-only hosted-desktop
+  diagnostics to identify their cause without weakening focus guards or approving skips.
+- Git preserves original bytes in the retained production-review packet and hashed scheduling/qualification records, so checkout line-ending conversion cannot invalidate their recorded SHA-256 identities.
+- Make the versioned DxUi design system and committed harness gallery the documented publication surface, removing the private artifact dependency from current guidance.
+- 2026-10-09: Isolate desktop-refusal tooling fixtures from concurrently written repository logs while checking that the refused run leaves existing log and receipt bytes unchanged.
+- Performance identity now hashes MSBuild's validated expanded project and all imported content/order under the same Configuration, Platform and output-root globals as the build. Baseline refresh separately verifies platform, toolchain, dependency and environment identities before overlay; only full identity remains eligible for benchmark receipts.
+- Persistent full-value inspections inherit text flow, mirror placement in RTL, and consume the complete outside-dismissal gesture without activating underlying controls.
+- Bind paired benchmark qualification to the normalized judge hash and version approved by an immutable base policy;
+  reject candidate judge replacement even when its reported decisions agree. Record the actual WARP DLL hash alongside
+  its version in migrated receipt identity. Keep the proposed policy unqualified until independent calibration and
+  explicit policy review are complete; historical results remain readable without becoming migrated qualification.
+- A/A paired calibration now builds one worktree once and measures that exact executable under both randomized role labels, preserving distinct per-run receipts without relying on path-independent binaries.
+- 2026-10-09: Dispatch each posted Unicode mnemonic before inspecting the same-thread popup state, verify duplicate
+  matches do not invoke commands, and assert the selected closing command. Correct the IMM application-replacement
+  fixture to verify insertion at its preserved caret rather than assume SetText moves the caret to the end. Verify
+  RTL submenu visible-surface anchoring and left preference independently of overlapping native shadow bounds.
+- 2026-10-09: Preserve the newer native text-input session activated synchronously by HWND focus transfer, and verify plain-menu accessibility record publication after the provider is requested.
+- Harden native attachment and accessibility dispatch: reject competing or repeated attachments that would
+  leave stale owners, require exact HWND/message/type when taking bounded payloads, and propagate failed menu
+  posts through a compatible HRESULT accessible-invoke callback. Exhaustion and retry, provider retirement,
+  callback failure, and rejected reattachment have registered regression coverage.
+- Native text input cancels previews when editors become read-only or masked and when their host hides or suspends
+  at zero size. Late IME messages cannot restart an inactive HWND or steal focus. Cancellation preserves newer
+  application text, blocked replacement messages reject their pointer before reading it, and sequential completed
+  TSF compositions retain separate undo units.
+- Publish native accessibility state lazily and coalesce mutation batches while keeping owner queries fresh and focus
+  transitions synchronous. Bind snapshot-derived peers to the inspected control identity, release action locks before
+  callbacks, and reject delayed visual-line operations when concurrent endpoint or document edits invalidate their input.
+  Preserve current text in retained native ranges and prevent stale attachment messages from publishing into a new host.
+- Abort unpublished accessibility snapshots when reentrant Tree or Grid model getters retire their control or change
+  its model, including navigation, hit geometry and focused-item lookup. Revalidate action-side model reads and
+  resolve disabled Tree/Grid child actions through their actual owner. Retired Grid records report unavailable.
+  Share a private borrowed-model guard across Tree, Grid and accessibility; a mutation revision rejects pointer
+  restoration and same-model reentrant notifications as well as physical retirement and model replacement.
+  Reacquire parent child storage across paint, tick and hit-test callbacks; restore page/scroll paint state and reject
+  retired host hits or partial root-replacement frames. Keep failed collections out of selection commits, preserve
+  both selection buffers on failed growth, and contain standard exceptions at native dispatch and geometry boundaries.
+  Distinguish completed notified checkbox/expansion edits from replaced model bindings so lifetime checks preserve
+  successful UI Automation actions while rejecting retired requests. Empty Grid painting emits metrics without a
+  borrowed-model callback during cleanup.
+  Propagate model changes into host geometry invalidation so a partially painted embedded frame cannot publish
+  new row hit geometry against incomplete pixels. Re-resolve stable row/column identities after a selection delegate
+  notifies a reorder in the same binding.
+  Defer page bounds installed during paint until the next preparation, including outgoing transition pages, and
+  reject partial page-replacement frames. Check the accessibility rebuild budget at its lazy first-query boundary.
+  Reuse the guarded parent traversal for StackPanel layout without allocating a snapshot, and preserve a nested
+  completed layout after child bounds callbacks retire the tree or change its layout inputs.
+  Reject partial native frames after supported child clearing, extraction, reparenting, visibility or enabled-state
+  changes under an unchanged root, and schedule corrective painting for attachment changes. Include delegate
+  replacement in host geometry invalidation for Tree and Grid. Preserve the single-select UIA Add rejection while
+  testing child selection replacement through Select.
+  Invalidate flow/density and Tree/Grid metric changes, and capture host geometry in borrowed queries. Recheck input
+  after hover and hit callbacks so the current click cannot reach a newly mirrored cell before repaint. Dispatch each
+  captured embedded event once, preserving draft continuation after sibling layout. Keep color-only dirty input
+  available outside paint, and reject an in-paint palette replacement.
+  Bound shared UI Automation test-client provider requests while retaining the existing startup deadline and event assertions.
+- 2026-10-09: Start the unrelated owner-timer regression's safety deadline after popup discovery and report timer
+  and dismissal state on failure, while retaining the required timer-id-1 dispatch assertion. Re-enter TSF activation
+  after deliberately retiring the fixture's document instead of only synchronizing its existing native cache.
+  Make submenu setup nonactivating and diagnose activation failures without unrelated window names. Let a posted
+  mnemonic complete before success cleanup, retaining bounded failure cleanup and the exact command assertion.
+- Honor disabled native focus transfer for editors, including idempotent logical focus changes; keep OS text services
+  bound to the actual focused HWND. Track embedded preview ownership so hide, zero-size and focus cancellation restore
+  the entry text while preserving newer application text. Add focus regressions and reconcile nonactivating fixtures.
+- 2026-10-09: Preserve another window's keyboard focus when resetting an inactive editor cache or replacing its root.
+  Remove the unused native text-session focus-restoration option and cover both transitions under the desktop lease.
+- 2026-10-09: Retire native IMM previews immediately after application text replacement and reject late payloads
+  until a fresh composition starts. Keep text and composition chosen by reentrant result callbacks, including
+  focus transfer, and preserve the committed result when its callback changes editors. Honor no-GCS composition
+  cancellation while preserving earlier undo history and rejecting late payloads.
+  Cancellation rechecks editor lifetime and session ownership after virtual state reads and contains standard
+  exceptions without erasing a successor.
+  The eligibility-transition regression explicitly acquires HWND keyboard focus and starts its IMM transaction
+  before checking preview cancellation, matching the native host's input prerequisites.
+- Add an opt-in hosted A/A calibration dispatch that measures one explicit revision with the same binary under both labels, retains diagnostic reports, and never gates pull-request qualification.
+- Report Grid replacement focus after group collapse, copy selected rows in visible order, and resolve stable row and
+  column identities after selection callbacks before inspecting or activating a double-clicked cell.
+- 2026-10-09: Preserve callback-selected logical focus across superseded outer requests and TSF context retirement.
+  Contain standard exceptions from focus/reset callbacks, acknowledge failed transitions safely, and retire old-tree
+  focus before releasing its owner. Cover loss, gain, host notification, target retirement and the real TSF parent setter.
+- 2026-10-09: Immediately retire the native editor session, TSF document and cached text when a host focus
+  notification removes its target, including a throwing callback. A returned live child loses acknowledged focus.
+  Cover destruction and ownership transfer before any message pump can repair stale state.
+- 2026-10-09: Refuse reentrant native host attachment during teardown, preserving balanced HWND and shared-resource reservations while permitting a later attachment after detach completes.
+- Route the TSF composition fixture through native character dispatch, verify deferred focus announcements after their client events, hold foreground focus throughout the removal observation, exercise all 50 described history rows, and exclude unrelated application names from focus-test diagnostics.
+- 2026-10-09: Stage application text-service activation and retire old resources before client or TSF callbacks.
+  Preserve a callback-installed successor and foreign TSF focus, reject stale deferred store generations, and
+  refuse reentrant attachment during Detach while allowing explicit reattachment after teardown completes.
+- Advance the consumer API to revision 4 with ownership-safe child/tab extraction, separate Grid/Tree focus callbacks
+  and selection membership, quoted Unicode TSV and persistent full-value inspection. Harden native text composition
+  undo and password input, Unicode menu mnemonics, described-menu fallback and high-contrast behavior; account for
+  explicit CI, interactive and platform qualification without reusing skipped evidence.
+- Propagate disabled ancestor state to retained accessibility properties and reject UIA actions, focus and text-range
+  selection before consumer callbacks. Native text-service eligibility shares the host interaction rule; enabling
+  the ancestor permits retry on the same live controls. Preserve the test runner's reporting functions during
+  capability-skip parsing.
+- Native WindowHost renders and presents a full frame after creating or resizing a flip-model swap chain, even when the first invalidation is partial. The x64 Debug, Release and ASan Debug runs each passed all 19 requested noninteractive suites, including the Rendering regression; NewControls recorded 10 existing capability skips per profile. All three ARM64 configurations cross-build. Retained Release paired comparisons did not confirm the initial timing finding; native ARM64 runtime and consumer capture qualification remain pending.
+- Repair callback and focus lifetime faults in Grid, Tree, editors, Panel, PageHost, tabs and UI Automation, including root promotion across reset callbacks and overlay owner retirement and self-replacing callable/notification argument lifetime, mutable callback-state persistence and captured-resource cleanup ordering; release the accessibility snapshot mutex before application actions; bound provider creation with token transport; preserve Grid range endpoints, reversed native edit selections and PageHost inheritance; drain async menus safely at process exit, dispatch unrelated timers and correct popup cancellation/scroll state; coalesce deferred TSF locks without nested-loop reposting; guard failed solid-brush creation; correct inactive-selection and Tree focus contrast and clipped Tree/Grid offscreen metadata; publish native range values, limits and steps and embedded row focus; terminate text-range movement at its boundary; preserve embedded double clicks and pointer device identity; distinguish scoped-test skips and pending work from reusable qualification.
+- DxUi Grid controls expose UIA GridPattern counts and on-demand `GetItem` for offscreen rows, backed by a bounded snapshot cache retaining the 16 most recently materialized offscreen rows.
+- Keep PrePush obligations local for uncommitted inputs or a candidate that changes during GitHub coverage discovery.
+- Add optional immutable prepared Tree accessibility rows with complete offscreen Unicode names and bounded snapshot capture; existing models retain their fallback behavior.
+  - Coalesce native structure notifications on one reusable delivery slot so a real UIA callback can invoke an owner action without blocking publication. Canonical roots no longer retain superseded creation snapshots.
+- Embedded structure notifications use a bounded coalesced delivery slot and a COM-marshalled provider
+  proxy on an MTA. Public embedded providers retain their STA/site contract. A held UIA client callback no longer
+  runs inline on the publishing owner or retains historical prepared row snapshots. Disconnect revokes registration
+  and clears pending delivery without joining clients. API revision 3 and the public C++ interface are unchanged.
+
+  Library completion is recorded in `Specs/Plans/Done/PreparedTreeAccessibility_2026-10-06.md`; continuing performance,
+  foreground and consumer qualification stays in `Specs/Plans/WIP/ProductionReview_2026-10-05.md` and its consumer
+  handoff register. Actual consumer callbacks and current paired acceptance remain required before adoption closes.
+
+  - Recorded the x64 Debug/Release/real ASan test matrix and three ARM64 cross-builds for the pushed structure-delivery source, including independent readback of 1,394 archived files. Current-source paired scenes and RedPrism client qualification remain open.
+- Internal embedded UI Automation property-event providers preserve control identity without retaining complete
+  creation snapshots, so event references kept by UIA do not pin superseded prepared Tree row epochs. Public
+  retained row providers and text ranges preserve their existing source ownership and stale-control guards.
+- Add an explicit embedded interaction layout boundary for caller-arranged bounds between frames, preserving deferred painting, capture cancellation and full preparation after failure, size/DPI or device changes.
+- Name active native test sources by scope and scenario, select affected tests by default, reuse exact successful local evidence, and account for matching PR coverage while keeping full/native/foreground qualification explicit.
+- Add an indexed WIP plan from an adversarially verified production review of the 25 September - 4 October merges
+  (#21-#65), revalidated after #66 and #67 and extended to their scoped-testing tooling: use-after-free paths, keyboard,
+  accessibility, text-input, tooling, scoped-testing and CI defects with fixes and failing tests, simplification
+  proposals and the developer's open questions, with every finding's evidence in an appendix.
+- Slider takes the thumb of the 9 September touch review and adds touch feedback. Its accent thumb is visible at rest:
+  14 DIP (20 hovered, 16 pressed) in a 24 DIP gray disc, where it was 6, 16 and 12 DIP in a 20 DIP disc. While a touch
+  contact drags the slider, a 48 DIP touch halo, the accent at 24% (an opaque 2 DIP ring in high contrast), grows from
+  the disc to the grab area around the finger that covers the thumb and shrinks away after the release. A cancelled drag
+  removes it at once, and the mouse and pen never show it. The hit band and the grab radius are unchanged.
+  - **Pointer device.** `ControlHost::GetPointerDevice` reports the device of the pointer event being handled
+    (`PointerDevice::Mouse`, `Touch` or `Pen`). A window host reads it from each mouse message's extra information, which
+    Windows marks for the touch and pen contacts it promotes (`PointerDeviceFromMessageExtraInfo`); an embedded host
+    takes the new `PointerEvent::device`, the mouse when an application names none, so existing initializers are
+    unchanged. API revision stays 3: these are additions.
+  - **Tests.** Animation: the halo's growth, settling at 48 DIP, release, cancellation and seek, a mouse drag without it,
+    and reduced motion snapping it. WindowHost: the classification of the extra information, and a touch-marked message
+    that drags a slider. Embedded: `PointerEvent::device` reaching the host and the slider. The geometry checks of
+    Animation and NewControls follow the new thumb.
+  - **Gallery and design system.** A new `Slider / Touch pressed` tile, and every sheet regenerated. The Slider
+    guideline, preview and tokens follow, and the published design system is republished with them.
+  - Specified in `UI_ControlsAndLayout.md` and `UI_InputAndAccessibility.md`, with `docs/controls.md` and
+    `docs/hosting.md`.
+- `TestMenuChoosesTheCursorWhenItOpensAndCloses` no longer fails when another application takes the foreground while
+  it runs. Its menu activates its popup, and a takeover dismisses the menu as designed: under AddressSanitizer the
+  desktop application hosting a developer's session took the foreground back before the test had read the popup
+  ("read the menu popup rectangle", twice on 4 October). The test now plays its attempts through
+  `RunUntilForegroundHeld` with windows of its own, records its first failed expectation and lets the attempt whose
+  owner kept the foreground decide, so a regression still fails; a takeover in every attempt records a capability skip
+  that names the application. Every attempt puts the physical cursor back, where a failure used to end the process
+  with the pointer moved, and an attempt whose expectation failed prints `[MENU CURSOR]` with how often its owner lost
+  the foreground and which process holds it.
+  - **Evidence.** A takeover simulated after the menu appears (`SimulateForegroundTheftForTest` on the popup and the
+    owner) fails the test as it was, with the same message. With the change, a takeover in the first attempt repeats it
+    and passes, one in every attempt records the skip, and a menu that closes itself with nobody taking the foreground
+    still fails at once.
+  - Specified in `Testing_Validation.md`.
+- Interactive validation preserves desktop lease progress without mixing it into its structured result, with
+  regression coverage for passing and failing children. Focus-event test clients use the modern UIA client with
+  bounded provider requests and retain their existing setup and notification deadlines; menu subscription and
+  native test-window failures now report the failing stage or Win32 error. Library behavior and gallery pixels
+  are unchanged.
+- Add an indexed WIP proposal for intrinsic sizing and forms, variable-height lists, overlay lifetime and focus,
+  read-only Markdown help, and reusable motion/theme authoring, grounded in RedSalamander, RedXe and RedPrism with
+  proposed APIs, staged validation, paired resource evidence and separate consumer adoption gates.
+- The validation workflow runs once per change. A push to a branch other than main starts nothing, since its pull
+  request validates the same code on its merge ref: in the four days to 4 October, 43 of 73 commits ran every job twice,
+  and 45 of 71 push runs were on such branches. A pull request whose every changed path is documentation (Markdown,
+  `Specs`, `Changes`, `Measurements`, `docs`, `.agents`, `LICENSE` and the formatting and gallery workflows) skips the
+  six native jobs, about 130 runner minutes; 5 of the last 40 pull requests were such. Pushes to main and manual runs
+  still run every native job, because consumers adopt the main commit whose latest push run succeeded, and so does a pull
+  request whose scope cannot be read. The formatting workflow checks pushes to main alone too.
+  - **Tools.** The new `native-scope` job runs `Tools/Get-NativeScope.ps1` (rules in `Tools/NativeScope.psm1`) on the
+    pull request's commits and paths from `BenchmarkGate.psm1`. `Tools/tests/Test-NativeScope.ps1` covers the rules,
+    every tracked file, the step on fixture merge commits and the workflows' wiring.
+  - Specified in `Testing_Validation.md`, with `Tools/README.md` and `CONTRIBUTING.md`. No native job, suite, consumer
+    build or benchmark changed what it runs.
+- Tree and Grid stop using themselves when the accessibility publish that follows a selection destroys them: UI
+  Automation event delivery dispatches messages, and a message may rebuild the controls before the publish returns.
+  `Tree::SelectVisibleIndex` and `Grid::SelectRow` (private) now report a control that did not survive its publish as
+  well as its delegate, so a tree's press, expander, double click, context menu, arrow keys and type-ahead, and a grid's
+  press, double click and arrow keys, no longer expand, arm a drag, capture the mouse, invoke, activate a row or
+  invalidate for a destroyed control. Ctrl+A in both, a tree's multi-select change and a grid's keyboard group collapse
+  stop after their publish too, and `Tree::NotifyDataChanged` no longer calls `OnTreeSelectionSetChanged` for a tree its
+  publish destroyed. `Tree::RequestSelectVisibleItem`, `RequestAddVisibleItemToSelection` and
+  `RequestRemoveVisibleItemFromSelection` return false for a tree that did not survive them, so UI Automation reports
+  the element gone.
+  - **Grid selection delegate.** A grid no longer touches itself after `OnGridSelectionChanged` destroyed it during a
+    group collapse (the Left key or a press on the group's header), `NotifyDataChanged`, `SetModel`, `SetSelectionMode`
+    or a checkbox toggle whose model change moved the selection. `NotifyDataChanged`, `SetModel` and `SetSelectionMode`
+    read the destroyed grid when they published after the delegate, and so did the key's group collapse.
+  - **Tests.** With a client listening, the Accessibility suite replaces the window's root at the first selection event
+    each publish path raises (`UiaTest::SelectionEventInterruption`), for a tree and a grid that fill their window and
+    beside a button. In the Grid suite, `TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput` and
+    `TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid` have the selection delegate replace the controls.
+    Against main's library they fail (AddressSanitizer, or their result, capture or invalidation check), except the
+    release of a click on a multi-selection, which main already stopped; each of the fourteen guards removed on its own
+    fails a named test.
+  - Specified in `UI_InputAndAccessibility.md`, with `Testing_Validation.md`, `docs/controls.md` and the request and
+    helper comments of `DxUi.h`. No signature or visual changes.
+- Home and End in a scrolling menu now show the menu's top and bottom padding with the first and last rows, as the menu
+  shows them when it opens; they used to leave 4 DIP of padding scrolled out of view. A header or separator before the
+  first navigable row or after the last comes into view too, when it fits with the row (`EnsureItemVisible` in
+  `DxUi.Menu.cpp`).
+  - **Tests.** `TestContextMenuPopupScrollsOversizedContent` (NewControls, nonactivating) now requires End to scroll to the
+    full extent and Home back to zero. Against the library before this change it fails at End.
+  - Specified in `UI_InputAndAccessibility.md`. API revision stays 3. The gallery shows menus as they open, so it is
+    unchanged.
 - A Tree's selection that becomes one new item while a previously selected item leaves the tree (removed, or hidden by a
   collapsed ancestor) now raises `ElementSelected` on the new item, as a Grid already did for a row out of view, instead of
   one `Selection_Invalidated` of the tree: the new item's event says that the others left the selection, so the item that has

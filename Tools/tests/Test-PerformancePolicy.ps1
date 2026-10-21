@@ -448,7 +448,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
     }
     foreach ($path in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1','Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1',
             'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1',
-            'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
+            'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/status' 'fixture installed dependency'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/info/wil_x64-windows.list' 'x64-windows/include/wil.h'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/x64-windows/include/wil.h' 'fixture installed header'

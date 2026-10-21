@@ -50,6 +50,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+if (-not $Explain -and $Mode -eq 'PrePush') { & (Join-Path $PSScriptRoot 'Tools/Fold-Changelog.ps1') -Check }
 $root=$PSScriptRoot
 $modulePath=Join-Path $root 'Tools/ScopedTesting.psm1'
 Import-Module $modulePath -Force

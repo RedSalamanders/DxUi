@@ -1,1 +1,0 @@
-- Prioritize registered menu-bar hover input before popup paints, with bounded hover-switch diagnostics and a deterministic pending-paint regression that preserves the 900 ms guard and all remaining qualification gates.

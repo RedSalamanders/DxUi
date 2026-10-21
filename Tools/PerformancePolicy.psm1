@@ -712,7 +712,7 @@ function Get-PerformanceToolIdentities {
         if ($IdentityScope -eq 'Full') {
             $harness = & $hashFiles -Paths @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1',
                 'Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1','Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json',
-                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','vcpkg.json','vcpkg-tool.json')
+                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','vcpkg.json','vcpkg-tool.json')
         }
         Import-Module (Join-Path $rootPath 'Tools/VisualStudio.psm1') -Force
         $installation = Get-DxUiVisualStudioInstallation

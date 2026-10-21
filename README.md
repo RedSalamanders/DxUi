@@ -77,3 +77,7 @@ Historical source attribution is in [the import archive](Specs/Done/SourceImport
 of DxUi, with no upstream source tree and no dependency on either application checkout.
 
 Affected iteration, full local coverage, exact reuse and pending PR obligations are described in [the testing guide](Tests/README.md).
+
+## Recording changes
+
+Follow the [Changes workflow](Changes/README.md): validate while editing, then fold before PrePush/final handoff and immediately after integration, even for one fragment.

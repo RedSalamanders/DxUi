@@ -49,11 +49,23 @@ The repository is public and its default branch is `main`. Use focused feature b
 
 ## Workflow and validation
 
+### Drive-root output policy
+
+Do not create scratch, caches, evidence, copied checkouts, or other output directories directly at a drive root.
+Use repository-local generated-output directories or an existing approved workspace. The only permitted new
+drive-root output name is `<Project>.Perf` (for example `RedSalamander.Perf`, `RedPrism.Perf`, or `DxUi.Perf`),
+and the user must explicitly authorize the exact path before its first creation or initialization. A matching
+name, environment variable, low disk space, or authorization for another drive/project is not authorization.
+Keep project outputs beneath their approved root; do not invent sibling root folders. Existing sandbox
+markers and runner-specific authorization remain required. Before relocating or removing historical output,
+inventory it, preserve useful evidence and recovery data, check process use, repair live junction/worktree
+references, and verify preservation. Never traverse junctions during cleanup or retain compatibility junctions
+at the forbidden old drive-root paths.
+
 Use one indexed WIP plan for multi-step changes. Current intended behavior belongs in domain contracts; implemented
 support and remaining gates are explicit. When implementation/tests pass, update normative requirements and move
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
-Record each change's changelog entry as one fragment under `Changes/` (see its README), never by editing
-`CHANGELOG.md`. The WIP index keeps one blank-line-separated entry per plan.
+The WIP index keeps one blank-line-separated entry per plan.
 
 Run `validate.ps1` (the five `validate-*.ps1` validators and `Tools/tests/Invoke-ToolingTests.ps1`, reporting every
 failure before it fails) and `format.ps1 -Check` for relevant changes. Repository tooling is PowerShell only, and
@@ -87,3 +99,12 @@ Ordinary `-Interactive` still asks first and defaults to Cancel. Silence supplie
 ## Scoped testing policy (2026-10-05)
 
 The user's accepted workflow replaces unconditional full-test iteration. Use `Test-Changes.ps1 -Explain` and the affected default while editing; use `-Mode PrePush` to account for full local/PR coverage without duplicate identical obligations. A forthcoming enabled CI gate is pending acceptance, never an already passed result. Explicit Full remains available. Active native test files use `Scope.Tests.Something.h/.cpp` and the native file inventory. Follow [Specs/Testing/Testing_Validation.md](Specs/Testing/Testing_Validation.md) and [the test guide](Tests/README.md). Focus-taking work requires agreement to the time; no scoped pass closes that gate. Build/runtime/platform qualification still applies to changed behavior, with exact prior evidence reusable only under the owning contract.
+
+## Changes workflow
+
+Record each change as one dated Markdown fragment under `Changes/`; follow [Changes/README.md](Changes/README.md)
+and [Specs/Core/Core_Changes.md](Specs/Core/Core_Changes.md). Do not hand-edit generated `CHANGELOG.md` entries.
+Run `Tools/Test-Changelog.ps1` while editing. Before PrePush and final handoff, and immediately after every
+merge/rebase that introduces fragments, run `Tools/Fold-Changelog.ps1` and then `Tools/Fold-Changelog.ps1 -Check`,
+even for one fragment. Include the generated changelog and fragment removals in the current change; do not wait
+for release batches or a separate cleanup PR. Validation is read-only; `-WhatIf` previews folding without writes.

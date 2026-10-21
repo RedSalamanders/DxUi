@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Consistent Changes workflow across five projects](ChangesWorkflow_2026-10-21.md) — shared instructions, validation, immediate folding and 95 passing behavior-case executions; tooling-only scope validated in isolated feature worktrees, with concurrent guidance preserved before publication.
+
 - [Host and control review fixes](HostControlReviewFixes_2026-10-16.md) — completed 2026-10-17 for approved library repairs, ten behavior regressions, six builds and 69 passing x64 suite executions including all twelve foreground runs with zero skips and verified restoration. Shared performance-policy, native-platform, physical-input/IME/AT and consumer gates remain open; earlier failed/refused attempts remain retained.
 
 - [Tree drag-reorder and multi-select](TreeReorder_2026-09-21.md) — library implementation and original evidence complete; archival reconciliation 2026-10-16 leaves RedPrism adoption and shared current-source qualification open in their owning ledgers.

@@ -1,1 +1,0 @@
-- Activate shown modal Menu test owners before opening popups so prior deactivation or hosted warning focus cannot make later fixtures close their initial popup.

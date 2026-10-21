@@ -42,7 +42,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
         'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
-        'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'
+        'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
         'Tools/Get-BenchmarkScope.ps1' = 'paired measurement or gate'; 'Tools/Publish-BenchmarkVerdict.ps1' = 'paired measurement or gate'
