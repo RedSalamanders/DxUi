@@ -766,13 +766,27 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
 class MenuHoverTraceForTest final
 {
 public:
-    MenuHoverTraceForTest() noexcept : _previousSink(DxUi::Diagnostics::sink), _previousTrace(_active)
+    explicit MenuHoverTraceForTest(bool capturePointer = false) noexcept
+        : _previousSink(DxUi::Diagnostics::sink),
+          _previousTrace(_active),
+          _capturePointer(capturePointer)
     {
         _active                 = this;
         DxUi::Diagnostics::sink = [](std::wstring_view, std::wstring_view message) noexcept
         {
             if (! _active)
                 return;
+            if (_active->_capturePointer && message.find(L"menu.pointer") != std::wstring_view::npos)
+            {
+                const size_t index = _active->_pointerCount.load(std::memory_order_relaxed);
+                auto& row          = _active->_pointerRows[index % _active->_pointerRows.size()];
+                const size_t size  = (std::min)(message.size(), row.size() - 1u);
+                std::copy_n(message.data(), size, row.data());
+                row[size] = 0;
+                // Publication follows routing, so a driver can wait for a posted
+                // move to be consumed without a fixed-delay assumption or an early state-probe race.
+                _active->_pointerCount.store(index + 1u, std::memory_order_release);
+            }
             constexpr std::array phases{
                 std::pair{L"menu.popup-create-begin", "popup.create.begin"},
                 std::pair{L"menu.popup-create-end", "popup.create.end"},
@@ -815,6 +829,10 @@ public:
     {
         Add(_driver, phase, value0, value1);
     }
+    [[nodiscard]] size_t PointerDispatchCount() const noexcept
+    {
+        return _pointerCount.load(std::memory_order_acquire);
+    }
 
     void Discovery(unsigned flags, std::chrono::steady_clock::duration probeTime = {}) noexcept
     {
@@ -844,6 +862,9 @@ public:
         };
         print("UI", _ui);
         print("driver", _driver);
+        const size_t count = PointerDispatchCount();
+        for (size_t index = count > _pointerRows.size() ? count - _pointerRows.size() : 0u; index < count; ++index)
+            std::wcerr << L"  [POINTER] " << _pointerRows[index % _pointerRows.size()].data() << L'\n';
     }
 
 private:
@@ -879,6 +900,9 @@ private:
     size_t _discoveryCalls       = 0u;
     int64_t _longestTextProbeMs  = 0;
     unsigned _lastDiscoveryFlags = ~0u;
+    bool _capturePointer         = false;
+    std::array<std::array<wchar_t, 2048>, 32> _pointerRows{};
+    std::atomic<size_t> _pointerCount{0u};
 };
 
 HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText, MenuHoverTraceForTest* trace)
@@ -962,6 +986,14 @@ public:
                 // the first queued dispatch. Sent text queries work; posted state probes cannot.
                 self->_heldVisible       = IsWindowVisible(popup) != FALSE;
                 self->_discoveryObserved = PumpSentUntil(self->_discovered.get(), GetTickCount64() + 3000u);
+                if (self->_syntheticThiefThread != 0u && self->_discoveryObserved)
+                {
+                    // Reproduce activation loss after discovery, while sent queries still
+                    // work but the posted state probe cannot yet be dispatched.
+                    SimulateForegroundTheftForTest(self->_owner, self->_syntheticThiefThread);
+                    SendMessageW(popup, WM_CANCELMODE, 0u, 0);
+                    self->_simulatedForegroundLoss = true;
+                }
                 // Longer than the unchanged one-second probe, without changing any probe deadline.
                 static_cast<void>(PumpSentUntil(nullptr, GetTickCount64() + 1200u));
             }
@@ -998,6 +1030,15 @@ public:
         return _heldVisible && _discoveryObserved;
     }
 
+    void SimulateForegroundLossFromThread(DWORD thread) noexcept
+    {
+        _syntheticThiefThread = thread;
+    }
+    [[nodiscard]] bool SimulatedForegroundLoss() const noexcept
+    {
+        return _simulatedForegroundLoss;
+    }
+
 private:
     // The shared helper also serves foreground witness creation; neither path removes queued input or probes.
     [[nodiscard]] static bool PumpSentUntil(HANDLE event, ULONGLONG deadline) noexcept
@@ -1010,102 +1051,127 @@ private:
     wil::unique_event_nothrow _ready;
     wil::unique_event_nothrow _discovered;
     // Only the menu's UI thread reads/writes these, including the final assertions after Show returns.
-    bool _notified          = false;
-    bool _heldVisible       = false;
-    bool _discoveryObserved = false;
+    bool _notified                = false;
+    bool _heldVisible             = false;
+    bool _discoveryObserved       = false;
+    DWORD _syntheticThiefThread   = 0u;
+    bool _simulatedForegroundLoss = false;
 };
-void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleInitialization)
+void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleInitialization, bool simulateForegroundLoss = false)
 {
     using namespace DxUi;
-
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
-    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
-    {
-        SkipDxUiTest("DxUi menu debug-state timeout requires an interactive desktop");
-        return;
-    }
-
-    wil::unique_event_nothrow handlerEntered;
-    handlerEntered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    Require(handlerEntered != nullptr, "menu debug-state timeout test creates the handler-entered event");
-    wil::unique_event_nothrow releaseHandler;
-    releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    Require(releaseHandler != nullptr, "menu debug-state timeout test creates the release event");
-
-    MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), holdVisibleInitialization);
 
     std::string driverFailure;
     bool unwedgedStateObserved = false;
     bool wedgedProbeFailed     = false;
+    bool heldVisibleObserved   = false;
+    bool simulatedLossObserved = false;
+    bool commandReturned       = false;
     std::chrono::milliseconds wedgedElapsed{};
-    std::thread releaser;
-    std::thread driver([&]
+    // The underlying foreground guard gives each attempt a fresh owner, dispatch events
+    // and stall state. A lost attempt cannot leave a deactivated host in the next one.
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const auto dismissPopup      = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
-        const HWND popupHwnd         = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
-        if (! popupHwnd)
-        {
-            driverFailure = "menu debug-state timeout popup appears";
-            return;
-        }
-        dispatchReady.NoteDiscovery();
-        if (! dispatchReady.WaitUntil(discoveryDeadline))
-        {
-            driverFailure = "visible menu and modal dispatch become ready within the existing discovery deadline";
-            return;
-        }
+        driverFailure.clear();
+        unwedgedStateObserved = false;
+        wedgedProbeFailed     = false;
+        heldVisibleObserved   = false;
+        commandReturned       = false;
+        wedgedElapsed         = {};
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
 
-        ContextMenuPopupDebugState state{};
-        const auto healthyStarted = std::chrono::steady_clock::now();
-        const bool answered       = DebugGetContextMenuPopupState(popupHwnd, state);
-        const auto healthyElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - healthyStarted);
-        unwedgedStateObserved     = answered && state.itemTexts.size() == 1u && state.itemTexts[0u] == L"State probe";
-        if (! unwedgedStateObserved)
+        wil::unique_event_nothrow handlerEntered;
+        handlerEntered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(handlerEntered != nullptr, "menu debug-state timeout test creates the handler-entered event");
+        wil::unique_event_nothrow releaseHandler;
+        releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(releaseHandler != nullptr, "menu debug-state timeout test creates the release event");
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), holdVisibleInitialization);
+        std::thread releaser;
+        std::thread driver([&]
         {
-            driverFailure = std::format(
-                "unwedged menu debug-state probe returns the correct popup state (answered={} elapsedMs={} itemCount={} alive={} visible={} ownerMatches={})",
-                answered,
-                healthyElapsed.count(),
-                state.itemTexts.size(),
-                IsWindow(popupHwnd) != FALSE,
-                IsWindowVisible(popupHwnd) != FALSE,
-                GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd());
-            return;
-        }
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto dismissPopup      = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+            const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+            const HWND popupHwnd         = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
+            if (! popupHwnd)
+            {
+                driverFailure = "menu debug-state timeout popup appears";
+                return;
+            }
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                driverFailure = "visible menu and modal dispatch become ready within the existing discovery deadline";
+                return;
+            }
 
-        // Handler-entry timing starts at probe preparation, after popup initialization.
-        releaser = std::thread([&]
-        {
-            if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
-                std::this_thread::sleep_for(std::chrono::milliseconds(1200));
-            static_cast<void>(SetEvent(releaseHandler.get()));
+            ContextMenuPopupDebugState state{};
+            const auto healthyStarted = std::chrono::steady_clock::now();
+            const bool answered       = DebugGetContextMenuPopupState(popupHwnd, state);
+            const auto healthyElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - healthyStarted);
+            unwedgedStateObserved     = answered && state.itemTexts.size() == 1u && state.itemTexts[0u] == L"State probe";
+            if (! unwedgedStateObserved)
+            {
+                driverFailure = std::format("unwedged menu debug-state probe returns the correct popup state (answered={} elapsedMs={} itemCount={} alive={} "
+                                            "visible={} ownerMatches={})",
+                                            answered,
+                                            healthyElapsed.count(),
+                                            state.itemTexts.size(),
+                                            IsWindow(popupHwnd) != FALSE,
+                                            IsWindowVisible(popupHwnd) != FALSE,
+                                            GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd());
+                return;
+            }
+
+            // Handler-entry timing starts at probe preparation, after popup initialization.
+            releaser = std::thread([&]
+            {
+                if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+                static_cast<void>(SetEvent(releaseHandler.get()));
+            });
+            DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
+            const auto started = std::chrono::steady_clock::now();
+            ContextMenuPopupDebugState wedgedState{};
+            wedgedProbeFailed = ! DebugGetContextMenuPopupState(popupHwnd, wedgedState);
+            wedgedElapsed     = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
         });
-        DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
-        const auto started = std::chrono::steady_clock::now();
-        ContextMenuPopupDebugState wedgedState{};
-        wedgedProbeFailed = ! DebugGetContextMenuPopupState(popupHwnd, wedgedState);
-        wedgedElapsed     = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+
+        if (simulateForegroundLoss && ! simulatedLossObserved)
+            dispatchReady.SimulateForegroundLossFromThread(GetThreadId(driver.native_handle()));
+        const std::vector<MenuFlyoutItem> items{{.text = L"State probe", .enabled = true, .commandId = 91501}};
+        const POINT menuAnchor = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-state timeout anchor converts to screen coordinates");
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
+        driver.join();
+        if (releaser.joinable())
+            releaser.join();
+        DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
+        heldVisibleObserved = dispatchReady.HeldVisibleInitialization();
+        simulatedLossObserved |= dispatchReady.SimulatedForegroundLoss();
+        commandReturned = result.has_value();
+        const bool lost = ownerWindow.ForegroundLossCount() != lossesBefore;
+        // Keep a discarded attempt's failure visible without attributing an older untraced CI failure.
+        std::cout << "    [MENU PROBE] foregroundLost=" << lost << " heldVisible=" << heldVisibleObserved << " healthy=" << unwedgedStateObserved
+                  << " failure=" << driverFailure << '\n';
+        return ForegroundAttempt{lost, ownerWindow.LastForegroundThiefThreadId()};
     });
-
-    const std::vector<MenuFlyoutItem> items{{.text = L"State probe", .enabled = true, .commandId = 91501}};
-    const POINT menuAnchor          = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-state timeout anchor converts to screen coordinates");
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
-    driver.join();
-    if (releaser.joinable())
-        releaser.join();
-    DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
-
+    if (! ForegroundHeldOrSkip(run, "menu debug-state timeout probe"))
+        return;
     if (holdVisibleInitialization)
-        Require(dispatchReady.HeldVisibleInitialization(), "regression exposes a visible popup answering sent queries before modal dispatch");
+        Require(heldVisibleObserved, "regression exposes a visible popup answering sent queries before modal dispatch");
+    if (simulateForegroundLoss)
+        Require(simulatedLossObserved && run.runs > 1, "regression discards activation loss and completes a fresh held attempt");
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(unwedgedStateObserved, "unwedged menu debug-state probe returns the correct popup state");
     Require(wedgedProbeFailed, "wedged menu debug-state probe returns failure");
     Require(wedgedElapsed >= std::chrono::milliseconds(900) && wedgedElapsed < std::chrono::milliseconds(1800),
             "wedged menu debug-state probe returns within the bounded test timeout");
-    Require(! result.has_value(), "dismissed menu debug-state timeout popup returns no command");
+    Require(! commandReturned, "dismissed menu debug-state timeout popup returns no command");
 }
 
 void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
@@ -1116,6 +1182,11 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
 void TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization()
 {
     RunContextMenuDebugStateProbeBoundsWedgedWindowThread(true);
+}
+
+void TestContextMenuDebugStateProbeRestartsAfterForegroundLossDuringVisibleInitialization()
+{
+    RunContextMenuDebugStateProbeBoundsWedgedWindowThread(true, true);
 }
 
 // A probe sent to a popup whose thread has stopped answering (wedged here in the state probe's handler for four seconds) fails
@@ -2163,10 +2234,190 @@ void TestMenuKeyboardNavigationSkipsInfoRows()
     Require(! result.has_value(), "closing the info-row navigation menu with Escape returns no invoked command");
 }
 
+void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
+{
+    using namespace DxUi;
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "stationary-capture menu owner activates");
+
+    const std::vector<MenuFlyoutItem> targetItems{{.text = L"Target first", .commandId = 3381}, {.text = L"Target second", .commandId = 3382}};
+    const std::vector<MenuFlyoutItem> initialItems = submenu ? std::vector<MenuFlyoutItem>{{.text = L"Initial", .children = targetItems}}
+                                                             : std::vector<MenuFlyoutItem>{{.text = L"Initial", .commandId = 3380}};
+    const POINT initialAnchor{180, 180};
+    const POINT targetAnchor{580, 360};
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.switchRootFromDirection = [&](bool) -> std::optional<ContextMenuRootSwitchRequest>
+    {
+        ContextMenuRootSwitchRequest request{};
+        request.screenPoint = targetAnchor;
+        request.items       = targetItems;
+        return request;
+    };
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+    auto trace               = std::make_unique<MenuHoverTraceForTest>(true);
+    POINT stationaryPoint{};
+
+    const auto runPhase = [&](bool measure)
+    {
+        std::string driverFailure;
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+            const HWND initial = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), measure && ! submenu ? L"Target first" : L"Initial");
+            if (! initial)
+            {
+                driverFailure = "stationary-capture initial popup appears";
+                return;
+            }
+            if (! measure)
+            {
+                RECT initialRect{};
+                if (! GetWindowRect(initial, &initialRect) || PtInRect(&initialRect, stationaryPoint))
+                {
+                    driverFailure = "stationary pointer starts outside the initial popup";
+                    return;
+                }
+            }
+            ContextMenuPopupDebugState state{};
+            PostMessageW(initial, WM_KEYDOWN, VK_HOME, 0);
+            if (! WaitForContextMenuPopupState(initial, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u}; }, state))
+            {
+                driverFailure = "Home selects the initial first item";
+                return;
+            }
+            HWND target = initial;
+            if (submenu || ! measure)
+            {
+                PostMessageW(initial, WM_KEYDOWN, VK_RIGHT, 0);
+                target = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Target first");
+                if (! target)
+                {
+                    driverFailure = "keyboard opens the target popup";
+                    return;
+                }
+            }
+            if (! WaitForContextMenuPopupState(target, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u}; }, state))
+            {
+                driverFailure = "keyboard capture transfer initially selects the first target item";
+                return;
+            }
+            ScopedMenuPointerFixture targetCoordinates(target);
+            if (measure)
+            {
+                // Observe real row geometry before parking the cursor; no menu
+                // sizing formula or fabricated hit-test expectation is reused.
+                D2D1_RECT_F row{};
+                if (! WaitForContextMenuPopupItemRect(target, 1u, row))
+                {
+                    driverFailure = "second target row has geometry";
+                    return;
+                }
+                stationaryPoint =
+                    POINT{static_cast<LONG>(std::lround((row.left + row.right) * 0.5f * static_cast<float>(state.dpi) / USER_DEFAULT_SCREEN_DPI)),
+                          static_cast<LONG>(std::lround((row.top + row.bottom) * 0.5f * static_cast<float>(state.dpi) / USER_DEFAULT_SCREEN_DPI))};
+                if (! ClientToScreen(target, &stationaryPoint))
+                    driverFailure = "target row converts to physical screen coordinates";
+                return;
+            }
+            const auto deliverMove = [&](POINT point)
+            {
+                const size_t before = trace->PointerDispatchCount();
+                if (postedMove)
+                {
+                    if (! PostCapturedMouseMessageForMenuSuite(target, WM_MOUSEMOVE, 0, point))
+                        return false;
+                }
+                else
+                    static_cast<void>(SendCapturedMouseMessageForMenuSuite(target, WM_MOUSEMOVE, 0, point));
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+                do
+                {
+                    if (trace->PointerDispatchCount() > before)
+                        return true;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                } while (std::chrono::steady_clock::now() < deadline);
+                return false;
+            };
+            if (! deliverMove(stationaryPoint))
+            {
+                driverFailure = "stationary captured move is routed before checking selection";
+                return;
+            }
+            if (! WaitForContextMenuPopupState(
+                    target, [](const auto& value) noexcept { return value.keyboardIndex == std::optional<size_t>{0u} && ! value.hoveredIndex; }, state))
+            {
+                driverFailure = "stationary captured move preserves keyboard selection on the first item";
+                return;
+            }
+
+            // A real move still transfers selection to the second row. Nested
+            // fixtures restore our movement and then the person's original cursor.
+            ScopedMenuPointerFixture movedPointer(target);
+            const POINT moved{stationaryPoint.x + 2, stationaryPoint.y};
+            if (! movedPointer.AlignCursor(moved) || ! deliverMove(moved))
+            {
+                driverFailure = "real pointer movement is delivered";
+                return;
+            }
+            if (! WaitForContextMenuPopupState(
+                    target, [](const auto& value) noexcept { return ! value.keyboardIndex && value.hoveredIndex == std::optional<size_t>{1u}; }, state))
+                driverFailure = "real movement after keyboard capture selects the hovered second row";
+        });
+        const auto& items  = measure && ! submenu ? targetItems : initialItems;
+        const POINT anchor = measure && ! submenu ? targetAnchor : initialAnchor;
+        const auto result  = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, theme, callbacks);
+        driver.join();
+        trace->Dump(! driverFailure.empty());
+        if (result && driverFailure.empty())
+            driverFailure = "stationary-capture validation invokes no command";
+        return driverFailure;
+    };
+    std::string failure;
+    const ForegroundRunResult run = RunWhileForegroundHeld(ownerWindow,
+                                                           [&]
+    {
+        ScopedMenuPointerFixture probePointer(ownerWindow.Hwnd());
+        const RECT screen = GetVirtualScreenBounds();
+        Require(probePointer.AlignCursor(POINT{screen.left + 4, screen.top + 4}), "geometry probe parks the cursor away from its menus");
+        failure = runPhase(true);
+        if (! failure.empty())
+            return;
+        ScopedMenuPointerFixture parkedPointer(ownerWindow.Hwnd());
+        Require(parkedPointer.AlignCursor(stationaryPoint), "park the physical pointer before opening the initial menu");
+        DrainPendingMouseMessagesForMenuSuite();
+        failure = runPhase(false);
+    });
+    if (! ForegroundHeldOrSkip(run, "stationary-capture keyboard selection"))
+        return;
+    Require(failure.empty(), failure.c_str());
+}
+
+void TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(false, true);
+}
+void TestMenuKeyboardRootSwitchIgnoresStationarySentMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(false, false);
+}
+void TestMenuKeyboardSubmenuIgnoresStationaryPostedMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(true, true);
+}
+void TestMenuKeyboardSubmenuIgnoresStationarySentMove()
+{
+    RunStationaryMenuCaptureKeyboardSelection(true, false);
+}
+
 void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
 {
     using namespace DxUi;
 
+    auto trace = std::make_unique<MenuHoverTraceForTest>(true);
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
@@ -2294,6 +2545,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
 
+    trace->Dump(! driverFailure.empty());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the right-arrow menu loop validation popup with Escape returns no invoked command");
 }
@@ -4582,78 +4834,125 @@ void TestMenuInfoRowsUseMeasuredValueColumnWidth()
     Require(! result.has_value(), "closing the measured info-row layout menu with Escape returns no invoked command");
 }
 
-void TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText()
+void RunMenuStandardRowsShortcutLayout(bool simulateForegroundLoss)
 {
     using namespace DxUi;
 
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
-    ownerWindow.PumpMessages();
-
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
-
-    const std::vector<MenuFlyoutItem> items = {
-        {.kind = MenuItemKind::Standard, .text = L"&Open\tCtrl+O", .commandId = 3001},
-        {.kind = MenuItemKind::Standard, .text = L"E&xit\t  Alt+F4  ", .commandId = 3002},
-        {.kind = MenuItemKind::Standard, .text = L"Preferences...", .commandId = 3003},
-    };
-
     std::string driverFailure;
-    std::thread driver([&]
+    bool simulatedLossObserved    = false;
+    bool lostLayoutObserved       = false;
+    bool commandReturned          = false;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
-        if (! popupHwnd)
-        {
-            driverFailure = "menu popup window appears for tabbed shortcut layout validation";
-            return;
-        }
+        driverFailure.clear();
+        commandReturned = false;
+        // Each modal attempt owns a fresh host and popup. A cancelled popup cannot
+        // supply layout to a later attempt, and held layout failures never retry.
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        ownerWindow.PumpMessages();
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
+
+        const std::vector<MenuFlyoutItem> items = {
+            {.kind = MenuItemKind::Standard, .text = L"&Open\tCtrl+O", .commandId = 3001},
+            {.kind = MenuItemKind::Standard, .text = L"E&xit\t  Alt+F4  ", .commandId = 3002},
+            {.kind = MenuItemKind::Standard, .text = L"Preferences...", .commandId = 3003},
+        };
+
+        std::thread driver([&]
         {
-            if (IsWindow(popupHwnd) != FALSE)
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
+            if (! popupHwnd)
             {
-                PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+                driverFailure = "menu popup window appears for tabbed shortcut layout validation";
+                return;
+            }
+
+            const auto dismissPopup = wil::scope_exit([&]() noexcept
+            {
+                if (IsWindow(popupHwnd) != FALSE)
+                {
+                    PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+                }
+            });
+
+            ContextMenuPopupItemLayoutDebugState firstLayout{};
+            ContextMenuPopupItemLayoutDebugState secondLayout{};
+            const bool injectLoss = simulateForegroundLoss && ! simulatedLossObserved;
+            if (injectLoss)
+            {
+                SimulateForegroundTheftForTest(ownerWindow.Hwnd(), GetCurrentThreadId());
+                if (IsWindow(popupHwnd))
+                    SendMessageW(popupHwnd, WM_CANCELMODE, 0u, 0);
+                simulatedLossObserved = true;
+                // Cancellation ends the modal loop, but sent layout queries can
+                // still succeed until Show destroys the popup. Observe that
+                // destruction before reproducing an unavailable layout probe.
+                const bool destroyed = WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(800));
+                lostLayoutObserved   = destroyed && ! DebugGetContextMenuPopupItemLayout(popupHwnd, 0u, firstLayout);
+                driverFailure        = lostLayoutObserved ? "standard rows expose shared shortcut-column layout"
+                                                          : "controlled cancellation destroys the popup before its unavailable-layout probe";
+                return;
+            }
+            if (! WaitForContextMenuPopupItemLayout(popupHwnd, 0u, firstLayout) || ! WaitForContextMenuPopupItemLayout(popupHwnd, 1u, secondLayout))
+            {
+                driverFailure = "standard rows expose shared shortcut-column layout";
+                return;
+            }
+
+            const float firstShortcutWidth  = firstLayout.acceleratorRectDip.right - firstLayout.acceleratorRectDip.left;
+            const float secondShortcutWidth = secondLayout.acceleratorRectDip.right - secondLayout.acceleratorRectDip.left;
+            if (firstShortcutWidth <= 12.0f || secondShortcutWidth <= 12.0f)
+            {
+                driverFailure = "tabbed standard rows allocate a visible right-aligned shortcut column";
+                return;
+            }
+
+            if (std::fabs(firstLayout.acceleratorRectDip.left - secondLayout.acceleratorRectDip.left) > 0.5f ||
+                std::fabs(firstLayout.acceleratorRectDip.right - secondLayout.acceleratorRectDip.right) > 0.5f)
+            {
+                driverFailure = "tabbed standard rows share a stable aligned shortcut column";
+                return;
+            }
+
+            if (firstLayout.textRectDip.right > firstLayout.acceleratorRectDip.left || secondLayout.textRectDip.right > secondLayout.acceleratorRectDip.left)
+            {
+                driverFailure = "tabbed standard row labels stay separated from the derived shortcut column";
+                return;
             }
         });
 
-        ContextMenuPopupItemLayoutDebugState firstLayout{};
-        ContextMenuPopupItemLayoutDebugState secondLayout{};
-        if (! WaitForContextMenuPopupItemLayout(popupHwnd, 0u, firstLayout) || ! WaitForContextMenuPopupItemLayout(popupHwnd, 1u, secondLayout))
-        {
-            driverFailure = "standard rows expose shared shortcut-column layout";
-            return;
-        }
+        const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+        driver.join();
 
-        const float firstShortcutWidth  = firstLayout.acceleratorRectDip.right - firstLayout.acceleratorRectDip.left;
-        const float secondShortcutWidth = secondLayout.acceleratorRectDip.right - secondLayout.acceleratorRectDip.left;
-        if (firstShortcutWidth <= 12.0f || secondShortcutWidth <= 12.0f)
-        {
-            driverFailure = "tabbed standard rows allocate a visible right-aligned shortcut column";
-            return;
-        }
-
-        if (std::fabs(firstLayout.acceleratorRectDip.left - secondLayout.acceleratorRectDip.left) > 0.5f ||
-            std::fabs(firstLayout.acceleratorRectDip.right - secondLayout.acceleratorRectDip.right) > 0.5f)
-        {
-            driverFailure = "tabbed standard rows share a stable aligned shortcut column";
-            return;
-        }
-
-        if (firstLayout.textRectDip.right > firstLayout.acceleratorRectDip.left || secondLayout.textRectDip.right > secondLayout.acceleratorRectDip.left)
-        {
-            driverFailure = "tabbed standard row labels stay separated from the derived shortcut column";
-            return;
-        }
+        commandReturned = result.has_value();
+        const bool lost = ownerWindow.ForegroundLossCount() != lossesBefore;
+        std::cout << "    [MENU SHORTCUT] foregroundLost=" << lost << " failure=" << driverFailure << '\n';
+        return ForegroundAttempt{lost, ownerWindow.LastForegroundThiefThreadId()};
     });
-
-    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
-    driver.join();
-
+    if (! ForegroundHeldOrSkip(run, "menu shortcut-column layout"))
+        return;
+    if (simulateForegroundLoss)
+        Require(simulatedLossObserved && lostLayoutObserved && run.runs > 1,
+                "regression discards cancelled layout after foreground loss and completes a fresh held attempt");
     Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "closing the tabbed standard-row layout menu with Escape returns no invoked command");
+    Require(! commandReturned, "closing the tabbed standard-row layout menu with Escape returns no invoked command");
+}
+
+void TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText()
+{
+    RunMenuStandardRowsShortcutLayout(false);
+}
+
+void TestMenuShortcutLayoutRestartsAfterForegroundLoss()
+{
+    RunMenuStandardRowsShortcutLayout(true);
 }
 
 void TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists()
@@ -10187,6 +10486,8 @@ void RunMenuTests()
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
     runTest("TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization",
             TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization);
+    if (DXUI_RUN_TEST(TestContextMenuDebugStateProbeRestartsAfterForegroundLossDuringVisibleInitialization))
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
@@ -10203,6 +10504,10 @@ void RunMenuTests()
     runTest("TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately", TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately);
     runTest("TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput", TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput);
     runTest("TestMenuKeyboardNavigationSkipsInfoRows", TestMenuKeyboardNavigationSkipsInfoRows);
+    runTest("TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove", TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove);
+    runTest("TestMenuKeyboardRootSwitchIgnoresStationarySentMove", TestMenuKeyboardRootSwitchIgnoresStationarySentMove);
+    runTest("TestMenuKeyboardSubmenuIgnoresStationaryPostedMove", TestMenuKeyboardSubmenuIgnoresStationaryPostedMove);
+    runTest("TestMenuKeyboardSubmenuIgnoresStationarySentMove", TestMenuKeyboardSubmenuIgnoresStationarySentMove);
     runTest("TestMenuKeyboardRightArrowMatchesWindowsMenuLoop", TestMenuKeyboardRightArrowMatchesWindowsMenuLoop);
     runTest("TestStationaryMouseDoesNotOverrideKeyboardRootSwitch", TestStationaryMouseDoesNotOverrideKeyboardRootSwitch);
     runTest("TestMenuPointerOverSiblingRootSwitchesOpenMenu", TestMenuPointerOverSiblingRootSwitchesOpenMenu);
@@ -10230,6 +10535,8 @@ void RunMenuTests()
     runTest("TestMenuPopupPositionSupportsAboveRightAlignedRootAnchors", TestMenuPopupPositionSupportsAboveRightAlignedRootAnchors);
     runTest("TestMenuInfoRowsUseMeasuredValueColumnWidth", TestMenuInfoRowsUseMeasuredValueColumnWidth);
     runTest("TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText", TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText);
+    if (DXUI_RUN_TEST(TestMenuShortcutLayoutRestartsAfterForegroundLoss))
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     runTest("TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists", TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists);
     runTest("TestMenuBitmapIconsReachPopupLayout", TestMenuBitmapIconsReachPopupLayout);
     runTest("TestMenuPopupMaterialsProduceDistinctCaptures", TestMenuPopupMaterialsProduceDistinctCaptures);

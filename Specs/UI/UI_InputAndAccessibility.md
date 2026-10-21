@@ -197,7 +197,7 @@ signed movement without negation overflow or repeated prefix scans. Zero-count
 pure helper calls preserve the clamped input offset. The command adds no index,
 cache, retained text or C++ allocation; prepared layout supplies its existing
 boundary index for collapsed deletion.
-The [source-command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-ranges/README.md)
+The [source-command qualification](../../Measurements/RichText/README.md)
 records functional tests separately from the open performance and real AT gates.
 
 Shared text-element segmentation uses a pure allocation-free forward walker,
@@ -341,7 +341,11 @@ cursor the window under the pointer chooses when that window belongs to the menu
 arrow. That window is messaged from a posted message, outside the menu's own handlers, so its `WM_SETCURSOR`
 handling may close the menu. The cursor is chosen once more when the menu takes or moves capture, and the window under
 the pointer chooses again as soon as the menu closes. These are one-shot reads of the pointer; an idle menu never polls
-it. A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
+it. If no delivered move has established pointer history, the capture-time read also
+initializes that history. A stationary capture message must preserve a keyboard-opened
+popup's first-item selection; a genuinely moved pointer must still select its hovered
+row. Capture changes must not overwrite existing delivered movement history.
+A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
 while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
 layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu
 holds none, whatever the renderer and allocator keep.

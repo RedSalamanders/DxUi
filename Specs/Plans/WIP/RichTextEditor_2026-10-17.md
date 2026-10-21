@@ -6,6 +6,167 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
+### Owner integration decision — 21 October 2026
+
+The owner now requests merging all open DxUi PRs into `main` and removing obsolete
+branches/worktrees. This supersedes the earlier keep-draft instruction. Integrate
+PRs #89, #90 and #91 in dependency order, while retaining every unresolved gate
+below. Integration is not independent performance-policy approval or release
+qualification. Do not relax judges, retry rules, test assertions or budgets.
+
+The completed original paired artifact for CI `39587588088` has been preserved
+before publication. Its 144 receipts, retained benchmark executables, both frozen
+judges and 72 controls replay exactly. All three scenario decisions are within
+the noise budget, but **70/72 controls are unstable** and the measured-base policy
+remains unqualified. Performance acceptance stays **HOLD**. The ARM64 Debug B2
+hover failure below remains open; five other native profiles pass. Subsequent
+integration CI must be assessed at its own source identity.
+
+### Historical resume checkpoint — 21 October 2026
+
+Saved at the owner's request before another C++ change. The published repair is
+`b689bddd36749617e44ca318c084bc5a06c3bbaf` on `codex/rich-text-prototype`;
+[PR #89](https://github.com/RedSalamanders/DxUi/pull/89) was **draft** at that checkpoint; the owner decision above supersedes it.
+Its tested merge is `d146ba4a4256a3a61db8f2519a74368ff48b46e4`, based on
+`f65e4a4b9311370b3e3070088e2a8abe29adcb27`. Head and tested merge have identical
+Git trees. A later checkpoint-only documentation commit does not qualify new C++.
+
+#### Fresh native results
+
+[CI 39587588088](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088)
+completed all six native jobs. Every original native ZIP was downloaded,
+GitHub-size/SHA-256 verified before extraction, and its extracted files sealed.
+The independent reader verifies receipt identities, leases, both new regression
+markers and the separately typed consumer/resource results.
+
+| Profile | Native job | Artifact ID | Result |
+| --- | --- | --- | --- |
+| x64 Debug | `119180442510` | `12342600841` | PASS; 21 qualified native scopes |
+| x64 Release | `119180442500` | `12342052220` | PASS; 21 qualified native scopes |
+| x64 ASan Debug | `119180442497` | `12342497886` | PASS; 21 qualified native scopes |
+| ARM64 Debug | `119180442465` | `12343447283` | FAIL; 19 qualified native scopes |
+| ARM64 Release | `119180442654` | `12343106178` | PASS; 21 qualified native scopes |
+| ARM64 ASan Debug | `119180442489` | `12343856679` | PASS; 21 qualified native scopes |
+
+The original x64 Release foreground and ARM64 ASan Menu repair targets now pass
+fresh native CI. Overall native qualification remains **open**: 125/126 child
+scope exits pass with zero capability skips, but only 124 scopes qualify because
+both foreground children share the failed ARM64 Debug lease. Its NativeTextInput
+child exits zero; that does not qualify the failed shared run. All eight enabled
+consumer variants, both Release resource fixtures, four support jobs and separate
+formatting run `39587588014` pass. All six new Release gallery PNGs are byte-identical
+to the previous run's originals; this harness repair requires no visual rebaseline.
+Hosted native artifacts omit the actual native test executables, so the archive
+is not independent executable-byte closure.
+
+#### Exact remaining failure
+
+The [failed ARM64 Debug job](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088/job/119180442465)
+records:
+
+- Test: `TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay`.
+- Assertion: `hovering B2 updates the root-popup hover target before delayed submenu close`.
+- Sequence: open B1's submenu, send B2's client-space mouse move, then require
+  root `hoveredIndex == 1` within the existing 800 ms guard. The failure precedes
+  the delayed-close assertion; it does not establish a broken close timer.
+- The shared lease reports exit 1, foreground/pointer restored, and focus `none`
+  with capture reason `foreground-minimized`. Full keyboard-focus restoration
+  was not verified. Preserve those separate observations.
+- The failure has no fixture-specific pointer/foreground trace. No causal
+  attribution, new fix, counterfactual run or repaired-source pass exists yet.
+
+The original failed ZIP is 296,753 bytes with SHA-256
+`6505DF5485DA2FC03FD6C56096EA25EED84172A3232F03F5FEDA13562070E4B0`.
+Its original Menu and NativeTextInput logs and receipts, completed-job log, and
+all successful profiles remain retained. The reader exits 1 because this matrix
+is unqualified; that is an expected analysis result, not an extra native failure.
+Intentional sanitizer-detection probes are separately typed and are not counted
+as the 21 native scopes. A discarded generic filename-filter query mistakenly
+excluded ASan-profile filenames; the authoritative replay uses the explicit scope
+inventory and retains that analysis correction.
+
+#### Code anchors and unproved investigation paths
+
+Read [the Menu fixtures](../../../Tests/Controls/DxUi.Tests.Menu.cpp), especially
+`TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay`,
+`TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay`,
+`TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay`,
+`SendSettledClientMouseMoveForMenuSuite`, `ScopedMenuPointerFixture`, and
+`MenuHoverTraceForTest`. Read the existing
+[foreground-attempt helpers](../../../Tests/Controls/Controls.Tests.DxUiTestHelpers.h),
+[popup readiness helpers](../../../Tests/Controls/Scope.Tests.MenuPopupReadiness.h)
+and [production pointer routing](../../../src/Controls/DxUi.Menu.cpp).
+
+The settled-move helper currently delegates only to a sent `WM_MOUSEMOVE`; it
+aligns no physical cursor. The three related submenu fixtures do not own a
+pointer-alignment lifetime or a complete foreground-attempt guard. Windows can
+also deliver capture-generated moves. Earlier tests record intervening physical
+pointer movement, but the failed B2 sequence has no trace proving such a move.
+Treat physical/sent-point disagreement and foreground loss as **hypotheses**.
+Do not claim either caused this CI failure.
+
+Next steps, preserving all original behavior and bounds:
+
+1. Add bounded scalar/pointer diagnostics around B1 admission, submenu creation,
+   B2 delivery and the failed predicate, using the existing trace helper.
+2. Build a controlled regression that parks the physical cursor on B1, delivers
+   B2, then replays a captured move using the actual cursor position. Establish
+   a counterfactual failure before accepting an alignment repair.
+3. If confirmed, reuse scoped pointer alignment across the complete sequence.
+   Preserve the first cursor position across multiple targets, restore it only
+   while the fixture still owns the current position, and preserve external
+   movement. Review the replacement and retention scenarios using the same helper.
+4. Apply existing bounded whole-attempt foreground rules where required: fresh
+   owner/popup/driver state; only observed loss or explicit admission refusal
+   permits another attempt. A held correctness failure must still fail. Add a
+   controlled-loss regression if this path changes.
+5. Run focused regressions, then complete Menu/NativeTextInput in x64 Debug,
+   Release and ASan with exact source/artifact identities and zero skips. Use
+   canonical `build.ps1`/`test.ps1`; filtered receipts remain partial. Recheck
+   affected scope accounting, validators, pinned formatting and all six native
+   CI profiles after publication. Cross-building does not qualify ARM64 runtime.
+
+No C++ patch for these proposals has been written. Do not relax the 800 ms hover,
+1,200 ms submenu, one-second state-probe, three-second capture or existing
+watchdog/attempt bounds. Do not drain genuine queued movement or retry a held
+behavioral failure merely to obtain a pass.
+
+#### Evidence and publication handoff
+
+Private packet name: `native-repair-20261021T083216Z`; native originals:
+`ci-39587588088-original`. The local `CONTINUE-HERE.md`/`CONTINUE-STATE.json`
+identify their retained archive root. Keep raw logs, executable snapshots,
+archives and machine metadata outside Git. Important retained readers/results:
+
+- `Preserve-PublishedB689NativeOriginals.ps1`,
+  `Preserve-PublishedB689JobLogs.ps1`, `Read-PublishedB689NativeOriginals.ps1`;
+  `published-b689-native-replay.json` and its exit/status files.
+- `final-local-consent-source-regression-audit.json`: all three complete local
+  Menu/NativeTextInput profiles pass at the published C++ bytes; both new
+  cancellation regressions complete, live focus/restoration is verified, and
+  all failed attempts remain separate. Native lease self-tests pass 81/81.
+- `published-b689-gallery-byte-comparison.json`, per-artifact original seals and
+  original completed-job logs. Preserve all older failed and successful packets.
+- `Preserve-PublishedB689PairedOriginal.ps1` and
+  `Replay-PublishedB689Study.ps1` are prepared with this exact source identity;
+  they now preserve and replay the completed study; see the owner decision above.
+
+At the historical checkpoint, paired job `119180236236` was still running; it has since completed and its originals are preserved. **Before another
+push**, inspect its state and preserve the original completed study and workflow
+logs; a new PR push cancels this in-progress run. Do not silently discard it,
+substitute an earlier study or claim a pending result. The previous completed
+study `39568060174` has 144 replayed receipts and 71/72 unstable controls; the
+independent same-binary calibration has 69/72 unstable controls. Policy remains
+unqualified in the measured base and the repair changes neither policy nor judges.
+The earlier draft requirement is superseded by the owner integration decision above; every performance HOLD remains retained.
+
+No local foreground test is active. All earlier time-limited desktop permissions
+are expired or consumed; obtain a new agreed window, including explicit countdown
+permission, before another focus-taking local run under [AGENTS.md](../../../AGENTS.md).
+Hosted native CI uses its own desktop. The local CI/artifact observers have ended;
+no automatic future local test or new benchmark run is scheduled.
+
+
 RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
 
 - [x] Native inline/display mathematical objects, bounded TeX, matrix/alignment and scalable delimiters.
@@ -16,14 +177,15 @@ RedTilde continuation, 2026-10-20 (isolated `ej/redtilde-math-mermaid` branch):
 Runtime source `778e8630392812c65da364c778056ff42b862f36` passes all 19 noninteractive suites in each x64
 configuration (57 zero-skip passes), real ASan detection and all six native builds. Independent glyph-position
 oracles cover aligned/cases/matrix columns and oversized notation keeps opaque source. The library-only
-[final receipt packet](../../../Measurements/RichText/2026-10-20-native-math-diagrams/Final/README.md) retains
-source fingerprints, executable hashes and raw reports. RedTilde adopts that exact runtime revision and separately
+[final receipt packet](../../../Measurements/RichText/2026-10-20-native-math-diagrams/Final/README.md) summarizes
+the retained external source fingerprints, executable hashes and raw reports. RedTilde adopts that exact runtime revision and separately
 passes its 20 behavioral cases in each x64 profile, crash/restart, portable extraction and actual captures.
 Application receipts remain in the application repository. Full language conformance, physical/native ARM64,
 agreed-time focus tests, WARP/clean/dirty/hidden resource acceptance and D4c performance remain open.
 
 
-PR #89 readiness, 2026-10-20:
+
+PR #89 readiness, 2026-10-21:
 
 - [x] Integrate `main` `f65e4a4b` at merge `2ceb1da5`; resolve the five conflicts
   while preserving both test/project inventories and documentation records.
@@ -31,33 +193,175 @@ PR #89 readiness, 2026-10-20:
   replace PR-only raw measurements with a concise
   [validation summary](../../../Measurements/RichText/README.md) and one changelog
   fragment. Main-owned historical records remain unchanged.
-- [ ] Qualify the merged source with the enabled PR native/build/consumer matrix,
-  local affected checks, validators and pinned formatting. Run local foreground
-  suites with the owner's approved 30-second automatic-Start countdown and verify
-  restoration. Pending CI is not a successful result.
+- [x] Consolidate the feature history into one commit above main, retaining
+  verified private recovery bundles. Verify the published text/file set,
+  complete PR diff, commit message and description. The final content audit
+  replaces whole-line comments in four source files; executable statements,
+  headers, tests and build configuration are unchanged.
+- [x] Qualify the compiled source at `335c5157` with the enabled PR native/build/
+  consumer matrix: 126 scope passes, zero skips, two resource fixtures and eight
+  consumer variants. Verify original artifacts, validators and pinned formatting.
+  Later documentation and whole-line comment edits change no executable
+  statements. Keep this source-specific evidence separate from rewritten-head CI.
+- [x] Qualify one complete local Release foreground run at `c1a77e42`: after a
+  fresh canonical rebuild, all four approved scopes pass with zero skips,
+  foreground/focus unchanged and pointer restored. Pre-confirmation live focus
+  is recorded. Earlier failed restoration attempts remain retained/unattributed;
+  this bounded pass neither explains those failures nor qualifies hosted CI.
+- [x] Preserve existing raw output before writing a launch-failure log. Retain
+  each unqualified original in a unique `.log` sibling; canonical receipts remain
+  failed. Two regression cases fail before the repair and all 40 wrapper tests
+  pass after it, including missing/repeated output and locked-file refusal.
+- [x] Retain original run `39555699478`: four native profiles pass; x64 Release
+  fails foreground admission/restoration and ARM64 ASan fails the visible-
+  initialization healthy Menu probe. All six original ZIPs are GitHub-digest
+  verified. Eight consumer variants and both Release resource fixtures pass
+  separately; docs-gallery is skipped after the Release failure. Keep these
+  historical failures separate from the later repaired-source results below.
+- [x] Preserve and replay all six original native artifacts from `39568060174`
+  at head `d59b7caa`, tested merge `8f49939d`: five profiles pass, including x64
+  Release and ARM64 ASan. ARM64 Debug fails the shortcut-column layout case;
+  125/126 child scope exits pass with zero skips, but its shared lease leaves
+  both foreground children unqualified. Eight consumer variants and both
+  Release resource fixtures pass separately. Earlier failures remain retained.
+- [x] Reproduce visible-initialization foreground loss before repair. Add fresh
+  bounded foreground attempts for state probes and shortcut layout, controlled
+  cancellation regressions, and hosted warning reacquisition before each child.
+  Preserve original deadlines/assertions and ordinary local activation behavior.
+- [x] Qualify the repaired source locally in x64 Debug, Release and ASan:
+  complete Menu and NativeTextInput suites pass in all three profiles, with zero
+  skips, recorded live focus and verified foreground/focus/pointer restoration.
+  Preserve exact executables, receipts and failed attempts. The three focused
+  cancellation/layout cases pass separately; the native lease self-test passes
+  all 81 checks. An initial shortcut regression assumed cancellation immediately
+  invalidated layout; its retained failure is repaired by observing destruction.
+- [x] Preserve and replay all six original native artifacts from fresh run
+  `39587588088` at head `b689bddd`, tested merge `d146ba4a`: five profiles pass,
+  including x64 Release and ARM64 ASan. ARM64 Debug fails B2 sibling hover;
+  125/126 child scope exits pass with zero skips, while 124 scopes qualify.
+  Eight consumer variants and both Release resource fixtures pass separately.
+- [ ] Complete the remaining ARM64 Debug investigation and any repaired-source
+  six-profile native qualification. Follow the resume checkpoint above; neither
+  an earlier pass nor a passing child of a failed lease closes this gate.
+- [x] Retain and replay the completed `39555699478` paired study: original ZIP,
+  both measured role executables, 144 receipts, both frozen judges and 72 controls.
+  Under seed `981054997`, judges agree on metric labels but 70 controls drift
+  (22/24, 24/24, 24/24). The publisher and aggregate fail on the unqualified base
+  policy. Replay 5,903 observer samples separately; no quiet-host or causal claim.
+- [x] Retain the next complete paired study, `39568060174`: original ZIP,
+  workflow logs, role executables, 144 receipts, both judges and 72 controls replay.
+  Seed `1327683194` has 71 unstable controls (23/24, 24/24, 24/24), despite judge
+  agreement. The publisher rejects the unqualified base policy. Replay its 5,626
+  observer samples separately; retain the independent-review HOLD.
 - [ ] Investigate D4c using frozen main/candidate identities, controlled matched
   runs, bounded clear/readback and scheduler admission, retaining all original
   failures/outliers. No compilation or functional suites overlap local timing.
+- [x] Complete the fresh eight-process boundary diagnostic after coordinating
+  all active local build chats. Replay original bytes, identities, 2,560 frames,
+  matching captures and continuous observations. Keep this frozen source pair
+  separate from current-candidate acceptance; D4c remains on HOLD.
 - [x] Reproduce paired setup mismatch with actual full compiler profiles. Share
   the benchmark project (`/bigobj`), stage/restore timestamp context without
   excluding `MSBuildAllProjects`, and fail before timing on incompatible states.
   Preserve original mismatches and pre-fix regression failures; 31 tooling cases
   now pass. This is setup qualification, not D4c acceptance.
-- [ ] Requalify the repaired relocated public consumer: original CI missed
+- [x] Requalify the repaired relocated public consumer: original CI missed
   `RichImageLoader.h`; copy it, compile all public rich headers independently and
   require a rich-sample capture. Keep CI's original failures and native passes
-  separate from the eventual repaired-source result.
-- [ ] Record the separate unqualified-base-policy blocker and independent review
+  separate from the repaired-source result. Current CI verifies all eight
+  x64/ARM64/profile/annotation variants at tested merge `6e2f455b`.
+- [x] Record the separate unqualified-base-policy blocker and independent review
   requirement. Do not self-approve the policy, relax budgets or suppress checks.
-- [ ] Fix reproduced failures, update contracts/docs/results, push all changes,
-  and mark the PR ready only when the required merge gates are satisfied.
+  The owner also authorized fresh A/A evidence and a policy-review proposal;
+  execution and the independent decision stay in the
+  [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026).
+- [ ] Fix reproduced failures, update contracts/docs/results and push changes.
+  Keep PR #89 draft for independent performance-policy review, as explicitly
+  chosen by the owner on 21 October. Readiness requires all required merge gates;
+  no implementation-only exception is approved.
 
-Build an owned Unicode C++ rich-text/Markdown editor informed by actual Office
-RichEditD2D decompilation through Ghidra MCP. The standalone prototype lives at
-`Z:\src\richedit`; its source, tests, specification and timestamped receipts are
-external prototype evidence, not an existing DxUi capability. Its bounded v0
-projection renders/edits headings and simple inline styles and retains unsupported
-syntax. It does not qualify complete CommonMark/GFM/math/Mermaid or input/AT.
+The earlier merged-source CI completed three native profiles and seven consumer variants;
+two other native profiles timed out and one was cancelled. A controlled local ASan
+regression reproduced stationary capture replacing keyboard selection with hover.
+The missing-history repair passed focused ASan qualification: all four posted/sent
+root/submenu tests and the original Right-arrow case, zero skips and verified
+desktop restoration. Complete scopes are still required. Keep earlier complete-suite failures and passing isolated repeats
+separate. Fresh current-source results remain required. Layout/gallery pixels are
+unchanged by this input-state repair; the input contract and control guide are updated.
+The paired study replay reproduced all 144 receipts, both judges and all 72 controls:
+68 controls drifted and the judges disagree in every scenario. The separate fresh
+A/A completed/replayed all 144 receipts and 72 controls: both judges agree on
+within-budget labels, but 69/72 controls drift. Its original ZIP and executable
+are sealed; the independent HOLD proposal and closure limitations are tracked in
+the shared ledger. Neither migrated labels nor a diagnostic A/A pass approves policy.
+Previous CI at `61efca4c`, tested merge `6e2f455b`, passed all six complete
+native jobs. Sealed original receipt inventories verify 126 native scope passes,
+zero capability skips, two extra resource fixtures and eight public-consumer
+variants. Paired collection succeeded; its required publisher and
+aggregate gate failed because the measured-base policy is not independently
+qualified. Exact replay binds all 144 receipts and 72 controls to both retained
+original executables. Both judges agree on metric labels, but 65/72 controls drift
+(21/24 Default, 24/24 MultilineGrid, 20/24 MultilineGridDistinct); accepted
+non-regression remains open. Local complete ASan passed four scopes with a
+disappeared saved focus window. The bounded Release/Debug repeats each passed all
+four scopes with zero skips; Debug fully verified desktop restoration, while
+Release failed keyboard-focus restoration. Both captured Task Manager; neither
+its involvement nor a passing repeat establishes a cause. The earlier Debug
+Explorer restoration and Release geometry-admission failures remain retained.
+Keep local restoration qualification open; do not combine partial attempts into
+one successful run or relax its assertion. Further diagnosis needs scalar saved/
+target focus identity, attachment/error and final focus-query observations rather
+than a speculative retry or production change. The earlier complete
+eight-process pilot replays as under-load diagnostics because compiler/linker
+activity was observed. Its whole protocol is repeated separately below.
+
+The rewritten head `335c5157` has new functional evidence from
+[CI 39500910925](https://github.com/RedSalamanders/DxUi/actions/runs/39500910925)
+at tested merge `17969dc3`, whose tree equals the head. Six sealed original
+artifacts verify all 126 native scope passes, zero skips, two resource fixtures
+and eight consumer variants. Validation, tooling and formatting pass. The new
+paired study separately replays all 144 receipts against both original role
+executables and both frozen judges; all 72 controls drift. Legacy and migrated
+judges disagree on MultilineGrid clean composition p95. The required publisher
+and aggregate fail on the unqualified measured-base policy. Earlier results
+remain attached to their original source; this run does not close acceptance or
+the local focus-restoration gate.
+
+After the sorting handoff and an explicitly confirmed RedPrism pause, a fourth
+local attempt started all eight declared slots afresh. Four timers-off processes
+completed and independently replay: 1,280 frames, matching captures, original
+byte bindings and source/build identities. The machine-wide guard then refused
+slot five because a compiler appeared. The observer ended cooperatively and its
+180 samples replay; the pause was explicitly released. The compiler's ownership
+is unproven. Later live compiler observations start after the refusal and cannot
+identify its cause. Keep the incomplete attempt and all unattempted slots;
+never reuse its four processes in a future complete protocol.
+A private UTC-audit parsing repair passes four locale/malformed-input checks,
+preserving all earlier failed readers and original measurement bytes. It adds
+no library behavior or performance acceptance.
+
+The fifth attempt follows actual worker-stop confirmations from both active
+local build chats and a fresh global preflight. All eight new processes complete
+in 327.67 seconds; all 2,560 frames, source/build identities and original byte
+bindings replay, with matching captures. Both original role executables still
+match their retained copies. The complete 314-sample observer records zero
+compiler/linker rows and zero other DxUi native-test rows; the pauses are
+explicitly released before offline replay. Same-ranked full-frame Map shares are
+96.69%/94.80%. Full-frame window-p95 medians are 0.508/0.546 ms with timers off
+and 0.503/0.452 ms with timers on for main/candidate. Each value summarizes four
+windows from two fresh processes; the reversed ordering does not establish
+candidate speed or isolated instrumentation overhead. Observer collection costs
+38.98/46.80 ms median/p95, with a 1.081 s maximum sample-start gap and sampled-span
+CPU of 4.41% of one logical core. Missing/inaccessible observations and between-
+sample uncertainty remain explicit. This closes the declared coordinated bounded
+diagnostic; it supplies no scheduler-delay/GPU duration, dedicated-host proof or
+current-candidate qualification. Independent policy approval, canonical paired
+acceptance and local focus restoration remain open; no runtime fix is inferred.
+
+Build an owned Unicode C++ rich-text/Markdown editor. The bounded v0 prototype
+renders and edits headings and simple inline styles while retaining unsupported
+syntax. Its source, tests and receipts qualify that prototype only; they do not
+qualify complete CommonMark/GFM/math/Mermaid or input/AT support in DxUi.
 
 The production scope includes source/formatted/read-only views, CommonMark/GFM,
 math, Mermaid, footnotes and front matter. Standards, helper/dependency policy and
@@ -89,7 +393,7 @@ tests and owning contract/docs updates before completion):
 - [x] M1: Lossless source/block/lexeme partitions, explicit transformed-value
   affinity, bounded resumable root/lexical scans and opt-in host analysis.
   Code/tests/docs pass all 57 ordinary x64 suites, six profile builds and full
-  tooling/format checks. See the [sealed parser-stage evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-parser/README.md).
+  tooling/format checks. See the [sealed parser-stage evidence](../../../Measurements/RichText/README.md).
   This qualifies root/lexical analysis, not complete CommonMark/GFM rendering.
 - [x] M2: Complete dependency-aware base container/leaf blocks, exact content-line
   spans and conservative document/node reconciliation across structural edits.
@@ -101,7 +405,7 @@ tests and owning contract/docs updates before completion):
   and interrupted/failed attempts remain preserved. All 57 ordinary x64 scope
   obligations (55 fresh plus two exact reused), six root builds, eight failure
   probes, 324 exact raster pairs and full tooling/format checks pass. See the
-  [sealed M2 evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-blocks/README.md).
+  [sealed M2 evidence](../../../Measurements/RichText/README.md).
   Source stays capped at 65,536 UTF-16 units; line/reference/compaction work is
   indivisible, and full inline/extension/semantic/platform/performance gates remain.
 - [x] M3: Complete inline precedence and delimiters, code spans, links/images,
@@ -112,7 +416,7 @@ tests and owning contract/docs updates before completion):
   original semantic outputs, 42 directed three-profile fixtures, unique padded
   cell IDs, parser NUL labels and native/embedded edit/history checks pass.
   All 57 fresh ordinary x64 scopes, six root builds, 12 probes, 324 exact raster
-  pairs and full validation/format pass. See the [sealed M3 evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md).
+  pairs and full validation/format pass. See the [sealed M3 evidence](../../../Measurements/RichText/README.md).
   Semantic native rendering/editing and the accepted extensions remain M4/M5.
   Resolved inline forests, global Unicode reference folding, extension options
   and opaque HTML tagfilter metadata are implemented. Native/embedded reference
@@ -126,7 +430,7 @@ tests and owning contract/docs updates before completion):
   transactions, structural commands and structured accessibility. Integrate the
   parser tree into the renderer only after independent coordinate/editing oracles.
   Bounded component acceptance is complete; see the
-  [M4 accessibility/closeout packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md).
+  [M4 accessibility/closeout packet](../../../Measurements/RichText/README.md).
   This does not close D4c/D4d performance, physical AT or native ARM64 runtime gates.
 - [ ] M5: Explicit front matter, footnote, math and Mermaid profiles, native
   editable source-bearing objects/alternatives and pending/error source
@@ -175,9 +479,9 @@ retaining the literal source and independently invokable footer backlink. The
 existing gallery scenarios gain no new visible state; diagram/math integration
 will require fresh reviewed captures. M6b/M6c and the overall plan remain open.
 
-- [x] P0: Own Unicode C++ prototype, actual Ghidra MCP exports, meaningful model/
+- [x] P0: Own Unicode C++ prototype, meaningful model/
   projection/layout/worker/file/native/app tests and real offscreen capture.
-- [x] P1: Local x64 Debug/Release reference+owned tests, owned ASan tests and a
+- [x] P1: Local x64 Debug/Release prototype and model tests, owned ASan tests and a
   deliberate heap-use-after-free runtime diagnosis. These qualify the bounded
   prototype only, not the library or complete engine scope.
 - [x] D0: Inspect current library contracts and define migration ownership,
@@ -316,7 +620,7 @@ scope. No old receipt is restamped as current integration evidence.
 
 ## Retained pre-change evidence
 
-The [DxUi-only Release baseline](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-prechange/README.md)
+The [DxUi-only Release baseline](../../../Measurements/RichText/README.md)
 was collected successfully through the existing v2 build/measurement path before
 any compiled library source changed. It is unpaired and exercises the existing
 Default complex-UI workload; it is not a new-editor benchmark or non-regression
@@ -358,31 +662,9 @@ copied behavior tests are retired after canonical tests pass. Required remaining
 receipts include x64 Debug/Release/ASan tests, ARM64 builds, validator/format,
 prototype linked-archive smoke and the unchanged-fixture performance accounting.
 
-## Reconstruction provenance
-
-The independent prototype source identity before migration was
-`a688833bc1081d2f84038c82be4d601a9f1ff0fa1cbcf031647e87d3ecfed633`.
-Its source manifest and eight successful Ghidra MCP exports remain at
-Z:\src\richedit\validation and reference/prototype. The Office reference was
-RICHED20.DLL 16.0.20430.20032, SHA256
-`7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41`.
-Comments name observed range/history/D2D contracts and RVAs. This is an owned
-behavioral implementation using public platform APIs; it calls no private Office,
-MSO/PTS/LineServices or hidden Microsoft editing control. Markdown projection is
-our source-preserving v0 grammar, not parsing code recovered from Rich Edit.
-
-| Original prototype file | SHA256 before migration |
-| --- | --- |
-| include/RichText/Document.h | `9e6f3a7bec3eb0c0105d393d47c8cb0411fbc7083d067502c24083b34fd56b06` |
-| include/RichText/Layout.h | `be9fe9456397f93c505f9c0f5e501aedee9494bb810619b7dd0c56ada9449842` |
-| include/RichText/Projection.h | `7982da77f4db6d85d2833db99f56dfcf1f9bf4deb9e098c1b55ac0c64210af0f` |
-| src/Document.cpp | `681e03bab8440e8619a9add1b569e9351f1dff4bf5bcaea4d4ef25854bfdae89` |
-| src/Layout.cpp | `13f3cbb51d6ba35aab4d4914cc3595272bd2c190fc63ee6eb2c8793cbcfb210f` |
-| src/Projection.cpp | `cea38a0ce83ea2d0ff2fa1be78ef79a9f5d189c3dbacd1ca5c38ee3a3a7a4ea1` |
-
 ## Core qualification checkpoint
 
-[Reviewed core receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-core-d2/README.md)
+[Reviewed core receipts](../../../Measurements/RichText/README.md)
 retain exact source/artifact identities. All 57 normal native suite executions
 passed with zero capability skips; all six builds and the intentional ASan
 heap-use-after-free diagnosis passed. Ten named core scenarios are registered
@@ -463,7 +745,7 @@ Functional/build/gallery/performance closeout is recorded below after execution.
 
 ## D2c closeout
 
-[The retained qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-retained-d2c/README.md)
+[The retained qualification](../../../Measurements/RichText/README.md)
 records six final successful builds, 57 ordinary x64 suite passes with zero skips,
 20 named rich-text scenarios per x64 configuration, 5,082 embedded checks and the
 real ASan heap-use-after-free runtime probe. The final library source fingerprint
@@ -491,9 +773,8 @@ and D5 remain open. The plan stays in WIP; consumer adoption is separately owned
 Use the existing shared native/embedded text store and immutable UIA publication
 paths. Source ACPs include Markdown delimiters and original CRLF; rendered-only
 text and structural/style accessibility are separate future scope. Preserve the
-bounded preview and public API revision 4. Existing prototype Ghidra exports
-remain design evidence; D2d integrates DxUi host contracts rather than importing
-private Microsoft text-service implementations or introducing another engine.
+bounded preview and public API revision 4. D2d integrates DxUi host contracts and
+shared text services.
 
 - [x] Retain a fresh pre-change Release Default measurement at clean 0c939579.
 - [x] Add atomic history-preserving Document transient replacements. Preview and
@@ -523,7 +804,7 @@ those operations; rich structural semantics and real AT remain separate gates.
 
 ## D2d bounded source-adapter closeout
 
-The [D2d receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-input-d2d/README.md)
+The [D2d receipts](../../../Measurements/RichText/README.md)
 bind six final builds and 57 ordinary x64 suite passes, with zero capability skips,
 to library fingerprint FC6F53842E58EA9EB63181CC005E51913617C80DA6ACD194CE96649B7F6F6941.
 There are 31 named rich-text control scenarios per x64 configuration; the embedded
@@ -570,7 +851,7 @@ scroll/selection rendering; the gallery's fixture and appearance are unchanged.
 
 ### Source-command qualification and performance hold
 
-The [source-command receipts](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-ranges/README.md)
+The [source-command receipts](../../../Measurements/RichText/README.md)
 bind final library fingerprint
 E3437165FCDB1374DE2AA8A2AE0AA791CB4581AB9528180ACA91D90508ECFDCA
 to all six builds and 57 ordinary x64 suite passes with zero capability skips.
@@ -636,7 +917,7 @@ power/priority/affinity policy, kill independent applications or silently replac
 any scheduled process. These bounds and the two-scene qualification omission are
 explicit diagnostic scope; acceptance/merge and D4c remain on HOLD.
 
-The [controlled investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [controlled investigation](../../../Measurements/RichText/README.md)
 completed all 48 canonical and eight diagnostic reports. Corrected preflight and
 every measured identity agree. The paired clean-frame p95 effect is -1.31%
 (Holm-adjusted p=1); both frozen judges agree on all 26 within-noise verdicts.
@@ -679,7 +960,7 @@ omitted-command controls are not independently measured GPU costs.
 - [ ] Continue D2a/D4a and remaining feature gates after this diagnostic slice;
   no passing diagnostic closes the engine, trusted-policy or physical AT gates.
 
-The [boundary packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-uia-boundaries/README.md)
+The [boundary packet](../../../Measurements/RichText/README.md)
 retains all eight processes (234.312 seconds), 2,560 native probe frames and
 byte-identical populated captures. Full-frame same-p95 blocking-Map shares center
 at 96.586% / 96.520%. Omitted-command and timers-off/on controls remain variable,
@@ -706,7 +987,7 @@ projection/layout, indexed large-document trees, shared preparation scheduling,
 full Markdown/extensions and physical input/AT qualification remain active work.
 No visual/control/gallery state changes are intended by lookup indexing.
 
-The [indexed-source packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-indexed-source/README.md)
+The [indexed-source packet](../../../Measurements/RichText/README.md)
 retains 57 passing ordinary x64 suite/log pairs with zero skips, all six builds,
 the specific sanitizer heap-use-after-free probe, four unpaired canonical reports,
 six post-change timer/profile branch diagnostics, the complete tooling/validator
@@ -727,7 +1008,7 @@ rich-only segmentation implementation or OS/font-dependent navigation is added.
 
 - [x] Collect and hash-pin Unicode 17.0.0 GraphemeBreakProperty, emoji-data,
   DerivedCoreProperties/InCB, the complete GraphemeBreakTest and license. An
-  [reference PowerShell prototype](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-unicode-preparation/README.md)
+  [reference PowerShell prototype](../../../Measurements/RichText/README.md)
   generates 833 disjoint property intervals and
   all 766 original conformance vectors; its rule state machine matches all 766.
   This is reference/prototype evidence, not implemented native capability.
@@ -748,7 +1029,7 @@ corpus vector 1, offset 0 (old helper incorrectly joins an extender after a
 control), and rejection of 65,537 ASCII bytes requested 131,127 C++ heap bytes.
 Both failures are retained. After the fix all 766 vectors and both rich UIA host
 cases pass; oversized rejection requests zero C++ bytes in both tested cases.
-The [Unicode qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-unicode-graphemes/README.md)
+The [Unicode qualification](../../../Measurements/RichText/README.md)
 retains 57 passing ordinary x64 suites with zero skips, six attested builds,
 47 named rich-text cases per profile, complete native corpus checks and the
 specific ASan diagnosis. Each embedded profile passes 5,161 checks and 1,000 warm
@@ -808,7 +1089,7 @@ The implementation uses shared deletion-range policy, existing prepared stops fo
 rich queries, overflow-safe signed movement and at most three forward passes for
 bulk movement. Official-corpus deletion/command oracles, maximal provider actions,
 legacy/rich undo and C++ allocation budgets pass. The
-[command qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-grapheme-commands/README.md)
+[command qualification](../../../Measurements/RichText/README.md)
 retains three original failing runs, 57 passing ordinary x64 suite runs with zero
 native skips, six attested builds, full tooling/validators and formatting.
 Embedded records 5,167 checks and 1,000 allocation-free warm composites in each
@@ -883,7 +1164,7 @@ retain the original measured method bodies, then rerun all six profiles. Header/
 archive signatures remain source-coordinated; object sizes and API revision 4
 remain unchanged, without claiming compatibility with an older built archive.
 
-The [persistent-storage qualification](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-piece-tree/README.md)
+The [persistent-storage qualification](../../../Measurements/RichText/README.md)
 seals library fingerprint 8EE9BD21B0CE810E1B6B39EBE30D00EF62945764CDF52D8C9AB8D65D8B8EFD99.
 All 57 final ordinary x64 suites pass with zero native skips, including 57 named
 rich cases in each profile. Six successful build attestations, full tooling/
@@ -960,7 +1241,7 @@ scalar, CRLF, empty/whole replacement tests before rerunning affected suites.
 
 ### Bounded source-change qualification
 
-The [source-change packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-source-changes/README.md)
+The [source-change packet](../../../Measurements/RichText/README.md)
 seals library fingerprint 3FEED65870EA98787EAC461CCB7AA6BA1CD9E5BC73C21684AB650B873517BAC4.
 All 57 ordinary native suite runs pass with zero skips across x64 Release,
 Debug and ASan, alongside all six build profiles and full tooling/format checks.
@@ -1025,25 +1306,9 @@ size constructor. A direct slice failure sweep and the complete projection sweep
 must now pass before ordinary Debug/ASan suites are launched. Final qualification
 uses all19 scopes in each x64 profile and all ARM64 configurations; no preliminary
 Release receipt is relabeled as current after this source change.
-### Fresh read-only Ghidra recalculation evidence
-
-The [Office recalculation packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-recalc-reference/README.md)
-contains six actual MCP decompilations from the saved Office 16.0.20430.20032
-reference, SHA-256 7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41.
-An owned stdio MCP client sees the registered tools without raw plugin HTTP or
-policy changes. The saved program opens read-only; its changed flag stays false
-and the active /windows-edit/user32.dll program is unchanged. The Java script's
-successful completion and actual nonempty pseudocode are independently checked.
-
-InvalidateRecalc, background stepping, required recalculation, line recalculation
-and viewport paths inform the next geometry/scheduling component. Treat private
-fields/indirect calls as uncertain. The owned design distinguishes reusable dirty
-preparation from full retirement and guards revision/binding/reentrancy. Do not
-copy Office's per-control timer into DxUi; reuse existing host scheduling. These
-new exports are evidence for the next implementation, not proof that it exists.
 ### Qualified v0 projection blocks
 
-The [projection-block packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-projection-blocks/README.md)
+The [projection-block packet](../../../Measurements/RichText/README.md)
 seals library fingerprint 574862352141C18EDBC27BEB54037E53B2566E8D8663891511F087872965B9F0.
 All 57 ordinary x64 suites pass with zero native skips, all six build profiles
 pass, and all four final isolated Debug/ASan allocation diagnostics return zero.
@@ -1165,7 +1430,7 @@ test executable; canonical measurement inputs gain no symbol-reporting work.
 
 ### Qualified guarded geometry and observer-resolution closeout
 
-The [geometry packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [geometry packet](../../../Measurements/RichText/README.md)
 binds source fingerprint 4927C4EE251F2845B3BBD9E9534CF0B1C2C50A790A7C68345EAC3C38F9271B9C.
 All 57 ordinary x64 suite executions pass with zero skips; all six build profiles
 and four isolated Debug/ASan diagnostics pass. The twelve-operation matrix finishes
@@ -1190,7 +1455,7 @@ behavior-preserving compatibility component, not an accepted speed improvement.
 Keep that cost visible while implementing exact retained line placement/drawing;
 do not accept the unsafe fast draft, loosen an oracle or silently rebaseline.
 
-The [thread-state packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+The [thread-state packet](../../../Measurements/RichText/README.md)
 preserves Off/On/On/Off same-binary controls after build/tooling activity stopped.
 All 1,280 frames and four populated captures match their invariants; all native
 children exit zero. The native main-thread identity and common QPC clock are
@@ -1283,7 +1548,7 @@ now freezes all source/test/spec/doc inputs across the declared profile matrix.
 
 ### Qualified WARP-policy diagnostic and explicit timing selection
 
-The [policy packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-warp-raster-policy/README.md)
+The [policy packet](../../../Measurements/RichText/README.md)
 binds the unchanged library fingerprint 4927C4EE and canonical fixture E9DE4125.
 All six build profiles and 57 ordinary x64 suite runs pass, with zero skips.
 Six isolated Debug/ASan children pass clear, copy/normal/forced-whole geometry
@@ -1440,7 +1705,7 @@ controls, quiet-host proof, a causal speed claim, 1 MiB p95 input-to-paint evide
 or frame acceptance. The original clear/readback/scheduler HOLD remains open.
 Canonical benchmark/judges/thresholds/baseline and consumer pins are unchanged.
 
-The [positioned-line packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
+The [positioned-line packet](../../../Measurements/RichText/README.md)
 records source, original failures, receipts, exact images and replay. Documentation
 and gallery review finds no intended visual change: the independent whole-layout
 pixel oracle is unchanged, and every new retained image matches it exactly. No
@@ -1460,14 +1725,6 @@ Next implementation order, still active under D2a/D4a/D4c/D4d/D5:
 4. Qualify long paragraphs, capacity/latency, two views, clean/dirty/hidden/device
    loss, physical IME/AT and native ARM64. Focus-taking tests still require agreed
    desktop time under AGENTS.md; silence supplies no agreement.
-
-Fresh actual Ghidra MCP reads separately verify eight recalculation routines from
-the saved Office reference without changing its program or active user32 view.
-StartBackgroundRecalc requests a host timer and has a synchronous failure path;
-StepBackgroundRecalc's wrapper supplies no hard CPU budget. The owned design must
-separate invalidation, pending work, advances, completion and retirement rather
-than copying private flags, ABI, timer ownership or presumed thread safety. Those
-reads are next-component evidence, not an implemented scheduler or HOLD closure.
 
 Full validation (all five validators and tooling tests) and pinned formatter
 22.1.3 pass in 352.743 seconds after native qualification. Packet replay and two
@@ -1528,7 +1785,7 @@ released-delta oracles pass. SDK-private heaps are excluded from C++ counts.
 The fixed 14-operation matrix finishes in 3176.330 seconds; full five-
 validator/tooling validation and formatter 22.1.3 finish in 340.817
 seconds. Evidence sealing/replay and final document checks are separate closeout
-records in the [cooperative packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md).
+records in the [cooperative packet](../../../Measurements/RichText/README.md).
 
 | Attempt | Observed result retained |
 | --- | --- |
@@ -1547,12 +1804,6 @@ helper closure changes; earlier trial observations cannot be pooled as an
 unchanged-fixture causal comparator. Canonical five benchmark inputs, judges,
 thresholds, tolerances, baselines, device policy and consumer pin remain unchanged.
 The original frame-performance HOLD remains open.
-
-Actual read-only Ghidra MCP calls retain eight recalculation routines from the
-saved Office reference SHA 7f810b35cd2f818b70475d865ef743860b40cefe463e60d2f1c2de5bd2c6aa41.
-Active/open user32 state and the saved program remain unchanged. Pending/step/
-completion/retirement inform the owned design; private ABI/flags/timer/thread
-assumptions are not copied. Raw warnings and exact exports remain in the packet.
 
 The requested [MD4C](https://github.com/mity/md4c),
 [Discount](https://github.com/Orc/discount) and
@@ -1683,11 +1934,11 @@ D2a, M4-M6, D4c, D4d and D5 remain open, including semantic rendering/structural
 editing, accepted extensions, physical IME/AT/native ARM64 and the original
 frame-performance HOLD. Foreground suites have not been run without agreed time.
 
-The reviewed [M3 evidence packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines/README.md)
+The reviewed [M3 evidence packet](../../../Measurements/RichText/README.md)
 is sealed as `654233044FADADA33E8DB3A524161B511591A226CF73993EB61CB2BF4BEF4276`.
 An independent exact copy and a Git-only staged archive both verify. Deliberately
 modified native receipt and PNG bytes are rejected; restored/original packets
-verify again. The [replay receipt](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-markdown-inlines-verification.receipt.txt)
+verify again. The [replay receipt](../../../Measurements/RichText/README.md)
 records the external seal, packet file count and extracted Git tree/archive hash.
 Compiled-source identity is unchanged by documentation/evidence closeout.
 
@@ -1706,8 +1957,8 @@ must not promote M3 results to M4 acceptance. The checkpoint is documentation on
   `e2956b94c5cfd587f3abd9c4087d937e298e64d9` (M3 complete). A later checkpoint-only
   commit does not represent additional implementation.
 - `Z:\src\DxUi` has concurrent unrelated work. Do not switch, reset, clean, stage
-  or overwrite that checkout. The conversation's default cwd is
-  `D:\utils\ghidra-master`; use an explicit working directory for every repo command.
+  or overwrite that checkout. Use an explicit working directory for every
+  repository command.
 - M3 compiled library fingerprint:
   `C00CA41A8251D688A8A29CE081E26A4E036214553EA0F028A0EC437F3F6605ED`.
   Compiled-source identity:
@@ -1725,14 +1976,6 @@ must not promote M3 results to M4 acceptance. The checkpoint is documentation on
   pinned-format results are in
   `.build/reports/markdown-inlines-postcloseout-20261019`. Read timestamps/hashes
   before using any live `.build/logs` or ordinary scope receipt; old logs persist.
-- The standalone sample at `Z:\src\richedit` is not a Git repository. Its expanded
-  default source is `samples/FeatureShowcase.md`; executable is
-  `build-dxui-x64-Release/Release/RichEditRebuild.exe`. Nine app/reference tests,
-  a reviewed harness capture and a launch were verified; it is not claimed to
-  be currently open. Exact consumer pin remains
-  `302f3783a5d2ef60f201ca3abf508c1158fde039`, with the v0 renderer. Do not silently
-  change any consumer pin or keep reopening a demo the user may have closed.
-
 ### Inspected boundaries and next file reads
 
 Read root `AGENTS.md`, `Specs/README.md` and the owning architecture, performance,
@@ -2333,7 +2576,7 @@ host loop and text-service bridge. Its deterministic `--output` path produced
 the actual 980 x 720 sample capture; the source/executable/image hashes match.
 No consumer pin was changed.
 
-The [reviewed source-caret packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-source-caret-sites/README.md)
+The [reviewed source-caret packet](../../../Measurements/RichText/README.md)
 publishes final raw receipts/logs, private artifact hashes, isolated failure traces,
 sample capture/provenance and the warning below. Original binaries and the full
 failed/interrupted history remain in the private report directory.
@@ -2489,7 +2732,7 @@ The retained Release Default baseline/candidate diagnostic completed with `advic
 
 clean.frameP95Ms: 0.7127 to 0.5211 (-26.88%); dirty.frameP95Ms: 2.5741 to 1.8649 (-27.55%). Frame values are milliseconds. These are single before/after observations of completed WARP frames with clear/blocking readback. They establish neither causality nor performance acceptance. Baseline, candidate, comparison and exit record are preserved; no rebaseline or passing-repeat substitution was made. D4c remains HOLD. Any acceptance change needs the separately controlled paired/scheduler investigation and developer advice if degradation is confirmed, with measured optimization, scope reduction or deferral/revert choices.
 
-The [reviewed native presentation packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-native-markup/README.md)
+The [reviewed native presentation packet](../../../Measurements/RichText/README.md)
 contains final scope/driver logs and receipts, the independent artifact audit,
 SDK failure probes, actual sample/provenance, gallery pixel audit and preserved
 diagnostic results. Public JSON archives retain their payload bytes using the
@@ -2545,7 +2788,7 @@ their staged allocation scenarios extend the core sweep before final freeze.
 ### M4e qualification closeout (2026-10-19)
 
 M4e is complete at implementation `159b77c7700e5e1746bd9846265938cd6d0dbe0b`.
-The [reviewed structural-command packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-structural-commands/README.md)
+The [reviewed structural-command packet](../../../Measurements/RichText/README.md)
 retains the frozen source/build/runtime receipts, independent audits, actual
 sample capture, visual review, diagnostic and separately identified failures.
 This closes M4e only; the complete plan remains WIP.
@@ -2630,7 +2873,7 @@ The pre-fix baseline and failing probe are retained; neither counts as candidate
 qualification. The existing M4e packet remains immutable historical evidence.
 
 The alignment correction is complete at `5bc432845cf29683b2121101130085f153d8bda7`;
-see the [reviewed task-alignment packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-19-task-alignment/README.md).
+see the [reviewed task-alignment packet](../../../Measurements/RichText/README.md).
 All 57 ordinary scope/profile runs passed across x64 Debug, Release and ASan
 Debug, with zero capability skips. ASan's isolated detection passed. All three
 ARM64 builds passed, remaining compile-only. Fresh parallel ARM64 Debug/Release
@@ -2711,7 +2954,7 @@ and implement the native grammar and preserve unsupported diagrams as source.
 
 ### M4f/M4g component closeout (2026-10-20)
 
-The [sealed semantic accessibility packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-semantic-uia/README.md)
+The [sealed semantic accessibility packet](../../../Measurements/RichText/README.md)
 qualifies frozen native source `5717ff85a7e0aecb5374cd2ff7d276f368d9e578`.
 All 57 ordinary x64 scope/profile runs pass with zero capability skips, as do
 the intentional ASan detection probe and all three ARM64 builds. ARM64 remains
@@ -3011,7 +3254,7 @@ unchanged because this CPU service is not yet connected to editor painting.
       `.build/reports/rich-source-region-m5e2-20261020/Iteration4`;
       failures and superseded packets remain beside it.
       The reviewed portable component receipt and application captures are
-      [retained here](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-source-editing/README.md).
+      [retained here](../../../Measurements/RichText/README.md).
       Gallery regeneration/publishing is reviewed; differences in three sheets
       affect only existing Slider touch-pressed/Tooltip hover variants, outside
       RichTextEditor. Preserve new sheets/difference receipts privately and keep
@@ -3055,7 +3298,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     pinned format and before/after v2 input/artifact checks pass. Embedded records
     443,742 checks and zero tracked C++ allocations in 1,000 warm composites;
     that 7,824-us timing and the complex-UI report are unpaired diagnostics.
-    [Reviewed portable evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-image-path-paste/README.md)
+    [Reviewed portable evidence](../../../Measurements/RichText/README.md)
     binds tested native sources and artifacts. Original missing-include and
     include-closure attestation failures are retained. Final profiles, physical
     input/AT and D4c HOLD remain open; this component does not close raster display.
@@ -3081,7 +3324,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     semantic/history tests, native Ctrl+V/CF_HDROP and the real embedded TSF
     adapter pass. Debug sweeps all 56 observed mixed-paste allocations plus 94
     pure path/file/codec/URI points with exact retry. See the
-    [qualification packet](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-file-reference-paste/README.md).
+    [qualification packet](../../../Measurements/RichText/README.md).
     No native repair was required. D4c, M5g.3 and physical/platform/consumer
     gates remain open; ordinary performance output is unpaired diagnostic data.
     Gallery review: this paste policy reuses the existing image/link rendering
@@ -3131,7 +3374,7 @@ unchanged because this CPU service is not yet connected to editor painting.
     allocation points (441 total). Actual bitmap probes cover first/later memory/
     device HRESULT failures, explicit retry, upload deduplication and 128 native
     placements while retaining an excess alternative.
-    [Reviewed functional evidence](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-20-native-images/README.md)
+    [Reviewed functional evidence](../../../Measurements/RichText/README.md)
     binds current native inputs and artifacts. Full raw packets, source snapshots
     and negative receipts remain under `.build/reports/rich-image-native-m5g2-20261020`.
     They retain line-cell bounds, Unicode run splitting, duplicate-event counting,

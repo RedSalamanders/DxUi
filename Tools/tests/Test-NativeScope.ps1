@@ -188,8 +188,8 @@ function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
         $selected = @($steps | Where-Object { $_.Groups['body'].Value -cmatch $stage.Pattern })
         Assert-Equal 1 $selected.Count "the $($stage.Name) qualification is present exactly once"
         if ($stage.Name -ceq 'Native') {
-            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 45 \|\| 25 \}\}\r?$') 'Full retains the reviewed finite ARM64/x64 windows'
-            $stageLimits.Native = @{ x64 = 25; ARM64 = 45 }
+            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 65 \|\| 35 \}\}\r?$') 'Full retains finite cold-rich-build plus native-suite windows'
+            $stageLimits.Native = @{ x64 = 35; ARM64 = 65 }
         } else {
             $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
             Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
@@ -251,9 +251,20 @@ Invoke-TestCase 'an enclosing limit below any profile qualification windows fail
 Invoke-TestCase 'the historical shared 25-minute Full limit cannot truncate cold ARM64 qualification' {
     $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
     $native = Get-WorkflowJob 'native'
-    $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 45 || 25 }}', 'timeout-minutes: 25')
+    $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 35 }}', 'timeout-minutes: 25')
     Assert-True ($native -cne $lowered) 'the falsification restores the observed shared Full timeout'
     Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'the ARM64 cold build must leave time for actual suites and provenance'
+}
+
+Invoke-TestCase 'the observed rich-build Full cutoffs cannot replace complete native qualification' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    $native = Get-WorkflowJob 'native'
+    foreach ($window in @('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 25 }}',
+        'timeout-minutes: ${{ matrix.platform == ''ARM64'' && 45 || 35 }}')) {
+        $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 35 }}', $window)
+        Assert-True ($native -cne $lowered) 'the falsification restores an observed PR #89 cutoff'
+        Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'a truncated suite cannot qualify the candidate'
+    }
 }
 
 Invoke-TestCase 'consumer qualification windows remain bounded and unchanged' {

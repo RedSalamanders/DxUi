@@ -79,7 +79,7 @@ outside the accounting window. This is a named fixture bound, not an all-input,
 parser, process, SDK or GPU bound. General pathological capacity remains M6.
 
 Status: normative current contract
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-21
 
 The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
 the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
@@ -98,6 +98,35 @@ comparable. Reused builds retain their attested context. Before any measured
 process, both v2 full build states MUST match fixture, harness, compiler,
 dependency and environment identities. A mismatch consumes no measurement slots;
 retain the refused states. No property, flag or threshold is ignored to get a match.
+
+Hosted paired runs retain original measured executables, libraries, symbols and
+build attestations as CI artifacts alongside every report. Continuous host
+observations record native cumulative CPU counters, process CPU/memory, sample
+gaps and collection intervals; a failed observer cannot admit a completed study.
+Inspect observer cost and missing/inaccessible processes explicitly. These
+observations are neither a quiet-host guarantee nor a scheduler/GPU trace.
+Analysis MUST retain the original ISO-8601 UTC timestamp precision and parse it
+independently of the machine's locale. Implicit JSON date conversion followed by
+culture-sensitive string conversion cannot establish process-lifetime bounds.
+Artifact retention does not independently retain proprietary compiler/SDK bytes;
+record that remaining evidence-closure limit during policy review. Download and
+seal expiring artifacts before their retention period ends.
+
+Calling a local study build-free requires checking machine-wide observations,
+including other chats' work. Stopping only the invoking chat's builds is
+insufficient. Retain compiler/linker activity and distinguish MSBuild property
+evaluation from compilation. CPU advances in coarse observation intervals that
+contain timed windows do not identify exact-frame scheduling, but must not be
+hidden by calling the host quiet. Keep that collection as under-load diagnostics
+and coordinate a fresh complete study when build-free admission was required;
+do not reuse selected slots. Never stop independently launched processes to
+manufacture a quiet host. Scheduler/GPU attribution still requires its own evidence.
+
+Boundary diagnostics MUST report subintervals from the same ranked frame as the
+reported frame tail and distinguish window summaries from independent process
+replicates. A fixed-order timers-off/on pilot cannot by itself establish isolated
+instrumentation overhead or candidate speed; retain ordering reversals and all
+processes rather than selecting a favorable mode.
 
 Speed and low memory consumption are primary library requirements for every design, implementation, review and test.
 Among correct designs, minimize steady-state CPU/GPU time, private/resident memory, allocations and copies,
@@ -481,7 +510,7 @@ and JSON construction/parsing. A subtraction is a derived non-heap residual, not
 effect. Differing profiles MUST NOT imply convergence or isolate a heap observer effect. Coarse cumulative CPU times may yield zero deltas during real work; available
 cycle deltas MUST remain raw consumption counters rather than fabricated time or scheduler-delay estimates.
 
-The [source-command Default investigation](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-17-uia-profiling/README.md)
+The [source-command Default investigation](../../Measurements/RichText/README.md)
 retains 48 matching-profile interleaved reports and eight diagnostic profiles.
 Its paired clean-p95 effect is -1.31%, with no judged regression, but all 24
 controls flag drift somewhere and 13 cross the clean-p95 band. A within-noise
@@ -509,7 +538,7 @@ attribution requires an actual aligned trace and its loss/completeness checks;
 a permission refusal leaves that gate open. This diagnostic changes no acceptance
 workload, judge, policy, threshold or historical receipt.
 
-The [external thread-state controls](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-thread-state-resolution/README.md)
+The [external thread-state controls](../../Measurements/RichText/README.md)
 verify owned-child main-thread identity and a common native/managed QPC clock.
 WaitReason is read only for Wait. Require the entire acquisition bracket inside
 a frame/segment before assigning a sampled state; retain mixed/outside samples,
@@ -732,9 +761,9 @@ The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB reta
 and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
 bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
 limits exclude SDK-private heaps and do not establish whole-process acceptance.
-The [guarded geometry record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-retained-geometry/README.md)
+The [guarded geometry record](../../Measurements/RichText/README.md)
 retains all failure schedules, geometry/pixel oracles and original negative runs.
-The [positioned-line record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-positioned-lines/README.md)
+The [positioned-line record](../../Measurements/RichText/README.md)
 adds 324 exact WARP pairs, default-font native/embedded reuse, complete observed
 copy/chunk/whole/flat failure schedules and all six build profiles. Clear,
 unchanged queries and cached composition allocate no tracked C++ storage. Its
@@ -758,7 +787,7 @@ pending turn may request one continuation; a failed turn must not self-reschedul
 Clean/hidden work does not poll; new source after failure can request explicit
 retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
 
-The [cooperative preparation record](https://github.com/RedSalamanders/DxUi/blob/8fe2d5f51a6722bb4d784463783d55159e7715d5/Measurements/RichText/2026-10-18-cooperative/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
+The [cooperative preparation record](../../Measurements/RichText/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
 
 The opt-in M4d semantic path uses the same host turns with separate bounded CPU
 semantic events (default 4,096), SDK layout calls (4) and geometry metadata events

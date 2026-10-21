@@ -595,9 +595,8 @@ void Document::SetSelection(Selection selection)
 }
 void Document::Push(std::vector<History>& history, History entry)
 {
-    // Office CUndoStack::PushAntiEvent (RVA 0x166610) uses bounded history and
-    // grouped inverse events. This owned core uses immutable snapshots instead;
-    // one public edit is one transaction, with explicit bounded retention.
+    // Immutable snapshots preserve each public edit as one undo transaction.
+    // Evict the oldest entry before appending to keep retention bounded.
     if (history.size() == MaximumHistory)
         history.erase(history.begin());
     history.push_back(std::move(entry));

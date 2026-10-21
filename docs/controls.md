@@ -109,7 +109,8 @@ If the process/thread exits with an asynchronous menu still open, controller tea
 capture and windows without invoking application completion callbacks or re-entering finalization.
 A described menu's layouts and accessibility proxies exist only while it is open; closing returns them.
 
-While any menu is open the arrow cursor shows over its popups, whatever cursor the window had set. Outside them a
+When the keyboard opens or switches a popup, a stationary pointer preserves keyboard selection;
+moving it transfers selection to the hovered row. While any menu is open the arrow cursor shows over its popups, whatever cursor the window had set. Outside them a
 window of the menu's thread chooses its own cursor through its usual `WM_SETCURSOR` handling, and chooses again as
 soon as the menu closes; other threads' windows show the arrow.
 

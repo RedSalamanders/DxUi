@@ -13,7 +13,9 @@ M4 bounded semantic rendering, source caret sites, hanging markers, inert links,
 native HTML subset, source-exact structural editing and rich style/structure UIA
 are functionally qualified. M5 extensions follow the C++ only, limited Mermaid
 subset decision. M5/M6, remaining D2a work and physical/platform/consumer
-acceptance remain open. Performance acceptance stays on HOLD.
+acceptance remain open. Performance acceptance stays on HOLD. The 21 October
+resume checkpoint records five passing native profiles and the remaining ARM64
+Debug B2-hover failure; its original artifacts are retained.
 Leading YAML/TOML source envelopes and source-current UIA diagnostics now pass
 focused Debug checks; metadata validity and remaining extensions are in progress.
 

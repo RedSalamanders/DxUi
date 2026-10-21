@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "profile": "DxUiMath1",
   "status": "Target corpus only; parser and native rendering are not implemented or qualified",
-  "reference": "KaTeX v0.16.11 command documentation plus OpenType MATH 1.9 and pinned Office Ghidra observations; no helper is deployed",
+  "reference": "KaTeX v0.16.11 command documentation plus OpenType MATH 1.9; no helper is deployed",
   "requiredCategories": [
     "identifiers-numbers-operators",
     "groups",
