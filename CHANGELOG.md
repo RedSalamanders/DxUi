@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
+  consolidating 9,382 verified duplicate payload copies into read-only shared storage; independently verify every
+  path, retained hashes, live references and the focused ReFS sandbox behavior, with original metadata journaled.
 - Preserve deferred embedded preparation scheduling from current main: root replacement requests coalesce after callbacks unwind,
   while unchanged content preparation failure remains dirty without automatic retries. Extend both regression scenarios.
 - Reconcile wildcard test-scope rules with contextual native filenames. Batch inventory pattern checks and stop at the first match,
