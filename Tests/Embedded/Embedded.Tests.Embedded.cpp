@@ -1553,6 +1553,9 @@ __declspec(noinline) static int RunFunctionalTests()
             }, [&](UINT key, UINT modifiers) { return transactionView.DispatchKey(key, true, modifiers); }, [&](wchar_t value, UINT modifiers) {
                 return transactionView.DispatchCharacter(value, modifiers);
             });
+            RichSemanticEditorTests::MathAndBroaderDiagrams(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded in-document math and broader diagrams");
+            });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
             RichSemanticEditorTests::RenderingAdmissionFallback(

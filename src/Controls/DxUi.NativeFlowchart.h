@@ -19,6 +19,12 @@ enum class FlowchartDirection
     LeftRight,
     RightLeft
 };
+enum class NativeDiagramFamily
+{
+    Flowchart,
+    State,
+    Class
+};
 enum class FlowchartShape
 {
     Rectangle,
@@ -56,13 +62,14 @@ struct FlowchartDiagnostic
 };
 struct FlowchartNode
 {
-    FlowchartNode() : label(0u, L' ')
+    FlowchartNode() : label(0u, L' '), key(0u, L' ')
     {
     }
     FlowchartNode(const FlowchartNode&)            = default;
     FlowchartNode& operator=(const FlowchartNode&) = default;
     MarkdownRange identifier, declaration;
     std::wstring label;
+    std::wstring key;
     FlowchartShape shape{};
 };
 struct FlowchartEdge
@@ -85,6 +92,7 @@ struct FlowchartModel
     std::wstring source;
     std::uint64_t revision{};
     FlowchartDirection direction{};
+    NativeDiagramFamily family{};
     FlowchartOutcome outcome{};
     FlowchartDiagnostic diagnostic;
     // A rejected result exposes no partial graph. The exact body remains owned.

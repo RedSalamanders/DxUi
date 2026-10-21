@@ -83,7 +83,7 @@ public:
         const auto images = SemanticExtensionAccess::Images(*stage.document);
         // Match the existing native-object ceiling with diagrams already
         // admitted by the semantic builder; excess images retain their alt.
-        const auto diagrams = SemanticExtensionAccess::Diagrams(*stage.document).size();
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*stage.document).size() + SemanticExtensionAccess::Maths(*stage.document).size();
         const auto count    = std::min(images.size(), MaximumPlacements - std::min(MaximumPlacements, diagrams));
         for (std::size_t work = 0u; stage.cursor < count && work < 4u; ++work, ++stage.cursor)
         {

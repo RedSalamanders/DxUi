@@ -1,13 +1,103 @@
 #include "Scope.Tests.RichSemanticDocument.h"
+#include "../../src/Controls/DxUi.NativeFlowchart.h"
+#include "../../src/Controls/DxUi.PreparedMath.h"
 #include "../Support/Scope.Tests.Footnotes.h"
 #include "../Support/Scope.Tests.RichSemanticDocument.h"
 #include "../Support/Scope.Tests.SemanticDiagrams.h"
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Scope.Tests.MarkdownCorpus.h"
+#include <DxUi/RichMath.h>
+#include <type_traits>
 
 namespace
 {
+void TestRichMathAlignedCasesAndMatrixGeometry()
+{
+    using namespace DxUi::RichText;
+    const auto factory = PreparedFlowchartTests::WriteFactory();
+    for (const std::wstring environment : {L"aligned", L"cases", L"matrix"})
+    {
+        const auto source     = L"\\begin{" + environment + L"}x&=1\\\\xxxx&=1234\\end{" + environment + L"}";
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        Require(static_cast<bool>(*expression), "alignment fixture parses");
+        Detail::PreparedMath paint(factory.get(), expression, 24.f);
+        unsigned turns{};
+        while (! paint.Advance())
+            Require(++turns <= 16, "one bounded preparation event per text leaf");
+        const auto& glyphs = paint.GlyphLayouts();
+        Require(glyphs.size() == 4 && glyphs[0].origin.y < glyphs[2].origin.y, "two measured rows have four independent operands");
+        if (environment == L"aligned")
+        {
+            Require(std::abs(glyphs[1].origin.x - glyphs[3].origin.x) < .01f, "aligned equality columns share the same left edge");
+            Require(std::abs(glyphs[0].origin.x + glyphs[0].extent.width - glyphs[2].origin.x - glyphs[2].extent.width) < .01f,
+                    "aligned left operands share their right edge");
+        }
+        else if (environment == L"cases")
+            Require(std::abs(glyphs[0].origin.x - glyphs[2].origin.x) < .01f && std::abs(glyphs[1].origin.x - glyphs[3].origin.x) < .01f,
+                    "cases align both expression and condition columns to the left");
+        else
+            Require(std::abs(glyphs[0].origin.x + glyphs[0].extent.width / 2 - glyphs[2].origin.x - glyphs[2].extent.width / 2) < .01f,
+                    "ordinary matrices retain centered columns");
+    }
+    Require(! ParseMath(L"\\begin{gathered}a&b\\end{gathered}"), "gathered rows reject multiple columns");
+}
+void TestRichSemanticNativeMathematicsAndBroaderMermaid()
+{
+    using namespace DxUi::RichText;
+    static_assert(! std::is_nothrow_default_constructible_v<MathNode> && ! std::is_nothrow_default_constructible_v<MathExpression>);
+    const std::wstring source = L"Before $a_i^2+\\frac{1}{2}$ after.\r\n\r\n"
+                                L"$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n\r\n"
+                                L"\\(\\sqrt[3]{x}+\\alpha\\)\r\n\r\n`$literal$` and \\$escaped and $5 and $10.\r\n\r\n"
+                                L"```tex\n$x$\n```\n";
+    const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    RichSemanticDocumentTests::CheckGraph(*document);
+    Require(std::ranges::count(document->Elements(), SemanticRole::Math, &SemanticElement::role) == 3,
+            "inline, display and slash math become objects; code, escapes and currency remain literal");
+    for (const auto& element : document->Elements())
+        if (element.role == SemanticRole::Math)
+        {
+            Require(element.display.last == element.display.first + 1u && document->Map().Display()[element.display.first] == L'\ufffc',
+                    "native math owns one atomic display position");
+            Require(! element.name.empty() && element.source.first < element.source.last, "math exposes exact source and accessible notation");
+        }
+    const auto common = RichSemanticDocumentTests::Build(source, MarkdownProfile::CommonMark0312);
+    Require(std::ranges::count(common->Elements(), SemanticRole::Math, &SemanticElement::role) == 0, "CommonMark does not acquire math syntax");
+    for (const auto formula : {L"\\frac12",
+                               L"x_1^2",
+                               L"\\sqrt[3]{x}",
+                               L"\\overline{AB}+\\vec{v}",
+                               L"\\begin{aligned}a&=b\\\\c&=d\\end{aligned}",
+                               L"\\text{speed in m/s}",
+                               L"\\int_0^1 x dx",
+                               L"\\left( a \\rightarrow b \\right)",
+                               L"\\mathbb{R}+\\mathcal{F}"})
+        Require(static_cast<bool>(ParseMath(formula)), "documented mathematical notation parses");
+    for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}a&b\\\\c\\end{matrix}", L"\\begin{matrix}x\\end{cases}"})
+        Require(! ParseMath(formula), "malformed, unsafe or unsupported equations reject the complete formula");
+    const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
+    Require(fallback->Map().Display().find(L"$\\input{private}$") != std::wstring::npos && ! fallback->Diagnostics().empty(),
+            "rejected math retains exact editable notation and diagnostic");
+    const auto oversizedSource = L"$" + std::wstring(5000u, L'x') + L"_y_$ **literal tail**";
+    const auto oversized       = RichSemanticDocumentTests::Build(oversizedSource, MarkdownProfile::RichMarkdown);
+    Require(! oversized->Diagnostics().empty() && oversized->Map().Display().starts_with(oversizedSource) && oversized->Map().Source() == oversizedSource,
+            "over-capacity notation retains the entire literal line without interpreting nested Markdown");
+    using namespace DxUi::RichText::Detail;
+    for (const auto body : {L"stateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\nActive --> [*]\n",
+                            L"classDiagram\nCreature <|-- Duck\nDuck : +move()\nDuck --> Pond : visits\n"})
+    {
+        NativeFlowchartParser parser;
+        parser.Begin(body, 7);
+        while (parser.HasPendingPreparation())
+            parser.Advance(37);
+        const auto graph = parser.Published();
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() >= 3 && graph->edges.size() >= 2,
+                "state and class diagrams publish complete source-owned models");
+        const auto semantic = RichSemanticDocumentTests::Build(L"```mermaid\n" + std::wstring(body) + L"```\n", MarkdownProfile::RichMarkdown);
+        RichSemanticDocumentTests::CheckGraph(*semantic);
+        Require(std::ranges::count(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1, "broader models become native diagram objects");
+    }
+}
 void TestRichSemanticDocumentStructuralStyleValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
@@ -147,6 +237,8 @@ void TestRichSemanticOpaqueSourceRegionGrammarAndCaret()
 }
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichMathAlignedCasesAndMatrixGeometry);
+    DXUI_RUN_TEST(TestRichSemanticNativeMathematicsAndBroaderMermaid);
     DXUI_RUN_TEST(TestRichSemanticOpaqueSourceRegionGrammarAndCaret);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourcePresentation);
     DXUI_RUN_TEST(TestRichSemanticScopedBlockSourceGeometry);

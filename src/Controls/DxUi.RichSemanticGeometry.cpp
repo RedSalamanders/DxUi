@@ -1,4 +1,5 @@
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
 #include <array>
@@ -94,14 +95,23 @@ struct NativeImagePlacement
     MarkdownRange display;
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
+    std::unique_ptr<PreparedMath> math;
+    D2D1_SIZE_F Size() const noexcept
+    {
+        return math ? math->Size() : D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
+    }
+    float Baseline() const noexcept
+    {
+        return math ? math->Baseline() : Size().height;
+    }
     D2D1_RECT_F bounds{};
     const SemanticBox* owner{};
     float caretHeight{};
 };
 struct NativeImageGeometry
 {
-    NativeImageGeometry(const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target)
-        : placements(resources.placements.size()),
+    NativeImageGeometry(const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target, IDWriteFactory* write, float font)
+        : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           targetIdentity(target)
     {
         if (! target)
@@ -109,7 +119,7 @@ struct NativeImageGeometry
         if (placements.size() > RichImageResources::MaximumPlacements)
             throw NativeObjectCapacity("Too many prepared image placements");
         std::size_t bytes{};
-        for (std::size_t index = 0u; index < placements.size(); ++index)
+        for (std::size_t index = 0u; index < resources.placements.size(); ++index)
         {
             const auto& resource = resources.placements[index];
             if (! resource.image || resource.element >= document.Elements().size() || document.Elements()[resource.element].role != SemanticRole::Image)
@@ -127,6 +137,14 @@ struct NativeImageGeometry
                     throw NativeObjectCapacity("Prepared image pixel capacity exceeded");
                 bytes += resource.image->Pixels().size();
             }
+        }
+        const auto maths = SemanticExtensionAccess::Maths(document);
+        for (std::size_t index = 0; index < maths.size(); ++index)
+        {
+            auto& placement   = placements[resources.placements.size() + index];
+            placement.element = maths[index].element;
+            placement.display = document.Elements()[placement.element].display;
+            placement.math    = std::make_unique<PreparedMath>(write, maths[index].expression, font * 1.15f);
         }
         std::ranges::sort(placements, {}, &NativeImagePlacement::element);
     }
@@ -150,6 +168,10 @@ struct NativeImageGeometry
                                           properties,
                                           placement.bitmap.put()));
         return true;
+    }
+    bool PrepareMath(std::size_t index)
+    {
+        return placements[index].math->Advance();
     }
     bool Placed(std::size_t element) const noexcept
     {
@@ -264,8 +286,11 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
-        if (imageResources && ! imageResources->placements.empty())
-            images = std::make_unique<NativeImageGeometry>(*imageResources, *document, raster);
+        if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
+        {
+            const RichImageResourceSet empty;
+            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options.fontSizeDip);
+        }
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())
         {
@@ -744,9 +769,11 @@ struct PreparedSemanticGeometry::Preparation
                 for (auto& image : next.images->placements)
                     if (image.display.first >= content.display.first && image.display.last <= content.display.last && image.display.first < image.display.last)
                     {
-                        const auto scale = std::min(1.0f, options.widthDip / static_cast<float>(image.pixels->Width()));
-                        const auto width = static_cast<float>(image.pixels->Width()) * scale, height = static_cast<float>(image.pixels->Height()) * scale;
-                        const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(DWRITE_INLINE_OBJECT_METRICS{width, height, height, FALSE});
+                        const auto size  = image.Size();
+                        const auto scale = std::min(1.0f, options.widthDip / size.width);
+                        const auto width = size.width * scale, height = size.height * scale;
+                        const auto object =
+                            Microsoft::WRL::Make<SemanticObjectPlaceholder>(DWRITE_INLINE_OBJECT_METRICS{width, height, image.Baseline() * scale, FALSE});
                         if (! object)
                             throw std::bad_alloc();
                         const auto index             = imageInlines->count++;
@@ -784,10 +811,11 @@ struct PreparedSemanticGeometry::Preparation
                                 // Paint the image at its actual inline baseline
                                 // and pixel aspect ratio, never stretched to
                                 // that larger SDK selection rectangle.
-                                const auto scale    = std::min(1.0f, options.widthDip / static_cast<float>(image.pixels->Width()));
-                                image.bounds.top    = lineTop + line.baseline - static_cast<float>(image.pixels->Height()) * scale;
-                                image.bounds.bottom = lineTop + line.baseline;
-                                image.bounds.right  = image.bounds.left + static_cast<float>(image.pixels->Width()) * scale;
+                                const auto size     = image.Size();
+                                const auto scale    = std::min(1.0f, options.widthDip / size.width);
+                                image.bounds.top    = lineTop + line.baseline - image.Baseline() * scale;
+                                image.bounds.bottom = image.bounds.top + size.height * scale;
+                                image.bounds.right  = image.bounds.left + size.width * scale;
                                 located             = true;
                                 break;
                             }
@@ -896,8 +924,9 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         options.fontSizeDip <= 0.0f)
         throw std::invalid_argument("Invalid semantic geometry request");
-    const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
-    if (images && images->placements.size() > RichImageResources::MaximumPlacements - std::min(RichImageResources::MaximumPlacements, diagrams.size()))
+    const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
+    const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();
+    if (nativeCount > RichImageResources::MaximumPlacements || (images && images->placements.size() > RichImageResources::MaximumPlacements - nativeCount))
         throw NativeObjectCapacity("Combined native image/diagram capacity exceeded");
     if (! diagrams.empty() && ! drawing)
         throw std::invalid_argument("Native semantic objects require a drawing factory");
@@ -1093,6 +1122,17 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.phase = Preparation::Phase::MarkerLayouts;
                     continue;
                 }
+                if (work.state->images->placements[work.imageIndex].math)
+                {
+                    if (result.layoutsPrepared == budget.maximumLayouts)
+                        break;
+                    if (work.state->images->PrepareMath(work.imageIndex))
+                        ++work.imageIndex;
+                    else
+                        ++result.layoutsPrepared;
+                    ++result.blockSteps;
+                    continue;
+                }
                 const bool uploaded = work.state->images->PrepareOne(work.imageIndex++, work.raster.get());
                 ++result.blockSteps;
                 // One indivisible bounded upload per owner turn. Repeated
@@ -1236,8 +1276,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 const auto index    = work.boundsIndex++;
                 const auto& element = elements[index];
-                if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Task ||
-                    element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
+                if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Math ||
+                    element.role == SemanticRole::Task || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
                     for (const auto& rectangle : RangeFromState(*work.state, element.display.first, element.display.last))
                         Union(work.state->bounds[index], rectangle);
             }
@@ -1677,6 +1717,15 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                 if (box->images)
                     for (const auto& image : box->images->placements)
                         if (image.owner == box.get() && image.bounds.bottom + box->y > top && image.bounds.top + box->y < bottom)
+                        {
+                            if (image.math)
+                            {
+                                image.math->Draw(target,
+                                                 text,
+                                                 D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
+                                                 (image.bounds.right - image.bounds.left) / image.Size().width);
+                                continue;
+                            }
                             target->DrawBitmap(image.bitmap.get(),
                                                D2D1::RectF(origin.x + box->x + image.bounds.left,
                                                            origin.y + box->y + image.bounds.top,
@@ -1684,6 +1733,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                                            origin.y + box->y + image.bounds.bottom),
                                                imageOpacity,
                                                D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+                        }
             }
         }
 }

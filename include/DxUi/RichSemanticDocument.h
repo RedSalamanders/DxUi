@@ -31,7 +31,8 @@ enum class SemanticRole
     Footnote,
     FootnoteReference,
     FootnoteBacklink,
-    Diagram
+    Diagram,
+    Math
 };
 struct SemanticElement
 {
@@ -77,7 +78,8 @@ enum class SemanticDiagnosticKind
     MalformedDiagram,
     DiagramCapacity,
     UnclosedDiagram,
-    EmptyDiagram
+    EmptyDiagram,
+    UnsupportedMath
 };
 struct SemanticDiagnostic
 {

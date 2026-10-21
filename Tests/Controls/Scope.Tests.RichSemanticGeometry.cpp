@@ -4,6 +4,15 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 namespace
 {
+void TestRichSemanticNativeMathAndBroaderDiagrams()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::MathAndBroaderDiagrams(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare in-document native math and diagrams"); });
+    });
+}
 void TestRichSemanticGeometryParagraphsTablesAndSourceRanges()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
@@ -81,6 +90,7 @@ void TestRichSemanticNativeRenderingAdmissionFallback()
 } // namespace
 void RunRichSemanticGeometryTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);

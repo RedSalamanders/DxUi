@@ -1,6 +1,7 @@
 #pragma once
 #include "DxUi.NativeFlowchart.h"
 #include "DxUi.RichSemanticValues.h"
+#include <DxUi/RichMath.h>
 #include <algorithm>
 
 namespace DxUi::RichText::Detail
@@ -34,16 +35,27 @@ struct SemanticDiagram
 struct SemanticExtensions
 {
     static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = 32768u;
-    SemanticExtensions() : diagrams(0u), diagnostics(0u), images(0u)
+    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u)
     {
     }
     std::vector<SemanticDiagram> diagrams;
+    struct Formula
+    {
+        std::size_t element{};
+        std::shared_ptr<const MathExpression> expression;
+    };
+    std::vector<Formula> maths;
     std::vector<SemanticDiagnostic> diagnostics;
     std::vector<std::size_t> images;
-    std::size_t candidates{}, records{};
+    std::size_t candidates{}, records{}, mathRecords{};
 };
 struct SemanticExtensionAccess
 {
+    static std::span<const SemanticExtensions::Formula> Maths(const SemanticDocument& document) noexcept
+    {
+        return document.extensions_ ? std::span<const SemanticExtensions::Formula>(document.extensions_->maths)
+                                    : std::span<const SemanticExtensions::Formula>{};
+    }
     static std::span<const std::size_t> Images(const SemanticDocument& document) noexcept
     {
         return document.extensions_ ? std::span<const std::size_t>(document.extensions_->images) : std::span<const std::size_t>{};

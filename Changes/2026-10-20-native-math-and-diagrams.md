@@ -1,0 +1,1 @@
+- Extend RichMarkdown with source-backed inline/display mathematical objects and bounded native state/class diagrams. Keep CommonMark/GFM grammar unchanged, reject unsupported notation as exact source, budget each mathematical text layout, and cover native/embedded presentation and source history.

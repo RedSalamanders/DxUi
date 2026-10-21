@@ -118,14 +118,15 @@ struct NativeFlowchartParser::Preparation
         }
         return Error(FlowchartIssue::MissingLabelClose, start, end);
     }
-    bool Node(std::size_t& at, std::size_t end, std::size_t& index)
+    bool Node(std::size_t& at, std::size_t end, std::size_t& index, bool target = false)
     {
         Skip(at, end);
-        const auto start = at;
-        if (at == end || ! Letter(Text()[at]))
+        const auto start    = at;
+        const bool terminal = model->family == NativeDiagramFamily::State && Text().substr(at, 3u) == L"[*]";
+        if (! terminal && (at == end || ! Letter(Text()[at])))
             return Error(FlowchartIssue::InvalidIdentifier, at, std::min(at + 1u, end));
-        ++at;
-        while (at < end && IdUnit(Text()[at]))
+        at += terminal ? 3u : 1u;
+        while (! terminal && at < end && IdUnit(Text()[at]))
             ++at;
         const auto idEnd = at;
         const auto id    = Text().substr(start, idEnd - start);
@@ -136,6 +137,11 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, start, idEnd, FlowchartOutcome::Unsupported);
         FlowchartNode candidate;
         candidate.identifier = {start, idEnd};
+        candidate.key        = terminal ? (target ? L"@end" : L"@start") : std::wstring(id);
+        if (model->family == NativeDiagramFamily::State)
+            candidate.shape = terminal ? FlowchartShape::Circle : FlowchartShape::Rounded;
+        if (terminal)
+            candidate.label = target ? L"◉" : L"●";
         Skip(at, end);
         bool explicitLabel = false;
         if (at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{'))
@@ -164,8 +170,7 @@ struct NativeFlowchartParser::Preparation
         index                 = 0u;
         while (index < model->nodes.size())
         {
-            const auto range = model->nodes[index].identifier;
-            if (Text().substr(range.first, range.last - range.first) == id)
+            if (model->nodes[index].key == candidate.key)
                 break;
             ++index;
         }
@@ -173,7 +178,7 @@ struct NativeFlowchartParser::Preparation
         {
             if (index == MaximumNodes)
                 return Error(FlowchartIssue::NodeCapacity, start, at, FlowchartOutcome::Capacity);
-            if (! explicitLabel)
+            if (! explicitLabel && ! terminal)
                 candidate.label.assign(id);
             model->nodes.push_back(candidate);
         }
@@ -199,6 +204,14 @@ struct NativeFlowchartParser::Preparation
             return Error(FlowchartIssue::StatementCapacity, at, end, FlowchartOutcome::Capacity);
         if (! header)
         {
+            const auto line = Text().substr(at, end - at);
+            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram")
+            {
+                model->family    = line == L"classDiagram" ? NativeDiagramFamily::Class : NativeDiagramFamily::State;
+                model->direction = FlowchartDirection::TopBottom;
+                header           = true;
+                return true;
+            }
             const auto start = at;
             while (at < end && Letter(Text()[at]))
                 ++at;
@@ -222,6 +235,50 @@ struct NativeFlowchartParser::Preparation
             header = true;
             return true;
         }
+        if (model->family != NativeDiagramFamily::Flowchart && Text().substr(at, 10u) == L"direction ")
+        {
+            const auto direction = Text().substr(at + 10u, end - at - 10u);
+            if (direction == L"TB" || direction == L"TD")
+                model->direction = FlowchartDirection::TopBottom;
+            else if (direction == L"BT")
+                model->direction = FlowchartDirection::BottomTop;
+            else if (direction == L"LR")
+                model->direction = FlowchartDirection::LeftRight;
+            else if (direction == L"RL")
+                model->direction = FlowchartDirection::RightLeft;
+            else
+                return Error(FlowchartIssue::InvalidDirection, at, end);
+            return true;
+        }
+        if (model->family == NativeDiagramFamily::State && Text().substr(at, 6u) == L"state ")
+        {
+            at += 6u;
+            Skip(at, end);
+            if (at < end && Text()[at] == L'"')
+            {
+                const auto firstLabel = ++at;
+                while (at < end && Text()[at] != L'"')
+                    ++at;
+                if (at == end || at - firstLabel > MaximumLabelUnits)
+                    return Error(FlowchartIssue::MissingLabelClose, firstLabel, at);
+                const auto label = Text().substr(firstLabel, at - firstLabel);
+                ++at;
+                Skip(at, end);
+                if (Text().substr(at, 3u) != L"as ")
+                    return Error(FlowchartIssue::UnexpectedToken, at, end);
+                at += 3u;
+                std::size_t node{};
+                if (! Node(at, end, node))
+                    return false;
+                Skip(at, end);
+                if (at != end)
+                    return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                model->nodes[node].label.assign(label);
+                return true;
+            }
+        }
+        if (model->family == NativeDiagramFamily::Class && Text().substr(at, 6u) == L"class ")
+            at += 6u;
         std::size_t previous{};
         if (! Node(at, end, previous))
             return false;
@@ -230,14 +287,39 @@ struct NativeFlowchartParser::Preparation
             Skip(at, end);
             if (at == end)
                 return true;
+            if (model->family != NativeDiagramFamily::Flowchart && Text()[at] == L':')
+            {
+                ++at;
+                Skip(at, end);
+                auto& label = model->nodes[previous].label;
+                if (label.size() + end - at + 1u > MaximumLabelUnits)
+                    return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
+                label.append(L"\n").append(Text().substr(at, end - at));
+                return true;
+            }
             FlowchartEdge edge;
             edge.from            = previous;
             const auto edgeStart = at;
-            if (Text().substr(at, 3u) == L"-->")
+            bool reverse{};
+            if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>"))
+            {
+                reverse    = Text()[at] == L'<';
                 edge.arrow = true;
-            else if (Text().substr(at, 3u) != L"---")
-                return Error(FlowchartIssue::UnsupportedEdge, at, end, FlowchartOutcome::Unsupported);
-            at += 3u;
+                edge.label = L"inherits";
+                at += 4u;
+            }
+            else
+            {
+                if (Text().substr(at, 3u) == L"-->")
+                    edge.arrow = true;
+                else if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"--")
+                {
+                    at -= 1u;
+                }
+                else if (Text().substr(at, 3u) != L"---")
+                    return Error(FlowchartIssue::UnsupportedEdge, at, end, FlowchartOutcome::Unsupported);
+                at += 3u;
+            }
             // In Mermaid, ---oB/---xB are circle/cross edges, not IDs oB/xB.
             if (at < end && ((! edge.arrow && (Text()[at] == L'o' || Text()[at] == L'x')) || Text()[at] == L'>' || Text()[at] == L'-'))
             {
@@ -253,13 +335,26 @@ struct NativeFlowchartParser::Preparation
             }
             if (at == end)
                 return Error(FlowchartIssue::MissingTarget, edgeStart, end);
-            if (! Node(at, end, edge.to))
+            if (! Node(at, end, edge.to, true))
                 return false;
+            const auto next = edge.to;
+            Skip(at, end);
+            if (model->family != NativeDiagramFamily::Flowchart && at < end && Text()[at] == L':')
+            {
+                ++at;
+                Skip(at, end);
+                if (end - at > MaximumLabelUnits)
+                    return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
+                edge.label.assign(Text().substr(at, end - at));
+                at = end;
+            }
+            if (reverse)
+                std::swap(edge.from, edge.to);
             edge.source = {edgeStart, at};
             if (model->edges.size() == MaximumEdges)
                 return Error(FlowchartIssue::EdgeCapacity, edgeStart, at, FlowchartOutcome::Capacity);
             model->edges.push_back(edge);
-            previous = edge.to;
+            previous = next;
         }
     }
     void Step()
