@@ -47,9 +47,7 @@ The repository is public and its default branch is `main`. Use focused feature b
 - Preserve Unicode, focus, cancellation, IME and accessibility behavior; visual similarity alone is insufficient.
 - Search existing source/spec helpers before adding a parallel utility. Keep public capability status truthful.
 
-## Workflow and validation
-
-### Drive-root output policy
+## Drive-root output policy
 
 Do not create scratch, caches, evidence, copied checkouts, or other output directories directly at a drive root.
 Use repository-local generated-output directories or an existing approved workspace. The only permitted new
@@ -61,6 +59,8 @@ markers and runner-specific authorization remain required. Before relocating or 
 inventory it, preserve useful evidence and recovery data, check process use, repair live junction/worktree
 references, and verify preservation. Never traverse junctions during cleanup or retain compatibility junctions
 at the forbidden old drive-root paths.
+
+## Workflow and validation
 
 Use one indexed WIP plan for multi-step changes. Current intended behavior belongs in domain contracts; implemented
 support and remaining gates are explicit. When implementation/tests pass, update normative requirements and move
