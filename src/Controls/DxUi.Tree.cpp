@@ -90,9 +90,9 @@ struct TreeResolvedRowVisuals final
     const TreeBadgeVisualStyle badgeStyle = ResolveTreeBadgeVisualStyle(theme, badgeTone);
     visuals.badgeFill                     = badgeStyle.fill;
     visuals.badgeText                     = badgeStyle.text;
-    visuals.focus     = current && selected && ! theme.highContrast ? ChooseContrastingTextColor(CompositeOverBackground(visuals.fill, theme.surfaceBackground))
-                                                                    : (current && selected ? theme.selectionText : theme.focusStroke);
-    visuals.showFocus = current && (keyboardFocused || (theme.highContrast && focused));
+    const RowFocusVisuals focus           = ResolveRowFocusVisuals(theme, visuals.fill, selected, current, focused, keyboardFocused);
+    visuals.focus                         = focus.color;
+    visuals.showFocus                     = focus.shown;
     return visuals;
 }
 
@@ -545,7 +545,7 @@ void Tree::NotifyDataChanged()
 {
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelRevision;
-    const TreeModelQueryGuard modelGuard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard modelGuard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (_reorderArmed)
     {
@@ -640,7 +640,9 @@ void Tree::NotifyDataChanged()
     {
         return;
     }
-    if (! modelGuard.IsCurrent())
+    // Event delivery and the delegate callbacks below run application code. The reports go on while the tree keeps its
+    // model and delegate, and each one reads the state current at that moment.
+    if (! modelGuard.ResumeAfterCallback())
         return;
     if (! SameSelectedItems(previousSelection, GetSelectedItemIds()))
     {
@@ -649,12 +651,12 @@ void Tree::NotifyDataChanged()
         {
             const std::weak_ptr<int> callbackLifetime = GetLifetimeToken();
             _delegate->OnTreeSelectionChanged(_selectedItemId.value());
-            if (callbackLifetime.expired() || ! modelGuard.IsCurrent())
+            if (callbackLifetime.expired() || ! modelGuard.ResumeAfterCallback())
             {
                 return;
             }
         }
-        if (! NotifySelectionSetChanged(previousSelection) || ! modelGuard.IsCurrent())
+        if (! NotifySelectionSetChanged(previousSelection) || ! modelGuard.ResumeAfterCallback())
         {
             return;
         }
@@ -663,7 +665,7 @@ void Tree::NotifyDataChanged()
     {
         const std::weak_ptr<int> callbackLifetime = GetLifetimeToken();
         _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
-        if (callbackLifetime.expired() || ! modelGuard.IsCurrent())
+        if (callbackLifetime.expired() || ! modelGuard.ResumeAfterCallback())
         {
             return;
         }
@@ -774,7 +776,8 @@ void Tree::SetFocusedItemId(std::optional<uint64_t> itemId) noexcept
     if (! guard.IsCurrent())
         return;
     RefreshAccessibilitySnapshot();
-    if (! guard.IsCurrent())
+    // Event delivery may run application code; the repaint only needs the same tree.
+    if (! guard.IsBindingCurrent())
         return;
     if (changed)
     {
@@ -896,7 +899,7 @@ catch (const std::exception&)
 
 bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
     {
@@ -915,26 +918,29 @@ bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
         return false;
     if (_delegate && previousFocus != _focusedItemId)
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
-        if (lifetime.expired() || ! guard.IsCurrent())
+        // UI Automation's SetFocus runs this from a noexcept executor: a throwing focus callback stops the request, as
+        // the Grid's does, instead of terminating the process.
+        const std::weak_ptr<int> lifetime         = GetLifetimeToken();
+        ITreeDelegate* const delegate             = _delegate;
+        const std::optional<uint64_t> focusedItem = _focusedItemId;
+        const bool reported                       = TryControlCallback([&] { delegate->OnTreeFocusedItemChanged(*this, focusedItem); });
+        if (lifetime.expired() || ! reported || ! guard.ResumeAfterCallback())
         {
             return false;
         }
     }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    if (! lifetime.expired() && guard.IsCurrent())
-    {
-        RequestInvalidate();
-    }
-    return ! lifetime.expired() && guard.IsCurrent();
+    if (lifetime.expired() || ! guard.ResumeAfterCallback())
+        return false;
+    RequestInvalidate();
+    return true;
 }
 
 bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
 try
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model || ! _delegate)
     {
@@ -963,28 +969,30 @@ try
     StartExpanderAnimation(item.id, item.expanded, expanded);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     ITreeDelegate* const delegate         = _delegate;
-    if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.IsBindingCurrent())
+    const uint64_t revisionBeforeToggle   = _modelRevision;
+    if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
     {
         return false;
     }
-    if (! guard.IsCurrent())
-    {
-        // A delegate may publish its completed edit with NotifyDataChanged. Discard the old animation transaction,
-        // then verify the stable item's current state without accepting a model/delegate replacement.
-        const TreeModelQueryGuard currentGuard(*this, selfLifetime, model);
-        const auto currentIndex = model->FindVisibleItemById(item.id);
-        if (! currentGuard.IsCurrent() || ! currentIndex)
-            return false;
-        TreeItemData currentItem;
-        return TryControlCallback([&] { model->GetVisibleItem(*currentIndex, currentItem); }) && currentGuard.IsCurrent() && currentItem.id == item.id &&
-               currentItem.hasChildren && currentItem.expanded == expanded;
-    }
+    // A delegate usually publishes its edit with NotifyDataChanged before it returns: the rows then slide from the order
+    // captured before the callback to the order after it. A delegate that applies the edit later animates nothing.
     std::vector<TreeItemData> afterItems;
     if (! TryControlCallback([&] { afterItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
         return false;
-    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), std::move(afterItems), GetTickCount64());
+    if (_modelRevision != revisionBeforeToggle)
+    {
+        // A published answer is the result: the request succeeded only when the item now has the requested state. A
+        // refused toggle leaves its chevron where the model put it.
+        const auto current = std::ranges::find(afterItems, item.id, &TreeItemData::id);
+        if (current == afterItems.end() || ! current->hasChildren || current->expanded != expanded)
+        {
+            std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+            return false;
+        }
+    }
+    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), std::move(afterItems));
     RefreshAccessibilitySnapshot();
-    return ! selfLifetime.expired() && guard.IsCurrent();
+    return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
 catch (const std::exception&)
@@ -1029,6 +1037,21 @@ size_t Tree::DebugGetFirstVisibleIndex() const noexcept
 std::optional<size_t> Tree::DebugGetSelectedVisibleIndex() const noexcept
 {
     return FindFocusedVisibleIndex();
+}
+
+std::optional<uint64_t> Tree::DebugGetExpansionAnimationItemId() const noexcept
+{
+    return _treeExpansionAnimation && _treeExpansionAnimation->active ? std::optional<uint64_t>(_treeExpansionAnimation->itemId) : std::nullopt;
+}
+
+float Tree::DebugGetExpansionProgress(uint64_t nowTickMs) const noexcept
+{
+    return GetTreeExpansionProgress(nowTickMs);
+}
+
+float Tree::DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
+{
+    return GetExpanderProgress(itemId, expanded, nowTickMs);
 }
 
 bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex, bool keyboardFocusVisible, TreeDebugRowVisualState& out) const noexcept
@@ -1127,8 +1150,10 @@ void Tree::Paint(ControlHost& host) const
         return;
     }
 
-    const uint64_t nowTickMs                        = GetTickCount64();
-    const bool animateTreeExpansion                 = HasActiveTreeExpansionAnimation(nowTickMs) && _treeExpansionAnimation.has_value();
+    // Transitions paint at the host's animation clock, the time of its latest tick.
+    const uint64_t nowTickMs = host.GetAnimationTickMs();
+    // Reduced motion schedules no frames, so it never paints a transition: the rows stand in their final places at once.
+    const bool animateTreeExpansion                 = ! theme.reducedMotion && HasActiveTreeExpansionAnimation();
     const std::optional<size_t> hoveredVisibleIndex = _hoveredVisibleIndex;
     TreeItemData item;
     const VisibleSpan span =
@@ -1308,8 +1333,9 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
     auto animationIt        = _expanderAnimations.begin();
     while (animationIt != _expanderAnimations.end())
     {
-        const float progress = ComputeExpanderProgress(animationIt->itemId, animationIt->toExpanded, nowTickMs);
-        if (progress > 0.0f && progress < 1.0f)
+        // A chevron turns for its whole duration from its stamp. The tick at its start (the first after a pause in ticking)
+        // shows its first frame rather than ending it.
+        if (ElapsedTickMs(animationIt->startTickMs, nowTickMs) < _treeExpanderAnimationDurationMs)
         {
             hasActiveAnimation = true;
             ++animationIt;
@@ -1320,7 +1346,7 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
         animationIt       = _expanderAnimations.erase(animationIt);
     }
 
-    if (HasActiveTreeExpansionAnimation(nowTickMs))
+    if (HasActiveTreeExpansionAnimation())
     {
         if (GetTreeExpansionProgress(nowTickMs) < 1.0f)
         {
@@ -1454,28 +1480,35 @@ bool Tree::OnMouseLeave(ControlHost& host)
 
 bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    HitInfo hit = HitTestPoint(MakePointDip(point));
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    const HitInfo aimed           = HitTestPoint(MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
-    if (hit.zone == HitZone::None)
+    if (aimed.zone == HitZone::None)
     {
         return false;
     }
+    const bool aimedAtRow = aimed.zone == HitZone::Item || aimed.zone == HitZone::Expander;
+    TreeItemData aimedItem;
+    if (aimedAtRow && (! model || ! TryControlCallback([&] { model->GetVisibleItem(aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent()))
+        return true;
 
     if (! FocusControlAndSurvive(host, *this))
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    // Focus handlers are application code. One that changes another control (a toolbar enabling its commands) leaves the
+    // click alone; one that moves, scrolls or refreshes this tree, leaving another row under the pointer, consumes it,
+    // since it would otherwise act on whatever now lies there.
+    if (! guard.ResumeAfterCallback())
         return true;
-    hit = HitTestPoint(MakePointDip(point));
-    if (! guard.IsCurrent())
+    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
-    if (hit.zone == HitZone::None)
-    {
+    TreeItemData hitItem;
+    if (aimedAtRow && (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, hitItem); }) || ! guard.IsCurrent() || hitItem.id != aimedItem.id))
         return true;
-    }
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
     if (rightButton)
@@ -1522,13 +1555,6 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return true;
     }
 
-    TreeItemData hitItem;
-    const ITreeModel* const model = _model;
-    if (! model)
-        return true;
-    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, hitItem); }) || ! guard.IsCurrent())
-        return true;
-
     // With multi-select Shift and Ctrl are selection gestures (they never start a row drag), the expander moves the focus
     // and expands without touching the selection, and a plain press on a row of a multi-selection keeps it until the
     // release, so that the row can be dragged. Without multi-select every press selects the row alone, as it always did.
@@ -1566,7 +1592,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    // The selection callbacks may have refreshed the model: the rest of the gesture resolves the row by id.
+    if (! guard.ResumeAfterCallback())
         return true;
     if (hit.zone == HitZone::Expander)
     {
@@ -1609,38 +1636,38 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
 bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    // Only a primary double-click on a row has a meaning of its own. A second right-click is another press (the menu
+    // opens again), and a second click on a scrollbar pages or grabs again; dropping them lost every other click.
     if (rightButton)
     {
-        return false;
+        return OnMouseDown(host, point, rightButton, modifiers);
     }
 
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    HitInfo hit = HitTestPoint(MakePointDip(point));
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    const HitInfo aimed           = HitTestPoint(MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
-    if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
+    if (aimed.zone != HitZone::Item && aimed.zone != HitZone::Expander)
     {
-        return false;
+        return OnMouseDown(host, point, rightButton, modifiers);
     }
+    TreeItemData aimedItem;
+    if (! model || ! TryControlCallback([&] { model->GetVisibleItem(aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent())
+        return true;
 
     if (! FocusControlAndSurvive(host, *this))
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    // As for a press: only a focus handler that changed this tree's own layout or rows consumes the double-click.
+    if (! guard.ResumeAfterCallback())
         return true;
-    hit = HitTestPoint(MakePointDip(point));
-    if (! guard.IsCurrent())
+    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
-    if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
-    {
-        return true;
-    }
     TreeItemData item;
-    const ITreeModel* const model = _model;
-    if (! model)
-        return true;
-    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, item); }) || ! guard.IsCurrent() || item.id != aimedItem.id)
         return true;
     // The first press of a double-click already made its selection gesture: with multi-select the second, with Ctrl or
     // Shift, only activates, so a Ctrl double-click cannot toggle the item off again.
@@ -1649,7 +1676,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return true;
     }
-    if (! guard.IsCurrent())
+    if (! guard.ResumeAfterCallback())
         return true;
 
     const std::optional<size_t> currentIndex = model->FindVisibleItemById(item.id);
@@ -1801,7 +1828,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return true;
     }
 
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
     {
@@ -1855,7 +1882,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             return true;
         }
-        if (! guard.IsCurrent())
+        if (! guard.ResumeAfterCallback())
             return true;
         Invalidate(host);
         return true;
@@ -1874,6 +1901,11 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             return true;
         }
+        if (! guard.ResumeAfterCallback())
+            return true;
+        currentIndex = FindFocusedVisibleIndex();
+        if (! guard.IsCurrent() || ! currentIndex)
+            return true;
     }
 
     TreeItemData item;
@@ -2014,7 +2046,7 @@ bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
 bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model || ! _delegate)
     {
@@ -2049,7 +2081,8 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         const float maxX      = (std::max)(minX, contentRect.right - 4.0f);
         const float minY      = contentRect.top + 4.0f;
         const float maxY      = (std::max)(minY, contentRect.bottom - 4.0f);
-        anchorDip             = D2D1::Point2F((std::clamp)(GetBounds().left + 16.0f, minX, maxX), (std::clamp)((rowTop + rowBottom) * 0.5f, minY, maxY));
+        const float startX    = IsRightToLeft() ? GetBounds().right - 16.0f : GetBounds().left + 16.0f;
+        anchorDip             = D2D1::Point2F((std::clamp)(startX, minX, maxX), (std::clamp)((rowTop + rowBottom) * 0.5f, minY, maxY));
     }
     else
     {
@@ -2067,7 +2100,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return true;
-    const POINT screenPoint = Control::ResolveContextMenuAnchor(host, false, anchorDip);
+    const POINT screenPoint = ResolveContextMenuAnchor(host, false, anchorDip);
 
     if (! keyboardInvocation)
     {
@@ -2083,13 +2116,15 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         {
             Invalidate(host);
         }
+        // The selection callbacks are application code; the menu opens for the same item, found again by id.
+        if (! guard.ResumeAfterCallback())
+            return true;
     }
 
-    if (! guard.IsCurrent() || ! _delegate || ! model->FindVisibleItemById(item.id).has_value())
-    {
+    if (! _delegate)
         return true;
-    }
-    if (! guard.IsCurrent())
+    const bool itemPresent = model->FindVisibleItemById(item.id).has_value();
+    if (! guard.IsCurrent() || ! itemPresent)
         return true;
 
     _delegate->OnTreeContextMenu(item.id, screenPoint);
@@ -2364,6 +2399,14 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     return hit;
 }
 
+bool Tree::IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept
+{
+    // The same part of the same row at the same place: the tree itself neither moved, scrolled nor changed its rows.
+    return before.zone == after.zone && before.visibleIndex == after.visibleIndex && before.onScrollbarThumb == after.onScrollbarThumb &&
+           before.rectDip.left == after.rectDip.left && before.rectDip.top == after.rectDip.top && before.rectDip.right == after.rectDip.right &&
+           before.rectDip.bottom == after.rectDip.bottom;
+}
+
 size_t Tree::GetFirstVisibleItemIndex() const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
@@ -2619,7 +2662,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
 
 bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
     {
@@ -2703,6 +2746,8 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
         return false;
     if (notifyDelegate && _delegate)
     {
+        // The selection is committed. The reports below run application code, which may refresh the model or change
+        // any control's layout; they go on while the tree keeps its model and delegate, each reading the current state.
         const std::vector<uint64_t> currentSelection = GetSelectedItemIds();
         const bool membershipChanged                 = ! SameSelectedItems(previousSelection, currentSelection);
         if (membershipChanged && ! currentSelection.empty())
@@ -2710,12 +2755,12 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
             ITreeDelegate* const delegate         = _delegate;
             delegate->OnTreeSelectionChanged(_selectedItemId.value());
-            if (selfLifetime.expired() || ! guard.IsCurrent())
+            if (selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return false;
             }
         }
-        if (membershipChanged && (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent()))
+        if (membershipChanged && (! NotifySelectionSetChanged(previousSelection) || ! guard.ResumeAfterCallback()))
         {
             return false;
         }
@@ -2724,7 +2769,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
             ITreeDelegate* const delegate         = _delegate;
             delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
-            if (selfLifetime.expired() || ! guard.IsCurrent())
+            if (selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return false;
             }
@@ -2733,7 +2778,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
     // UI Automation event delivery can dispatch a message that destroys this tree too.
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return ! selfLifetime.expired() && guard.IsCurrent();
+    return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
 std::vector<uint64_t> Tree::CollectVisibleItemIds() const
@@ -2776,7 +2821,7 @@ void Tree::ReconcileSelectionWithModel()
 
 bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> current = GetSelectedItemIds();
     if (! _delegate || SameSelectedItems(previous, current))
     {
@@ -2787,12 +2832,12 @@ bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
     const std::vector<uint64_t> selectedItemIds(current);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     ITreeDelegate* const delegate         = _delegate;
-    return TryControlCallback([&] { delegate->OnTreeSelectionSetChanged(selectedItemIds); }) && ! selfLifetime.expired() && guard.IsCurrent();
+    return TryControlCallback([&] { delegate->OnTreeSelectionSetChanged(selectedItemIds); }) && ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
 bool Tree::CollapseSelectionToItem(uint64_t itemId)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _multiSelect)
     {
         return true;
@@ -2808,23 +2853,21 @@ bool Tree::CollapseSelectionToItem(uint64_t itemId)
     if (delegate && ! SameSelectedItems(previousSelection, GetSelectedItemIds()))
     {
         delegate->OnTreeSelectionChanged(itemId);
-        if (lifetime.expired() || ! guard.IsCurrent())
+        if (lifetime.expired() || ! guard.ResumeAfterCallback())
             return false;
     }
-    if (! guard.IsCurrent())
-        return false;
     if (_delegate == delegate && ! NotifySelectionSetChanged(previousSelection))
     {
         return false;
     }
     RefreshAccessibilitySnapshot();
-    return ! lifetime.expired() && guard.IsCurrent();
+    return ! lifetime.expired() && guard.ResumeAfterCallback();
 }
 
 bool Tree::RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept
 try
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
     {
@@ -2852,7 +2895,7 @@ try
     const std::vector<uint64_t> previousSelection(_selection.GetOrderedSelection().begin(), _selection.GetOrderedSelection().end());
     const std::optional<uint64_t> previousFocus = _focusedItemId;
     const auto previousAnchor                   = _selection.GetAnchor();
-    if (! SelectVisibleIndex(visibleIndex, SelectMode::Toggle, false))
+    if (! SelectVisibleIndex(visibleIndex, SelectMode::Toggle, false) || ! guard.ResumeAfterCallback())
     {
         return false;
     }
@@ -2865,13 +2908,14 @@ try
             if (! current.empty())
             {
                 const std::weak_ptr<int> lifetime = GetLifetimeToken();
-                if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() || ! guard.IsCurrent())
+                if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() ||
+                    ! guard.ResumeAfterCallback())
                 {
                     return false;
                 }
             }
         }
-        if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
+        if (! NotifySelectionSetChanged(previousSelection) || ! guard.ResumeAfterCallback())
         {
             return false;
         }
@@ -2879,14 +2923,14 @@ try
     if (_delegate && previousFocus != _focusedItemId)
     {
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        if (! TryControlCallback([&] { _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId); }) || lifetime.expired() || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { _delegate->OnTreeFocusedItemChanged(*this, _focusedItemId); }) || lifetime.expired() || ! guard.ResumeAfterCallback())
         {
             return false;
         }
     }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return ! lifetime.expired() && guard.IsCurrent();
+    return ! lifetime.expired() && guard.ResumeAfterCallback();
 }
 
 catch (const std::exception&)
@@ -2897,7 +2941,7 @@ catch (const std::exception&)
 bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
 try
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
     {
@@ -2937,12 +2981,13 @@ try
         if (! currentSelection.empty())
         {
             const std::weak_ptr<int> lifetime = GetLifetimeToken();
-            if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() || ! guard.IsCurrent())
+            if (! TryControlCallback([&] { _delegate->OnTreeSelectionChanged(_selectedItemId.value()); }) || lifetime.expired() ||
+                ! guard.ResumeAfterCallback())
             {
                 return false;
             }
         }
-        if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
+        if (! NotifySelectionSetChanged(previousSelection) || ! guard.ResumeAfterCallback())
         {
             return false;
         }
@@ -2950,7 +2995,7 @@ try
     // UI Automation event delivery can dispatch a message that destroys this tree too.
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return ! selfLifetime.expired() && guard.IsCurrent();
+    return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
 catch (const std::exception&)
@@ -2960,7 +3005,7 @@ catch (const std::exception&)
 
 bool Tree::OnSelectAll(ControlHost& host)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! _multiSelect || ! model)
     {
@@ -2998,27 +3043,19 @@ bool Tree::OnSelectAll(ControlHost& host)
         if (! SameSelectedItems(previousSelection, _selection.GetOrderedSelection()))
         {
             delegate->OnTreeSelectionChanged(_selectedItemId.value());
-            if (selfLifetime.expired() || ! guard.IsCurrent())
+            if (selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return true;
             }
-            if (_delegate != delegate)
-            {
-                return true;
-            }
-            if (! NotifySelectionSetChanged(previousSelection) || ! guard.IsCurrent())
+            if (! NotifySelectionSetChanged(previousSelection) || ! guard.ResumeAfterCallback())
             {
                 return true;
             }
         }
         if (previousFocus != _focusedItemId)
         {
-            if (_delegate != delegate)
-            {
-                return true;
-            }
             delegate->OnTreeFocusedItemChanged(*this, _focusedItemId);
-            if (selfLifetime.expired() || ! guard.IsCurrent())
+            if (selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return true;
             }
@@ -3026,7 +3063,7 @@ bool Tree::OnSelectAll(ControlHost& host)
     }
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    if (! selfLifetime.expired() && guard.IsCurrent())
+    if (! selfLifetime.expired() && guard.ResumeAfterCallback())
     {
         Invalidate(host);
     }
@@ -3035,7 +3072,7 @@ bool Tree::OnSelectAll(ControlHost& host)
 
 bool Tree::ToggleExpanded(size_t visibleIndex)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
     {
@@ -3050,7 +3087,8 @@ bool Tree::ToggleExpanded(size_t visibleIndex)
         return true;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     static_cast<void>(RequestExpandedState(visibleIndex, ! item.expanded));
-    return ! selfLifetime.expired() && guard.IsCurrent();
+    // The delegate usually refreshes the model before it returns; the caller still animates and repaints the tree.
+    return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
 float Tree::ComputeExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
@@ -3081,7 +3119,14 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
         return;
     }
 
-    const uint64_t nowTickMs = GetTickCount64();
+    // The chevron turns on its host's animation clock; with no host nothing ticks it, so it shows its state at once.
+    ControlHost* const host = GetHost();
+    if (! host)
+    {
+        std::erase_if(_expanderAnimations, [itemId](const ExpanderAnimationState& animation) noexcept { return animation.itemId == itemId; });
+        return;
+    }
+    const uint64_t nowTickMs = host->GetAnimationTickMs();
 
     // Capture current visual progress before removing existing animation for smooth reversal.
     float currentProgress = fromExpanded ? 1.0f : 0.0f;
@@ -3101,6 +3146,8 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
                                                          .toProgress   = targetProgress,
                                                          .startTickMs  = nowTickMs,
                                                          .active       = true});
+    // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
+    host->RequestAnimation();
 }
 
 float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
@@ -3134,10 +3181,13 @@ std::vector<TreeItemData> Tree::CaptureVisibleItems() const
     return items;
 }
 
-void Tree::BeginTreeExpansionAnimation(
-    uint64_t itemId, bool toExpanded, std::vector<TreeItemData>&& beforeItems, std::vector<TreeItemData>&& afterItems, uint64_t nowTickMs) noexcept
+void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
+                                       bool toExpanded,
+                                       std::vector<TreeItemData>&& beforeItems,
+                                       std::vector<TreeItemData>&& afterItems) noexcept
 {
-    if (beforeItems.empty() || afterItems.empty())
+    ControlHost* const host = GetHost();
+    if (beforeItems.empty() || afterItems.empty() || ! host || host->GetTheme().reducedMotion)
     {
         ClearTreeExpansionAnimation();
         return;
@@ -3165,10 +3215,12 @@ void Tree::BeginTreeExpansionAnimation(
     animation.itemId        = itemId;
     animation.toExpanded    = toExpanded;
     animation.active        = true;
-    animation.startTickMs   = nowTickMs;
+    animation.startTickMs   = host->GetAnimationTickMs();
     animation.beforeItems   = std::move(beforeItems);
     animation.afterItems    = std::move(afterItems);
     _treeExpansionAnimation = std::move(animation);
+    // Every path that slides the rows asks for ticks, a UI Automation Expand included.
+    host->RequestAnimation();
 }
 
 void Tree::ClearTreeExpansionAnimation() noexcept
@@ -3176,9 +3228,9 @@ void Tree::ClearTreeExpansionAnimation() noexcept
     _treeExpansionAnimation.reset();
 }
 
-bool Tree::HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept
+bool Tree::HasActiveTreeExpansionAnimation() const noexcept
 {
-    return _treeExpansionAnimation.has_value() && _treeExpansionAnimation->active && nowTickMs >= _treeExpansionAnimation->startTickMs;
+    return _treeExpansionAnimation.has_value() && _treeExpansionAnimation->active;
 }
 
 float Tree::GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept
@@ -3188,7 +3240,7 @@ float Tree::GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept
         return 1.0f;
     }
 
-    const uint64_t elapsedMs = nowTickMs > _treeExpansionAnimation->startTickMs ? (nowTickMs - _treeExpansionAnimation->startTickMs) : 0u;
+    const uint64_t elapsedMs = ElapsedTickMs(_treeExpansionAnimation->startTickMs, nowTickMs);
     const float progress     = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_treeExpansionAnimationDurationMs), 0.0f, 1.0f);
     return EvaluateEasing(EasingCurve::PointToPoint, progress);
 }

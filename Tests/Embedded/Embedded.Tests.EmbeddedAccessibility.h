@@ -314,11 +314,52 @@ static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
     view.Detach();
 }
 
+// CR-17 of the 10 October review: a Tree model getter that throws while the embedded snapshot is built fails that one
+// publication. The prior snapshot stays, the process goes on, and the next publication succeeds.
+static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixture& gpu)
+{
+    struct ThrowingTreeModel final : DxUi::ITreeModel
+    {
+        bool fail = false;
+        [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
+        {
+            return 3u;
+        }
+        void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
+        {
+            if (fail)
+                throw std::runtime_error("tree model getter failure");
+            outItem = DxUi::TreeItemData{.id = visibleIndex + 1u, .text = L"Row " + std::to_wstring(visibleIndex + 1u)};
+        }
+    };
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "throwing model scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<DxUi::Panel>();
+    auto* tree    = controls->AddChild<DxUi::Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 300, 180));
+    ThrowingTreeModel model;
+    tree->SetModel(&model);
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(720, 510, 144), "prepare the tree");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 720, 510}, true};
+    Hr(view.AttachAccessibility(site, 0x5555, placement), "attach the tree's accessibility");
+    tree->NotifyDataChanged();
+    Hr(view.Prepare(720, 510, 144), "prepare the refreshed tree");
+    model.fail = true;
+    Check(view.UpdateAccessibility(placement) == E_FAIL, "a throwing model getter fails the publication instead of ending the process");
+    model.fail = false;
+    Hr(view.UpdateAccessibility(placement), "the next publication succeeds");
+    view.Detach();
+}
+
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
     TestEmbeddedDisclosureAccessibility(gpu);
     TestEmbeddedGridOffscreenGetItem(gpu);
     TestEmbeddedTreeMultiSelect(gpu);
+    TestEmbeddedAccessibilityContainsAThrowingModelGetter(gpu);
     EmbeddedScene scene;
     Hr(scene.Initialize(gpu.device.get(), {}, true), "UIA supplied-device scene");
     auto& view = scene.view;

@@ -353,7 +353,8 @@ Invoke-TestCase 'v1 boundary report cannot hide an undeclared device policy' {
 }
 
 function New-ProfilingRunnerFixture([string] $Root, [string] $Mode = 'valid', [bool] $Heap = $false) {
-    foreach ($name in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+    foreach ($name in @('Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h','Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+            'Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h',
             'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
             'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h','Tools/ScopedTesting.psm1',
             'src/native.cpp','deps/header.h','.build/x64/Release/DxUi.EmbeddedTests.exe')) { Set-FixtureFile $Root $name "synthetic $name" }
@@ -409,7 +410,7 @@ function Invoke-OwnedProfilingProcess {
         }
     }
     $mutations=@{ 'source-drift'='src/native.cpp'; 'dependency-drift'='deps/header.h'; 'artifact-drift'='.build/x64/Release/DxUi.EmbeddedTests.exe';
-        'fixture-drift'='Tests/Embedded/Scope.Tests.ComplexUiProfiling.h'; 'boundary-drift'='Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h'; 'dispatcher-drift'='Tests/Embedded/Embedded.Tests.Embedded.cpp';
+        'fixture-drift'='Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h'; 'boundary-drift'='Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h'; 'dispatcher-drift'='Tests/Embedded/Embedded.Tests.Embedded.cpp';
         'runner-drift'='performance-profile.ps1'; 'helper-drift'='Tests/Support/Support.Tests.HeapDiagnostic.h' }
     if ($mutations.ContainsKey($mode)) { Add-Content (Join-Path $WorkingDirectory $mutations[$mode]) 'mutated during child' }
     return [ordered]@{ processId=42; executable=$Executable; arguments=@($Arguments); workingDirectory=$WorkingDirectory;
@@ -429,7 +430,7 @@ Invoke-FixtureCase 'guarded valid run binds closure and retains exact raw bytes 
     $receipt=[IO.File]::ReadAllText($output) | ConvertFrom-Json -AsHashtable -Depth 32
     Assert-Equal 'diagnostic-only' $receipt.classification 'no acceptance verdict'
     Assert-Equal 'complete' $receipt.telemetryCompleteness 'complete unit telemetry'
-    Assert-Equal 11 $receipt.profilingInputs.Count 'fixture/helper/dispatcher/runner closure'
+    Assert-Equal 12 $receipt.profilingInputs.Count 'fixture/instrument/helper/dispatcher/runner closure'
     Assert-Equal ([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root 'native.json')))) ([Convert]::ToBase64String([IO.File]::ReadAllBytes(($output+'.raw.json')))) 'exact raw bytes'
     Assert-Equal (Get-FileHash ($output+'.raw.json')).Hash $receipt.rawReportSha256 'raw hash'
     Assert-Equal (Get-FileHash ($output+'.child.json')).Hash $receipt.childMetadataSha256 'owned child metadata hash'

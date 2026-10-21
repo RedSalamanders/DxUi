@@ -5,7 +5,7 @@
 #include "../../src/Support/PostedPayload.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
-#include "Scope.Tests.MenuPopupReadiness.h"
+#include "Controls.Tests.MenuPopupReadiness.h"
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
@@ -1496,11 +1496,11 @@ void TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands()
 
     const std::vector<MenuFlyoutItem> items = ConvertNativeHMenuToFlyoutItems(menu.get(), options);
     Require(items.size() == 3u, "embedded viewer context-menu conversion removes standalone-only commands, empty submenus, and outer separator runs");
-    Require(items[0].text == L"Copy path", "embedded viewer context-menu conversion strips mnemonics from retained command text");
+    Require(items[0].text == L"&Copy path", "embedded viewer context-menu conversion keeps the explicit mnemonic for the popup to decode");
     Require(items[0].commandId == 91703, "embedded viewer context-menu conversion preserves retained command IDs");
     Require(items[0].acceleratorText.empty(), "embedded viewer context-menu conversion suppresses standalone keyboard shortcut text");
     Require(items[1].kind == MenuItemKind::Separator, "embedded viewer context-menu conversion preserves one intentional separator between retained groups");
-    Require(items[2].text == L"Show metadata", "embedded viewer context-menu conversion keeps the second embedded-safe command");
+    Require(items[2].text == L"Show &metadata", "embedded viewer context-menu conversion keeps the second embedded-safe command");
     Require(items[2].kind == MenuItemKind::Toggle && items[2].checked, "embedded viewer context-menu conversion preserves checked state");
 }
 
@@ -4411,6 +4411,230 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the left-arrow menu loop validation popup with Escape returns no invoked command");
+}
+
+// CR-21 of the 10 October review: in a right-to-left menu, Right goes back and Left goes forward. Right closes the open
+// submenu and does nothing more; it also switched to the previous root, because nothing stopped after the close. Left on
+// a submenu row without a submenu moves to the next root, as Right does left-to-right; it closed the submenu.
+void TestMenuKeyboardRightArrowInRightToLeftClosesOnlyTheSubmenu()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
+    const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
+        {{.text = L"A1", .commandId = 3401}, {.text = L"A2", .commandId = 3402}},
+        {{.text = L"B1", .commandId = 3501, .children = {MenuFlyoutItem{.text = L"B11", .commandId = 3511}, MenuFlyoutItem{.text = L"B12", .commandId = 3512}}},
+         {.text = L"B2", .commandId = 3502}},
+        {{.text = L"C1", .commandId = 3601}, {.text = L"C2", .commandId = 3602}},
+    };
+    size_t activeRootIndex = 1u;
+    ContextMenuSessionCallbacks sessionCallbacks{};
+    sessionCallbacks.flowDirection           = FlowDirection::RightToLeft;
+    sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
+    {
+        activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
+        ContextMenuRootSwitchRequest request{};
+        request.screenPoint = POINT{180, 180};
+        request.items       = rootMenus[activeRootIndex];
+        return request;
+    };
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+        if (! bPopupHwnd)
+        {
+            driverFailure = "the right-to-left menu popup appears";
+            return;
+        }
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        ContextMenuPopupDebugState popupState{};
+        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
+        if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState))
+        {
+            driverFailure = "Home selects B1 in the right-to-left menu";
+            return;
+        }
+        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_LEFT, 0);
+        const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        if (! bSubmenuHwnd)
+        {
+            driverFailure = "Left opens B1's submenu in a right-to-left menu";
+            return;
+        }
+        PostMessageW(bSubmenuHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        if (! WaitForWindowDestroyed(bSubmenuHwnd))
+        {
+            driverFailure = "Right closes the submenu in a right-to-left menu";
+            return;
+        }
+        if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState))
+        {
+            driverFailure = "after Right closed the submenu, the B root popup stays open with B1 focused: no root switch";
+            return;
+        }
+        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
+        if (! aPopupHwnd)
+        {
+            driverFailure = "a second Right switches to the previous root in a right-to-left menu";
+            return;
+        }
+        PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_LEFT, 0);
+        const HWND bAgainHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+        if (! bAgainHwnd)
+        {
+            driverFailure = "Left on a root row without a submenu switches to the next root in a right-to-left menu";
+            return;
+        }
+        PostMessageW(bAgainHwnd, WM_KEYDOWN, VK_HOME, 0);
+        PostMessageW(bAgainHwnd, WM_KEYDOWN, VK_LEFT, 0);
+        const HWND bSubmenuAgainHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        if (! bSubmenuAgainHwnd)
+        {
+            driverFailure = "Left opens B1's submenu again in a right-to-left menu";
+            return;
+        }
+        PostMessageW(bSubmenuAgainHwnd, WM_KEYDOWN, VK_LEFT, 0);
+        if (! WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"C1"))
+        {
+            driverFailure = "Left on a submenu row without a submenu moves to the next root in a right-to-left menu";
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
+    driver.join();
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "the right-to-left menu closes without an invoked command");
+}
+
+// CR-21 of the 10 October review: a slider row's mnemonic goes to the slider instead of invoking the row's command id
+// (normally 0) and closing the menu; AltGr keeps the menu open, so an AltGr character can be a mnemonic.
+void TestMenuSliderMnemonicAndAltGrKeepTheMenuOpen()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
+    const std::vector<MenuFlyoutItem> items = {
+        MenuFlyoutItem{.kind        = MenuItemKind::Slider,
+                       .text        = L"&Zoom",
+                       .sliderStops = {{.text = L"Small", .commandId = 8301}, {.text = L"Large", .commandId = 8302}},
+                       .sliderValue = 0u},
+        MenuFlyoutItem{.text = L"Open", .commandId = 8303},
+        MenuFlyoutItem{.text = L"E&xit", .commandId = 8304},
+    };
+
+    // AltGr: a right Alt while Ctrl is down. Posted keys leave the thread's key state as set here.
+    BYTE saved[256]{};
+    Require(GetKeyboardState(saved) != FALSE, "the thread's key state is read");
+    BYTE keys[256]{};
+    std::copy(std::begin(saved), std::end(saved), keys);
+    keys[VK_CONTROL]  = 0x80u;
+    keys[VK_LCONTROL] = 0x80u;
+    Require(SetKeyboardState(keys) != FALSE, "Ctrl is down for AltGr");
+    const auto restore = wil::scope_exit([&]() noexcept { static_cast<void>(SetKeyboardState(saved)); });
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Zoom");
+        if (! popupHwnd)
+        {
+            driverFailure = "the slider menu popup appears";
+            return;
+        }
+        ContextMenuPopupDebugState popupState{};
+        if (! PostMenuCharacterForMenuSuite(popupHwnd, L'z'))
+        {
+            driverFailure = "the slider mnemonic is posted";
+            return;
+        }
+        if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState))
+        {
+            driverFailure = "the slider row's mnemonic focuses the slider and leaves the menu open";
+            return;
+        }
+        PostMessageW(popupHwnd, WM_KEYDOWN, VK_MENU, static_cast<LPARAM>((static_cast<DWORD>(KF_EXTENDED) << 16u) | 1u));
+        PostMessageW(popupHwnd, WM_KEYDOWN, VK_DOWN, 0);
+        if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 1u;
+        }, popupState))
+        {
+            driverFailure = "AltGr leaves the menu open: the next key still moves its focus";
+            return;
+        }
+        if (! PostMenuCharacterForMenuSuite(popupHwnd, L'x'))
+            driverFailure = "the AltGr-typed mnemonic is posted";
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    driver.join();
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(result == std::optional<int>{8304}, "the mnemonic typed after AltGr invokes its item");
+}
+
+// CR-21 of the 10 October review: a dismissal that another thread's sent message makes while the menu loop is idle ends
+// the loop at once; the loop waited for the next input message first.
+void TestMenuLoopEndsWhenAnotherThreadDismissesIt()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+
+    const std::vector<MenuFlyoutItem> items = {MenuFlyoutItem{.text = L"Open", .commandId = 8401}, MenuFlyoutItem{.text = L"Close", .commandId = 8402}};
+    std::atomic<bool> returned{false};
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Open");
+        if (! popupHwnd)
+        {
+            driverFailure = "the menu popup appears";
+            return;
+        }
+        static_cast<void>(SendMessageW(popupHwnd, WM_CANCELMODE, 0, 0));
+        const ULONGLONG deadline = GetTickCount64() + 3000u;
+        while (! returned.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+            Sleep(10u);
+        if (! returned.load(std::memory_order_acquire))
+        {
+            driverFailure = "the menu loop ends when another thread's message dismisses it, without waiting for input";
+            PostMessageW(popupHwnd, WM_NULL, 0, 0); // Wake the loop so the test ends.
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    returned.store(true, std::memory_order_release);
+    driver.join();
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "a dismissed menu invokes nothing");
 }
 
 void TestNativeMenuBarRestoresFocusAfterMenuDismiss()
@@ -10527,6 +10751,9 @@ void RunMenuTests()
     runTest("TestMenuKeyboardF10ExitsMenuLoop", TestMenuKeyboardF10ExitsMenuLoop);
     runTest("TestMenuKeyboardAltExitsMenuLoop", TestMenuKeyboardAltExitsMenuLoop);
     runTest("TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop", TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop);
+    runTest("TestMenuKeyboardRightArrowInRightToLeftClosesOnlyTheSubmenu", TestMenuKeyboardRightArrowInRightToLeftClosesOnlyTheSubmenu);
+    runTest("TestMenuSliderMnemonicAndAltGrKeepTheMenuOpen", TestMenuSliderMnemonicAndAltGrKeepTheMenuOpen);
+    runTest("TestMenuLoopEndsWhenAnotherThreadDismissesIt", TestMenuLoopEndsWhenAnotherThreadDismissesIt);
     runTest("TestNativeMenuBarRestoresFocusAfterMenuDismiss", TestNativeMenuBarRestoresFocusAfterMenuDismiss);
     runTest("TestNativeMenuBarNestedPopupCanDestroyHostSafely", TestNativeMenuBarNestedPopupCanDestroyHostSafely);
     runTest("TestMenuInfoRowsDoNotDismissOnClick", TestMenuInfoRowsDoNotDismissOnClick);

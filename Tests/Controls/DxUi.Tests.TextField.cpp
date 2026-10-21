@@ -809,6 +809,44 @@ void TestTextFieldCtrlASelectionReplacesAllText()
     Require(field.GetText() == L"Q", "ctrl+a selects the full text for replacement");
 }
 
+// CR-13 of the 10 October review: AltGr arrives as Ctrl+Alt and types a character. Polish AltGr+A types ą and Czech
+// AltGr+V types @; neither selects all nor pastes, in a text field or an editable combo box.
+void TestAltGrCharactersRunNoEditingShortcuts()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    TextField field(L"ab");
+    field.SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
+    field.SetSelectionRange(2, 2);
+    Require(! field.OnKeyDown(host, 'A', MK_CONTROL | kModifierAlt) && field.OnChar(host, L'ą', 0), "AltGr+A is no shortcut and types its character");
+    Require(! field.OnKeyDown(host, 'V', MK_CONTROL | kModifierAlt) && field.OnChar(host, L'@', 0), "AltGr+V is no paste and types its character");
+    Require(field.GetText() == L"abą@", "the typed characters follow the existing text");
+
+    ComboBox combo;
+    combo.SetEditable(true);
+    combo.SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 28.0f));
+    combo.SetText(L"ab");
+    Require(! combo.OnKeyDown(host, 'A', MK_CONTROL | kModifierAlt) && combo.OnChar(host, L'ą', 0),
+            "an editable combo box types AltGr+A instead of selecting all");
+    Require(combo.GetText() == L"abą", "the editable combo box keeps its text");
+
+    // Q7: Alt alone is the system's (menu access keys, Alt+Space), so an editor types no Alt+character, and a window host
+    // leaves a WM_SYSCHAR that names no mnemonic to DefWindowProc instead of typing it into the focused editor.
+    Require(! field.OnChar(host, L'z', kModifierAlt) && ! combo.OnChar(host, L'z', kModifierAlt), "an editor types no Alt+character");
+    Require(field.GetText() == L"abą@" && combo.GetText() == L"abą", "the texts are unchanged");
+    Require(field.OnChar(host, L'€', MK_CONTROL | kModifierAlt) && field.GetText() == L"abą@€", "AltGr with its modifiers still types");
+    WindowHost focused;
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<TextField>(std::wstring(L"alpha"));
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
+    focused.SetRoot(std::move(root));
+    focused.SetFocusControl(editor);
+    bool handled = true;
+    static_cast<void>(focused.HandleMessage(nullptr, WM_SYSCHAR, L' ', 0, handled));
+    Require(! handled && editor->GetText() == L"alpha", "Alt+Space reaches the system instead of typing a space");
+}
+
 void TestTextFieldDoubleClickSelectsWordThroughHostMessage()
 {
     using namespace DxUi;
@@ -2325,6 +2363,7 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestTextFieldClickPlacesCaretNearPointer);
     DXUI_RUN_TEST(TestTextFieldShiftArrowSelectionReplacesSelectedText);
     DXUI_RUN_TEST(TestTextFieldCtrlASelectionReplacesAllText);
+    DXUI_RUN_TEST(TestAltGrCharactersRunNoEditingShortcuts);
     DXUI_RUN_TEST(TestTextFieldDoubleClickSelectsWordThroughHostMessage);
     DXUI_RUN_TEST(TestTextFieldMouseDragSelectionReplacesDraggedRange);
     DXUI_RUN_TEST(TestTextFieldSurrogatePairBackspaceDeletesWholeCodePoint);

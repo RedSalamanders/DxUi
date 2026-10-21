@@ -264,6 +264,16 @@ D2D1_COLOR_F ResolveInactiveSelectionTextColor(const ThemePalette& theme, const 
     return ChooseContrastingTextColor(paintedFill);
 }
 
+RowFocusVisuals ResolveRowFocusVisuals(
+    const ThemePalette& theme, const D2D1_COLOR_F& fill, bool selected, bool current, bool focused, bool keyboardFocused) noexcept
+{
+    RowFocusVisuals focus{};
+    focus.color = current && selected && ! theme.highContrast ? ChooseContrastingTextColor(CompositeOverBackground(fill, theme.surfaceBackground))
+                                                              : (current && selected ? theme.selectionText : theme.focusStroke);
+    focus.shown = current && (keyboardFocused || (theme.highContrast && focused));
+    return focus;
+}
+
 void ResolveAdornmentColors(const ThemePalette& theme, AdornmentTone tone, D2D1_COLOR_F& fill, D2D1_COLOR_F& text) noexcept
 {
     fill = theme.selectionFill;

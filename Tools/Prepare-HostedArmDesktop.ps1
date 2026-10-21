@@ -5,8 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'InteractiveRun.psm1') -Force
 
-if (-not (Test-DxUiVerifiedGitHubHostedRunner) -or $env:RUNNER_ARCH -cne 'ARM64' -or
-    [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne [System.Runtime.InteropServices.Architecture]::Arm64) {
+if (-not (Test-DxUiHostedArmDesktopRunner)) {
     throw 'Hosted ARM64 desktop preparation requires a verified GitHub-hosted native ARM64 Windows runner.'
 }
 

@@ -298,7 +298,11 @@ for each intermediate input while retaining complete per-entry semantics
 Tree and Grid model getters may reenter application code. Snapshot construction revalidates the control lifetime,
 its path and borrowed model after each getter and aborts the entire unpublished snapshot if they change. Navigation,
 point geometry and focused-item lookup follow the same rule. Native publication permits two attempts per flush;
-a later query or queued flush handles any further mutation. Clients reacquire a collapsed semantic root after its
+a later query or queued flush handles any further mutation. A flush that cannot finish (a getter that throws,
+allocation failure, or state that changes during both attempts) keeps the last complete snapshot published, and
+`WM_GETOBJECT` and root acquisition still return the canonical root, which answers from that snapshot. Before the
+first complete publication the root has no snapshot and answers `UIA_E_ELEMENTNOTAVAILABLE`, as a retired element
+does, until a later query or flush publishes one. Clients reacquire a collapsed semantic root after its
 control is replaced; retained elements never bind to a replacement at the same path. Grid row, header and cell
 properties return `UIA_E_ELEMENTNOTAVAILABLE` when their record is no longer materialized in the current snapshot.
 These rules do not extend borrowed model lifetime or qualify destruction of the entire host from a callback.
@@ -330,8 +334,12 @@ Context-menu mnemonics consume the Unicode character produced by the active keyb
 (`WM_CHAR`/`WM_SYSCHAR`), rather than deriving a letter from a virtual key. An explicit ampersand
 mnemonic wins over an inferred label mnemonic; when multiple enabled rows match, successive
 characters move keyboard selection through those rows and do not invoke one until the match is
-unique. Right-to-left sessions map horizontal arrows to the reading direction for submenu opening,
-closing, root switching, and slider values. High-contrast selected rows use the system selection
+unique. A slider row's mnemonic moves the keyboard selection to the slider, whose stop the arrows choose and Enter
+commits. AltGr (a right Alt with Ctrl down) keeps the menu open, so its characters can be mnemonics; any other Alt
+dismisses it. Right-to-left sessions map horizontal arrows to the reading direction for submenu opening,
+closing, root switching, and slider values: the key that closes a submenu does only that, and the forward key on a
+row without a submenu moves to the next root, as Right does left-to-right. A menu that another thread's message
+dismisses ends its loop at once. High-contrast selected rows use the system selection
 foreground/background pair, and disabled row text uses opaque system GrayText.
 
 While a popup holds mouse capture Windows sends no `WM_SETCURSOR`, so the menu chooses the cursor on every delivered
@@ -479,6 +487,30 @@ providers. Native and embedded lifetime/acknowledgement tests qualify this imple
 [final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md)
 for all six x64/ARM64 configurations. ARM64 Menu foreground capability skips remain explicit.
 
+A RadioButton is a RadioButton element with SelectionItem, selected while it is checked, and no Invoke. Select chooses
+it as its mnemonic does, focus included. RemoveFromSelection of the chosen one, and AddToSelection while its group holds
+another choice, return `UIA_E_INVALIDOPERATION`; its SelectionContainer is null, because its group is no element,
+so a choice in a group reports its place among the group's present choices as PositionInSet and SizeOfSet. A
+change of choice raises ElementSelected from the chosen radio button and IsSelected changes from both, whether a click,
+a key, UI Automation or the application made it. A Tree item that expands or collapses raises its ExpandCollapseState
+change, and the rows that appear or leave invalidate the structure. A tree with prepared accessibility rows raises that
+change for its focused item before or after the change (the item a key, an expander click or the focused row's
+ExpandCollapse acts on), read from both sources, which are never traversed; another item's expansion raises the
+structure change only.
+
+A TabControl is a Tab element whose children are its visible tabs, TabItem elements named by their titles and
+identified by stable tab ids through reordering. Its page follows it as a sibling in the flat tree of semantic controls,
+as a property sheet's tab strip and page do. The selected tab is its Selection, single and required, and each tab item
+has SelectionItem. Select chooses the tab as a click does, without moving the focus; AddToSelection of another tab and
+RemoveFromSelection of the selected one return `UIA_E_INVALIDOPERATION`; SetFocus chooses the tab and focuses the tab
+control. A focused tab control's focus element is its selected tab, and each tab reports its place among the visible
+tabs as PositionInSet and SizeOfSet. A header scrolled out of the strip is offscreen,
+and a closed or hidden tab's element is gone. A change of tab raises ElementSelected and the IsSelected changes, and a
+tab added, closed, hidden, moved or renamed invalidates the structure. A page indicator with at least
+two pages is a Slider element whose RangeValue is the page, from 1 to the page count; SetValue chooses the nearest
+whole page as an arrow key does and refuses a value outside the pages. Its name is the application's: it no longer
+replaces it with an English "Page 2 of 5".
+
 Enabled state includes visible ancestors: a disabled container disables its retained descendants for UIA
 properties, actions and focus, including Tree items, Grid fragments and text-range selection. Owner-thread
 execution rechecks that state and reports `UIA_E_ELEMENTNOTENABLED` before invoking consumer behavior.
@@ -514,6 +546,11 @@ verification supplements synthetic tests.
 
 ### Current library input surface
 
+Editors take the characters a keyboard types and leave the system its own. AltGr arrives as Ctrl+Alt: it runs no Ctrl
+editing shortcut and types its character. Alt alone types nothing in an editor; a window host offers a `WM_SYSCHAR` to the
+mnemonics and leaves one that names none to `DefWindowProc`, so Alt+Space opens the window menu and a menu bar takes its
+access keys, as over a Win32 edit control.
+
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
@@ -522,13 +559,23 @@ application names none), which `ControlHost::GetPointerDevice` reports to the co
 records the device of each mouse message it handles from the thread's extra message information: Windows marks a message
 it promoted from a touch or pen contact with 0xFF515700 in the upper 24 of its low 32 bits and sets 0x80 for touch
 (`PointerDeviceFromMessageExtraInfo`), and anything else is the mouse. Hit-testing stays valid while the cached surface is paint-dirty. A changed interaction revision makes a new hit
-incoherent until the next preparation. A drag already captured continues when some other control's bounds change and
+incoherent until the next preparation. Keys, characters and text-service calls hit-test nothing and reach the focused
+control, which interaction pruning keeps current, so a changed revision does not refuse them: only a hidden, suspended
+or never-prepared view, or one whose input a failed callback suspended until its next preparation, does. Refusing them
+lost typing, such as the character after one that showed a validation message or the second half of a surrogate pair. A drag already captured continues when some other control's bounds change and
 the captured control stays in the tree and unmoved, with it and every ancestor enabled and visible. Moving, hiding,
 disabling or removing the captured control, hiding or disabling an ancestor, or resizing the view, cancels that drag.
 The next preparation applies that rule; input dispatched while the bounds revision is still unprepared cancels the
 drag, so a consumer applies pane layout on its next preparation rather than inside the change callback.
 WindowHost applies the same rule at message entry: a captured control that is still in the tree but no longer
 interactive receives `OnCaptureLost` (its drag reports Cancel) instead of losing the capture silently.
+A press during a captured gesture goes to the captured control, and the release of that second button keeps the
+capture: only a release that leaves neither the primary nor the secondary button down ends it, so a right-click while a
+slider's thumb is held neither ends the drag nor strands it. An unhandled press clears the focus only when it continued
+no captured gesture and moved no focus itself, so a container that forwards presses (ScrollPanel) does not blur a child
+that focused itself on a press it then declined. A control with no meaning of its own for a double-click treats it as a
+press: a second right-click within the double-click time opens a Grid's, Tree's or ComboBox's context menu again, and a
+second click on a Tree's or ScrollPanel's scrollbar pages or grabs again.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME
@@ -573,13 +620,22 @@ This API does not by itself attach an OS text store. `TextInputServices` is the 
 adapter in the same archive. Real IME/touch/screen-reader acceptance and RedXe plugin transport remain consumer
 gates. Native and embedded controls share the existing text model and rendering.
 
+Application code that DxUi calls (control overrides, callbacks, delegates and model getters) throws only `std::exception`
+types. One escaping it is contained where the host dispatches: a window message, an embedded input entry point, an
+animation tick or a UI Automation action ends that dispatch, a key, character or mnemonic counting as taken, and the host
+stays usable; a failed UI Automation action also republishes. The boundary catches named standard exceptions only,
+mapping allocation failure to `E_OUTOFMEMORY`. Translate another type, such as C++/WinRT `hresult_error`, inside
+the callback; unsupported exceptions can terminate the process.
+
 Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
 The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
 exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
 the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
 text snapshot so their argument and callable survive destruction of the control.
 
-The native WindowHost text store stages edits for each TSF lock. An active composition previews text without a
+The native WindowHost text store stages edits for each TSF lock. One TSF edit inserts at most 65,536 UTF-16 units, while the
+document is as long as its field allows; the advised sink may advise again to change its mask, and another sink is
+refused with `CONNECT_E_ADVISELIMIT`. An active composition previews text without a
 model notification; `OnEndComposition` restores the captured base and applies the final state once, so the whole
 composition is one undo step even when the last preview already equals the committed text. Sequential completed
 compositions in one TSF lock have separate undo units. Disconnect cancels the preview and restores the base only
@@ -875,7 +931,13 @@ These queries use immutable selection IDs and must not materialize every selecte
 model/row invalidates retained providers; stale selection containers cannot survive that removal.
 
 A Grid exposes `IGridProvider` with snapshot-backed `RowCount` and `ColumnCount`, and `GetItem` accepts
-every valid model row and column, including rows outside the viewport. A request for an uncached row reads
+every valid model row and displayed column, including rows outside the viewport. Columns count in display order, as
+the headers, the pixels and Ctrl+C do after a reorder: `GetItem`'s column, `GridItem.Column`, the order of a row's
+cells and of the words of its name, and the column headers all follow it, while the application's delegate calls keep
+model indices. Every column has a header element, offscreen while its column is scrolled out, so a cell of any column
+names its header. Rows and cells have ScrollItem: `ScrollIntoView` scrolls the row, and a cell's column, into the
+viewport. An action on a cell (SetFocus, Toggle) scrolls it in first, so a cell a client reached through `GetItem`, or
+one of a scrolled-out column, acts where the user sees it. A request for an uncached row reads
 that row's cells in addition to the ordinary visible and selected snapshot on the owning UI thread, then
 publishes them in an immutable snapshot. It does not
 scroll, select, or focus the row. The host retains at most the 16 most recently materialized offscreen rows;
@@ -888,7 +950,9 @@ the replacement model. Visible and selected rows continue to use
 the existing snapshot paths and limits. Out-of-range row or column indices return `E_INVALIDARG`.
 Requested-row capture uses the same borrowed-model, geometry and publication revision guards as ordinary snapshots.
 A callback that changes the same model can abandon that request with `UIA_E_ELEMENTNOTAVAILABLE`; a fresh request
-may materialize the current row. No returned row mixes cell values from superseded and current captures. Native
+may materialize the current row. A remembered row that a later refresh deletes, or whose cells the model can no longer
+read, drops only that request: the rest of the window still publishes, and its retained cell providers report
+`UIA_E_ELEMENTNOTAVAILABLE`. No returned row mixes cell values from superseded and current captures. Native
 materialization flushes immediately on its owner, while ordinary mutations retain lazy publication and event coalescing.
 
 For a native HWND host, a foreign-thread `GetItem` that needs an uncached row dispatches a bounded request

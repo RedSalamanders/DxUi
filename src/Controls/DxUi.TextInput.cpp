@@ -969,7 +969,7 @@ void TextField::SetText(std::wstring text)
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
-    _caretBlinkAnchorTickMs       = 0u;
+    _caretBlinkAnchorTickMs.reset();
     _caretVisible                 = true;
     _horizontalScrollDip          = 0.0f;
     _multilineFirstVisibleLine    = 0u;
@@ -1017,8 +1017,8 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
         _selectionAnchorIndex = clampedStart;
         _caretIndex           = clampedEnd;
     }
-    _caretBlinkAnchorTickMs = 0u;
-    _caretVisible           = true;
+    _caretBlinkAnchorTickMs.reset();
+    _caretVisible = true;
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
@@ -1042,8 +1042,8 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     _caretIndex += replacement.size();
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _caretBlinkAnchorTickMs = 0u;
-    _caretVisible           = true;
+    _caretBlinkAnchorTickMs.reset();
+    _caretVisible = true;
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
@@ -1454,6 +1454,11 @@ bool TextField::DebugGetSingleLinePaintState(const ControlHost& host, TextFieldD
     return true;
 }
 
+bool TextField::DebugIsCaretVisible() const noexcept
+{
+    return _caretVisible;
+}
+
 bool TextField::DebugGetCaretRect(const ControlHost& host, size_t controlTextIndex, D2D1_RECT_F& outRect) const noexcept
 {
     outRect                                    = {};
@@ -1664,20 +1669,20 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! HasFocus())
     {
-        _caretVisible           = true;
-        _caretBlinkAnchorTickMs = 0u;
+        _caretVisible = true;
+        _caretBlinkAnchorTickMs.reset();
         return false;
     }
 
     const bool caretWasVisible = _caretVisible;
-    if (_caretBlinkAnchorTickMs == 0u)
+    if (! _caretBlinkAnchorTickMs)
     {
         _caretBlinkAnchorTickMs = nowTickMs;
         _caretVisible           = true;
     }
     else
     {
-        _caretVisible = (((nowTickMs - _caretBlinkAnchorTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
+        _caretVisible = ((ElapsedTickMs(*_caretBlinkAnchorTickMs, nowTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
     }
     if (_caretVisible != caretWasVisible)
     {
@@ -1707,9 +1712,9 @@ void TextField::OnFocusChanged(ControlHost& host, bool focused)
     {
         RemaskPasswordReveal();
         BreakDirectEditMerge();
-        _caretBlinkAnchorTickMs = 0u;
-        _caretVisible           = true;
-        _dragSelecting          = false;
+        _caretBlinkAnchorTickMs.reset();
+        _caretVisible  = true;
+        _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
         _preferredMultilineXOffsetDip.reset();
         _multilineWheelDeltaRemainder  = 0.0f;
@@ -2169,7 +2174,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
     }
 
-    if (ModifiersContainCtrl(modifiers))
+    // AltGr arrives as Ctrl+Alt and types a character (Polish AltGr+A is ą, Czech AltGr+V is @): Ctrl with Alt is never
+    // an editing shortcut, as in the Win32 Edit control.
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         if (virtualKey == 'Z' && ! ModifiersContainShift(modifiers) && ! _readOnly)
         {
@@ -2592,8 +2599,13 @@ bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
     return true;
 }
 
-bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
+bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
+    if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
+    {
+        return false;
+    }
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (_passwordRevealKeyboardFocused && (ch == L' ' || ch == L'\r'))
     {
@@ -3490,7 +3502,7 @@ void TextField::OnDensityChanged() noexcept
 
 void TextField::ResetCaretBlink(ControlHost& host) noexcept
 {
-    _caretBlinkAnchorTickMs = ::GetTickCount64();
+    _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
     _caretVisible           = true;
     host.RequestAnimation();
 }

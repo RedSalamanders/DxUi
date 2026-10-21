@@ -126,7 +126,7 @@ for($index=0;$index -lt $cases.Count;$index++){
 } // namespace UnicodeGraphemeCorpus
 '@)
 $propertyPath=if($OutputDirectory){Join-Path $OutputDirectory 'DxUi.TextElementsData.h'}else{Join-Path $PSScriptRoot '../src/Controls/DxUi.TextElementsData.h'}
-$corpusPath=if($OutputDirectory){Join-Path $OutputDirectory 'Scope.Tests.UnicodeGraphemeCorpus.h'}else{Join-Path $PSScriptRoot '../Tests/Controls/Scope.Tests.UnicodeGraphemeCorpus.h'}
+$corpusPath=if($OutputDirectory){Join-Path $OutputDirectory 'Controls.Tests.UnicodeGraphemeCorpus.h'}else{Join-Path $PSScriptRoot '../Tests/Controls/Controls.Tests.UnicodeGraphemeCorpus.h'}
 foreach($item in @(@{path=$propertyPath;text=$header.ToString()},@{path=$corpusPath;text=$tests.ToString()})){
     $expected=$item.text.Replace("`r`n","`n")
     if($Check){

@@ -1,8 +1,9 @@
 #include "../../src/Support/AnimationDispatcher.h"
 #include "../Support/Support.Tests.PerformanceCapture.h"
+#include "Controls.Tests.AnimationClock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.HostControlRegressions.h"
 #include "DxUi/FrameRuntime.h"
-#include "Scope.Tests.HostControlRegressions.h"
 
 #include <array>
 #include <fstream>
@@ -321,7 +322,9 @@ void TestButtonHoverAnimationRequestsTicksUntilSettled()
     EnableMotionForTest(host);
     ExposedButton button(L"Apply");
 
-    const uint64_t hoverStartTickMs = ::GetTickCount64();
+    // The host's animation clock is held, so a transition stamps exactly the time the ticks below count from.
+    const uint64_t hoverStartTickMs = 1'000'000u;
+    host.DebugSetAnimationClockForTest(hoverStartTickMs);
     button.OnHoverChanged(host, true);
     RequireFloatNear(button.DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "button hover animation starts from the idle progress");
     Require(button.Tick(host, hoverStartTickMs + 70u), "button hover animation advances on the first tick");
@@ -331,7 +334,8 @@ void TestButtonHoverAnimationRequestsTicksUntilSettled()
     RequireFloatNear(button.DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "button hover animation settles at fully hovered progress");
     Require(! button.Tick(host, hoverStartTickMs + 220u), "settled button hover animation stops requesting ticks");
 
-    const uint64_t fadeStartTickMs = ::GetTickCount64();
+    const uint64_t fadeStartTickMs = hoverStartTickMs + 1'000u;
+    host.DebugSetAnimationClockForTest(fadeStartTickMs);
     button.OnHoverChanged(host, false);
     Require(button.Tick(host, fadeStartTickMs + 70u), "button hover fade-out advances on the first tick");
     Require(button.DebugGetHoverAnimationProgress() > 0.0f && button.DebugGetHoverAnimationProgress() < 1.0f,
@@ -381,7 +385,9 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     RequireFloatNear(restHaloWidth, 24.0f, 0.01f, "slider chrome disc is 24 DIP at rest");
     RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band stays 48 DIP at rest");
 
-    const uint64_t hoverStartTickMs = ::GetTickCount64();
+    // The host's animation clock is held, so a transition stamps exactly the time the ticks below count from.
+    const uint64_t hoverStartTickMs = 1'000'000u;
+    host.DebugSetAnimationClockForTest(hoverStartTickMs);
     slider->OnHoverChanged(host, true);
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "slider hover animation starts from the idle progress");
     Require(slider->Tick(host, hoverStartTickMs + 40u), "slider hover animation advances on the first tick");
@@ -401,7 +407,8 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     Require(! slider->Tick(host, hoverStartTickMs + 200u), "settled slider hover animation stops requesting ticks");
 
     const float hoverThumbWidth     = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
-    const uint64_t pressStartTickMs = ::GetTickCount64();
+    const uint64_t pressStartTickMs = hoverStartTickMs + 1'000u;
+    host.DebugSetAnimationClockForTest(pressStartTickMs);
     Require(slider->OnMouseDown(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press starts a pointer gesture");
     Require(slider->Tick(host, pressStartTickMs + 40u), "slider press animation advances on the first tick");
     Require(slider->DebugGetPressAnimationProgress() > 0.0f && slider->DebugGetPressAnimationProgress() < 1.0f,
@@ -435,7 +442,9 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
     const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
 
     host.DebugSetPointerDevice(PointerDevice::Mouse);
-    uint64_t startTickMs = ::GetTickCount64();
+    // The host's animation clock is held, so a transition stamps exactly the time the ticks below count from.
+    uint64_t startTickMs = 1'000'000u;
+    host.DebugSetAnimationClockForTest(startTickMs);
     Require(slider->OnMouseDown(host, center, false, 0), "a mouse press starts a drag");
     static_cast<void>(slider->Tick(host, startTickMs + 200u));
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "a mouse drag shows no touch halo");
@@ -444,7 +453,8 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
     static_cast<void>(slider->Tick(host, startTickMs + 400u));
 
     host.DebugSetPointerDevice(PointerDevice::Touch);
-    startTickMs = ::GetTickCount64();
+    startTickMs += 1'000u;
+    host.DebugSetAnimationClockForTest(startTickMs);
     Require(slider->OnMouseDown(host, center, false, 0), "a touch press starts a drag");
     Require(slider->Tick(host, startTickMs + 40u), "the touch halo animates on the first tick");
     Require(slider->DebugGetTouchHaloProgress() > 0.0f && slider->DebugGetTouchHaloProgress() < 1.0f, "the touch halo grows in flight");
@@ -463,7 +473,8 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
                      0.01f,
                      "the halo follows the thumb");
 
-    startTickMs = ::GetTickCount64();
+    startTickMs += 1'000u;
+    host.DebugSetAnimationClockForTest(startTickMs);
     Require(slider->OnMouseUp(host, dragged, false, 0), "the touch drag ends");
     Require(slider->Tick(host, startTickMs + 40u), "the touch halo animates out");
     Require(slider->DebugGetTouchHaloProgress() < 1.0f, "the touch halo shrinks once the contact lifts");
@@ -471,7 +482,8 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "and is gone once the drag ended");
     Require(! slider->Tick(host, startTickMs + 400u), "a settled touch halo requests no ticks");
 
-    startTickMs = ::GetTickCount64();
+    startTickMs += 1'000u;
+    host.DebugSetAnimationClockForTest(startTickMs);
     Require(slider->OnMouseDown(host, center, false, 0), "another touch press starts a drag");
     static_cast<void>(slider->Tick(host, startTickMs + 200u));
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "with its touch halo");
@@ -479,7 +491,8 @@ void TestSliderTouchDragShowsTouchHaloUntilItEnds()
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "a cancelled touch drag removes the halo at once");
 
     // A touch on the track away from the thumb seeks: the thumb moves under the finger and shows the halo there.
-    startTickMs = ::GetTickCount64();
+    startTickMs += 1'000u;
+    host.DebugSetAnimationClockForTest(startTickMs);
     Require(slider->OnMouseDown(host, D2D1::Point2F(20.0f, 24.0f), false, 0), "a touch on the track seeks");
     static_cast<void>(slider->Tick(host, startTickMs + 200u));
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "and shows the halo around the thumb it moved");
@@ -567,7 +580,7 @@ void TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays()
     window.Host().DebugSetPointerDevice(PointerDevice::Touch);
     const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
     const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
-    const uint64_t startTickMs = ::GetTickCount64();
+    const uint64_t startTickMs = window.Host().GetAnimationTickMs();
     Require(slider->OnMouseDown(window.Host(), center, false, 0u), "a touch press starts the slider drag");
     static_cast<void>(slider->Tick(window.Host(), startTickMs + 200u));
     RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "the deterministic touch halo reaches its full 48 DIP size");
@@ -604,7 +617,7 @@ void TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays()
     scrolledWindow.Host().DebugSetPointerDevice(PointerDevice::Touch);
     const D2D1_RECT_F scrolledThumb    = scrolledSlider->DebugGetThumbRect();
     const D2D1_POINT_2F scrolledCenter = D2D1::Point2F((scrolledThumb.left + scrolledThumb.right) * 0.5f, (scrolledThumb.top + scrolledThumb.bottom) * 0.5f);
-    const uint64_t scrolledStartTickMs = ::GetTickCount64();
+    const uint64_t scrolledStartTickMs = scrolledWindow.Host().GetAnimationTickMs();
     Require(scrolledSlider->OnMouseDown(scrolledWindow.Host(), scrolledCenter, false, 0u), "the scrolled slider accepts a touch press");
     static_cast<void>(scrolledSlider->Tick(scrolledWindow.Host(), scrolledStartTickMs + 200u));
     prepareCapture(scrolledWindow);
@@ -677,7 +690,9 @@ void TestSliderKeyboardStepsAnimateDisplayedThumb()
     host.SetRoot(std::move(root));
     host.SetFocusControl(slider);
 
-    const uint64_t stepStartTickMs = ::GetTickCount64();
+    // The host's animation clock is held, so the value animation stamps exactly the time the ticks below count from.
+    const uint64_t stepStartTickMs = 1'000'000u;
+    host.DebugSetAnimationClockForTest(stepStartTickMs);
     Require(slider->OnKeyDown(host, VK_RIGHT, 0), "slider keyboard step starts a committed value change");
     RequireFloatNear(static_cast<float>(slider->GetValue()), 3.0f, 0.0001f, "slider keyboard step updates the model immediately");
     RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()),
@@ -859,22 +874,27 @@ void TestGridTickReturnsTrueForSortGlyphTransition()
 {
     using namespace DxUi;
 
+    GridCellData cellData;
+    cellData.kind = GridCellKind::Text;
+    cellData.text = L"Ready";
+    SingleCellGridModel model(std::move(cellData));
+
     WindowHost host;
 
     EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
-    Grid grid;
+    // The glyph cross-fades on its host's animation clock, held here so that stamps and ticks line up exactly. A grid
+    // with no host has nothing to tick it, so its glyph moves at once.
+    auto ownedGrid = std::make_unique<Grid>();
+    Grid& grid     = *ownedGrid;
+    grid.SetModel(&model);
+    host.SetRoot(std::move(ownedGrid));
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
 
-    GridCellData cellData;
-    cellData.kind = GridCellKind::Text;
-    cellData.text = L"Ready";
-    SingleCellGridModel model(std::move(cellData));
-    grid.SetModel(&model);
-
-    const uint64_t initialTick = GetTickCount64();
+    const uint64_t initialTick = 1'000'000u;
+    host.DebugSetAnimationClockForTest(initialTick);
     grid.SetSortSpec({0u, SortDirection::Ascending});
 
     const GridSortGlyphVisualState startState = grid.DebugGetSortGlyphVisualState(theme, 0u, initialTick);
@@ -888,7 +908,8 @@ void TestGridTickReturnsTrueForSortGlyphTransition()
     Require(midState.animating, "sort glyph transition remains active mid-animation");
     Require(midState.currentAlpha > 0.0f && midState.currentAlpha < 1.0f, "sort glyph transition fades in the current glyph");
 
-    const uint64_t flipTick = GetTickCount64();
+    const uint64_t flipTick = initialTick + 1'000u;
+    host.DebugSetAnimationClockForTest(flipTick);
     grid.SetSortSpec({0u, SortDirection::Descending});
     const GridSortGlyphVisualState flipState = grid.DebugGetSortGlyphVisualState(theme, 0u, flipTick);
     Require(flipState.animating, "sort glyph direction flip starts a new animation");
@@ -908,6 +929,9 @@ void TestGridTickReturnsTrueForSortGlyphTransition()
     RequireFloatNear(settledState.currentAlpha, 1.0f, 0.0001f, "completed sort glyph transition leaves the final glyph fully visible");
     RequireFloatNear(settledState.previousAlpha, 0.0f, 0.0001f, "completed sort glyph transition clears the previous glyph");
     Require(! grid.Tick(host, flipTick + 200u), "completed sort glyph transition stops requesting animation ticks");
+    const uint64_t settledInvalidations = host.DebugGetInvalidateCount();
+    Require(! grid.Tick(host, flipTick + 400u) && host.DebugGetInvalidateCount() == settledInvalidations,
+            "a settled sort glyph no longer repaints the grid on ticks other animations drive");
 }
 
 void TestReducedMotionSuppressesSortGlyphTransition()
@@ -1513,11 +1537,80 @@ void TestPageHostReducedMotionSnapsTransition()
     RequireFloatNear(state.incomingOpacity, 1.0f, 0.0001f, "reduced-motion page host leaves the incoming page fully visible");
 }
 
+// A transition that begins while its panel is hidden receives no ticks, since a panel ticks only visible children. When
+// the panel shows again, painting the page host resumes them, so the incoming page neither stays transparent nor refuses
+// input until some unrelated animation runs.
+void TestPageHostTransitionBegunWhileHiddenResumesWhenPainted()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+
+    EnableMotionForTest(host);
+    ThemePalette theme  = host.GetTheme();
+    theme.reducedMotion = false;
+    host.SetTheme(theme);
+
+    auto root      = std::make_unique<Panel>();
+    auto* holder   = root->AddChild<Panel>();
+    auto* pageHost = holder->AddChild<PageHost>();
+    holder->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    pageHost->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    host.SetRoot(std::move(root));
+    pageHost->SetPage(MakeAnimatedPage(L"First", D2D1::RectF(20.0f, 52.0f, 116.0f, 88.0f), L"hero"));
+
+    holder->SetVisible(false);
+    pageHost->SetPage(MakeAnimatedPage(L"Second", D2D1::RectF(184.0f, 120.0f, 296.0f, 156.0f), L"hero"), L"hero");
+    Require(pageHost->HasActiveTransition(), "replacing the page of a hidden page host still begins a transition");
+    const uint64_t hiddenAt = pageHost->DebugGetTransitionState(0u).startTickMs + 1000u;
+    static_cast<void>(host.DebugAnimationTickForTest(hiddenAt));
+    Require(pageHost->HasActiveTransition(), "a page host in a hidden panel receives no transition ticks");
+    Require(! host.DebugHasActiveAnimationSubscription(), "a hidden transition keeps no animation ticking");
+
+    holder->SetVisible(true);
+    pageHost->Paint(host);
+    Require(host.DebugHasActiveAnimationSubscription(), "painting the shown page host resumes its transition's ticks");
+    static_cast<void>(host.DebugAnimationTickForTest(hiddenAt + 1000u));
+    Require(! pageHost->HasActiveTransition(), "the resumed transition settles");
+}
+
+// An open list has nothing that moves on its own: only an editable field's caret blinks, so an open non-editable combo
+// box keeps no frames ticking.
+void TestOpenComboBoxListKeepsNoFramesTicking()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetBounds(D2D1::RectF(10.0f, 10.0f, 210.0f, 42.0f));
+    combo->SetItems({ComboBox::Item{L"one", L"One"}, ComboBox::Item{L"two", L"Two"}});
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(100, 26), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(100, 26), handled));
+    Require(combo->IsPopupOpen(), "a click opens the list");
+    Require(! combo->Tick(host, GetTickCount64()), "the open list requests no further ticks");
+}
+
 } // namespace
 
 void RunAnimationTests()
 {
     DXUI_RUN_TEST(TestEmbeddedTransitionsUseApplicationClockIncludingZero);
+    DXUI_RUN_TEST(TestEmbeddedButtonHoverTransitionAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedSliderVisualTransitionsAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedTreeExpansionAnimatesAndCompletesAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedGridSortGlyphSettlesAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedFirstTooltipHonorsItsDelayAtAnyEpoch);
+    DXUI_RUN_TEST(TestEmbeddedAnimationClockSkipsPausesInTicking);
+    DXUI_RUN_TEST(TestEmbeddedAnimationClockContinuesAcrossAttachments);
+    DXUI_RUN_TEST(TestNativeAnimationClockIsTheDispatcherTimeline);
+    DXUI_RUN_TEST(TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall);
     DXUI_RUN_TEST(TestFrameRuntimeClockIsMonotonic);
     DXUI_RUN_TEST(TestFrameRuntimeClampsLargeDelta);
     DXUI_RUN_TEST(TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches);
@@ -1535,6 +1628,7 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestSliderKeyboardStepsAnimateDisplayedThumb);
     DXUI_RUN_TEST(TestTextFieldTickTracksFocusedCaretAnimation);
     DXUI_RUN_TEST(TestEditableComboBoxTickTracksFocusedCaretAnimation);
+    DXUI_RUN_TEST(TestOpenComboBoxListKeepsNoFramesTicking);
     DXUI_RUN_TEST(TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent);
     DXUI_RUN_TEST(TestPopupLayerPaintsOnlyInOverlayPass);
     DXUI_RUN_TEST(TestPanelTickPropagatesAnimatedGrid);
@@ -1556,4 +1650,5 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestPageHostConnectedAnimationInterpolatesSharedElementRect);
     DXUI_RUN_TEST(TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics);
     DXUI_RUN_TEST(TestPageHostReducedMotionSnapsTransition);
+    DXUI_RUN_TEST(TestPageHostTransitionBegunWhileHiddenResumesWhenPainted);
 }

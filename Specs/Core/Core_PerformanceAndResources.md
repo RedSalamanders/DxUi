@@ -294,7 +294,8 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
 - **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
   `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
   benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
-  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
+  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow. A
+  measured path matches in any case, as the Windows runner builds `Src/x.cpp` like `src/x.cpp`.
   Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
   job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
   the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
@@ -312,6 +313,9 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   `performance-paired.ps1` with the merge ref's harness in `Default`, `MultilineGrid` and `MultilineGridDistinct`, twelve
   independently drawn ABBA/BAAB blocks each: 24 runs per side per scenario. The assignment protocol and schedule seed/order are retained. The
   gate keeps no baseline receipt, so it measures the base afresh.
+  The allocation counters live in `Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h`, a benchmark input like the
+  fixture, so a receipt's `benchmarkSha256` covers them and both trees count with the merge ref's instrument once the base
+  has the header as well.
 - **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
   p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
   `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
@@ -320,7 +324,23 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   contains the trusted qualified policy. Missing/mismatched toolchain, executable, dependency or harness identity and any
   unqualified/changed policy produce `inconclusive` and fail the pull-request check. Source fingerprints alone cannot
   label an observed timing shift as noise. The report keeps the old judge and new judge decisions over identical receipt
-  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy.
+  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy. The two must
+  agree on every metric but one expected difference: the paired-block judge bounds every round of an exact budget, so a
+  rise of its raw-round maximum alone regresses there and not in the median-based judge, and reaches the verdict table.
+  Any other disagreement keeps the run inconclusive and names the metrics that differ.
+- **Trust anchor.** The summary is written by the measured pull request's own code, so it never chooses the commit
+  whose policy and judge are trusted. `Get-BenchmarkConclusion`, `Publish-BenchmarkVerdict.ps1` and both scope steps
+  take the pull request's base and merge commits from the workflow (`-ExpectedBaseSha`, `-ExpectedCandidateSha`): a
+  summary that records another baseline, candidate, judge base or harness commit is invalid evidence, and the named
+  base is the anchor. The verdict reads that base's policy and judge from the trusted tree's git objects
+  (`-RepositoryRoot`) and hashes the measured tree's judge before anything loads it; only the trusted tree's copy of
+  the approved source runs, so the pull request's judge, assignment generator and policy are data (`-CandidateRoot`).
+  `Test-CiGate.ps1` checks that a measured pull request compared exactly the named pair and, when a verdict job of its
+  own judges the run, that it passed. Running the verdict and the aggregate from a checkout of the base commit, in a
+  job of their own, is the follow-up change to `ci.yml`: its base must already hold these parameters, so it lands
+  after them, and until then the workflow runs both from the merge ref. A pull request can still change `ci.yml`
+  itself; `.github/CODEOWNERS` names the owner of `.github`, `Tools`, the performance scripts and the agent
+  instructions, and requiring a code owner's review is the maintainer's ruleset switch.
 - **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
   metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
   controls of the metric a set flagged, not of all twenty-six together. The
@@ -334,7 +354,9 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
 - **Identical library inputs.** Matching source or executable hashes are provenance only. Timing/memory flags remain
   unresolved unless a trusted policy and its independent block/A/A evidence support the inference. Exact deterministic
-  budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima.
+  budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima. The
+  job summary gives an exact budget's change as that of its medians (from zero when the baseline is zero), since the
+  paired-block judge gives it no block effect.
 - **No verdict.** Invalid evidence, missing provenance, an unqualified policy, a missing/unreadable summary, a summary that
   lists no scenario or uses only an older six-run judge, and a run that did not finish fail with the reason in the job
   summary. A pull request that changes the harness and library interfaces together, whose base cannot be

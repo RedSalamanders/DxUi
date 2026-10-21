@@ -2,7 +2,7 @@
 
 #include "Controls.Tests.TextInputServices.h"
 
-#include "../Support/Scope.Tests.ClipboardFixture.h"
+#include "../Support/Support.Tests.ClipboardFixture.h"
 
 void TestNativeClipboardTransportBenchmark()
 {

@@ -184,7 +184,7 @@ function Assert-FormReport($Receipt) {
 function Get-FormMeasurementState {
     $state = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
     $inputs = [ordered]@{}
-    foreach ($path in @('Tests/Embedded/Scope.Tests.FormLayoutBenchmark.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','performance-forms.ps1')) {
+    foreach ($path in @('Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','performance-forms.ps1')) {
         $inputs[$path] = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $path) -Algorithm SHA256).Hash
     }
     $state['formBenchmarkInputs'] = $inputs

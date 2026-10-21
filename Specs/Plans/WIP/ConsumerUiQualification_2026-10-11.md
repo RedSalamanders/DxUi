@@ -59,12 +59,19 @@ Historical failures and approved tradeoffs retain their original scope; no thres
 
 ### Remaining legacy clock audit
 
-- [ ] Independently reproduce and reconcile remaining system-uptime/frame-timestamp interactions in Button
+- [x] Independently reproduce and reconcile remaining system-uptime/frame-timestamp interactions in Button
   interaction starts, TextField/ComboBox caret resets, Tree expansion, Grid sort glyphs and first-tooltip deadlines.
   Exercise zero and large application epochs, intermediate pixels, completion and idle cleanliness before claiming
   a library-wide epoch-independent clock contract. The reviewed host/control fix explicitly qualifies only the
   requested PageHost/Slider transition starts. These additional source leads have not been runtime-falsified or
   silently recorded as corrected.
+  - **Done (18 October 2026, Q14 of the [10 October review](CodeReview_2026-10-10.md)).** Every control stamps the host's
+    one animation clock, `ControlHost::GetAnimationTickMs`: the dispatcher timeline natively, and embedded a timeline that
+    the application's ticks advance by their differences. [Scope.Tests.AnimationClock](../../../Tests/Controls/Controls.Tests.AnimationClock.cpp)
+    exercises each listed control at seven application epochs, from zero to near the top of the range, against a view
+    clock far below and far above system uptime: first frame, intermediate progress, completion and idle cleanliness,
+    plus pauses in ticking, a new attachment and a native dispatcher stall. Restoring the uptime stamps fails every one
+    of those tests, which reproduces the leads.
 
 ## 1. Authority and evidence boundaries
 

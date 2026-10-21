@@ -1048,6 +1048,45 @@ void TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt()
     Require(differingInRows(marker, frameOnly, pixelRow(bottom.top) + 2u, pixelRow(viewportBottom) - 1u) > 0u,
             "the reorder marker paints on the visible part of its row");
 }
+// A double-click without a meaning of its own is a second press: its second click on the scrollbar track pages again, as
+// on a native scrollbar, and a second right-click opens the row's menu again. Both used to be dropped.
+void TestTreeDoubleClicksWithoutARowMeaningActAsPresses()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    const ThemePalette theme = MakeDefaultThemePalette(false);
+    host.SetTheme(theme);
+    Tree tree;
+    tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
+    MutableTreeModel model;
+    std::vector<TreeItemData> items;
+    for (uint64_t id = 1u; id <= 24u; ++id)
+        items.push_back(TreeItemData{.id = id, .text = L"Item"});
+    model.SetVisibleItems(std::move(items));
+    RecordingTreeDelegate delegate;
+    tree.SetModel(&model);
+    tree.SetDelegate(&delegate);
+
+    const TreeScrollbarVisualState state = tree.DebugGetScrollbarVisualState(theme);
+    Require(state.hasVerticalScrollbar, "the tree shows a vertical scrollbar");
+    const D2D1_POINT_2F track = D2D1::Point2F((state.verticalTrackRect.left + state.verticalTrackRect.right) * 0.5f, state.verticalTrackRect.bottom - 4.0f);
+    Require(tree.OnMouseDown(host, track, false, 0), "a click on the track below the thumb is handled");
+    static_cast<void>(tree.OnMouseUp(host, track, false, 0));
+    const float afterFirst = tree.DebugGetVerticalScrollDip();
+    Require(afterFirst > 0.0f, "a click on the track below the thumb pages down");
+    Require(tree.OnMouseDoubleClick(host, track, false, 0), "the double-click's second click on the track is handled");
+    static_cast<void>(tree.OnMouseUp(host, track, false, 0));
+    Require(tree.DebugGetVerticalScrollDip() > afterFirst, "the double-click's second click pages again");
+
+    const D2D1_POINT_2F row = D2D1::Point2F(40.0f, 10.0f);
+    Require(tree.OnMouseDown(host, row, true, 0), "a right-click on a row is handled");
+    static_cast<void>(tree.OnMouseUp(host, row, true, 0));
+    Require(tree.OnMouseDoubleClick(host, row, true, 0), "a second right-click on the row is handled");
+    static_cast<void>(tree.OnMouseUp(host, row, true, 0));
+    Require(delegate.contextMenuCount == 2u, "a second right-click opens the row's menu again");
+}
+
 void TestTreeScrollbarFeedbackFollowsHoverAndDragState()
 {
     using namespace DxUi;
@@ -3020,10 +3059,261 @@ void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()
         "Tree double click", add, [&](WindowHost& host, Control& tree) { static_cast<void>(tree.OnMouseDoubleClick(host, firstItem(tree), false, 0u)); });
 }
 
+// A delegate that reacts to the selection elsewhere in the window, as a Delete command enabling its toolbar button does.
+class ToolbarTogglingTreeDelegate final : public DxUi::ITreeDelegate
+{
+public:
+    void OnTreeSelectionChanged(uint64_t) override
+    {
+        ++selectionChanged;
+        if (toolbarButton)
+            toolbarButton->SetEnabled(! toolbarButton->IsEnabled());
+    }
+
+    void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+    {
+        ++setChanged;
+    }
+
+    void OnTreeFocusedItemChanged(DxUi::Tree&, std::optional<uint64_t>) override
+    {
+        ++focusChanged;
+    }
+
+    void OnTreeContextMenu(uint64_t itemId, POINT) override
+    {
+        ++contextMenus;
+        lastContextMenuItemId = itemId;
+    }
+
+    DxUi::Button* toolbarButton    = nullptr;
+    size_t selectionChanged        = 0u;
+    size_t setChanged              = 0u;
+    size_t focusChanged            = 0u;
+    size_t contextMenus            = 0u;
+    uint64_t lastContextMenuItemId = 0u;
+};
+
+class ToolbarTreeFixture final
+{
+public:
+    ToolbarTreeFixture()
+    {
+        auto root = std::make_unique<DxUi::Panel>();
+        tree      = root->AddChild<DxUi::Tree>();
+        button    = root->AddChild<DxUi::Button>(std::wstring(L"Delete"));
+        tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 200.0f));
+        button->SetBounds(D2D1::RectF(250.0f, 0.0f, 340.0f, 30.0f));
+        model.SetVisibleItems(FlatTreeItems(6u));
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        tree->SetMultiSelectEnabled(true);
+        host.SetRoot(std::move(root));
+        static_cast<DxUi::Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 220.0f));
+    }
+
+    ToolbarTreeFixture(const ToolbarTreeFixture&)            = delete;
+    ToolbarTreeFixture& operator=(const ToolbarTreeFixture&) = delete;
+    ToolbarTreeFixture(ToolbarTreeFixture&&)                 = delete;
+    ToolbarTreeFixture& operator=(ToolbarTreeFixture&&)      = delete;
+
+    [[nodiscard]] D2D1_POINT_2F RowPoint(size_t visibleIndex) const
+    {
+        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(visibleIndex);
+        Require(rect.has_value(), "the row has a hit rectangle");
+        return D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+    }
+
+    DxUi::WindowHost host;
+    MutableTreeModel model;
+    ToolbarTogglingTreeDelegate delegate;
+    DxUi::Tree* tree     = nullptr;
+    DxUi::Button* button = nullptr;
+};
+
+// CR-5 of the 10 October review: a callback that changes another control (and so the host's layout epoch) used to end the
+// rest of the gesture, losing its later reports, its context menu and the UI Automation result.
+void TestTreeGesturesContinueWhenACallbackChangesAnotherControl()
+{
+    ToolbarTreeFixture fixture;
+    fixture.delegate.toolbarButton = fixture.button;
+    Require(fixture.tree->OnKeyDown(fixture.host, VK_DOWN, 0u), "Down is handled");
+    Require(fixture.delegate.selectionChanged == 1u && fixture.delegate.setChanged == 1u && fixture.delegate.focusChanged == 1u,
+            "Down reports the primary, the set and the focus although the first report changed a toolbar button");
+
+    Require(fixture.tree->RequestSelectVisibleItem(3u), "a UI Automation Select succeeds although its callback changed a toolbar button");
+    Require(fixture.tree->IsItemSelected(4u) && fixture.delegate.setChanged == 2u && fixture.delegate.focusChanged == 2u,
+            "the Select reports the set and the focus");
+    Require(fixture.tree->RequestAddVisibleItemToSelection(5u) && fixture.tree->IsItemSelected(6u),
+            "a UI Automation AddToSelection succeeds although its callback changed a toolbar button");
+
+    Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(1u), true, 0u), "a right-click on another row is handled");
+    Require(fixture.tree->IsItemSelected(2u) && fixture.delegate.contextMenus == 1u && fixture.delegate.lastContextMenuItemId == 2u,
+            "a right-click selects its row and opens that row's menu although the selection callback changed a toolbar button");
+
+    fixture.tree->SetReorderEnabled(true);
+    Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(4u), false, 0u), "a press on another row is handled");
+    Require(fixture.tree->IsItemSelected(5u) && fixture.host.GetCapturedControl() == fixture.tree,
+            "a press selects its row and arms the row drag although the selection callback changed a toolbar button");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, fixture.RowPoint(4u), false, 0u));
+}
+
+void TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl()
+{
+    {
+        ToolbarTreeFixture fixture;
+        fixture.host.SetOnFocusChanged([&](DxUi::Control* focused)
+        {
+            if (focused == fixture.tree)
+                fixture.button->SetEnabled(false);
+        });
+        Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(2u), false, 0u), "the first click into the tree is handled");
+        Require(fixture.tree->IsItemSelected(3u) && ! fixture.button->IsEnabled(),
+                "the first click selects its row although the focus handler disabled a toolbar button");
+    }
+    {
+        // A focus handler that moves the tree itself consumes the click: the row now under the pointer is not the one aimed at.
+        ToolbarTreeFixture fixture;
+        fixture.host.SetOnFocusChanged([&](DxUi::Control* focused)
+        {
+            if (focused == fixture.tree)
+                fixture.tree->SetBounds(D2D1::RectF(0.0f, 40.0f, 240.0f, 200.0f));
+        });
+        Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(2u), false, 0u), "the click into the moved tree is handled");
+        Require(fixture.tree->GetSelectedItemIds().empty() && fixture.delegate.selectionChanged == 0u,
+                "a focus handler that moved the tree consumes the click instead of selecting another row");
+    }
+    {
+        // So does one that refreshes the rows in place, leaving another item where the pointer was aimed.
+        ToolbarTreeFixture fixture;
+        fixture.host.SetOnFocusChanged([&](DxUi::Control* focused)
+        {
+            if (focused != fixture.tree)
+                return;
+            std::vector<DxUi::TreeItemData> reversed = FlatTreeItems(6u);
+            std::reverse(reversed.begin(), reversed.end());
+            fixture.model.SetVisibleItems(std::move(reversed));
+            fixture.tree->NotifyDataChanged();
+        });
+        Require(fixture.tree->OnMouseDown(fixture.host, fixture.RowPoint(1u), false, 0u), "the click into the refreshed tree is handled");
+        Require(fixture.tree->GetSelectedItemIds().empty() && fixture.delegate.selectionChanged == 0u,
+                "a focus handler that put another item under the pointer consumes the click");
+    }
+}
+
+// CR-24 of the 10 October review: UI Automation's SetFocus reaches the tree's focus delegate from a noexcept executor; a
+// delegate that throws stops that request instead of terminating the process.
+void TestTreeFocusRequestContainsAThrowingDelegate()
+{
+    using namespace DxUi;
+    class ThrowingFocusDelegate final : public ITreeDelegate
+    {
+    public:
+        void OnTreeFocusedItemChanged(Tree& /*sender*/, std::optional<uint64_t> /*itemId*/) override
+        {
+            throw std::runtime_error("focus failure");
+        }
+    };
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
+    MutableTreeModel model;
+    model.SetVisibleItems(FlatTreeItems(4u));
+    ThrowingFocusDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    Require(! tree->RequestFocusVisibleItem(2u), "a focus request whose delegate throws reports failure");
+    Require(tree->GetFocusedItemId() == 3u, "the focus still moved to the requested item");
+}
+
+// The usual delegate publishes an expansion with NotifyDataChanged before it returns; the rows still slide open.
+void TestTreeExpansionAnimatesWhenTheDelegatePublishes()
+{
+    using namespace DxUi;
+
+    class PublishingTreeDelegate final : public ITreeDelegate
+    {
+    public:
+        PublishingTreeDelegate(MutableTreeModel& model, Tree*& tree) noexcept : _model(&model), _tree(&tree)
+        {
+        }
+
+        void OnTreeToggleExpanded(uint64_t itemId, bool expanded) override
+        {
+            ++toggles;
+            Require(itemId == 1u, "the folder is toggled");
+            if (refuse)
+            {
+                // The application declines (the folder cannot be read) and publishes its rows unchanged.
+                (*_tree)->NotifyDataChanged();
+                return;
+            }
+            std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Folder", .hasChildren = true, .expanded = expanded}};
+            if (expanded)
+            {
+                items.push_back(TreeItemData{.id = 2u, .parentId = 1u, .text = L"Child one", .depth = 1u});
+                items.push_back(TreeItemData{.id = 3u, .parentId = 1u, .text = L"Child two", .depth = 1u});
+            }
+            items.push_back(TreeItemData{.id = 4u, .text = L"Other"});
+            _model->SetVisibleItems(std::move(items));
+            (*_tree)->NotifyDataChanged();
+        }
+
+        size_t toggles = 0u;
+        bool refuse    = false;
+
+    private:
+        MutableTreeModel* _model;
+        Tree** _tree;
+    };
+
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = L"Folder", .hasChildren = true, .expanded = false}, TreeItemData{.id = 4u, .text = L"Other"}});
+    PublishingTreeDelegate delegate(model, tree);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 180.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, 0, MAKELPARAM(14, 16), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(14, 16), handled));
+    Require(handled && delegate.toggles == 1u && model.GetVisibleItemCount() == 4u, "the expander click expands the folder through its delegate");
+    Require(tree->DebugGetExpansionAnimationItemId() == 1u, "the published expansion slides the folder's rows open");
+
+    Require(tree->RequestExpandedState(0u, false), "a UI Automation Collapse succeeds when the delegate publishes it");
+    Require(delegate.toggles == 2u && model.GetVisibleItemCount() == 2u, "the collapse reaches the delegate");
+    Require(tree->DebugGetExpansionAnimationItemId() == 1u, "the published collapse slides the folder's rows closed");
+
+    // Reduced motion schedules no frames: an expansion stands at once instead of starting a transition nothing advances.
+    ThemePalette reduced  = host.GetTheme();
+    reduced.reducedMotion = true;
+    host.SetTheme(reduced);
+    Require(tree->RequestExpandedState(0u, true) && model.GetVisibleItemCount() == 4u, "the expansion reaches the delegate under reduced motion");
+    Require(! tree->DebugGetExpansionAnimationItemId().has_value(), "reduced motion starts no row transition");
+
+    // A delegate that publishes a refusal makes the request fail, so a UI Automation Collapse reports it.
+    delegate.refuse = true;
+    Require(! tree->RequestExpandedState(0u, false), "a collapse the delegate refused and published fails");
+    Require(delegate.toggles == 4u && model.GetVisibleItemCount() == 4u, "the refused collapse reached the delegate and changed nothing");
+}
+
 } // namespace
 
 void RunTreeTests()
 {
+    DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
+    DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
+    DXUI_RUN_TEST(TestTreeExpansionAnimatesWhenTheDelegatePublishes);
+    DXUI_RUN_TEST(TestTreeFocusRequestContainsAThrowingDelegate);
     DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
     DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
     DXUI_RUN_TEST(TestTreeInputLeavesATreeTheFocusCallbackDestroyed);
@@ -3054,6 +3344,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeLargeWheelDeltaUsesFullMagnitude);
     DXUI_RUN_TEST(TestTreeAccumulatesPartialWheelDelta);
     DXUI_RUN_TEST(TestTreeScrollbarFeedbackFollowsHoverAndDragState);
+    DXUI_RUN_TEST(TestTreeDoubleClicksWithoutARowMeaningActAsPresses);
     DXUI_RUN_TEST(TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt);
     DXUI_RUN_TEST(TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast);
     DXUI_RUN_TEST(TestTreeSelectedRowUsesRainbowOnlyInRainbowMode);

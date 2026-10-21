@@ -427,6 +427,10 @@ void Control::SetVisible(bool visible) noexcept
         if (_host)
             _host->_pendingContentPreparation = true;
         InvalidateMeasure();
+        // Layout owners below a shown control waited while it was hidden: the next preparation visits them, as no owner
+        // on this control's own ancestor chain need ask for it.
+        if (visible && _host)
+            _host->_pendingIntrinsicLayout = true;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (! visible)
         {
@@ -1005,17 +1009,41 @@ bool Control::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point
 POINT Control::ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept
 {
     // Pointer dispatch uses content coordinates. Walk the logical parents, including non-Panel owners such
-    // as PageHost, before the virtual hit-bounds query so no control state is read after that query.
+    // as PageHost, before the virtual hit-bounds query so no control state is read after that query. The walk also
+    // gathers, in this control's coordinates, the part of the window the scroll viewports show.
     float ancestorScrollDip = 0.0f;
+    bool clipped            = false;
+    D2D1_RECT_F shown{};
     for (const Control* ancestor = _parent; ancestor; ancestor = ancestor->_parent)
     {
-        if (const auto* scroll = dynamic_cast<const ScrollPanel*>(ancestor))
-            ancestorScrollDip += scroll->GetScrollOffset();
+        const auto* scroll = dynamic_cast<const ScrollPanel*>(ancestor);
+        if (! scroll)
+            continue;
+        ancestorScrollDip += scroll->GetScrollOffset();
+        // A viewport is in the content space of the panels above it: in this control's space it moves down by the
+        // offsets of the panels from here to it. An outer viewport that shows nothing of the inner ones prevails.
+        D2D1_RECT_F viewport = scroll->GetViewportRect();
+        viewport.right       = (std::max)(viewport.left, viewport.right);
+        viewport.bottom      = (std::max)(viewport.top, viewport.bottom);
+        viewport.top += ancestorScrollDip;
+        viewport.bottom += ancestorScrollDip;
+        const D2D1_RECT_F common = D2D1::RectF((std::max)(shown.left, viewport.left),
+                                               (std::max)(shown.top, viewport.top),
+                                               (std::min)(shown.right, viewport.right),
+                                               (std::min)(shown.bottom, viewport.bottom));
+        shown                    = clipped && common.left <= common.right && common.top <= common.bottom ? common : viewport;
+        clipped                  = true;
     }
     if (keyboardInvocation)
     {
+        // A keyboard menu opens at the reading-order start of the control, inside what the viewports show: a control
+        // scrolled partly or wholly out of view would otherwise open its menu away from the window.
+        const bool rightToLeft   = IsRightToLeft();
         const D2D1_RECT_F bounds = GetHitBounds();
-        pointDip                 = D2D1::Point2F((std::min)(bounds.right, bounds.left + 16.0f), bounds.top + ((bounds.bottom - bounds.top) * 0.5f));
+        const float startX       = rightToLeft ? (std::max)(bounds.left, bounds.right - 16.0f) : (std::min)(bounds.right, bounds.left + 16.0f);
+        pointDip                 = D2D1::Point2F(startX, bounds.top + ((bounds.bottom - bounds.top) * 0.5f));
+        if (clipped)
+            pointDip = D2D1::Point2F(std::clamp(pointDip.x, shown.left, shown.right), std::clamp(pointDip.y, shown.top, shown.bottom));
     }
     pointDip.y -= ancestorScrollDip;
     return host.DipPointToScreenPoint(pointDip);
@@ -1051,9 +1079,11 @@ void Control::InvalidateMeasure() noexcept
             hasLayoutOwner                   = true;
         }
     }
+    // Geometry moves only when the next preparation arranges it, and SetBounds then advances the interaction revision.
+    // Until then input keeps meeting the geometry on screen, so an edit (a validation message, a multiline field's text)
+    // neither drops the next key nor cancels a press.
     if (hasLayoutOwner && _host)
     {
-        ++_host->_interactionRevision;
         _host->_pendingIntrinsicLayout = true;
         _host->Invalidate();
     }

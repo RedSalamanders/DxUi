@@ -8,11 +8,11 @@ function Get-TrustedPerformancePolicy {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $BaselineCommit, [Parameter(Mandatory)][string] $RepositoryRoot, [Parameter(Mandatory)][string] $CandidatePolicyPath)
     $path = 'Tools/PerformanceAcceptancePolicy.v1.json'
-    $baseText = @(& git -C $RepositoryRoot show "${BaselineCommit}:$path" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $baseText.Count -eq 0) {
+    $baseText = Get-GitBlobText -Root $RepositoryRoot -Commit $BaselineCommit -Path $path
+    if ([string]::IsNullOrEmpty($baseText)) {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured base does not contain the versioned acceptance policy; the candidate cannot introduce its own trust anchor.'; policySha256=$null }
     }
-    try { $policy = ($baseText -join "`n") | ConvertFrom-Json -AsHashtable }
+    try { $policy = $baseText | ConvertFrom-Json -AsHashtable }
     catch { return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The base policy is not valid JSON.'; policySha256=$null } }
     if ($policy.schemaVersion -ne 1 -or $policy.qualified -ne $true -or $policy.qualificationStatus -cne 'qualified') {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The base policy is not independently qualified; its verdict cannot establish a candidate pass.'; policySha256=$null }
@@ -20,11 +20,11 @@ function Get-TrustedPerformancePolicy {
     if ([string]$policy.judgeVersion -notmatch '^dxui-[A-Za-z0-9-]+$' -or [string]$policy.approvedJudgeSha256 -notmatch '^[A-Fa-f0-9]{64}$') {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The qualified base policy does not bind an approved judge version and source hash.'; policySha256=$null }
     }
-    $judgeLines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $judgeLines.Count -eq 0) {
+    $judgeText = Get-GitBlobText -Root $RepositoryRoot -Commit $BaselineCommit -Path 'Tools/PerformanceComparison.psm1'
+    if ([string]::IsNullOrEmpty($judgeText)) {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The qualified base policy judge source cannot be recovered.'; policySha256=$null }
     }
-    $judgeSource = (($judgeLines -join "`n") + "`n") -replace "`r`n", "`n"
+    $judgeSource = $judgeText -replace "`r`n", "`n"
     $judgeHasher = [Security.Cryptography.SHA256]::Create()
     try { $baseJudgeSha = [Convert]::ToHexString($judgeHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($judgeSource))) } finally { $judgeHasher.Dispose() }
     if ($baseJudgeSha -cne [string]$policy.approvedJudgeSha256) {
@@ -53,11 +53,11 @@ function Get-TrustedPerformancePolicy {
     if ([string]$baseProtocol -cne [string]$policy['assignmentProtocol']) {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment protocol differs from the protocol approved by its policy.'; policySha256=$null }
     }
-    $assignmentLines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PairedRun.psm1" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $assignmentLines.Count -eq 0) {
+    $assignmentText = Get-GitBlobText -Root $RepositoryRoot -Commit $BaselineCommit -Path 'Tools/PairedRun.psm1'
+    if ([string]::IsNullOrEmpty($assignmentText)) {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment generator source cannot be recovered.'; policySha256=$null }
     }
-    $assignmentSource = (($assignmentLines -join "`n") + "`n") -replace "`r`n", "`n"
+    $assignmentSource = $assignmentText -replace "`r`n", "`n"
     $assignmentHasher = [Security.Cryptography.SHA256]::Create()
     try { $baseAssignmentSha = [Convert]::ToHexString($assignmentHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($assignmentSource))) }
     finally { $assignmentHasher.Dispose() }

@@ -27,6 +27,11 @@ bool SameRect(const D2D1_RECT_F& a, const D2D1_RECT_F& b) noexcept
 {
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
 }
+// The field cap counts live children: a slot TakeChild emptied holds no field.
+size_t CountLiveChildren(const Panel& panel) noexcept
+{
+    return static_cast<size_t>(std::ranges::count_if(panel.GetChildren(), [](const auto& child) noexcept { return child != nullptr; }));
+}
 bool Owns(const Panel& panel, const Control* control, const std::weak_ptr<int>& lifetime) noexcept
 {
     return control && ! lifetime.expired() && std::ranges::any_of(panel.GetChildren(), [&](const auto& child) noexcept { return child.get() == control; });
@@ -39,16 +44,33 @@ FormField::FormField() : FormField({}, {})
 FormField::FormField(std::wstring id, std::wstring label) : _fieldId(std::move(id))
 {
     EnableIntrinsicLayout();
-    _label       = AddChild<Label>(std::move(label));
-    _description = AddChild<Label>();
-    _validation  = AddChild<Label>();
+    _label               = AddChild<Label>(std::move(label));
+    _description         = AddChild<Label>();
+    _validation          = AddChild<Label>();
+    _labelLifetime       = GetControlLifetimeToken(*_label);
+    _descriptionLifetime = GetControlLifetimeToken(*_description);
+    _validationLifetime  = GetControlLifetimeToken(*_validation);
     _label->SetMultiline(true);
     _description->SetMultiline(true);
     _validation->SetMultiline(true);
     _description->SetFontRole(FontRole::Small);
     _validation->SetFontRole(FontRole::Small);
+    // An empty label is hidden: a visible one would name the editor's LabeledBy element with nothing.
+    _label->SetVisible(! _label->GetText().empty());
     _description->SetVisible(false);
     _validation->SetVisible(false);
+}
+Label* FormField::LabelPart() const noexcept
+{
+    return Owns(*this, _label, _labelLifetime) ? _label : nullptr;
+}
+Label* FormField::DescriptionPart() const noexcept
+{
+    return Owns(*this, _description, _descriptionLifetime) ? _description : nullptr;
+}
+Label* FormField::ValidationPart() const noexcept
+{
+    return Owns(*this, _validation, _validationLifetime) ? _validation : nullptr;
 }
 std::wstring_view FormField::GetFieldId() const noexcept
 {
@@ -67,7 +89,7 @@ Control* FormField::GetSemanticEditor() const noexcept
 }
 Label* FormField::GetLabelControl() const noexcept
 {
-    return _label;
+    return LabelPart();
 }
 ValidationState FormField::GetValidationState() const noexcept
 {
@@ -100,23 +122,30 @@ HRESULT FormField::SyncAccessibility() noexcept
 {
     auto* const editor = GetSemanticEditor();
     if (! editor)
+    {
+        // Without an editor the label's access key and its name point at nothing.
+        if (Label* const label = LabelPart())
+            label->SetMnemonicTarget(nullptr);
         return S_FALSE;
+    }
     const auto ownerLifetime  = GetLifetimeToken();
     const auto editorLifetime = GetControlLifetimeToken(*editor);
     const auto current        = [&]() noexcept { return ! ownerLifetime.expired() && ! editorLifetime.expired() && GetSemanticEditor() == editor; };
     try
     {
         // Allocate strings before publication. The setters move them without further string allocation.
-        std::wstring help(_description && _description->IsVisible() ? _description->GetText() : std::wstring_view{});
-        std::wstring status(_validation && _validation->IsVisible() ? _validation->GetText() : std::wstring_view{});
+        const Label* const description = DescriptionPart();
+        const Label* const validation  = ValidationPart();
+        std::wstring help(description && description->IsVisible() ? description->GetText() : std::wstring_view{});
+        std::wstring status(validation && validation->IsVisible() ? validation->GetText() : std::wstring_view{});
         std::wstring id      = _fieldId;
-        const HRESULT result = editor->SetAccessibleFormProperties(_label, _required, _validationState != ValidationState::Error, std::move(status));
+        const HRESULT result = editor->SetAccessibleFormProperties(LabelPart(), _required, _validationState != ValidationState::Error, std::move(status));
         if (! current())
             return E_ABORT;
         if (FAILED(result))
             return result;
-        if (_label)
-            _label->SetMnemonicTarget(editor);
+        if (Label* const label = LabelPart())
+            label->SetMnemonicTarget(editor);
         if (! current())
             return E_ABORT;
         editor->SetAccessibleHelpText(std::move(help));
@@ -132,10 +161,18 @@ HRESULT FormField::SyncAccessibility() noexcept
 }
 void FormField::SetLabel(std::wstring text)
 {
-    if (! _label)
+    Label* const label = LabelPart();
+    // An unchanged label (an application that refreshes the form on every edit) relays out nothing.
+    if (! label || label->GetText() == text)
         return;
     const auto lifetime = GetLifetimeToken();
-    _label->SetText(std::move(text));
+    const bool visible  = ! text.empty();
+    label->SetText(std::move(text));
+    if (lifetime.expired())
+        return;
+    // The text publication can run callbacks that take the part out: it is resolved again.
+    if (Label* const current = LabelPart())
+        current->SetVisible(visible);
     if (lifetime.expired())
         return;
     InvalidateMeasure();
@@ -143,14 +180,17 @@ void FormField::SetLabel(std::wstring text)
 }
 void FormField::SetDescription(std::wstring text)
 {
-    if (! _description)
+    Label* const description = DescriptionPart();
+    const bool visible       = ! text.empty();
+    if (! description || (description->GetText() == text && description->IsVisible() == visible))
         return;
     const auto lifetime = GetLifetimeToken();
-    const bool visible  = ! text.empty();
-    _description->SetText(std::move(text));
+    description->SetText(std::move(text));
     if (lifetime.expired())
         return;
-    _description->SetVisible(visible);
+    // The text publication can run callbacks that take the part out: it is resolved again.
+    if (Label* const current = DescriptionPart())
+        current->SetVisible(visible);
     if (lifetime.expired())
         return;
     InvalidateMeasure();
@@ -161,16 +201,22 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
     if ((state != ValidationState::None && state != ValidationState::Error) || (state == ValidationState::Error && explanation.empty()) ||
         explanation.size() > 65536)
         return E_INVALIDARG;
-    if (! _validation)
+    Label* const validation = ValidationPart();
+    if (! validation)
         return E_UNEXPECTED;
+    // Validation that runs on every keystroke usually repeats its answer: an unchanged one relays out nothing.
+    const std::wstring_view shown = state == ValidationState::None ? std::wstring_view{} : std::wstring_view(explanation);
+    if (state == _validationState && validation->GetText() == shown && validation->IsVisible() == (state == ValidationState::Error))
+        return S_FALSE;
     const auto lifetime = GetLifetimeToken();
     try
     {
-        _validation->SetText(state == ValidationState::None ? std::wstring{} : std::move(explanation));
+        validation->SetText(state == ValidationState::None ? std::wstring{} : std::move(explanation));
         if (lifetime.expired())
             return E_ABORT;
         _validationState = state;
-        _validation->SetVisible(state == ValidationState::Error);
+        if (Label* const current = ValidationPart())
+            current->SetVisible(state == ValidationState::Error);
         if (lifetime.expired())
             return E_ABORT;
         InvalidateMeasure();
@@ -183,6 +229,8 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
 }
 HRESULT FormField::SetRequired(bool required) noexcept
 {
+    if (_required == required)
+        return S_FALSE;
     _required = required;
     return SyncAccessibility();
 }
@@ -224,8 +272,10 @@ HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& con
         return E_ABORT;
     if (GetMeasureRevision() != ownerRevision || ! Owns(*this, control, lifetime) || context.host.GetTypographyRevision() != typography)
         return E_ABORT;
+    // An editor without intrinsic measurement measures nothing of its own: MeasureParts applies the preferred size on
+    // every pass, so the cache never holds an older preference (one that shrank would otherwise keep the larger size).
     if (result == E_NOTIMPL && control == GetEditor())
-        staged.sizeDip = D2D1::SizeF((std::max)(kMinimumEditorWidthDip, (std::min)(_editorPreferredSize.width, widthDip)), _editorPreferredSize.height);
+        staged.sizeDip = D2D1::SizeF(0.0f, 0.0f);
     else if (FAILED(result))
         return result;
     ++_measureCount;
@@ -235,12 +285,13 @@ HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& con
 }
 HRESULT FormField::MeasureSharedLabel(const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept
 {
-    if (_label && _label->GetText().empty())
+    const Label* const label = LabelPart();
+    if (label && label->GetText().empty())
     {
         desired = {};
         return S_OK;
     }
-    return MeasurePart(_label, context, widthDip, _sharedLabelCache, desired);
+    return MeasurePart(label, context, widthDip, _sharedLabelCache, desired);
 }
 HRESULT FormField::ResolvePartColumns(
     const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, bool rtl, float minimumEditorWidthDip, PartColumns& columns) noexcept
@@ -301,7 +352,7 @@ HRESULT FormField::MeasureParts(const MeasureContext& context,
     auto boundedContext            = context;
     if (! boundedContext.remainingTextUnits)
         boundedContext.remainingTextUnits = &remainingTextUnits;
-    const Control* const controls[] = {_label, GetEditor(), _description, _validation};
+    const Control* const controls[] = {LabelPart(), GetEditor(), DescriptionPart(), ValidationPart()};
     const bool rtl                  = IsRightToLeft();
     PartColumns stagedColumns;
     HRESULT result = ResolvePartColumns(fieldBounds, placement, labelWidthDip, rtl, kMinimumEditorWidthDip, stagedColumns);
@@ -309,7 +360,7 @@ HRESULT FormField::MeasureParts(const MeasureContext& context,
         return result;
     for (size_t index = 0; index < parts.size(); ++index)
     {
-        if (index == 0 && _label && _label->GetText().empty())
+        if (index == 0 && controls[0] && static_cast<const Label*>(controls[0])->GetText().empty())
         {
             parts[index] = {};
             continue;
@@ -402,7 +453,7 @@ HRESULT FormField::StageLayout(
     }
     if (! std::ranges::all_of(rectangles, ValidRect))
         return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
-    Control* const controls[] = {_label, GetEditor(), _description, _validation};
+    Control* const controls[] = {LabelPart(), GetEditor(), DescriptionPart(), ValidationPart()};
     for (size_t index = 0; index < staged.size(); ++index)
     {
         auto* const control = controls[index];
@@ -417,7 +468,7 @@ HRESULT FormField::StageLayout(
 }
 bool FormField::ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept
 {
-    const Control* const controls[] = {_label, GetEditor(), _description, _validation};
+    const Control* const controls[] = {LabelPart(), GetEditor(), DescriptionPart(), ValidationPart()};
     for (size_t index = 0; index < parts.size(); ++index)
     {
         const auto& part = parts[index];
@@ -494,29 +545,37 @@ void FormField::OnBoundsChanged() noexcept
     RequestIntrinsicLayout();
 }
 
+void FormField::ForgetEditor(Control& editor) noexcept
+{
+    Control* semantic = &editor;
+    if (auto* stepper = dynamic_cast<NumericStepper*>(semantic))
+        semantic = &stepper->Field();
+    const auto editorLifetime = GetControlLifetimeToken(*semantic);
+    static_cast<void>(semantic->SetAccessibleFormProperties(nullptr, false, true));
+    if (! editorLifetime.expired())
+        semantic->SetAccessibleHelpText({});
+    if (! editorLifetime.expired())
+        semantic->SetAccessibleAutomationId({});
+}
+bool FormField::IsPart(const Control* child) const noexcept
+{
+    return child && (child == LabelPart() || child == DescriptionPart() || child == ValidationPart());
+}
 std::unique_ptr<Control> FormField::TakeChild(size_t index) noexcept
 {
+    // The field keeps its own text parts, as a composite control does: its editor and anything else added can leave.
+    // Taking a part out left SetLabel, SetDescription and SetValidation answering E_UNEXPECTED for good.
+    if (const auto children = GetChildren(); index < children.size() && IsPart(children[index].get()))
+        return {};
     const auto lifetime = GetLifetimeToken();
     auto result         = Panel::TakeChild(index);
     if (lifetime.expired() || ! result)
         return result;
-    if (result.get() == _label)
-        _label = nullptr;
-    if (result.get() == _description)
-        _description = nullptr;
-    if (result.get() == _validation)
-    {
-        _validation      = nullptr;
-        _validationState = ValidationState::None;
-    }
     if (result.get() == _editor)
     {
         _editor = nullptr;
         _editorLifetime.reset();
-        auto* semantic = result.get();
-        if (auto* stepper = dynamic_cast<NumericStepper*>(semantic))
-            semantic = &stepper->Field();
-        static_cast<void>(semantic->SetAccessibleFormProperties(nullptr, false, true));
+        ForgetEditor(*result);
         if (lifetime.expired())
             return result;
     }
@@ -527,17 +586,39 @@ std::unique_ptr<Control> FormField::TakeChild(size_t index) noexcept
 }
 void FormField::ClearChildren() noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    // Retire the snapshot's semantic pointers before detach callbacks can bind a replacement in the live vector.
-    _label = _description = _validation = nullptr;
-    _editor                             = nullptr;
+    // The parts stay with their text and state, so the field takes a new editor as it was. The other children leave in
+    // reverse order of the slots held at entry: one a detach callback adds (a replacement editor) stays in the live field.
+    const auto lifetime   = GetLifetimeToken();
+    Control* const editor = GetEditor();
+    // Forgotten before it detaches, so a detach callback can bind a replacement.
+    _editor = nullptr;
     _editorLifetime.reset();
-    _validationState = ValidationState::None;
     ++_layoutRevision;
-    Panel::ClearChildren();
-    if (lifetime.expired())
-        return;
+    for (size_t index = GetChildren().size(); index > 0u; --index)
+    {
+        const auto children = GetChildren();
+        if (index > children.size())
+            continue;
+        Control* const child = children[index - 1u].get();
+        if (! child || IsPart(child))
+            continue;
+        auto taken = Panel::TakeChild(index - 1u);
+        if (lifetime.expired())
+            return;
+        if (taken && taken.get() == editor)
+        {
+            ForgetEditor(*taken);
+            if (lifetime.expired())
+                return;
+        }
+        taken.reset();
+        if (lifetime.expired())
+            return;
+    }
+    // The emptied slots go here, where clearing was asked for, so swapping editors does not grow the field's children.
+    std::erase_if(AccessChildren(), [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
     InvalidateMeasure();
+    static_cast<void>(SyncAccessibility());
 }
 
 FormPanel::FormPanel()
@@ -546,7 +627,7 @@ FormPanel::FormPanel()
 }
 FormField* FormPanel::AddField(std::wstring id, std::wstring label)
 {
-    if (id.empty() || id.size() > 65536 || label.size() > 65536 || GetLogicalChildCount() >= kMaxFormFields)
+    if (id.empty() || id.size() > 65536 || label.size() > 65536 || CountLiveChildren(*this) >= kMaxFormFields)
         return nullptr;
     for (const auto& child : GetChildren())
         if (const auto* field = dynamic_cast<FormField*>(child.get()); field && field->GetFieldId() == id)
@@ -623,7 +704,7 @@ HRESULT FormPanel::BuildLayout(
 {
     if (_buildingLayout)
         return E_ABORT;
-    if (! ValidExtent(widthDip) || ! std::isfinite(origin.x) || ! std::isfinite(origin.y) || GetLogicalChildCount() > kMaxFormFields ||
+    if (! ValidExtent(widthDip) || ! std::isfinite(origin.x) || ! std::isfinite(origin.y) || CountLiveChildren(*this) > kMaxFormFields ||
         (GetHost() && GetHost() != &context.host))
         return E_INVALIDARG;
     const auto lifetime = GetLifetimeToken();
@@ -691,7 +772,7 @@ HRESULT FormPanel::BuildLayout(
             record.logicalIndex                 = index;
             record.revision                     = field->GetMeasureRevision();
             record.before                       = field->GetBounds();
-            const std::array<Control*, 4> parts = {field->_label, field->GetEditor(), field->_description, field->_validation};
+            const std::array<Control*, 4> parts = {field->LabelPart(), field->GetEditor(), field->DescriptionPart(), field->ValidationPart()};
             for (size_t partIndex = 0; partIndex < parts.size(); ++partIndex)
             {
                 auto* part              = parts[partIndex];

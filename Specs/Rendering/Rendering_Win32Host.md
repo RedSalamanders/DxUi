@@ -106,6 +106,8 @@ dismissed session fails without showing or activating the popup. For the root cr
 that call reports failure and never fires its callback; a dismissed submenu or root switch finalizes
 through the posted request or the modal loop.
 
-Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
-individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
-previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.
+A native host's animation clock, `GetAnimationTickMs`, is the current UI-thread dispatcher timeline, not the last tick
+of an idle individual host. Transitions and tooltip show/hide deadlines stamp it, so a resumed host neither shows nor
+hides a newly scheduled tooltip at once because its previous tick is stale, nor holds a transition still because the
+dispatcher lost a stall beyond its hitch clamp. An embedded host's clock is its own timeline
+([embedded D3D11](Rendering_EmbeddedD3D11.md)).

@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [string] $InputDirectory=(Join-Path $PSScriptRoot '../ThirdParty/Markdown/mermaid-11.4.1'),
-    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Support/Scope.Tests.NativeFlowchartCorpus.h'),
+    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Support/Support.Tests.NativeFlowchartCorpus.h'),
     [switch] $Check
 )
 Set-StrictMode -Version Latest

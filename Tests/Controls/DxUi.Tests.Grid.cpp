@@ -1847,7 +1847,9 @@ void TestGridRightToLeftMirrorsColumnGeometryAndHitTesting()
             "RTL hit testing maps the right-hand cell to model column zero");
 }
 
-void TestGridFullValueInspectionSupportsF1AndTouchDoubleTap()
+// Q2 and Q3 of the 10 October review: F1 belongs to the application (Help), so the grid binds no key to full-value
+// inspection; InspectFocusedCell is the command an application offers, typically in its context menu.
+void TestGridInspectsTheFocusedCellOnlyOnRequest()
 {
     using namespace DxUi;
 
@@ -1858,127 +1860,50 @@ void TestGridFullValueInspectionSupportsF1AndTouchDoubleTap()
         auto* grid = root->AddChild<Grid>();
         grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
         grid->SetFlowDirection(flowDirection);
-        GridMultilineFixtures::TextTableModel model({{L"first value", L"second value", L"the complete value for inspection"}}, {150.0f, 150.0f, 150.0f}, false);
+        std::vector<std::vector<std::wstring>> cells(40u, std::vector<std::wstring>{L"first value", L"second value", L"short"});
+        cells[0][2] = L"the complete value for inspection";
+        GridMultilineFixtures::TextTableModel model(std::move(cells), {150.0f, 150.0f, 150.0f}, false);
         grid->SetModel(&model);
         host.SetRoot(std::move(root));
         const auto detachBorrowedModel = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+        Require(! grid->InspectFocusedCell() && ! host.IsTooltipInspectionActive(), "a grid without a focused row inspects nothing");
         Require(grid->RequestFocusCell(0u, 2u), "a cell can be focused without activating the host window");
-        Require(grid->GetVisibleCellRect(0u, 2u).has_value(), "focusing a wide offscreen column reveals its cell in the viewport");
-        Require(grid->OnKeyDown(host, VK_F1, 0u), "F1 handles inspection for the focused cell");
-        Require(host.IsTooltipInspectionActive(), "F1 opens the persistent inspection surface");
-        Require(host.GetTooltipText() == L"the complete value for inspection", "F1 exposes the full value of a horizontally offscreen cell");
+        Require(! grid->OnKeyDown(host, VK_F1, 0u) && ! host.IsTooltipInspectionActive(), "F1 is left to the application's Help");
+        Require(grid->IsFocusedCellClipped(), "the focused cell draws less than its whole value");
 
-        host.DebugSetPointerDevice(PointerDevice::Touch);
-        host.ClearTooltip();
-        const GridCellLayoutMetrics cell = grid->GetCellLayoutMetrics(host, 0u, 2u);
-        const D2D1_POINT_2F center       = D2D1::Point2F((cell.cellRect.left + cell.cellRect.right) * 0.5f, (cell.cellRect.top + cell.cellRect.bottom) * 0.5f);
-        Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles full-value inspection");
+        // Scroll the focused row out of view: inspection reveals it before it opens.
+        for (int notch = 0; notch < 10; ++notch)
+            static_cast<void>(grid->OnMouseWheel(host, D2D1::Point2F(40.0f, 80.0f), -static_cast<float>(WHEEL_DELTA), 0u));
+        Require(! grid->GetVisibleCellRect(0u, 2u).has_value(), "the focused cell is scrolled out of view");
+        Require(grid->InspectFocusedCell(), "InspectFocusedCell opens the inspection surface");
+        Require(grid->GetVisibleCellRect(0u, 2u).has_value(), "inspection reveals the focused cell");
         Require(host.IsTooltipInspectionActive() && host.GetTooltipText() == L"the complete value for inspection",
-                "touch double-tap exposes the complete value in the persistent inspection surface");
+                "the persistent inspection surface shows the complete value of the focused cell");
     };
 
     verifyFlow(FlowDirection::LeftToRight);
     verifyFlow(FlowDirection::RightToLeft);
+
+    Grid detached;
+    GridMultilineFixtures::TextTableModel model({{L"value"}}, {150.0f}, false);
+    detached.SetModel(&model);
+    detached.SetFocusedRowId(model.GetStableRowId(0u));
+    Require(! detached.InspectFocusedCell(), "a grid outside a host inspects nothing");
+    detached.SetModel(nullptr);
 }
 
-void TestGridTouchDoubleTapReResolvesCellAfterSelectionCallbackReordersModel()
+// Q3 of the 10 October review: a touch double-tap activates its row, as a double-click does, and opens no inspection.
+void TestGridTouchDoubleTapActivatesTheRowLikeTheMouse()
 {
     using namespace DxUi;
 
-    struct ReorderingDelegate final : IGridDelegate
-    {
-        using IGridDelegate::OnGridSelectionChanged;
-        std::function<void()> onSelectionChanged;
-
-        void OnGridSelectionChanged(Grid&) override
-        {
-            if (onSelectionChanged)
-            {
-                onSelectionChanged();
-            }
-        }
-    };
-
-    MutableTextGridModel model({{10u, {L"stale value"}}, {20u, {L"other value"}}});
-    ReorderingDelegate delegate;
-    WindowHost host;
-    auto root  = std::make_unique<Panel>();
-    auto* grid = root->AddChild<Grid>();
-    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
-    grid->SetModel(&model);
-    grid->SetSelectionMode(GridSelectionMode::Extended);
-    grid->GetSelectionModel().SetSingle(20u);
-    grid->SetDelegate(&delegate);
-    host.SetRoot(std::move(root));
-    host.DebugSetPointerDevice(PointerDevice::Touch);
-    delegate.onSelectionChanged = [&]
-    {
-        model.SetRows({{20u, {L"other value"}}, {10u, {L"fresh value after reorder"}}});
-        grid->NotifyDataChanged();
-    };
-
-    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
-    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
-    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles a cell whose model reorders in the selection callback");
-    Require(host.IsTooltipInspectionActive(), "reordering the same model keeps inspection active for the stable touched row");
-    Require(host.GetTooltipText() == L"fresh value after reorder", "inspection re-resolves cell text from the row's new model index");
-}
-
-void TestGridTouchDoubleTapReResolvesColumnByStableIdAfterSelectionCallbackReordersColumns()
-{
-    using namespace DxUi;
-
-    MutableTextGridModel model({{10u, {L"first cell", L"stale second cell"}}, {20u, {L"other first", L"other second"}}},
-                               {{L"first", L"First", 140.0f}, {L"second", L"Second", 140.0f}});
-    struct ReorderingDelegate final : IGridDelegate
-    {
-        using IGridDelegate::OnGridSelectionChanged;
-        std::function<void()> onSelectionChanged;
-
-        void OnGridSelectionChanged(Grid&) override
-        {
-            if (onSelectionChanged)
-            {
-                onSelectionChanged();
-            }
-        }
-    };
-
-    ReorderingDelegate delegate;
-    WindowHost host;
-    auto root  = std::make_unique<Panel>();
-    auto* grid = root->AddChild<Grid>();
-    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 180.0f));
-    grid->SetModel(&model);
-    grid->SetSelectionMode(GridSelectionMode::Extended);
-    grid->GetSelectionModel().SetSingle(20u);
-    grid->SetDelegate(&delegate);
-    host.SetRoot(std::move(root));
-    host.DebugSetPointerDevice(PointerDevice::Touch);
-    delegate.onSelectionChanged = [&]
-    {
-        model.SetColumns({{L"second", L"Second", 140.0f}, {L"first", L"First", 140.0f}});
-        model.SetRows({{10u, {L"fresh second cell", L"first cell"}}, {20u, {L"other second", L"other first"}}});
-        grid->NotifyDataChanged();
-    };
-
-    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 1u).value();
-    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
-    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles a column reorder in the selection callback");
-    Require(host.IsTooltipInspectionActive(), "the touched column remains inspectable by stable column identity");
-    Require(host.GetTooltipText() == L"fresh second cell", "inspection resolves the clicked column id at its new index and reads fresh cell data");
-}
-
-void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn()
-{
-    using namespace DxUi;
-
-    MutableTextGridModel model({{10u, {L"first cell", L"removed second cell"}}, {20u, {L"other first", L"other second"}}},
-                               {{L"first", L"First", 140.0f}, {L"second", L"Second", 140.0f}});
+    MutableTextGridModel model({{10u, {L"tapped row"}}, {20u, {L"selected row"}}});
     struct Delegate final : IGridDelegate
     {
+        using IGridDelegate::OnGridRowActivated;
         using IGridDelegate::OnGridSelectionChanged;
         std::function<void()> onSelectionChanged;
+        std::vector<size_t> activatedRows;
 
         void OnGridSelectionChanged(Grid&) override
         {
@@ -1986,6 +1911,11 @@ void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn()
             {
                 onSelectionChanged();
             }
+        }
+
+        void OnGridRowActivated(Grid&, size_t rowIndex) override
+        {
+            activatedRows.push_back(rowIndex);
         }
     };
 
@@ -1993,7 +1923,7 @@ void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn()
     WindowHost host;
     auto root  = std::make_unique<Panel>();
     auto* grid = root->AddChild<Grid>();
-    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 180.0f));
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
     grid->SetModel(&model);
     grid->SetSelectionMode(GridSelectionMode::Extended);
     grid->GetSelectionModel().SetSingle(20u);
@@ -2002,105 +1932,15 @@ void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn()
     host.DebugSetPointerDevice(PointerDevice::Touch);
     delegate.onSelectionChanged = [&]
     {
-        model.SetColumns({{L"first", L"First", 140.0f}});
-        model.SetRows({{10u, {L"first cell"}}, {20u, {L"other first"}}});
+        model.SetRows({{20u, {L"selected row"}}, {10u, {L"tapped row"}}});
         grid->NotifyDataChanged();
     };
 
-    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 1u).value();
-    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
-    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback removes the clicked column");
-    Require(! host.IsTooltipInspectionActive(), "inspection is canceled when the clicked stable column id no longer exists");
-}
-
-void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesTouchedRow()
-{
-    using namespace DxUi;
-
-    struct RemovingDelegate final : IGridDelegate
-    {
-        using IGridDelegate::OnGridSelectionChanged;
-        std::function<void()> onSelectionChanged;
-
-        void OnGridSelectionChanged(Grid&) override
-        {
-            if (onSelectionChanged)
-            {
-                onSelectionChanged();
-            }
-        }
-    };
-
-    MutableTextGridModel model({{10u, {L"removed value"}}, {20u, {L"other value"}}});
-    RemovingDelegate delegate;
-    WindowHost host;
-    auto root  = std::make_unique<Panel>();
-    auto* grid = root->AddChild<Grid>();
-    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
-    grid->SetModel(&model);
-    grid->SetSelectionMode(GridSelectionMode::Extended);
-    grid->GetSelectionModel().SetSingle(20u);
-    grid->SetDelegate(&delegate);
-    host.SetRoot(std::move(root));
-    host.DebugSetPointerDevice(PointerDevice::Touch);
-    bool removed                = false;
-    delegate.onSelectionChanged = [&]
-    {
-        if (! removed)
-        {
-            removed = true;
-            model.SetRows({{20u, {L"other value"}}});
-            grid->NotifyDataChanged();
-        }
-    };
-
-    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
-    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
-    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback removes the touched row");
-    Require(removed, "selection callback removed the touched stable row during dispatch");
-    Require(! host.IsTooltipInspectionActive(), "inspection is canceled when the touched stable row no longer exists");
-}
-
-void TestGridTouchDoubleTapCancelsWhenSelectionCallbackReplacesModel()
-{
-    using namespace DxUi;
-
-    GridMultilineFixtures::TextTableModel originalModel({{L"original value"}, {L"other value"}}, {180.0f}, false);
-    GridMultilineFixtures::TextTableModel replacementModel({{L"replacement value"}, {L"other value"}}, {180.0f}, false);
-    struct ReplacingDelegate final : IGridDelegate
-    {
-        using IGridDelegate::OnGridSelectionChanged;
-        GridMultilineFixtures::TextTableModel* replacement = nullptr;
-        bool changed                                       = false;
-
-        void OnGridSelectionChanged(Grid& sender) override
-        {
-            if (! changed)
-            {
-                changed = true;
-                sender.SetModel(replacement);
-            }
-        }
-    };
-
-    ReplacingDelegate delegate;
-    delegate.replacement = &replacementModel;
-    WindowHost host;
-    auto root  = std::make_unique<Panel>();
-    auto* grid = root->AddChild<Grid>();
-    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
-    grid->SetModel(&originalModel);
-    grid->SetSelectionMode(GridSelectionMode::Extended);
-    grid->GetSelectionModel().SetSingle(1u);
-    grid->SetDelegate(&delegate);
-    host.SetRoot(std::move(root));
-    host.DebugSetPointerDevice(PointerDevice::Touch);
-
-    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
-    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
-    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback replaces the model");
-    Require(delegate.changed, "selection callback replaced the model during touch double-tap dispatch");
-    Require(! host.IsTooltipInspectionActive(), "inspection is canceled instead of using a stale cell after model replacement");
+    const D2D1_RECT_F tappedRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center   = D2D1::Point2F((tappedRect.left + tappedRect.right) * 0.5f, (tappedRect.top + tappedRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "a touch double-tap on a row is handled");
+    Require(std::ranges::equal(delegate.activatedRows, std::array<size_t, 1>{1u}), "the double-tap activates the tapped stable row at its new model index");
+    Require(! host.IsTooltipInspectionActive(), "a double-tap opens no inspection");
 }
 
 void TestGridMouseDoubleClickReResolvesActivatedRowAfterSelectionCallbackReordersModel()
@@ -3361,6 +3201,7 @@ void TestGridHeaderClickMovesSortGlyphToClickedColumn()
     Require(delegate.lastSortSpec.columnIndex == 0u, "grid sort glyph click requests the clicked Name column");
     Require(nameAfter.currentDirection == SortDirection::Ascending, "grid sort glyph moves to the clicked Name column");
     Require(pathAfter.currentDirection == SortDirection::None, "grid sort glyph leaves the previous Path column after delegated sort");
+    Require(! pathAfter.reservesSpace, "the previous Path column gives its title the glyph space back");
 }
 
 void TestGridHeaderDragReorderRoundTripsThroughCapturedLayout()
@@ -3436,6 +3277,11 @@ void TestGridRightClickInvokesContextMenuForHitRow()
     Require(delegate.contextMenuCount == 1u, "grid right-click invokes one context menu");
     Require(delegate.lastContextMenuRow == 1u, "grid right-click targets the hit row");
     RequirePointNear(delegate.lastContextMenuPoint, POINT{48, 74}, "grid right-click uses the hit point as its screen anchor");
+    // A second right-click within the double-click time is another press, as for every control without a meaning of
+    // its own for it: the row's menu opens again.
+    static_cast<void>(grid.OnMouseUp(host, rowPoint, true, 0));
+    Require(grid.OnMouseDoubleClick(host, rowPoint, true, 0), "a second right-click on the row is handled");
+    Require(delegate.contextMenuCount == 2u && delegate.lastContextMenuRow == 1u, "a second right-click opens the row's menu again");
 }
 
 void TestGridRightClickPreservesExtendedSelectionForSelectedHitRow()
@@ -4421,6 +4267,12 @@ void TestGridCopyOfTrimmedMultilineCellsIsExact()
     Require(grid->OnKeyDown(window.Host(), 'A', MK_CONTROL), "Ctrl+A selects every row again");
     constexpr std::array<size_t, 3> displayOrder{2u, 0u, 1u};
     Require(copied("Ctrl+C copies the reordered columns") == expected(allRows, displayOrder), "copy follows the display order of the columns");
+
+    // With nothing selected Ctrl+C belongs to the application, and the clipboard keeps what it holds.
+    grid->GetSelectionModel().Clear();
+    Require(SetClipboardUnicodeTextForTest(window.Hwnd(), L"sentinel"), "the clipboard starts with a sentinel");
+    Require(! grid->OnKeyDown(window.Host(), 'C', MK_CONTROL), "Ctrl+C with nothing selected is left unhandled");
+    Require(ReadClipboardUnicodeTextForTest(window.Hwnd()) == std::optional<std::wstring>(L"sentinel"), "Ctrl+C with nothing selected keeps the clipboard");
 }
 
 // The retained-layout tables (DxUi.Internal.h): 32 ways a set, a mixed 64-bit key hash choosing the set. A table doubles while a set
@@ -4925,10 +4777,385 @@ void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
         "Grid double click", add, [&](WindowHost& host, Control& grid) { static_cast<void>(grid.OnMouseDoubleClick(host, cell, false, 0u)); });
 }
 
+// A delegate that reacts to the selection elsewhere in the window, as a Delete command enabling its toolbar button does.
+class ToolbarTogglingGridDelegate final : public RecordingGridDelegate
+{
+public:
+    using RecordingGridDelegate::OnGridCheckboxToggled;
+    using RecordingGridDelegate::OnGridSelectionChanged;
+
+    void OnGridSelectionChanged(DxUi::Grid& sender) override
+    {
+        RecordingGridDelegate::OnGridSelectionChanged(sender);
+        if (toolbarButton)
+            toolbarButton->SetEnabled(! toolbarButton->IsEnabled());
+    }
+
+    void OnGridFocusedRowChanged(DxUi::Grid&, std::optional<uint64_t>) override
+    {
+        ++focusChanged;
+    }
+
+    void OnGridCheckboxToggled(size_t rowIndex, size_t columnIndex, bool checked) override
+    {
+        ++checkboxToggles;
+        if (checkboxModel)
+            Require(checkboxModel->SetChecked(rowIndex, columnIndex, checked), "the delegate applies the requested checkbox state");
+    }
+
+    DxUi::Button* toolbarButton      = nullptr;
+    CheckboxGridModel* checkboxModel = nullptr;
+    size_t focusChanged              = 0u;
+    size_t checkboxToggles           = 0u;
+};
+
+template <typename Model> class ToolbarGridFixture final
+{
+public:
+    explicit ToolbarGridFixture(Model& model)
+    {
+        auto root = std::make_unique<DxUi::Panel>();
+        grid      = root->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+        grid->SetSelectionMode(DxUi::GridSelectionMode::Extended);
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        button = root->AddChild<DxUi::Button>(std::wstring(L"Delete"));
+        button->SetBounds(D2D1::RectF(330.0f, 0.0f, 420.0f, 30.0f));
+        host.SetRoot(std::move(root));
+        static_cast<DxUi::Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 440.0f, 260.0f));
+    }
+
+    ToolbarGridFixture(const ToolbarGridFixture&)            = delete;
+    ToolbarGridFixture& operator=(const ToolbarGridFixture&) = delete;
+    ToolbarGridFixture(ToolbarGridFixture&&)                 = delete;
+    ToolbarGridFixture& operator=(ToolbarGridFixture&&)      = delete;
+
+    [[nodiscard]] D2D1_POINT_2F RowPoint(size_t row) const
+    {
+        const auto rect = grid->GetVisibleRowRect(row);
+        Require(rect.has_value(), "the row is visible");
+        return D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+    }
+
+    DxUi::WindowHost host;
+    ToolbarTogglingGridDelegate delegate;
+    DxUi::Grid* grid     = nullptr;
+    DxUi::Button* button = nullptr;
+};
+
+// CR-5 of the 10 October review: a callback that changes another control (and so the host's layout epoch) used to end the
+// rest of the gesture, losing its focus report, its context menu, its reveal and the UI Automation result.
+void TestGridGesturesContinueWhenACallbackChangesAnotherControl()
+{
+    {
+        MultiRowGridModel model(60u);
+        ToolbarGridFixture fixture(model);
+        fixture.delegate.toolbarButton = fixture.button;
+        Require(fixture.grid->OnMouseDown(fixture.host, fixture.RowPoint(3u), true, 0u), "a right-click on an unselected row is handled");
+        Require(fixture.grid->GetSelectionModel().IsSelected(model.GetStableRowId(3u)) && fixture.delegate.contextMenuCount == 1u &&
+                    fixture.delegate.lastContextMenuRow == 3u && fixture.delegate.focusChanged == 1u,
+                "a right-click selects its row, reports the focus and opens the menu although the selection callback changed a toolbar button");
+        Require(fixture.grid->RequestAddRowSelection(4u) && fixture.grid->GetSelectionModel().IsSelected(model.GetStableRowId(4u)),
+                "a UI Automation AddToSelection succeeds although its callback changed a toolbar button");
+        Require(fixture.delegate.focusChanged == 2u, "the AddToSelection reports the focus");
+    }
+    {
+        MultiRowGridModel model(60u);
+        ToolbarGridFixture fixture(model);
+        fixture.delegate.toolbarButton = fixture.button;
+        const size_t lastVisible       = fixture.grid->GetVisibleRowCount() - 1u;
+        static_cast<void>(fixture.grid->RequestSelectRow(*fixture.grid->GetVisibleRowAt(lastVisible), 0u));
+        const std::optional<size_t> firstVisibleBefore = fixture.grid->GetVisibleRowAt(0u);
+        for (size_t step = 0u; step < 3u; ++step)
+            Require(fixture.grid->OnKeyDown(fixture.host, VK_DOWN, 0u), "Down is handled");
+        const std::optional<size_t> focusedRow = model.FindRowByStableId(fixture.grid->GetFocusedRowId().value_or(0u));
+        Require(focusedRow && fixture.grid->GetVisibleRowRect(*focusedRow).has_value() && fixture.grid->GetVisibleRowAt(0u) != firstVisibleBefore,
+                "Down past the viewport edge reveals the focused row although each selection callback changed a toolbar button");
+    }
+    {
+        CheckboxGridModel model(0u);
+        model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}, CheckboxGridModel::Row{.label = L"Gamma"}});
+        ToolbarGridFixture fixture(model);
+        fixture.delegate.toolbarButton            = fixture.button;
+        fixture.delegate.checkboxModel            = &model;
+        const DxUi::GridCellLayoutMetrics metrics = fixture.grid->GetCellLayoutMetrics(fixture.host, 1u, 0u);
+        Require(metrics.hasCheckbox, "the first column draws a checkbox");
+        const D2D1_POINT_2F checkbox =
+            D2D1::Point2F((metrics.checkboxRect.left + metrics.checkboxRect.right) * 0.5f, (metrics.checkboxRect.top + metrics.checkboxRect.bottom) * 0.5f);
+        Require(fixture.grid->OnMouseDown(fixture.host, checkbox, false, 0u), "a click on the checkbox of an unselected row is handled");
+        Require(fixture.grid->GetSelectionModel().IsSelected(model.GetStableRowId(1u)) && fixture.delegate.checkboxToggles == 1u && model.IsChecked(1u),
+                "the click selects the row and toggles its checkbox although the selection callback changed a toolbar button");
+    }
+}
+
+void TestGridClickSurvivesAFocusHandlerThatChangesAnotherControl()
+{
+    MultiRowGridModel model(60u);
+    ToolbarGridFixture fixture(model);
+    fixture.host.SetOnFocusChanged([&](DxUi::Control* focused)
+    {
+        if (focused == fixture.grid)
+            fixture.button->SetEnabled(false);
+    });
+    Require(fixture.grid->OnMouseDown(fixture.host, fixture.RowPoint(2u), false, 0u), "the first click into the grid is handled");
+    Require(fixture.grid->GetSelectionModel().IsSelected(model.GetStableRowId(2u)) && ! fixture.button->IsEnabled(),
+            "the first click selects its row although the focus handler disabled a toolbar button");
+
+    // A focus handler that refreshes the rows in place, leaving another row where the pointer was aimed, consumes it.
+    MutableRowGridModel refreshed;
+    refreshed.SetRowIds({10u, 11u, 12u, 13u});
+    ToolbarGridFixture refreshing(refreshed);
+    refreshing.host.SetOnFocusChanged([&](DxUi::Control* focused)
+    {
+        if (focused != refreshing.grid)
+            return;
+        refreshed.SetRowIds({13u, 12u, 11u, 10u});
+        refreshing.grid->NotifyDataChanged();
+    });
+    Require(refreshing.grid->OnMouseDown(refreshing.host, refreshing.RowPoint(1u), false, 0u), "the click into the refreshed grid is handled");
+    Require(refreshing.grid->GetSelectionModel().GetCount() == 0u && refreshing.delegate.selectionChangedCount == 0u,
+            "a focus handler that put another row under the pointer consumes the click");
+}
+
+// The right-click menu opens for the row that was pressed, found again by id after the selection callbacks.
+void TestGridRightClickMenuFollowsThePressedRow()
+{
+    class ReorderingGridDelegate final : public RecordingGridDelegate
+    {
+    public:
+        using RecordingGridDelegate::OnGridSelectionChanged;
+
+        void OnGridSelectionChanged(DxUi::Grid& sender) override
+        {
+            RecordingGridDelegate::OnGridSelectionChanged(sender);
+            if (rowsAfterSelection.empty())
+                return;
+            model->SetRowIds(std::exchange(rowsAfterSelection, {}));
+            sender.NotifyDataChanged();
+        }
+
+        MutableRowGridModel* model = nullptr;
+        std::vector<uint64_t> rowsAfterSelection;
+    };
+
+    MutableRowGridModel model;
+    model.SetRowIds({10u, 11u, 12u, 13u});
+    ToolbarGridFixture fixture(model);
+    ReorderingGridDelegate delegate;
+    delegate.model = &model;
+    fixture.grid->SetDelegate(&delegate);
+    fixture.host.SetFocusControl(fixture.grid);
+
+    delegate.rowsAfterSelection = {13u, 12u, 11u, 10u};
+    Require(fixture.grid->OnMouseDown(fixture.host, fixture.RowPoint(1u), true, 0u), "the right-click is handled");
+    Require(fixture.grid->GetSelectionModel().IsSelected(11u) && delegate.contextMenuCount == 1u && delegate.lastContextMenuRow == 2u,
+            "the menu opens for the pressed row at the index the selection callback moved it to");
+
+    delegate.rowsAfterSelection = {10u, 11u, 13u};
+    Require(fixture.grid->OnMouseDown(fixture.host, fixture.RowPoint(1u), true, 0u), "the right-click on another row is handled");
+    Require(delegate.contextMenuCount == 1u, "no menu opens for a row the selection callback removed");
+}
+
+// CR-26 of the 10 October review: a new delegate keeps the grid's rows, so their UI Automation identity
+// (GetModelAssignmentGeneration) survives it; assigning a model, even the same one again, retires that identity.
+void TestGridModelAssignmentGenerationIgnoresDelegateChanges()
+{
+    MultiRowGridModel model(4u);
+    DxUi::Grid grid;
+    grid.SetModel(&model);
+    const uint64_t assigned = grid.GetModelAssignmentGeneration();
+    RecordingGridDelegate first;
+    RecordingGridDelegate second;
+    grid.SetDelegate(&first);
+    grid.SetDelegate(&second);
+    Require(grid.GetModelAssignmentGeneration() == assigned, "a new delegate keeps the rows' identity");
+    grid.SetModel(&model);
+    Require(grid.GetModelAssignmentGeneration() != assigned, "assigning the model again retires the old rows' identity");
+}
+
+// CR-8 of the 10 October review: a selection the application publishes tells the keys where they are.
+void TestGridKeysStartFromAPublishedSelection()
+{
+    MultiRowGridModel model(60u);
+    ToolbarGridFixture fixture(model);
+    DxUi::Grid& grid = *fixture.grid;
+    grid.GetSelectionModel().SetSingle(model.GetStableRowId(5u));
+    grid.NotifyDataChanged();
+    Require(! grid.GetFocusedRowId().has_value() && fixture.delegate.focusChanged == 0u,
+            "a selection published with NotifyDataChanged leaves the focus, and reports no focus change");
+    Require(grid.OnKeyDown(fixture.host, VK_RETURN, 0u) && fixture.delegate.rowActivatedCount == 1u && fixture.delegate.lastActivatedRow == 5u,
+            "Enter activates the published row, not the first one");
+    Require(grid.OnKeyDown(fixture.host, VK_DOWN, 0u) && grid.GetPrimarySelectedRow() == 6u, "Down moves on from the published row");
+
+    // A selection published without NotifyDataChanged still names the row the keys start from.
+    grid.SetFocusedRowId(std::nullopt);
+    grid.GetSelectionModel().SetSingle(model.GetStableRowId(20u));
+    Require(grid.OnKeyDown(fixture.host, VK_DOWN, 0u) && grid.GetPrimarySelectedRow() == 21u, "the keys start from the last selected row");
+
+    // SetSelectedRowIds is silent and leaves the focus and the anchor on its last visible row.
+    const size_t selectionReports                  = fixture.delegate.selectionChangedCount;
+    const std::array<uint64_t, 4u> requestedRowIds = {model.GetStableRowId(30u), model.GetStableRowId(40u), 999u, model.GetStableRowId(35u)};
+    grid.SetSelectedRowIds(requestedRowIds);
+    Require(fixture.delegate.selectionChangedCount == selectionReports, "SetSelectedRowIds reports nothing");
+    Require(grid.GetSelectionModel().GetCount() == 3u && grid.GetFocusedRowId() == model.GetStableRowId(35u) &&
+                grid.GetSelectionModel().GetAnchor() == model.GetStableRowId(35u),
+            "the listed rows that exist are selected, and the last one is the focus and the anchor");
+    Require(grid.GetVisibleRowRect(35u).has_value(), "the focused row is revealed");
+    Require(grid.OnKeyDown(fixture.host, VK_DOWN, MK_SHIFT) && grid.GetSelectionModel().GetCount() == 2u &&
+                grid.GetSelectionModel().IsSelected(model.GetStableRowId(35u)) && grid.GetSelectionModel().IsSelected(model.GetStableRowId(36u)),
+            "Shift+Down extends the range from that anchor");
+}
+
+// CR-7 and CR-10 of the 10 October review: the focused row shows a focus ring of its own, and Ctrl with any movement key
+// moves that focus alone.
+void TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus()
+{
+    MultiRowGridModel model(60u);
+    ToolbarGridFixture fixture(model);
+    DxUi::Grid& grid               = *fixture.grid;
+    const DxUi::ThemePalette theme = fixture.host.GetTheme();
+    fixture.host.SetFocusControl(&grid);
+    Require(grid.RequestSelectRow(5u, 0u), "row 5 is selected");
+    for (const UINT key : {VK_END, VK_HOME, VK_NEXT, VK_PRIOR, VK_DOWN, VK_UP})
+    {
+        Require(grid.OnKeyDown(fixture.host, key, MK_CONTROL), "a Ctrl movement key is handled");
+        Require(grid.GetSelectionModel().GetCount() == 1u && grid.GetSelectionModel().IsSelected(model.GetStableRowId(5u)),
+                "a Ctrl movement key leaves the selection as it was");
+    }
+    Require(grid.OnKeyDown(fixture.host, VK_END, MK_CONTROL), "Ctrl+End is handled");
+    Require(grid.GetFocusedRowId() == model.GetStableRowId(59u) && grid.GetVisibleRowRect(59u).has_value(),
+            "Ctrl+End moves the focus to the last row and reveals it");
+
+    DxUi::GridDebugRowVisualState focused{};
+    Require(grid.DebugGetRowVisualState(theme, 59u, true, focused), "the focused row has a visual state");
+    Require(focused.current && ! focused.selected && focused.showFocus && focused.focusArgb != 0u,
+            "the focused, unselected row draws a focus ring while keyboard focus is visible");
+    DxUi::GridDebugRowVisualState selected{};
+    Require(grid.DebugGetRowVisualState(theme, 5u, true, selected), "the selected row has a visual state");
+    Require(selected.selected && ! selected.current && ! selected.showFocus, "only the focused row draws the focus ring");
+    DxUi::GridDebugRowVisualState pointer{};
+    Require(grid.DebugGetRowVisualState(theme, 59u, false, pointer), "the focused row has a visual state without keyboard cues");
+    Require(! pointer.showFocus, "pointer use without keyboard cues draws no focus ring");
+    DxUi::ThemePalette highContrast = theme;
+    highContrast.highContrast       = true;
+    Require(grid.DebugGetRowVisualState(highContrast, 59u, false, pointer) && pointer.showFocus, "high contrast always draws the focus ring");
+
+    Require(grid.OnKeyDown(fixture.host, VK_SPACE, MK_CONTROL) && grid.GetSelectionModel().IsSelected(model.GetStableRowId(59u)) &&
+                grid.GetSelectionModel().IsSelected(model.GetStableRowId(5u)),
+            "Ctrl+Space then toggles the focused row into the selection");
+}
+
+// CR-11 of the 10 October review: Ctrl+Left and Ctrl+Right choose the current column, which the focused row outlines.
+void TestGridCtrlLeftAndRightChooseTheCurrentColumn()
+{
+    using namespace DxUi;
+    for (const FlowDirection flowDirection : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetFlowDirection(flowDirection);
+        GridMultilineFixtures::TextTableModel model({{L"first value", L"second value", L"the complete value for inspection"}}, {150.0f, 150.0f, 150.0f}, false);
+        grid->SetModel(&model);
+        host.SetRoot(std::move(root));
+        const auto detachBorrowedModel = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+        host.SetFocusControl(grid);
+        Require(grid->RequestSelectRow(0u, 0u), "the row is selected and focused");
+        const UINT forward  = flowDirection == FlowDirection::RightToLeft ? VK_LEFT : VK_RIGHT;
+        const UINT backward = flowDirection == FlowDirection::RightToLeft ? VK_RIGHT : VK_LEFT;
+
+        GridDebugRowVisualState state{};
+        Require(grid->DebugGetRowVisualState(host.GetTheme(), 0u, true, state) && state.showFocus && ! state.showCurrentCell,
+                "before the keyboard chooses a column the focused row outlines no cell");
+        Require(grid->OnKeyDown(host, forward, MK_CONTROL) && grid->OnKeyDown(host, forward, MK_CONTROL), "Ctrl toward the end is handled twice");
+        Require(grid->InspectFocusedCell() && host.GetTooltipText() == L"the complete value for inspection",
+                "two steps toward the end make the third column current, and it is revealed for inspection");
+        host.ClearTooltip();
+        Require(grid->DebugGetRowVisualState(host.GetTheme(), 0u, true, state) && state.showCurrentCell,
+                "once the keyboard chose a column the focused row outlines its cell");
+        Require(grid->OnKeyDown(host, forward, MK_CONTROL), "Ctrl toward the end stays on the last column");
+        Require(grid->OnKeyDown(host, backward, MK_CONTROL) && grid->InspectFocusedCell() && host.GetTooltipText() == L"second value",
+                "Ctrl toward the start moves back one column");
+        host.ClearTooltip();
+        Require(grid->GetSelectionModel().GetCount() == 1u && grid->GetFocusedRowId() == model.GetStableRowId(0u),
+                "choosing a column changes neither the selection nor the focused row");
+
+        const std::optional<D2D1_RECT_F> cell = grid->GetVisibleCellRect(0u, 1u);
+        Require(cell.has_value(), "the current cell is visible");
+        Require(grid->OnMouseDown(host, D2D1::Point2F((cell->left + cell->right) * 0.5f, (cell->top + cell->bottom) * 0.5f), false, 0u),
+                "a click on a cell is handled");
+        Require(grid->DebugGetRowVisualState(host.GetTheme(), 0u, true, state) && ! state.showCurrentCell, "a click returns to the row outline alone");
+    }
+
+    // With one column there is no current column to choose: the keys stay the application's accelerators.
+    MultiRowGridModel singleColumn(4u);
+    ToolbarGridFixture fixture(singleColumn);
+    fixture.host.SetFocusControl(fixture.grid);
+    Require(fixture.grid->RequestSelectRow(1u, 0u), "a row of the one-column grid is selected");
+    Require(! fixture.grid->OnKeyDown(fixture.host, VK_RIGHT, MK_CONTROL) && ! fixture.grid->OnKeyDown(fixture.host, VK_LEFT, MK_CONTROL),
+            "a one-column grid leaves Ctrl+Left and Ctrl+Right unhandled");
+}
+
+// The usual delegate publishes each toggle with NotifyDataChanged before it returns; a saved layout still restores every group.
+void TestGridApplyGroupLayoutRestoresEveryGroupWhenTheDelegatePublishes()
+{
+    using namespace DxUi;
+
+    class PublishingGroupDelegate final : public RecordingGridDelegate
+    {
+    public:
+        using RecordingGridDelegate::OnGridGroupToggled;
+
+        explicit PublishingGroupDelegate(GroupedGridModel& model) noexcept : _model(&model)
+        {
+        }
+
+        void OnGridGroupToggled(Grid& sender, uint64_t groupStableId, bool collapsed) override
+        {
+            RecordingGridDelegate::OnGridGroupToggled(groupStableId, collapsed);
+            Require(_model->SetGroupCollapsed(groupStableId, collapsed), "the delegate applies the requested group state");
+            sender.NotifyDataChanged();
+        }
+
+    private:
+        GroupedGridModel* _model;
+    };
+
+    GroupedGridModel model(9u);
+    model.SetGroups({GroupedGridModel::Group{.stableId = 11u, .title = L"One", .startRowIndex = 0u, .rowCount = 3u},
+                     GroupedGridModel::Group{.stableId = 12u, .title = L"Two", .startRowIndex = 3u, .rowCount = 3u},
+                     GroupedGridModel::Group{.stableId = 13u, .title = L"Three", .startRowIndex = 6u, .rowCount = 3u}});
+    PublishingGroupDelegate delegate(model);
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+    grid->SetModel(&model);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+
+    const std::array<GridGroupLayoutEntry, 3u> layout{GridGroupLayoutEntry{.groupStableId = 11u, .collapsed = true},
+                                                      GridGroupLayoutEntry{.groupStableId = 12u, .collapsed = true},
+                                                      GridGroupLayoutEntry{.groupStableId = 13u, .collapsed = true}};
+    grid->ApplyGroupLayout(layout);
+    Require(delegate.groupToggleCount == 3u && model.IsGroupCollapsed(11u) && model.IsGroupCollapsed(12u) && model.IsGroupCollapsed(13u),
+            "a saved layout collapses every group although the delegate publishes each toggle");
+}
+
 } // namespace
 
 void RunGridTests()
 {
+    DXUI_RUN_TEST(TestGridGesturesContinueWhenACallbackChangesAnotherControl);
+    DXUI_RUN_TEST(TestGridClickSurvivesAFocusHandlerThatChangesAnotherControl);
+    DXUI_RUN_TEST(TestGridRightClickMenuFollowsThePressedRow);
+    DXUI_RUN_TEST(TestGridApplyGroupLayoutRestoresEveryGroupWhenTheDelegatePublishes);
+    DXUI_RUN_TEST(TestGridKeysStartFromAPublishedSelection);
+    DXUI_RUN_TEST(TestGridModelAssignmentGenerationIgnoresDelegateChanges);
+    DXUI_RUN_TEST(TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus);
+    DXUI_RUN_TEST(TestGridCtrlLeftAndRightChooseTheCurrentColumn);
     DXUI_RUN_TEST(TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot);
     DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid);
     DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryContainsModelGetterExceptions);
@@ -4965,12 +5192,8 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridCopyQuotesTsvFieldsAndPreservesUnicode);
     DXUI_RUN_TEST(TestGridCopyOrdersOutOfOrderSelectionByVisibleRows);
     DXUI_RUN_TEST(TestGridRightToLeftMirrorsColumnGeometryAndHitTesting);
-    DXUI_RUN_TEST(TestGridFullValueInspectionSupportsF1AndTouchDoubleTap);
-    DXUI_RUN_TEST(TestGridTouchDoubleTapReResolvesCellAfterSelectionCallbackReordersModel);
-    DXUI_RUN_TEST(TestGridTouchDoubleTapReResolvesColumnByStableIdAfterSelectionCallbackReordersColumns);
-    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn);
-    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesTouchedRow);
-    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackReplacesModel);
+    DXUI_RUN_TEST(TestGridInspectsTheFocusedCellOnlyOnRequest);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapActivatesTheRowLikeTheMouse);
     DXUI_RUN_TEST(TestGridMouseDoubleClickReResolvesActivatedRowAfterSelectionCallbackReordersModel);
     DXUI_RUN_TEST(TestGridMouseDoubleClickCancelsActivationWhenSelectionCallbackRemovesClickedRow);
     DXUI_RUN_TEST(TestDisabledGridRejectsSelectionAndCheckboxRequests);

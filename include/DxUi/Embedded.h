@@ -104,11 +104,14 @@ public:
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;
     [[nodiscard]] bool NeedsAnimation() const noexcept;
-    // Monotonic application milliseconds. PageHost/Slider transitions anchor on their first supplied tick,
-    // including zero. Keep the clock consistent for this attachment; advance only while requested.
+    // Application milliseconds, from any epoch. The view's animation clock (ControlHost::GetAnimationTickMs) advances by the
+    // difference between consecutive ticks; the first tick after a pause in ticking (nothing requested, hidden, zero-sized,
+    // a new attachment) only sets the baseline, and a tick that goes back adds nothing. Call only while NeedsAnimation().
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // S_FALSE means hidden, zero-sized or already prepared; failure disables interaction until preparation succeeds.
+    // E_ABORT means a callback superseded the frame (it replaced the root or changed the tree mid-pass): the view has
+    // already asked for another preparation, so prepare again when asked rather than treating it as fatal.
     HRESULT Prepare(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
     // After the caller finishes arranging live control bounds, acknowledge interaction changes without painting.
     // Only the last successfully painted extent/DPI is accepted. Initial/failed preparation, resize, hide and
@@ -166,5 +169,11 @@ private:
     void ReleaseSurface() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
     [[nodiscard]] bool TextInputIsAvailable() noexcept;
+    // Keys and characters reach the focused control, which PruneStaleInteractionState keeps current.
+    // They hit-test nothing, so geometry the next preparation will move cannot make them stale: a hidden, suspended or
+    // never-prepared view, or one whose input a failed callback suspended until the next preparation, refuses them, a
+    // changed interaction revision does not. Pending rich preparation retains TextInputIsAvailable's source-only
+    // permission and revision checks. Snapshot export and text-service actions keep their stricter coherence boundary.
+    [[nodiscard]] bool KeyboardInputIsAvailable() noexcept;
 };
 } // namespace DxUi

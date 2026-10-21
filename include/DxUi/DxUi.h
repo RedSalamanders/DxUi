@@ -736,8 +736,14 @@ struct GridDebugRowVisualState
     uint32_t busyArgb          = 0u;
     uint32_t progressTrackArgb = 0u;
     uint32_t progressFillArgb  = 0u;
+    uint32_t focusArgb         = 0u;
     bool usesRainbow           = false;
     bool selected              = false;
+    // The focused (current) row, which owns the focus ring whether or not it is selected, and the outline of the current
+    // column's cell inside it once the keyboard chose that column.
+    bool current         = false;
+    bool showFocus       = false;
+    bool showCurrentCell = false;
 };
 
 struct GridDebugCellVisualState
@@ -1590,6 +1596,8 @@ public:
 
     virtual void Paint(ControlHost& host) const = 0;
     virtual void PaintOverlay(ControlHost& host) const;
+    // nowTickMs is the host's animation clock (ControlHost::GetAnimationTickMs) at this tick: stamp a transition's start with
+    // that clock, never with system uptime. Return true to be ticked again.
     virtual bool Tick(ControlHost& host, uint64_t nowTickMs);
 
     virtual bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
@@ -1808,6 +1816,10 @@ public:
     // Transfer ownership through this API. It leaves a null slot, detaches the child and retains inherited settings.
     // Returns empty if an interaction callback moves the owner to another host or restores branch focus/capture.
     [[nodiscard]] virtual std::unique_ptr<Control> TakeChild(size_t index) noexcept;
+    // Removes the empty slots TakeChild left, keeping the children's order, and returns how many it removed. Indices
+    // after a removed slot shift down, so call it where no index is held: not from a callback that runs while this
+    // panel walks its children (a child's input handler, layout or paint).
+    virtual size_t CompactChildren() noexcept;
     [[nodiscard]] size_t DebugChildCount() const noexcept
     {
         return _children.size();
@@ -1826,6 +1838,14 @@ public:
 
 protected:
     static void DetachChildPreservingInheritance(Control& child) noexcept;
+    // TakeChild and TabControl's tab removal call this on the panel and on each enclosing panel, across non-panel
+    // containers such as PageHost, while `subtree` is still attached, before it leaves the tree. A container that keeps
+    // its own observers inside the subtree (inner hover, inner capture) ends them here. It may run control callbacks,
+    // which can retire the subtree or this panel; the caller revalidates afterwards.
+    virtual void OnDescendantDetaching(Control& subtree) noexcept;
+    // Runs OnDescendantDetaching up the ancestor chain of this panel, a direct parent of `subtree`. The walk stops once
+    // a callback retired the subtree or a container, or moved the subtree to another parent.
+    void NotifyContainersOfDetaching(Control& subtree) noexcept;
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
@@ -1886,9 +1906,7 @@ private:
     {
         bool active                = false;
         bool hasConnectedAnimation = false;
-        bool clockAnchored         = false;
         uint64_t startTickMs       = 0u;
-        uint64_t lastTickMs        = 0u;
         float linearProgress       = 1.0f;
         D2D1_RECT_F sourceRectDip  = D2D1::RectF();
         D2D1_RECT_F targetRectDip  = D2D1::RectF();
@@ -2094,12 +2112,12 @@ public:
     [[nodiscard]] bool IsIndeterminate() const noexcept;
 
     void Paint(ControlHost& host) const override;
-
-protected:
-    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnMnemonic(ControlHost& host) override;
+
+protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
 
 private:
     bool _indeterminate = false;
@@ -2122,8 +2140,15 @@ public:
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnMnemonic(ControlHost& host) override;
 
+protected:
+    // The circle and its gaps, not a push button's chrome, beside the label.
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+
 private:
+    friend class RadioButtons;
     void SelectSelf(ControlHost& host);
+    // The state alone, for a group that changes several and publishes once; SetChecked also publishes it.
+    [[nodiscard]] bool AssignChecked(bool checked) noexcept;
 
     std::shared_ptr<const std::function<void()>> _onSelected;
     RadioButtons* _group = nullptr;
@@ -2141,6 +2166,8 @@ public:
     [[nodiscard]] int GetSelectedIndex() const noexcept;
     void SetOnSelectionChanged(std::function<void(int)> onSelectionChanged);
     void SetHeader(std::wstring text);
+    // The selected index follows its choice; a selection whose choice was taken out becomes none.
+    size_t CompactChildren() noexcept override;
 
     void Paint(ControlHost& host) const override;
 
@@ -2221,8 +2248,10 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 private:
+    friend struct ControlModelQueryAccess;
     void SelectIndex(ControlHost& host, uint32_t index);
-    void RefreshAccessibleName() noexcept;
+    // UI Automation reads the page as a slider's value (see docs/controls.md); a change republishes it.
+    void PublishAccessibility() const noexcept;
 
     std::shared_ptr<const std::function<void(uint32_t)>> _onSelected;
     uint32_t _pageCount     = 0;
@@ -2438,7 +2467,6 @@ private:
         float target         = 0.0f;
         uint64_t startTickMs = 0u;
         bool active          = false;
-        bool clockAnchored   = false;
     };
 
     [[nodiscard]] double ClampValue(double value) const noexcept;
@@ -2476,7 +2504,6 @@ private:
     double _valueAnimationStart         = 0.0;
     double _valueAnimationTarget        = 0.0;
     uint64_t _valueAnimationStartTickMs = 0u;
-    bool _valueAnimationClockAnchored   = false;
     double _step                        = 1.0;
     double _largeStep                   = 10.0;
     SliderOrientation _orientation      = SliderOrientation::Horizontal;
@@ -2596,6 +2623,8 @@ public:
         mutable DWRITE_READING_DIRECTION measuredTitleReadingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
         bool closable                                                  = false;
         bool visible                                                   = true;
+        // The tab's identity for UI Automation, kept through reordering: a tab item element names its tab, not its slot.
+        uint64_t id = 0u;
     };
 
     TabControl();
@@ -2609,7 +2638,7 @@ public:
             return nullptr;
         }
         const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*child);
-        _tabs.push_back(TabItem{.title = std::move(title)});
+        _tabs.push_back(TabItem{.title = std::move(title), .id = _nextTabId++});
         InvalidateTabHeaderLayoutCache();
         if (! _selectedIndex.has_value())
         {
@@ -2706,6 +2735,7 @@ private:
         std::vector<D2D1_RECT_F> tabRects;
     };
 
+    friend struct ControlModelQueryAccess;
     [[nodiscard]] bool SyncLayout() noexcept;
     [[nodiscard]] bool UpdateVisiblePageBounds() noexcept;
     [[nodiscard]] std::optional<size_t> FindTabIndex(const Control* page, const std::weak_ptr<int>& pageLifetime) const noexcept;
@@ -2742,6 +2772,7 @@ private:
     void PaintHeaderDivider(ControlHost& host) const noexcept;
 
     std::vector<TabItem> _tabs;
+    uint64_t _nextTabId = 1u;
     std::shared_ptr<const std::function<void(size_t)>> _onSelectionChanged;
     std::shared_ptr<const std::function<bool(size_t)>> _onTabCloseRequested;
     std::shared_ptr<const std::function<void(size_t)>> _onTabClosed;
@@ -3020,6 +3051,7 @@ public:
     [[nodiscard]] bool DebugGetMultilineState(const ControlHost& host, TextFieldDebugMultilineState& out) const noexcept;
     [[nodiscard]] bool DebugGetSingleLinePaintState(const ControlHost& host, TextFieldDebugSingleLinePaintState& out) const noexcept;
     [[nodiscard]] bool DebugGetCaretRect(const ControlHost& host, size_t controlTextIndex, D2D1_RECT_F& outRect) const noexcept;
+    [[nodiscard]] bool DebugIsCaretVisible() const noexcept;
 
     void Paint(ControlHost& host) const override;
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;
@@ -3123,7 +3155,7 @@ private:
     size_t _caretIndex = 0;
     std::optional<size_t> _selectionAnchorIndex;
     std::optional<float> _preferredMultilineXOffsetDip;
-    uint64_t _caretBlinkAnchorTickMs   = 0u;
+    std::optional<uint64_t> _caretBlinkAnchorTickMs;
     bool _caretVisible                 = true;
     mutable float _horizontalScrollDip = 0.0f;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
@@ -3222,6 +3254,7 @@ public:
     [[nodiscard]] D2D1_RECT_F DebugGetPopupItemTextRect(size_t popupListIndex, const ControlHost* host = nullptr) const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetEditableTextRect() const noexcept;
     [[nodiscard]] bool DebugGetEditablePaintState(const ControlHost& host, ComboBoxDebugEditablePaintState& out) const noexcept;
+    [[nodiscard]] bool DebugIsCaretVisible() const noexcept;
     [[nodiscard]] size_t HitTestEditableCaretIndex(const ControlHost& host, D2D1_POINT_2F point) const noexcept;
 
     void Paint(ControlHost& host) const override;
@@ -3335,8 +3368,8 @@ private:
     std::optional<size_t> _hoveredPopupIndex;
     size_t _caretIndex = 0u;
     std::optional<size_t> _selectionAnchorIndex;
-    size_t _popupScrollIndex                   = 0u;
-    uint64_t _caretBlinkAnchorTickMs           = 0u;
+    size_t _popupScrollIndex = 0u;
+    std::optional<uint64_t> _caretBlinkAnchorTickMs;
     uint64_t _lastTypeaheadTickMs              = 0u;
     bool _caretVisible                         = true;
     mutable float _editableHorizontalScrollDip = 0.0f;
@@ -3382,6 +3415,9 @@ public:
 
     void Paint(ControlHost& host) const override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    // The input box is the picker's own part and stays; other children (a derived picker's) can be taken or cleared.
+    [[nodiscard]] std::unique_ptr<Control> TakeChild(size_t index) noexcept override;
+    void ClearChildren() noexcept override;
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] size_t DebugGetLaidOutDisplayTagCount() const noexcept;
@@ -3543,7 +3579,15 @@ private:
     float _padRight               = 0.0f;
     float _padBottom              = 0.0f;
     uint64_t _layoutRevision      = 0u;
-    std::vector<std::pair<const Control*, float>> _childExtents;
+    // A child's extent lives as long as the child: a control created at a destroyed child's address never inherits it.
+    struct ChildExtent final
+    {
+        const Control* child = nullptr;
+        std::weak_ptr<int> lifetime;
+        float extentDip = 0.0f;
+    };
+    std::vector<ChildExtent> _childExtents;
+    [[nodiscard]] float FindChildExtent(const Control& child) const noexcept;
 };
 
 enum class LabelPlacement : uint8_t
@@ -3604,7 +3648,15 @@ private:
     friend class FormPanel;
     HRESULT BindEditor(Control& editor) noexcept;
     void RemoveFailedEditor(Control* editor) noexcept;
+    // An editor that left takes none of the field's semantics with it: no label relation, help text or automation id.
+    static void ForgetEditor(Control& editor) noexcept;
+    [[nodiscard]] bool IsPart(const Control* child) const noexcept;
     HRESULT SyncAccessibility() noexcept;
+    // A text part is used only while the field still owns it, as the editor is: one moved out through GetChildren()
+    // or destroyed is forgotten, never dereferenced. Re-resolved after every call that can run callbacks.
+    [[nodiscard]] Label* LabelPart() const noexcept;
+    [[nodiscard]] Label* DescriptionPart() const noexcept;
+    [[nodiscard]] Label* ValidationPart() const noexcept;
     struct PartMeasure
     {
         const Control* control = nullptr;
@@ -3660,6 +3712,9 @@ private:
     Label* _description = nullptr;
     Label* _validation  = nullptr;
     Control* _editor    = nullptr;
+    std::weak_ptr<int> _labelLifetime;
+    std::weak_ptr<int> _descriptionLifetime;
+    std::weak_ptr<int> _validationLifetime;
     std::weak_ptr<int> _editorLifetime;
     D2D1_SIZE_F _editorPreferredSize = D2D1::SizeF(180.0f, 32.0f);
     LabelPlacement _labelPlacement   = LabelPlacement::Above;
@@ -3762,6 +3817,8 @@ public:
     [[nodiscard]] bool HasLayoutOverflow() const noexcept;
     [[nodiscard]] uint64_t DebugGetMeasureCount() const noexcept;
     void ClearChildren() noexcept override;
+    // Each child keeps its options.
+    size_t CompactChildren() noexcept override;
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
@@ -3888,6 +3945,10 @@ public:
     bool OnMouseLeave(ControlHost& host) override;
     void OnCaptureLost(ControlHost& host) override;
 
+protected:
+    // Ends the inner hover and the forwarded gesture of a subtree leaving the panel; a derived panel chains to it.
+    void OnDescendantDetaching(Control& subtree) noexcept override;
+
 private:
     float _contentHeightDip        = 0.0f;
     float _scrollOffsetDip         = 0.0f;
@@ -3905,8 +3966,25 @@ private:
     };
     HotPart _scrollbarHotPart = HotPart::None;
 
+    // Inner observers keep the lifetime they were taken with: a child that leaves by any path (TakeChild, a callback
+    // that clears the panel, destruction) is forgotten, never dereferenced.
     Control* _innerHoveredChild  = nullptr;
     Control* _innerCapturedChild = nullptr;
+    std::weak_ptr<int> _innerHoveredLifetime;
+    std::weak_ptr<int> _innerCapturedLifetime;
+    // The button whose press began the forwarded gesture; only its release ends it.
+    bool _innerCaptureRightButton = false;
+
+    void SetInnerHovered(Control* child) noexcept;
+    void SetInnerCaptured(Control* child, bool rightButton = false) noexcept;
+    [[nodiscard]] Control* LiveInnerHovered() noexcept;
+    [[nodiscard]] Control* LiveInnerCaptured() const noexcept;
+    // Whether the host's pointer capture still carries this panel's gesture: it is this panel's, or an enclosing
+    // panel's that forwards to it. A capture released without a capture-loss callback (a child's Escape) ended it.
+    [[nodiscard]] bool HostCaptureCarriesGesture(const ControlHost& host) const noexcept;
+    // A press and a double-click take one path: the child under the pointer receives its own kind of event, and the
+    // scrollbar treats both as a press.
+    bool DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, bool doubleClick);
 
     [[nodiscard]] float GetScrollableExtent() const noexcept;
     [[nodiscard]] bool UsesInternalScrollbar() const noexcept;
@@ -4055,6 +4133,12 @@ public:
     [[nodiscard]] float DebugGetVerticalScrollDip() const noexcept;
     [[nodiscard]] size_t DebugGetFirstVisibleIndex() const noexcept;
     [[nodiscard]] std::optional<size_t> DebugGetSelectedVisibleIndex() const noexcept;
+    // The item whose rows are sliding open or closed, while that animation runs.
+    [[nodiscard]] std::optional<uint64_t> DebugGetExpansionAnimationItemId() const noexcept;
+    // The rows' slide and an item's chevron at a time of the host's animation clock; at rest, the slide reads 1 and the
+    // chevron its item's state.
+    [[nodiscard]] float DebugGetExpansionProgress(uint64_t nowTickMs) const noexcept;
+    [[nodiscard]] float DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -4126,6 +4210,7 @@ private:
     };
 
     [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
+    [[nodiscard]] static bool IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept;
     [[nodiscard]] float GetVerticalScrollableExtent() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetContentRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetVerticalScrollbarRect() const noexcept;
@@ -4164,10 +4249,12 @@ private:
     [[nodiscard]] std::optional<size_t> FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept;
     [[nodiscard]] float GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
     [[nodiscard]] std::vector<TreeItemData> CaptureVisibleItems() const;
-    void BeginTreeExpansionAnimation(
-        uint64_t itemId, bool toExpanded, std::vector<TreeItemData>&& beforeItems, std::vector<TreeItemData>&& afterItems, uint64_t nowTickMs) noexcept;
+    void BeginTreeExpansionAnimation(uint64_t itemId,
+                                     bool toExpanded,
+                                     std::vector<TreeItemData>&& beforeItems,
+                                     std::vector<TreeItemData>&& afterItems) noexcept;
     void ClearTreeExpansionAnimation() noexcept;
-    [[nodiscard]] bool HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept;
+    [[nodiscard]] bool HasActiveTreeExpansionAnimation() const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
     void ClearReorderDrag() noexcept;
     // Re-resolves the dragged row and its visible subtree by id; false once the row is gone.
@@ -4291,21 +4378,34 @@ public:
     {
         return _model;
     }
-    // Changes on every SetModel call, including assigning the same address again. Accessibility providers use it
-    // with the non-owning model pointer so a recycled model address cannot keep an old row provider alive.
+    // Changes on every SetModel call, including assigning the same address again, and on nothing else (a new delegate
+    // keeps the rows). Accessibility providers use it with the non-owning model pointer so a recycled model address
+    // cannot keep an old row provider alive.
     [[nodiscard]] uint64_t GetModelAssignmentGeneration() const noexcept
     {
-        return _modelBindingRevision;
+        return _modelAssignment;
     }
 
     [[nodiscard]] GridSelectionModel& GetSelectionModel() noexcept;
     [[nodiscard]] const GridSelectionModel& GetSelectionModel() const noexcept;
+    // Silent, as Tree's: selects the listed rows that are visible (only the last of them in single selection), and makes
+    // the last one the focused row and the range anchor, revealed. A selection published through GetSelectionModel and
+    // NotifyDataChanged leaves the focus as it is; with no row focused, the keys start from its last row.
+    void SetSelectedRowIds(std::span<const uint64_t> rowIds) noexcept;
     // Independent keyboard/current-row identity. SetFocusedRowId is silent and preserves selected membership.
     void SetFocusedRowId(std::optional<uint64_t> rowId) noexcept;
     [[nodiscard]] std::optional<uint64_t> GetFocusedRowId() const noexcept;
     bool RequestFocusRow(size_t rowIndex);
     // Also makes the column current for keyboard navigation and full-cell inspection; preserves selection.
     bool RequestFocusCell(size_t rowIndex, size_t columnIndex);
+    // The focused cell is the focused row's cell in the current column (the one last clicked, chosen with Ctrl+Left and
+    // Ctrl+Right, or named by RequestFocusCell; the first displayed column otherwise). InspectFocusedCell reveals it and
+    // opens the persistent, scrollable inspection surface on its full value; false when there is nothing to inspect (no
+    // focused visible row, no column, an empty value, or a grid outside a host). The grid binds no key to it: an
+    // application offers it as a command, typically in its context menu (which a touch press-and-hold also opens) while
+    // IsFocusedCellClipped reports that the cell draws less than its whole value.
+    bool InspectFocusedCell() noexcept;
+    [[nodiscard]] bool IsFocusedCellClipped() const noexcept;
     void RefreshAccessibilitySnapshot() const noexcept;
     [[nodiscard]] GridVisibleWorkMetrics GetVisibleWorkMetrics() const;
     [[nodiscard]] GridCellLayoutMetrics GetCellLayoutMetrics(const ControlHost& host, size_t rowIndex, size_t columnIndex) const;
@@ -4359,6 +4459,10 @@ public:
     };
 
     [[nodiscard]] bool DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, GridDebugRowVisualState& out) const noexcept;
+    [[nodiscard]] bool DebugGetRowVisualState(const ThemePalette& theme,
+                                              size_t rowIndex,
+                                              bool keyboardFocusVisible,
+                                              GridDebugRowVisualState& out) const noexcept;
     [[nodiscard]] bool DebugGetCellVisualState(const ThemePalette& theme, size_t rowIndex, size_t columnIndex, GridDebugCellVisualState& out) const noexcept;
     [[nodiscard]] GridSortGlyphVisualState DebugGetSortGlyphVisualState(const ThemePalette& theme, size_t columnIndex, uint64_t nowTickMs) const noexcept;
     [[nodiscard]] GridScrollbarVisualState DebugGetScrollbarVisualState(const ThemePalette& theme) const noexcept;
@@ -4430,6 +4534,7 @@ private:
         size_t rowIndex       = 0;
         size_t groupIndex     = 0;
         size_t columnIndex    = 0;
+        uint64_t stableId     = 0u; // The model id of a cell's row or of a group header's group.
         D2D1_RECT_F rectDip   = D2D1::RectF();
         bool onScrollbarThumb = false;
     };
@@ -4463,12 +4568,26 @@ private:
     };
 
     [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
+    [[nodiscard]] static bool IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept;
     void ClampScrollOffsets(bool normalizeVertical = true) noexcept;
     void EnsureColumnWidths() const;
     // False when the selection's delegate, or the accessibility publish that follows it, destroyed this grid, which its
     // caller then leaves alone.
     [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
+    // The delegate's menu for the row at the anchor (control DIPs). False without a delegate.
+    bool OpenRowContextMenu(ControlHost& host, size_t rowIndex, D2D1_POINT_2F anchorDip);
+    // Reports a committed change: the selection delegate when membership differs from `previousSelection`, then the focus
+    // delegate when the focused row differs from `previousFocus`. False when a callback threw, or retired this grid or
+    // replaced its model or delegate; the caller then stops. Otherwise its own guard resumes after the callbacks.
     [[nodiscard]] bool NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus);
+    // The row the keys start from: the focused row while it is visible, else the last selected row while it is visible.
+    [[nodiscard]] std::optional<size_t> FindKeyboardStartRow(std::span<const size_t> visibleRows) const;
+    // The focused cell (row, column) while its row is visible; the column is the current one or the first displayed.
+    [[nodiscard]] std::optional<std::pair<size_t, size_t>> FindFocusedCell() const;
+    // Scrolls the column horizontally into view; false when a callback retired the grid or its model.
+    [[nodiscard]] bool RevealColumn(size_t columnIndex);
+    // Ctrl+Left/Right: moves the current column one place in display order (`forward` is toward its end).
+    bool MoveCurrentColumn(ControlHost& host, bool forward);
     [[nodiscard]] std::optional<size_t> ResolveCheckboxToggleColumn(size_t rowIndex) const;
     [[nodiscard]] bool ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex);
     [[nodiscard]] std::optional<size_t> FindNearestVisibleRow(std::span<const GridGroupDesc> groups, size_t preferredRowIndex) const noexcept;
@@ -4576,7 +4695,8 @@ private:
     // Invalidation validated at message entry by PruneStaleInteractionState().
     friend struct ControlModelQueryAccess;
     uint64_t _modelRevision        = 0u;
-    uint64_t _modelBindingRevision = 0u;
+    uint64_t _modelBindingRevision = 0u; // Model or delegate replaced: operations in progress stop.
+    uint64_t _modelAssignment      = 0u; // Model assigned: UI Automation peers of the old rows retire.
     IGridModel* _model             = nullptr;
     IGridDelegate* _delegate       = nullptr;
     mutable std::vector<float> _columnWidths;
@@ -4606,6 +4726,8 @@ private:
     std::optional<size_t> _hoveredRow;
     std::optional<size_t> _hoveredColumn;
     std::optional<size_t> _activeColumn;
+    // The keyboard chose the current column (Ctrl+Left/Right, or RequestFocusCell): the focused row then outlines its cell.
+    bool _showCurrentCell = false;
     std::optional<size_t> _pressedHeaderColumn;
     std::optional<size_t> _dragReorderColumn;
     size_t _dragReorderTargetDisplayIndex = 0u;
@@ -4892,6 +5014,9 @@ public:
     [[nodiscard]] static std::optional<double> ParseValue(std::wstring_view text) noexcept;
 
     void Paint(ControlHost& host) const override;
+    // Every child is one of the stepper's own parts (Field() and the step buttons): none can be taken out or cleared.
+    [[nodiscard]] std::unique_ptr<Control> TakeChild(size_t index) noexcept override;
+    void ClearChildren() noexcept override;
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
@@ -5035,6 +5160,10 @@ public:
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     void OnCaptureLost(ControlHost& host) override;
+    // Every child is one of the picker's own parts (the channel steppers, the hex field and the buttons): none can be
+    // taken out or cleared.
+    [[nodiscard]] std::unique_ptr<Control> TakeChild(size_t index) noexcept override;
+    void ClearChildren() noexcept override;
 
 protected:
     void PropagateHost(ControlHost* host) noexcept override;
@@ -5156,6 +5285,12 @@ public:
     [[nodiscard]] bool PrimeForShow() noexcept;
     [[nodiscard]] bool RenderInitialFrameForShow() noexcept;
     void RequestAnimation() noexcept;
+    // The animation clock, in milliseconds: a transition stamps its start with it and Tick receives it. Natively it is
+    // the UI thread's dispatcher timeline. Embedded, it is a timeline that the application's AdvanceAnimation ticks
+    // advance by their differences, standing still while the view is idle, hidden or zero-sized, so an application epoch
+    // (zero, or near the top of the range) never matters. Only differences mean anything, and it is no wall clock: input
+    // timing such as double clicks and typeahead uses real time. UI thread only.
+    [[nodiscard]] uint64_t GetAnimationTickMs() const noexcept;
     void SetDefaultButton(Button* button) noexcept;
     [[nodiscard]] Button* GetDefaultButton() const noexcept;
     void SetCancelButton(Button* button) noexcept;
@@ -5255,6 +5390,9 @@ public:
     void DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
+    // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
+    // test passes; an embedded host's clock jumps to nowTickMs and its next ticks continue from there.
+    void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
     void DebugSimulateDeviceLoss() noexcept;
     [[nodiscard]] size_t DebugGetBrushCacheSize() const noexcept;
@@ -5299,7 +5437,6 @@ private:
     friend class EmbeddedHost;
     friend struct ControlModelQueryAccess;
     friend class PageHost;
-    friend class Slider;
     friend class Control;
     friend class Panel;
     friend class TabControl;
@@ -5328,7 +5465,14 @@ private:
     const Control* _intrinsicArrangeBranch    = nullptr;
     uint64_t _intrinsicArrangeForeignRevision = 0u;
     uint64_t _intrinsicArrangeBoundsRevision  = 0u;
+    // The latest intrinsic layout failure the host reported, so a failure that repeats is reported once.
+    const Control* _reportedLayoutFailureControl = nullptr;
+    HRESULT _reportedLayoutFailure               = S_OK;
+    uint64_t _intrinsicLayoutFailureCount        = 0u;
     void BeginIntrinsicArrange(const Control& owner) noexcept;
+    // Prepares pending intrinsic layout before a frame. A control whose layout fails keeps its previous geometry, which
+    // the frame paints, and is reported once; false only when a callback changed the tree mid-pass, whose geometry the
+    // next frame prepares again.
     [[nodiscard]] bool PreparePendingPageLayout() noexcept;
     void PublishPreparedContent() noexcept;
     void CancelPreparedContent() noexcept;
@@ -5595,9 +5739,14 @@ private:
     PresentationMode _presentationMode = PresentationMode::HwndSwapChain;
     bool _smokeOverlayVisible          = false;
     std::atomic_bool _detachInProgress{false};
-    DWORD _attachmentOwnerThreadId      = 0u;
-    uint64_t _animationSubscriptionId   = 0;
-    uint64_t _lastAnimationTickMs       = 0;
+    DWORD _attachmentOwnerThreadId    = 0u;
+    uint64_t _animationSubscriptionId = 0;
+    // The embedded animation clock: AdvanceAnimation adds the difference between consecutive supplied ticks, except that the
+    // first tick after a pause in ticking (idle, hidden, zero-sized, a new attachment) only sets the baseline.
+    uint64_t _animationTimelineMs         = 0;
+    uint64_t _lastSuppliedAnimationTickMs = 0;
+    bool _animationTimelineRebase         = true;
+    std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
 };
 

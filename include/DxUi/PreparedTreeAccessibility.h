@@ -13,7 +13,8 @@ namespace DxUi
 // admits preparation and arranges final source destruction on its appropriate lane, including foreign readers.
 // Source identity is a semantic epoch: retain the same owner for unchanged rows and publish a new owner whenever
 // row sequence, IDs, text, depth, child presence or expansion change. Selection is independent. Snapshot diffs invalidate Tree children on
-// an epoch change, including replacements with the same count and IDs; they do not traverse the source to diff it.
+// an epoch change, including replacements with the same count and IDs; they do not traverse the source to diff it, and
+// read only the focused item (FindItem) from both sources to report its expansion change.
 struct TreeAccessibilityItemView
 {
     std::size_t visibleIndex = 0u;

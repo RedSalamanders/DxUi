@@ -59,15 +59,10 @@ struct ComboBoxPopupMaterialStyle
         return activeScroll;
     }
 
-    const auto* panel = dynamic_cast<const Panel*>(control);
-    if (! panel)
+    const size_t childCount = control->GetLogicalChildCount();
+    for (size_t index = 0u; index < childCount; ++index)
     {
-        return nullptr;
-    }
-
-    for (const auto& child : panel->GetChildren())
-    {
-        if (const ScrollPanel* result = FindContainingScrollPanelRecursive(child.get(), target, activeScroll))
+        if (const ScrollPanel* result = FindContainingScrollPanelRecursive(control->GetLogicalChild(index), target, activeScroll))
         {
             return result;
         }
@@ -668,7 +663,7 @@ void ComboBox::SetText(std::wstring text)
     _undoHistory.clear();
     _redoHistory.clear();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _caretBlinkAnchorTickMs      = 0u;
+    _caretBlinkAnchorTickMs.reset();
     _caretVisible                = true;
     _editableHorizontalScrollDip = 0.0f;
     _dragSelecting               = false;
@@ -1051,9 +1046,10 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
 
 bool ComboBox::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    // A second right-click within the double-click time is another press: the context menu opens again.
     if (rightButton)
     {
-        return false;
+        return OnMouseDown(host, point, rightButton, modifiers);
     }
 
     const bool onDropButton = PointInRect(GetDropButtonRect(), point);
@@ -1143,6 +1139,11 @@ D2D1_RECT_F ComboBox::DebugGetPopupItemTextRect(size_t popupListIndex, const Con
 D2D1_RECT_F ComboBox::DebugGetEditableTextRect() const noexcept
 {
     return GetEditableTextRect();
+}
+
+bool ComboBox::DebugIsCaretVisible() const noexcept
+{
+    return _caretVisible;
 }
 
 bool ComboBox::DebugGetEditablePaintState(const ControlHost& host, ComboBoxDebugEditablePaintState& out) const noexcept
@@ -1259,7 +1260,8 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             Invalidate(host);
         };
 
-        if (ModifiersContainCtrl(modifiers))
+        // AltGr arrives as Ctrl+Alt and types a character: Ctrl with Alt is never an editing shortcut.
+        if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
         {
             if (virtualKey == 'Z' && ! ModifiersContainShift(modifiers))
             {
@@ -1717,8 +1719,13 @@ bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_PO
     return Control::OnContextMenu(host, keyboardInvocation, pointDip);
 }
 
-bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
+bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
+    if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
+    {
+        return false;
+    }
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (! _editable)
@@ -1832,20 +1839,21 @@ bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! _editable || ! HasFocus())
     {
-        _caretVisible           = true;
-        _caretBlinkAnchorTickMs = 0u;
-        return _open;
+        // Only the caret blinks; an open list has nothing that moves on its own, so it keeps no frames ticking.
+        _caretVisible = true;
+        _caretBlinkAnchorTickMs.reset();
+        return false;
     }
 
     const bool caretWasVisible = _caretVisible;
-    if (_caretBlinkAnchorTickMs == 0u)
+    if (! _caretBlinkAnchorTickMs)
     {
         _caretBlinkAnchorTickMs = nowTickMs;
         _caretVisible           = true;
     }
     else
     {
-        _caretVisible = (((nowTickMs - _caretBlinkAnchorTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
+        _caretVisible = ((ElapsedTickMs(*_caretBlinkAnchorTickMs, nowTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
     }
     if (_caretVisible != caretWasVisible)
     {
@@ -2335,7 +2343,7 @@ float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availa
 
 void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
-    _caretBlinkAnchorTickMs = ::GetTickCount64();
+    _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
     _caretVisible           = true;
     host.RequestAnimation();
 }
@@ -2349,9 +2357,9 @@ void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
     }
     else if (! focused)
     {
-        _caretBlinkAnchorTickMs = 0u;
-        _caretVisible           = true;
-        _dragSelecting          = false;
+        _caretBlinkAnchorTickMs.reset();
+        _caretVisible  = true;
+        _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     }
     if (! focused && _open)

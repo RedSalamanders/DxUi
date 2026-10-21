@@ -38,9 +38,12 @@ function Get-ScopedChangedPaths {
 }
 
 function Test-ScopedPattern {
-    param([string] $Path, [string] $Pattern)
+    param([string[]] $Path, [string] $Pattern)
     $expression = [regex]::Escape($Pattern).Replace('\*\*/','(?:.*/)?').Replace('\*\*','.*').Replace('\*','[^/]*').Replace('\?','[^/]')
-    return [regex]::IsMatch($Path, '^' + $expression + '$', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($item in $Path) {
+        if ([regex]::IsMatch($item, '^' + $expression + '$', [Text.RegularExpressions.RegexOptions]::IgnoreCase)) { return $true }
+    }
+    return $false
 }
 
 function Read-ScopedTestManifest {
@@ -61,12 +64,12 @@ function Assert-ScopedTestNames {
     if (@($declared | Sort-Object -Unique).Count -ne $declared.Count) { throw 'Duplicate native test inventory paths.' }
     foreach ($path in $declared) {
         if ($path -match '^(Specs|Measurements|legacy|External)/') { throw "Historical/external source cannot enter the active test inventory: $path" }
+        if ($path -match '(^|/)Scope\.Tests\.') { throw "Use a component context instead of placeholder Scope in native test source: $path" }
         if ($path -cnotmatch '(^|/)[^/]+\.Tests\.[^/]+\.(cpp|h)$' -or -not (Test-Path -LiteralPath (Join-Path $Root $path) -PathType Leaf)) { throw "Invalid/missing native test source: $path" }
     }
     $live = @(Get-ScopedTrackedPaths $Root | Where-Object {
         $_ -notmatch '^(Specs|Measurements|legacy|External)/' -and
-        $_ -cne 'Tools/TerminalEngine/TerminalEngineGate0ContractTestAdapter.cpp' -and
-        $_ -match '\.(cpp|h)$' -and ($_ -match '^Tests/|/SelfTest/|(^|/)[^/]*(Test|Mock|Fake)[^/]*\.(cpp|h)$') -and
+        $_ -match '\.(cpp|h)$' -and ($_ -match '^Tests/|^Tools/ConsumerApi/|/SelfTest/|(^|/)[^/]*(Test|Mock|Fake)[^/]*\.(cpp|h)$') -and
         (Test-Path -LiteralPath (Join-Path $Root $_) -PathType Leaf)
     })
     foreach ($path in $live) { if ($path -notin $declared) { throw "Native test source is absent from Tests/native-test-files.json: $path" } }
@@ -313,6 +316,29 @@ function Get-ScopedPrCandidateScopes {
     return $covered
 }
 
+function Get-ScopedPrContractDigest {
+    <# The reviewed identity of what an open pull request's CI runs to cover the profiles the manifest delegates to it. With
+       prContractFiles, it binds the bytes of each listed file (the workflow, and the scripts and modules that decide which
+       jobs and suites run) and the coverage the manifest claims, so a branch that changes any of them, a CI-only quarantine
+       in a runner included, keeps every local obligation until the digest is reviewed again. A manifest without the list
+       binds the workflow alone. Throws when a contract file is missing or the workflow is not among them. #>
+    param([string] $Root, [object] $Manifest)
+    $workflowPath = '.github/workflows/ci.yml'
+    if (-not $Manifest.PSObject.Properties['prContractFiles']) {
+        return Get-ScopedDigest ([IO.File]::ReadAllText((Join-Path $Root $workflowPath)) -replace "`r`n", "`n")
+    }
+    $files = @($Manifest.prContractFiles | Sort-Object -CaseSensitive -Unique)
+    if ($files -cnotcontains $workflowPath) { throw "The CI coverage contract must include $workflowPath." }
+    $rows = [Collections.Generic.List[string]]::new()
+    foreach ($path in $files) {
+        $full = Join-Path $Root $path
+        if (-not [IO.File]::Exists($full)) { throw "The CI coverage contract file $path is missing." }
+        $rows.Add("$path`n$(Get-ScopedDigest ([IO.File]::ReadAllText($full) -replace "`r`n", "`n"))")
+    }
+    $rows.Add("prCoverage`n$(Get-ScopedDigest (ConvertTo-Json -InputObject @($Manifest.prCoverage) -Depth 8 -Compress))")
+    return Get-ScopedDigest ("dxui-pr-contract-v1`n" + ($rows -join "`n"))
+}
+
 function Get-ScopedPrCoverage {
     param([string] $Root, [object] $Manifest, [string] $Platform, [string] $Configuration)
     $profile = @($Manifest.prCoverage | Where-Object { $_.platform -eq $Platform -and $_.configuration -eq $Configuration })
@@ -329,7 +355,7 @@ function Get-ScopedPrCoverage {
         if ($remote -ine $expectedRemote -and $remote -ine "git@github.com:$($Manifest.repository)" -and
             $remote -ine "ssh://git@github.com/$($Manifest.repository)") { return @() }
         $local = [IO.File]::ReadAllText((Join-Path $Root '.github/workflows/ci.yml')) -replace "`r`n","`n"
-        if ((Get-ScopedDigest $local) -cne $Manifest.prWorkflowDigest -or $local -notmatch '(?m)^  pull_request:') { return @() }
+        if ((Get-ScopedPrContractDigest $Root $Manifest) -cne $Manifest.prWorkflowDigest -or $local -notmatch '(?m)^  pull_request:') { return @() }
         $pr = & gh pr view --json baseRefName,baseRefOid,headRefName,headRefOid,state 2>$null | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0 -or $pr.state -cne 'OPEN' -or $pr.headRefName -cne $branch -or $pr.headRefOid -cne $candidate -or
             [string]::IsNullOrWhiteSpace([string]$pr.baseRefName)) { return @() }
@@ -348,7 +374,7 @@ function Get-ScopedPrCoverage {
     catch [ArgumentException] { return @() }
 }
 
-Export-ModuleMember -Function Get-ScopedChangedPaths, Read-ScopedTestManifest, Assert-ScopedTestNames, Get-ScopedTestPlan,
+Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest, Read-ScopedTestManifest, Assert-ScopedTestNames, Get-ScopedTestPlan,
     Get-ScopedSourceIdentity, Get-ScopedDependencyIdentity, Get-ScopedBuildInputIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
     Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity,
     Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations

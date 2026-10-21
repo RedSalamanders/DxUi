@@ -1,0 +1,3832 @@
+{
+  "command": "performance-paired.ps1",
+  "baseline": {
+    "kind": "revision",
+    "revision": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+    "path": "D:\\a\\DxUi\\DxUi\\.build\\paired\\20261001T150935Z-e72cf624aff5\\baseline",
+    "commit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+    "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+    "harnessOverlay": []
+  },
+  "candidate": {
+    "kind": "revision",
+    "revision": "26281ec555a6621e231872c51eb30f23692e6d82",
+    "path": "D:\\a\\DxUi\\DxUi\\.build\\paired\\20261001T150935Z-e72cf624aff5\\candidate",
+    "commit": "26281ec555a6621e231872c51eb30f23692e6d82",
+    "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+    "harnessOverlay": []
+  },
+  "baselineRevision": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+  "baselineCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+  "candidateRevision": "26281ec555a6621e231872c51eb30f23692e6d82",
+  "candidateCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+  "harnessCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+  "harnessDirty": false,
+  "configuration": "Release",
+  "platform": "x64",
+  "machine": "runnervmfi6oq",
+  "completedUtc": "2026-10-01T15:21:27.6001868Z",
+  "repetitions": 3,
+  "order": "A1, B1, B2, A2, A3, B3, B4, A4, A5, B5, B6, A6",
+  "harness": {
+    "performance.ps1": "0CC4F442B9EBF0060EC1E098BBB86A258E14CDD9288FF3501774FA4D578C322F",
+    "Tools/Compare-Performance.ps1": "A00BCEEF3722DEB15ACABC1F5FB2598DFA1CE662934BAADB16EEB3E741A07178",
+    "Tools/PerformanceComparison.psm1": "0092239EC6A5151FC32B94657DD997FD82ED06B4BACE99F3518087A27FAB29EE",
+    "Tests/Embedded/BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/ComplexUiBenchmark.h": "0B03DDA5F3F47E60B88E72A0B68AE3B2A25CC0DBE2554A651BC5FCFD191DAFDC",
+    "Tests/Support/HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "scenarios": [
+    {
+      "scenario": "Default",
+      "runs": {
+        "A1": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 286.7112216,
+              "frameP95Ms": 3.932,
+              "privateBytes": 23769088.0,
+              "workingSetBytes": 38334464.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 173.7086715,
+              "frameP95Ms": 6.716,
+              "privateBytes": 24072192.0,
+              "workingSetBytes": 38535168.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B1": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 274.3376974,
+              "frameP95Ms": 3.7568,
+              "privateBytes": 23425024.0,
+              "workingSetBytes": 37523456.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 177.1198366,
+              "frameP95Ms": 6.8316,
+              "privateBytes": 23621632.0,
+              "workingSetBytes": 37748736.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B2": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 289.064126,
+              "frameP95Ms": 3.749,
+              "privateBytes": 23187456.0,
+              "workingSetBytes": 36700160.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 179.1880274,
+              "frameP95Ms": 6.2663,
+              "privateBytes": 23416832.0,
+              "workingSetBytes": 36888576.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A2": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 317.8702692,
+              "frameP95Ms": 3.333,
+              "privateBytes": 23437312.0,
+              "workingSetBytes": 36843520.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 159.6076206,
+              "frameP95Ms": 5.8811,
+              "privateBytes": 23719936.0,
+              "workingSetBytes": 37109760.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A3": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.922717,
+              "frameP95Ms": 3.2176,
+              "privateBytes": 23531520.0,
+              "workingSetBytes": 36798464.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 178.4159518,
+              "frameP95Ms": 6.8381,
+              "privateBytes": 24215552.0,
+              "workingSetBytes": 37265408.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B3": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.4211616,
+              "frameP95Ms": 3.2424,
+              "privateBytes": 23281664.0,
+              "workingSetBytes": 36913152.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 176.8233248,
+              "frameP95Ms": 6.5874,
+              "privateBytes": 23855104.0,
+              "workingSetBytes": 37257216.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B4": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.523016,
+              "frameP95Ms": 3.1961,
+              "privateBytes": 23400448.0,
+              "workingSetBytes": 36872192.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 179.1535978,
+              "frameP95Ms": 5.774,
+              "privateBytes": 23576576.0,
+              "workingSetBytes": 37097472.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A4": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.4814914,
+              "frameP95Ms": 3.1897,
+              "privateBytes": 23498752.0,
+              "workingSetBytes": 36839424.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 176.2138602,
+              "frameP95Ms": 6.155,
+              "privateBytes": 23728128.0,
+              "workingSetBytes": 37105664.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A5": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.830362,
+              "frameP95Ms": 3.2062,
+              "privateBytes": 23351296.0,
+              "workingSetBytes": 36769792.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 149.8789166,
+              "frameP95Ms": 9.2241,
+              "privateBytes": 23695360.0,
+              "workingSetBytes": 37179392.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B5": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 272.9112397,
+              "frameP95Ms": 3.8125,
+              "privateBytes": 23306240.0,
+              "workingSetBytes": 36573184.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 155.6517137,
+              "frameP95Ms": 7.489,
+              "privateBytes": 23617536.0,
+              "workingSetBytes": 36896768.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B6": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 301.8125352,
+              "frameP95Ms": 3.646,
+              "privateBytes": 23351296.0,
+              "workingSetBytes": 36765696.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 173.0587353,
+              "frameP95Ms": 6.2608,
+              "privateBytes": 23605248.0,
+              "workingSetBytes": 37027840.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A6": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 307.7685396,
+              "frameP95Ms": 3.6019,
+              "privateBytes": 23519232.0,
+              "workingSetBytes": 36892672.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 172.0255492,
+              "frameP95Ms": 6.2076,
+              "privateBytes": 24133632.0,
+              "workingSetBytes": 37470208.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        }
+      },
+      "comparisons": [
+        {
+          "name": "Default-B1-vs-A1",
+          "status": "advice-required",
+          "file": "Default-B1-vs-A1.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-B2-vs-A2",
+          "status": "advice-required",
+          "file": "Default-B2-vs-A2.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-A2-vs-A1-control",
+          "status": "unstable-control",
+          "file": "Default-A2-vs-A1-control.comparison.json",
+          "drift": [
+            "clean/fps +10.87%",
+            "clean/frameP95Ms -15.23%",
+            "clean/prepareP95Ms -28.57%",
+            "clean/composeCpuP95Ms -34.83%",
+            "clean/workingSetBytes -3.89%",
+            "clean/workingSetPeakBytes -3.90%",
+            "dirty/fps -8.12%",
+            "dirty/frameP95Ms -12.43%",
+            "dirty/prepareP95Ms +6.62%",
+            "dirty/composeCpuP95Ms +6.43%",
+            "dirty/workingSetBytes -3.70%",
+            "dirty/workingSetPeakBytes -3.70%"
+          ]
+        },
+        {
+          "name": "Default-B2-vs-B1-control",
+          "status": "unstable-control",
+          "file": "Default-B2-vs-B1-control.comparison.json",
+          "drift": [
+            "clean/fps +5.37%",
+            "clean/frameP50Ms -6.07%",
+            "clean/prepareP95Ms -14.29%",
+            "clean/workingSetBytes -2.19%",
+            "clean/workingSetPeakBytes -2.18%",
+            "dirty/frameP95Ms -8.27%",
+            "dirty/prepareP95Ms +8.58%",
+            "dirty/composeCpuP95Ms +8.09%",
+            "dirty/workingSetBytes -2.28%",
+            "dirty/workingSetPeakBytes -2.28%"
+          ]
+        },
+        {
+          "name": "Default-B3-vs-A3",
+          "status": "advice-required",
+          "file": "Default-B3-vs-A3.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-B4-vs-A4",
+          "status": "advice-required",
+          "file": "Default-B4-vs-A4.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-A4-vs-A3-control",
+          "status": "unstable-control",
+          "file": "Default-A4-vs-A3-control.comparison.json",
+          "drift": [
+            "clean/prepareP95Ms -16.67%",
+            "dirty/frameP95Ms -9.99%",
+            "dirty/prepareP95Ms +5.33%",
+            "dirty/composeCpuP95Ms +5.04%",
+            "dirty/privateBytes -2.01%",
+            "dirty/privatePeakBytes -2.01%"
+          ]
+        },
+        {
+          "name": "Default-B4-vs-B3-control",
+          "status": "unstable-control",
+          "file": "Default-B4-vs-B3-control.comparison.json",
+          "drift": [
+            "dirty/frameP95Ms -12.35%",
+            "dirty/prepareP95Ms -8.25%"
+          ]
+        },
+        {
+          "name": "Default-B5-vs-A5",
+          "status": "advice-required",
+          "file": "Default-B5-vs-A5.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-B6-vs-A6",
+          "status": "within-noise-budget",
+          "file": "Default-B6-vs-A6.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "Default-A6-vs-A5-control",
+          "status": "unstable-control",
+          "file": "Default-A6-vs-A5-control.comparison.json",
+          "drift": [
+            "clean/frameP95Ms +12.34%",
+            "clean/prepareP95Ms +20.00%",
+            "clean/composeCpuP95Ms +25.26%",
+            "dirty/fps +14.78%",
+            "dirty/frameP50Ms -10.89%",
+            "dirty/frameP95Ms -32.70%",
+            "dirty/prepareP95Ms -25.86%",
+            "dirty/composeCpuP95Ms +8.70%"
+          ]
+        },
+        {
+          "name": "Default-B6-vs-B5-control",
+          "status": "unstable-control",
+          "file": "Default-B6-vs-B5-control.comparison.json",
+          "drift": [
+            "clean/fps +10.59%",
+            "clean/frameP50Ms -13.12%",
+            "clean/prepareP95Ms -28.57%",
+            "clean/composeCpuP95Ms -16.43%",
+            "dirty/fps +11.18%",
+            "dirty/frameP50Ms -11.05%",
+            "dirty/frameP95Ms -16.40%",
+            "dirty/prepareP95Ms -24.34%"
+          ]
+        }
+      ],
+      "set": {
+        "status": "within-noise-budget",
+        "significance": 0.05,
+        "baselineRuns": 6,
+        "candidateRuns": 6,
+        "minimumAttainableP": 0.0021645021645021645,
+        "regressedMetrics": 0,
+        "improvedMetrics": 0,
+        "metrics": [
+          {
+            "phase": "clean",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 318.8503156,
+            "candidateMedian": 295.4383306,
+            "changePercent": -7.342625631699395,
+            "noisePercent": 5.0,
+            "pValue": 0.17965367965367965,
+            "u": 9.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 10.729641379097318,
+            "candidateSpreadPercent": 16.081163809554777,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              286.7112216,
+              317.8702692,
+              320.922717,
+              320.4814914,
+              319.830362,
+              307.7685396
+            ],
+            "candidateRuns": [
+              274.3376974,
+              289.064126,
+              320.4211616,
+              319.523016,
+              272.9112397,
+              301.8125352
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.1006,
+            "candidateMedian": 3.2609,
+            "changePercent": 5.169967103141326,
+            "noisePercent": 5.0,
+            "pValue": 0.24025974025974026,
+            "u": 26.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 2.335031929304006,
+            "candidateSpreadPercent": 16.34211414026803,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.159,
+              3.0986,
+              3.0987,
+              3.1016,
+              3.0996,
+              3.171
+            ],
+            "candidateRuns": [
+              3.5857,
+              3.3682,
+              3.097,
+              3.126,
+              3.6299,
+              3.1536
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.2753,
+            "candidateMedian": 3.6975,
+            "changePercent": 12.890422251396805,
+            "noisePercent": 5.0,
+            "pValue": 0.3939393939393939,
+            "u": 24.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 22.663572802491366,
+            "candidateSpreadPercent": 16.670723461798513,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.932,
+              3.333,
+              3.2176,
+              3.1897,
+              3.2062,
+              3.6019
+            ],
+            "candidateRuns": [
+              3.7568,
+              3.749,
+              3.2424,
+              3.1961,
+              3.8125,
+              3.646
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.0005499999999999999,
+            "candidateMedian": 0.0006,
+            "changePercent": 9.090909090909104,
+            "noisePercent": 5.0,
+            "pValue": 0.4069264069264069,
+            "u": 24.5,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 36.36363636363637,
+            "candidateSpreadPercent": 33.33333333333333,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0007,
+              0.0005,
+              0.0006,
+              0.0005,
+              0.0005,
+              0.0006
+            ],
+            "candidateRuns": [
+              0.0007,
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0007,
+              0.0005
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.02005,
+            "candidateMedian": 0.0257,
+            "changePercent": 28.179551122194525,
+            "noisePercent": 5.0,
+            "pValue": 0.6991341991341992,
+            "u": 21.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 50.37406483790525,
+            "candidateSpreadPercent": 49.80544747081713,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.029,
+              0.0189,
+              0.0203,
+              0.0198,
+              0.0194,
+              0.0243
+            ],
+            "candidateRuns": [
+              0.0304,
+              0.0307,
+              0.0187,
+              0.0179,
+              0.028,
+              0.0234
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 23508992.0,
+            "candidateMedian": 23328768.0,
+            "changePercent": -0.7666173011586341,
+            "noisePercent": 2.0,
+            "pValue": 0.010822510822510822,
+            "u": 2.5,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 1.777158289049569,
+            "candidateSpreadPercent": 1.0183478184531647,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              23769088.0,
+              23437312.0,
+              23531520.0,
+              23498752.0,
+              23351296.0,
+              23519232.0
+            ],
+            "candidateRuns": [
+              23425024.0,
+              23187456.0,
+              23281664.0,
+              23400448.0,
+              23306240.0,
+              23351296.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 23531520.0,
+            "candidateMedian": 23328768.0,
+            "changePercent": -0.8616187989556101,
+            "noisePercent": 2.0,
+            "pValue": 0.010822510822510822,
+            "u": 2.5,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 1.9147084421235856,
+            "candidateSpreadPercent": 1.0885787024844173,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              23801856.0,
+              23511040.0,
+              23568384.0,
+              23498752.0,
+              23351296.0,
+              23552000.0
+            ],
+            "candidateRuns": [
+              23441408.0,
+              23187456.0,
+              23281664.0,
+              23400448.0,
+              23306240.0,
+              23351296.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 36841472.0,
+            "candidateMedian": 36818944.0,
+            "changePercent": -0.06114847962643832,
+            "noisePercent": 2.0,
+            "pValue": 0.5887445887445888,
+            "u": 14.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 4.247039857690811,
+            "candidateSpreadPercent": 2.5809322505284236,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38334464.0,
+              36843520.0,
+              36798464.0,
+              36839424.0,
+              36769792.0,
+              36892672.0
+            ],
+            "candidateRuns": [
+              37523456.0,
+              36700160.0,
+              36913152.0,
+              36872192.0,
+              36573184.0,
+              36765696.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 36859904.0,
+            "candidateMedian": 36839424.0,
+            "changePercent": -0.05556172908101065,
+            "noisePercent": 2.0,
+            "pValue": 0.5887445887445888,
+            "u": 14.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 4.244916101789087,
+            "candidateSpreadPercent": 2.579497442739604,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38359040.0,
+              36864000.0,
+              36827136.0,
+              36855808.0,
+              36794368.0,
+              36913152.0
+            ],
+            "candidateRuns": [
+              37548032.0,
+              36728832.0,
+              36933632.0,
+              36892672.0,
+              36597760.0,
+              36786176.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 172.86711035000002,
+            "candidateMedian": 176.9715807,
+            "changePercent": 2.3743500667592343,
+            "noisePercent": 5.0,
+            "pValue": 0.24025974025974026,
+            "u": 26.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 16.5080767198698,
+            "candidateSpreadPercent": 13.299487752159758,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              173.7086715,
+              159.6076206,
+              178.4159518,
+              176.2138602,
+              149.8789166,
+              172.0255492
+            ],
+            "candidateRuns": [
+              177.1198366,
+              179.1880274,
+              176.8233248,
+              179.1535978,
+              155.6517137,
+              173.0587353
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 5.5672999999999995,
+            "candidateMedian": 5.52825,
+            "changePercent": -0.7014172040306743,
+            "noisePercent": 5.0,
+            "pValue": 0.48484848484848486,
+            "u": 13.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 17.10164711799256,
+            "candidateSpreadPercent": 16.453669787003125,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              5.5618,
+              5.5261,
+              5.5233,
+              5.5728,
+              6.4754,
+              5.77
+            ],
+            "candidateRuns": [
+              5.4936,
+              5.5287,
+              5.4882,
+              5.5278,
+              6.3978,
+              5.6909
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 6.4618,
+            "candidateMedian": 6.42685,
+            "changePercent": -0.5408709647466647,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 51.73481073385125,
+            "candidateSpreadPercent": 26.684923407267945,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              6.716,
+              5.8811,
+              6.8381,
+              6.155,
+              9.2241,
+              6.2076
+            ],
+            "candidateRuns": [
+              6.8316,
+              6.2663,
+              6.5874,
+              5.774,
+              7.489,
+              6.2608
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 1.73015,
+            "candidateMedian": 1.7504,
+            "changePercent": 1.1704187498193797,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 37.81175042626362,
+            "candidateSpreadPercent": 34.71206581352833,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              1.6667,
+              1.777,
+              1.6579,
+              1.7462,
+              2.3121,
+              1.7141
+            ],
+            "candidateRuns": [
+              1.6506,
+              1.7922,
+              1.809,
+              1.6597,
+              2.2582,
+              1.7086
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.0143,
+            "candidateMedian": 0.0146,
+            "changePercent": 2.0979020979021046,
+            "noisePercent": 5.0,
+            "pValue": 0.5887445887445888,
+            "u": 22.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 8.39160839160839,
+            "candidateSpreadPercent": 10.958904109589046,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.014,
+              0.0149,
+              0.0139,
+              0.0146,
+              0.0138,
+              0.015
+            ],
+            "candidateRuns": [
+              0.0136,
+              0.0147,
+              0.0152,
+              0.0151,
+              0.0145,
+              0.0142
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 23900160.0,
+            "candidateMedian": 23611392.0,
+            "changePercent": -1.208226221079689,
+            "noisePercent": 2.0,
+            "pValue": 0.015151515151515152,
+            "u": 3.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 2.176520994001714,
+            "candidateSpreadPercent": 1.8561887414346432,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              24072192.0,
+              23719936.0,
+              24215552.0,
+              23728128.0,
+              23695360.0,
+              24133632.0
+            ],
+            "candidateRuns": [
+              23621632.0,
+              23416832.0,
+              23855104.0,
+              23576576.0,
+              23617536.0,
+              23605248.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 23922688.0,
+            "candidateMedian": 23656448.0,
+            "changePercent": -1.1129184145193038,
+            "noisePercent": 2.0,
+            "pValue": 0.015151515151515152,
+            "u": 3.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 2.157349541991268,
+            "candidateSpreadPercent": 2.3547744784001385,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              24092672.0,
+              23752704.0,
+              24236032.0,
+              23748608.0,
+              23719936.0,
+              24150016.0
+            ],
+            "candidateRuns": [
+              23658496.0,
+              23449600.0,
+              24006656.0,
+              23601152.0,
+              23654400.0,
+              23715840.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 37222400.0,
+            "candidateMedian": 37062656.0,
+            "changePercent": -0.4291609353507586,
+            "noisePercent": 2.0,
+            "pValue": 0.13203463203463203,
+            "u": 8.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 3.840440165061898,
+            "candidateSpreadPercent": 2.3208266563518816,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38535168.0,
+              37109760.0,
+              37265408.0,
+              37105664.0,
+              37179392.0,
+              37470208.0
+            ],
+            "candidateRuns": [
+              37748736.0,
+              36888576.0,
+              37257216.0,
+              37097472.0,
+              36896768.0,
+              37027840.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 37222400.0,
+            "candidateMedian": 37068800.0,
+            "changePercent": -0.4126547455295726,
+            "noisePercent": 2.0,
+            "pValue": 0.19264069264069264,
+            "u": 9.5,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 3.829436038514443,
+            "candidateSpreadPercent": 2.3204419889502765,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38535168.0,
+              37109760.0,
+              37265408.0,
+              37117952.0,
+              37179392.0,
+              37478400.0
+            ],
+            "candidateRuns": [
+              37752832.0,
+              36892672.0,
+              37277696.0,
+              37109760.0,
+              36896768.0,
+              37027840.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 2160.0,
+            "candidateMedian": 2160.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0
+            ],
+            "candidateRuns": [
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0,
+              2160.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "MultilineGrid",
+      "runs": {
+        "A1": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 306.9419527,
+              "frameP95Ms": 3.672,
+              "privateBytes": 29437952.0,
+              "workingSetBytes": 43040768.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 69.13177917,
+              "frameP95Ms": 16.061,
+              "privateBytes": 31408128.0,
+              "workingSetBytes": 44535808.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B1": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 309.5520009,
+              "frameP95Ms": 3.6081,
+              "privateBytes": 28643328.0,
+              "workingSetBytes": 41734144.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 63.26621315,
+              "frameP95Ms": 19.1234,
+              "privateBytes": 29904896.0,
+              "workingSetBytes": 42680320.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B2": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 317.0252883,
+              "frameP95Ms": 3.3608,
+              "privateBytes": 28758016.0,
+              "workingSetBytes": 41431040.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 73.68625241,
+              "frameP95Ms": 14.4625,
+              "privateBytes": 30437376.0,
+              "workingSetBytes": 43016192.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A2": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.2967229,
+              "frameP95Ms": 3.2031,
+              "privateBytes": 28348416.0,
+              "workingSetBytes": 41914368.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 64.14263269,
+              "frameP95Ms": 15.8991,
+              "privateBytes": 29159424.0,
+              "workingSetBytes": 41824256.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A3": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.4655979,
+              "frameP95Ms": 3.2021,
+              "privateBytes": 28884992.0,
+              "workingSetBytes": 42139648.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 69.05843656,
+              "frameP95Ms": 15.1271,
+              "privateBytes": 29401088.0,
+              "workingSetBytes": 42221568.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B3": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.7383262,
+              "frameP95Ms": 3.1972,
+              "privateBytes": 29065216.0,
+              "workingSetBytes": 42094592.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 74.49567823,
+              "frameP95Ms": 14.345,
+              "privateBytes": 30318592.0,
+              "workingSetBytes": 43061248.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B4": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 322.3204494,
+              "frameP95Ms": 3.1977,
+              "privateBytes": 28626944.0,
+              "workingSetBytes": 41799680.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 72.16204709,
+              "frameP95Ms": 14.8449,
+              "privateBytes": 30154752.0,
+              "workingSetBytes": 42979328.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A4": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.218553,
+              "frameP95Ms": 3.1853,
+              "privateBytes": 28372992.0,
+              "workingSetBytes": 41762816.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 65.27122233,
+              "frameP95Ms": 15.4077,
+              "privateBytes": 29048832.0,
+              "workingSetBytes": 41975808.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A5": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 321.8841812,
+              "frameP95Ms": 3.2499,
+              "privateBytes": 28581888.0,
+              "workingSetBytes": 42041344.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 71.79250816,
+              "frameP95Ms": 15.483,
+              "privateBytes": 30076928.0,
+              "workingSetBytes": 42831872.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B5": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.768232,
+              "frameP95Ms": 3.1985,
+              "privateBytes": 28651520.0,
+              "workingSetBytes": 41799680.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 65.40233061,
+              "frameP95Ms": 18.0565,
+              "privateBytes": 29184000.0,
+              "workingSetBytes": 41836544.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B6": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.7025487,
+              "frameP95Ms": 3.336,
+              "privateBytes": 28925952.0,
+              "workingSetBytes": 42143744.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 68.33196214,
+              "frameP95Ms": 18.2338,
+              "privateBytes": 30228480.0,
+              "workingSetBytes": 42967040.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A6": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 319.3189565,
+              "frameP95Ms": 3.2162,
+              "privateBytes": 29184000.0,
+              "workingSetBytes": 42008576.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 62.66055789,
+              "frameP95Ms": 17.9003,
+              "privateBytes": 29720576.0,
+              "workingSetBytes": 42225664.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        }
+      },
+      "comparisons": [
+        {
+          "name": "MultilineGrid-B1-vs-A1",
+          "status": "advice-required",
+          "file": "MultilineGrid-B1-vs-A1.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-B2-vs-A2",
+          "status": "advice-required",
+          "file": "MultilineGrid-B2-vs-A2.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-A2-vs-A1-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-A2-vs-A1-control.comparison.json",
+          "drift": [
+            "clean/frameP95Ms -12.77%",
+            "clean/composeCpuP95Ms -28.57%",
+            "clean/privateBytes -3.70%",
+            "clean/privatePeakBytes -3.62%",
+            "clean/workingSetBytes -2.62%",
+            "clean/workingSetPeakBytes -2.64%",
+            "dirty/fps -7.22%",
+            "dirty/frameP50Ms +7.28%",
+            "dirty/composeCpuP95Ms -14.78%",
+            "dirty/privateBytes -7.16%",
+            "dirty/privatePeakBytes -3.19%",
+            "dirty/workingSetBytes -6.09%",
+            "dirty/workingSetPeakBytes -3.96%"
+          ]
+        },
+        {
+          "name": "MultilineGrid-B2-vs-B1-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-B2-vs-B1-control.comparison.json",
+          "drift": [
+            "clean/frameP95Ms -6.85%",
+            "clean/prepareP95Ms -16.67%",
+            "clean/composeCpuP95Ms -16.31%",
+            "dirty/fps +16.47%",
+            "dirty/frameP50Ms -12.02%",
+            "dirty/frameP95Ms -24.37%",
+            "dirty/prepareP95Ms -19.43%",
+            "dirty/composeCpuP95Ms -30.70%"
+          ]
+        },
+        {
+          "name": "MultilineGrid-B3-vs-A3",
+          "status": "advice-required",
+          "file": "MultilineGrid-B3-vs-A3.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-B4-vs-A4",
+          "status": "advice-required",
+          "file": "MultilineGrid-B4-vs-A4.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-A4-vs-A3-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-A4-vs-A3-control.comparison.json",
+          "drift": [
+            "dirty/fps -5.48%",
+            "dirty/privatePeakBytes -3.13%"
+          ]
+        },
+        {
+          "name": "MultilineGrid-B4-vs-B3-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-B4-vs-B3-control.comparison.json",
+          "drift": [
+            "clean/prepareP95Ms +20.00%",
+            "dirty/frameP50Ms +5.56%",
+            "dirty/privatePeakBytes -2.71%"
+          ]
+        },
+        {
+          "name": "MultilineGrid-B5-vs-A5",
+          "status": "advice-required",
+          "file": "MultilineGrid-B5-vs-A5.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-B6-vs-A6",
+          "status": "advice-required",
+          "file": "MultilineGrid-B6-vs-A6.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGrid-A6-vs-A5-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-A6-vs-A5-control.comparison.json",
+          "drift": [
+            "clean/privateBytes +2.11%",
+            "clean/privatePeakBytes +2.18%",
+            "dirty/fps -12.72%",
+            "dirty/frameP50Ms +13.09%",
+            "dirty/frameP95Ms +15.61%",
+            "dirty/prepareP95Ms +16.55%",
+            "dirty/composeCpuP95Ms +10.24%"
+          ]
+        },
+        {
+          "name": "MultilineGrid-B6-vs-B5-control",
+          "status": "unstable-control",
+          "file": "MultilineGrid-B6-vs-B5-control.comparison.json",
+          "drift": [
+            "clean/composeCpuP95Ms +10.27%",
+            "dirty/frameP50Ms -6.88%",
+            "dirty/prepareP95Ms +6.14%",
+            "dirty/composeCpuP95Ms -5.85%",
+            "dirty/privateBytes +3.58%",
+            "dirty/workingSetBytes +2.70%"
+          ]
+        }
+      ],
+      "set": {
+        "status": "within-noise-budget",
+        "significance": 0.05,
+        "baselineRuns": 6,
+        "candidateRuns": 6,
+        "minimumAttainableP": 0.0021645021645021645,
+        "regressedMetrics": 0,
+        "improvedMetrics": 0,
+        "metrics": [
+          {
+            "phase": "clean",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 319.39227719999997,
+            "candidateMedian": 319.72043745,
+            "changePercent": 0.10274520501150075,
+            "noisePercent": 5.0,
+            "pValue": 0.8181818181818182,
+            "u": 20.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 4.67833118289311,
+            "candidateSpreadPercent": 3.9936291223162077,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              306.9419527,
+              320.2967229,
+              319.4655979,
+              319.218553,
+              321.8841812,
+              319.3189565
+            ],
+            "candidateRuns": [
+              309.5520009,
+              317.0252883,
+              319.7383262,
+              322.3204494,
+              319.768232,
+              319.7025487
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.1278,
+            "candidateMedian": 3.11555,
+            "changePercent": -0.391649082422163,
+            "noisePercent": 5.0,
+            "pValue": 0.48484848484848486,
+            "u": 13.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 2.89660464224056,
+            "candidateSpreadPercent": 2.266052542889691,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.1817,
+              3.1236,
+              3.1231,
+              3.132,
+              3.0911,
+              3.1355
+            ],
+            "candidateRuns": [
+              3.1563,
+              3.1438,
+              3.1149,
+              3.0857,
+              3.1162,
+              3.0954
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.20965,
+            "candidateMedian": 3.2672499999999998,
+            "changePercent": 1.7945881949745335,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 15.163647126633755,
+            "candidateSpreadPercent": 12.576325656132829,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.672,
+              3.2031,
+              3.2021,
+              3.1853,
+              3.2499,
+              3.2162
+            ],
+            "candidateRuns": [
+              3.6081,
+              3.3608,
+              3.1972,
+              3.1977,
+              3.1985,
+              3.336
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.0005,
+            "candidateMedian": 0.0006,
+            "changePercent": 19.999999999999996,
+            "noisePercent": 5.0,
+            "pValue": 0.06060606060606061,
+            "u": 30.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 16.666666666666657,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0005,
+              0.0005,
+              0.0005,
+              0.0005,
+              0.0005,
+              0.0005
+            ],
+            "candidateRuns": [
+              0.0006,
+              0.0005,
+              0.0005,
+              0.0006,
+              0.0006,
+              0.0006
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.018549999999999997,
+            "candidateMedian": 0.0191,
+            "changePercent": 2.964959568733172,
+            "noisePercent": 5.0,
+            "pValue": 0.41774891774891776,
+            "u": 23.5,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 42.048517520215626,
+            "candidateSpreadPercent": 25.654450261780116,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0259,
+              0.0185,
+              0.0181,
+              0.0186,
+              0.0184,
+              0.0187
+            ],
+            "candidateRuns": [
+              0.0233,
+              0.0195,
+              0.0184,
+              0.0187,
+              0.0185,
+              0.0204
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 28733440.0,
+            "candidateMedian": 28704768.0,
+            "changePercent": -0.09978617248752597,
+            "noisePercent": 2.0,
+            "pValue": 0.8181818181818182,
+            "u": 20.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 3.791874554526016,
+            "candidateSpreadPercent": 1.5268264840182648,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              29437952.0,
+              28348416.0,
+              28884992.0,
+              28372992.0,
+              28581888.0,
+              29184000.0
+            ],
+            "candidateRuns": [
+              28643328.0,
+              28758016.0,
+              29065216.0,
+              28626944.0,
+              28651520.0,
+              28925952.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 28753920.0,
+            "candidateMedian": 28884992.0,
+            "changePercent": 0.4558404558404616,
+            "noisePercent": 2.0,
+            "pValue": 0.6991341991341992,
+            "u": 21.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 3.7037037037037033,
+            "candidateSpreadPercent": 1.5740215541690301,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              29442048.0,
+              28377088.0,
+              28917760.0,
+              28389376.0,
+              28590080.0,
+              29212672.0
+            ],
+            "candidateRuns": [
+              28647424.0,
+              28811264.0,
+              29102080.0,
+              29069312.0,
+              28680192.0,
+              28958720.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 42024960.0,
+            "candidateMedian": 41799680.0,
+            "changePercent": -0.5360623781676455,
+            "noisePercent": 2.0,
+            "pValue": 0.2878787878787879,
+            "u": 11.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 3.0409356725146197,
+            "candidateSpreadPercent": 1.705046545810877,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              43040768.0,
+              41914368.0,
+              42139648.0,
+              41762816.0,
+              42041344.0,
+              42008576.0
+            ],
+            "candidateRuns": [
+              41734144.0,
+              41431040.0,
+              42094592.0,
+              41799680.0,
+              41799680.0,
+              42143744.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 42049536.0,
+            "candidateMedian": 41820160.0,
+            "changePercent": -0.5454899668809632,
+            "noisePercent": 2.0,
+            "pValue": 0.2878787878787879,
+            "u": 11.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 3.0488992791739724,
+            "candidateSpreadPercent": 1.753183153770813,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              43073536.0,
+              41934848.0,
+              42151936.0,
+              41791488.0,
+              42065920.0,
+              42033152.0
+            ],
+            "candidateRuns": [
+              41762816.0,
+              41451520.0,
+              42119168.0,
+              41820160.0,
+              41820160.0,
+              42184704.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 67.16482944500001,
+            "candidateMedian": 70.24700461500001,
+            "changePercent": 4.588971929905572,
+            "noisePercent": 5.0,
+            "pValue": 0.30952380952380953,
+            "u": 25.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 13.596327639718012,
+            "candidateSpreadPercent": 15.985685285151849,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              69.13177917,
+              64.14263269,
+              69.05843656,
+              65.27122233,
+              71.79250816,
+              62.66055789
+            ],
+            "candidateRuns": [
+              63.26621315,
+              73.68625241,
+              74.49567823,
+              72.16204709,
+              65.40233061,
+              68.33196214
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 14.295000000000002,
+            "candidateMedian": 13.7641,
+            "changePercent": -3.7138859741168373,
+            "noisePercent": 5.0,
+            "pValue": 0.3939393939393939,
+            "u": 12.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 12.267925848198672,
+            "candidateSpreadPercent": 15.702443312675735,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              13.9774,
+              14.9954,
+              14.3739,
+              14.2161,
+              13.397,
+              15.1507
+            ],
+            "candidateRuns": [
+              15.1775,
+              13.3538,
+              13.0162,
+              13.7403,
+              14.8064,
+              13.7879
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 15.69105,
+            "candidateMedian": 16.4507,
+            "changePercent": 4.841294878290503,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 17.673769441815562,
+            "candidateSpreadPercent": 29.046788282565476,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              16.061,
+              15.8991,
+              15.1271,
+              15.4077,
+              15.483,
+              17.9003
+            ],
+            "candidateRuns": [
+              19.1234,
+              14.4625,
+              14.345,
+              14.8449,
+              18.0565,
+              18.2338
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 11.606300000000001,
+            "candidateMedian": 12.060849999999999,
+            "changePercent": 3.9164074683576855,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 15.947373409269112,
+            "candidateSpreadPercent": 33.43711264131467,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              11.5208,
+              11.7819,
+              11.3619,
+              11.6918,
+              11.1839,
+              13.0348
+            ],
+            "candidateRuns": [
+              13.3585,
+              10.7632,
+              10.6572,
+              10.6007,
+              13.7866,
+              14.6335
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.01695,
+            "candidateMedian": 0.0161,
+            "changePercent": -5.014749262536878,
+            "noisePercent": 5.0,
+            "pValue": 0.23593073593073594,
+            "u": 10.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 24.778761061946895,
+            "candidateSpreadPercent": 43.47826086956522,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0203,
+              0.0173,
+              0.0161,
+              0.0165,
+              0.0166,
+              0.0183
+            ],
+            "candidateRuns": [
+              0.0228,
+              0.0158,
+              0.0159,
+              0.0161,
+              0.0171,
+              0.0161
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 29560832.0,
+            "candidateMedian": 30191616.0,
+            "changePercent": 2.133850630455858,
+            "noisePercent": 2.0,
+            "pValue": 0.24025974025974026,
+            "u": 26.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 7.981155604821947,
+            "candidateSpreadPercent": 4.151404151404151,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              31408128.0,
+              29159424.0,
+              29401088.0,
+              29048832.0,
+              30076928.0,
+              29720576.0
+            ],
+            "candidateRuns": [
+              29904896.0,
+              30437376.0,
+              30318592.0,
+              30154752.0,
+              29184000.0,
+              30228480.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 31043584.0,
+            "candidateMedian": 30863360.0,
+            "changePercent": -0.5805515239477477,
+            "noisePercent": 2.0,
+            "pValue": 0.3939393939393939,
+            "u": 12.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 4.050666314817258,
+            "candidateSpreadPercent": 3.1585932315859324,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              31596544.0,
+              30588928.0,
+              31318016.0,
+              30339072.0,
+              30769152.0,
+              31322112.0
+            ],
+            "candidateRuns": [
+              30961664.0,
+              30986240.0,
+              31293440.0,
+              30445568.0,
+              30765056.0,
+              30318592.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 42223616.0,
+            "candidateMedian": 42973184.0,
+            "changePercent": 1.7752340301692815,
+            "noisePercent": 2.0,
+            "pValue": 0.30952380952380953,
+            "u": 25.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 6.421884852306349,
+            "candidateSpreadPercent": 2.849926130677215,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              44535808.0,
+              41824256.0,
+              42221568.0,
+              41975808.0,
+              42831872.0,
+              42225664.0
+            ],
+            "candidateRuns": [
+              42680320.0,
+              43016192.0,
+              43061248.0,
+              42979328.0,
+              41836544.0,
+              42967040.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 43134976.0,
+            "candidateMedian": 43315200.0,
+            "changePercent": 0.41781407273762117,
+            "noisePercent": 2.0,
+            "pValue": 0.30952380952380953,
+            "u": 25.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 4.1306618554743135,
+            "candidateSpreadPercent": 2.070921985815603,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              44675072.0,
+              42905600.0,
+              43245568.0,
+              43024384.0,
+              42893312.0,
+              43266048.0
+            ],
+            "candidateRuns": [
+              43724800.0,
+              43110400.0,
+              43307008.0,
+              43810816.0,
+              42913792.0,
+              43323392.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 1080.0,
+            "candidateMedian": 1080.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0
+            ],
+            "candidateRuns": [
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "MultilineGridDistinct",
+      "runs": {
+        "A1": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 271.6745339,
+              "frameP95Ms": 3.8704,
+              "privateBytes": 25038848.0,
+              "workingSetBytes": 38731776.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 167.9175122,
+              "frameP95Ms": 6.6447,
+              "privateBytes": 25812992.0,
+              "workingSetBytes": 39661568.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B1": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 316.7937934,
+              "frameP95Ms": 3.309,
+              "privateBytes": 25120768.0,
+              "workingSetBytes": 38481920.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 170.4874321,
+              "frameP95Ms": 6.0051,
+              "privateBytes": 25477120.0,
+              "workingSetBytes": 38940672.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B2": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 310.6330469,
+              "frameP95Ms": 3.3276,
+              "privateBytes": 25243648.0,
+              "workingSetBytes": 38387712.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 168.757217,
+              "frameP95Ms": 7.0508,
+              "privateBytes": 25776128.0,
+              "workingSetBytes": 39133184.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A2": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.1423993,
+              "frameP95Ms": 3.2349,
+              "privateBytes": 25227264.0,
+              "workingSetBytes": 38424576.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 153.346539,
+              "frameP95Ms": 6.0667,
+              "privateBytes": 25640960.0,
+              "workingSetBytes": 39129088.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A3": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 320.031235,
+              "frameP95Ms": 3.2462,
+              "privateBytes": 25522176.0,
+              "workingSetBytes": 38772736.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 165.5764835,
+              "frameP95Ms": 7.4064,
+              "privateBytes": 25870336.0,
+              "workingSetBytes": 39268352.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B3": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 316.7305803,
+              "frameP95Ms": 3.3189,
+              "privateBytes": 25001984.0,
+              "workingSetBytes": 38305792.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 165.5686704,
+              "frameP95Ms": 7.4085,
+              "privateBytes": 25731072.0,
+              "workingSetBytes": 39219200.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B4": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 317.3847497,
+              "frameP95Ms": 3.4189,
+              "privateBytes": 25481216.0,
+              "workingSetBytes": 38539264.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 167.3500826,
+              "frameP95Ms": 6.3396,
+              "privateBytes": 25878528.0,
+              "workingSetBytes": 39202816.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A4": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 316.6972279,
+              "frameP95Ms": 3.2759,
+              "privateBytes": 25321472.0,
+              "workingSetBytes": 38531072.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 168.4983135,
+              "frameP95Ms": 6.0907,
+              "privateBytes": 25784320.0,
+              "workingSetBytes": 39260160.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A5": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 315.3857799,
+              "frameP95Ms": 3.3685,
+              "privateBytes": 25264128.0,
+              "workingSetBytes": 38563840.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 169.6411835,
+              "frameP95Ms": 6.283,
+              "privateBytes": 25665536.0,
+              "workingSetBytes": 39165952.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B5": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 315.1772833,
+              "frameP95Ms": 3.3045,
+              "privateBytes": 25403392.0,
+              "workingSetBytes": 38637568.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 169.185343,
+              "frameP95Ms": 6.2174,
+              "privateBytes": 25845760.0,
+              "workingSetBytes": 39321600.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B6": {
+          "sourceCommit": "26281ec555a6621e231872c51eb30f23692e6d82",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "0CA7030881689CFD02C58B192A11AACFBC1CB29188342475A71610E94C9A29D8",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 316.2045337,
+              "frameP95Ms": 3.2774,
+              "privateBytes": 25419776.0,
+              "workingSetBytes": 38670336.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 169.0000646,
+              "frameP95Ms": 6.1583,
+              "privateBytes": 25718784.0,
+              "workingSetBytes": 39084032.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A6": {
+          "sourceCommit": "e72cf624aff55f6e5f33a367e5d5512cb2169f06",
+          "sourceDirty": false,
+          "sourceFingerprint": "3313B8F721D8D076D1F31EDE6ACB30F9F6009A28EC815FBA1D01A489617AC861",
+          "executableSha256": "03B8D4AE877BCB295B01F9D02DE2AF0E8FE1565C0F14899559FA38018BDF8893",
+          "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+          "medians": {
+            "clean": {
+              "fps": 314.9323604,
+              "frameP95Ms": 3.3016,
+              "privateBytes": 25243648.0,
+              "workingSetBytes": 38576128.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 169.2141862,
+              "frameP95Ms": 6.2933,
+              "privateBytes": 25632768.0,
+              "workingSetBytes": 39198720.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        }
+      },
+      "comparisons": [
+        {
+          "name": "MultilineGridDistinct-B1-vs-A1",
+          "status": "within-noise-budget",
+          "file": "MultilineGridDistinct-B1-vs-A1.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-B2-vs-A2",
+          "status": "advice-required",
+          "file": "MultilineGridDistinct-B2-vs-A2.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-A2-vs-A1-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-A2-vs-A1-control.comparison.json",
+          "drift": [
+            "clean/fps +17.84%",
+            "clean/frameP50Ms -14.14%",
+            "clean/frameP95Ms -16.42%",
+            "clean/prepareP95Ms -14.29%",
+            "clean/composeCpuP95Ms -19.72%",
+            "dirty/fps -8.68%",
+            "dirty/frameP95Ms -8.70%",
+            "dirty/prepareP95Ms -8.49%"
+          ]
+        },
+        {
+          "name": "MultilineGridDistinct-B2-vs-B1-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-B2-vs-B1-control.comparison.json",
+          "drift": [
+            "dirty/frameP95Ms +17.41%"
+          ]
+        },
+        {
+          "name": "MultilineGridDistinct-B3-vs-A3",
+          "status": "advice-required",
+          "file": "MultilineGridDistinct-B3-vs-A3.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-B4-vs-A4",
+          "status": "advice-required",
+          "file": "MultilineGridDistinct-B4-vs-A4.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-A4-vs-A3-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-A4-vs-A3-control.comparison.json",
+          "drift": [
+            "dirty/frameP95Ms -17.76%",
+            "dirty/prepareP95Ms -9.25%",
+            "dirty/composeCpuP95Ms +10.29%"
+          ]
+        },
+        {
+          "name": "MultilineGridDistinct-B4-vs-B3-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-B4-vs-B3-control.comparison.json",
+          "drift": [
+            "clean/composeCpuP95Ms +16.36%",
+            "dirty/frameP95Ms -14.43%",
+            "dirty/prepareP95Ms -6.05%"
+          ]
+        },
+        {
+          "name": "MultilineGridDistinct-B5-vs-A5",
+          "status": "advice-required",
+          "file": "MultilineGridDistinct-B5-vs-A5.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-B6-vs-A6",
+          "status": "advice-required",
+          "file": "MultilineGridDistinct-B6-vs-A6.comparison.json",
+          "drift": []
+        },
+        {
+          "name": "MultilineGridDistinct-A6-vs-A5-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-A6-vs-A5-control.comparison.json",
+          "drift": [
+            "clean/composeCpuP95Ms -10.18%"
+          ]
+        },
+        {
+          "name": "MultilineGridDistinct-B6-vs-B5-control",
+          "status": "unstable-control",
+          "file": "MultilineGridDistinct-B6-vs-B5-control.comparison.json",
+          "drift": [
+            "clean/prepareP95Ms +16.67%",
+            "clean/composeCpuP95Ms +12.32%",
+            "dirty/prepareP95Ms +5.42%",
+            "dirty/composeCpuP95Ms -8.67%"
+          ]
+        }
+      ],
+      "set": {
+        "status": "within-noise-budget",
+        "significance": 0.05,
+        "baselineRuns": 6,
+        "candidateRuns": 6,
+        "minimumAttainableP": 0.0021645021645021645,
+        "regressedMetrics": 0,
+        "improvedMetrics": 0,
+        "metrics": [
+          {
+            "phase": "clean",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 316.04150389999995,
+            "candidateMedian": 316.467557,
+            "changePercent": 0.13480922433999343,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 15.335917846833173,
+            "candidateSpreadPercent": 2.1334581225335447,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              271.6745339,
+              320.1423993,
+              320.031235,
+              316.6972279,
+              315.3857799,
+              314.9323604
+            ],
+            "candidateRuns": [
+              316.7937934,
+              310.6330469,
+              316.7305803,
+              317.3847497,
+              315.1772833,
+              316.2045337
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.1462000000000003,
+            "candidateMedian": 3.1580500000000002,
+            "changePercent": 0.37664484139596777,
+            "noisePercent": 5.0,
+            "pValue": 0.3939393939393939,
+            "u": 24.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 17.030068018562076,
+            "candidateSpreadPercent": 0.886623074365511,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.6253,
+              3.1128,
+              3.0895,
+              3.145,
+              3.1518,
+              3.1474
+            ],
+            "candidateRuns": [
+              3.1364,
+              3.1638,
+              3.1573,
+              3.1422,
+              3.1644,
+              3.1588
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 3.2887500000000003,
+            "candidateMedian": 3.31395,
+            "changePercent": 0.7662485746864345,
+            "noisePercent": 5.0,
+            "pValue": 0.3939393939393939,
+            "u": 24.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 19.323451159255033,
+            "candidateSpreadPercent": 4.269829055960401,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3.8704,
+              3.2349,
+              3.2462,
+              3.2759,
+              3.3685,
+              3.3016
+            ],
+            "candidateRuns": [
+              3.309,
+              3.3276,
+              3.3189,
+              3.4189,
+              3.3045,
+              3.2774
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.0006,
+            "candidateMedian": 0.0006,
+            "changePercent": 0.0,
+            "noisePercent": 5.0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 16.66666666666668,
+            "candidateSpreadPercent": 16.66666666666668,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0007,
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0006
+            ],
+            "candidateRuns": [
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0006,
+              0.0007
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.022449999999999998,
+            "candidateMedian": 0.022,
+            "changePercent": -2.0044543429844075,
+            "noisePercent": 5.0,
+            "pValue": 0.9004329004329005,
+            "u": 17.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 38.30734966592428,
+            "candidateSpreadPercent": 20.45454545454546,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0289,
+              0.0232,
+              0.0223,
+              0.0213,
+              0.0226,
+              0.0203
+            ],
+            "candidateRuns": [
+              0.0219,
+              0.022,
+              0.022,
+              0.0256,
+              0.0211,
+              0.0237
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 25253888.0,
+            "candidateMedian": 25323520.0,
+            "changePercent": 0.2757278404022401,
+            "noisePercent": 2.0,
+            "pValue": 0.974025974025974,
+            "u": 18.5,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 1.9138755980861244,
+            "candidateSpreadPercent": 1.8924383340072786,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              25038848.0,
+              25227264.0,
+              25522176.0,
+              25321472.0,
+              25264128.0,
+              25243648.0
+            ],
+            "candidateRuns": [
+              25120768.0,
+              25243648.0,
+              25001984.0,
+              25481216.0,
+              25403392.0,
+              25419776.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 25323520.0,
+            "candidateMedian": 25380864.0,
+            "changePercent": 0.22644561261626617,
+            "noisePercent": 2.0,
+            "pValue": 0.9372294372294372,
+            "u": 19.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 1.7953902143145974,
+            "candidateSpreadPercent": 1.646090534979424,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              25079808.0,
+              25305088.0,
+              25534464.0,
+              25399296.0,
+              25341952.0,
+              25280512.0
+            ],
+            "candidateRuns": [
+              25157632.0,
+              25296896.0,
+              25092096.0,
+              25509888.0,
+              25464832.0,
+              25497600.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 38569984.0,
+            "candidateMedian": 38510592.0,
+            "changePercent": -0.15398502628365396,
+            "noisePercent": 2.0,
+            "pValue": 0.30952380952380953,
+            "u": 11.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 0.9026708437317476,
+            "candidateSpreadPercent": 0.9466071048713041,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38731776.0,
+              38424576.0,
+              38772736.0,
+              38531072.0,
+              38563840.0,
+              38576128.0
+            ],
+            "candidateRuns": [
+              38481920.0,
+              38387712.0,
+              38305792.0,
+              38539264.0,
+              38637568.0,
+              38670336.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 38590464.0,
+            "candidateMedian": 38531072.0,
+            "changePercent": -0.15390330626757764,
+            "noisePercent": 2.0,
+            "pValue": 0.30952380952380953,
+            "u": 11.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 0.8809637531178687,
+            "candidateSpreadPercent": 0.9461039651323482,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              38756352.0,
+              38449152.0,
+              38789120.0,
+              38555648.0,
+              38584320.0,
+              38596608.0
+            ],
+            "candidateRuns": [
+              38502400.0,
+              38404096.0,
+              38330368.0,
+              38559744.0,
+              38670336.0,
+              38694912.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "clean",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "fps",
+            "direction": "higher",
+            "exact": false,
+            "baselineMedian": 168.20791285,
+            "candidateMedian": 168.8786408,
+            "changePercent": 0.3987493445674728,
+            "noisePercent": 5.0,
+            "pValue": 0.6991341991341992,
+            "u": 21.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 9.687204498239515,
+            "candidateSpreadPercent": 2.9126014259110526,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              167.9175122,
+              153.346539,
+              165.5764835,
+              168.4983135,
+              169.6411835,
+              169.2141862
+            ],
+            "candidateRuns": [
+              170.4874321,
+              168.757217,
+              165.5686704,
+              167.3500826,
+              169.185343,
+              169.0000646
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP50Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 5.840249999999999,
+            "candidateMedian": 5.853350000000001,
+            "changePercent": 0.22430546637561832,
+            "noisePercent": 5.0,
+            "pValue": 0.5887445887445888,
+            "u": 22.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 1.551303454475412,
+            "candidateSpreadPercent": 1.3086523102155174,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              5.8727,
+              5.7821,
+              5.7997,
+              5.8385,
+              5.842,
+              5.8632
+            ],
+            "candidateRuns": [
+              5.8234,
+              5.8558,
+              5.8007,
+              5.8773,
+              5.8631,
+              5.8509
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "frameP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 6.28815,
+            "candidateMedian": 6.278499999999999,
+            "changePercent": -0.15346326025938994,
+            "noisePercent": 5.0,
+            "pValue": 0.9372294372294372,
+            "u": 19.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 21.30515334398829,
+            "candidateSpreadPercent": 22.352472724376852,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              6.6447,
+              6.0667,
+              7.4064,
+              6.0907,
+              6.283,
+              6.2933
+            ],
+            "candidateRuns": [
+              6.0051,
+              7.0508,
+              7.4085,
+              6.3396,
+              6.2174,
+              6.1583
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "prepareP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 2.31595,
+            "candidateMedian": 2.3501000000000003,
+            "changePercent": 1.4745568773073758,
+            "noisePercent": 5.0,
+            "pValue": 0.9372294372294372,
+            "u": 19.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 15.030549018761203,
+            "candidateSpreadPercent": 7.3996851197821245,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              2.5398,
+              2.3241,
+              2.543,
+              2.3078,
+              2.1949,
+              2.2802
+            ],
+            "candidateRuns": [
+              2.2783,
+              2.374,
+              2.4419,
+              2.2941,
+              2.3262,
+              2.4522
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeCpuP95Ms",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 0.014450000000000001,
+            "candidateMedian": 0.01405,
+            "changePercent": -2.768166089965407,
+            "noisePercent": 5.0,
+            "pValue": 0.6082251082251082,
+            "u": 14.5,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 9.688581314878894,
+            "candidateSpreadPercent": 11.387900355871878,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0142,
+              0.0146,
+              0.0136,
+              0.015,
+              0.0143,
+              0.0146
+            ],
+            "candidateRuns": [
+              0.0134,
+              0.0137,
+              0.0144,
+              0.0146,
+              0.015,
+              0.0137
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privateBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 25724928.0,
+            "candidateMedian": 25753600.0,
+            "changePercent": 0.11145609426002068,
+            "noisePercent": 2.0,
+            "pValue": 0.8181818181818182,
+            "u": 20.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 0.9234933524400922,
+            "candidateSpreadPercent": 1.558648111332008,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              25812992.0,
+              25640960.0,
+              25870336.0,
+              25784320.0,
+              25665536.0,
+              25632768.0
+            ],
+            "candidateRuns": [
+              25477120.0,
+              25776128.0,
+              25731072.0,
+              25878528.0,
+              25845760.0,
+              25718784.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "privatePeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 25815040.0,
+            "candidateMedian": 25808896.0,
+            "changePercent": -0.023800079333602397,
+            "noisePercent": 2.0,
+            "pValue": 0.9372294372294372,
+            "u": 19.0,
+            "rankDirection": "higher",
+            "baselineSpreadPercent": 1.5390717969059897,
+            "candidateSpreadPercent": 2.8090779241390256,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              25837568.0,
+              26050560.0,
+              25882624.0,
+              25792512.0,
+              25673728.0,
+              25653248.0
+            ],
+            "candidateRuns": [
+              25481216.0,
+              25845760.0,
+              25772032.0,
+              25927680.0,
+              26206208.0,
+              25726976.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 39229440.0,
+            "candidateMedian": 39168000.0,
+            "changePercent": -0.1566170712607673,
+            "noisePercent": 2.0,
+            "pValue": 0.3939393939393939,
+            "u": 12.0,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 1.357347950926651,
+            "candidateSpreadPercent": 0.9725490196078431,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              39661568.0,
+              39129088.0,
+              39268352.0,
+              39260160.0,
+              39165952.0,
+              39198720.0
+            ],
+            "candidateRuns": [
+              38940672.0,
+              39133184.0,
+              39219200.0,
+              39202816.0,
+              39321600.0,
+              39084032.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "workingSetPeakBytes",
+            "direction": "lower",
+            "exact": false,
+            "baselineMedian": 39229440.0,
+            "candidateMedian": 39172096.0,
+            "changePercent": -0.14617593317671762,
+            "noisePercent": 2.0,
+            "pValue": 0.329004329004329,
+            "u": 11.5,
+            "rankDirection": "lower",
+            "baselineSpreadPercent": 1.3469068128425998,
+            "candidateSpreadPercent": 0.8992523657656716,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              39669760.0,
+              39141376.0,
+              39272448.0,
+              39260160.0,
+              39182336.0,
+              39198720.0
+            ],
+            "candidateRuns": [
+              38969344.0,
+              39141376.0,
+              39219200.0,
+              39202816.0,
+              39321600.0,
+              39108608.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "surfaceBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "replacementPeakBytes",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 3686400.0,
+            "candidateMedian": 3686400.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ],
+            "candidateRuns": [
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0,
+              3686400.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "cppAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 1080.0,
+            "candidateMedian": 1080.0,
+            "changePercent": 0.0,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": 0.0,
+            "candidateSpreadPercent": 0.0,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0
+            ],
+            "candidateRuns": [
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0,
+              1080.0
+            ]
+          },
+          {
+            "phase": "dirty",
+            "metric": "composeAllocations",
+            "direction": "lower",
+            "exact": true,
+            "baselineMedian": 0.0,
+            "candidateMedian": 0.0,
+            "changePercent": null,
+            "noisePercent": 0,
+            "pValue": 1.0,
+            "u": 18.0,
+            "rankDirection": "none",
+            "baselineSpreadPercent": null,
+            "candidateSpreadPercent": null,
+            "verdict": "within-noise",
+            "baselineRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "candidateRuns": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

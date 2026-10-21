@@ -62,11 +62,22 @@ try {
     Write-Fixture (Join-Path $fixture 'untracked file.cpp') 'untracked'
     $manifest=Read-ScopedTestManifest $repository
     Run-Case 'all active native tests satisfy naming and inventory' {Assert-Scope ((Assert-ScopedTestNames $repository) -gt 0) 'Empty native inventory'}
+    Run-Case 'batched scope patterns retain scalar, separator, Unicode and case behavior' {
+        $matches=@(& (Get-Module ScopedTesting) {
+            Test-ScopedPattern 'src/Controls/Editor.cpp' 'src/Controls/*.cpp'
+            Test-ScopedPattern 'src/Controls/Nested/Editor.cpp' 'src/Controls/*.cpp'
+            Test-ScopedPattern 'src/Controls/Nested/Editor.cpp' 'src/**/Editor.cpp'
+            Test-ScopedPattern @('unrelated.cpp','SRC/Controls/É.cpp') 'src/Controls/?.cpp'
+            Test-ScopedPattern @('unrelated.cpp','src/Other/Editor.cpp') 'src/Controls/*.cpp'
+            Test-ScopedPattern @() '**'
+        })
+        Assert-Scope (($matches -join ',') -ceq 'True,False,True,True,False,False') 'Batched glob matching changed scope semantics'
+    }
     Run-Case 'every scope rule matches a current repository input' {
         $unmatched=@(& (Get-Module ScopedTesting) {
             param($root,$rules)
             $paths=@(Get-ScopedTrackedPaths $root)
-            foreach($rule in $rules) {if(-not @($paths | Where-Object {Test-ScopedPattern $_ $rule.pattern}).Count) {$rule.pattern}}
+            foreach($rule in $rules) {if(-not (Test-ScopedPattern $paths $rule.pattern)) {$rule.pattern}}
         } $repository $manifest.rules)
         Assert-Scope ($unmatched.Count -eq 0) "Scope rules match no current input: $($unmatched -join ', ')"
     }
@@ -76,11 +87,19 @@ try {
             $paths=@(& (Get-Module ScopedTesting) {
                 param($root,$rules)
                 $tracked=@(Get-ScopedTrackedPaths $root)
-                foreach($rule in $rules) { if(-not @($tracked | Where-Object {Test-ScopedPattern $_ $rule.pattern}).Count) {$rule.pattern} }
+                foreach($rule in $rules) { if(-not (Test-ScopedPattern $tracked $rule.pattern)) {$rule.pattern} }
             } $repository $rules)
             Assert-Scope ($paths.Count -eq 0) "Interactive-obligation rules match no current input: $($paths -join ', ')"
             $menu=@(Get-ScopedInteractiveObligations -Manifest $manifest -ChangedPaths @('Tests/Controls/DxUi.Tests.Menu.cpp'))
             Assert-Scope ($menu.Count -eq 1 -and $menu[0].suite -eq 'Menu') 'Menu source change lost its explicit desktop obligation'
+            # The shared paths the interactive suites run through owe them too (CR-30 of the 10 October review).
+            foreach ($shared in @(@{ Path='src/Controls/DxUi.WindowHost.cpp'; Suites='Menu,NativeTextInput' }, @{ Path='src/Controls/DxUi.TextStoreACP.cpp'; Suites='NativeTextInput' },
+                    @{ Path='src/Controls/DxUi.Accessibility.cpp'; Suites='Menu,NativeTextInput' })) {
+                $owed=@(Get-ScopedInteractiveObligations -Manifest $manifest -ChangedPaths @($shared.Path) | ForEach-Object suite) -join ','
+                Assert-Scope ($owed -eq $shared.Suites) "$($shared.Path) owes $($shared.Suites), not '$owed'"
+            }
+            $patterns=@($rules | ForEach-Object { "$($_.pattern)|$(@($_.suites) -join ',')" })
+            Assert-Scope (@($patterns | Sort-Object -Unique).Count -eq $patterns.Count) 'Interactive-obligation rules repeat a pattern and its suites'
             $full=@(Get-ScopedInteractiveObligations -Manifest $manifest -ChangedPaths @() -Full)
             Assert-Scope (@($full | Where-Object suite -eq 'NativeTextInput').Count -gt 0) 'Full local work hid the separate native text-input gate'
         }
@@ -93,19 +112,19 @@ try {
             Assert-Scope (@($errors).Count -eq 0) 'PrePush accounting script has parse errors'
             $profiles=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.HashtableAst]},$true))
             Assert-Scope ($profiles.Count -eq 6) 'PrePush does not enumerate all six platform/configuration profiles'
-            $fixture=Join-Path $repository 'Tools/ConsumerApi/Revision4.cpp'
+            $fixture=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp'
             $consumer=Join-Path $repository 'test-consumer.ps1'
-            Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApiRevision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
+            Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
         }
     }
     Run-Case 'active names require exact Tests spelling and reject historical inventory membership' {
         $naming=Join-Path $fixture 'naming'
-        foreach($invalid in @('Tests/Scope.tests.Case.cpp','Specs/TestRuns/Scope.Tests.Case.cpp')) {
+        foreach($invalid in @('Tests/Scope.tests.Case.cpp','Tests/Scope.Tests.Case.cpp','Specs/TestRuns/Scope.Tests.Case.cpp')) {
             Write-Fixture (Join-Path $naming $invalid) 'invalid declared source'
             Write-Fixture (Join-Path $naming 'Tests/native-test-files.json') (ConvertTo-Json -InputObject @($invalid) -Compress)
             $message=''
             try {Assert-ScopedTestNames $naming | Out-Null} catch [System.Management.Automation.RuntimeException] {$message=$_.Exception.Message}
-            Assert-Scope ($message -match 'Invalid/missing native test source:|Historical/external source cannot enter') "Invalid inventory accepted: $invalid ($message)"
+            Assert-Scope ($message -match 'Invalid/missing native test source:|Historical/external source cannot enter|Use a component context instead of placeholder Scope') "Invalid inventory accepted: $invalid ($message)"
         }
     }
     Run-Case 'committed, staged, working, deleted, both rename sides and spaced untracked paths count' {
@@ -452,6 +471,29 @@ try {
             Invoke-DelegateGit @('update-ref','refs/remotes/origin/stacked-base',$stackedBase)
             $global:ScopedFixtureGhMutation='commit'
             Assert-Scope (@(Get-ScopedPrCoverage $delegate $coverage x64 Release).Count -eq 0) 'Concurrent committed candidate change was delegated'
+            # The digest binds every file of the coverage contract and the coverage the manifest claims, not the workflow alone
+            # (CR-31 of the 10 October review): a CI-only quarantine in a runner changes what CI covers.
+            $global:ScopedFixtureGhMutation=''
+            [IO.File]::WriteAllText((Join-Path $delegate 'runner.ps1'),'run every suite')
+            Invoke-DelegateGit @('add','-A');Invoke-DelegateGit @('commit','-q','-m','runner')
+            $contract=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('.github/workflows/ci.yml','runner.ps1');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
+            $contract.prWorkflowDigest=Get-ScopedPrContractDigest $delegate $contract
+            Assert-Scope ($contract.prWorkflowDigest -cne (Get-ScopedDigest $workflow)) 'The contract digest is the workflow digest'
+            Assert-Scope (@(Get-ScopedPrCoverage $delegate $contract x64 Release) -contains 'Example') 'A clean reviewed contract was not delegated'
+            [IO.File]::WriteAllText((Join-Path $delegate 'runner.ps1'),'run every suite but Example when CI runs it')
+            Invoke-DelegateGit @('add','-A');Invoke-DelegateGit @('commit','-q','-m','quarantine')
+            Assert-Scope (@(Get-ScopedPrCoverage $delegate $contract x64 Release).Count -eq 0) 'A changed contract script was delegated'
+            [IO.File]::WriteAllText((Join-Path $delegate 'runner.ps1'),'run every suite')
+            Invoke-DelegateGit @('add','-A');Invoke-DelegateGit @('commit','-q','-m','restore runner')
+            Assert-Scope (@(Get-ScopedPrCoverage $delegate $contract x64 Release) -contains 'Example') 'The restored contract was not delegated'
+            $claim=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=$contract.prContractFiles;prWorkflowDigest=$contract.prWorkflowDigest;
+                prCoverage=@([pscustomobject]@{platform='x64';configuration='Release';scopes=@('Example','Other')})}
+            Assert-Scope (@(Get-ScopedPrCoverage $delegate $claim x64 Release).Count -eq 0) 'A widened coverage claim was delegated'
+            $missing=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('.github/workflows/ci.yml','runner.ps1','gone.ps1');prWorkflowDigest=$contract.prWorkflowDigest;prCoverage=$coverage.prCoverage}
+            Assert-Scope (@(Get-ScopedPrCoverage $delegate $missing x64 Release).Count -eq 0) 'A missing contract file was delegated'
+            $noWorkflow=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('runner.ps1');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
+            $threw=$false;try{[void](Get-ScopedPrContractDigest $delegate $noWorkflow)}catch{$threw=$true}
+            Assert-Scope $threw 'A contract without the workflow has a digest'
         } finally {
             if($previousGh){Set-Item Function:\global:gh -Value $previousGh.ScriptBlock}else{Remove-Item Function:\global:gh}
             Remove-Variable -Name ScopedFixtureGhCalls,ScopedFixtureGhMutation,ScopedFixtureGhRoot,ScopedFixtureGhBaseName,ScopedFixtureGhBaseOid -Scope Global
@@ -472,7 +514,12 @@ try {
     }
     Run-Case 'reviewed CI preserves full native coverage and separates independent tooling' {
         $workflow=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/ci.yml')) -replace "`r`n","`n"
-        Assert-Scope ((Get-ScopedDigest $workflow) -ceq $manifest.prWorkflowDigest) 'CI contract digest is stale'
+        Assert-Scope ((Get-ScopedPrContractDigest $repository $manifest) -ceq $manifest.prWorkflowDigest) 'CI contract digest is stale'
+        if ($manifest.repository -like '*/DxUi') {
+            foreach ($path in @('.github/workflows/ci.yml', 'test.ps1', 'Tools/Get-NativeScope.ps1', 'Tools/NativeScope.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/ScopedTesting.psm1')) {
+                Assert-Scope (@($manifest.prContractFiles) -ccontains $path) "The CI coverage contract leaves out $path"
+            }
+        }
         Assert-Scope ($workflow -match 'test.ps1 -Full -SkipTooling') 'CI accidentally uses affected iteration or repeats independent tooling'
         $errors=$null;$tokens=$null;$ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'test.ps1'),[ref]$tokens,[ref]$errors)
         Assert-Scope (@($errors).Count -eq 0) 'Native entrypoint has parse errors'

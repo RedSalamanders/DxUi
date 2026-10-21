@@ -1,12 +1,13 @@
 #include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
+#include "../../src/Support/PostedPayload.h"
 #include "../Support/Support.Tests.SelectionEventInterruption.h"
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.FormAccessibility.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
-#include "Scope.Tests.FormAccessibility.h"
-#include "Scope.Tests.GridUiaPattern.h"
-#include "Scope.Tests.HostControlRegressions.h"
-#include "Scope.Tests.RichTextAccessibility.h"
+#include "Controls.Tests.GridUiaPattern.h"
+#include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.RichTextAccessibility.h"
 
 #include <array>
 #include <atomic>
@@ -16,6 +17,7 @@
 #include <iterator>
 #include <limits>
 #include <numeric>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <wrl/implements.h>
@@ -745,6 +747,157 @@ void TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries()
     RequireSucceeded(actionResult, "the UIA toggle action succeeds");
     RequireSucceeded(queryResult.load(std::memory_order_acquire), "a worker can query the immutable snapshot");
     Require(completedInsideCallback, "application callbacks run without the global accessibility snapshot mutex");
+}
+
+// A UI Automation action whose application callback throws ends with E_FAIL, called on the window's thread or dispatched
+// to it, for the callback contract's named standard exceptions. The actions were noexcept, so a toggle
+// handler's exception ended the process from a screen reader's command.
+void TestAccessibilityActionsContainAThrowingCallback()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* toggle = root->AddChild<Toggle>(L"Enabled");
+    toggle->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the throwing-callback fixture has a provider");
+    auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "toggle provider by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "toggle simple provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "toggle pattern lookup");
+    wil::com_ptr_nothrow<IToggleProvider> action;
+    RequireSucceeded(pattern.query_to(action.put()), "toggle action provider");
+    unsigned calls = 0u;
+    toggle->SetOnToggled([&](bool)
+    {
+        if (++calls == 2u)
+            throw std::invalid_argument("another standard callback failure");
+        throw std::runtime_error("the application's handler failed");
+    });
+
+    Require(action->Toggle() == E_FAIL && calls == 1u, "a handler's std::exception ends the action with E_FAIL");
+    Require(action->Toggle() == E_FAIL && calls == 2u, "another standard exception ends the action with E_FAIL too");
+    std::atomic<HRESULT> dispatched{E_PENDING};
+    std::thread worker([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        dispatched.store(SUCCEEDED(initialized) ? action->Toggle() : initialized, std::memory_order_release);
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const ULONGLONG deadline = GetTickCount64() + 10000u;
+    while (dispatched.load(std::memory_order_acquire) == E_PENDING && GetTickCount64() < deadline)
+    {
+        window.PumpMessages();
+        static_cast<void>(MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT));
+    }
+    worker.join();
+    Require(dispatched.load(std::memory_order_acquire) == E_FAIL && calls == 3u, "an action dispatched to the window's thread ends with E_FAIL");
+    ToggleState state = ToggleState_Indeterminate;
+    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after the failures");
+    Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "the published state is the toggle's");
+    toggle->SetOnToggled([](bool) { throw std::bad_alloc(); });
+    Require(action->Toggle() == E_OUTOFMEMORY, "a named allocation failure retains its HRESULT at the action boundary");
+    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after allocation failure");
+    Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "allocation failure republishes the actual state");
+}
+
+// A UI Automation action that times out on a window whose thread does not answer gives back its payload slot (CR-28 of the
+// 10 October review): the registry's 128 slots are the process's, and each timed-out action kept one, with references to
+// its providers, until the window answered or was destroyed. When the window answers at last, the late message runs nothing.
+void TestAccessibilityTimedOutActionsGiveBackTheirPayloadSlots()
+{
+    using namespace DxUi;
+    DebugSetAccessibilityUiActionDispatchTimeoutForTest(50u);
+    const auto restore = wil::scope_exit([] { DebugSetAccessibilityUiActionDispatchTimeoutForTest(0u); });
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* toggle = root->AddChild<Toggle>(L"Enabled");
+    toggle->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the timed-out action fixture has a provider");
+    auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "toggle provider by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "toggle simple provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_TogglePatternId, pattern.put()), "toggle pattern lookup");
+    wil::com_ptr_nothrow<IToggleProvider> action;
+    RequireSucceeded(pattern.query_to(action.put()), "toggle action provider");
+    unsigned toggles = 0u;
+    toggle->SetOnToggled([&](bool) { ++toggles; });
+
+    // This thread reads no message while the worker's actions wait, so each one times out.
+    std::array<HRESULT, 3u> results{};
+    std::thread worker([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        for (HRESULT& result : results)
+            result = SUCCEEDED(initialized) ? action->Toggle() : initialized;
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    worker.join();
+    Require(std::ranges::all_of(results, [](HRESULT result) noexcept { return result == HRESULT_FROM_WIN32(ERROR_TIMEOUT); }),
+            "each action waits out its timeout on the unanswering window");
+    // Counted before the window reads its queue, which would also have given the slots back.
+    Require(DrainPostedPayloadsForWindow(window.Hwnd()) == 0u, "no abandoned action keeps a payload slot");
+    Require(InitPostedPayloadWindow(window.Hwnd()), "the window takes payloads again");
+    window.PumpMessages();
+    Require(toggles == 0u && ! toggle->IsChecked(), "the late messages run none of the abandoned actions");
+}
+
+// Two UI threads that ask for each other's window providers at once answer each other at once (CR-28 of the 10 October
+// review): a sender goes on answering the messages sent to its own windows while it waits. With SMTO_BLOCK neither
+// answered, so both requests waited out the whole timeout and failed.
+void TestAccessibilityProviderRequestsBetweenTwoUiThreadsAnswerEachOther()
+{
+    using namespace DxUi;
+    DebugSetAccessibilityUiActionDispatchTimeoutForTest(2000u);
+    const auto restore = wil::scope_exit([] { DebugSetAccessibilityUiActionDispatchTimeoutForTest(0u); });
+    AttachedHostWindow first;
+    first.Host().SetRoot(std::make_unique<Button>(L"First"));
+    const HWND firstHwnd = first.Hwnd();
+    std::atomic<HWND> secondHwnd{nullptr};
+    std::atomic<bool> secondAnswered{false};
+    wil::unique_handle ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle finished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(ready && finished, "the two-thread fixture has its events");
+    std::thread other([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        {
+            AttachedHostWindow second;
+            second.Host().SetRoot(std::make_unique<Button>(L"Second"));
+            secondHwnd.store(second.Hwnd(), std::memory_order_release);
+            SetEvent(ready.get());
+            // The first thread is not reading its messages yet, so this request waits in its queue.
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+            provider.attach(CreateWindowHostAccessibilityProvider(firstHwnd));
+            secondAnswered.store(provider != nullptr, std::memory_order_release);
+            HANDLE const done = finished.get();
+            while (MsgWaitForMultipleObjects(1u, &done, FALSE, 5000u, QS_ALLINPUT) == WAIT_OBJECT_0 + 1u)
+                second.PumpMessages();
+        }
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    Require(WaitForSingleObject(ready.get(), 5000u) == WAIT_OBJECT_0, "the second UI thread has its window");
+    const ULONGLONG pendingDeadline = GetTickCount64() + 5000u;
+    while ((HIWORD(GetQueueStatus(QS_SENDMESSAGE)) & QS_SENDMESSAGE) == 0u && GetTickCount64() < pendingDeadline)
+        Sleep(1u);
+    const ULONGLONG started = GetTickCount64();
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(secondHwnd.load(std::memory_order_acquire)));
+    const ULONGLONG elapsed = GetTickCount64() - started;
+    SetEvent(finished.get());
+    other.join();
+    Require(provider != nullptr && secondAnswered.load(std::memory_order_acquire), "each UI thread answers the other's request");
+    Require(elapsed < 1500u, "neither request waits out the timeout");
 }
 
 void TestAccessibilityActionsReportControlsDestroyedByCallbacks()
@@ -4880,9 +5033,9 @@ void TestAccessibilityGridCellFocusChoosesTheInspectedColumn()
     auto second       = navigate(*first.get(), NavigateDirection_NextSibling, "cell-focus client reaches the second cell");
     Require(second != nullptr, "client can navigate to the second cell");
     RequireSucceeded(second->SetFocus(), "UIA SetFocus accepts the second cell");
-    Require(grid->OnKeyDown(window.Host(), VK_F1, 0u), "F1 inspects the current cell after UIA focus");
+    Require(grid->InspectFocusedCell(), "the application's inspection command inspects the current cell after UIA focus");
     Require(window.Host().IsTooltipInspectionActive() && window.Host().GetTooltipText() == L"Full second value",
-            "UIA cell focus and keyboard inspection use the same column");
+            "UIA cell focus and the inspection command use the same column");
 }
 
 void TestNativeAccessibilityPostedInvokeRejectsReplacement()
@@ -6778,6 +6931,71 @@ void TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren()
     Require(ReadProviderStringProperty(*visibleSimple.get(), UIA_NamePropertyId, "scrolled panel visible provider exposes accessibility name") ==
                 L"Visible after scroll",
             "scrolled panel point-hit translation resolves the visible child rather than its raw content-space position");
+}
+
+// CR-28 of the 10 October review: another process can write a window's properties, so a forged accessibility-target pointer
+// in the host's property is refused instead of being AddRef'd and used. The forgery is zeroed: its reference count is 0,
+// so taking and releasing a reference to it, as the library did, deleted memory it never allocated.
+void TestAccessibilityRefusesAForgedTargetProperty()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    window.Host().SetRoot(std::make_unique<Panel>());
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> genuine;
+        genuine.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(genuine != nullptr, "the genuine target answers");
+    }
+    HANDLE const real = GetPropW(window.Hwnd(), L"DxUi.ControlHost");
+    Require(real != nullptr, "the window carries its accessibility-target property");
+    alignas(16) std::array<std::byte, 512> forged{};
+    Require(SetPropW(window.Hwnd(), L"DxUi.ControlHost", forged.data()) != FALSE, "the property is forged");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> refused;
+    refused.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(refused == nullptr, "a forged target pointer is refused");
+    Require(SetPropW(window.Hwnd(), L"DxUi.ControlHost", real) != FALSE, "the genuine property is restored");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> restored;
+    restored.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(restored != nullptr, "the genuine target answers again");
+}
+
+// CR-27 of the 10 October review: a wheel scroll republishes, so UI Automation's point hits follow the moved content
+// instead of the positions published before the scroll.
+void TestAccessibilityPointHitsFollowAWheelScroll()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
+    scroll->SetContentHeight(260.0f);
+    auto* topButton = scroll->AddChild<Button>(L"Top");
+    topButton->SetBounds(D2D1::RectF(12.0f, 12.0f, 180.0f, 48.0f));
+    auto* lowerButton = scroll->AddChild<Button>(L"Lower");
+    lowerButton->SetBounds(D2D1::RectF(12.0f, 112.0f, 180.0f, 148.0f));
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the wheel-scroll test creates a root provider");
+    const auto nameAt = [&](float x, float y)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> provider =
+            GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), x, y, "the point is queryable");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        if (! provider || FAILED(provider.query_to(simple.put())))
+            return std::wstring{};
+        return ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "the element has a name");
+    };
+    Require(nameAt(24.0f, 30.0f) == L"Top", "before the scroll the top button is under the point");
+
+    const POINT wheelPoint = window.Host().DipPointToScreenPoint(D2D1::Point2F(100.0f, 60.0f));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSEWHEEL, MAKEWPARAM(0, static_cast<WORD>(-2 * WHEEL_DELTA)), MAKELPARAM(wheelPoint.x, wheelPoint.y)));
+    const float offset = scroll->GetScrollOffset();
+    Require(offset >= 60.0f, "the wheel scrolls the panel far enough to bring the lower button up");
+    Require(nameAt(24.0f, 130.0f - offset) == L"Lower", "after the scroll the point finds the button that moved under it");
 }
 
 void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
@@ -9374,6 +9592,374 @@ void TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow()
     ExpectClientHearsSingleSelectionTreeEvents(test.window, *test.tree, test.model);
 }
 
+// An item that expands or collapses says so from its own element, and the rows that appear or leave change the tree's
+// structure, so a client holding its children fetches them again. Neither was raised: a screen reader announced nothing
+// and a client kept the old rows. The application expands and collapses the item in its model, as a delegate does.
+void TestTreeExpansionReachesAClientSubscribedToTheWindow()
+{
+    using DxUi::TreeItemData;
+    SingleTreeWindow test;
+    const auto publish = [&](bool expanded)
+    {
+        std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Général", .hasChildren = true, .expanded = expanded}};
+        if (expanded)
+            items.push_back(TreeItemData{.id = 11u, .parentId = 1u, .text = L"Affichage", .depth = 1u});
+        items.push_back(TreeItemData{.id = 2u, .text = L"Volets"});
+        items.push_back(TreeItemData{.id = 3u, .text = L"Afficheurs"});
+        test.model.SetVisibleItems(std::move(items));
+        test.tree->NotifyDataChanged();
+    };
+    publish(false);
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId};
+    subscription.structure  = true;
+    SingleControlClient walk(test.window, std::move(subscription));
+    const auto hear = [&](bool expanded)
+    {
+        static_cast<void>(walk.client.WaitOutTheStream());
+        const size_t mark   = walk.client.Mark();
+        const auto heardAll = [&]
+        {
+            const auto events    = walk.client.DistinctSince(mark);
+            const bool state     = std::ranges::any_of(events,
+                                                       [&](const UiaTest::HeardEvent& heard)
+            {
+                return heard.kind == UiaTest::EventKind::Property && heard.id == UIA_ExpandCollapseExpandCollapseStatePropertyId &&
+                       heard.controlType == UIA_TreeItemControlTypeId && heard.name == L"Général" &&
+                       heard.value == std::to_wstring(expanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+            });
+            const bool structure = std::ranges::any_of(events, [](const UiaTest::HeardEvent& heard) { return heard.kind == UiaTest::EventKind::Structure; });
+            return state && structure;
+        };
+        publish(expanded);
+        const bool heard = walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, heardAll);
+        walk.Expect(heard,
+                    expanded ? "the client hears the item expand and the tree's rows change" : "the client hears the item collapse and the tree's rows change");
+    };
+    hear(true);
+    hear(false);
+}
+
+// A tree whose rows come from a prepared source says the same when its focused item expands or collapses. The diff never
+// traverses a prepared source, so it reads the focused item from both sources; such a tree raised the structure change
+// alone.
+void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
+{
+    using DxUi::TreeItemData;
+    class PreparedRows final : public DxUi::IPreparedTreeAccessibilityRows
+    {
+    public:
+        explicit PreparedRows(std::vector<TreeItemData> items) : _items(std::move(items))
+        {
+        }
+        [[nodiscard]] size_t GetCount() const noexcept override
+        {
+            return _items.size();
+        }
+        [[nodiscard]] std::optional<DxUi::TreeAccessibilityItemView> GetItem(size_t visibleIndex) const noexcept override
+        {
+            if (visibleIndex >= _items.size())
+                return std::nullopt;
+            const TreeItemData& item = _items[visibleIndex];
+            return DxUi::TreeAccessibilityItemView{visibleIndex, item.id, item.text, item.depth, item.hasChildren, item.expanded};
+        }
+        [[nodiscard]] std::optional<DxUi::TreeAccessibilityItemView> FindItem(uint64_t itemId) const noexcept override
+        {
+            for (size_t index = 0u; index < _items.size(); ++index)
+                if (_items[index].id == itemId)
+                    return GetItem(index);
+            return std::nullopt;
+        }
+
+    private:
+        const std::vector<TreeItemData> _items;
+    };
+    class PreparedModel final : public DxUi::ITreeModel
+    {
+    public:
+        void Publish(std::vector<TreeItemData> items)
+        {
+            _rows  = std::make_shared<const PreparedRows>(items);
+            _items = std::move(items);
+        }
+        [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
+        {
+            return _items.size();
+        }
+        void GetVisibleItem(size_t visibleIndex, TreeItemData& outItem) const override
+        {
+            outItem = _items.at(visibleIndex);
+        }
+        [[nodiscard]] std::shared_ptr<const DxUi::IPreparedTreeAccessibilityRows> CapturePreparedAccessibilityRows() const noexcept override
+        {
+            return _rows;
+        }
+
+    private:
+        std::vector<TreeItemData> _items;
+        std::shared_ptr<const PreparedRows> _rows;
+    };
+
+    const auto rows = [](bool expanded)
+    {
+        std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Général", .hasChildren = true, .expanded = expanded}};
+        if (expanded)
+            items.push_back(TreeItemData{.id = 11u, .parentId = 1u, .text = L"Affichage", .depth = 1u});
+        items.push_back(TreeItemData{.id = 2u, .text = L"Volets"});
+        return items;
+    };
+    PreparedModel model; // Before the window: the tree it holds ends first.
+    AttachedHostWindow window;
+    model.Publish(rows(false));
+    auto control           = std::make_unique<DxUi::Tree>();
+    DxUi::Tree* const tree = control.get();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 96.0f));
+    tree->SetModel(&model);
+    tree->SetAccessibleName(L"Catégories");
+    tree->SetSelectedItemId(1u);
+    tree->SetFocusedItemId(1u);
+    window.Host().SetRoot(std::move(control));
+
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId};
+    subscription.structure  = true;
+    SingleControlClient walk(window, std::move(subscription));
+    const auto hear = [&](bool expanded)
+    {
+        static_cast<void>(walk.client.WaitOutTheStream());
+        const size_t mark   = walk.client.Mark();
+        const auto heardAll = [&]
+        {
+            const auto events    = walk.client.DistinctSince(mark);
+            const bool state     = std::ranges::any_of(events,
+                                                       [&](const UiaTest::HeardEvent& heard)
+            {
+                return heard.kind == UiaTest::EventKind::Property && heard.id == UIA_ExpandCollapseExpandCollapseStatePropertyId &&
+                       heard.controlType == UIA_TreeItemControlTypeId && heard.name == L"Général" &&
+                       heard.value == std::to_wstring(expanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+            });
+            const bool structure = std::ranges::any_of(events, [](const UiaTest::HeardEvent& heard) { return heard.kind == UiaTest::EventKind::Structure; });
+            return state && structure;
+        };
+        model.Publish(rows(expanded));
+        tree->NotifyDataChanged();
+        const bool heard = walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, heardAll);
+        walk.Expect(heard,
+                    expanded ? "the client hears the focused prepared item expand and the tree's rows change"
+                             : "the client hears the focused prepared item collapse and the tree's rows change");
+    };
+    hear(true);
+    hear(false);
+}
+
+// A radio button is a RadioButton element with the SelectionItem pattern, selected while it is checked, instead of an
+// invokable Button: a screen reader read every choice as a button and could not tell which one was made. Select chooses it
+// as its mnemonic does; a chosen radio button cannot leave its group's selection nor another join it; a change of choice
+// raises the selection events from both radio buttons.
+void TestAccessibilityRadioButtonsAreSelectionItems()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto panel  = std::make_unique<Panel>();
+    auto* group = panel->AddChild<RadioButtons>();
+    group->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 104.0f));
+    RadioButton* const first  = group->AddItem(L"Premier");
+    RadioButton* const second = group->AddItem(L"Second");
+    first->SetBounds(D2D1::RectF(0.0f, 24.0f, 240.0f, 56.0f));
+    second->SetBounds(D2D1::RectF(0.0f, 64.0f, 240.0f, 96.0f));
+    group->SetSelectedIndex(0);
+    int selections = 0;
+    group->SetOnSelectionChanged([&](int) { ++selections; });
+    window.Host().SetRoot(std::move(panel));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window answers UI Automation");
+    const auto fragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 120.0f, 80.0f, "the second radio button is under the point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.query_to(simple.put()), "the radio button exposes properties");
+    Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "radio button control type") == UIA_RadioButtonControlTypeId,
+            "a radio button is a RadioButton element");
+    // Every choice sits under the window's root, beside the other controls: its place in its own group comes from it.
+    Require(ReadProviderLongProperty(*simple.get(), UIA_PositionInSetPropertyId, "radio button position") == 2 &&
+                ReadProviderLongProperty(*simple.get(), UIA_SizeOfSetPropertyId, "radio group size") == 2,
+            "the second of two choices says so");
+    wil::com_ptr_nothrow<IUnknown> invoke;
+    Require(SUCCEEDED(simple->GetPatternProvider(UIA_InvokePatternId, invoke.put())) && ! invoke, "a radio button is chosen, not invoked");
+    wil::com_ptr_nothrow<IUnknown> unknown;
+    RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), "the SelectionItem lookup succeeds");
+    wil::com_ptr_nothrow<ISelectionItemProvider> selection;
+    RequireSucceeded(unknown.query_to(selection.put()), "a radio button is a selection item");
+    BOOL selected = TRUE;
+    RequireSucceeded(selection->get_IsSelected(&selected), "IsSelected answers");
+    Require(! selected, "the second choice is not selected");
+    Require(selection->AddToSelection() == UIA_E_INVALIDOPERATION, "a group that holds another choice takes no second one");
+    Require(selection->RemoveFromSelection() == S_OK && selections == 0, "an unchosen radio button is already out of the selection");
+
+    SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
+    ExpectHeard(walk,
+                UiaTest::HearSelectionEvents(walk.client, 3u, [&] { RequireSucceeded(selection->Select(), "Select chooses the radio button"); }),
+                {L"Selected RadioButton 'Second'", L"IsSelected:true RadioButton 'Second'", L"IsSelected:false RadioButton 'Premier'"},
+                "choosing the second radio button");
+    Require(second->IsChecked() && ! first->IsChecked() && group->GetSelectedIndex() == 1 && selections == 1, "Select chose it as a click does");
+    RequireSucceeded(selection->get_IsSelected(&selected), "IsSelected answers again");
+    Require(selected, "the chosen radio button is selected");
+    Require(selection->RemoveFromSelection() == UIA_E_INVALIDOPERATION, "a chosen radio button cannot leave its group's selection");
+    Require(selection->AddToSelection() == S_OK && selections == 1, "adding the chosen radio button changes nothing");
+}
+
+// A page indicator with pages to choose between is a Slider element whose RangeValue is the page, from 1 to its page
+// count, so a screen reader reads it and SetValue chooses a page as an arrow key does. It was no element at all, and the
+// English name it gave itself ("Page 2 of 5") never reached a client; the name is the application's alone now.
+void TestAccessibilityPageIndicatorIsAPageSlider()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto panel      = std::make_unique<Panel>();
+    auto* indicator = panel->AddChild<PageIndicator>();
+    panel->AddChild<Button>(L"Suivant")->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 72.0f));
+    indicator->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator->SetPageCount(5u);
+    indicator->SetSelectedIndex(1u);
+    indicator->SetAccessibleName(L"Pages");
+    std::optional<uint32_t> chosen;
+    indicator->SetOnSelected([&](uint32_t index) { chosen = index; });
+    window.Host().SetRoot(std::move(panel));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window answers UI Automation");
+    const D2D1_POINT_2F dot = indicator->DotCenter(2u);
+    const auto fragment     = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), dot.x, dot.y, "the page indicator is under its dot");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.query_to(simple.put()), "the page indicator exposes properties");
+    Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "page indicator control type") == UIA_SliderControlTypeId,
+            "a page indicator is a Slider element");
+    Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "page indicator name") == L"Pages", "its name is the application's");
+    wil::com_ptr_nothrow<IUnknown> unknown;
+    RequireSucceeded(simple->GetPatternProvider(UIA_RangeValuePatternId, unknown.put()), "the RangeValue lookup succeeds");
+    wil::com_ptr_nothrow<IRangeValueProvider> range;
+    RequireSucceeded(unknown.query_to(range.put()), "a page indicator has RangeValue");
+    double value = 0.0, minimum = 0.0, maximum = 0.0, step = 0.0;
+    BOOL readOnly = TRUE;
+    RequireSucceeded(range->get_Value(&value), "Value answers");
+    RequireSucceeded(range->get_Minimum(&minimum), "Minimum answers");
+    RequireSucceeded(range->get_Maximum(&maximum), "Maximum answers");
+    RequireSucceeded(range->get_SmallChange(&step), "SmallChange answers");
+    RequireSucceeded(range->get_IsReadOnly(&readOnly), "IsReadOnly answers");
+    Require(value == 2.0 && minimum == 1.0 && maximum == 5.0 && step == 1.0 && ! readOnly, "the value is the page, from 1 to the page count");
+    Require(range->SetValue(6.0) == E_INVALIDARG && range->SetValue(0.4) == E_INVALIDARG && ! chosen, "a value outside the pages is refused");
+    RequireSucceeded(range->SetValue(4.2), "SetValue chooses a page");
+    Require(chosen == 3u && indicator->GetSelectedIndex() == 3u, "the nearest whole page is chosen as an arrow key chooses it");
+    RequireSucceeded(range->get_Value(&value), "Value answers again");
+    Require(value == 4.0, "the value follows the chosen page");
+    indicator->SetPageCount(1u);
+    VARIANT gone{};
+    Require(simple->GetPropertyValue(UIA_NamePropertyId, &gone) == UIA_E_ELEMENTNOTAVAILABLE, "an indicator with one page is no element");
+}
+
+// A TabControl is a Tab element whose children are its tabs, TabItem elements named by their titles with SelectionItem;
+// its page follows it as a sibling, as a property sheet's strip and page do. The selected tab is the tab control's
+// selection, single and required; Select chooses a tab as a click does; a change raises the selection events; and a
+// focused tab control's focus is its selected tab. The tabs were no elements: a screen reader read the page with no way to
+// know or change which tab showed it.
+void TestAccessibilityTabControlTabsAreSelectionItems()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root              = std::make_unique<TabControl>();
+    TabControl* const tabs = root.get();
+    tabs->SetAccessibleName(L"Réglages");
+    Require(tabs->AddTab<Button>(L"Général", L"Appliquer") && tabs->AddTab<Button>(L"Avancé", L"Réinitialiser") &&
+                tabs->AddTab<Button>(L"À propos", L"Licence"),
+            "the tab control takes three pages");
+    unsigned selections = 0u;
+    tabs->SetOnSelectionChanged([&](size_t) { ++selections; });
+    window.Host().SetRoot(std::move(root));
+    tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+
+    {
+        SingleControlClient walk(window);
+        UiaTest::ElementId tabElement = 0u;
+        for (const UiaTest::ElementId child : walk.client.Children(walk.root))
+            if (walk.client.Describe(child).controlType == UIA_TabControlTypeId)
+                tabElement = child;
+        walk.Expect(tabElement != 0u && walk.Name(tabElement) == L"Réglages", "the tab control is a Tab element");
+        const std::vector<UiaTest::ElementId> items = walk.client.Children(tabElement);
+        walk.Expect(walk.Names(items) == std::vector<std::wstring>{L"Général", L"Avancé", L"À propos"}, "its children are its tabs, by title");
+        walk.Expect(std::ranges::all_of(items, [&](UiaTest::ElementId item) { return walk.client.Describe(item).controlType == UIA_TabItemControlTypeId; }),
+                    "each tab is a TabItem element");
+        const std::vector<UiaTest::ElementId> chosen = walk.client.Selection(tabElement);
+        walk.Expect(chosen.size() == 1u && walk.client.Same(chosen.front(), items.front()), "the first tab is the tab control's selection");
+    }
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window answers UI Automation");
+    const auto tabAt = [&](size_t index, const char* context)
+    {
+        const D2D1_RECT_F header = tabs->DebugGetTabRect(index);
+        return GetProviderAtDipPoint(
+            window.Hwnd(), window.Host(), *rootProvider.get(), (header.left + header.right) * 0.5f, (header.top + header.bottom) * 0.5f, context);
+    };
+    const auto selectionItem = [](IRawElementProviderFragment& fragment, const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.QueryInterface(IID_PPV_ARGS(simple.put())), context);
+        Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, context) == UIA_TabItemControlTypeId, context);
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), context);
+        wil::com_ptr_nothrow<ISelectionItemProvider> item;
+        RequireSucceeded(unknown.query_to(item.put()), context);
+        return item;
+    };
+    const auto first  = tabAt(0u, "the first tab's header is under its point");
+    const auto second = tabAt(1u, "the second tab's header is under its point");
+    auto firstItem    = selectionItem(*first.get(), "the first tab is a TabItem with SelectionItem");
+    auto secondItem   = selectionItem(*second.get(), "the second tab is a TabItem with SelectionItem");
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(second->QueryInterface(IID_PPV_ARGS(simple.put())), "the second tab exposes properties");
+        Require(ReadProviderLongProperty(*simple.get(), UIA_PositionInSetPropertyId, "tab position") == 2 &&
+                    ReadProviderLongProperty(*simple.get(), UIA_SizeOfSetPropertyId, "tab count") == 3,
+                "the second of three tabs says so");
+    }
+    Require(secondItem->AddToSelection() == UIA_E_INVALIDOPERATION, "a tab control holds one selected tab");
+    Require(firstItem->RemoveFromSelection() == UIA_E_INVALIDOPERATION && selections == 0u, "its selected tab cannot leave the selection");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> container;
+    RequireSucceeded(second->Navigate(NavigateDirection_Parent, container.put()), "a tab item's parent is its tab control");
+    wil::com_ptr_nothrow<ISelectionProvider> tabSelection;
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(container.query_to(simple.put()), "the tab control exposes properties");
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        RequireSucceeded(simple->GetPatternProvider(UIA_SelectionPatternId, unknown.put()), "the tab control's Selection lookup succeeds");
+        RequireSucceeded(unknown.query_to(tabSelection.put()), "the tab control has the Selection pattern");
+    }
+    BOOL multiple = TRUE, required = FALSE;
+    RequireSucceeded(tabSelection->get_CanSelectMultiple(&multiple), "CanSelectMultiple answers");
+    RequireSucceeded(tabSelection->get_IsSelectionRequired(&required), "IsSelectionRequired answers");
+    Require(! multiple && required, "the selection is single and required");
+
+    SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
+    ExpectHeard(walk,
+                UiaTest::HearSelectionEvents(walk.client, 3u, [&] { RequireSucceeded(secondItem->Select(), "Select chooses the tab"); }),
+                {L"Selected TabItem 'Avancé'", L"IsSelected:true TabItem 'Avancé'", L"IsSelected:false TabItem 'Général'"},
+                "choosing the second tab");
+    Require(tabs->GetSelectedIndex() == 1u && selections == 1u, "Select chose the tab as a click does");
+    BOOL selected = FALSE;
+    RequireSucceeded(secondItem->get_IsSelected(&selected), "IsSelected answers");
+    Require(selected, "the chosen tab is selected");
+
+    window.Host().SetFocusControl(tabs);
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+    RequireSucceeded(rootProvider->GetFocus(focused.put()), "GetFocus answers");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
+    Require(focused && SUCCEEDED(focused.query_to(focusedSimple.put())) &&
+                ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "focused tab name") == L"Avancé",
+            "a focused tab control's focus is its selected tab");
+}
+
 // Numbered rows in one column, "Ligne 1" to "Ligne n" with the stable id 1000 + n, from which a test removes a row.
 class NumberedRowsGridModel final : public DxUi::IGridModel
 {
@@ -10220,9 +10806,91 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
     ExpectTextEnclosingElementIsTheFieldsElement(walk, *fieldElement);
 }
 
+// CR-12 of the 10 October review: a state that a key, a mnemonic or a programmatic setter changes reaches UI Automation, as a
+// pointer change does.
+void TestAccessibilityKeyboardToggleStateReachesUiAutomation()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* box   = root->AddChild<Checkbox>(std::wstring(L"&Option"));
+    auto* other = root->AddChild<Button>(std::wstring(L"Other"));
+    box->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 32.0f));
+    other->SetBounds(D2D1::RectF(0.0f, 40.0f, 160.0f, 72.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(box);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window root provider is created");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> boxProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 16.0f, "the checkbox resolves an element");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> boxSimple;
+    RequireSucceeded(boxProvider.query_to(boxSimple.put()), "the checkbox element exposes IRawElementProviderSimple");
+    wil::com_ptr_nothrow<IUnknown> patternUnknown;
+    RequireSucceeded(boxSimple->GetPatternProvider(UIA_TogglePatternId, patternUnknown.put()), "the checkbox advertises TogglePattern");
+    wil::com_ptr_nothrow<IToggleProvider> toggle;
+    RequireSucceeded(patternUnknown.query_to(toggle.put()), "the checkbox exposes IToggleProvider");
+    const auto readState = [&](const char* step)
+    {
+        ToggleState state = ToggleState_Indeterminate;
+        RequireSucceeded(toggle->get_ToggleState(&state), step);
+        return state;
+    };
+    Require(readState("the initial toggle state is readable") == ToggleState_Off, "the checkbox starts unchecked");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_SPACE, 0));
+    Require(box->IsChecked() && readState("the toggle state is readable after Space") == ToggleState_On, "Space checks the box and UI Automation reads On");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_LEFT, 0));
+    Require(! box->IsChecked() && readState("the toggle state is readable after Left") == ToggleState_Off, "Left clears the box and UI Automation reads Off");
+
+    box->SetIndeterminate(true);
+    Require(readState("the toggle state is readable after SetIndeterminate") == ToggleState_Indeterminate,
+            "a programmatic indeterminate state reaches UI Automation");
+}
+
+// CR-6 of the 10 October review: the content of a PageHost page belongs to the window's UI Automation tree.
+void TestAccessibilityPageHostPageContentHasElements()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root     = std::make_unique<Panel>();
+    auto* outside = root->AddChild<Button>(std::wstring(L"Outside"));
+    outside->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 30.0f));
+    auto* pageHost = root->AddChild<PageHost>();
+    pageHost->SetBounds(D2D1::RectF(0.0f, 40.0f, 300.0f, 180.0f));
+    auto page   = std::make_unique<Panel>();
+    auto* label = page->AddChild<Label>(std::wstring(L"Server"));
+    auto* field = page->AddChild<TextField>(std::wstring(L"alpha"));
+    label->SetBounds(D2D1::RectF(0.0f, 50.0f, 120.0f, 70.0f));
+    field->SetBounds(D2D1::RectF(0.0f, 80.0f, 220.0f, 108.0f));
+    label->SetMnemonicTarget(field);
+    pageHost->SetPage(std::move(page));
+    window.Host().SetRoot(std::move(root));
+
+    std::array<uint16_t, 64> indices{};
+    uint32_t depth = 0u;
+    Require(DebugResolveWindowHostEventPathForTest(window.Hwnd(), outside, indices, depth), "a control beside the PageHost has an element path");
+    Require(DebugResolveWindowHostEventPathForTest(window.Hwnd(), field, indices, depth), "a control on the PageHost's page has an element path");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window root provider is created");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 94.0f, "a point on the page's field resolves an element");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+    RequireSucceeded(fieldProvider.query_to(fieldSimple.put()), "the page field element exposes IRawElementProviderSimple");
+    Require(ReadProviderLongProperty(*fieldSimple.get(), UIA_ControlTypePropertyId, "the page field exposes its control type") == UIA_EditControlTypeId,
+            "the element under the page's field is that edit field");
+    Require(ReadProviderStringProperty(*fieldSimple.get(), UIA_NamePropertyId, "the page field exposes its name") == L"Server",
+            "the page field takes its name from the label on the same page");
+}
+
 } // namespace
 
-#include "Scope.Tests.PreparedTreeAccessibilityEvents.h"
+#include "Controls.Tests.PreparedTreeAccessibilityEvents.h"
 
 void RunAccessibilityTests()
 {
@@ -10233,6 +10901,8 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestUiaQuiescenceRestartsItsIntervalForNewArrivalsIncludingTheBoundary);
     DXUI_RUN_TEST(TestUiaQuietIntervalDoesNotAttributeALaterRepeatToItsOriginalStep);
     DXUI_RUN_TEST(TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication);
+    DXUI_RUN_TEST(TestAccessibilityPageHostPageContentHasElements);
+    DXUI_RUN_TEST(TestAccessibilityKeyboardToggleStateReachesUiAutomation);
     DXUI_RUN_TEST(TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient);
     DXUI_RUN_TEST(TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback);
     DXUI_RUN_TEST(TestPreparedTreeInvalidCountFallsBackToCurrentModel);
@@ -10240,6 +10910,9 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityGridFocusNamesOnlyTheRangeEndpoint);
     DXUI_RUN_TEST(TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries);
     DXUI_RUN_TEST(TestAccessibilityActionsReportControlsDestroyedByCallbacks);
+    DXUI_RUN_TEST(TestAccessibilityActionsContainAThrowingCallback);
+    DXUI_RUN_TEST(TestAccessibilityTimedOutActionsGiveBackTheirPayloadSlots);
+    DXUI_RUN_TEST(TestAccessibilityProviderRequestsBetweenTwoUiThreadsAnswerEachOther);
     DXUI_RUN_TEST(TestAccessibilityValueCallbacksDoNotBlockSnapshotQueries);
     DXUI_RUN_TEST(TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction);
     DXUI_RUN_TEST(TestNativeAccessibilityProvidersRejectReplacementAtSamePath);
@@ -10257,6 +10930,11 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton);
     DXUI_RUN_TEST(TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestTreeExpansionReachesAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestPreparedTreeExpansionOfTheFocusedItemReachesAClient);
+    DXUI_RUN_TEST(TestAccessibilityRadioButtonsAreSelectionItems);
+    DXUI_RUN_TEST(TestAccessibilityTabControlTabsAreSelectionItems);
+    DXUI_RUN_TEST(TestAccessibilityPageIndicatorIsAPageSlider);
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestQueuedSelectionEventsStopWhenControlLeavesDuringRaise);
@@ -10365,6 +11043,9 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation);
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringRowNavigation);
     DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
+    DXUI_RUN_TEST(TestGridUiaPatternFollowsTheColumnDisplayOrder);
+    DXUI_RUN_TEST(TestGridUiaPatternScrollsAnOffscreenItemIntoView);
+    DXUI_RUN_TEST(TestGridUiaPatternFocusesACellOfAScrolledOutColumn);
     DXUI_RUN_TEST(TestFormAccessibilityWindowPropertiesAndStableEditor);
     DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPropertiesAndStableEditor);
     DXUI_RUN_TEST(TestFormAccessibilityWindowLabelLifetimeAndReplacement);
@@ -10375,9 +11056,15 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback);
     DXUI_RUN_TEST(TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement);
     DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement);
+    DXUI_RUN_TEST(TestGridUiaPatternPublishesAfterAnOrdinaryRefreshDeletesRequestedRows);
+    DXUI_RUN_TEST(TestGridUiaPatternWindowAnswersAfterRequestedRowsAreDeleted);
+    DXUI_RUN_TEST(TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFails);
+    DXUI_RUN_TEST(TestGridUiaPatternDropsARequestedRowItsModelCannotRead);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);
+    DXUI_RUN_TEST(TestAccessibilityPointHitsFollowAWheelScroll);
+    DXUI_RUN_TEST(TestAccessibilityRefusesAForgedTargetProperty);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridCellToggleAndRangePatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesSliderRangeValuePattern);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesSplitterRangeValuePattern);

@@ -1,15 +1,16 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.Forms.h"
+#include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.IntrinsicLayout.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
-#include "Scope.Tests.Forms.h"
-#include "Scope.Tests.HostControlRegressions.h"
-#include "Scope.Tests.IntrinsicLayout.h"
-#include "Scope.Tests.MenuPopupReadiness.h"
+#include "Controls.Tests.MenuPopupReadiness.h"
 
 #include <cctype>
 #include <fstream>
 #include <functional>
 #include <memory>
 #include <new>
+#include <stdexcept>
 #include <string>
 
 namespace
@@ -114,6 +115,43 @@ void TestPanelTakeChildPreservesInheritanceAndReparentsSafely()
             "promoted root adopts its new owner settings");
     Require(probe->flowChanges == oldFlowChanges + 1u && probe->densityChanges == oldDensityChanges + 1u,
             "promotion announces each changed inherited setting once");
+}
+
+// Q16 of the 10 October review: a panel whose children are swapped keeps one empty slot per TakeChild until
+// CompactChildren removes them, in order; a radio group's choice stays chosen through it.
+void TestPanelCompactChildrenClosesTheSlotsTakeChildLeft()
+{
+    DxUi::WindowHost host;
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* panel  = root.get();
+    auto* first  = panel->AddChild<DxUi::Button>(std::wstring(L"Premier"));
+    auto* second = panel->AddChild<DxUi::Button>(std::wstring(L"Deuxième"));
+    auto* third  = panel->AddChild<DxUi::Button>(std::wstring(L"Troisième"));
+    auto* group  = panel->AddChild<DxUi::RadioButtons>();
+    auto* a      = group->AddItem(L"A");
+    auto* b      = group->AddItem(L"B");
+    auto* c      = group->AddItem(L"C");
+    host.SetRoot(std::move(root));
+    Require(panel->CompactChildren() == 0u && panel->GetLogicalChildCount() == 4u, "a panel without empty slots has nothing to compact");
+
+    auto taken = panel->TakeChild(1u);
+    Require(taken.get() == second && panel->GetLogicalChildCount() == 4u && ! panel->GetLogicalChild(1u), "TakeChild leaves its slot empty");
+    Require(panel->CompactChildren() == 1u, "CompactChildren removes the one empty slot");
+    Require(panel->GetLogicalChildCount() == 3u && panel->GetLogicalChild(0u) == first && panel->GetLogicalChild(1u) == third &&
+                panel->GetLogicalChild(2u) == group,
+            "the children keep their order without the slot");
+    Require(panel->CompactChildren() == 0u, "a second compaction finds nothing to remove");
+
+    group->SetSelectedIndex(2);
+    Require(c->IsChecked(), "the third choice is chosen");
+    auto takenChoice = group->TakeChild(1u);
+    Require(takenChoice.get() == b && group->GetSelectedIndex() == 2, "the chosen index still counts the empty slot");
+    Require(group->CompactChildren() == 1u && group->GetSelectedIndex() == 1 && c->IsChecked() && ! a->IsChecked(),
+            "the chosen index follows its choice to its new place");
+    group->SetSelectedIndex(0);
+    auto takenChosen = group->TakeChild(0u);
+    Require(takenChosen.get() == a && group->CompactChildren() == 1u && group->GetSelectedIndex() == -1 && ! c->IsChecked(),
+            "a choice taken out leaves no selection behind once compacted");
 }
 
 void TestPanelTakeChildRevalidatesAfterFocusRetirement()
@@ -983,6 +1021,50 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
     }
 }
 
+// A tab control's selection, close-request and closed callbacks run on noexcept paths, where a throwing one ended the
+// process (CR-24 of the 10 October review). Each is contained now: the selection it reports stays made, a close request
+// that fails keeps its tab, and a failing closed callback leaves the tab closed.
+void TestTabControlContainsThrowingCallbacks()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tabs = root->AddChild<TabControl>();
+    tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 640.0f, 180.0f));
+    tabs->AddTab<Panel>(L"Alpha");
+    tabs->AddTab<Panel>(L"Bravo");
+    tabs->AddTab<Panel>(L"Charlie");
+    tabs->SetTabClosable(1u, true);
+    root->SetBounds(D2D1::RectF(0.0f, 0.0f, 640.0f, 180.0f));
+    host.SetRoot(std::move(root));
+    unsigned closed = 0u;
+    tabs->SetOnSelectionChanged([](size_t) { throw std::runtime_error("the selection handler failed"); });
+    tabs->SetOnTabCloseRequested([](size_t) -> bool { throw std::runtime_error("the close-request handler failed"); });
+    tabs->SetOnTabClosed([&](size_t) { ++closed; });
+    const auto click = [&](const D2D1_RECT_F& rect)
+    {
+        const D2D1_POINT_2F point = D2D1::Point2F((rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f);
+        static_cast<void>(tabs->OnMouseMove(host, point, 0u));
+        static_cast<void>(tabs->OnMouseDown(host, point, false, 0u));
+        static_cast<void>(tabs->OnMouseUp(host, point, false, 0u));
+    };
+
+    click(tabs->DebugGetTabRect(1u));
+    Require(tabs->GetSelectedIndex() == 1u, "the selection stays made when its handler throws");
+    RequireRectHasArea(tabs->DebugGetCloseButtonRect(1u), "the selected closable tab shows its close button");
+    click(tabs->DebugGetCloseButtonRect(1u));
+    Require(tabs->GetTabCount() == 3u && closed == 0u, "a close request whose handler throws keeps its tab");
+    tabs->SetOnTabCloseRequested([](size_t) { return false; });
+    tabs->SetOnTabClosed([&](size_t)
+    {
+        ++closed;
+        throw std::runtime_error("the closed handler failed");
+    });
+    click(tabs->DebugGetCloseButtonRect(1u));
+    Require(tabs->GetTabCount() == 2u && closed == 1u, "a failing closed handler leaves the tab closed");
+}
+
 void TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab()
 {
     using namespace DxUi;
@@ -1093,16 +1175,38 @@ void TestTabControlReorderingReportsStableMove()
     host.SetRoot(std::move(root));
 
     std::optional<std::pair<size_t, size_t>> move;
-    tabs->SetOnTabReordered([&](size_t fromIndex, size_t toIndex) noexcept { move = std::pair{fromIndex, toIndex}; });
+    size_t moves = 0u;
+    tabs->SetOnTabReordered([&](size_t fromIndex, size_t toIndex) noexcept
+    {
+        move = std::pair{fromIndex, toIndex};
+        ++moves;
+    });
     const D2D1_RECT_F first  = tabs->DebugGetTabRect(0u);
     const D2D1_RECT_F second = tabs->DebugGetTabRect(1u);
-    const D2D1_POINT_2F from = D2D1::Point2F((first.left + first.right) * 0.5f, (first.top + first.bottom) * 0.5f);
-    const D2D1_POINT_2F to   = D2D1::Point2F(second.left + 2.0f, (second.top + second.bottom) * 0.5f);
+    const float y            = (first.top + first.bottom) * 0.5f;
+    const D2D1_POINT_2F from = D2D1::Point2F((first.left + first.right) * 0.5f, y);
     Require(tabs->OnMouseDown(host, from, false, 0u), "reorder-reporting TabControl accepts the drag start");
-    Require(tabs->OnMouseMove(host, to, 0u), "reorder-reporting TabControl accepts the drag move");
+
+    // CR-26 of the 10 October review: a drag that has not crossed the neighbor's midpoint moves nothing, and repeated moves
+    // there never flip the order back and forth.
+    for (const float x : {from.x + 8.0f, second.left + 2.0f, from.x + 10.0f, second.left + 2.0f})
+        Require(tabs->OnMouseMove(host, D2D1::Point2F(x, y), 0u), "reorder-reporting TabControl accepts the drag move");
+    Require(moves == 0u && tabs->GetTabTitle(0u) == L"Alpha", "a drag short of the neighbor's midpoint keeps the order");
+
+    const D2D1_POINT_2F to = D2D1::Point2F((second.left + second.right) * 0.5f + 2.0f, y);
+    Require(tabs->OnMouseMove(host, to, 0u), "reorder-reporting TabControl accepts the crossing move");
+    Require(tabs->OnMouseMove(host, D2D1::Point2F(to.x + 1.0f, y), 0u), "reorder-reporting TabControl accepts a later move");
     static_cast<void>(tabs->OnMouseUp(host, to, false, 0u));
-    Require(move == std::pair<size_t, size_t>{0u, 1u}, "TabControl reports the exact stable from/to move");
+    Require(move == std::pair<size_t, size_t>{0u, 1u} && moves == 1u, "TabControl reports the exact stable from/to move once");
     Require(tabs->GetTabTitle(0u) == L"Bravo" && tabs->GetTabTitle(1u) == L"Alpha", "TabControl reorder notification matches the committed page order");
+
+    // Passing the last tab's midpoint reaches the last slot.
+    const D2D1_RECT_F last  = tabs->DebugGetTabRect(2u);
+    const D2D1_RECT_F start = tabs->DebugGetTabRect(0u);
+    Require(tabs->OnMouseDown(host, D2D1::Point2F((start.left + start.right) * 0.5f, y), false, 0u), "a second drag starts on the first tab");
+    Require(tabs->OnMouseMove(host, D2D1::Point2F(last.right - 2.0f, y), 0u), "the drag moves past the last tab's midpoint");
+    static_cast<void>(tabs->OnMouseUp(host, D2D1::Point2F(last.right - 2.0f, y), false, 0u));
+    Require(tabs->GetTabTitle(2u) == L"Bravo" && move == std::pair<size_t, size_t>{0u, 2u}, "a drag past every tab reaches the last slot");
 }
 
 void TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState()
@@ -1904,6 +2008,424 @@ void TestScrollPanelChildCallbacksCanClearChildrenSafely()
     Require(scroll->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0), "scroll panel forwards hover-enter to clearing child");
     Require(captureState.hoverEnterCount == 1u, "clearing child receives one hover-enter before clearing children");
     Require(captureState.mouseMoveCount == 0u, "cleared hovered child is not reused for mouse-move");
+}
+
+struct ScrollPanelDetachProbeState
+{
+    size_t mouseDownCount   = 0u;
+    size_t mouseMoveCount   = 0u;
+    size_t mouseUpCount     = 0u;
+    size_t mouseLeaveCount  = 0u;
+    size_t hoverLeaveCount  = 0u;
+    size_t captureLostCount = 0u;
+    // Runs last in OnCaptureLost, so it may destroy the probe.
+    std::function<void()> onCaptureLost;
+};
+
+class ScrollPanelDetachProbe final : public DxUi::Control
+{
+public:
+    explicit ScrollPanelDetachProbe(ScrollPanelDetachProbeState& state) noexcept : _state(&state)
+    {
+    }
+
+    void Paint(DxUi::ControlHost& /*host*/) const override
+    {
+    }
+
+    bool OnMouseDown(DxUi::ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/) override
+    {
+        ++_state->mouseDownCount;
+        return ! rightButton;
+    }
+
+    bool OnMouseMove(DxUi::ControlHost& /*host*/, D2D1_POINT_2F /*point*/, UINT /*modifiers*/) override
+    {
+        ++_state->mouseMoveCount;
+        return true;
+    }
+
+    bool OnMouseUp(DxUi::ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/) override
+    {
+        ++_state->mouseUpCount;
+        return true;
+    }
+
+    bool OnMouseLeave(DxUi::ControlHost& /*host*/) override
+    {
+        ++_state->mouseLeaveCount;
+        return true;
+    }
+
+protected:
+    void OnHoverChanged(DxUi::ControlHost& host, bool hovered) override
+    {
+        if (! hovered)
+        {
+            ++_state->hoverLeaveCount;
+        }
+        Control::OnHoverChanged(host, hovered);
+    }
+
+    void OnCaptureLost(DxUi::ControlHost& host) override
+    {
+        ++_state->captureLostCount;
+        Control::OnCaptureLost(host);
+        if (ScrollPanelDetachProbeState* const state = _state; state->onCaptureLost)
+            state->onCaptureLost();
+    }
+
+private:
+    ScrollPanelDetachProbeState* _state = nullptr;
+};
+
+void TestScrollPanelEndsHoverOfARowTakenFromIt()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    ScrollPanelDetachProbeState state;
+    auto* row = scroll->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the pointer hovers the ScrollPanel row");
+
+    std::unique_ptr<Control> taken = scroll->TakeChild(0u);
+    Require(taken.get() == row, "TakeChild returns the hovered row");
+    Require(! row->IsHovered() && state.hoverLeaveCount == 1u && state.mouseLeaveCount == 1u,
+            "the ScrollPanel ends the hover of a row taken from it while the row is still attached");
+    taken.reset();
+
+    // The panel no longer refers to the destroyed row (ASan reported a use-after-free here before the fix).
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(60, 25), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(60, 25), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(60, 25), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSELEAVE, 0, 0, handled));
+
+    ScrollPanelDetachProbeState replacementState;
+    auto* replacement = scroll->AddChild<ScrollPanelDetachProbe>(replacementState);
+    replacement->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(replacement->IsHovered() && replacementState.mouseMoveCount == 1u, "a row added afterwards is hovered normally");
+}
+
+void TestScrollPanelEndsTheGestureOfAPressedRowTakenFromIt()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    ScrollPanelDetachProbeState state;
+    auto* row = scroll->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+    Require(state.mouseDownCount == 1u && host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for its pressed row");
+
+    std::unique_ptr<Control> taken = scroll->TakeChild(0u);
+    Require(taken.get() == row, "TakeChild returns the pressed row");
+    Require(state.captureLostCount == 1u, "the pressed row hears that its gesture ended before it leaves the panel");
+    Require(host.GetCapturedControl() == nullptr, "the ScrollPanel releases the capture it held only for the taken row");
+    Require(! row->IsHovered() && state.hoverLeaveCount == 1u, "the taken row is no longer hovered");
+
+    // The row is detached but alive, as when it moves to another container: its old panel sends it nothing more.
+    const size_t movesBefore = state.mouseMoveCount;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(55, 22), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(55, 22), handled));
+    Require(state.mouseMoveCount == movesBefore && state.mouseUpCount == 0u, "a taken row receives no pointer input through its old panel");
+    Require(state.captureLostCount == 1u, "the ended gesture is not cancelled twice");
+
+    taken.reset();
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(60, 25), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(60, 25), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(60, 25), handled));
+}
+
+void TestScrollPanelEndsTheGestureOfANestedRowItsPanelTakes()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 50.0f));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+    Require(state.mouseDownCount == 1u && host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for a nested pressed row");
+
+    // The row leaves through its own panel, not through the ScrollPanel: every enclosing container is told.
+    std::unique_ptr<Control> taken = list->TakeChild(0u);
+    Require(taken.get() == row, "the inner panel returns the pressed row");
+    Require(state.captureLostCount == 1u && host.GetCapturedControl() == nullptr,
+            "the enclosing ScrollPanel ends the gesture of a nested row and releases its capture");
+    Require(! row->IsHovered() && state.hoverLeaveCount == 1u, "the enclosing ScrollPanel ends the hover of the nested row");
+    taken.reset();
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(55, 22), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(55, 22), handled));
+}
+
+void TestScrollPanelGestureOfAClearedNestedRowReachesNoSibling()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 50.0f));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    ScrollPanelDetachProbeState siblingState;
+    auto* sibling = scroll->AddChild<ScrollPanelDetachProbe>(siblingState);
+    sibling->SetBounds(D2D1::RectF(0.0f, 60.0f, 200.0f, 100.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+    Require(state.mouseDownCount == 1u && host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for a nested pressed row");
+
+    // Clearing the inner panel destroys the pressed row without telling the ScrollPanel. The gesture still belongs to
+    // the destroyed row: its moves and its release over a sibling reach nothing (and never the freed row).
+    list->ClearChildren();
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(50, 70), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(50, 70), handled));
+    Require(siblingState.mouseMoveCount == 0u && siblingState.mouseUpCount == 0u && siblingState.mouseDownCount == 0u,
+            "the rest of a gesture whose row was destroyed reaches no sibling");
+    Require(host.GetCapturedControl() == nullptr, "the release ends the gesture");
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 72), handled));
+    Require(sibling->IsHovered() && siblingState.mouseMoveCount == 1u, "after the release the sibling is hovered normally");
+}
+
+// A row that leaves from inside a PageHost page or a TabControl tab still reaches the enclosing ScrollPanel's hook,
+// although neither container is the panel's direct child.
+void TestScrollPanelEndsTheGestureOfARowLeavingAPageOrATab()
+{
+    using namespace DxUi;
+    {
+        WindowHost host;
+        auto root        = std::make_unique<Panel>();
+        Panel* rootPanel = root.get();
+        auto* scroll     = root->AddChild<ScrollPanel>();
+        scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+        scroll->SetContentHeight(400.0f);
+        auto* pageHost = scroll->AddChild<PageHost>();
+        pageHost->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 100.0f));
+        auto page        = std::make_unique<Panel>();
+        Panel* pagePanel = page.get();
+        ScrollPanelDetachProbeState state;
+        auto* row = page->AddChild<ScrollPanelDetachProbe>(state);
+        row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+        pageHost->SetPage(std::move(page));
+        host.SetRoot(std::move(root));
+        rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+        static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+        Require(state.mouseDownCount == 1u && host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for a row on a page");
+
+        std::unique_ptr<Control> taken = pagePanel->TakeChild(0u);
+        Require(taken.get() == row, "the page returns the pressed row");
+        Require(state.captureLostCount == 1u && host.GetCapturedControl() == nullptr && ! row->IsHovered() && state.hoverLeaveCount == 1u,
+                "the ScrollPanel above the PageHost ends the gesture and the hover of the row");
+        taken.reset();
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(55, 22), handled));
+        static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(55, 22), handled));
+    }
+    {
+        WindowHost host;
+        auto root        = std::make_unique<Panel>();
+        Panel* rootPanel = root.get();
+        auto* scroll     = root->AddChild<ScrollPanel>();
+        scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+        scroll->SetContentHeight(400.0f);
+        auto* tabs = scroll->AddChild<TabControl>();
+        tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 160.0f));
+        auto* tabPage = tabs->AddTab<Panel>(L"First");
+        Require(tabPage != nullptr, "the tab is added");
+        host.SetRoot(std::move(root));
+        rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+        const D2D1_RECT_F pageRect = tabPage->GetBounds();
+        ScrollPanelDetachProbeState state;
+        auto* row = tabPage->AddChild<ScrollPanelDetachProbe>(state);
+        row->SetBounds(D2D1::RectF(pageRect.left, pageRect.top, pageRect.left + 200.0f, pageRect.top + 30.0f));
+
+        bool handled            = false;
+        const LPARAM overTheRow = MAKELPARAM(static_cast<int>(pageRect.left) + 50, static_cast<int>(pageRect.top) + 15);
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, overTheRow, handled));
+        Require(row->IsHovered(), "the pointer hovers the row on the tab");
+
+        std::unique_ptr<Control> takenTab = tabs->TakeTab(0u);
+        Require(takenTab.get() == tabPage, "the TabControl returns the tab page");
+        Require(! row->IsHovered() && state.hoverLeaveCount == 1u && state.mouseLeaveCount == 1u,
+                "the ScrollPanel above the TabControl ends the hover of a row on the removed tab");
+        takenTab.reset();
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, overTheRow, handled));
+    }
+}
+
+// A capture-lost callback may retire the very row being detached (an application rebuilding its list); the ScrollPanel
+// then asks nothing more of it, and a control the pointer reached meanwhile stays hovered.
+void TestScrollPanelSurvivesACaptureCallbackThatRetiresTheDetachingRow()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 50.0f));
+    ScrollPanelDetachProbeState state;
+    list->AddChild<ScrollPanelDetachProbe>(state)->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    ScrollPanelDetachProbeState siblingState;
+    auto* sibling = scroll->AddChild<ScrollPanelDetachProbe>(siblingState);
+    sibling->SetBounds(D2D1::RectF(0.0f, 60.0f, 200.0f, 100.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+    Require(state.mouseDownCount == 1u && host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for the pressed row");
+
+    state.onCaptureLost = [&]
+    {
+        list->ClearChildren();
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 80), handled));
+    };
+    Require(! list->TakeChild(0u), "a row its capture callback destroyed is not returned");
+    Require(state.captureLostCount == 1u, "the pressed row heard that its gesture ended");
+    Require(sibling->IsHovered() && siblingState.hoverLeaveCount == 0u, "the sibling the pointer reached meanwhile stays hovered");
+    Require(host.GetCapturedControl() == nullptr, "the ScrollPanel releases the capture it held for the destroyed row");
+}
+
+// CR-26 of the 10 October review: a StackPanel child's extent lives as long as the child, so a control created at a
+// destroyed child's address (common for an allocation of the same size right after a free) does not inherit it.
+void TestStackPanelExtentsDoNotOutliveTheirChildren()
+{
+    using namespace DxUi;
+    StackPanel panel;
+    panel.SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 400.0f));
+    for (size_t cycle = 0u; cycle < 64u; ++cycle)
+    {
+        auto* child = panel.AddChild<Button>(std::wstring(L"Temporary"));
+        panel.SetChildExtent(child, 100.0f);
+        Require(panel.GetContentExtent() == 100.0f, "a child's extent counts while the child lives");
+        panel.ClearChildren();
+        static_cast<void>(panel.AddChild<Button>(std::wstring(L"Fresh")));
+        Require(panel.GetContentExtent() == 0.0f, "a new child has no extent of its own, wherever it was allocated");
+        panel.ClearChildren();
+    }
+}
+
+// CR-14 of the 10 October review: a TabControl that cannot take focus still removes or takes a page that holds focus,
+// clearing that focus as Panel::TakeChild does, instead of silently keeping the page.
+void TestNonFocusableTabControlRemovesAFocusedPage()
+{
+    using namespace DxUi;
+    for (const bool take : {false, true})
+    {
+        WindowHost host;
+        auto root        = std::make_unique<Panel>();
+        Panel* rootPanel = root.get();
+        auto* tabs       = root->AddChild<TabControl>();
+        tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+        tabs->SetFocusable(false);
+        Require(tabs->AddTab<Panel>(L"First") != nullptr, "the first tab is added");
+        auto* second = tabs->AddTab<Panel>(L"Second");
+        Require(second != nullptr, "the second tab is added");
+        host.SetRoot(std::move(root));
+        rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+        tabs->SetSelectedIndex(1u);
+        const D2D1_RECT_F pageRect = second->GetBounds();
+        auto* field                = second->AddChild<TextField>(L"draft");
+        field->SetBounds(D2D1::RectF(pageRect.left, pageRect.top, pageRect.left + 200.0f, pageRect.top + 30.0f));
+        host.SetFocusControl(field);
+        Require(host.GetFocusControl() == field, "the field on the second page has focus");
+        if (take)
+        {
+            std::unique_ptr<Control> taken = tabs->TakeTab(1u);
+            Require(taken.get() == second, "the non-focusable TabControl gives up the focused page");
+        }
+        else
+        {
+            tabs->RemoveTab(1u);
+        }
+        Require(tabs->GetTabCount() == 1u && host.GetFocusControl() == nullptr, "the page leaves and takes the focus with it");
+    }
+}
+
+// A capture released without a capture-loss callback (a child's Escape calls ReleaseMouseCapture) ends the gesture the
+// ScrollPanel forwards: the next move is ordinary hover again instead of going to the pressed row.
+void TestScrollPanelGestureEndsWhenTheCaptureIsReleasedSilently()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    ScrollPanelDetachProbeState state;
+    auto* row = scroll->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 40.0f));
+    ScrollPanelDetachProbeState siblingState;
+    auto* sibling = scroll->AddChild<ScrollPanelDetachProbe>(siblingState);
+    sibling->SetBounds(D2D1::RectF(0.0f, 60.0f, 200.0f, 100.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(50, 20), handled));
+    Require(host.GetCapturedControl() == scroll, "the ScrollPanel captures the pointer for the pressed row");
+
+    host.ReleaseMouseCapture();
+    const size_t rowMoves = state.mouseMoveCount;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 80), handled));
+    Require(state.captureLostCount == 1u, "the pressed row hears that its gesture ended");
+    Require(sibling->IsHovered() && siblingState.mouseMoveCount == 1u && state.mouseMoveCount == rowMoves,
+            "the next move hovers the control under the pointer instead of reaching the pressed row");
 }
 
 void TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner()
@@ -2923,6 +3445,7 @@ void RunControlTests()
     RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);
     DXUI_RUN_TEST(TestPanelTakeChildPreservesInheritanceAndReparentsSafely);
+    DXUI_RUN_TEST(TestPanelCompactChildrenClosesTheSlotsTakeChildLeft);
     DXUI_RUN_TEST(TestPanelTakeChildRevalidatesAfterFocusRetirement);
     DXUI_RUN_TEST(TestTabTakeChildKeepsMetadataAndSelectionCoherent);
     DXUI_RUN_TEST(TestChildAndTabExtractionPreservesReentrantHostTransfer);
@@ -2935,6 +3458,15 @@ void RunControlTests()
     DXUI_RUN_TEST(TestScrollPanelOverlayDismissalCanRetireItsOwner);
     DXUI_RUN_TEST(TestMeasuredActionsFailureAndDirectionContracts);
     DXUI_RUN_TEST(TestScrollPanelChildCallbacksCanClearChildrenSafely);
+    DXUI_RUN_TEST(TestScrollPanelEndsHoverOfARowTakenFromIt);
+    DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfAPressedRowTakenFromIt);
+    DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfANestedRowItsPanelTakes);
+    DXUI_RUN_TEST(TestScrollPanelGestureOfAClearedNestedRowReachesNoSibling);
+    DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfARowLeavingAPageOrATab);
+    DXUI_RUN_TEST(TestScrollPanelSurvivesACaptureCallbackThatRetiresTheDetachingRow);
+    DXUI_RUN_TEST(TestScrollPanelGestureEndsWhenTheCaptureIsReleasedSilently);
+    DXUI_RUN_TEST(TestNonFocusableTabControlRemovesAFocusedPage);
+    DXUI_RUN_TEST(TestStackPanelExtentsDoNotOutliveTheirChildren);
     DXUI_RUN_TEST(TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner);
     DXUI_RUN_TEST(TestPanelTraversalCallbacksCanRetireOwnerSafely);
     DXUI_RUN_TEST(TestPageHostOutgoingPaintCanReplaceItsPageWithoutLeakingDrawingState);
@@ -2959,6 +3491,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations);
     DXUI_RUN_TEST(TestTabControlLayoutRevalidatesPagesAfterCallbacks);
     DXUI_RUN_TEST(TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab);
+    DXUI_RUN_TEST(TestTabControlContainsThrowingCallbacks);
     DXUI_RUN_TEST(TestTabControlReorderingPolicyPreservesStableHostIndices);
     DXUI_RUN_TEST(TestTabControlReorderingReportsStableMove);
     DXUI_RUN_TEST(TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState);

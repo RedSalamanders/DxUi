@@ -87,7 +87,8 @@ inline size_t DrainPostedPayloadsForWindow(HWND hwnd) noexcept
         removed[i].destroy(removed[i].value);
     return count;
 }
-template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::unique_ptr<T> value) noexcept
+// Posts a payload; `outToken`, when given, receives its token for ReclaimMessagePayload once the sender stops waiting for it.
+template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::unique_ptr<T> value, LPARAM* outToken = nullptr) noexcept
 {
     if (! value)
         return PostMessageW(hwnd, msg, wp, 0) != FALSE;
@@ -111,14 +112,40 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
                 return false;
             }
             value.release();
+            if (outToken)
+                *outToken = e.token;
             return true;
         }
     SetLastError(ERROR_NOT_ENOUGH_MEMORY);
     return false;
 }
-// Sends a payload and waits at most timeoutMs; true once the window procedure has returned. After a timeout the receiving thread
-// may still take the payload, so it stays registered until then or until its window is destroyed, and a late answer never reaches
-// the sender's frame. A payload whose message was never delivered is freed here.
+// Takes back a payload its receiver has not taken: the sender stopped waiting for it, and a receiver that finds none answers
+// nothing. A payload left registered held its registry slot, one of the process's 128, until a busy or hung receiver came
+// round to it or its window was destroyed. False when the receiver took it first.
+template <class T> bool ReclaimMessagePayload(HWND window, UINT message, LPARAM token) noexcept
+{
+    DxUi::Detail::PayloadEntry removed{};
+    {
+        auto& r = DxUi::Detail::Payloads();
+        std::lock_guard lock(r.mutex);
+        for (auto& e : r.entries)
+            if (token && e.token == token && e.window == window && e.message == message && e.destroy == &DxUi::Detail::DestroyPayload<T>)
+            {
+                removed = e;
+                e       = {};
+                break;
+            }
+    }
+    if (! removed.destroy)
+        return false;
+    const DWORD error = GetLastError();
+    removed.destroy(removed.value);
+    SetLastError(error);
+    return true;
+}
+// Sends a payload and waits at most timeoutMs; true once the window procedure has returned. A payload the receiver did not
+// take is reclaimed when the send fails or times out, so a late delivery answers nothing and a late answer never reaches the
+// sender's frame.
 template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::unique_ptr<T> value, UINT timeoutMs) noexcept
 {
     if (! value)
@@ -149,24 +176,11 @@ template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
         return false;
     }
     DWORD_PTR answer = 0;
-    if (SendMessageTimeoutW(hwnd, msg, wp, token, SMTO_BLOCK | SMTO_ABORTIFHUNG, timeoutMs, &answer) != 0)
+    // A sender with windows of its own goes on answering the messages sent to them while it waits, as SendMessage does.
+    // SMTO_BLOCK made two UI threads that sent to each other's windows both wait out the whole timeout.
+    if (SendMessageTimeoutW(hwnd, msg, wp, token, SMTO_NORMAL | SMTO_ABORTIFHUNG, timeoutMs, &answer) != 0)
         return true;
-    if (GetLastError() == ERROR_TIMEOUT)
-        return false;
-    DxUi::Detail::PayloadEntry removed{};
-    {
-        auto& r = DxUi::Detail::Payloads();
-        std::lock_guard lock(r.mutex);
-        for (auto& e : r.entries)
-            if (e.token == token)
-            {
-                removed = e;
-                e       = {};
-                break;
-            }
-    }
-    if (removed.destroy)
-        removed.destroy(removed.value);
+    static_cast<void>(ReclaimMessagePayload<T>(hwnd, msg, token));
     return false;
 }
 template <class T> std::unique_ptr<T> TakeMessagePayload(HWND expectedWindow, UINT expectedMessage, LPARAM token) noexcept

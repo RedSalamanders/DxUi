@@ -107,41 +107,68 @@
   "rules": [
     {
       "pattern": "src/Controls/DxUi.Markdown*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "owned lossless parser and opt-in native/embedded source preparation"
     },
     {
       "pattern": "include/DxUi/Markdown*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "public lossless syntax and source-anchor contracts"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.Markdown*",
-      "scopes": ["EditorControls"],
+      "pattern": "Tests/Controls/Controls.Tests.Markdown*",
+      "scopes": [
+        "EditorControls"
+      ],
       "reason": "original lossless corpus vectors used by the owned parser tests"
     },
     {
       "pattern": "ThirdParty/Markdown/*",
-      "scopes": ["EditorControls", "Embedded", "Tooling"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Tooling"
+      ],
       "reason": "pinned parser standard data, original corpus inputs and license validation"
     },
     {
       "pattern": "src/Controls/DxUi.RichTextEditor.cpp",
-      "scopes": ["EditorControls", "Embedded", "Rendering", "WindowHost", "Theme", "ReadOnly", "Animation", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Rendering",
+        "WindowHost",
+        "Theme",
+        "ReadOnly",
+        "Animation",
+        "Accessibility"
+      ],
       "reason": "retained rich-text uses shared host raster, composition, text-store and provider services"
     },
     {
-      "pattern": "Tests/Embedded/Scope.Tests.RichTextResources.h",
-      "scopes": ["Embedded"],
+      "pattern": "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+      "scopes": [
+        "Embedded"
+      ],
       "reason": "supplied-device rich-text resources and callback retirement"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.RichTextAccessibility.*",
-      "scopes": ["Accessibility"],
+      "pattern": "Tests/Controls/Controls.Tests.RichTextAccessibility.*",
+      "scopes": [
+        "Accessibility"
+      ],
       "reason": "native and application-bridged embedded rich source provider/client contracts"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.Rich*",
+      "pattern": "Tests/Controls/Controls.Tests.Rich*",
       "scopes": [
         "EditorControls"
       ],
@@ -164,23 +191,46 @@
       "reason": "owned rich-text preparation core; shared archive and supplied target behavior"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.IntrinsicLayout.*",
-      "scopes": ["Control"],
+      "pattern": "Tests/Controls/Controls.Tests.IntrinsicLayout.*",
+      "scopes": [
+        "Control"
+      ],
       "reason": "intrinsic leaf measurement and FlexPanel behavior in the owning Control suite"
     },
     {
       "pattern": "src/Controls/DxUi.Layout.cpp",
-      "scopes": ["Control", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "MultilineText", "Accessibility", "Rendering"],
+      "scopes": [
+        "Control",
+        "Embedded",
+        "WindowHost",
+        "TextField",
+        "ComboBox",
+        "EditorControls",
+        "MultilineText",
+        "Accessibility",
+        "Rendering"
+      ],
       "reason": "opt-in intrinsic sizing shares leaf metrics and native/embedded preparation, focus and geometry"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.Forms.*",
-      "scopes": ["Control"],
+      "pattern": "Tests/Controls/Controls.Tests.Forms.*",
+      "scopes": [
+        "Control"
+      ],
       "reason": "form measurement, arrangement, ownership and editor state scenarios in the Control suite"
     },
     {
       "pattern": "src/Controls/DxUi.Forms.cpp",
-      "scopes": ["Control", "Accessibility", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "Rendering"],
+      "scopes": [
+        "Control",
+        "Accessibility",
+        "Embedded",
+        "WindowHost",
+        "TextField",
+        "ComboBox",
+        "EditorControls",
+        "Rendering"
+      ],
       "reason": "form layout preserves semantic editors and shares native/embedded preparation and UIA publication"
     },
     {
@@ -282,14 +332,21 @@
       "reason": "owning suite source"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.FormAccessibility.cpp",
+      "pattern": "Tests/Controls/Controls.Tests.AnimationClock.*",
+      "scopes": [
+        "Animation"
+      ],
+      "reason": "native and embedded animation clock coverage in the Animation suite"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.FormAccessibility.cpp",
       "scopes": [
         "Accessibility"
       ],
       "reason": "active native and embedded form provider coverage"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
+      "pattern": "Tests/Controls/Controls.Tests.GridUiaPattern.cpp",
       "scopes": [
         "Accessibility"
       ],
@@ -303,8 +360,10 @@
       "reason": "owning suite source"
     },
     {
-      "pattern": "Tests/Controls/Scope.Tests.NativeDevicePolicy.h",
-      "scopes": ["WindowHost"],
+      "pattern": "Tests/Controls/Controls.Tests.NativeDevicePolicy.h",
+      "scopes": [
+        "WindowHost"
+      ],
       "reason": "native WARP selection, pool conflict and device replacement"
     },
     {
@@ -432,13 +491,6 @@
       "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
     },
     {
-      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
-      "suites": [
-        "Menu"
-      ],
-      "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
-    },
-    {
       "pattern": "Tests/Controls/DxUi.Tests.MenuResources.h",
       "suites": [
         "MenuResources",
@@ -466,6 +518,29 @@
         "NativeTextInput"
       ],
       "reason": "native text-input implementation changes require the interactive suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.WindowHost.cpp",
+      "suites": [
+        "Menu",
+        "NativeTextInput"
+      ],
+      "reason": "the window host dispatches the pointer, keyboard, focus and capture both interactive suites exercise"
+    },
+    {
+      "pattern": "src/Controls/DxUi.TextStoreACP.cpp",
+      "suites": [
+        "NativeTextInput"
+      ],
+      "reason": "the TSF text store is native text input's composition path"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Accessibility.cpp",
+      "suites": [
+        "Menu",
+        "NativeTextInput"
+      ],
+      "reason": "menu popups and native text input publish UI Automation elements and events from the providers"
     }
   ],
   "prCoverage": [
@@ -626,6 +701,21 @@
       "platform": "ARM64"
     }
   ],
-  "prWorkflowDigest": "586440b7a24e9c7cf338fbeb03b13f31b287c1d63bceaf49e1c1cd72fc104270",
+  "prContractFiles": [
+    ".github/workflows/ci.yml",
+    "build.ps1",
+    "test-consumer.ps1",
+    "test.ps1",
+    "validate.ps1",
+    "vcpkg-install.ps1",
+    "Tools/BenchmarkGate.psm1",
+    "Tools/CapabilitySkipPolicy.psm1",
+    "Tools/Get-NativeScope.ps1",
+    "Tools/InteractiveRun.psm1",
+    "Tools/NativeScope.psm1",
+    "Tools/ScopedTesting.psm1",
+    "Tools/SuiteFailure.psm1"
+  ],
+  "prWorkflowDigest": "7a16a8ddd3285a39e5320a125732a5f1d332d33d040f4c2120340dd899bfe554",
   "prNativeScopeModule": "Tools/NativeScope.psm1"
 }

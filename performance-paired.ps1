@@ -142,14 +142,22 @@ function Get-HeadCommit([string] $Root) {
 }
 
 function Test-EquivalentPerformanceVerdicts([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
-    if ([string]$Legacy.status -cne [string]$Migrated.status) { return $false }
+    # The judges agree on every metric but one kind: the paired-block judge bounds every round of an exact budget, so a rise of
+    # its raw-round maximum alone regresses there and not in the median-based judge (Tools/BenchmarkGate.psm1 tolerates the same).
     $oldMetrics = @($Legacy.metrics); $newMetrics = @($Migrated.metrics)
     if ($oldMetrics.Count -ne 26 -or $newMetrics.Count -ne 26) { return $false }
+    $peakOnlyRises = 0
     foreach ($metric in $newMetrics) {
         $old = @($oldMetrics | Where-Object { $_.phase -ceq $metric.phase -and $_.metric -ceq $metric.metric })
-        if ($old.Count -ne 1 -or [string]$old[0].verdict -cne [string]$metric.verdict) { return $false }
+        if ($old.Count -ne 1) { return $false }
+        if ([string]$old[0].verdict -ceq [string]$metric.verdict) { continue }
+        $peakOnly = [bool]$metric.exact -and [bool]$metric.deterministicPeakRise -and -not [bool]$metric.deterministicMedianRise -and
+            [string]$metric.verdict -ceq 'regressed' -and [string]$old[0].verdict -ceq 'within-noise'
+        if (-not $peakOnly) { return $false }
+        $peakOnlyRises++
     }
-    return $true
+    return [string]$Legacy.status -ceq [string]$Migrated.status -or
+        ($peakOnlyRises -gt 0 -and [string]$Legacy.status -ceq 'within-noise-budget' -and [string]$Migrated.status -ceq 'advice-required')
 }
 
 $selection = Get-PairedSelection -BaselineRevision $BaselineRevision -BaselinePath $BaselinePath -CandidateRevision $CandidateRevision -CandidatePath $CandidatePath

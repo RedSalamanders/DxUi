@@ -91,6 +91,18 @@ function Test-DxUiVerifiedGitHubHostedRunner {
         (& $read 'RUNNER_ENVIRONMENT') -ceq 'github-hosted' -and (& $read 'RUNNER_OS') -ceq 'Windows'
 }
 
+function Test-DxUiHostedArmDesktopRunner {
+    # Where Prepare-HostedArmDesktop may change the desktop: a verified GitHub-hosted ARM64 job on a native ARM64 system. The
+    # preparation passes no argument; tests pass both, so each condition is checked whatever machine runs them.
+    [CmdletBinding()] param(
+        [hashtable] $Environment = $null,
+        [Runtime.InteropServices.Architecture] $OSArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    )
+    $runnerArchitecture = if ($null -ne $Environment) { if ($Environment.ContainsKey('RUNNER_ARCH')) { [string]$Environment['RUNNER_ARCH'] } } else { [Environment]::GetEnvironmentVariable('RUNNER_ARCH') }
+    return (Test-DxUiVerifiedGitHubHostedRunner -Environment $Environment) -and $runnerArchitecture -ceq 'ARM64' -and
+        $OSArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64
+}
+
 function Test-DxUiHostedForegroundLeaseRequired {
     [CmdletBinding()] param([string[]] $Suites = @(), [Parameter(Mandatory)][bool] $VerifiedHostedRunner)
     return $VerifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count -gt 0
@@ -311,6 +323,25 @@ function Test-DxUiDesktopAvailable {
     throw "DxUi.InteractiveLease.exe --check failed with exit code ${exit}: $($output -join ' ')"
 }
 
+function Invoke-DxUiLeaseExecutable {
+    # Runs a native lease attached to this console and returns its exit code. It is never piped: PowerShell kills a native
+    # command whose output it reads when Ctrl+C stops the pipeline, which would end the lease before it restores the desktop.
+    # Started apart, the lease takes the same Ctrl+C itself, and this waits until it has restored the desktop and exited.
+    [CmdletBinding()] param([Parameter(Mandatory)][string] $Executable, [Parameter(Mandatory)][AllowEmptyCollection()][string[]] $Arguments)
+    $start = [Diagnostics.ProcessStartInfo]::new($Executable)
+    $start.UseShellExecute = $false
+    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $process.WaitForExit()
+        return $process.ExitCode
+    } finally {
+        # A run stopped while waiting still gives the lease, which saw the same Ctrl+C, time to restore the desktop.
+        if (-not $process.HasExited) { [void]$process.WaitForExit(15000) }
+        $process.Dispose()
+    }
+}
+
 function Invoke-DxUiLeaseCore {
     # Runs the suites of an interactive run under one lease and returns what happened: the lease's exit code and its parsed result.
     # The lease refuses without a desktop, asks the person, shows its warning, runs each suite as a child of its own (its output
@@ -336,11 +367,15 @@ function Invoke-DxUiLeaseCore {
     # A result left by an earlier run must never be taken for this run's.
     if (Test-Path -LiteralPath $result -PathType Leaf) { Remove-Item -LiteralPath $result }
     [IO.File]::WriteAllText($plan, (New-DxUiLeasePlanText -Runs $Runs), [Text.UTF8Encoding]::new($false))
-    # Native stdout is progress for the person, not part of this function's returned object.
     $mode = if ($Hosted) { '--run-hosted' } else { '--run' }
     $automatic = @(if ($AutoStart) { '--auto-start' })
-    & $Executable $mode @automatic "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
-    $exit = $LASTEXITCODE
+    $arguments = @($mode) + $automatic + @("--plan=$plan", "--result=$result", "--label=$Label", "--estimate=$EstimateSeconds", "--confirm-timeout=$ConfirmSeconds", "--child-timeout=$ChildTimeoutSeconds")
+    if ([IO.Path]::GetExtension($Executable) -ieq '.ps1') {
+        # A script stands in for the lease in the tooling tests and runs here. Its output is progress for the person, not
+        # part of this function's returned object.
+        & $Executable @arguments | Out-Host
+        $exit = $LASTEXITCODE
+    } else { $exit = Invoke-DxUiLeaseExecutable -Executable $Executable -Arguments $arguments }
     $parsed = if (Test-Path -LiteralPath $result -PathType Leaf) { Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText($result)) }
     $policyProblems = @()
     if ($AutoStart -and $null -ne $parsed) {
@@ -407,5 +442,5 @@ function Invoke-DxUiHostedForegroundLease {
 }
 
 Export-ModuleMember -Function Get-DxUiInteractiveSuiteNames, Test-DxUiInteractiveSuite, Get-DxUiLeaseExitCodes, Resolve-DxUiInteractiveSuites,
-    Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Test-DxUiHostedForegroundLeaseRequired, Resolve-DxUiForegroundLeaseSuites, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
-    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Get-DxUiLeaseSummary, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease
+    Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Test-DxUiHostedArmDesktopRunner, Test-DxUiHostedForegroundLeaseRequired, Resolve-DxUiForegroundLeaseSuites, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
+    Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Get-DxUiLeaseSummary, Write-DxUiLeaseFailureLog, Test-DxUiDesktopAvailable, Invoke-DxUiLeaseExecutable, Invoke-DxUiInteractiveLease, Invoke-DxUiHostedForegroundLease

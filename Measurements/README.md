@@ -1,5 +1,10 @@
 # Independent DxUi measurements
 
+- [Host/control review reconciliation, 2026-10-21](HostControlReviewReconciliation/2026-10-21/README.md):
+  57 zero-skip noninteractive x64 passes, six builds, three exact-pin API-4 consumer fixtures and reviewed gallery
+  captures. Failed attempts remain retained; foreground, native-platform, matched performance and existing themed
+  diagram visual acceptance stay open in draft PR #96.
+
 - [Explicit native WARP policy, 2026-10-21](RichText/2026-10-21-native-host-policy/README.md): six builds,
   57 default noninteractive suite passes with zero skips, software-adapter/conflict/device-replacement checks
   and retained failures. Complex-UI reports are unpaired diagnostics; application evidence and qualification stay separate.
