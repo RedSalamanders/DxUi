@@ -3,6 +3,9 @@
 Status: normative current tooling contract
 Last reviewed: 2026-10-21
 
+Filesystem preservation regressions require Windows and run in the Windows tooling job. The Linux validator
+reports this coverage as `WINDOWS_NOT_RUN`; its portable validation is not Windows filesystem qualification.
+
 After argument, desktop and build preflight, native test execution writes each invocation under `.build/evidence/test-runs/<UTC-pid-guid>/payload`.
 It creates a new directory and exclusive owner lease; it never reuses an old run directory or sweeps older runs.
 A flushed, create-only `started.json` records the owner process and start time plus the requested profile/scopes.

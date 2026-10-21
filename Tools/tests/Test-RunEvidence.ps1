@@ -3,6 +3,10 @@
 param([string] $ModulePath = '', [string] $ScratchRoot = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+    Write-Host 'WINDOWS_NOT_RUN: run-evidence filesystem preservation requires Windows file identities, named streams, ACLs and reparse-point APIs; the Windows tooling job executes these controls.'
+    return
+}
 $repository = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path -LiteralPath (Join-Path $repository 'AGENTS.md'))) { $repository = Split-Path -Parent $repository }
 if (-not $ModulePath) {
