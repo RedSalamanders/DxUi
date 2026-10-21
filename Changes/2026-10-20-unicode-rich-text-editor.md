@@ -20,3 +20,6 @@
   with controlled loss regressions. Recover the hosted warning before each child
   using the existing guarded input path; retain ordinary local behavior, deadlines,
   failed evidence and the independent performance-policy HOLD.
+  Save the five-profile native pass and unresolved ARM64 Debug sibling-hover
+  investigation in the WIP resume checkpoint, retaining original evidence and
+  the independent performance-policy HOLD.

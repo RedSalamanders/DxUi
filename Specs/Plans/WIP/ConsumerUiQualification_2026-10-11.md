@@ -333,8 +333,20 @@ earlier pointer/activation refusals and the first shortcut regression's incorrec
 immediate-invalidation assumption; its corrected fixture observes destruction.
 Passing repeats do not attribute older untraced failures. Keep original binaries,
 receipts and discarded-attempt diagnostics with their actual identities.
-Fresh-source hosted native qualification remains required in all six profiles,
-including ARM64 ASan Menu. PR #89 remains draft for independent policy review.
+Fresh head `b689bddd`, tested merge `d146ba4a`, completes all six native jobs in
+[CI 39587588088](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088).
+Five profiles pass, including x64 Release and ARM64 ASan. ARM64 Debug fails
+`TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay` at the B2 hover predicate.
+All six original ZIPs match GitHub size/digest bindings: 125/126 zero-skip child
+scope exits pass, but both children of the failed shared lease remain unqualified
+(124 qualified scopes). Eight consumer variants, both Release resource fixtures
+and the four support jobs pass separately. Six gallery PNGs match the previous
+run byte-for-byte. The owner requested a saved checkpoint before another C++
+change; the [editor resume checkpoint](RichTextEditor_2026-10-17.md) records the
+exact failure, evidence readers, unproved pointer/foreground hypotheses and next
+counterfactual tests. No new fix is implemented or attributed. The paired study
+is still running at this checkpoint; preserve it before another push. PR #89
+remains draft for independent policy review, with every performance HOLD retained.
 
 That next published study also completes. Its original 138,880,407-byte ZIP,
 workflow logs and both role executables are sealed. Under seed `1327683194`,

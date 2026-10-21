@@ -6,6 +6,151 @@ Owner request: 2026-10-17. Starting revision:
 
 ## Scope and current evidence
 
+### Resume checkpoint — 21 October 2026
+
+Saved at the owner's request before another C++ change. The published repair is
+`b689bddd36749617e44ca318c084bc5a06c3bbaf` on `codex/rich-text-prototype`;
+[PR #89](https://github.com/RedSalamanders/DxUi/pull/89) remains **draft**.
+Its tested merge is `d146ba4a4256a3a61db8f2519a74368ff48b46e4`, based on
+`f65e4a4b9311370b3e3070088e2a8abe29adcb27`. Head and tested merge have identical
+Git trees. A later checkpoint-only documentation commit does not qualify new C++.
+
+#### Fresh native results
+
+[CI 39587588088](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088)
+completed all six native jobs. Every original native ZIP was downloaded,
+GitHub-size/SHA-256 verified before extraction, and its extracted files sealed.
+The independent reader verifies receipt identities, leases, both new regression
+markers and the separately typed consumer/resource results.
+
+| Profile | Native job | Artifact ID | Result |
+| --- | --- | --- | --- |
+| x64 Debug | `119180442510` | `12342600841` | PASS; 21 qualified native scopes |
+| x64 Release | `119180442500` | `12342052220` | PASS; 21 qualified native scopes |
+| x64 ASan Debug | `119180442497` | `12342497886` | PASS; 21 qualified native scopes |
+| ARM64 Debug | `119180442465` | `12343447283` | FAIL; 19 qualified native scopes |
+| ARM64 Release | `119180442654` | `12343106178` | PASS; 21 qualified native scopes |
+| ARM64 ASan Debug | `119180442489` | `12343856679` | PASS; 21 qualified native scopes |
+
+The original x64 Release foreground and ARM64 ASan Menu repair targets now pass
+fresh native CI. Overall native qualification remains **open**: 125/126 child
+scope exits pass with zero capability skips, but only 124 scopes qualify because
+both foreground children share the failed ARM64 Debug lease. Its NativeTextInput
+child exits zero; that does not qualify the failed shared run. All eight enabled
+consumer variants, both Release resource fixtures, four support jobs and separate
+formatting run `39587588014` pass. All six new Release gallery PNGs are byte-identical
+to the previous run's originals; this harness repair requires no visual rebaseline.
+Hosted native artifacts omit the actual native test executables, so the archive
+is not independent executable-byte closure.
+
+#### Exact remaining failure
+
+The [failed ARM64 Debug job](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088/job/119180442465)
+records:
+
+- Test: `TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay`.
+- Assertion: `hovering B2 updates the root-popup hover target before delayed submenu close`.
+- Sequence: open B1's submenu, send B2's client-space mouse move, then require
+  root `hoveredIndex == 1` within the existing 800 ms guard. The failure precedes
+  the delayed-close assertion; it does not establish a broken close timer.
+- The shared lease reports exit 1, foreground/pointer restored, and focus `none`
+  with capture reason `foreground-minimized`. Full keyboard-focus restoration
+  was not verified. Preserve those separate observations.
+- The failure has no fixture-specific pointer/foreground trace. No causal
+  attribution, new fix, counterfactual run or repaired-source pass exists yet.
+
+The original failed ZIP is 296,753 bytes with SHA-256
+`6505DF5485DA2FC03FD6C56096EA25EED84172A3232F03F5FEDA13562070E4B0`.
+Its original Menu and NativeTextInput logs and receipts, completed-job log, and
+all successful profiles remain retained. The reader exits 1 because this matrix
+is unqualified; that is an expected analysis result, not an extra native failure.
+Intentional sanitizer-detection probes are separately typed and are not counted
+as the 21 native scopes. A discarded generic filename-filter query mistakenly
+excluded ASan-profile filenames; the authoritative replay uses the explicit scope
+inventory and retains that analysis correction.
+
+#### Code anchors and unproved investigation paths
+
+Read [the Menu fixtures](../../../Tests/Controls/DxUi.Tests.Menu.cpp), especially
+`TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay`,
+`TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay`,
+`TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay`,
+`SendSettledClientMouseMoveForMenuSuite`, `ScopedMenuPointerFixture`, and
+`MenuHoverTraceForTest`. Read the existing
+[foreground-attempt helpers](../../../Tests/Controls/Controls.Tests.DxUiTestHelpers.h),
+[popup readiness helpers](../../../Tests/Controls/Scope.Tests.MenuPopupReadiness.h)
+and [production pointer routing](../../../src/Controls/DxUi.Menu.cpp).
+
+The settled-move helper currently delegates only to a sent `WM_MOUSEMOVE`; it
+aligns no physical cursor. The three related submenu fixtures do not own a
+pointer-alignment lifetime or a complete foreground-attempt guard. Windows can
+also deliver capture-generated moves. Earlier tests record intervening physical
+pointer movement, but the failed B2 sequence has no trace proving such a move.
+Treat physical/sent-point disagreement and foreground loss as **hypotheses**.
+Do not claim either caused this CI failure.
+
+Next steps, preserving all original behavior and bounds:
+
+1. Add bounded scalar/pointer diagnostics around B1 admission, submenu creation,
+   B2 delivery and the failed predicate, using the existing trace helper.
+2. Build a controlled regression that parks the physical cursor on B1, delivers
+   B2, then replays a captured move using the actual cursor position. Establish
+   a counterfactual failure before accepting an alignment repair.
+3. If confirmed, reuse scoped pointer alignment across the complete sequence.
+   Preserve the first cursor position across multiple targets, restore it only
+   while the fixture still owns the current position, and preserve external
+   movement. Review the replacement and retention scenarios using the same helper.
+4. Apply existing bounded whole-attempt foreground rules where required: fresh
+   owner/popup/driver state; only observed loss or explicit admission refusal
+   permits another attempt. A held correctness failure must still fail. Add a
+   controlled-loss regression if this path changes.
+5. Run focused regressions, then complete Menu/NativeTextInput in x64 Debug,
+   Release and ASan with exact source/artifact identities and zero skips. Use
+   canonical `build.ps1`/`test.ps1`; filtered receipts remain partial. Recheck
+   affected scope accounting, validators, pinned formatting and all six native
+   CI profiles after publication. Cross-building does not qualify ARM64 runtime.
+
+No C++ patch for these proposals has been written. Do not relax the 800 ms hover,
+1,200 ms submenu, one-second state-probe, three-second capture or existing
+watchdog/attempt bounds. Do not drain genuine queued movement or retry a held
+behavioral failure merely to obtain a pass.
+
+#### Evidence and publication handoff
+
+Private packet name: `native-repair-20261021T083216Z`; native originals:
+`ci-39587588088-original`. The local `CONTINUE-HERE.md`/`CONTINUE-STATE.json`
+identify their retained archive root. Keep raw logs, executable snapshots,
+archives and machine metadata outside Git. Important retained readers/results:
+
+- `Preserve-PublishedB689NativeOriginals.ps1`,
+  `Preserve-PublishedB689JobLogs.ps1`, `Read-PublishedB689NativeOriginals.ps1`;
+  `published-b689-native-replay.json` and its exit/status files.
+- `final-local-consent-source-regression-audit.json`: all three complete local
+  Menu/NativeTextInput profiles pass at the published C++ bytes; both new
+  cancellation regressions complete, live focus/restoration is verified, and
+  all failed attempts remain separate. Native lease self-tests pass 81/81.
+- `published-b689-gallery-byte-comparison.json`, per-artifact original seals and
+  original completed-job logs. Preserve all older failed and successful packets.
+- `Preserve-PublishedB689PairedOriginal.ps1` and
+  `Replay-PublishedB689Study.ps1` are prepared with this exact source identity;
+  they have not consumed a completed study yet.
+
+At this checkpoint, paired job `119180236236` is still running. **Before another
+push**, inspect its state and preserve the original completed study and workflow
+logs; a new PR push cancels this in-progress run. Do not silently discard it,
+substitute an earlier study or claim a pending result. The previous completed
+study `39568060174` has 144 replayed receipts and 71/72 unstable controls; the
+independent same-binary calibration has 69/72 unstable controls. Policy remains
+unqualified in the measured base and the repair changes neither policy nor judges.
+PR #89 must remain draft for independent review, with every performance HOLD retained.
+
+No local foreground test is active. All earlier time-limited desktop permissions
+are expired or consumed; obtain a new agreed window, including explicit countdown
+permission, before another focus-taking local run under [AGENTS.md](../../../AGENTS.md).
+Hosted native CI uses its own desktop. The local CI/artifact observers have ended;
+no automatic future local test or new benchmark run is scheduled.
+
+
 PR #89 readiness, 2026-10-21:
 
 - [x] Integrate `main` `f65e4a4b` at merge `2ceb1da5`; resolve the five conflicts
@@ -33,13 +178,12 @@ PR #89 readiness, 2026-10-21:
   each unqualified original in a unique `.log` sibling; canonical receipts remain
   failed. Two regression cases fail before the repair and all 40 wrapper tests
   pass after it, including missing/repeated output and locked-file refusal.
-- [ ] Complete current-head hosted qualification. Original run `39555699478`
-  passes four native profiles, but x64 Release fails foreground admission/
-  restoration and ARM64 ASan fails the visible-initialization healthy Menu
-  probe. All six native ZIPs are retained and GitHub-digest verified. Preserve
-  both failures; current full functional acceptance remains open. Eight consumer
-  variants and both Release resource fixtures pass separately; docs-gallery is
-  skipped after the Release failure. A fresh-source run must qualify the log fix.
+- [x] Retain original run `39555699478`: four native profiles pass; x64 Release
+  fails foreground admission/restoration and ARM64 ASan fails the visible-
+  initialization healthy Menu probe. All six original ZIPs are GitHub-digest
+  verified. Eight consumer variants and both Release resource fixtures pass
+  separately; docs-gallery is skipped after the Release failure. Keep these
+  historical failures separate from the later repaired-source results below.
 - [x] Preserve and replay all six original native artifacts from `39568060174`
   at head `d59b7caa`, tested merge `8f49939d`: five profiles pass, including x64
   Release and ARM64 ASan. ARM64 Debug fails the shortcut-column layout case;
@@ -57,10 +201,14 @@ PR #89 readiness, 2026-10-21:
   cancellation/layout cases pass separately; the native lease self-test passes
   all 81 checks. An initial shortcut regression assumed cancellation immediately
   invalidated layout; its retained failure is repaired by observing destruction.
-- [ ] Complete fresh-source native CI in all six profiles, including ARM64 ASan
-  Menu, and synchronize its original artifacts and source-specific results.
-  PrePush accounts for native ARM64 builds/runtime through the enabled matrix;
-  forthcoming CI is pending, never accepted coverage.
+- [x] Preserve and replay all six original native artifacts from fresh run
+  `39587588088` at head `b689bddd`, tested merge `d146ba4a`: five profiles pass,
+  including x64 Release and ARM64 ASan. ARM64 Debug fails B2 sibling hover;
+  125/126 child scope exits pass with zero skips, while 124 scopes qualify.
+  Eight consumer variants and both Release resource fixtures pass separately.
+- [ ] Complete the remaining ARM64 Debug investigation and any repaired-source
+  six-profile native qualification. Follow the resume checkpoint above; neither
+  an earlier pass nor a passing child of a failed lease closes this gate.
 - [x] Retain and replay the completed `39555699478` paired study: original ZIP,
   both measured role executables, 144 receipts, both frozen judges and 72 controls.
   Under seed `981054997`, judges agree on metric labels but 70 controls drift
