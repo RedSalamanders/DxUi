@@ -7,6 +7,7 @@ enum class ControlKind : uint8_t
     Panel,
     PageHost,
     CardPanel,
+    Separator,
     Label,
     Button,
     Toggle,

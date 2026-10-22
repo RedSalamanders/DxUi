@@ -34,6 +34,17 @@ struct CaretGeometry
 };
 // Synchronous owner-thread raster attributes. The layout retains no brush or
 // presentation policy after Draw. Source/geometry/navigation stay unchanged.
+enum class TextInkRole : uint8_t
+{
+    Subtle,
+    Accent,
+    Link,
+};
+struct TextInkRange
+{
+    MarkdownRange display;
+    TextInkRole role{};
+};
 struct LinkDrawing
 {
     ID2D1Brush* brush             = nullptr;
@@ -42,6 +53,10 @@ struct LinkDrawing
     bool underline                = true;
     std::optional<MarkdownRange> hover, caret, emphasis;
     std::size_t displayOrigin{};
+    // Prepared disjoint ranges, sorted by display.first. Null brushes inherit
+    // ordinary ink; no style affects source offsets or text metrics.
+    std::span<const TextInkRange> inkRanges;
+    std::array<ID2D1Brush*, 3> inkBrushes{};
 };
 struct Hit
 {

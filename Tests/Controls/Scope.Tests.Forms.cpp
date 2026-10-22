@@ -883,7 +883,7 @@ void TestFormsNativePreparationAndFactoryCoverage()
         RequireSucceeded(CreateControl(kind, control), "factory constructs each intrinsic container");
         Require(control != nullptr, "catalogued intrinsic control owns a concrete instance");
     }
-    Require(GetControlCatalog().size() == 34, "the catalog includes all three opt-in controls and the retained rich-text preview");
+    Require(GetControlCatalog().size() == 35, "the catalog includes the opt-in controls and retained rich-text preview");
 }
 } // namespace
 

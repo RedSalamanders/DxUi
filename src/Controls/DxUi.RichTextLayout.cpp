@@ -559,6 +559,23 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
                                                    {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
                   "Set paragraph emphasis ink");
     }
+    for (auto ink = std::lower_bound(links->inkRanges.begin(),
+                                     links->inkRanges.end(),
+                                     links->displayOrigin,
+                                     [](const TextInkRange& range, size_t first) { return range.display.last <= first; });
+         ink != links->inkRanges.end() && ink->display.first < links->displayOrigin + projection_.text.size();
+         ++ink)
+    {
+        const auto role = static_cast<size_t>(ink->role);
+        if (role >= links->inkBrushes.size() || ! links->inkBrushes[role])
+            continue;
+        const auto first = std::max(ink->display.first, links->displayOrigin);
+        const auto last  = std::min(ink->display.last, links->displayOrigin + projection_.text.size());
+        if (first < last)
+            Check(state_->layout->SetDrawingEffect(links->inkBrushes[role],
+                                                   {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
+                  "Set prepared source syntax ink");
+    }
     for (const auto& run : projection_.runs)
         if (run.flags & Link)
         {

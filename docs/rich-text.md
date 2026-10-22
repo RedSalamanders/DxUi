@@ -35,6 +35,15 @@ inactive state even when the endpoints are unchanged. The callback may replace
 itself, change selection or retire the editor; source and undo history stay owned
 by the editor. Unchanged endpoint/gesture state does not notify.
 
+`colorizeMarkdownSource=true` adds source ink from the configured Markdown
+analysis profile in Source view: subdued syntax delimiters, accent heading/list
+markers and link-colored exact source destinations. Configure analysis with
+`SetMarkdownAnalysisProfile` first. Geometry, source UTF-16 offsets, native text
+services, selection and history are unchanged. Preparation publishes complete
+disjoint ranges; drawing never parses. High contrast uses the ordinary text
+pair. The 65,536-event presentation bound falls back to the complete uncolored
+source view rather than publishing partial syntax or repeatedly retrying it.
+
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
@@ -244,8 +253,10 @@ native/embedded pixels, clipboard-to-worker decoding, source/history preservatio
 and UIA alternatives/bounds. All six build profiles pass, including ARM64 cross-builds. Final native-platform/resource qualification remains
 open in M5g; this prototype does not close the D4c performance hold.
 
-Applications call `TakePendingImageRequests` after owner preparation, authorize
-each absolute file path and run `RichImage::LoadFile` in their own worker service.
+Applications call `TakePendingImageRequests` after owner preparation, inspect
+`SourceKind()`, authorize each source and use their own worker service.
+`LocalFile` requests expose the absolute path through `Source()` and `FilePath()`;
+run `RichImage::LoadFile` for those requests.
 The caller initializes COM and supplies its WIC factory. It marshals the result
 back to the owner and calls `CompleteImageRequest`; a null result preserves the
 alternative. Source/base/binding/visibility changes cancel tokens and reject stale
@@ -263,8 +274,20 @@ placements/sources, rather than every image token or a cumulative error count.
 
 The raster profile is built-in PNG, JPEG, BMP, GIF and TIFF, with one static first
 frame. GIF respects its logical canvas/offsets/background/transparency; JPEG/TIFF
-EXIF orientation is applied to the pixels. HTTP/data URIs, SVG and unavailable
-formats keep their alternative. The source parser still preserves every original
+EXIF orientation is applied to the pixels. Remote images are disabled by default;
+call `SetRemoteImagesEnabled(true)` only after the application authorizes network
+loading. Absolute HTTP(S) destinations then produce `RemoteHttp` requests with
+the URL in `Source()` and an empty `FilePath()`. The application fetches bounded
+encoded bytes on its worker and calls the existing `RichImage::Decode`; DxUi
+does no HTTP, DNS, proxy lookup, authentication, cookie storage or cache I/O.
+URLs are bounded to 8,192 UTF-16 units and accept ASCII DNS/punycode or bracketed
+IPv6 authorities; credentials, fragments, control characters and malformed
+percent escapes are refused. Path/query case remains exact. Toggling the policy
+off immediately cancels remote jobs and evicts their pixels while preserving
+local jobs, local completions, source, selection and history. A later opt-in
+creates new remote identities. The sample loader remains local-file-only; a
+consumer must provide its own explicit remote transport and failure policy.
+Data URIs, SVG and unavailable formats keep their alternative. The source parser still preserves every original
 destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
 pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.

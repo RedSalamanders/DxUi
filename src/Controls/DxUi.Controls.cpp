@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
+#include <dwrite_1.h>
 #include <format>
 #include <limits>
 #include <memory>
@@ -2497,6 +2498,57 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
+Separator::Separator() noexcept
+{
+    SetFocusable(false);
+    SetAccessibilityRole(AccessibilityRole::Separator);
+}
+
+void Separator::SetOrientation(SeparatorOrientation orientation) noexcept
+{
+    const auto next = orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical;
+    if (_orientation == next)
+        return;
+    _orientation = next;
+    InvalidateMeasure();
+    RequestInvalidate();
+}
+
+SeparatorOrientation Separator::GetOrientation() const noexcept
+{
+    return _orientation;
+}
+
+void Separator::Paint(ControlHost& host) const
+{
+    const auto bounds = GetBounds();
+    if (bounds.right <= bounds.left || bounds.bottom <= bounds.top)
+        return;
+    const float inset = host.GetTheme().density == Density::Compact ? 4.0f : 6.0f;
+    const auto color  = host.GetTheme().highContrast ? host.GetTheme().border
+                                                     : (_toolbarStyle ? ResolveToolbarVisualStyle(host.GetTheme()).separatorLine : host.GetTheme().gridLine);
+    if (_orientation == SeparatorOrientation::Vertical)
+    {
+        const float centerX = std::floor((bounds.left + bounds.right) * 0.5f) + 0.5f;
+        DrawLineWithColor(host, D2D1::Point2F(centerX, bounds.top + inset), D2D1::Point2F(centerX, bounds.bottom - inset), color, 1.0f);
+    }
+    else
+    {
+        const float centerY = std::floor((bounds.top + bounds.bottom) * 0.5f) + 0.5f;
+        DrawLineWithColor(host, D2D1::Point2F(bounds.left + inset, centerY), D2D1::Point2F(bounds.right - inset, centerY), color, 1.0f);
+    }
+}
+
+Control* Separator::HitTest(D2D1_POINT_2F /*point*/)
+{
+    return nullptr;
+}
+
+const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
+{
+    return nullptr;
+}
+
 Label::Label(std::wstring text) : _text(std::move(text))
 {
 }
@@ -2555,6 +2607,27 @@ void Label::SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept
     RequestInvalidate();
 }
 
+HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) noexcept
+{
+    if (typography && (! std::isfinite(typography->fontSizeDip) || typography->fontSizeDip < 6.0f || typography->fontSizeDip > 96.0f ||
+                       typography->fontWeight < 100 || typography->fontWeight > 900 || ! std::isfinite(typography->characterSpacingDip) ||
+                       typography->characterSpacingDip < -4.0f || typography->characterSpacingDip > 16.0f))
+        return E_INVALIDARG;
+    if (_typographyOverride == typography)
+        return S_FALSE;
+    _typographyOverride = typography;
+    _typographyLayout.reset();
+    _typographyLayoutText.clear();
+    InvalidateMeasure();
+    RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
+{
+    return _typographyOverride;
+}
+
 void Label::SetMnemonicTarget(Control* target) noexcept
 {
     if (_mnemonicTarget != target)
@@ -2570,6 +2643,58 @@ void Label::SetMnemonicTarget(Control* target) noexcept
 void Label::Paint(ControlHost& host) const
 {
     const LabelVisualStyle style = ResolveLabelVisualStyle(host.GetTheme(), _textColor);
+    if (_typographyOverride)
+    {
+        auto* dc           = host.GetDeviceContext();
+        const auto bounds  = GetBounds();
+        const float width  = (std::max)(1.0f, bounds.right - bounds.left);
+        const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        auto* format       = host.GetTextFormat(_fontRole,
+                                                _typographyOverride->fontSizeDip,
+                                                _typographyOverride->fontWeight,
+                                                _alignment,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                _multiline,
+                                                ResolveReadingDirection(GetFlowDirection()));
+        if (dc && format && host.GetWriteFactory())
+        {
+            const bool stale = ! _typographyLayout || _typographyLayoutText != _text || _typographyLayoutFormat != format ||
+                               _typographyLayoutSize.width != width || _typographyLayoutSize.height != height ||
+                               _typographyLayoutGeneration != host.GetResourceGeneration() || _typographyLayoutRevision != host.GetTypographyRevision();
+            if (stale)
+            {
+                _typographyLayout.reset();
+                _typographyLayoutFormat = nullptr;
+                wil::com_ptr<IDWriteTextLayout> layout;
+                if (SUCCEEDED(
+                        host.GetWriteFactory()->CreateTextLayout(_text.data(), static_cast<UINT32>(_text.size()), format, width, height, layout.addressof())) &&
+                    layout)
+                {
+                    const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
+                    const float spacing = _typographyOverride->characterSpacingDip;
+                    wil::com_ptr<IDWriteTextLayout1> layout1;
+                    if (SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
+                        SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range)))
+                    {
+                        if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
+                            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));
+                        _typographyLayout           = std::move(layout);
+                        _typographyLayoutText       = _text;
+                        _typographyLayoutFormat     = format;
+                        _typographyLayoutSize       = D2D1::SizeF(width, height);
+                        _typographyLayoutGeneration = host.GetResourceGeneration();
+                        _typographyLayoutRevision   = host.GetTypographyRevision();
+                    }
+                }
+            }
+            if (_typographyLayout)
+            {
+                if (auto* brush = host.GetSolidBrush(style.text))
+                    dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _typographyLayout.get(), brush, kTextDrawOptions);
+                return;
+            }
+        }
+    }
     DrawTextWithMnemonic(
         host, _text, GetBounds(), _fontRole, style.text, GetMnemonic(), _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
 }
@@ -2638,6 +2763,28 @@ void Button::SetPrimary(bool primary) noexcept
 bool Button::IsPrimary() const noexcept
 {
     return _primary;
+}
+
+void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
+{
+    const auto sameColor = [](const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
+    { return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a; };
+    const auto validColor = [](const D2D1_COLOR_F& color) noexcept
+    {
+        return std::isfinite(color.r) && std::isfinite(color.g) && std::isfinite(color.b) && std::isfinite(color.a) && color.r >= 0.0f && color.r <= 1.0f &&
+               color.g >= 0.0f && color.g <= 1.0f && color.b >= 0.0f && color.b <= 1.0f && color.a >= 0.0f && color.a <= 1.0f;
+    };
+    if (preview && ! std::ranges::all_of(preview->swatches, validColor))
+        return;
+    if (_themePreview.has_value() == preview.has_value() && (! preview || std::ranges::equal(_themePreview->swatches, preview->swatches, sameColor)))
+        return;
+    _themePreview = std::move(preview);
+    RequestInvalidate();
+}
+
+std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
+{
+    return _themePreview;
 }
 
 void Button::SetToggleState(std::optional<bool> checked) noexcept
@@ -2930,14 +3077,49 @@ void Button::Paint(ControlHost& host) const
     }
     else
     {
-        const float padX           = _multiline ? 12.0f : 0.0f;
-        const float padY           = _multiline ? 8.0f : 0.0f;
-        const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip + padX,
-                                                 GetBounds().top + style.textOffsetYDip + padY,
-                                                 (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
-                                                 (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, flowDirection);
+        if (_themePreview)
+        {
+            const auto bounds        = GetBounds();
+            const float width        = std::max(0.0f, bounds.right - bounds.left);
+            const float swatchTop    = bounds.top + 5.0f;
+            const float swatchBottom = std::min(bounds.bottom - 18.0f, bounds.top + 18.0f);
+            const float margin       = std::min(10.0f, width * 0.08f);
+            const float gap          = 4.0f;
+            const float usableWidth  = std::max(0.0f, width - margin * 2.0f - gap * 2.0f);
+            const float swatchWidth  = usableWidth / 3.0f;
+            const auto& theme        = host.GetTheme();
+            const std::array<D2D1_COLOR_F, 3> highContrastSwatches{theme.windowBackground, theme.selectionFill, theme.selectionText};
+            const auto& swatches = theme.highContrast ? highContrastSwatches : _themePreview->swatches;
+            for (size_t i = 0u; i < swatches.size(); ++i)
+            {
+                const float left  = bounds.left + margin + static_cast<float>(i) * (swatchWidth + gap);
+                const auto swatch = D2D1::RectF(left, swatchTop, left + swatchWidth, swatchBottom);
+                if (auto* dc = host.GetDeviceContext())
+                {
+                    if (auto* brush = host.GetSolidBrush(swatches[i]))
+                        dc->FillRectangle(swatch, brush);
+                    if (auto* border = host.GetSolidBrush(theme.highContrast ? theme.border : theme.buttonBorder))
+                        dc->DrawRectangle(swatch, border, 1.0f);
+                }
+            }
+            const auto textRect = D2D1::RectF(bounds.left + style.textOffsetXDip,
+                                              swatchBottom + 1.0f + style.textOffsetYDip,
+                                              bounds.right + style.textOffsetXDip,
+                                              bounds.bottom + style.textOffsetYDip - 2.0f);
+            DrawCenteredText(
+                host, _text, textRect, FontRole::Small, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        }
+        else
+        {
+            const float padX           = _multiline ? 12.0f : 0.0f;
+            const float padY           = _multiline ? 8.0f : 0.0f;
+            const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip + padX,
+                                                     GetBounds().top + style.textOffsetYDip + padY,
+                                                     (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
+                                                     (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
+            DrawCenteredText(
+                host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, flowDirection);
+        }
     }
 }
 
@@ -6616,16 +6798,14 @@ Toggle* Toolbar::AddToggleButton(std::wstring tooltip, std::wstring iconGlyph)
 
 void Toolbar::AddSeparator()
 {
-    auto* separator = AddChild<Label>();
-    separator->SetEnabled(false);
+    auto* separator          = AddChild<Separator>();
+    separator->_toolbarStyle = true;
 }
 
 void Toolbar::Paint(ControlHost& host) const
 {
     const ToolbarVisualStyle style = ResolveToolbarVisualStyle(host.GetTheme());
-    const ThemePalette& theme      = host.GetTheme();
     const D2D1_RECT_F bounds       = GetBounds();
-    const float separatorInsetDip  = theme.density == Density::Compact ? 4.0f : 6.0f;
 
     // Background
     if (host.GetDeviceContext())
@@ -6634,28 +6814,6 @@ void Toolbar::Paint(ControlHost& host) const
         // Bottom border (1 DIP)
         const D2D1_RECT_F borderLine = D2D1::RectF(bounds.left, bounds.bottom - 1.0f, bounds.right, bounds.bottom);
         FillRectangleWithColor(host, borderLine, style.bottomBorder);
-
-        for (const auto& child : GetChildren())
-        {
-            const auto* label = dynamic_cast<const Label*>(child.get());
-            if (! label || ! label->GetText().empty())
-            {
-                continue;
-            }
-
-            const D2D1_RECT_F childBounds = child->GetBounds();
-            if (childBounds.right <= childBounds.left || childBounds.bottom <= childBounds.top)
-            {
-                continue;
-            }
-
-            const float centerX = std::floor((childBounds.left + childBounds.right) * 0.5f) + 0.5f;
-            DrawLineWithColor(host,
-                              D2D1::Point2F(centerX, childBounds.top + separatorInsetDip),
-                              D2D1::Point2F(centerX, childBounds.bottom - separatorInsetDip),
-                              style.separatorLine,
-                              1.0f);
-        }
     }
 
     // Paint children (buttons)

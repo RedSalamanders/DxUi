@@ -4563,6 +4563,10 @@ struct TextRangeSpanMoveResult
     {
         return UIA_StatusBarControlTypeId;
     }
+    if (control && control->GetAccessibilityRole() == AccessibilityRole::Separator)
+    {
+        return UIA_SeparatorControlTypeId;
+    }
 
     if (dynamic_cast<const RichTextEditor*>(control))
         return UIA_DocumentControlTypeId;

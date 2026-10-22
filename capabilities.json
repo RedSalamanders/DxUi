@@ -92,6 +92,7 @@
     "bounded-native-html-links-hanging-markers-preview",
     "bounded-source-exact-markdown-commands-preview",
     "bounded-semantic-style-structure-uia-preview",
+    "default-disabled-http-image-request-opt-in",
     "bounded-native-inline-display-math-preview",
     "native-window-host-explicit-warp-policy",
     "bounded-native-mermaid-state-class-preview",

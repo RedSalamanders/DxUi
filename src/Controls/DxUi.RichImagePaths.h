@@ -174,6 +174,64 @@ inline bool SameLocalImagePath(std::wstring_view left, std::wstring_view right) 
     }
     return left == right;
 }
+inline std::optional<std::wstring> ResolveRemoteImageSource(std::wstring_view source)
+{
+    // Lexical admission only. The consumer owns anonymous transport, TLS,
+    // redirects, byte/time limits and decoding; the library never fetches URLs.
+    if (source.empty() || source.size() > 8192u || ! IsValidUtf16(source) || source.find_first_of(L"\\#") != source.npos ||
+        std::ranges::any_of(source, [](wchar_t c) { return c <= 32 || c == 127; }))
+        return std::nullopt;
+    const auto colon = source.find(L"://");
+    if (colon == source.npos)
+        return std::nullopt;
+    const auto scheme = source.substr(0u, colon);
+    if (! EqualWindowsPathInsensitive(scheme, L"http") && ! EqualWindowsPathInsensitive(scheme, L"https"))
+        return std::nullopt;
+    const auto end       = source.find_first_of(L"/?", colon + 3u);
+    const auto authority = source.substr(colon + 3u, end == source.npos ? source.size() - colon - 3u : end - colon - 3u);
+    if (authority.empty() || authority.find_first_of(L"@%") != authority.npos || std::ranges::any_of(authority, [](wchar_t c) { return c >= 128; }))
+        return std::nullopt;
+    // ASCII DNS/punycode or bracketed IPv6; path/query case remains exact.
+    const auto portStart = authority.front() == L'[' ? authority.find(L']') : authority.find(L':');
+    if (authority.front() == L'[' && (portStart == authority.npos || portStart == 1u))
+        return std::nullopt;
+    const auto hostEnd = authority.front() == L'[' ? portStart + 1u : portStart == authority.npos ? authority.size() : portStart;
+    const auto host    = authority.substr(0u, hostEnd);
+    if (host.empty() || std::ranges::any_of(host,
+                                            [](wchar_t c)
+    {
+        return ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9') || c == L'.' || c == L'-' || c == L'[' || c == L']' ||
+                  c == L':');
+    }))
+        return std::nullopt;
+    if (hostEnd < authority.size())
+    {
+        if (authority[hostEnd] != L':' || hostEnd + 1u == authority.size())
+            return std::nullopt;
+        unsigned port{};
+        for (const auto digit : authority.substr(hostEnd + 1u))
+        {
+            if (digit < L'0' || digit > L'9' || port > 6553u || (port == 6553u && digit > L'5'))
+                return std::nullopt;
+            port = port * 10u + static_cast<unsigned>(digit - L'0');
+        }
+        if (! port)
+            return std::nullopt;
+    }
+    const auto hex = [](wchar_t c) { return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F'); };
+    for (std::size_t index = colon + 3u; index < source.size(); ++index)
+        if (source[index] == L'%')
+        {
+            if (index + 2u >= source.size() || ! hex(source[index + 1u]) || ! hex(source[index + 2u]))
+                return std::nullopt;
+            index += 2u;
+        }
+    std::wstring result(source);
+    std::transform(result.begin(), result.begin() + static_cast<std::ptrdiff_t>(colon + 3u + hostEnd), result.begin(), [](wchar_t c) {
+        return c >= L'A' && c <= L'Z' ? static_cast<wchar_t>(c + L'a' - L'A') : c;
+    });
+    return result;
+}
 inline std::optional<std::wstring> DecodeLocalImageUriPath(std::wstring_view value)
 {
     if (value.empty() || value.size() > Document::MaximumUnits || ! IsValidUtf16(value) || value.find_first_of(L"?#") != value.npos)

@@ -1,6 +1,9 @@
 # Control guide
 
 RichTextEditor supports file-reference paste and caller-serviced native images.
+Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
+caller owns network transport, and disabling immediately retires remote pixels
+while retaining local image work. See [image resources](rich-text.md).
 File drag-and-drop remains a [pending specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
 
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
@@ -19,8 +22,9 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | Panel | Own children with `AddChild<T>`; set explicit child bounds. Transfer ownership with `TakeChild(index)`, which clears host/parent links and leaves an empty slot while preserving inherited settings. Check for an empty return before giving the child to `SetRoot` or `PageHost::SetPage`; interaction callbacks may cancel extraction. |
 | PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. If a paint callback replaces the page, that frame is discarded and the next preparation applies its bounds before painting. |
 | CardPanel | A Panel with themed card chrome; position child bounds in host DIPs, including the card's origin. |
-| Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
-| Button | Construct with its caption; `SetOnClick` handles activation and `SetOnDropDownClick` handles split-button actions. `SetToggleState(std::optional<bool>)` opts into UI Automation TogglePattern with consumer-owned state; a checked non-primary button persistently uses selection fill/text, including IconOnly. `SetPrimary` separately controls primary visuals. `ThemePalette::primaryButtonFill` and `primaryButtonText` optionally set primary-button colors in normal themes; high contrast keeps the system selection pair. |
+| Label | Construct with text or call `SetText`; choose a font role for headings/body text. `SetTypographyOverride` opts into bounded size, weight and character-spacing values; invalid values leave the prior override unchanged and `nullopt` restores the role defaults. |
+| Button | Construct with its caption; `SetOnClick` handles activation and `SetOnDropDownClick` handles split-button actions. `SetToggleState(std::optional<bool>)` opts into UI Automation TogglePattern with consumer-owned state; a checked non-primary button persistently uses selection fill/text, including IconOnly. `SetThemePreview` optionally draws three theme swatches inside a normal Button and suppresses custom swatches in high contrast. `SetPrimary` separately controls primary visuals. `ThemePalette::primaryButtonFill` and `primaryButtonText` optionally set primary-button colors in normal themes; high contrast keeps the system selection pair. |
+| Separator | Noninteractive horizontal or vertical divider; `SeparatorOrientation` selects its direction. It is catalogued and exposed to UI Automation as a separator, without focus or invoke behavior. |
 | Toggle | Set initial state with `SetChecked`; handle user intent with `SetOnToggled(bool)`. |
 | Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. `SetMultiline(true)` wraps long captions; reserve 36 DIP horizontally for indicator/gaps and 6 DIP vertically around measured Body text. |
 | RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. |
@@ -30,6 +34,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | ThroughputGraph | Feed timestamped samples through its public sample API; keep history within its configured limits. Use the rendering tests for populated series and bands. |
 | Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. Painted chrome is a 6 DIP track, a 24 DIP gray disc, and an accent inner thumb (14 DIP rest, 20 hover, 16 pressed); while a touch contact drags it, a 48 DIP translucent accent halo shows around the finger (an opaque ring in high contrast), clipped to Slider bounds and active ancestor/viewport/host clips. Give the control 48 DIP of cross-axis room to reveal the full halo and keep neighboring content outside its bounds; popup/menu overlays paint above it. Embedded hosts pass the contact's `PointerEvent::device` for it. Pointer hit testing stays within the declared control bounds; its unpainted 48 DIP band is clipped when the Slider is shorter. A press within 24 DIP of the thumb center drags, otherwise the track seeks. Capture keeps dragging outside the bounds; cancellation restores the starting value. Hover, press and keyboard steps animate; `SetValue` snaps even when acknowledging the same target. Non-finite ranges, values and steps are ignored. |
 | Toolbar | Panel for command controls; populate buttons with labels, bounds and actions. |
+| Tree | `SetTypographyOverride` optionally configures bounded row size and regular/current weights; the current focused row uses the configured current weight. `nullopt` preserves role-default rendering. |
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
@@ -316,7 +321,7 @@ If solid-brush creation and its fallback fail, painting omits the affected primi
 ## Rich-text core (supporting API)
 
 [Unicode document/projection/layout preparation](rich-text.md) is available in
-DxUi.lib, together with the retained RichTextEditor v0 preview in the 34-control
+DxUi.lib, together with the retained RichTextEditor v0 preview in the 35-control
 catalog/gallery. Both use caller/host services without a private HWND/device/worker.
 The preview supplies shared native/embedded source TSF/IME and UIA range
 adapters, with Unicode 17 logical character boundaries. Rich structural/style

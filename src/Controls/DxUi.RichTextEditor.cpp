@@ -1,8 +1,10 @@
+#include "../Support/Diagnostics.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichImageResources.h"
+#include "DxUi.RichSourceInk.h"
 #include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
 #include "TextClipboard.h"
@@ -30,6 +32,7 @@ struct RichTextEditor::State
     RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
+    RichText::Detail::RichSourceInk sourceInk;
     struct SourceEditingSession
     {
         RichText::MarkdownSourceRegion region;
@@ -152,6 +155,20 @@ std::wstring_view RichTextEditor::GetDocumentFilePath() const noexcept
 {
     return _state->documentFilePath;
 }
+void RichTextEditor::SetRemoteImagesEnabled(bool enabled)
+{
+    if (_state->images.RemoteImagesEnabled() == enabled)
+        return;
+    _state->images.SetRemoteImagesEnabled(enabled);
+    RetireSemanticAccessibility();
+    _state->nativeGeometryRejected.reset();
+    RetireLayout();
+    RequestInvalidate();
+}
+bool RichTextEditor::RemoteImagesEnabled() const noexcept
+{
+    return _state->images.RemoteImagesEnabled();
+}
 void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests)
 {
     const auto* host    = GetHost();
@@ -168,7 +185,7 @@ bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& requ
 {
     const auto document = GetSemanticDocument();
     if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich || ! document ||
-        ! _state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        ! _state->images.CurrentForCompletion(document, _state->imageLocationRevision, _state->bindingRevision))
         return false;
     const auto viewport = TextViewport();
     const auto* host    = GetHost();
@@ -373,20 +390,22 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         throw std::invalid_argument("Invalid rich editor appearance");
     if (_state->appearance == appearance)
         return;
-    auto next                  = appearance; // Stage all owned strings before publishing any option.
-    const auto& previous       = _state->appearance;
-    const bool geometryChanged = previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-                                 previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
-                                 previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
-                                 previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
-                                 previous.headingFontSizeDip != next.headingFontSizeDip ||
-                                 previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier;
+    auto next                   = appearance; // Stage all owned strings before publishing any option.
+    const auto& previous        = _state->appearance;
+    const bool geometryChanged  = previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
+                                  previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+                                  previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
+                                  previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
+                                  previous.headingFontSizeDip != next.headingFontSizeDip ||
+                                  previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier;
+    const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
     auto& value                       = _state->appearance;
     value.drawBorder                  = next.drawBorder;
     value.blendWithWindowBackground   = next.blendWithWindowBackground;
     value.useAccentLinkColor          = next.useAccentLinkColor;
+    value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
     value.maximumTextWidthDip         = next.maximumTextWidthDip;
     value.paddingDip                  = next.paddingDip;
     value.bodyFontSizeDip             = next.bodyFontSizeDip;
@@ -402,6 +421,11 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     {
         _state->nativeGeometryRejected.reset();
         RetireLayout();
+    }
+    else if (sourceInkChanged)
+    {
+        _state->sourceInk.Clear();
+        RequestContentPreparation(false);
     }
     if (! lifetime.expired())
         RequestInvalidate();
@@ -904,12 +928,16 @@ void RichTextEditor::PublishSelectionChanged() noexcept
         std::terminate();
     }
     catch (const std::exception&)
-    { /* Selection is already committed; a failed notification cannot undo it. */
+    {
+        // Selection is already committed; a failed notification cannot undo it.
+        Debug::Warning(L"DxUi::RichTextEditor: selection notification failed; committed selection retained.");
     }
     // The callback may have destroyed or detached this control. No owner reads.
 }
 void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
+    if (sourceChanged)
+        _state->sourceInk.Clear();
     if (sourceChanged)
         _state->highlights.clear();
     if (sourceChanged)
@@ -1009,6 +1037,7 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
 }
 void RichTextEditor::RetireLayout() const noexcept
 {
+    _state->sourceInk.Clear();
     _state->hoveredLink.reset();
     _state->caretLink.reset();
     _state->taskPressPlan.reset();
@@ -1066,7 +1095,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
-            return S_OK;
+            return PrepareSourceInk() ? S_OK : S_FALSE;
         }
         if (state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
         {
@@ -1245,7 +1274,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         state.requestActive      = false;
         UpdateCaretScroll();
         UpdateCaretLinkDisplayRange();
-        return S_OK;
+        return PrepareSourceInk() ? S_OK : S_FALSE;
     }
     catch (const RichText::Detail::NativeObjectCapacity&)
     {
@@ -1359,7 +1388,9 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->lastAdvanceMarkdownWork,
             _state->semantic.HasPendingPreparation(),
             _state->semanticAdvances,
-            _state->lastAdvanceSemanticWork};
+            _state->lastAdvanceSemanticWork,
+            _state->sourceInk.Pending(),
+            _state->sourceInk.Ranges().size()};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {
@@ -1666,10 +1697,16 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
     }
     RichText::LinkDrawing links;
-    links.brush       = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
-    links.underline   = state.linkUnderlinePolicy == RichTextLinkUnderlinePolicy::Always || host.GetTheme().highContrast;
-    links.hover       = state.hoveredLink;
-    links.caret       = CaretLinkDisplayRange();
+    links.brush     = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
+    links.underline = state.linkUnderlinePolicy == RichTextLinkUnderlinePolicy::Always || host.GetTheme().highContrast;
+    links.hover     = state.hoveredLink;
+    links.caret     = CaretLinkDisplayRange();
+    if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
+    {
+        links.inkRanges  = state.sourceInk.Ranges();
+        links.inkBrushes = {
+            host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
+    }
     const bool dimmed = state.focusMode && state.mode == RichText::ViewMode::Rich && ! host.GetTheme().highContrast && IsEnabled();
     auto* subdued     = dimmed ? host.GetSolidBrush(host.GetTheme().subduedText) : textBrush;
     if (dimmed)
@@ -1678,7 +1715,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         links.emphasisBrush     = textBrush;
         links.inactiveLinkBrush = subdued;
     }
-    const bool decorated = dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
+    const bool decorated = ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
     state.layout.Draw(context,
                       subdued,
                       dimmed ? subdued : caretBrush,
@@ -1692,6 +1729,7 @@ void RichTextEditor::Paint(ControlHost& host) const
     selectedLinks.brush             = selectedTextBrush;
     selectedLinks.emphasisBrush     = selectedTextBrush;
     selectedLinks.inactiveLinkBrush = selectedTextBrush;
+    selectedLinks.inkBrushes.fill(selectedTextBrush);
     for (const auto& rectangle : rectangles)
     {
         const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
@@ -2396,6 +2434,15 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
             element.display.first <= display && display < element.display.last)
             return element.display;
     return std::nullopt;
+}
+bool RichTextEditor::PrepareSourceInk()
+{
+    if (! _state->appearance.colorizeMarkdownSource || _state->mode != RichText::ViewMode::Source)
+    {
+        _state->sourceInk.Clear();
+        return true;
+    }
+    return _state->sourceInk.Advance(GetMarkdownSyntax(), [this](size_t source) { return _state->layout.ToDisplay(source); });
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRange() const
 {

@@ -10,6 +10,22 @@
 namespace
 {
 
+void TestTreeTypographyOverrideValidatesAtomically()
+{
+    using namespace DxUi;
+    Tree tree;
+    Require(! tree.GetTypographyOverride(), "tree typography is unchanged by default");
+    const Tree::TypographyOverride wanted{13.0f, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_WEIGHT_SEMI_BOLD};
+    Require(tree.SetTypographyOverride(wanted) == S_OK, "tree accepts bounded row typography");
+    Require(tree.GetTypographyOverride() == wanted, "tree returns its row typography override");
+    Require(tree.SetTypographyOverride(wanted) == S_FALSE, "same tree typography setting is idempotent");
+    auto invalid              = wanted;
+    invalid.currentFontWeight = 901;
+    Require(tree.SetTypographyOverride(invalid) == E_INVALIDARG, "tree rejects invalid selected-row weight");
+    Require(tree.GetTypographyOverride() == wanted, "invalid tree typography leaves the prior value unchanged");
+    Require(tree.SetTypographyOverride(std::nullopt) == S_OK, "tree clears its optional typography override");
+}
+
 class ReentrantTreeModel final : public DxUi::ITreeModel
 {
 public:
@@ -3124,4 +3140,5 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeDragReorderKeepsItsSourceAndTheMultiSelection);
     DXUI_RUN_TEST(TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules);
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
+    DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
 }

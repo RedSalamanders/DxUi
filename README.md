@@ -21,7 +21,7 @@ Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git 
 ```
 
 The last command opens a generic effect toggle and intensity slider. Add `--complex-ui` for the independent 83-control workload, or `--output image.png` for a headless PNG. See [samples](docs/samples.md) and [library measurements](Measurements/README.md).
-`gallery.ps1` generates all 34 public controls and variants in five themes plus an HTML index under `.build/gallery`.
+`gallery.ps1` generates all 35 public controls and variants in five themes plus an HTML index under `.build/gallery`.
 Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API construction and event handling.
 
 ## Public API and ownership
@@ -34,7 +34,7 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
   qualified against 1,324 original semantic expectations with cooperative preparation
   and opt-in RichTextEditor hosting. Complete semantic rendering/editing and the
   accepted math/diagram extensions remain in progress; see [M3 evidence](Measurements/RichText/README.md).
-- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 34 concrete controls.
+- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 35 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.
 

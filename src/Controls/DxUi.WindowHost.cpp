@@ -2431,6 +2431,38 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
 }
 
+IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
+                                              float fontSizeDip,
+                                              DWRITE_FONT_WEIGHT fontWeight,
+                                              DWRITE_TEXT_ALIGNMENT alignment,
+                                              DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                              bool wrap,
+                                              DWRITE_READING_DIRECTION readingDirection) const noexcept
+{
+    if (! std::isfinite(fontSizeDip) || fontSizeDip < 6.0f || fontSizeDip > 96.0f || fontWeight < 100 || fontWeight > 900)
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    const uint64_t sizeKey = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
+    const uint64_t key =
+        PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) | (sizeKey << 40u) | (static_cast<uint64_t>(fontWeight) << 53u);
+    if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
+        return it->second.get();
+    if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    Typography::Spec spec = Typography::GetSpec(role);
+    // The cache key and the created format use the same 1/64-DIP normalized size.
+    spec.sizeDip = static_cast<float>(sizeKey) / 64.0f;
+    spec.weight  = fontWeight;
+    wil::com_ptr<IDWriteTextFormat> format;
+    const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    if (FAILED(hr) || ! format)
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    if (FAILED(format->SetTextAlignment(alignment)) || FAILED(format->SetParagraphAlignment(paragraphAlignment)) ||
+        FAILED(format->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP)) ||
+        FAILED(format->SetReadingDirection(readingDirection)))
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+}
+
 bool ControlHost::HasFluentIconFont() const noexcept
 {
     if (! _dwriteFactory || ! _fluentIconFontAvailabilityChecked)

@@ -1,5 +1,15 @@
 # Controls and layout
 
+RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
+uses the configured lossless Markdown analysis profile. Source glyph geometry
+MUST stay identical: syntax delimiters receive subdued ink, heading/list markers
+and exact source link destinations receive accent ink, and selection ink wins.
+No source text, UTF-16 offset, history or text-service state changes. Color ranges
+MUST publish only after complete owner preparation, be disjoint/sorted and stay
+bounded to 65,536 staging events. Source/host/layout retirement cancels pending
+ink. Capacity overflow falls back to the whole ordinary source view and is
+remembered for that syntax identity. High contrast disables custom source ink.
+
 Status: normative intended contract
 Last reviewed: 2026-10-18
 
@@ -300,9 +310,10 @@ separate work as recorded in capabilities.json.
 
 ### Public catalog and gallery
 
-The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
+The public API exposes Panel, PageHost, CardPanel, Separator, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
 ProgressBar, PageIndicator, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
-StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper and ColorPicker.
+StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper, ColorPicker,
+FlexPanel, FormField, FormPanel and RichTextEditor.
 GetControlCatalog returns immutable
 descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
 existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
@@ -832,7 +843,7 @@ owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF
 TIFF codecs and first static frame; GIF canvas placement/transparency/background
 and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
-4,194,304 decoded pixels, 32 unique active file sources and 64 MiB unique retained
+4,194,304 decoded pixels, 32 unique active image sources and 64 MiB unique retained
 CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
 Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
 capacity contracts are unchanged; process/driver and transient staging overhead
@@ -844,6 +855,23 @@ names, ambiguous extended/trailing-component spellings and malformed/remote URI
 schemes MUST NOT become file requests. Drive/server root case is insensitive;
 directory/share/file component spelling remains exact. Relative paths require
 a saved base; the control MUST NOT query CWD or perform file/network I/O.
+
+Remote image admission MUST be disabled by default. Explicit
+`SetRemoteImagesEnabled(true)` MAY expose absolute HTTP(S) destinations as
+`RichImageSourceKind::RemoteHttp` requests. `Source()` retains the URL's exact
+path/query while normalizing ASCII scheme/host case; `FilePath()` MUST be empty
+for a remote request. Admission accepts ASCII DNS/punycode and bracketed IPv6
+hosts, rejects credentials, fragments, controls, malformed percent escapes and
+unsupported schemes, and bounds each URL to 8,192 UTF-16 units. This is lexical
+admission, not network authorization or a fetch implementation. A caller MUST
+apply its own transport, TLS, timeout, cancellation and encoded-size policy,
+then reuse the existing bounded `RichImage::Decode` utility on its worker.
+The library MUST NOT own HTTP, DNS, a worker, a proxy, cookies or a network cache.
+Disabling the policy MUST immediately cancel remote jobs and evict their retained
+pixels. Local jobs/pixels MUST retain identity and admissible completion during
+the policy-only bounded preparation rebuild. Re-enabling remote admission creates
+fresh remote identities; old completions MUST never republish pixels. Every policy
+transition MUST preserve exact document source, selection, history and IME state.
 
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.

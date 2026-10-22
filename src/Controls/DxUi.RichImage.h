@@ -7,11 +7,15 @@ namespace DxUi::RichText::Detail
 {
 struct RichImageRequestState
 {
-    RichImageRequestState(std::wstring_view path, std::uint64_t requestId) : filePath(path), id(requestId)
+    RichImageRequestState(std::wstring_view path, std::uint64_t requestId, RichImageSourceKind kind = RichImageSourceKind::LocalFile)
+        : filePath(path),
+          id(requestId),
+          sourceKind(kind)
     {
     }
     std::wstring filePath;
     std::uint64_t id;
+    RichImageSourceKind sourceKind;
     std::atomic_bool cancelled{false};
 };
 // Dormant, owner/worker-thread-local transport seam. Tests retain real file

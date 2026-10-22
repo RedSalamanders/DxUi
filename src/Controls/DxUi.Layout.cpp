@@ -1,6 +1,7 @@
 #include "DxUi.Internal.h"
 
 #include <cmath>
+#include <dwrite_1.h>
 #include <exception>
 #include <limits>
 #include <new>
@@ -227,6 +228,45 @@ HRESULT Control::MeasureOverride(const MeasureContext& /*context*/, const Layout
 
 HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
 {
+    if (_typographyOverride)
+    {
+        const size_t shapedUnits = _text.empty() ? 2u : _text.size();
+        if (_text.size() > kMaxIntrinsicTextUnits || (context.remainingTextUnits && *context.remainingTextUnits < shapedUnits))
+            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+        if (context.remainingTextUnits)
+            *context.remainingTextUnits -= shapedUnits;
+        auto* const factory = context.host.GetWriteFactory();
+        auto* const format  = context.host.GetTextFormat(_fontRole,
+                                                         _typographyOverride->fontSizeDip,
+                                                         _typographyOverride->fontWeight,
+                                                         DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                         DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                                         _multiline,
+                                                         ResolveReadingDirection(GetFlowDirection()));
+        if (! factory || ! format)
+            return E_FAIL;
+        const std::wstring_view text = _text.empty() ? std::wstring_view(L"Ag") : std::wstring_view(_text);
+        const float width            = _multiline && constraints.maximumWidthDip ? *constraints.maximumWidthDip : (std::numeric_limits<float>::max)();
+        wil::com_ptr<IDWriteTextLayout> layout;
+        HRESULT hr = factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
+        if (FAILED(hr) || ! layout)
+            return FAILED(hr) ? hr : E_FAIL;
+        const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
+        wil::com_ptr<IDWriteTextLayout1> layout1;
+        hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
+        if (FAILED(hr))
+            return hr;
+        hr = layout1->SetCharacterSpacing(_typographyOverride->characterSpacingDip, _typographyOverride->characterSpacingDip, 0.0f, range);
+        if (FAILED(hr))
+            return hr;
+        DWRITE_TEXT_METRICS metrics{};
+        hr = layout->GetMetrics(&metrics);
+        if (FAILED(hr))
+            return hr;
+        result.sizeDip = D2D1::SizeF((_text.empty() ? 0.0f : metrics.widthIncludingTrailingWhitespace), metrics.height);
+        ApplyMinimum(constraints, result);
+        return S_OK;
+    }
     return MeasureText(context, constraints, _text, _fontRole, GetFlowDirection(), _multiline, 0.0f, 0.0f, 0.0f, 0.0f, result);
 }
 

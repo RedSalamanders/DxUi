@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <span>
 #include <unordered_set>
 #include <vector>
@@ -172,7 +173,8 @@ void DrawTreeRow(ControlHost& host,
                  bool keyboardFocused,
                  float expanderProgress,
                  float alpha,
-                 FlowDirection flowDirection) noexcept
+                 FlowDirection flowDirection,
+                 const std::optional<Tree::TypographyOverride>& typographyOverride) noexcept
 {
     const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered);
     const D2D1_COLOR_F fill                 = WithAlpha(rowVisuals.fill, alpha);
@@ -232,8 +234,35 @@ void DrawTreeRow(ControlHost& host,
                          flowDirection);
     }
 
-    DrawCenteredText(
-        host, item.text, layout.textRect, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+    if (typographyOverride)
+    {
+        auto* const dc     = host.GetDeviceContext();
+        auto* const format = host.GetTextFormat(FontRole::Body,
+                                                typographyOverride->fontSizeDip,
+                                                current ? typographyOverride->currentFontWeight : typographyOverride->fontWeight,
+                                                DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                false,
+                                                ResolveReadingDirection(flowDirection));
+        if (dc && format)
+        {
+            if (auto* brush = host.GetSolidBrush(textColor))
+                dc->DrawTextW(
+                    item.text.data(), static_cast<UINT32>(item.text.size()), format, layout.textRect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+        }
+    }
+    else
+    {
+        DrawCenteredText(host,
+                         item.text,
+                         layout.textRect,
+                         FontRole::Body,
+                         textColor,
+                         DWRITE_TEXT_ALIGNMENT_LEADING,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         false,
+                         flowDirection);
+    }
 }
 
 } // namespace
@@ -533,6 +562,25 @@ void Tree::SetInvokeOnSingleClick(bool enabled) noexcept
         return;
     _invokeOnSingleClick = enabled;
     _singleClickInvokeItemId.reset();
+}
+
+HRESULT Tree::SetTypographyOverride(std::optional<TypographyOverride> typography) noexcept
+{
+    if (typography &&
+        (! std::isfinite(typography->fontSizeDip) || typography->fontSizeDip < 6.0f || typography->fontSizeDip > 96.0f || typography->fontWeight < 100 ||
+         typography->fontWeight > 900 || typography->currentFontWeight < 100 || typography->currentFontWeight > 900))
+        return E_INVALIDARG;
+    if (_typographyOverride == typography)
+        return S_FALSE;
+    _typographyOverride = typography;
+    InvalidateTreeTextMeasurementCaches();
+    RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<Tree::TypographyOverride> Tree::GetTypographyOverride() const noexcept
+{
+    return _typographyOverride;
 }
 
 void Tree::SetRowHeightDip(float rowHeightDip) noexcept
@@ -1208,7 +1256,19 @@ void Tree::Paint(ControlHost& host) const
         const bool hovered           = hoveredVisibleIndex && hoveredVisibleIndex.value() == static_cast<size_t>(visibleIndex);
         const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
         const float expanderProgress = theme.reducedMotion ? (item.expanded ? 1.0f : 0.0f) : GetExpanderProgress(item.id, item.expanded, nowTickMs);
-        DrawTreeRow(host, theme, layout, item, selected, current, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha, GetFlowDirection());
+        DrawTreeRow(host,
+                    theme,
+                    layout,
+                    item,
+                    selected,
+                    current,
+                    hovered,
+                    HasFocus(),
+                    keyboardFocused,
+                    expanderProgress,
+                    rowAlpha,
+                    GetFlowDirection(),
+                    _typographyOverride);
     }
 
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
@@ -1253,7 +1313,8 @@ void Tree::Paint(ControlHost& host) const
                             keyboardFocused,
                             expanderProgress,
                             1.0f - progress,
-                            GetFlowDirection());
+                            GetFlowDirection(),
+                            _typographyOverride);
             }
         }
     }
@@ -2222,9 +2283,19 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
                                                 const TreeItemData& item,
                                                 const TreeItemLayoutMetrics& layout) const
 {
-    const float availableWidthDip   = (std::max)(0.0f, layout.textRect.right - layout.textRect.left);
-    auto* textFormat                = host.GetTextFormat(FontRole::Body);
-    TreeTooltipOverflowCache& cache = _tooltipOverflowCache;
+    const float availableWidthDip      = (std::max)(0.0f, layout.textRect.right - layout.textRect.left);
+    const DWRITE_FONT_WEIGHT rowWeight = _typographyOverride && _focusedItemId == std::optional<uint64_t>(item.id)
+                                             ? _typographyOverride->currentFontWeight
+                                             : (_typographyOverride ? _typographyOverride->fontWeight : DWRITE_FONT_WEIGHT_NORMAL);
+    auto* textFormat                   = _typographyOverride ? host.GetTextFormat(FontRole::Body,
+                                                                                  _typographyOverride->fontSizeDip,
+                                                                                  rowWeight,
+                                                                                  DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                                                  DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                                                  false,
+                                                                                  ResolveReadingDirection(GetFlowDirection()))
+                                                             : host.GetTextFormat(FontRole::Body);
+    TreeTooltipOverflowCache& cache    = _tooltipOverflowCache;
     if (cache.valid && cache.visibleIndex == visibleIndex && cache.itemId == item.id && cache.text == item.text && cache.tooltipText == item.tooltipText &&
         cache.textFormat == textFormat && cache.availableWidthDip == availableWidthDip)
     {
@@ -2238,7 +2309,26 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     }
     else if (availableWidthDip > 0.0f && ! item.text.empty())
     {
-        const float textWidthDip = MeasureSingleLineTextWidthDip(&host, item.text, FontRole::Body);
+        float textWidthDip = MeasureSingleLineTextWidthDip(&host, item.text, FontRole::Body);
+        if (_typographyOverride)
+        {
+            if (auto* factory = host.GetWriteFactory())
+            {
+                wil::com_ptr<IDWriteTextLayout> measuredLayout;
+                if (SUCCEEDED(factory->CreateTextLayout(item.text.data(),
+                                                        static_cast<UINT32>(item.text.size()),
+                                                        textFormat,
+                                                        (std::numeric_limits<float>::max)(),
+                                                        (std::numeric_limits<float>::max)(),
+                                                        measuredLayout.put())) &&
+                    measuredLayout)
+                {
+                    DWRITE_TEXT_METRICS metrics{};
+                    if (SUCCEEDED(measuredLayout->GetMetrics(&metrics)))
+                        textWidthDip = metrics.widthIncludingTrailingWhitespace;
+                }
+            }
+        }
         if (textWidthDip > (availableWidthDip + 0.5f))
         {
             resolvedTooltipText = item.text;

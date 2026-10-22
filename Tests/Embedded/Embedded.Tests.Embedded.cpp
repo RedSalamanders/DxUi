@@ -1822,7 +1822,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 34, "catalog contains all 34 controls");
+    Check(DxUi::GetControlCatalog().size() == 35, "catalog contains all 35 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

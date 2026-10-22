@@ -1531,6 +1531,7 @@ enum class AccessibilityRole : uint8_t
     Default,
     Status,
     MenuItem,
+    Separator,
 };
 
 // Intrinsic layout is opt-in. Missing maximum axes are explicitly unbounded; no arranged position enters a measurement.
@@ -1930,6 +1931,14 @@ private:
     float _cornerRadiusDip = 4.0f; // 4 DIP inline card, 8 DIP overlay card
 };
 
+struct LabelTypography final
+{
+    float fontSizeDip                                                               = 13.0f;
+    DWRITE_FONT_WEIGHT fontWeight                                                   = DWRITE_FONT_WEIGHT_NORMAL;
+    float characterSpacingDip                                                       = 0.0f;
+    friend bool operator==(const LabelTypography&, const LabelTypography&) noexcept = default;
+};
+
 class Label : public Control
 {
 public:
@@ -1942,6 +1951,9 @@ public:
     void SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept;
     void SetMultiline(bool multiline) noexcept;
     void SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept;
+    // Nullopt restores role defaults; invalid values leave the current override unchanged.
+    HRESULT SetTypographyOverride(std::optional<LabelTypography> typography) noexcept;
+    [[nodiscard]] std::optional<LabelTypography> GetTypographyOverride() const noexcept;
     void SetMnemonicTarget(Control* target) noexcept;
 
     void Paint(ControlHost& host) const override;
@@ -1958,7 +1970,52 @@ private:
     DWRITE_TEXT_ALIGNMENT _alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     bool _multiline                  = false;
     std::optional<D2D1_COLOR_F> _textColor;
-    Control* _mnemonicTarget = nullptr;
+    std::optional<LabelTypography> _typographyOverride;
+    mutable wil::com_ptr<IDWriteTextLayout> _typographyLayout;
+    mutable std::wstring _typographyLayoutText;
+    mutable IDWriteTextFormat* _typographyLayoutFormat = nullptr;
+    mutable D2D1_SIZE_F _typographyLayoutSize{};
+    mutable uint64_t _typographyLayoutGeneration = 0u;
+    mutable uint64_t _typographyLayoutRevision   = 0u;
+    Control* _mnemonicTarget                     = nullptr;
+};
+
+enum class SeparatorOrientation : uint8_t
+{
+    Horizontal,
+    Vertical,
+};
+
+class Separator final : public Control
+{
+public:
+    Separator() noexcept;
+    void SetOrientation(SeparatorOrientation orientation) noexcept;
+    [[nodiscard]] SeparatorOrientation GetOrientation() const noexcept;
+    void Paint(ControlHost& host) const override;
+    Control* HitTest(D2D1_POINT_2F point) override;
+    const Control* HitTest(D2D1_POINT_2F point) const override;
+
+private:
+    friend class Toolbar;
+    SeparatorOrientation _orientation = SeparatorOrientation::Vertical;
+    bool _toolbarStyle                = false;
+};
+
+struct ButtonThemePreview final
+{
+    std::array<D2D1_COLOR_F, 3> swatches{};
+    friend bool operator==(const ButtonThemePreview& left, const ButtonThemePreview& right) noexcept
+    {
+        for (size_t index = 0u; index < left.swatches.size(); ++index)
+        {
+            const auto& a = left.swatches[index];
+            const auto& b = right.swatches[index];
+            if (a.r != b.r || a.g != b.g || a.b != b.b || a.a != b.a)
+                return false;
+        }
+        return true;
+    }
 };
 
 class Button : public Control
@@ -1973,6 +2030,8 @@ public:
     [[nodiscard]] bool IsMultiline() const noexcept;
     void SetPrimary(bool primary) noexcept;
     [[nodiscard]] bool IsPrimary() const noexcept;
+    void SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept;
+    [[nodiscard]] std::optional<ButtonThemePreview> GetThemePreview() const noexcept;
     // Optional consumer-owned checked state exposed through UI Automation TogglePattern. Checked non-primary buttons use
     // selection fill/text; clicks invoke the normal command and the consumer changes this value when its state changes.
     void SetToggleState(std::optional<bool> checked) noexcept;
@@ -2059,6 +2118,7 @@ private:
     bool _dropDownOpen                             = false;
     bool _primary                                  = false;
     std::optional<bool> _toggleState;
+    std::optional<ButtonThemePreview> _themePreview;
     bool _multiline        = false;
     ButtonVariant _variant = ButtonVariant::Standard;
 };
@@ -2806,6 +2866,7 @@ struct RichTextEditorAppearance
     bool drawBorder                = true;
     bool blendWithWindowBackground = false;
     bool useAccentLinkColor        = false;
+    bool colorizeMarkdownSource    = false;
     float maximumTextWidthDip      = 0.0f;
     float paddingDip               = -1.0f; // Negative one inherits the density-specific inset.
     float bodyFontSizeDip          = 0.0f;  // Zero inherits the host's body size.
@@ -2850,6 +2911,8 @@ struct RichTextEditorDebugState
     bool semanticPreparationPending    = false;
     size_t semanticPreparationAdvances = 0;
     size_t lastAdvanceSemanticWork     = 0;
+    bool sourceInkPreparationPending   = false;
+    size_t sourceInkRangeCount         = 0;
 };
 
 class RichTextEditor : public Control
@@ -2867,8 +2930,13 @@ public:
     // rewrite occurs; no process working directory is used for relative links.
     void SetDocumentFilePath(std::wstring path);
     [[nodiscard]] std::wstring_view GetDocumentFilePath() const noexcept;
+    // Disabled by default. Only absolute HTTP(S) image requests are exposed
+    // after opt-in; no network I/O occurs here. Disabling immediately cancels
+    // remote requests and evicts their pixels, retaining local image resources.
+    void SetRemoteImagesEnabled(bool enabled);
+    [[nodiscard]] bool RemoteImagesEnabled() const noexcept;
     // Call after owner preparation. The application executes these bounded
-    // local-file requests in its own worker service and marshals completion to
+    // source requests in its own worker service and marshals completion to
     // this owner thread. No worker may call a ControlHost or editor directly.
     void TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests);
     // True accepts a current completion. Null/capacity keeps the image alt;
@@ -3036,6 +3104,7 @@ private:
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
+    bool PrepareSourceInk();
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
@@ -4049,6 +4118,14 @@ private:
 class Tree final : public Control
 {
 public:
+    struct TypographyOverride final
+    {
+        float fontSizeDip                                                                     = 13.0f;
+        DWRITE_FONT_WEIGHT fontWeight                                                         = DWRITE_FONT_WEIGHT_NORMAL;
+        DWRITE_FONT_WEIGHT currentFontWeight                                                  = DWRITE_FONT_WEIGHT_SEMI_BOLD;
+        friend bool operator==(const TypographyOverride&, const TypographyOverride&) noexcept = default;
+    };
+
     Tree();
 
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Tree destruction.
@@ -4061,6 +4138,9 @@ public:
     // Opt in to invoking the clicked row on pointer release. Expander clicks still only expand/collapse; Enter invokes
     // the focused row, Space does not invoke in this mode, and a double-click does not invoke an already-clicked leaf twice.
     void SetInvokeOnSingleClick(bool enabled) noexcept;
+    // Optional row typography; current/focused rows use currentFontWeight. Nullopt preserves role defaults.
+    HRESULT SetTypographyOverride(std::optional<TypographyOverride> typography) noexcept;
+    [[nodiscard]] std::optional<TypographyOverride> GetTypographyOverride() const noexcept;
     // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
     void SetReorderEnabled(bool enabled) noexcept;
     [[nodiscard]] bool ReorderEnabled() const noexcept
@@ -4258,6 +4338,7 @@ private:
     GridSelectionModel _selection;
     bool _multiSelect         = false;
     bool _invokeOnSingleClick = false;
+    std::optional<TypographyOverride> _typographyOverride;
     std::optional<uint64_t> _singleClickInvokeItemId;
     bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;

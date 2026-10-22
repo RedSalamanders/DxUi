@@ -288,7 +288,7 @@ void TestRichTextEditorSelectionGestureAndTextServicePublication()
             "unchanged native import preserves duplicate suppression and source history");
     editor->SetOnSelectionChanged([&]
     {
-        if (!editor->IsSelectionGestureActive())
+        if (! editor->IsSelectionGestureActive())
             window.Host().SetRoot(std::make_unique<Label>(L"replacement"));
     });
     Require(editor->OnMouseDown(window.Host(), end, false, 0u), "begin pointer release retirement fixture");
@@ -1236,6 +1236,79 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
 }
 } // namespace
 
+namespace
+{
+void TestRichTextEditorRemoteImagePolicy()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"D:\\Writing\\Ideas.md");
+    window.Host().SetRoot(std::move(owned));
+    const std::wstring source = L"![local](cover.bmp)\n\n![remote](HTTPS://EXAMPLE.INVALID/Exact.bmp?q=Value)\n";
+    editor->SetText(source);
+    RenderEditor(window);
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(! editor->RemoteImagesEnabled() && requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::LocalFile &&
+                requests[0].FilePath() == L"D:\\Writing\\cover.bmp" && requests[0].Source() == requests[0].FilePath(),
+            "remote image requests are absent by default while local requests retain their explicit file base");
+    const auto local     = requests[0];
+    const auto revision  = editor->Snapshot();
+    const auto selection = editor->GetSelection();
+    constexpr std::array<std::byte, 4> red{std::byte{0}, std::byte{0}, std::byte{255}, std::byte{255}};
+    constexpr std::array<std::byte, 4> blue{std::byte{255}, std::byte{0}, std::byte{0}, std::byte{255}};
+    std::shared_ptr<const RichImage> localPixels, remotePixels;
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, red, localPixels), "local privacy-policy image fixture");
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, blue, remotePixels), "remote privacy-policy image fixture");
+    editor->SetRemoteImagesEnabled(true);
+    Require(! local.Cancelled() && editor->CompleteImageRequest(local, localPixels),
+            "opt-in preserves a dispatched local job and accepts its completion before policy preparation");
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(editor->RemoteImagesEnabled() && requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::RemoteHttp &&
+                requests[0].Source() == L"https://example.invalid/Exact.bmp?q=Value" && requests[0].FilePath().empty(),
+            "explicit opt-in emits an immutable HTTP source with exact path/query and no misleading local path");
+    const auto remote = requests[0];
+    Require(editor->CompleteImageRequest(remote, remotePixels), "current opted-in remote pixels publish only on their owner");
+    RenderEditor(window);
+    Require(editor->GetImageResourceStatistics().readySources == 2u && editor->GetImageResourceStatistics().decodedBytes == 8u,
+            "local and remote resources share the canonical decoded memory budget");
+    editor->SetRemoteImagesEnabled(false);
+    Require(! editor->RemoteImagesEnabled() && editor->GetImageResourceStatistics().readySources == 1u &&
+                editor->GetImageResourceStatistics().decodedBytes == 4u && ! editor->CompleteImageRequest(remote, remotePixels),
+            "opt-out immediately evicts remote pixels and rejects old completion while retaining local pixels");
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.empty(), "off-by-default/disabled remote sources do not form a retry loop");
+    editor->SetRemoteImagesEnabled(true);
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && requests[0] != remote && ! requests[0].Cancelled(), "a later opt-in owns a new remote request identity");
+    const auto pending = requests[0];
+    editor->SetRemoteImagesEnabled(false);
+    Require(pending.Cancelled() && ! editor->CompleteImageRequest(pending, remotePixels),
+            "disabling cancels an in-flight remote request before any later owner preparation");
+    RenderEditor(window);
+    Require(editor->GetText() == source && editor->Snapshot().IsSameRevision(revision) && editor->GetSelection() == selection && ! editor->CanUndo(),
+            "all privacy transitions retain exact source, revision, selection and history");
+    using DxUi::RichText::Detail::ResolveRemoteImageSource;
+    for (const auto* invalid : {L"http://",
+                                L"//example.invalid/a.png",
+                                L"http://user:secret@example.invalid/a",
+                                L"http://example.invalid/a#fragment",
+                                L"http://example.invalid/a%",
+                                L"http://example.invalid:0/a",
+                                L"http://example.invalid:65536/a",
+                                L"http://example.invalid\\a",
+                                L"data:image/png,a",
+                                L"http://example.invalid/a\r\nCookie: secret"})
+        Require(! ResolveRemoteImageSource(invalid), "credentialed, ambiguous and unsupported sources are never remote image requests");
+}
+} // namespace
+
 void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
@@ -1275,5 +1348,6 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFileReferencePaste);
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
+    DXUI_RUN_TEST(TestRichTextEditorRemoteImagePolicy);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

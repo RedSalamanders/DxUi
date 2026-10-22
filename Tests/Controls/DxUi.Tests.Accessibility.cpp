@@ -907,11 +907,24 @@ void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
     combo->SetBounds(D2D1::RectF(0.0f, 196.0f, 220.0f, 224.0f));
     comboLabel->SetMnemonicTarget(combo);
 
+    auto* separator = root->AddChild<Separator>();
+    separator->SetBounds(D2D1::RectF(240.0f, 196.0f, 360.0f, 204.0f));
+
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
     rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "debug accessibility provider is created for attached DX host");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> separatorProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 280.0f, 200.0f, "separator provider is resolved by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> separatorSimple;
+    RequireSucceeded(separatorProvider.query_to(separatorSimple.put()), "separator provider exposes a simple provider");
+    Require(ReadProviderLongProperty(*separatorSimple.get(), UIA_ControlTypePropertyId, "separator exposes UIA control type") == UIA_SeparatorControlTypeId,
+            "separator reports the UIA separator control type");
+    wil::com_ptr_nothrow<IUnknown> separatorInvoke;
+    RequireSucceeded(separatorSimple->GetPatternProvider(UIA_InvokePatternId, separatorInvoke.put()), "separator invoke pattern lookup succeeds");
+    Require(separatorInvoke == nullptr && ! separator->IsFocusable(), "separator has no invoke pattern or keyboard focus");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> buttonProvider =
         GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "button accessibility provider is resolved by point");

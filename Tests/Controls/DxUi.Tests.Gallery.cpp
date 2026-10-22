@@ -815,6 +815,18 @@ void AddComboItems(ComboBox& combo)
         label->SetBounds(CenterIn(tile.content, 220.0f, 28.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"Label / Typography override");
+        auto* label     = scene.root->AddChild<Label>(L"Section heading");
+        static_cast<void>(label->SetTypographyOverride(LabelTypography{16.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, 0.2f}));
+        label->SetBounds(CenterIn(tile.content, 220.0f, 32.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Separator / Horizontal");
+        auto* separator = scene.root->AddChild<Separator>();
+        separator->SetOrientation(SeparatorOrientation::Horizontal);
+        separator->SetBounds(CenterIn(tile.content, 200.0f, 20.0f));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"CardPanel / Inline");
         auto* card      = scene.root->AddChild<CardPanel>();
         card->SetBounds(CenterIn(tile.content, 220.0f, 50.0f));
@@ -825,6 +837,13 @@ void AddComboItems(ComboBox& combo)
 
     AddButtonTile(scene, flow, L"Button / Standard", L"Standard", ButtonVariant::Standard);
     AddButtonTile(scene, flow, L"Button / Primary", L"Primary", ButtonVariant::Standard, true);
+    {
+        const Tile tile = flow.Next(*scene.root, L"Button / Theme preview", 1u, 84.0f);
+        auto* button    = scene.root->AddChild<Button>(L"Ocean");
+        static_cast<void>(button->SetThemePreview(
+            ButtonThemePreview{{D2D1::ColorF(0.08f, 0.16f, 0.28f), D2D1::ColorF(0.12f, 0.48f, 0.72f), D2D1::ColorF(0.84f, 0.92f, 0.98f)}}));
+        button->SetBounds(CenterIn(tile.content, 160.0f, 76.0f));
+    }
     {
         const Tile tile = flow.Next(*scene.root, L"Button / French multiline", 1u, 128.0f);
         auto* button    = scene.root->AddChild<Button>(L"Conserver les deux versions");

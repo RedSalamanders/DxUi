@@ -1915,6 +1915,42 @@ void TestLabelVisualStyleUsesPaletteTextChrome()
     RequireColorNear(customStyle.text, customText, "label style honors explicit text color overrides");
 }
 
+void TestLabelTypographyOverrideValidatesAtomically()
+{
+    using namespace DxUi;
+    Label label(L"Section");
+    const LabelTypography wanted{14.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, 0.5f};
+    Require(label.SetTypographyOverride(wanted) == S_OK, "label accepts a bounded typography override");
+    Require(label.GetTypographyOverride() == wanted, "label returns its typography override");
+    Require(label.SetTypographyOverride(wanted) == S_FALSE, "setting the same label typography is idempotent");
+    const LabelTypography invalid{std::numeric_limits<float>::infinity(), DWRITE_FONT_WEIGHT_NORMAL, 0.0f};
+    Require(label.SetTypographyOverride(invalid) == E_INVALIDARG, "label rejects a non-finite font size");
+    Require(label.GetTypographyOverride() == wanted, "invalid label typography leaves the prior value unchanged");
+    Require(label.SetTypographyOverride(std::nullopt) == S_OK, "null override restores role defaults");
+    Require(! label.GetTypographyOverride(), "default typography is restored");
+}
+
+void TestButtonThemePreviewValidatesAndPreservesAccessibleButton()
+{
+    using namespace DxUi;
+    Button button(L"Appearance");
+    const ButtonThemePreview preview{{D2D1::ColorF(0.1f, 0.2f, 0.3f), D2D1::ColorF(0.4f, 0.5f, 0.6f), D2D1::ColorF(0.7f, 0.8f, 0.9f)}};
+    button.SetToggleState(false);
+    button.SetThemePreview(preview);
+    Require(button.GetThemePreview().has_value(), "theme preview is opt-in");
+    Require(button.GetToggleState() == std::optional<bool>(false), "theme preview remains a Button with toggle semantics");
+    const auto retained   = button.GetThemePreview();
+    auto invalid          = preview;
+    invalid.swatches[1].r = std::numeric_limits<float>::quiet_NaN();
+    button.SetThemePreview(invalid);
+    const auto afterInvalid = button.GetThemePreview();
+    Require(afterInvalid.has_value() && retained.has_value(), "invalid preview keeps an existing value");
+    for (size_t index = 0u; index < retained->swatches.size(); ++index)
+        RequireColorNear(afterInvalid->swatches[index], retained->swatches[index], "invalid theme-preview swatches leave prior colors unchanged");
+    button.SetThemePreview(std::nullopt);
+    Require(! button.GetThemePreview(), "theme preview can be removed");
+}
+
 void TestLabelVisualStyleUsesViewerDerivedTextChrome()
 {
     using namespace DxUi;
@@ -2892,6 +2928,8 @@ void RunThemeTests()
     DXUI_RUN_TEST(TestTooltipHighContrastBorderStrengthensLegibility);
     DXUI_RUN_TEST(TestCheckboxVisualStyleMatchesStandardCheckboxChrome);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesPaletteTextChrome);
+    DXUI_RUN_TEST(TestLabelTypographyOverrideValidatesAtomically);
+    DXUI_RUN_TEST(TestButtonThemePreviewValidatesAndPreservesAccessibleButton);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesViewerDerivedTextChrome);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesHighContrastTextChrome);
     DXUI_RUN_TEST(TestCheckboxVisualStyleInterpolatesHoverStrength);
