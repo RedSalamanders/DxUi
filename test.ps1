@@ -102,6 +102,10 @@ if ($verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSu
     if ($hostedDesktopRefusal) { Write-Warning "Hosted foreground desktop preflight: $hostedDesktopRefusal" }
     else { Write-Host 'Hosted foreground desktop preflight passed; suite execution must still qualify focus and rendering.' }
 }
+Import-Module (Join-Path $PSScriptRoot 'Tools/TestRunEvidence.psm1') -Force
+$evidence = Start-TestRunEvidence -Repository $PSScriptRoot -CaptureNativeArtifacts -Context @{ project='DxUi'; platform=$Platform; configuration=$Configuration; suites=$Suites; tests=$Tests }
+$runPassed = $false
+try {
 # The runner's --test contract (single tests, unknown names) and its watchdog (a hung test ends the run, named) are checked
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
 # hung test while the suites hold the person's desktop.
@@ -114,8 +118,8 @@ if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) {
 if ($Interactive -or 'InteractiveLease' -in $Suites) {
     & (Join-Path $PSScriptRoot 'Tools/tests/Test-InteractiveLease.ps1') -Configuration $Configuration -Platform $Platform
 }
-$reports = Join-Path $PSScriptRoot '.build/reports'
-$logs = Join-Path $PSScriptRoot '.build/logs'
+$reports = Join-Path $evidence.Path 'reports'
+$logs = Join-Path $evidence.Path 'logs'
 New-Item -ItemType Directory -Path $reports,$logs -Force | Out-Null
 # Each test invocation retains its own raw rounds, including noisy or failing comparisons.
 $performanceReport = Join-Path $reports "Performance-$Platform-$Configuration-$([guid]::NewGuid().ToString('N')).json"
@@ -133,9 +137,10 @@ if ($Configuration -eq 'ASan Debug') {
         $probeExit = $LASTEXITCODE
     } finally { $env:ASAN_OPTIONS = $previousOptions }
     $detected = $probeExit -ne 0 -and [bool](Select-String -LiteralPath $probeLog -SimpleMatch 'AddressSanitizer: heap-use-after-free')
-    [ordered]@{suite='AddressSanitizer';configuration=$Configuration;platform=$Platform;nativeArchitecture=$nativeArchitecture;
+    $asanReceipt = [ordered]@{suite='AddressSanitizer';configuration=$Configuration;platform=$Platform;nativeArchitecture=$nativeArchitecture;
         completedUtc=[DateTime]::UtcNow.ToString('o');executable=$probe;sha256=(Get-FileHash -LiteralPath $probe -Algorithm SHA256).Hash;
-        exitCode=$probeExit;detected=$detected;log=$probeLog} | ConvertTo-Json | Set-Content (Join-Path $reports "AddressSanitizer-$Platform.json")
+        exitCode=$probeExit;detected=$detected;log=$probeLog;evidenceRun=$evidence.Directory}
+    Publish-TestRunEvidenceReceipt -Run $evidence -Name "AddressSanitizer-$Platform.json" -Receipt $asanReceipt
     if (-not $detected) { throw "AddressSanitizer did not diagnose the deliberate isolated use-after-free. See $probeLog" }
     Write-Host 'PASS AddressSanitizer detection probe (isolated expected failure)'
 }
@@ -246,7 +251,9 @@ try {
             }
         }
         if ($failure -and $failure.Timeout) { $receipt['timeout'] = $failure.Timeout }
-        $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $reports "$suite-$Platform-$Configuration$suffix.json") -Encoding utf8
+        $receipt['log'] = $log
+        $receipt['evidenceRun'] = $evidence.Directory
+        Publish-TestRunEvidenceReceipt -Run $evidence -Name "$suite-$Platform-$Configuration$suffix.json" -Receipt $receipt
         if ($failure) { $failures += $failure.Summary; Write-Host "FAIL $($failure.Summary)"; $failure.Tail }
         elseif ($suiteUsesForegroundLease -and $skips.Count) {
             # An interactive run exists to run what a run without the desktop skips: a skip means the desktop did not provide it.
@@ -265,5 +272,7 @@ if ($foregroundLeaseRequired) {
     Write-Host $leaseSummary.CaptureNotice
     if ($leaseSummary.PointerNotice) { Write-Host $leaseSummary.PointerNotice }
 }
-if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }
+if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See $($evidence.Directory)." }
 Write-Host "All $($Suites.Count) requested suites passed."
+$runPassed = $true
+} finally { Complete-TestRunEvidence -Run $evidence -Passed $runPassed }

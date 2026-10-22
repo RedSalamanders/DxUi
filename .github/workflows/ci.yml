@@ -151,8 +151,10 @@ jobs:
         if: always()
         with:
           name: native-${{ matrix.platform }}-${{ matrix.configuration }}
+          include-hidden-files: true
           path: |
             .build/logs/*.log
+            .build/evidence/test-runs/**
             .build/reports/*.json
             .build/test-artifacts/**
             .build/gallery/**
@@ -280,6 +282,7 @@ jobs:
             .build/paired/*/baseline/.build/logs/*.log
             .build/paired/*/candidate/.build/logs/*.log
             .build/logs/*.log
+            .build/evidence/test-runs/**
           # Preserve the original measured native outputs and attestations, including A/A's single physical tree.
           include-hidden-files: true
           retention-days: 14
