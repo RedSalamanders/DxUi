@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Fit the theme-preview button inside its gallery tile with a containment check, and expose the rich editor's caret underline and Search highlight in the presentation exhibit. These are harness fixture changes; the shared library inputs and RedTilde's tested production pin remain unchanged. Preserve original native-suite evidence separately from regenerated gallery artifacts.
 - Keep local and explicitly enabled remote image-source admission able to unwind allocation failures in MSVC Debug by constructing optional string returns directly. The per-allocation fault sweep covers mixed local/remote admission, prior snapshot preservation and successful retries; full profile qualification remains pending.
 - Add canonical native Return/Space pretranslation dispatch and explicit embedded key/character receipts so command activation cannot type its character into a successor editor. Keep standalone text input independent, isolate reentrant permission, and reject retired, stale or foreign owners. Update native modal/test pumps, the embedded example and input contracts; qualification remains separate from physical IME and native ARM64 execution.
 - Correct typography regression fixtures to compare independent DirectWrite metrics, include antialiased icon ink and isolate the WARP owner from earlier thread graphics policy. Prepare embedded focus before reading caret geometry and allow synchronous refreshed text-layout caches; production behavior is unchanged.

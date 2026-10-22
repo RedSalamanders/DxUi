@@ -838,11 +838,15 @@ void AddComboItems(ComboBox& combo)
     AddButtonTile(scene, flow, L"Button / Standard", L"Standard", ButtonVariant::Standard);
     AddButtonTile(scene, flow, L"Button / Primary", L"Primary", ButtonVariant::Standard, true);
     {
-        const Tile tile = flow.Next(*scene.root, L"Button / Theme preview", 1u, 84.0f);
+        const Tile tile = flow.Next(*scene.root, L"Button / Theme preview", 1u, 128.0f);
         auto* button    = scene.root->AddChild<Button>(L"Ocean");
         static_cast<void>(button->SetThemePreview(
             ButtonThemePreview{{D2D1::ColorF(0.08f, 0.16f, 0.28f), D2D1::ColorF(0.12f, 0.48f, 0.72f), D2D1::ColorF(0.84f, 0.92f, 0.98f)}}));
-        button->SetBounds(CenterIn(tile.content, 160.0f, 76.0f));
+        const auto bounds = CenterIn(tile.content, 160.0f, 76.0f);
+        Require(bounds.left >= tile.content.left && bounds.top >= tile.content.top && bounds.right <= tile.content.right &&
+                    bounds.bottom <= tile.content.bottom,
+                "gallery theme preview stays within its content tile and clear of the caption");
+        button->SetBounds(bounds);
     }
     {
         const Tile tile = flow.Next(*scene.root, L"Button / French multiline", 1u, 128.0f);
@@ -1114,7 +1118,7 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
-        const Tile presentationTile      = flow.Next(*scene.root, L"RichTextEditor / document surface and link cues", 2u, 250.0f);
+        const Tile presentationTile      = flow.Next(*scene.root, L"RichTextEditor / document surface and link cues", 2u, 350.0f);
         constexpr auto* presentationText = L"# Document surface\n\nA focused [link with **style**](local) has a native underline.\n\n"
                                            L"Inactive paragraphs use subdued ink.\n\nSearch highlights preserve source.";
         auto* presentation               = scene.root->AddChild<RichTextEditor>(presentationText);
@@ -1133,7 +1137,10 @@ void AddComboItems(ComboBox& combo)
         presentation->SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret);
         presentation->SetFocusModeEnabled(true);
         const auto text  = presentation->GetText();
+        const auto link  = text.find(L"link with");
         const auto match = text.find(L"Search");
+        Require(link != std::wstring::npos && match != std::wstring::npos, "gallery presentation fixture has its link and search match");
+        presentation->SetSelection({link + 1u, link + 1u});
         const std::array highlights{RichTextSourceHighlight{match, 6u, true}};
         presentation->SetSourceHighlights(highlights);
         presentation->SetBounds(presentationTile.content);
