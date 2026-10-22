@@ -147,9 +147,13 @@ public:
             {
                 try
                 {
-                    auto local = ResolveLocalImagePath(stage.base, destination);
-                    if (local || ! stage.remoteEnabled)
-                        return local;
+                    const auto local = ResolveLocalImagePath(stage.base, destination);
+                    // A direct fallible copy avoids Debug STL proxy allocation
+                    // inside optional<wstring>'s noexcept move constructor.
+                    if (local)
+                        return std::optional<std::wstring>(std::in_place, local.value());
+                    if (! stage.remoteEnabled)
+                        return std::optional<std::wstring>{};
                     kind = RichImageSourceKind::RemoteHttp;
                     return ResolveRemoteImageSource(destination);
                 }

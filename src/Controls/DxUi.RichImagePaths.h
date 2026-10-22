@@ -230,7 +230,9 @@ inline std::optional<std::wstring> ResolveRemoteImageSource(std::wstring_view so
     std::transform(result.begin(), result.begin() + static_cast<std::ptrdiff_t>(colon + 3u + hostEnd), result.begin(), [](wchar_t c) {
         return c >= L'A' && c <= L'Z' ? static_cast<wchar_t>(c + L'a' - L'A') : c;
     });
-    return result;
+    // Construct the optional directly: moving the Debug STL string can allocate
+    // its iterator proxy inside a noexcept constructor during failure injection.
+    return std::optional<std::wstring>(std::in_place, result);
 }
 inline std::optional<std::wstring> DecodeLocalImageUriPath(std::wstring_view value)
 {

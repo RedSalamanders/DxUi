@@ -1,0 +1,1 @@
+- Keep local and explicitly enabled remote image-source admission able to unwind allocation failures in MSVC Debug by constructing optional string returns directly. The per-allocation fault sweep covers mixed local/remote admission, prior snapshot preservation and successful retries; full profile qualification remains pending.
