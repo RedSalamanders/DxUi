@@ -4,6 +4,7 @@
 
 namespace DxUi
 {
+class EmbeddedHost;
 // One caller-created pool per D3D11 device generation, shared by embedded views. All methods are UI-thread affine.
 // The pool retains COM references; the application owns device creation, immediate-context scheduling and presentation.
 class GraphicsDevice final
@@ -57,6 +58,37 @@ struct EmbeddedTextInputSnapshot
     NativeTextInputState state;
     std::optional<D2D1_RECT_F> caretBoundsDip;
     std::optional<D2D1_RECT_F> viewportBoundsDip;
+};
+// One-use correlation token for a translated WM_CHAR produced by a Return/Space keydown. Keep the token with that
+// specific key event and pass it only to its corresponding character message. A key-up does not consume the token.
+// If translation produces no character, keep or discard the token explicitly; standalone text input uses the
+// uncorrelated DispatchCharacter overload and is never suppressed by a pending token. Nested key dispatches must use
+// distinct receipt objects; overlapping reuse of one receipt invalidates that association when the outer dispatch ends.
+class EmbeddedKeyDispatchReceipt final
+{
+public:
+    EmbeddedKeyDispatchReceipt() noexcept                                    = default;
+    EmbeddedKeyDispatchReceipt(const EmbeddedKeyDispatchReceipt&)            = delete;
+    EmbeddedKeyDispatchReceipt& operator=(const EmbeddedKeyDispatchReceipt&) = delete;
+    EmbeddedKeyDispatchReceipt(EmbeddedKeyDispatchReceipt&& other) noexcept;
+    EmbeddedKeyDispatchReceipt& operator=(EmbeddedKeyDispatchReceipt&& other) noexcept;
+
+private:
+    void Reset() noexcept;
+    friend class EmbeddedHost;
+    const EmbeddedHost* _embeddedHost = nullptr;
+    const ControlHost* _controlHost   = nullptr;
+    Control* _owner                   = nullptr;
+    Control* _root                    = nullptr;
+    std::weak_ptr<int> _ownerLifetime;
+    std::weak_ptr<int> _rootLifetime;
+    uint64_t _attachmentRevision = 0u;
+    uint64_t _focusOwnerEpoch    = 0u;
+    uint64_t _sequence           = 0u;
+    UINT _virtualKey             = 0u;
+    bool _ownerSupportsTextInput = false;
+    bool _allowCharacter         = false;
+    bool _valid                  = false;
 };
 enum class EmbeddedTextInputAction : uint8_t
 {
@@ -123,6 +155,15 @@ public:
     bool DispatchPointer(const PointerEvent& event) noexcept;
     bool DispatchKey(UINT virtualKey, bool down, UINT modifiers = 0) noexcept;
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
+    // Correlate a Return/Space keydown with its exact translated character. Keep a separate receipt for each keydown
+    // that may translate, including repeats; key-up uses the original overload. Only matching Return/Space characters
+    // consume a receipt. Foreign or mismatched attempts return false without consuming it; stale matching characters
+    // return true to consume without retargeting. The old overloads retain their independent-dispatch behavior.
+    bool DispatchKey(UINT virtualKey, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt& translatedCharacterReceipt) noexcept;
+    bool DispatchCharacter(wchar_t character, UINT modifiers, EmbeddedKeyDispatchReceipt& translatedCharacterReceipt) noexcept;
+    // Non-consuming permission query for raw message pumps: after DispatchKey(keydown, ..., receipt), translate the
+    // OS message only when this returns true. The emitted WM_CHAR then uses the bare DispatchCharacter overload.
+    [[nodiscard]] bool ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& receipt) noexcept;
     // S_FALSE means no available focused text control. Bounds are view-local DIPs, not screen pixels.
     HRESULT ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept;
     // Optional application-side clipboard transform. Checks the current focus
@@ -154,8 +195,10 @@ private:
     ControlHost _host;
     // Attachment epoch plus the existing dirty revision forms the text token. Ordinary invalidation adds no
     // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
-    uint64_t _textInputRevision = 1;
+    uint64_t _textInputRevision   = 1;
+    uint64_t _keyDispatchSequence = 0u;
     static void InvalidateThunk(void* context) noexcept;
+    bool DispatchKeyImpl(UINT virtualKey, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept;
     void RequestPreparation() noexcept;
     void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor

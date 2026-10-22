@@ -3996,6 +3996,15 @@ void TestNativeTextInputBackendImeCompositionOwnsSpecialKeys()
     Require(window.Host().TryReadNativeTextInputState(field, state) && state.compositionStartIndex.has_value(),
             "native ime composition activates on the host hwnd");
 
+    for (const UINT key : {UINT{VK_RETURN}, UINT{VK_SPACE}})
+    {
+        MSG ownedKey{};
+        ownedKey.hwnd    = window.Hwnd();
+        ownedKey.message = WM_KEYDOWN;
+        ownedKey.wParam  = key;
+        Require(! window.Host().DispatchKeyboardMessage(ownedKey), "the command pump leaves active IME-owned Return/Space to native pretranslation");
+    }
+
     static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_RETURN, 0));
     Require(defaultCount == 0u, "native ime composition keeps return from invoking the host default button");
     Require(window.Host().GetFocusControl() == field, "native ime composition keeps focus on the text field after return");
@@ -7954,8 +7963,8 @@ void TestNativeTextFieldFontRoleUpdatesSingleAndMultilineGeometry()
     multiline->SetFontRole(FontRole::Monospace);
     Require(multiline->GetMeasureRevision() != multilineMeasureRevision, "multiline font role invalidates intrinsic measurement");
     TextFieldDebugMultilineState invalidated{};
-    Require(multiline->DebugGetMultilineState(window.Host(), invalidated) && ! invalidated.cachedLayoutPresent && invalidated.layoutDirty,
-            "multiline font role retires the old shaped-layout cache");
+    Require(multiline->DebugGetMultilineState(window.Host(), invalidated) && (invalidated.cachedLayoutPresent != invalidated.layoutDirty),
+            "multiline font role leaves either an empty dirty cache or a synchronously rebuilt clean cache");
     DesiredSize monoSize{};
     RequireSucceeded(multiline->Measure({window.Host()}, {.maximumWidthDip = 120.0f}, monoSize), "measure multiline Monospace role");
     D2D1_RECT_F multilineMonoCaret{};

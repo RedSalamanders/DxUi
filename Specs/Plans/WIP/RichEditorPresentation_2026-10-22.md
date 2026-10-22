@@ -35,6 +35,15 @@ the exact owner/source/width/typography/resource key. Native and embedded
 two-editor tests retain exact math ranges, bounds and navigation while rejecting
 the editor's own stale source or reflow.
 
+The consumer's real keyboard run exposed translated command characters entering
+the editor after a toolbar callback returned focus. The shared repair adds an
+explicit native pretranslation dispatch boundary and embedded key/character
+receipts. Standalone committed text remains independent; nested permission,
+failed callbacks, root retirement and attachment changes cannot authorize a
+successor's character. Directed native and embedded regressions cover both
+editors, normal Return/Space, command activation, stale/foreign receipts and
+reentrant dispatch. The consumer must adopt the boundary in every owning pump.
+
 The clean baseline's x64 Release EditorControls, Accessibility and Embedded run
 passed without skips before source changes. Rebuilt candidate diagnostics pass
 the complete EditorControls suite, the focused native/embedded accessibility

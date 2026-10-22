@@ -262,6 +262,22 @@ Retained providers disconnect when their page/control identity leaves that tree 
 Native key-down and system-key-down messages remain unhandled when neither a control nor a host action consumes
 them, so the application's window procedure and DefWindowProc retain their normal fallback behavior.
 
+Native retained-host pumps MUST call `DispatchKeyboardMessage` after application
+accelerators/TSF pretranslation and before ordinary Windows translation. For an
+exact attached-HWND Return/Space key-down, it dispatches the real window procedure
+once before deciding whether to produce a character. A handled command MUST NOT
+produce a character for a successor editor. Unhandled text-input keys and a
+handler's explicit `AllowTranslatedCharacter` permission may translate only while
+the original weak owner, root and logical-focus epoch remain current. Idempotent
+focus refreshes preserve ownership; focus round trips, root retirement, detach
+and failed callbacks revoke it. Nested dispatch MUST NOT leak permission into an
+outer route. Multiline TextField/RichTextEditor Return reserves exactly one later
+character; preview/submission/default/button commands do not. Foreign/child HWND
+messages, system keys and IME-owned keys retain the existing path. Standalone
+committed character input is unchanged. There is no queue scan, text removal,
+timer, sticky suppression flag or character reinterpretation in this boundary.
+`HandleMessage` without the pretranslation hook cannot establish this guarantee.
+
 Form editors expose `LabeledBy`, `IsRequiredForForm`, `IsDataValidForForm`, textual error `ItemStatus`, description
 `HelpText` and the stable field identity as `AutomationId`. A `NumericStepper` attaches these semantics to its
 inner editable text provider. The visual label remains a real element with its own full name and mnemonic target;

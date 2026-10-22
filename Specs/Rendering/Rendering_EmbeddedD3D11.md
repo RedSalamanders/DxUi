@@ -85,6 +85,25 @@ Applications retain HWND/TSF client, focusId/revision and screen-placement owner
 prepare changed composition/scroll/DPI before publishing geometry or accessibility.
 Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
 
+For embedded Return/Space keydown, `DispatchKey` can issue a move-only
+`EmbeddedKeyDispatchReceipt` that binds the original view attachment, control
+tree and focused owner before callbacks. A raw Win32 pump uses
+`ShouldTranslateCharacter(receipt)` after dispatch and calls the OS
+`TranslateMessage` only when the same live text owner has permission; the later
+`WM_CHAR` uses ordinary `DispatchCharacter`. A transport that can preserve the
+exact key/character association may instead pass the receipt to the correlated
+`DispatchCharacter` overload. The receipt is one-use for a matching character;
+foreign and mismatched attempts are rejected without consuming it, while a
+matching character whose original owner or attachment has retired is consumed
+without retargeting. Standalone committed characters remain independent of
+pending receipts. Handled command activation does not authorize text; an
+explicitly accepted editor Return or an unhandled text-input key can translate
+once for that same owner. The API does not infer provenance from character
+value or time. Nested key dispatches use distinct receipt objects. If overlapping
+calls reuse one receipt object, the outer call invalidates that shared association
+on completion, including when unwinding a callback; neither call may authorize a
+delayed character through the reused object.
+
 Cooperative content preparation: Prepare returns
 S_FALSE with NeedsPreparation=true while owner work remains; the application
 callback requests the next event-driven turn. No partial surface is composed.

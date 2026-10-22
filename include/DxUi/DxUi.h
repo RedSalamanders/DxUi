@@ -5400,6 +5400,14 @@ public:
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
 
+    // Call after accelerator/TSF pretranslation and before TranslateMessage. For Return/Space key-down
+    // directed at this attached HWND, dispatches once through the real window procedure, then translates
+    // only an explicitly permitted character still owned by the original text-input control. Returns
+    // true when it dispatched the message; other messages/foreign HWNDs retain the ordinary pump path.
+    [[nodiscard]] bool DispatchKeyboardMessage(const MSG& message) noexcept;
+    // A key handler that consumes Return/Space but needs its translated character calls this before
+    // returning. Permission belongs only to the current dispatch frame; nested handlers are isolated.
+    void AllowTranslatedCharacter() noexcept;
     LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     // The device of the pointer events a test dispatches straight to a control, which no message or PointerEvent carries.
@@ -5481,10 +5489,17 @@ private:
     friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
-    void* _embeddedAccessibilityTarget        = nullptr;
-    bool _gainingWindowFocus                  = false; // In OnSetFocus: the system's focus event reports the element.
-    bool _resettingInteractionState           = false;
-    bool _replacingRoot                       = false;
+    void* _embeddedAccessibilityTarget = nullptr;
+    bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
+    bool _resettingInteractionState    = false;
+    bool _replacingRoot                = false;
+    struct KeyCharacterDispatch final
+    {
+        KeyCharacterDispatch* previous = nullptr;
+        UINT virtualKey                = 0u;
+        bool messageRoute              = false;
+        bool allowCharacter            = false;
+    };
     ULONGLONG _focusGainTurnStartedMs         = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
     WPARAM _focusGainTurnId                   = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
     uint64_t _focusGainResolutions            = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
@@ -5772,6 +5787,9 @@ private:
     uint64_t _animationSubscriptionId   = 0;
     uint64_t _lastAnimationTickMs       = 0;
     bool _animationSuspendedWhileHidden = false;
+    // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
+    uint64_t _keyboardOwnerEpoch                = 0u;
+    KeyCharacterDispatch* _keyCharacterDispatch = nullptr; // Synchronous borrowed stack frame only.
 };
 
 struct TransientSurfaceBackdrop final

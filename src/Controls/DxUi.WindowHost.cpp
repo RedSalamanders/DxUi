@@ -1888,6 +1888,7 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
         if (! isCurrentRequest())
             return;
     }
+    ++_keyboardOwnerEpoch;
     _focusedControl = nullptr;
     if (oldFocus && ! oldFocusLifetime.expired() && ControlBelongsToTree(_root.get(), oldFocus))
     {
@@ -2759,6 +2760,58 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
     Invalidate();
 }
 
+void ControlHost::AllowTranslatedCharacter() noexcept
+{
+    if (_keyCharacterDispatch && _keyCharacterDispatch->messageRoute &&
+        (_keyCharacterDispatch->virtualKey == VK_RETURN || _keyCharacterDispatch->virtualKey == VK_SPACE))
+        _keyCharacterDispatch->allowCharacter = true;
+}
+
+bool ControlHost::DispatchKeyboardMessage(const MSG& message) noexcept
+{
+    if (message.message != WM_KEYDOWN || (message.wParam != VK_RETURN && message.wParam != VK_SPACE) || ! message.hwnd ||
+        GetWindowThreadProcessId(message.hwnd, nullptr) != GetCurrentThreadId())
+        return false;
+    if (message.hwnd != _hwnd || _detachInProgress.load(std::memory_order_acquire) ||
+        (_nativeTextInputImeComposing && NativeImeCompositionOwnsKey(static_cast<UINT>(message.wParam), GetModifierState())))
+        return false;
+
+    Control* const owner                   = _focusedControl;
+    const std::weak_ptr<int> ownerLifetime = owner && ControlBelongsToTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
+    Control* const root                    = _root.get();
+    const std::weak_ptr<int> rootLifetime  = root ? root->GetLifetimeToken() : std::weak_ptr<int>{};
+    const uint64_t ownerEpoch              = _keyboardOwnerEpoch;
+    KeyCharacterDispatch dispatch{.previous = _keyCharacterDispatch, .virtualKey = static_cast<UINT>(message.wParam)};
+    _keyCharacterDispatch      = &dispatch;
+    const auto restoreDispatch = wil::scope_exit([this, &dispatch]() noexcept { _keyCharacterDispatch = dispatch.previous; });
+
+    // Translating after dispatch gives the key's actual command/text route authority over character
+    // production. No queued text is inspected, removed, delayed or heuristically suppressed.
+    DispatchMessageW(&message);
+    if (dispatch.allowCharacter && _hwnd == message.hwnd && ownerEpoch == _keyboardOwnerEpoch && _root.get() == root && ! rootLifetime.expired() && owner &&
+        ! ownerLifetime.expired() && _focusedControl == owner && RevalidateInteractiveDispatchedControl(ownerLifetime, _root.get(), owner) == owner &&
+        owner->SupportsTextInput())
+        TranslateMessage(&message);
+    return true;
+}
+
+bool DispatchAttachedWindowHostKeyboardMessage(const MSG& message) noexcept
+{
+    if (message.message != WM_KEYDOWN || (message.wParam != VK_RETURN && message.wParam != VK_SPACE) || ! message.hwnd ||
+        GetWindowThreadProcessId(message.hwnd, nullptr) != GetCurrentThreadId())
+        return false;
+    ControlHost* host = nullptr;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        const auto& hosts = GetAttachedWindowHosts();
+        const auto found  = std::ranges::find(hosts, message.hwnd, &WindowHostAttachment::hwnd);
+        if (found != hosts.end() && found->ownerThreadId == GetCurrentThreadId())
+            host = found->host;
+    }
+    // All attachment changes are owner-thread-only. No registry lock crosses user dispatch.
+    return host && host->DispatchKeyboardMessage(message);
+}
+
 LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept
 try
 {
@@ -3247,7 +3300,16 @@ try
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
         {
-            handled = true;
+            KeyCharacterDispatch keyDispatch{.previous = _keyCharacterDispatch, .virtualKey = static_cast<UINT>(wp), .messageRoute = true};
+            _keyCharacterDispatch        = &keyDispatch;
+            const int dispatchExceptions = std::uncaught_exceptions();
+            const auto restoreDispatch   = wil::scope_exit([this, &keyDispatch, dispatchExceptions]() noexcept
+            {
+                _keyCharacterDispatch = keyDispatch.previous;
+                if (keyDispatch.previous && ! keyDispatch.previous->messageRoute && keyDispatch.previous->virtualKey == keyDispatch.virtualKey)
+                    keyDispatch.previous->allowCharacter = keyDispatch.allowCharacter && std::uncaught_exceptions() == dispatchExceptions;
+            });
+            handled                      = true;
             SetInputModality(InputModality::Keyboard);
             UpdateModifierStateForKey(static_cast<UINT>(wp), true, msg == WM_SYSKEYDOWN);
             if (HandleTooltipInspectionKey(static_cast<UINT>(wp)))
@@ -3351,6 +3413,10 @@ try
                         }
                     }
                 }
+                if (wp == VK_RETURN || wp == VK_SPACE)
+                    if (Control* const characterOwner = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
+                        characterOwner && characterOwner == _focusedControl && characterOwner->SupportsTextInput())
+                        AllowTranslatedCharacter();
             }
             handled = false;
             return 0;
@@ -4621,6 +4687,7 @@ bool ControlHost::IsInFocusGainTurn() const noexcept
 
 void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
 {
+    ++_keyboardOwnerEpoch;
     const uint64_t requestRevision = ++_focusRequestRevision;
     _focusGainTurnStartedMs        = 0u;
     DeactivateTextInput();
@@ -4754,6 +4821,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
     const ControlInteractionState focusedState = classifyInteractionState(_focusedControl);
     if (_focusedControl && ! focusedState.effectivelyInteractive)
     {
+        ++_keyboardOwnerEpoch;
         Control* const oldFocus = _focusedControl;
         _focusedControl         = nullptr;
         if (focusedState.inTree)
@@ -4797,6 +4865,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
 
 void ControlHost::ResetRootInteractionState() noexcept
 {
+    ++_keyboardOwnerEpoch;
     ++_focusRequestRevision;
     const bool wasResetting                   = std::exchange(_resettingInteractionState, true);
     const auto endResetting                   = wil::scope_exit([this, wasResetting]() noexcept { _resettingInteractionState = wasResetting; });

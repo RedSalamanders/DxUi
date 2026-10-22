@@ -65,9 +65,24 @@ Captured drag continuation may update a draft between paints. Moving, removing, 
 control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
 are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
 
-Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Those methods are not a complete
-embedded IME, text-store or UI Automation bridge: the consumer must supply the integrations described in
-[input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
+Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. For a raw Win32 pump, dispatch a
+Return/Space keydown once with an `EmbeddedKeyDispatchReceipt`, then call `ShouldTranslateCharacter(receipt)` before
+`TranslateMessage`. Translate only when it returns true; send the resulting `WM_CHAR` through the bare
+`DispatchCharacter` overload. This preserves the OS keyboard layout and prevents a handled command from producing an
+editor character. The query is non-consuming and validates the original view, root, focus owner and permission at the
+time of the query.
+
+If a transport can retain the exact key/character association itself, pass that keydown's receipt to the correlated
+`DispatchCharacter` overload instead. Keep a separate receipt per keydown (including repeats) and retain it across
+key-up. The correlated overload consumes a matching stale character without retargeting; a foreign or mismatched
+attempt is rejected and leaves the receipt available for its correct view/character. Do not retry a rejected
+correlated character through the bare overload. The bare overload remains independent committed text input and is
+appropriate for standalone characters, including Unicode and IME paths that are not translated from Return or Space.
+An explicitly accepted editor Return and an unhandled text-input key can still insert once into the same focused owner.
+Nested key dispatches must use distinct receipt objects. Reusing one object for overlapping calls invalidates its
+association when the outer call completes, so neither call can authorize a delayed character through that object.
+The embedded API is not a complete IME, text-store or UI Automation bridge: the consumer must supply the integrations
+described in [input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
 
 Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. A tick marks the view dirty
 only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
@@ -88,6 +103,33 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+After application accelerators and TSF pretranslation, pass each message to
+`host.DispatchKeyboardMessage(message)` before calling `TranslateMessage`. When
+it returns true, continue the loop: it already dispatched that exact attached
+HWND's Return/Space key once through the real window procedure. It translates
+only when the original text-input owner still owns an explicitly permitted
+character. Foreign/child HWNDs, system keys, IME-owned keys and other messages
+return false and retain the ordinary translation/dispatch path. This boundary
+prevents a toolbar command that returns focus to an editor from typing its own
+activation character into the editor's retained selection.
+
+```cpp
+if (host.DispatchKeyboardMessage(message))
+    continue;
+TranslateMessage(&message);
+DispatchMessageW(&message);
+```
+
+Custom text controls that handle Return/Space to reserve a later translated
+character call `host.AllowTranslatedCharacter()` inside that key handler.
+Handled commands do not grant this permission. Unhandled text-input keys are
+permitted by the host; the built-in multiline TextField and RichTextEditor
+explicitly reserve Return. Permission is scoped to one synchronous key route,
+including nested dispatch, and expires on failure or ownership retirement.
+`HandleMessage` alone retains the existing transport API; a pump that translates
+before dispatch has no reliable character provenance and must adopt this hook
+to obtain the activation ownership guarantee. DxUi's modal loop adopts it.
+
 An explicit focus request made from a control or host callback supersedes its outer request. Focus callbacks
 should complete without throwing and overrides must call their base handler; standard exceptions are contained
 with a safe base-state fallback. Reset and root replacement retire the old interaction state without taking HWND

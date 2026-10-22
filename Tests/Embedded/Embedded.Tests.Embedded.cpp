@@ -1424,6 +1424,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
+    TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
     TestPreparedTreeAccessibilitySemantics(gpu);
     TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);

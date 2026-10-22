@@ -492,6 +492,8 @@ void DrawTextWithMnemonic(ControlHost& host,
 [[nodiscard]] bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept;
 
 inline constexpr PCWSTR kNativeAccessibilityTargetProperty = L"DxUi.ControlHost";
+// Exact attached HWND lookup for library-owned modal loops; never routes child/foreign window input.
+[[nodiscard]] bool DispatchAttachedWindowHostKeyboardMessage(const MSG& message) noexcept;
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;

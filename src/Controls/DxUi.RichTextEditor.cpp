@@ -2274,7 +2274,11 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     PublishSelectionChanged();
                 return true;
             }
-            case VK_RETURN: return Editable(); // WM_CHAR / DispatchCharacter performs the one insertion.
+            case VK_RETURN:
+                if (! Editable())
+                    return false;
+                host.AllowTranslatedCharacter(); // WM_CHAR / correlated DispatchCharacter performs the one insertion.
+                return true;
             default: return false;
         }
     }

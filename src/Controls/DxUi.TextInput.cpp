@@ -2529,6 +2529,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (virtualKey == VK_RETURN && _multiline)
     {
+        host.AllowTranslatedCharacter();
         return true;
     }
     if (virtualKey == VK_RETURN && ! _multiline)

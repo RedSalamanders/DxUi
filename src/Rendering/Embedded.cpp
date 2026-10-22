@@ -1,4 +1,5 @@
 #include "../Controls/DxUi.Internal.h"
+#include "../Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUiCompositePS.h>
@@ -10,6 +11,47 @@
 
 namespace DxUi
 {
+void EmbeddedKeyDispatchReceipt::Reset() noexcept
+{
+    _embeddedHost = nullptr;
+    _controlHost  = nullptr;
+    _owner        = nullptr;
+    _root         = nullptr;
+    _ownerLifetime.reset();
+    _rootLifetime.reset();
+    _attachmentRevision     = 0u;
+    _focusOwnerEpoch        = 0u;
+    _sequence               = 0u;
+    _virtualKey             = 0u;
+    _ownerSupportsTextInput = false;
+    _allowCharacter         = false;
+    _valid                  = false;
+}
+EmbeddedKeyDispatchReceipt::EmbeddedKeyDispatchReceipt(EmbeddedKeyDispatchReceipt&& other) noexcept
+{
+    *this = std::move(other);
+}
+EmbeddedKeyDispatchReceipt& EmbeddedKeyDispatchReceipt::operator=(EmbeddedKeyDispatchReceipt&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    Reset();
+    _embeddedHost           = other._embeddedHost;
+    _controlHost            = other._controlHost;
+    _owner                  = other._owner;
+    _root                   = other._root;
+    _ownerLifetime          = std::move(other._ownerLifetime);
+    _rootLifetime           = std::move(other._rootLifetime);
+    _attachmentRevision     = other._attachmentRevision;
+    _focusOwnerEpoch        = other._focusOwnerEpoch;
+    _sequence               = other._sequence;
+    _virtualKey             = other._virtualKey;
+    _ownerSupportsTextInput = other._ownerSupportsTextInput;
+    _allowCharacter         = other._allowCharacter;
+    _valid                  = other._valid;
+    other.Reset();
+    return *this;
+}
 struct GraphicsDevice::State
 {
     DWORD thread = GetCurrentThreadId();
@@ -693,6 +735,52 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 }
 bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
 {
+    return DispatchKeyImpl(key, down, modifiers, nullptr);
+}
+bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    receipt.Reset();
+    return DispatchKeyImpl(key, down, modifiers, &receipt);
+}
+bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept
+{
+    uint64_t issuedReceiptSequence = 0u;
+    // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
+    // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
+    const auto invalidateOverlappedReceipt = wil::scope_exit([this, receipt, &issuedReceiptSequence]() noexcept
+    {
+        if (receipt && (receipt->_embeddedHost != this || receipt->_controlHost != &_host || receipt->_sequence != issuedReceiptSequence))
+            receipt->Reset();
+    });
+    ControlHost::KeyCharacterDispatch keyDispatch{.previous = _host._keyCharacterDispatch, .virtualKey = key, .messageRoute = down};
+    _host._keyCharacterDispatch = &keyDispatch;
+    const auto restoreDispatch  = wil::scope_exit([this, &keyDispatch]() noexcept { _host._keyCharacterDispatch = keyDispatch.previous; });
+
+    // Capture raw identities before pruning or input-modality callbacks. Only take a token from a control proven to
+    // belong to the current tree, so stale focus pointers are never dereferenced while issuing the receipt.
+    if (receipt && down && (key == VK_RETURN || key == VK_SPACE) && _state)
+    {
+        ++_keyDispatchSequence;
+        if (_keyDispatchSequence == 0u)
+            ++_keyDispatchSequence;
+        issuedReceiptSequence            = _keyDispatchSequence;
+        Control* const initialTarget     = _host.GetFocusControl();
+        Control* const initialRoot       = _host._root.get();
+        const bool ownerIsInTree         = initialTarget && IsControlInTree(initialRoot, initialTarget);
+        receipt->_embeddedHost           = this;
+        receipt->_controlHost            = &_host;
+        receipt->_owner                  = ownerIsInTree ? initialTarget : nullptr;
+        receipt->_root                   = initialRoot;
+        receipt->_ownerLifetime          = ownerIsInTree ? initialTarget->GetLifetimeToken() : std::weak_ptr<int>{};
+        receipt->_rootLifetime           = initialRoot ? initialRoot->GetLifetimeToken() : std::weak_ptr<int>{};
+        receipt->_attachmentRevision     = _textInputRevision;
+        receipt->_focusOwnerEpoch        = _host._keyboardOwnerEpoch;
+        receipt->_sequence               = issuedReceiptSequence;
+        receipt->_virtualKey             = key;
+        receipt->_ownerSupportsTextInput = ownerIsInTree && initialTarget->SupportsTextInput();
+        receipt->_valid                  = true;
+    }
+
     if (! TextInputIsAvailable())
         return false;
     try
@@ -701,8 +789,11 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
         if (! TextInputIsAvailable())
             return false;
         _host.SetInputModality(InputModality::Keyboard);
+        auto* target = _host.GetFocusControl();
         if (down && _host.HandleTooltipInspectionKey(key))
+        {
             return true;
+        }
         if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
             return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
@@ -710,20 +801,41 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
             // A semantic editor owns list/cell Tab before ordinary host focus
             // traversal, just as under WM_KEYDOWN. A declined callback may also
             // retire/rebind its owner: never traverse a successor in that frame.
-            auto* target        = _host.GetFocusControl();
-            const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
-            if (target && target->OnKeyDown(_host, key, modifiers))
+            auto* tabTarget     = _host.GetFocusControl();
+            const auto lifetime = tabTarget ? tabTarget->GetLifetimeToken() : std::weak_ptr<int>{};
+            if (tabTarget && tabTarget->OnKeyDown(_host, key, modifiers))
                 return true;
-            if (target &&
-                (lifetime.expired() || _host.GetFocusControl() != target || target->GetHost() != &_host || ! target->IsEnabled() || ! target->IsVisible()))
+            if (tabTarget && (lifetime.expired() || _host.GetFocusControl() != tabTarget || tabTarget->GetHost() != &_host || ! tabTarget->IsEnabled() ||
+                              ! tabTarget->IsVisible()))
                 return true;
             return _host.HandleTabNavigation((modifiers & MK_SHIFT) != 0);
         }
-        auto* target = _host.GetFocusControl();
-        return target && (down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers));
+        target = _host.GetFocusControl();
+        if (! target)
+            return false;
+
+        const bool handled = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+        {
+            if (! handled && ! receipt->_ownerLifetime.expired() && target == _host.GetFocusControl() && target->GetHost() == &_host &&
+                _host._keyboardOwnerEpoch == receipt->_focusOwnerEpoch && target->SupportsTextInput())
+                keyDispatch.allowCharacter = true;
+            receipt->_allowCharacter = keyDispatch.allowCharacter;
+        }
+        return handled;
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
     }
     catch (const std::exception&)
     {
+        // Noexcept input boundary: a failed key route must not authorize a later translated character.
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+            receipt->_allowCharacter = false;
+        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch failed; translated character permission withheld.");
         return false;
     }
 }
@@ -741,6 +853,84 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
     }
     catch (const std::exception&)
     {
+        return false;
+    }
+}
+bool EmbeddedHost::ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    if (! receipt._valid || receipt._embeddedHost != this || receipt._controlHost != &_host || ! receipt._allowCharacter || ! receipt._ownerSupportsTextInput ||
+        ! _state || ! _state->visible || _state->zeroSized || receipt._attachmentRevision != _textInputRevision)
+        return false;
+
+    Control* const owner = receipt._owner;
+    Control* const root  = receipt._root;
+    if (! owner || receipt._ownerLifetime.expired() || ! root || receipt._rootLifetime.expired() || _host._root.get() != root ||
+        _host._keyboardOwnerEpoch != receipt._focusOwnerEpoch || _host.GetFocusControl() != owner || owner->GetHost() != &_host || ! owner->HasFocus() ||
+        ! owner->SupportsTextInput() || ! IsControlEffectivelyInteractive(root, owner))
+        return false;
+    if (_state->coherent && _state->preparedInteractionRevision == _host._interactionRevision)
+        return true;
+    return _state->contentPending && _state->contentInteractionRevision == _host._interactionRevision && IsControlInTree(_host._root.get(), owner) &&
+           owner->IsEnabled() && owner->IsVisible() && owner->HasFocus() && owner->AcceptsTextInputDuringPreparation();
+}
+bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    if (! receipt._valid)
+        return false;
+
+    const wchar_t expectedCharacter = receipt._virtualKey == VK_RETURN ? L'\r' : L' ';
+    const bool receiptBelongsHere   = receipt._embeddedHost == this && receipt._controlHost == &_host;
+    // A foreign view or an unrelated character does not consume the caller's token; it may still be delivered to
+    // the correct view/message. A matching attempt below consumes it before any user callback can re-enter.
+    if (! receiptBelongsHere || character != expectedCharacter)
+        return false;
+
+    const bool currentAttachment      = _state && receipt._attachmentRevision == _textInputRevision;
+    const auto owner                  = receipt._owner;
+    const auto ownerLifetime          = receipt._ownerLifetime;
+    const auto root                   = receipt._root;
+    const auto rootLifetime           = receipt._rootLifetime;
+    const uint64_t ownerEpoch         = receipt._focusOwnerEpoch;
+    const uint64_t attachmentRevision = receipt._attachmentRevision;
+    const bool ownerSupportsTextInput = receipt._ownerSupportsTextInput;
+    const bool allowCharacter         = receipt._allowCharacter;
+    receipt.Reset();
+
+    if (! currentAttachment)
+        return true;
+
+    // A matching character belongs to its key event even if that callback retired its owner, replaced the tree,
+    // detached this view, or moved focus. Never retarget it to a successor editor.
+    if (! _state || _textInputRevision != attachmentRevision || _host._root.get() != root || (root && rootLifetime.expired()) ||
+        _host._keyboardOwnerEpoch != ownerEpoch)
+        return true;
+    if (! owner)
+        return true;
+    if (ownerLifetime.expired() || _host.GetFocusControl() != owner || owner->GetHost() != &_host)
+        return true;
+
+    if (! allowCharacter)
+        return true;
+    if (! ownerSupportsTextInput || ! TextInputIsAvailable())
+        return true;
+
+    try
+    {
+        _host.PruneStaleInteractionState();
+        if (! _state || _textInputRevision != attachmentRevision || (root && rootLifetime.expired()) || _host._root.get() != root ||
+            _host._keyboardOwnerEpoch != ownerEpoch || ownerLifetime.expired() || _host.GetFocusControl() != owner || owner->GetHost() != &_host ||
+            ! owner->SupportsTextInput() || ! owner->HasFocus() || ! IsControlEffectivelyInteractive(root, owner))
+            return true;
+        return owner->OnChar(_host, character, modifiers);
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
+    }
+    catch (const std::exception&)
+    {
+        // Noexcept input boundary: the matching receipt remains consumed when a control callback fails.
+        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch failed; receipt consumed.");
         return false;
     }
 }

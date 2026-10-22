@@ -5,6 +5,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <thread>
 
 namespace
 {
@@ -235,13 +236,22 @@ void TestButtonContentFontSizeShapesIntrinsicVariants()
         auto* const base = host.GetTextFormat(role);
         Require(base != nullptr, "host retains the original role format");
         const auto baseSize = base->GetFontSize();
-        Label reference(std::wstring(button.GetText()));
-        reference.SetFontRole(role);
-        RequireSucceeded(reference.SetTypographyOverride(LabelTypography{.fontSizeDip = requested, .fontWeight = base->GetFontWeight()}),
-                         "shape an independent label with matching role family and weight");
-        DesiredSize text;
+        // A native layout changes only the original role's glyph size; it independently verifies
+        // Button's configured-format selection and baseline without relying on another control's optional baseline.
+        const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(button.GetText().size())};
+        wil::com_ptr<IDWriteTextLayout> reference;
+        RequireSucceeded(
+            host.GetWriteFactory()->CreateTextLayout(
+                button.GetText().data(), range.length, base, (std::numeric_limits<float>::max)(), (std::numeric_limits<float>::max)(), reference.put()),
+            "create an independent native layout with the unchanged role family and weight");
+        RequireSucceeded(reference->SetFontSize(requested, range), "shape native glyphs at the requested size");
+        DWRITE_TEXT_METRICS text{};
+        DWRITE_LINE_METRICS line{};
+        UINT32 lineCount = 0u;
+        RequireSucceeded(reference->GetMetrics(&text), "measure independent requested glyph geometry");
+        RequireSucceeded(reference->GetLineMetrics(&line, 1u, &lineCount), "measure the independent first-line baseline");
+        Require(lineCount == 1u, "the single-line native reference has exactly one baseline");
         DesiredSize sized;
-        RequireSucceeded(reference.Measure({host}, {}, text), "measure independent requested glyph geometry");
         RequireSucceeded(button.Measure({host}, {}, sized), "measure requested button content");
         float horizontal = icon ? 16.0f : 24.0f;
         if (variant == ButtonVariant::DropDown)
@@ -250,9 +260,9 @@ void TestButtonContentFontSizeShapesIntrinsicVariants()
             horizontal += kButtonSelectorChevronWidthDip;
         else if (variant == ButtonVariant::Split)
             horizontal += kButtonSplitDropDownSegmentDip;
-        Require(Close(sized.sizeDip.width, std::max(icon ? 32.0f : 0.0f, text.sizeDip.width + horizontal)) &&
-                    Close(sized.sizeDip.height, std::max(32.0f, text.sizeDip.height + 16.0f)) && sized.baselineDip && text.baselineDip &&
-                    Close(sized.baselineDip.value(), text.baselineDip.value() + 8.0f),
+        Require(Close(sized.sizeDip.width, std::max(icon ? 32.0f : 0.0f, text.widthIncludingTrailingWhitespace + horizontal)) &&
+                    Close(sized.sizeDip.height, std::max(32.0f, text.height + 16.0f)) && sized.baselineDip &&
+                    Close(sized.baselineDip.value(), line.baseline + 8.0f),
                 "every button variant measures the requested glyph size with its unchanged chrome and baseline padding");
         Require(base->GetFontSize() == baseSize, "a per-control size never mutates the host's role format");
         Require(button.SetContentFontSizeDip(std::nullopt) == S_OK, "restore role defaults");
@@ -274,96 +284,108 @@ void TestButtonContentFontSizeShapesIntrinsicVariants()
 
 void TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration()
 {
-    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
-    auto& host             = window.Host();
-    auto theme             = host.GetTheme();
-    theme.reducedMotion    = true;
-    theme.text             = D2D1::ColorF(D2D1::ColorF::Black);
-    theme.windowBackground = theme.buttonFill = theme.buttonHotFill = theme.buttonPressedFill = theme.buttonBorder = D2D1::ColorF(D2D1::ColorF::White);
-    host.SetTheme(theme);
-    auto root    = std::make_unique<Panel>();
-    auto* button = root->AddChild<Button>(L"MMMMMMMM");
-    button->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 100.0f));
-    host.SetRoot(std::move(root));
-    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    const auto capture = [&]
+    // A prior headless measure can initialize a hardware bucket for the runner thread. WARP ownership
+    // cannot replace a live graphics bucket, so keep this fixture on its own STA regardless of suite order.
+    std::jthread fixture([]
     {
-        host.Invalidate();
-        WindowHostBitmapCapture pixels;
-        Require(host.DebugCaptureBitmap(pixels), "capture offscreen WARP button glyphs without desktop activation");
-        return pixels;
-    };
-    // This fixture needs the dark glyph's ink bounds inside a border-free white button interior;
-    // alpha/full-image comparison helpers deliberately measure a different property.
-    const auto ink = [&](const WindowHostBitmapCapture& pixels)
-    {
-        const auto bounds = button->GetBounds();
-        const UINT left   = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.left + 4.0f)));
-        const UINT right  = std::min(pixels.widthPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.right - 4.0f))));
-        const UINT top    = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.top + 4.0f)));
-        const UINT bottom = std::min(pixels.heightPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.bottom - 4.0f))));
-        UINT minX = right, minY = bottom, maxX = left, maxY = top;
-        bool found = false;
-        for (UINT y = top; y < bottom; ++y)
-            for (UINT x = left; x < right; ++x)
-            {
-                const auto at = (static_cast<size_t>(y) * pixels.widthPx + x) * 4u;
-                if (pixels.bgraPixels[at] < 80u && pixels.bgraPixels[at + 1u] < 80u && pixels.bgraPixels[at + 2u] < 80u)
-                {
-                    minX  = std::min(minX, x);
-                    minY  = std::min(minY, y);
-                    maxX  = std::max(maxX, x);
-                    maxY  = std::max(maxY, y);
-                    found = true;
-                }
-            }
-        Require(found, "button capture contains actual shaped glyph pixels");
-        return D2D1::SizeF(static_cast<float>(maxX - minX + 1u), static_cast<float>(maxY - minY + 1u));
-    };
-    const auto inherited = ink(capture());
-    RequireSucceeded(button->SetContentFontSizeDip(14.0f), "paint exact chrome label size");
-    const auto normal = ink(capture());
-    Require(normal.width > inherited.width, "14-DIP paint grows actual glyph geometry above the inherited 13-DIP role");
-    RequireSucceeded(button->SetContentFontSizeDip(28.0f), "paint doubled chrome label size");
-    const auto doubled = ink(capture());
-    Require(doubled.width > normal.width * 1.8f && doubled.height > normal.height * 1.7f,
-            "paint uses the requested content size rather than only enlarging intrinsic bounds");
-    RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native role default");
-    const auto restored = ink(capture());
-    Require(Close(restored.width, inherited.width) && Close(restored.height, inherited.height), "clearing the size restores native default glyph geometry");
-
-    button->SetVariant(ButtonVariant::IconOnly);
-    button->SetText(host.HasFluentIconFont() ? L"\uE710" : L"+");
-    const auto originalIcon = ink(capture());
-    RequireSucceeded(button->SetContentFontSizeDip(18.0f), "paint 18-DIP line icon");
-    const auto sizedIcon = ink(capture());
-    Require(sizedIcon.width > originalIcon.width + 1.0f && sizedIcon.height > originalIcon.height + 1.0f,
-            "IconOnly scales actual Fluent or fallback glyphs using its retained host family");
-    const auto cacheCount = host.DebugGetConfiguredTextFormatCount();
-    for (unsigned repeat = 0u; repeat < 8u; ++repeat)
-        static_cast<void>(capture());
-    Require(host.DebugGetConfiguredTextFormatCount() == cacheCount, "repeated painting reuses configured formats without per-frame format growth");
-    const auto generation = host.GetResourceGeneration();
-    host.DebugSimulateDeviceLoss();
-    const auto recreated = ink(capture());
-    Require(host.GetResourceGeneration() != generation && Close(recreated.width, sizedIcon.width) && Close(recreated.height, sizedIcon.height) &&
-                button->GetContentFontSizeDip() == 18.0f && host.DebugGetConfiguredTextFormatCount() == cacheCount,
-            "device-generation replacement preserves requested glyph geometry and device-independent format cache identity");
-
-    button->SetVariant(ButtonVariant::DropDown);
-    button->SetText(L"Apply");
-    RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native drop-down baseline");
-    const auto before = capture();
-    RequireSucceeded(button->SetContentFontSizeDip(28.0f), "enlarge only the drop-down's caller content");
-    const auto after   = capture();
-    const auto chevron = ComputeButtonChromeLayout(button->GetBounds(), ButtonVariant::DropDown).chevronRect;
-    for (UINT y = static_cast<UINT>(host.DipsToPixels(chevron.top)); y < static_cast<UINT>(host.DipsToPixels(chevron.bottom)); ++y)
-        for (UINT x = static_cast<UINT>(host.DipsToPixels(chevron.left)); x < static_cast<UINT>(host.DipsToPixels(chevron.right)); ++x)
+        const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+        DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+        Require(blocker.Start(), "the WARP fixture thread cannot activate or focus desktop windows");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host             = window.Host();
+        auto theme             = host.GetTheme();
+        theme.reducedMotion    = true;
+        theme.text             = D2D1::ColorF(D2D1::ColorF::Black);
+        theme.windowBackground = theme.buttonFill = theme.buttonHotFill = theme.buttonPressedFill = theme.buttonBorder = D2D1::ColorF(D2D1::ColorF::White);
+        host.SetTheme(theme);
+        auto root    = std::make_unique<Panel>();
+        auto* button = root->AddChild<Button>(L"MMMMMMMM");
+        button->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 100.0f));
+        host.SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        const auto capture = [&]
         {
-            const auto at = (static_cast<size_t>(y) * before.widthPx + x) * 4u;
-            Require(std::equal(before.bgraPixels.begin() + at, before.bgraPixels.begin() + at + 4u, after.bgraPixels.begin() + at),
-                    "internal drop-down chevron keeps its original pixel geometry when the caption size changes");
-        }
+            host.Invalidate();
+            WindowHostBitmapCapture pixels;
+            Require(host.DebugCaptureBitmap(pixels), "capture offscreen WARP button glyphs without desktop activation");
+            return pixels;
+        };
+        // This fixture needs the glyph's ink bounds inside a border-free white button interior;
+        // alpha/full-image comparison helpers deliberately measure a different property. Include antialiased
+        // edge coverage: a thin Fluent icon stem centered between pixel columns can have no RGB<80 pixels.
+        const auto ink = [&](const WindowHostBitmapCapture& pixels)
+        {
+            const auto bounds = button->GetBounds();
+            const UINT left   = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.left + 4.0f)));
+            const UINT right  = std::min(pixels.widthPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.right - 4.0f))));
+            const UINT top    = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.top + 4.0f)));
+            const UINT bottom = std::min(pixels.heightPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.bottom - 4.0f))));
+            UINT minX = right, minY = bottom, maxX = left, maxY = top;
+            bool found = false;
+            for (UINT y = top; y < bottom; ++y)
+                for (UINT x = left; x < right; ++x)
+                {
+                    const auto at = (static_cast<size_t>(y) * pixels.widthPx + x) * 4u;
+                    if (pixels.bgraPixels[at] < 224u && pixels.bgraPixels[at + 1u] < 224u && pixels.bgraPixels[at + 2u] < 224u)
+                    {
+                        minX  = std::min(minX, x);
+                        minY  = std::min(minY, y);
+                        maxX  = std::max(maxX, x);
+                        maxY  = std::max(maxY, y);
+                        found = true;
+                    }
+                }
+            Require(found, "button capture contains actual shaped glyph pixels");
+            return D2D1::SizeF(static_cast<float>(maxX - minX + 1u), static_cast<float>(maxY - minY + 1u));
+        };
+        const auto inherited = ink(capture());
+        RequireSucceeded(button->SetContentFontSizeDip(14.0f), "paint exact chrome label size");
+        const auto normal = ink(capture());
+        Require(normal.width > inherited.width, "14-DIP paint grows actual glyph geometry above the inherited 13-DIP role");
+        RequireSucceeded(button->SetContentFontSizeDip(28.0f), "paint doubled chrome label size");
+        const auto doubled = ink(capture());
+        Require(doubled.width > normal.width * 1.8f && doubled.height > normal.height * 1.7f,
+                "paint uses the requested content size rather than only enlarging intrinsic bounds");
+        RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native role default");
+        const auto restored = ink(capture());
+        Require(Close(restored.width, inherited.width) && Close(restored.height, inherited.height), "clearing the size restores native default glyph geometry");
+
+        button->SetVariant(ButtonVariant::IconOnly);
+        button->SetText(host.HasFluentIconFont() ? L"\uE710" : L"+");
+        const auto originalIcon = ink(capture());
+        RequireSucceeded(button->SetContentFontSizeDip(18.0f), "paint 18-DIP line icon");
+        const auto sizedIcon = ink(capture());
+        Require(sizedIcon.width > originalIcon.width + 1.0f && sizedIcon.height > originalIcon.height + 1.0f,
+                "IconOnly scales actual Fluent or fallback glyphs using its retained host family");
+        const auto cacheCount = host.DebugGetConfiguredTextFormatCount();
+        for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+            static_cast<void>(capture());
+        Require(host.DebugGetConfiguredTextFormatCount() == cacheCount, "repeated painting reuses configured formats without per-frame format growth");
+        const auto generation = host.GetResourceGeneration();
+        host.DebugSimulateDeviceLoss();
+        const auto recreated = ink(capture());
+        Require(host.GetResourceGeneration() != generation && Close(recreated.width, sizedIcon.width) && Close(recreated.height, sizedIcon.height) &&
+                    button->GetContentFontSizeDip() == 18.0f && host.DebugGetConfiguredTextFormatCount() == cacheCount,
+                "device-generation replacement preserves requested glyph geometry and device-independent format cache identity");
+
+        button->SetVariant(ButtonVariant::DropDown);
+        button->SetText(L"Apply");
+        RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native drop-down baseline");
+        const auto before = capture();
+        RequireSucceeded(button->SetContentFontSizeDip(28.0f), "enlarge only the drop-down's caller content");
+        const auto after   = capture();
+        const auto chevron = ComputeButtonChromeLayout(button->GetBounds(), ButtonVariant::DropDown).chevronRect;
+        for (UINT y = static_cast<UINT>(host.DipsToPixels(chevron.top)); y < static_cast<UINT>(host.DipsToPixels(chevron.bottom)); ++y)
+            for (UINT x = static_cast<UINT>(host.DipsToPixels(chevron.left)); x < static_cast<UINT>(host.DipsToPixels(chevron.right)); ++x)
+            {
+                const auto at = (static_cast<size_t>(y) * before.widthPx + x) * 4u;
+                Require(std::equal(before.bgraPixels.begin() + at, before.bgraPixels.begin() + at + 4u, after.bgraPixels.begin() + at),
+                        "internal drop-down chevron keeps its original pixel geometry when the caption size changes");
+            }
+    });
+    Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
+            "the isolated WARP fixture finishes including owner-thread COM and HWND cleanup");
+    fixture.join();
 }
 
 void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
@@ -1038,11 +1060,14 @@ void TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry()
     auto* panel = root.get();
     auto* field = panel->AddChild<TextField>(L"iiiiiiiiiiiiiiiiiiiiiiii");
     field->SetMultiline(true);
-    RequireSucceeded(panel->SetChildOptions(field, Fixed(150.0f, 120.0f)), "font-role embedded editor extent");
+    // Keep Body's narrow glyphs on one line while a Monospace run exceeds the text viewport,
+    // so the same interior ACP proves both the role change and embedded hit-test geometry.
+    RequireSucceeded(panel->SetChildOptions(field, Fixed(120.0f, 120.0f)), "font-role embedded editor extent");
     RequireSucceeded(panel->SetOrientation(StackOrientation::Vertical), "font-role embedded editor flow");
     view.Controls().SetRoot(std::move(root));
     RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Body-role editor");
     view.Controls().SetFocusControl(field);
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Body-role caret geometry after focus changes");
 
     EmbeddedTextInputSnapshot before;
     Require(view.ReadTextInput(before) == S_OK && before.caretBoundsDip.has_value(), "embedded Body-role text geometry is published");

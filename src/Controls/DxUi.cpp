@@ -59,8 +59,11 @@ ModalLoopResult RunModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcep
             return ModalLoopResult::Quit;
         }
 
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        if (! DispatchAttachedWindowHostKeyboardMessage(msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
     }
 
     return ModalLoopResult::Completed;
