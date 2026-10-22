@@ -12,6 +12,59 @@
 #include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 
+static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    class HoverEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::GetTextInputRangeRects;
+        using RichTextEditor::RichTextEditor;
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "link hover shared WARP resources");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "link hover embedded host");
+    const std::wstring source = L"before [linked **label**](local) after";
+    auto owned                = std::make_unique<HoverEditor>(source);
+    auto* editor              = owned.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare strict link hit geometry");
+    const auto first      = source.find(L"linked");
+    const auto rectangles = editor->GetTextInputRangeRects(view.Controls(), first, first + 6u);
+    Check(rectangles && ! rectangles->empty(), "link hover has visible prepared glyph fragments");
+    const auto rectangle = rectangles->front();
+    const auto point     = D2D1::Point2F(rectangle.left + 0.1f, (rectangle.top + rectangle.bottom) * 0.5f);
+    static_cast<void>(editor->OnMouseMove(view.Controls(), point, 0u));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "warm link hover publication");
+    const auto generation     = editor->DebugGetState().layoutGeneration;
+    const auto oldCounting    = countAllocations;
+    const auto oldAllocations = allocations, oldBytes = allocationBytes;
+    size_t requests{}, bytes{};
+    bool underlined = true;
+    {
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldAllocations;
+            allocationBytes  = oldBytes;
+        });
+        countAllocations   = true;
+        allocations = allocationBytes = 0u;
+        for (unsigned step = 0u; step < 1024u; ++step)
+        {
+            static_cast<void>(editor->OnMouseMove(view.Controls(), D2D1::Point2F(point.x + (step % 2u) * .1f, point.y), 0u));
+            underlined = underlined && editor->IsLinkUnderlineVisible(first);
+        }
+        requests = allocations;
+        bytes    = allocationBytes;
+    }
+    Check(underlined && ! requests && ! bytes && editor->DebugGetState().layoutGeneration == generation,
+          "1024 steady glyph hovers allocate no C++ storage, reflow no text and keep the native link cue");
+}
 static void TestRichImageDecoderAllocationFailures()
 {
     using DxUi::RichText::RichImage;

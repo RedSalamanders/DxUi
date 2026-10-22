@@ -314,8 +314,107 @@ void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
 {
     PreparedFlowchartTests::EdgeLabelRasterOracle(Require);
 }
+void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"link plain");
+    auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    projection.runs.clear();
+    projection.runs.push_back({0u, 4u, Link, 0u});
+    projection.runs.push_back({4u, 6u, Regular, 0u});
+    PreparedLayout layout;
+    layout.Prepare(factory.get(), projection, 420.0f, 24.0f);
+    PreparedLayout shared(layout);
+    const auto generation    = layout.Generation();
+    const auto originalCaret = layout.Caret(4u);
+    GraphicsFixture graphics;
+    THROW_IF_FAILED(graphics.Create());
+    wil::com_ptr<ID2D1Factory1> d2dFactory;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
+    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    THROW_IF_FAILED(graphics.device.query_to(dxgiDevice.put()));
+    wil::com_ptr<ID2D1Device> device;
+    THROW_IF_FAILED(d2dFactory->CreateDevice(dxgiDevice.get(), device.put()));
+    wil::com_ptr<ID2D1DeviceContext> context;
+    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
+    wil::com_ptr<IDXGISurface> surface;
+    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    wil::com_ptr<ID2D1Bitmap1> bitmap;
+    THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+    context->SetTarget(bitmap.get());
+    wil::com_ptr<ID2D1SolidColorBrush> white, red;
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()));
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), red.put()));
+    const auto render = [&](const PreparedLayout& value, const LinkDrawing* drawing)
+    {
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        value.Draw(context.get(), white.get(), D2D1::Point2F(8.0f, 8.0f), drawing);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        return pixels;
+    };
+    const auto persistent = render(layout, nullptr);
+    LinkDrawing dormant;
+    dormant.underline    = false;
+    const auto unadorned = render(layout, &dormant);
+    Require(persistent != unadorned, "native DirectWrite removes the actual link underline in dormant presentation");
+    Require(render(shared, nullptr) == persistent, "drawing restores canonical styles on the SDK layout shared with copies");
+    dormant.hover = MarkdownRange{0u, 4u};
+    Require(render(layout, &dormant) == persistent, "hover draws the exact native persistent underline");
+    dormant.hover.reset();
+    dormant.caret = MarkdownRange{0u, 4u};
+    Require(render(layout, &dormant) == persistent, "caret draws the same native underline without hand-painted geometry");
+    dormant.caret.reset();
+    dormant.brush = red.get();
+    Require(render(layout, &dormant) != unadorned && render(shared, nullptr) == persistent,
+            "link ink is borrowed only during synchronous rasterization and never leaks to another view");
+    dormant.brush         = nullptr;
+    dormant.emphasis      = MarkdownRange{5u, 10u};
+    dormant.emphasisBrush = red.get();
+    Require(render(layout, &dormant) != unadorned && render(shared, nullptr) == persistent,
+            "active paragraph ink is borrowed and restored with no duplicate glyph overpainting");
+    Require(layout.Generation() == generation && layout.Caret(4u).x == originalCaret.x && layout.Caret(4u).height == originalCaret.height,
+            "decoration and emphasis preserve all prepared glyph geometry");
+    projection.runs.front().flags |= Underline;
+    layout.Prepare(factory.get(), projection, 420.0f, 24.0f);
+    dormant.emphasis.reset();
+    dormant.emphasisBrush = nullptr;
+    Require(render(layout, &dormant) == render(layout, nullptr), "explicit underline survives hover-only link policy");
+}
+void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"# Heading\nbody `code`");
+    const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip              = 500.0f;
+    options.fontSizeDip           = 16.0f;
+    options.headingFontSizeDip[0] = 34.0f;
+    options.codeFontSizeDip       = 13.5f;
+    options.lineHeightMultiplier  = 1.65f;
+    layout.Prepare(factory.get(), projection, options);
+    const auto generation        = layout.Generation();
+    const auto height            = layout.Height();
+    auto invalid                 = options;
+    invalid.lineHeightMultiplier = std::numeric_limits<float>::infinity();
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite line spacing rejected");
+    invalid                       = options;
+    invalid.headingFontSizeDip[4] = -1.0f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid explicit heading size rejected");
+    invalid                                = options;
+    invalid.headingLineHeightMultiplier[0] = 0.5f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "clipping-prone heading line spacing rejected");
+    Require(layout.Generation() == generation && layout.Height() == height, "invalid typography retains prior source/geometry publication");
+}
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
+    DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);
     DXUI_RUN_TEST(TestPreparedFlowchartSdkBudgetAndLifetime);
     DXUI_RUN_TEST(TestPreparedFlowchartIndependentSdkRasterOracle);
     DXUI_RUN_TEST(TestPreparedFlowchartBorrowedWarpTargets);

@@ -2640,6 +2640,26 @@ bool Button::IsPrimary() const noexcept
     return _primary;
 }
 
+void Button::SetToggleState(std::optional<bool> checked) noexcept
+{
+    if (_toggleState == checked)
+        return;
+    _toggleState                      = checked;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (ControlHost* const host = GetHost())
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
+    if (lifetime.expired())
+        return;
+    RequestInvalidate();
+}
+
+std::optional<bool> Button::GetToggleState() const noexcept
+{
+    return _toggleState;
+}
+
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
     if (_variant == variant)
@@ -2798,7 +2818,8 @@ void Button::Paint(ControlHost& host) const
                                                                  HasFocus() && host.IsKeyboardFocusVisible(),
                                                                  _primary || host.GetDefaultButton() == this,
                                                                  ResolveHoverAnimationProgress(host),
-                                                                 ResolveFocusAnimationProgress(host));
+                                                                 ResolveFocusAnimationProgress(host),
+                                                                 _toggleState.value_or(false));
     const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (_variant == ButtonVariant::Hyperlink)

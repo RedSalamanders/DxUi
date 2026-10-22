@@ -84,8 +84,9 @@ public:
               D2D1_POINT_2F origin,
               float top,
               float bottom,
-              ID2D1Brush* fill   = nullptr,
-              float imageOpacity = 1.0f) const;
+              ID2D1Brush* fill         = nullptr,
+              float imageOpacity       = 1.0f,
+              const LinkDrawing* links = nullptr) const;
 
 private:
     struct State;

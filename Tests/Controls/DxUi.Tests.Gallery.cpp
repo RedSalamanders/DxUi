@@ -1089,6 +1089,31 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
+        const Tile presentationTile      = flow.Next(*scene.root, L"RichTextEditor / document surface and link cues", 2u, 250.0f);
+        constexpr auto* presentationText = L"# Document surface\n\nA focused [link with **style**](local) has a native underline.\n\n"
+                                           L"Inactive paragraphs use subdued ink.\n\nSearch highlights preserve source.";
+        auto* presentation               = scene.root->AddChild<RichTextEditor>(presentationText);
+        presentation->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        presentation->SetMarkdownRenderingEnabled(true);
+        RichTextEditorAppearance appearance;
+        appearance.drawBorder                     = false;
+        appearance.blendWithWindowBackground      = true;
+        appearance.useAccentLinkColor             = true;
+        appearance.maximumTextWidthDip            = 520.0f;
+        appearance.bodyFontSizeDip                = 16.0f;
+        appearance.lineHeightMultiplier           = 1.65f;
+        appearance.headingFontSizeDip[0]          = 28.0f;
+        appearance.headingLineHeightMultiplier[0] = 1.2f;
+        presentation->SetAppearance(appearance);
+        presentation->SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret);
+        presentation->SetFocusModeEnabled(true);
+        const auto text  = presentation->GetText();
+        const auto match = text.find(L"Search");
+        const std::array highlights{RichTextSourceHighlight{match, 6u, true}};
+        presentation->SetSourceHighlights(highlights);
+        presentation->SetBounds(presentationTile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
         auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
                                                                L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");

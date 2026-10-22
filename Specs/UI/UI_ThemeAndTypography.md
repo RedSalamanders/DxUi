@@ -37,6 +37,13 @@ Prepare changed Unicode text/layout and glyph resources outside composition. Use
 control bounds without cutting essential ink. DPI changes rebuild appropriate resources; position-only movement
 does not. Transparent-target antialiasing, alpha blending, mixed scripts and narrow bounds require visual tests.
 
+RichTextEditor may override inherited body/code family and size, font-relative
+line height and heading scale through its public appearance value. These values
+are part of layout reuse identity and UIA font attributes. Opt-in accent links
+use the supplied theme accent, including the high-contrast palette; focus dimming
+uses subdued text and is disabled in high contrast. Consumer policy chooses
+whether normal-theme accent/link-to-text contrast calls for persistent cues.
+
 The extracted MotionPolicy resolves immediately to the target when reduced motion is enabled and otherwise keeps
 the caller's animated progress. Shared controls paint with consumer-supplied theme tokens; text shaping and control
 rendering are implemented in DxUi.lib. Pending work is consumer integration, not another library extraction.

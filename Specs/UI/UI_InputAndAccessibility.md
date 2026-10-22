@@ -10,7 +10,7 @@ bounds. The opt-in semantic accessibility contract below adds source-backed
 structure/style after coherent preparation. The raw parser accepting NUL does not change
 the editor/text-store admission contract.
 Opt-in native HTML and hanging marker presentation preserve that same source
-contract. Underlined Markdown/HTML links retain inert destination/title metadata;
+contract. Markdown/HTML links retain inert destination/title metadata;
 clicking places a caret and double-clicking selects source text. Neither action
 navigates or creates a text/history transaction. Validated tag/attribute ranges
 have no source glyph rectangles but remain searchable/selectable raw TextPattern
@@ -26,6 +26,28 @@ Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
 anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
 exact source; block analysis never silently substitutes native rich-text ranges.
+
+Rich editor link decoration is presentation state. UIA `UnderlineStyle` MUST
+report the currently rendered underline for every source-format run, including
+hover/caret opt-in, explicit `<u>` style and high-contrast override. Changing
+decoration MUST retain Hyperlink children, names, destinations and inert action
+semantics. UIA font families/sizes MUST reflect explicit appearance overrides
+and heading scale. Source mode continues to expose exact raw text without
+inventing semantic styles. Queries read captured owner-published state and never
+perform layout, take focus or retain a consumer callback.
+
+`SetOnSelectionChanged` publishes owner-thread source-selection state from the
+same canonical path as keyboard, native text/TSF, UIA and programmatic selection.
+It changes neither source nor history. Unchanged endpoint/gesture state is silent;
+callbacks may replace themselves, change selection reentrantly or retire the
+editor. Notification state MUST publish before invocation so those changes cannot
+replay an older event. Standard callback failures retain committed selection;
+allocation failure is fatal at the native callback boundary.
+`IsSelectionGestureActive` identifies pointer selection/press updates. Consumers
+may hide transient selection UI and return immediately while it is true.
+Matching pointer release or capture cancellation MUST publish a final inactive
+gesture notification even when the source endpoints did not change. No polling
+timer or consumer subclass of pointer/key handlers is required.
 
 RichTextEditor object source editing shares the authoritative full-source ACP
 store. F2/UIA Invoke opens an acknowledged code/HTML/metadata leaf in place;

@@ -1471,6 +1471,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichImageResourceTests::Admission(Check);
     TestRichImagePathAllocationFailures();
     TestRichImageDecoderAllocationFailures();
+    TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();
     TestRichImageRasterFailureAndBudgets();

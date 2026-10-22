@@ -1154,6 +1154,34 @@ timer, graphics device or scheduler belongs to this backend.
 
 #### Native markers, links and HTML (M4d.3)
 
+RichTextEditor presentation is library-owned. `SetAppearance` MUST validate its
+complete value before publication and preserve source/history/selection. The
+default input frame, host body/code families, density inset and native line
+spacing remain compatible. Opt-in borderless/window-background presentation,
+centered maximum text width, font overrides, line-height multiplier and heading
+scale or per-level heading sizes/heights MUST govern the same geometry used for drawing, caret, selection, pointer
+hit-testing and accessibility. Invalid/nonfinite values cannot leave partial
+state. Appearance geometry changes retire pending/current geometry; paint-only
+changes invalidate pixels without reparsing or editing. Explicit line height is
+font-size-relative (for example 16 DIP * 1.65); inline image/math ascent/descent
+must still fit completely. Borderless presentation retains a keyboard-visible
+focus outline and a persistent outline while focused in high contrast.
+
+`RichTextLinkUnderlinePolicy::Always` is the default. `HoverOrCaret` MUST apply
+the underline to a complete semantic link while the pointer is over an actual
+visible glyph fragment or the focused caret is inside its source range. Blank
+space within a multiline link's union bounds is not a link hit. Explicit
+Underline style and high contrast MUST remain underlined. Pointer leave, scroll,
+hide, detach and source/layout replacement MUST retire stale hover state.
+Theme accent link ink is opt-in. Link decoration changes MUST preserve native
+layout generation, source maps, hit geometry, source bytes and undo history.
+
+Source search highlights are bounded source intervals, painted below selection
+without changing source/history. Any source mutation clears stale highlights.
+Focus mode is optional: inactive paragraphs use subdued ink while the caret's
+paragraph retains normal ink. High contrast disables dimming. Neither feature
+introduces a worker, timer, HWND or idle activity.
+
 Native no-wrap prefix measurement establishes a shared maximum marker advance
 per list. Ordinary marker/body layouts share a first baseline; wrapped lines and
 loose continuation paragraphs retain the body's leading text edge. Nested list

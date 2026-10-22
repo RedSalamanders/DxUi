@@ -490,14 +490,18 @@ void Tree::SetModel(ITreeModel* model) noexcept
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
-    const uint64_t revision           = _modelRevision;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const uint64_t revision             = _modelRevision;
+    const std::weak_ptr<int> lifetime   = GetLifetimeToken();
+    const bool cancelSingleClickCapture = _singleClickCaptureArmed || _singleClickInvokeItemId.has_value();
+    _singleClickInvokeItemId.reset();
     // A row drag cannot outlive the model it started in: ids in another model name other rows.
-    if (_reorderArmed)
+    if (_reorderArmed || cancelSingleClickCapture)
     {
-        ClearReorderDrag();
+        if (_reorderArmed)
+            ClearReorderDrag();
         if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
         {
+            _singleClickCaptureArmed = false;
             host->ReleaseMouseCapture();
             if (lifetime.expired() || _modelRevision != revision)
                 return;
@@ -519,7 +523,16 @@ void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
+    _singleClickInvokeItemId.reset();
     _delegate = delegate;
+}
+
+void Tree::SetInvokeOnSingleClick(bool enabled) noexcept
+{
+    if (_invokeOnSingleClick == enabled)
+        return;
+    _invokeOnSingleClick = enabled;
+    _singleClickInvokeItemId.reset();
 }
 
 void Tree::SetRowHeightDip(float rowHeightDip) noexcept
@@ -1454,6 +1467,7 @@ bool Tree::OnMouseLeave(ControlHost& host)
 
 bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    _singleClickInvokeItemId.reset();
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     HitInfo hit = HitTestPoint(MakePointDip(point));
     if (! guard.IsCurrent())
@@ -1480,6 +1494,17 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     SyncScrollbarAnimation(host);
     if (rightButton)
     {
+        if (_singleClickCaptureArmed)
+        {
+            _singleClickInvokeItemId.reset();
+            if (host.GetCapturedControl() == this)
+            {
+                _singleClickCaptureArmed = false;
+                host.ReleaseMouseCapture();
+                if (! guard.IsCurrent())
+                    return true;
+            }
+        }
         if (_reorderArmed)
         {
             // A second button cancels the row drag: its release would otherwise drop the capture without a cancel.
@@ -1603,6 +1628,14 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClearReorderDrag();
         }
     }
+    if (_invokeOnSingleClick && hit.zone == HitZone::Item && guard.IsCurrent())
+    {
+        _singleClickInvokeItemId = hitItem.id;
+        host.CaptureMouse(this);
+        _singleClickCaptureArmed = true;
+        if (! guard.IsCurrent())
+            return true;
+    }
     Invalidate(host);
     return true;
 }
@@ -1674,7 +1707,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             host.RequestAnimation();
         }
     }
-    else if (_delegate)
+    else if (_delegate && ! _invokeOnSingleClick)
     {
         Invalidate(host);
         _delegate->OnTreeItemInvoked(currentItem.id);
@@ -1689,6 +1722,12 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
+        if (host.GetCapturedControl() == this)
+        {
+            host.ReleaseMouseCapture();
+        }
         return false;
     }
 
@@ -1705,9 +1744,12 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         const bool commit   = dragged && _reorderDrop.has_value() && _delegate != nullptr;
         const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
         // A click (not a drag) on a row of a multi-selection selects that row alone once the pointer is up.
-        const bool collapse       = ! dragged && _reorderCollapsesSelection;
-        const uint64_t collapseId = _reorderSourceId;
+        const bool collapse                    = ! dragged && _reorderCollapsesSelection;
+        const uint64_t collapseId              = _reorderSourceId;
+        const std::optional<uint64_t> invokeId = (! dragged && _invokeOnSingleClick) ? _singleClickInvokeItemId : std::nullopt;
         ClearReorderDrag();
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
         host.ReleaseMouseCapture();
         if (! guard.IsCurrent())
             return false;
@@ -1724,6 +1766,22 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         {
             _delegate->OnTreeReorder(drop);
         }
+        if (invokeId.has_value() && ! guard.IsCurrent())
+            return dragged;
+        if (invokeId.has_value() && _delegate)
+        {
+            const HitInfo releaseHit = HitTestPoint(MakePointDip(point));
+            if (! guard.IsCurrent())
+                return false;
+            TreeItemData releaseItem{};
+            const ITreeModel* const model = _model;
+            if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+                guard.IsCurrent() && releaseItem.id == invokeId.value())
+            {
+                ITreeDelegate* const delegate = _delegate;
+                delegate->OnTreeItemInvoked(releaseItem.id);
+            }
+        }
         // A click that never became a drag reports unhandled, like the tree without reordering.
         return dragged;
     }
@@ -1739,6 +1797,29 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     {
         Invalidate(host);
     }
+    const std::optional<uint64_t> invokeId = std::exchange(_singleClickInvokeItemId, std::nullopt);
+    const bool releaseSingleClickCapture   = std::exchange(_singleClickCaptureArmed, false);
+    if (releaseSingleClickCapture && host.GetCapturedControl() == this)
+    {
+        host.ReleaseMouseCapture();
+        if (! guard.IsCurrent())
+            return wasDragging;
+    }
+    if (invokeId.has_value() && _invokeOnSingleClick && _delegate)
+    {
+        const HitInfo releaseHit = HitTestPoint(MakePointDip(point));
+        if (! guard.IsCurrent())
+            return wasDragging;
+        TreeItemData releaseItem{};
+        const ITreeModel* const model = _model;
+        if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+            guard.IsCurrent() && releaseItem.id == invokeId.value())
+        {
+            ITreeDelegate* const delegate = _delegate;
+            delegate->OnTreeItemInvoked(releaseItem.id);
+            return true;
+        }
+    }
     return wasDragging;
 }
 
@@ -1749,6 +1830,8 @@ void Tree::OnCaptureLost(ControlHost& host)
         ClearReorderDrag();
         Invalidate(host);
     }
+    _singleClickInvokeItemId.reset();
+    _singleClickCaptureArmed = false;
     if (_dragVerticalThumb)
     {
         _dragVerticalThumb  = false;
@@ -1795,9 +1878,21 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
         Invalidate(host);
+        return true;
+    }
+    if (_singleClickInvokeItemId.has_value() && virtualKey == VK_ESCAPE)
+    {
+        _singleClickInvokeItemId.reset();
+        if (host.GetCapturedControl() == this)
+        {
+            _singleClickCaptureArmed = false;
+            host.ReleaseMouseCapture();
+        }
         return true;
     }
 
@@ -1952,6 +2047,8 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return landOn(currentIndex.value(), SelectMode::Toggle);
             }
+            if (virtualKey == VK_SPACE && _invokeOnSingleClick)
+                return true;
             if (_delegate)
             {
                 _delegate->OnTreeItemInvoked(item.id);

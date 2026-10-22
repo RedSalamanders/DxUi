@@ -970,6 +970,59 @@ void TestPrimaryButtonContrastPreservesSystemColorPairs()
     }
 }
 
+void TestPrimaryButtonOptionalPaletteUsesCustomNormalChromeAndSystemContrastPair()
+{
+    using namespace DxUi;
+    const D2D1_COLOR_F scarlet              = D2D1::ColorF(0xC8 / 255.0f, 0x3C / 255.0f, 0x46 / 255.0f, 1.0f);
+    const D2D1_COLOR_F white                = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+    ThemePalette textOnlyTheme              = MakeDefaultThemePalette(false);
+    const ButtonVisualStyle defaultPrimary  = ResolveButtonVisualStyle(textOnlyTheme, true, false, false, false, false, true);
+    textOnlyTheme.primaryButtonText         = white;
+    const ButtonVisualStyle textOnlyPrimary = ResolveButtonVisualStyle(textOnlyTheme, true, false, false, false, false, true);
+    RequireColorNear(textOnlyPrimary.fill, defaultPrimary.fill, "a text-only override preserves the default primary fill");
+    RequireColorNear(textOnlyPrimary.text, white, "a text-only override independently sets primary text");
+    for (const bool dark : {false, true})
+    {
+        ThemePalette theme              = MakeDefaultThemePalette(dark);
+        theme.primaryButtonFill         = scarlet;
+        theme.primaryButtonText         = white;
+        const ButtonVisualStyle idle    = ResolveButtonVisualStyle(theme, true, false, false, false, false, true);
+        const ButtonVisualStyle hover   = ResolveButtonVisualStyle(theme, true, true, false, false, false, true);
+        const ButtonVisualStyle pressed = ResolveButtonVisualStyle(theme, true, false, true, false, false, true);
+        RequireColorNear(idle.fill, scarlet, "normal primary button uses its optional custom fill");
+        RequireColorNear(idle.text, white, "normal primary button uses its optional custom text");
+        RequireColorNear(hover.text, white, "hover keeps the caller's primary text color");
+        RequireColorNear(pressed.text, white, "pressed keeps the caller's primary text color");
+        RequireColorDifferent(hover.fill, idle.fill, "custom primary hover derives an explicit hover fill");
+        RequireColorDifferent(pressed.fill, idle.fill, "custom primary press derives an explicit pressed fill");
+        RequireColorDifferent(pressed.fill, hover.fill, "custom primary pressed and hover fills remain distinct");
+
+        theme.highContrast               = true;
+        theme.selectionFill              = D2D1::ColorF(0.0f, 0.0f, 0.5f, 1.0f);
+        theme.selectionText              = white;
+        const ButtonVisualStyle contrast = ResolveButtonVisualStyle(theme, true, true, true, true, true, true);
+        RequireColorNear(contrast.fill, theme.selectionFill, "high-contrast primary buttons retain the system selection fill");
+        RequireColorNear(contrast.text, theme.selectionText, "high-contrast primary buttons retain the system selection text");
+    }
+}
+
+void TestButtonToggleStateUsesPersistentSelectionChrome()
+{
+    using namespace DxUi;
+    ThemePalette theme          = MakeDefaultThemePalette(false);
+    const ButtonVisualStyle off = ResolveButtonVisualStyle(theme, true, false, false, false, false, false, false);
+    const ButtonVisualStyle on  = ResolveButtonVisualStyle(theme, true, false, false, false, false, false, true);
+    RequireColorNear(off.fill, theme.buttonFill, "an unchecked command button keeps ordinary button fill");
+    RequireColorNear(off.text, theme.text, "an unchecked command button keeps ordinary button text");
+    RequireColorNear(on.fill, theme.selectionFill, "a checked command button persistently uses selection fill");
+    RequireColorNear(on.text, theme.selectionText, "a checked command button uses the paired selection text");
+
+    theme.highContrast                     = true;
+    const ButtonVisualStyle highContrastOn = ResolveButtonVisualStyle(theme, true, true, true, false, false, false, true);
+    RequireColorNear(highContrastOn.fill, theme.selectionFill, "checked high-contrast button preserves the system selection fill");
+    RequireColorNear(highContrastOn.text, theme.selectionText, "checked high-contrast button preserves the system selection text");
+}
+
 void TestButtonHighContrastDisabledBorderStaysVisible()
 {
     using namespace DxUi;
@@ -2805,6 +2858,8 @@ void RunThemeTests()
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleFallsBackToReadableText);
     DXUI_RUN_TEST(TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus);
     DXUI_RUN_TEST(TestPrimaryButtonContrastPreservesSystemColorPairs);
+    DXUI_RUN_TEST(TestPrimaryButtonOptionalPaletteUsesCustomNormalChromeAndSystemContrastPair);
+    DXUI_RUN_TEST(TestButtonToggleStateUsesPersistentSelectionChrome);
     DXUI_RUN_TEST(TestButtonHighContrastDisabledBorderStaysVisible);
     DXUI_RUN_TEST(TestButtonVisualStyleInterpolatesHoverAndFocusStrength);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleUsesViewerDerivedSelectionTextChrome);

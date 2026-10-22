@@ -191,6 +191,110 @@ void TestRichTextEditorCallbackRetirementAndFailure()
     Require(raw->ReplaceSelection(L"!") && raw->GetText() == L"application replacement" && ! raw->CanUndo(), "callback may replace source and delegate");
 }
 
+void TestRichTextEditorSelectionPublicationAndRetirement()
+{
+    ControlHost host;
+    RichTextEditor editor(L"alpha");
+    std::vector<Selection> selections;
+    editor.SetOnSelectionChanged([&] { selections.push_back(editor.GetSelection()); });
+    Require(selections.empty() && ! editor.IsSelectionGestureActive(), "selection registration is silent without a pointer gesture");
+    editor.SetSelection({2u, 2u});
+    editor.SetSelection({2u, 2u});
+    Require(selections == std::vector<Selection>{{2u, 2u}}, "programmatic publication suppresses unchanged endpoints");
+    Require(editor.OnKeyDown(host, VK_RIGHT, 0u) && selections.back() == Selection{3u, 3u} && selections.size() == 2u,
+            "keyboard source selection notifies synchronously");
+    editor.SetOnSelectionChanged([&]
+    {
+        selections.push_back(editor.GetSelection());
+        if (editor.GetSelection().caret == 1u)
+            editor.SetSelection({4u, 4u});
+    });
+    editor.SetSelection({1u, 1u});
+    Require(selections.size() == 4u && selections[2] == Selection{1u, 1u} && selections[3] == Selection{4u, 4u},
+            "reentrant publication observes each committed predecessor exactly once");
+    editor.SetOnSelectionChanged([&] { editor.SetOnSelectionChanged({}); });
+    editor.SetSelection({0u, 0u});
+    editor.SetSelection({1u, 1u});
+    editor.SetOnSelectionChanged([] { throw std::runtime_error("selection notification failed"); });
+    editor.SetSelection({2u, 2u});
+    Require(editor.GetSelection() == Selection{2u, 2u} && ! editor.CanUndo(), "notification failure preserves committed selection and history");
+
+    auto owned = std::make_unique<RichTextEditor>(L"owned");
+    auto* raw  = owned.get();
+    host.SetRoot(std::move(owned));
+    size_t calls = 0u;
+    raw->SetOnSelectionChanged([&]
+    {
+        ++calls;
+        host.SetRoot(std::make_unique<Label>(L"replacement"));
+    });
+    raw->SetSelection({1u, 1u});
+    Require(calls == 1u, "selection callback may retire its editor synchronously");
+}
+
+void TestRichTextEditorSelectionGestureAndTextServicePublication()
+{
+    class SelectionAdapterEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::OnCaptureLost;
+        using RichTextEditor::RichTextEditor;
+    };
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<SelectionAdapterEditor>(L"alpha beta gamma");
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    window.Host().SetFocusControl(editor, false);
+    std::vector<std::pair<Selection, bool>> notifications;
+    editor->SetOnSelectionChanged([&] { notifications.emplace_back(editor->GetSelection(), editor->IsSelectionGestureActive()); });
+    const auto point = [&](size_t source)
+    {
+        const auto rectangle = editor->TryGetTextInputCaretRect(window.Host(), source);
+        Require(rectangle.has_value(), "prepared selection gesture caret geometry");
+        return D2D1::Point2F(rectangle->left + .1f, (rectangle->top + rectangle->bottom) * .5f);
+    };
+    const auto start = point(0u), end = point(8u);
+    Require(editor->OnMouseDown(window.Host(), start, false, 0u) && notifications.size() == 1u && notifications.back().second,
+            "pointer begin notifies active gesture even at unchanged insertion point");
+    Require(editor->OnMouseMove(window.Host(), end, 0u) && notifications.size() == 2u && notifications.back().second,
+            "pointer movement publishes source endpoints with active gesture state");
+    const auto selected = editor->GetSelection();
+    static_cast<void>(editor->OnMouseMove(window.Host(), end, 0u));
+    Require(notifications.size() == 2u && selected.anchor != selected.caret, "steady pointer selection suppresses duplicate notification");
+    Require(editor->OnMouseUp(window.Host(), end, false, 0u) && notifications.size() == 3u && ! notifications.back().second &&
+                notifications.back().first == selected,
+            "pointer release notifies inactive gesture without changing endpoints");
+    static_cast<void>(editor->OnMouseUp(window.Host(), end, false, 0u));
+    Require(notifications.size() == 3u, "repeated release cannot duplicate the completion callback");
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u), "begin capture cancellation fixture");
+    editor->OnCaptureLost(window.Host());
+    Require(notifications.size() == 5u && ! notifications.back().second, "capture cancellation publishes final inactive gesture");
+    window.Host().ReleaseMouseCapture();
+    Require(notifications.size() == 5u, "host capture cleanup suppresses duplicate cancellation");
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u) && editor->OnKeyDown(window.Host(), VK_ESCAPE, 0u) && notifications.size() == 7u &&
+                ! notifications.back().second,
+            "Escape completes pointer selection without an endpoint change");
+    TextInputState state;
+    Require(editor->ExportTextInputState(state), "export canonical text service state");
+    state.caretIndex           = 2u;
+    state.selectionAnchorIndex = 1u;
+    Require(editor->ImportTextInputState(window.Host(), state, false) && notifications.size() == 8u &&
+                notifications.back() == std::pair{Selection{1u, 2u}, false},
+            "text service selection-only import publishes through the same callback");
+    Require(editor->ImportTextInputState(window.Host(), state, false) && notifications.size() == 8u && ! editor->CanUndo(),
+            "unchanged native import preserves duplicate suppression and source history");
+    editor->SetOnSelectionChanged([&]
+    {
+        if (!editor->IsSelectionGestureActive())
+            window.Host().SetRoot(std::make_unique<Label>(L"replacement"));
+    });
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u), "begin pointer release retirement fixture");
+    Require(editor->OnMouseUp(window.Host(), end, false, 0u), "final pointer callback may destroy its editor after publication");
+}
+
 void TestRichTextEditorNativeHostAndLayoutReuse()
 {
     AttachedHostWindow window;
@@ -1139,6 +1243,8 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
     DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);

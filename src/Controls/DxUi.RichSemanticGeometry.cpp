@@ -220,8 +220,11 @@ struct SemanticBox
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
-    return a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.fontFamily == b.fontFamily && a.codeFontFamily == b.codeFontFamily &&
-           a.locale == b.locale && a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment;
+    return a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.codeFontSizeDip == b.codeFontSizeDip &&
+           a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep && a.fontFamily == b.fontFamily &&
+           a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
+           a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.locale == b.locale && a.readingDirection == b.readingDirection &&
+           a.textAlignment == b.textAlignment;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -1661,7 +1664,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     float top,
                                     float bottom,
                                     ID2D1Brush* fill,
-                                    float imageOpacity) const
+                                    float imageOpacity,
+                                    const LinkDrawing* links) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -1691,6 +1695,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
     for (const auto& box : state.boxes)
         if (box->frame.bottom > top && box->frame.top < bottom)
         {
+            const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
+                                    box->paragraph.display.first < links->emphasis->last;
+            auto* boxText         = emphasized ? links->emphasisBrush : text;
             if (elements[box->paragraph.element].role == SemanticRole::Rule)
                 target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
                                  D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),
@@ -1706,10 +1713,12 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     if (box->paragraph.table != MarkdownNoNode)
                         target->PopAxisAlignedClip();
                 });
-                box->layout.Draw(target, text, D2D1::Point2F(origin.x + box->x, origin.y + box->y));
+                auto localLinks        = links ? *links : LinkDrawing{};
+                localLinks.displayOrigin += box->paragraph.display.first;
+                box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
                 if (box->native &&
                     ! box->native->paint->Draw(target,
-                                               text,
+                                               boxText,
                                                decoration,
                                                fill,
                                                D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
@@ -1721,7 +1730,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             if (image.math)
                             {
                                 image.math->Draw(target,
-                                                 text,
+                                                 boxText,
                                                  D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
                                                  (image.bounds.right - image.bounds.left) / image.Size().width);
                                 continue;

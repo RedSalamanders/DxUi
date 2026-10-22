@@ -1,5 +1,7 @@
 #pragma once
+#include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
+#include <array>
 #include <d2d1_1.h>
 #include <dwrite.h>
 #include <span>
@@ -13,8 +15,13 @@ class PreparedSemanticGeometry;
 }
 struct LayoutOptions
 {
-    float widthDip                            = 1.0f;
-    float fontSizeDip                         = 18.0f;
+    float widthDip             = 1.0f;
+    float fontSizeDip          = 18.0f;
+    float codeFontSizeDip      = 0.0f;
+    float lineHeightMultiplier = 0.0f;
+    float headingScaleStep     = 0.15f;
+    std::array<float, 6> headingFontSizeDip{};
+    std::array<float, 6> headingLineHeightMultiplier{};
     std::wstring fontFamily                   = L"Segoe UI";
     std::wstring codeFontFamily               = L"Consolas";
     std::wstring locale                       = L"en-us"; // Empty uses DirectWrite's default, as ControlHost does.
@@ -25,10 +32,22 @@ struct CaretGeometry
 {
     float x{}, y{}, height{};
 };
+// Synchronous owner-thread raster attributes. The layout retains no brush or
+// presentation policy after Draw. Source/geometry/navigation stay unchanged.
+struct LinkDrawing
+{
+    ID2D1Brush* brush             = nullptr;
+    ID2D1Brush* emphasisBrush     = nullptr;
+    ID2D1Brush* inactiveLinkBrush = nullptr;
+    bool underline                = true;
+    std::optional<MarkdownRange> hover, caret, emphasis;
+    std::size_t displayOrigin{};
+};
 struct Hit
 {
     std::size_t position{};
     bool trailing{};
+    bool inside{}; // Actual text hit, independent of the nearest caret.
 };
 // Prepared text state borrows the caller's factory. It owns no HWND, graphics
 // device, swap chain, timer or thread; the caller supplies preparation and scheduling services.
@@ -37,8 +56,8 @@ class PreparedLayout
 public:
     PreparedLayout();
     ~PreparedLayout() noexcept;
-    // Copies share the immutable DirectWrite layout on its preparation owner;
-    // their source, navigation indexes and retirement storage remain separate.
+    // Copies share the owner-thread DirectWrite layout. Synchronous Draw borrows
+    // and restores raster attributes; source/navigation/retirement stay separate.
     PreparedLayout(const PreparedLayout& other);
     PreparedLayout& operator=(const PreparedLayout& other);
     PreparedLayout(PreparedLayout&& other);
@@ -79,7 +98,7 @@ public:
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
     // Draw is raster preparation, not DxUi's allocation-free composition stage.
     // Caller supplies target/brush and BeginDraw/EndDraw/clip/transform policy.
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin) const;
+    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links = nullptr) const;
 
 private:
     friend class PreparedDocumentLayout;
@@ -198,7 +217,7 @@ public:
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
     // Raster preparation only. A viewport limits draw calls to intersecting
     // chunks; composition consumes the host's existing cached surface.
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom) const;
+    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links = nullptr) const;
 
 private:
     struct State;

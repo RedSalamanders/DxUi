@@ -61,7 +61,7 @@ populated gallery tile and static component preview show resolved styles and a
 Unicode table, measured hanging list columns and underlined inert links. The
 validated native HTML text subset reuses existing styles; unsupported markup
 keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
-selected text ink with no fixed blue or new theme color. Table/code/image outlines, quote strokes and rules reuse the caret
+selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret
 ink role; selection keeps the existing selected-text/fill roles in every theme.
 Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
 within the bounded viewport, plus measured ancestor list gutters. Native marker

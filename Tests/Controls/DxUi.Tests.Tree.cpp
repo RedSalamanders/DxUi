@@ -1810,6 +1810,45 @@ public:
     DxUi::Tree* tree = nullptr;
 };
 
+void TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(
+        {TreeItemData{.id = 10u, .text = L"Folder", .hasChildren = true, .expanded = false}, TreeItemData{.id = 20u, .text = L"File", .depth = 1u}});
+    fixture.tree->SetInvokeOnSingleClick(true);
+    const std::optional<D2D1_RECT_F> folderRow = fixture.tree->GetVisibleItemHitRect(0u);
+    Require(folderRow.has_value(), "the folder row has a hit rectangle");
+    const TreeItemLayoutMetrics metrics = fixture.tree->GetItemLayoutMetrics(fixture.host, 0u);
+    const D2D1_POINT_2F folderTextPoint = D2D1::Point2F(metrics.expanderRect.right + 6.0f, (folderRow->top + folderRow->bottom) * 0.5f);
+    Require(fixture.tree->OnMouseDown(fixture.host, folderTextPoint, false, 0u), "pressing a folder row is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, folderTextPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u && fixture.delegate.lastInvokedItemId == 10u,
+            "single-click mode invokes a row with children so consumers can use it as navigation");
+
+    Require(fixture.tree->OnMouseDown(fixture.host, folderTextPoint, false, 0u), "a second folder press is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, D2D1::Point2F(280.0f, 280.0f), false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "release outside the tree cancels single-click invocation");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, folderTextPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "a later release cannot reuse a cancelled click candidate");
+
+    const D2D1_POINT_2F expanderPoint =
+        D2D1::Point2F((metrics.expanderRect.left + metrics.expanderRect.right) * 0.5f, (metrics.expanderRect.top + metrics.expanderRect.bottom) * 0.5f);
+    Require(fixture.tree->OnMouseDown(fixture.host, expanderPoint, false, 0u), "pressing the expander is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, expanderPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "expander clicks do not invoke the row");
+
+    Require(fixture.Key(VK_SPACE) && fixture.delegate.invokedCount == 1u, "single-click mode reserves keyboard invocation for Enter");
+    Require(fixture.Key(VK_RETURN) && fixture.delegate.invokedCount == 2u && fixture.delegate.lastInvokedItemId == 10u,
+            "Enter invokes the focused row in single-click mode");
+    const D2D1_POINT_2F filePoint = fixture.RowPoint(1u);
+    Require(fixture.tree->OnMouseDown(fixture.host, filePoint, false, 0u), "pressing a leaf row is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, filePoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 3u && fixture.delegate.lastInvokedItemId == 20u, "a leaf row invokes on its completed single click");
+    Require(fixture.tree->OnMouseDoubleClick(fixture.host, filePoint, false, 0u), "a leaf double-click remains handled");
+    Require(fixture.delegate.invokedCount == 3u, "the double-click message does not invoke a leaf a second time");
+}
+
 void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
 {
     using namespace DxUi;
@@ -3034,6 +3073,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges);
     DXUI_RUN_TEST(TestTreeMultiRowDragRejectsEverySelectedSubtree);
     DXUI_RUN_TEST(TestTreeExpanderClickRequestsToggle);
+    DXUI_RUN_TEST(TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact);
     DXUI_RUN_TEST(TestTreeExpanderReResolvesStableItemAfterSelectionReorder);
     DXUI_RUN_TEST(TestTreeSelectionDelegateCanReplaceRootSafely);
     DXUI_RUN_TEST(TestTreePaintStopsAfterModelGetterReplacesRoot);

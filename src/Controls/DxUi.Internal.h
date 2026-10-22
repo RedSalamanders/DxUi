@@ -444,7 +444,7 @@ void DrawTextWithMnemonic(ControlHost& host,
                           FlowDirection flowDirection                   = FlowDirection::LeftToRight);
 
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(
-    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary) noexcept;
+    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled) noexcept;
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
                                                          bool enabled,
                                                          bool hovered,
@@ -453,7 +453,8 @@ void DrawTextWithMnemonic(ControlHost& host,
                                                          bool keyboardFocused,
                                                          bool primary,
                                                          float hoverStrength,
-                                                         float focusStrength) noexcept;
+                                                         float focusStrength,
+                                                         bool toggled) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool checked) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(const ThemePalette& theme,

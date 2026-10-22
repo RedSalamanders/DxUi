@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Rich editor presentation](RichEditorPresentation_2026-10-22.md). Public frame/typography/viewport, source highlights, focus dimming and opt-in link decoration; consumer adoption and profile qualification remain separate.
+
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests

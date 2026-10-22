@@ -917,6 +917,9 @@ struct ThemePalette
     D2D1_COLOR_F buttonBorder      = D2D1::ColorF(0.74f, 0.74f, 0.74f, 1.0f);
     D2D1_COLOR_F buttonHotFill     = D2D1::ColorF(0.96f, 0.97f, 1.0f, 1.0f);
     D2D1_COLOR_F buttonPressedFill = D2D1::ColorF(0.92f, 0.95f, 1.0f, 1.0f);
+    // Optional primary-button colors. Empty keeps the shared default derived from selection colors.
+    std::optional<D2D1_COLOR_F> primaryButtonFill;
+    std::optional<D2D1_COLOR_F> primaryButtonText;
 
     // ── Input ────────────────────────────────────────────────────────
     D2D1_COLOR_F inputFill   = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1970,6 +1973,10 @@ public:
     [[nodiscard]] bool IsMultiline() const noexcept;
     void SetPrimary(bool primary) noexcept;
     [[nodiscard]] bool IsPrimary() const noexcept;
+    // Optional consumer-owned checked state exposed through UI Automation TogglePattern. Checked non-primary buttons use
+    // selection fill/text; clicks invoke the normal command and the consumer changes this value when its state changes.
+    void SetToggleState(std::optional<bool> checked) noexcept;
+    [[nodiscard]] std::optional<bool> GetToggleState() const noexcept;
     void SetVariant(ButtonVariant variant) noexcept;
     [[nodiscard]] ButtonVariant GetVariant() const noexcept;
     void SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept;
@@ -2051,8 +2058,9 @@ private:
     bool _pressedDropDown                          = false;
     bool _dropDownOpen                             = false;
     bool _primary                                  = false;
-    bool _multiline                                = false;
-    ButtonVariant _variant                         = ButtonVariant::Standard;
+    std::optional<bool> _toggleState;
+    bool _multiline        = false;
+    ButtonVariant _variant = ButtonVariant::Standard;
 };
 
 class Toggle : public Button
@@ -2788,6 +2796,34 @@ enum class MarkdownRenderingStatus
     Semantic,
     SourceFallback
 };
+enum class RichTextLinkUnderlinePolicy : uint8_t
+{
+    Always,
+    HoverOrCaret,
+};
+struct RichTextEditorAppearance
+{
+    bool drawBorder                = true;
+    bool blendWithWindowBackground = false;
+    bool useAccentLinkColor        = false;
+    float maximumTextWidthDip      = 0.0f;
+    float paddingDip               = -1.0f; // Negative one inherits the density-specific inset.
+    float bodyFontSizeDip          = 0.0f;  // Zero inherits the host's body size.
+    float codeFontSizeDip          = 0.0f;  // Zero inherits the body size.
+    float lineHeightMultiplier     = 0.0f;  // Zero retains native spacing; otherwise font-size relative.
+    float headingScaleStep         = 0.15f;
+    std::array<float, 6> headingFontSizeDip{};
+    std::array<float, 6> headingLineHeightMultiplier{};
+    std::wstring bodyFontFamily; // Empty inherits the host body family.
+    std::wstring codeFontFamily; // Empty inherits the host monospace family.
+    bool operator==(const RichTextEditorAppearance&) const noexcept = default;
+};
+struct RichTextSourceHighlight
+{
+    size_t start{}, length{};
+    bool current                                                   = false;
+    bool operator==(const RichTextSourceHighlight&) const noexcept = default;
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -2851,6 +2887,21 @@ public:
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
     void SetViewMode(RichText::ViewMode mode);
     [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
+    // Validated owner-thread presentation; never changes source/history.
+    // Font sizes are 0 (inherit) or 1..512 DIP, line height 0 or 1..4,
+    // heading step 0..1, inset -1 (density default) or 0..256 DIP.
+    void SetAppearance(const RichTextEditorAppearance& appearance);
+    [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
+    void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
+    [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
+    // Current semantic source style; source mode/pending geometry returns false.
+    [[nodiscard]] bool IsLinkUnderlineVisible(size_t sourceOffset) const noexcept;
+    // At most 4096 scalar/CRLF-safe source intervals; source edits clear them.
+    void SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
+    void ClearSourceHighlights() noexcept;
+    [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
+    void SetFocusModeEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool IsFocusModeEnabled() const noexcept;
     // Opt-in lossless block/lexical analysis on the host's preparation turns.
     // This does not replace the v0 formatted renderer or text-store ACPs. Null
     // disables analysis; changing profile preserves source, history and selection.
@@ -2911,6 +2962,14 @@ public:
     // Called after publication/invalidation. May replace/destroy this control.
     // Standard callback exceptions are contained; the committed edit remains.
     void SetOnTextChanged(std::function<void()> callback);
+    // Owner-thread notification after source selection/gesture publication,
+    // including keyboard, text services, UIA and programmatic selection. Silent
+    // registration; unchanged endpoints and gesture state are suppressed. During
+    // pointer selection, consumers can defer expensive work until the final
+    // release/capture-loss notification observes an inactive gesture. A callback
+    // may replace/destroy this control; standard exceptions are contained.
+    void SetOnSelectionChanged(std::function<void()> callback);
+    [[nodiscard]] bool IsSelectionGestureActive() const noexcept;
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
@@ -2927,6 +2986,7 @@ public:
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
+    bool OnMouseLeave(ControlHost& host) noexcept override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float delta, UINT modifiers) noexcept override;
     bool OnCopy(ControlHost& host) noexcept override;
@@ -2969,10 +3029,15 @@ private:
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
     [[nodiscard]] bool CanPasteMarkdownFileReferences() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
-    void SelectionChanged(bool synchronizeTextInput = true);
+    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false);
+    void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards);
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
+    void UpdateCaretLinkDisplayRange() noexcept;
+    [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
 };
 
@@ -3993,6 +4058,9 @@ public:
     void SetEmptyStateText(std::wstring text);
     [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
     void SetDelegate(ITreeDelegate* delegate) noexcept;
+    // Opt in to invoking the clicked row on pointer release. Expander clicks still only expand/collapse; Enter invokes
+    // the focused row, Space does not invoke in this mode, and a double-click does not invoke an already-clicked leaf twice.
+    void SetInvokeOnSingleClick(bool enabled) noexcept;
     // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
     void SetReorderEnabled(bool enabled) noexcept;
     [[nodiscard]] bool ReorderEnabled() const noexcept
@@ -4188,7 +4256,10 @@ private:
     std::optional<uint64_t> _focusedItemId;
     // Multi-select only: the selected items and their anchor. Unused (empty) while `_multiSelect` is off.
     GridSelectionModel _selection;
-    bool _multiSelect = false;
+    bool _multiSelect         = false;
+    bool _invokeOnSingleClick = false;
+    std::optional<uint64_t> _singleClickInvokeItemId;
+    bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
@@ -4657,7 +4728,7 @@ ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept;
 void RefreshAccentVariants(ThemePalette& palette, bool darkBase) noexcept;
 
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(
-    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary) noexcept;
+    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled = false) noexcept;
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
                                                          bool enabled,
                                                          bool hovered,
@@ -4666,7 +4737,8 @@ void RefreshAccentVariants(ThemePalette& palette, bool darkBase) noexcept;
                                                          bool keyboardFocused,
                                                          bool primary,
                                                          float hoverStrength,
-                                                         float focusStrength) noexcept;
+                                                         float focusStrength,
+                                                         bool toggled = false) noexcept;
 [[nodiscard]] LabelVisualStyle ResolveLabelVisualStyle(const ThemePalette& theme, const std::optional<D2D1_COLOR_F>& textColorOverride) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool checked) noexcept;
@@ -5211,6 +5283,13 @@ public:
     [[nodiscard]] bool HasPendingContentPreparation() const noexcept;
     [[nodiscard]] uint64_t GetInteractionRevision() const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role) const noexcept;
+    [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
+                                                   float fontSizeDip,
+                                                   DWRITE_FONT_WEIGHT fontWeight,
+                                                   DWRITE_TEXT_ALIGNMENT alignment,
+                                                   DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                                   bool wrap,
+                                                   DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
                                                    DWRITE_TEXT_ALIGNMENT alignment,
                                                    DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,

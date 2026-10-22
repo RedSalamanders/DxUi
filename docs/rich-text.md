@@ -1,5 +1,40 @@
 # Unicode rich text
 
+## Editor presentation
+
+`RichTextEditor::SetAppearance` owns the editor's frame and text viewport. Keep
+the default options for the existing input frame, or set `drawBorder=false` and
+`blendWithWindowBackground=true` for a document surface. A positive
+`maximumTextWidthDip` centers and bounds the text column; `paddingDip=-1` retains
+the 8 DIP inset (6 when compact). Explicit body/code font families and sizes,
+line-height multiplier, heading scale and per-level `headingFontSizeDip` /
+`headingLineHeightMultiplier` arrays belong to the same prepared geometry,
+including caret, hit-testing and UI Automation. Zero font sizes and line height
+inherit the existing host/native defaults. Invalid options fail atomically.
+
+`SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret)` opts into
+underlines on the whole link while its visible glyphs are hovered or its source
+contains the focused caret. `Always` is the default. Explicit `<u>` style and
+high contrast keep persistent underlines. `useAccentLinkColor=true` opts into
+the theme accent ink. This presentation changes neither destinations nor link
+activation policy; ordinary links remain inert. Source mode keeps raw syntax.
+
+`SetSourceHighlights` accepts bounded source ranges with an optional `current`
+marker. These paint below selection and never alter source, selection or history;
+source edits clear them so a search owner can recompute current results.
+`SetFocusModeEnabled(true)` draws inactive paragraphs with subdued text while the
+caret paragraph stays normal, including the final source insertion. Selection
+remains fully legible; source mode and high contrast disable dimming. These options work in both hosting modes and create no timer,
+worker, native editor window or consumer-owned rendering workaround.
+
+Use `SetOnSelectionChanged` for formatting state, selected-text actions and
+position status. It includes native text/TSF, UIA and programmatic routes. During
+pointer selection, `IsSelectionGestureActive()` lets the callback hide a transient
+toolbar and return immediately. Release/capture cancellation publishes final
+inactive state even when the endpoints are unchanged. The callback may replace
+itself, change selection or retire the editor; source and undo history stay owned
+by the editor. Unchanged endpoint/gesture state does not notify.
+
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
@@ -930,7 +965,8 @@ can be ready before native geometry; neither getter advances preparation.
 The preview displays resolved Unicode values, styles, headings, quote/list
 indentation, rules, code/image outlines and equal-width table cells with declared
 alignment and RTL columns. Images show their alternative; destinations remain
-inert. Links are underlined in inherited theme text ink. Validated native HTML
+inert. By default, links are underlined in inherited theme text ink; the public
+presentation options above own opt-in accent ink and conditional cues. Validated native HTML
 uses the policy below. Selection, composition rectangles and scrolling
 use mapped source fragments. Text services and UIA still expose exact source
 ACPs, including hidden Markdown and original line endings.

@@ -924,6 +924,27 @@ void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
     wil::com_ptr_nothrow<IUnknown> invokePattern;
     RequireSucceeded(buttonSimple->GetPatternProvider(UIA_InvokePatternId, invokePattern.put()), "button invoke pattern lookup succeeds");
     Require(invokePattern != nullptr, "button accessibility provider exposes invoke pattern");
+    wil::com_ptr_nothrow<IUnknown> defaultTogglePattern;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, defaultTogglePattern.put()), "default button toggle pattern lookup succeeds");
+    Require(defaultTogglePattern == nullptr, "ordinary buttons keep their existing accessibility patterns by default");
+    button->SetToggleState(false);
+    button->SetOnClick([button] { button->SetToggleState(! button->GetToggleState().value_or(false)); });
+    wil::com_ptr_nothrow<IUnknown> buttonTogglePatternUnknown;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, buttonTogglePatternUnknown.put()), "opt-in button toggle pattern lookup succeeds");
+    Require(buttonTogglePatternUnknown != nullptr, "a button with consumer-owned checked state exposes TogglePattern");
+    wil::com_ptr_nothrow<IToggleProvider> buttonTogglePattern;
+    RequireSucceeded(buttonTogglePatternUnknown.query_to(buttonTogglePattern.put()), "button toggle pattern supports IToggleProvider");
+    ToggleState buttonToggleState = ToggleState_On;
+    RequireSucceeded(buttonTogglePattern->get_ToggleState(&buttonToggleState), "button checked state query succeeds");
+    Require(buttonToggleState == ToggleState_Off, "button TogglePattern reports the consumer-owned unchecked state");
+    RequireSucceeded(buttonTogglePattern->Toggle(), "button TogglePattern invokes its normal command");
+    Require(button->GetToggleState().value_or(false), "the button command owns and updates its checked state");
+    RequireSucceeded(buttonTogglePattern->get_ToggleState(&buttonToggleState), "button checked state can be queried after its command");
+    Require(buttonToggleState == ToggleState_On, "button TogglePattern reports the state set by its command");
+    button->SetToggleState(std::nullopt);
+    wil::com_ptr_nothrow<IUnknown> removedTogglePattern;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, removedTogglePattern.put()), "removed button toggle pattern lookup succeeds");
+    Require(removedTogglePattern == nullptr, "clearing optional checked state removes TogglePattern");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> toggleProvider =
         GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 200.0f, 64.0f, "toggle accessibility provider is resolved by point");

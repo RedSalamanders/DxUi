@@ -5,6 +5,7 @@
 #include <new>
 #include <optional>
 #include <stdexcept>
+#include <wil/resource.h>
 #include <wil/result.h>
 #include <wrl/implements.h>
 namespace DxUi::RichText
@@ -159,13 +160,19 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
                                   std::span<const SemanticInlineObject> objects)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
-    const auto validName = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
-    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! validName(options.fontFamily) ||
+    const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
+    const auto validHeadingSize   = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
+    const auto validHeadingHeight = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
+    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.codeFontSizeDip) ||
+        options.codeFontSizeDip < 0.0f || options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) ||
+        (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
+        ! std::isfinite(options.headingScaleStep) || options.headingScaleStep < 0.0f || options.headingScaleStep > 1.0f || ! validName(options.fontFamily) ||
         ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
-        ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f)
+        ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f || ! std::ranges::all_of(options.headingFontSizeDip, validHeadingSize) ||
+        ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
     if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||
@@ -264,10 +271,18 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         if (run.flags & (Underline | Link))
             Check(layout->SetUnderline(TRUE, range), "SetUnderline");
         if (run.flags & Code)
+        {
             Check(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range), "SetFontFamilyName");
+            if (options.codeFontSizeDip > 0.0f)
+                Check(layout->SetFontSize(options.codeFontSizeDip, range), "Set code font size");
+        }
         if (run.heading)
         {
-            Check(layout->SetFontSize(fontSize * (1.0f + 0.15f * static_cast<float>(7 - run.heading)), range), "SetFontSize");
+            const auto size         = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
+            const auto overrideSize = options.headingFontSizeDip[run.heading - 1u];
+            Check(
+                layout->SetFontSize(overrideSize > 0.0f ? overrideSize : size * (1.0f + options.headingScaleStep * static_cast<float>(7 - run.heading)), range),
+                "SetFontSize");
             Check(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range),
                   "SetFontWeight");
         }
@@ -282,6 +297,40 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         for (std::size_t i = 0u; i < projection.text.size(); ++i)
             if (projection.text[i] == L'\u2610' || projection.text[i] == L'\u2611')
                 Check(layout->SetFontFamilyName(L"Segoe UI Symbol", {static_cast<UINT32>(i) + textOffset, 1u}), "Set task checkbox font");
+    }
+    auto lineHeight       = options.lineHeightMultiplier;
+    const auto headingRun = std::ranges::find_if(projection.runs, [](const auto& run) { return run.heading != 0u; });
+    if (semanticDisplay && headingRun != projection.runs.end() && options.headingLineHeightMultiplier[headingRun->heading - 1u] > 0.0f)
+        lineHeight = options.headingLineHeightMultiplier[headingRun->heading - 1u];
+    if (lineHeight > 0.0f && ! textOffset)
+    {
+        auto size = fontSize;
+        for (const auto& run : projection.runs)
+        {
+            auto runSize = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
+            if (run.heading)
+                runSize = options.headingFontSizeDip[run.heading - 1u] > 0.0f
+                              ? options.headingFontSizeDip[run.heading - 1u]
+                              : runSize * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+            size = std::max(size, runSize);
+        }
+        // Font-relative line height matches a document's 16/1.65 typography.
+        // Inline images/math must still reserve their complete ascent/descent.
+        auto ascent = size * 0.8f, descent = size * 0.2f;
+        const auto accommodate = [&](IDWriteInlineObject* value)
+        {
+            DWRITE_INLINE_OBJECT_METRICS extent{};
+            Check(value->GetMetrics(&extent), "Get inline metrics for line spacing");
+            ascent  = std::max(ascent, extent.baseline);
+            descent = std::max(descent, extent.height - extent.baseline);
+        };
+        if (object)
+            accommodate(object);
+        for (const auto& inlineObject : objects)
+            accommodate(inlineObject.object);
+        const auto height = std::max(size * lineHeight, ascent + descent);
+        Check(layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, height, ascent + (height - ascent - descent) * 0.5f),
+              "Set font-relative line spacing");
     }
     DWRITE_TEXT_METRICS metrics{};
     // The layout retains this COM property. Its no-op Draw reserves metrics;
@@ -391,7 +440,7 @@ Hit PreparedLayout::HitTest(float x, float y) const
     const auto stop = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
     if (stop != state_->clusters.end() && *stop != position)
         position = trailing ? *stop : (stop == state_->clusters.begin() ? 0u : *std::prev(stop));
-    return {position, trailing != FALSE};
+    return {position, trailing != FALSE, inside != FALSE};
 }
 CaretGeometry PreparedLayout::Caret(std::size_t position) const
 {
@@ -477,10 +526,52 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
     }
     return {first.value_or(0), last};
 }
-void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin) const
+void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
     if (! target || ! brush || ! state_)
         throw std::invalid_argument("Unprepared drawing");
+    if (! links)
+    {
+        target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        return;
+    }
+    // SDK drawing attributes are borrowed for this synchronous owner-thread
+    // raster call. Copies may share the layout; restore its canonical style
+    // even when setting a later range fails. No brush survives this call.
+    const auto restore    = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())}));
+        for (const auto& run : projection_.runs)
+            if (run.flags & Link)
+            {
+                const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + state_->textOffset, static_cast<UINT32>(run.length)};
+                static_cast<void>(state_->layout->SetUnderline(TRUE, range));
+            }
+    });
+    const auto intersects = [](const std::optional<MarkdownRange>& active, std::size_t first, std::size_t last) noexcept
+    { return active && active->first < last && first < active->last; };
+    if (links->emphasis && links->emphasisBrush)
+    {
+        const auto first = std::max(links->emphasis->first, links->displayOrigin);
+        const auto last  = std::min(links->emphasis->last, links->displayOrigin + projection_.text.size());
+        if (first < last)
+            Check(state_->layout->SetDrawingEffect(links->emphasisBrush,
+                                                   {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
+                  "Set paragraph emphasis ink");
+    }
+    for (const auto& run : projection_.runs)
+        if (run.flags & Link)
+        {
+            const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + state_->textOffset, static_cast<UINT32>(run.length)};
+            const auto first = links->displayOrigin + run.start, last = first + run.length;
+            const bool underline =
+                (run.flags & Underline) || links->underline || intersects(links->hover, first, last) || intersects(links->caret, first, last);
+            Check(state_->layout->SetUnderline(underline ? TRUE : FALSE, range), "Set transient link underline");
+            auto* linkBrush =
+                links->emphasis && ! intersects(links->emphasis, first, last) && links->inactiveLinkBrush ? links->inactiveLinkBrush : links->brush;
+            if (linkBrush)
+                Check(state_->layout->SetDrawingEffect(linkBrush, range), "Set transient link ink");
+        }
     target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 } // namespace DxUi::RichText
