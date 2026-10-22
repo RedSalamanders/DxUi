@@ -46,7 +46,8 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
                                   float verticalChrome,
                                   float baselineInset,
                                   float minimumHeight,
-                                  DesiredSize& result)
+                                  DesiredSize& result,
+                                  IDWriteTextFormat* configuredFormat = nullptr)
 {
     if (text.size() > kMaxIntrinsicTextUnits)
         return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
@@ -58,7 +59,7 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
         *context.remainingTextUnits -= shapedUnits;
     }
     auto* const factory = context.host.GetWriteFactory();
-    auto* const format  = context.host.GetTextFormat(role);
+    auto* const format  = configuredFormat ? configuredFormat : context.host.GetTextFormat(role);
     if (! factory || ! format)
         return E_FAIL;
     const bool empty = text.empty();
@@ -281,18 +282,23 @@ HRESULT Button::MeasureOverride(const MeasureContext& context, const LayoutConst
         chrome += kButtonSplitDropDownSegmentDip;
     else if (variant == ButtonVariant::Selector)
         chrome += kButtonSelectorChevronWidthDip;
-    const bool icon  = variant == ButtonVariant::IconOnly || variant == ButtonVariant::Disclosure;
+    const bool icon            = variant == ButtonVariant::IconOnly || variant == ButtonVariant::Disclosure;
+    const bool wrap            = IsMultiline() && variant == ButtonVariant::Standard;
+    const bool overrideContent = GetContentFontSizeDip().has_value() && ! GetDisclosureExpanded().has_value();
+    const auto role =
+        icon ? (variant == ButtonVariant::IconOnly && overrideContent && ! context.host.HasFluentIconFont() ? FontRole::Body : FontRole::Icon) : FontRole::Body;
     const HRESULT hr = MeasureText(context,
                                    constraints,
                                    GetText(),
-                                   icon ? FontRole::Icon : FontRole::Body,
+                                   role,
                                    GetFlowDirection(),
-                                   IsMultiline() && variant == ButtonVariant::Standard,
+                                   wrap,
                                    icon ? 16.0f : chrome,
                                    16.0f,
                                    8.0f,
                                    InteractiveHeight(*this),
-                                   result);
+                                   result,
+                                   overrideContent ? ResolveContentTextFormat(context.host, role, wrap) : nullptr);
     if (SUCCEEDED(hr) && icon)
     {
         result.sizeDip.width = (std::max)(result.sizeDip.width, InteractiveHeight(*this));
@@ -364,7 +370,7 @@ HRESULT TextField::MeasureOverride(const MeasureContext& context, const LayoutCo
     return MeasureText(context,
                        constraints,
                        text,
-                       FontRole::Body,
+                       _fontRole,
                        GetFlowDirection(),
                        _multiline,
                        _textPaddingLeftDip + right,

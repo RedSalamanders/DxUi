@@ -26,6 +26,7 @@ inline constexpr int kNoWarning    = 23; // The warning could not be shown, so t
 inline constexpr int kLaunchFailed = 24; // A child could not be started.
 inline constexpr int kNotRestored  = 25; // The children passed, but the desktop could not be given back.
 inline constexpr int kInterrupted  = 26; // The run was stopped (Ctrl+C or the console closing).
+inline constexpr int kResultFailed = 27; // The native result could not be written completely.
 } // namespace LeaseExit
 
 // UTF-8 text for the plan and result files: PowerShell writes and reads them, Windows takes UTF-16.

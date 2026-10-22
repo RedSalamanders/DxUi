@@ -189,6 +189,224 @@ void TestLabelTypographyCharacterSpacingUsesRequestedTotal()
             "spacing values within one 1/64-DIP bucket publish idempotently");
 }
 
+void TestButtonContentFontSizeDefaultsValidationAndNormalization()
+{
+    Button button(L"Apply");
+    const auto initial = button.GetMeasureRevision();
+    Require(! button.GetContentFontSizeDip() && button.SetContentFontSizeDip(std::nullopt) == S_FALSE && button.GetMeasureRevision() == initial,
+            "button content inherits its existing role size by default without invalidating layout");
+    Require(button.SetContentFontSizeDip(14.0001f) == S_OK && button.GetContentFontSizeDip() == 14.0f,
+            "button content sizes normalize to one sixty-fourth DIP");
+    const auto changed = button.GetMeasureRevision();
+    Require(changed != initial && button.SetContentFontSizeDip(14.0002f) == S_FALSE && button.GetMeasureRevision() == changed,
+            "an equivalent normalized size is idempotent for intrinsic layout");
+    for (const float invalid :
+         {-1.0f, 0.0f, 5.99f, 96.01f, std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+        Require(button.SetContentFontSizeDip(invalid) == E_INVALIDARG && button.GetContentFontSizeDip() == 14.0f && button.GetMeasureRevision() == changed,
+                "invalid content sizes leave the current size and measure epoch unchanged");
+    Require(button.SetContentFontSizeDip(6.0f) == S_OK && button.GetContentFontSizeDip() == 6.0f && button.SetContentFontSizeDip(96.0f) == S_OK &&
+                button.GetContentFontSizeDip() == 96.0f,
+            "the closed supported size interval accepts both endpoints");
+    Require(button.SetContentFontSizeDip(std::nullopt) == S_OK && ! button.GetContentFontSizeDip() && button.SetContentFontSizeDip(std::nullopt) == S_FALSE,
+            "clearing the override restores the inherited role size idempotently");
+}
+
+void TestButtonContentFontSizeShapesIntrinsicVariants()
+{
+    ControlHost host;
+    for (const auto variant : {ButtonVariant::Standard,
+                               ButtonVariant::DropDown,
+                               ButtonVariant::Selector,
+                               ButtonVariant::Split,
+                               ButtonVariant::Hyperlink,
+                               ButtonVariant::IconOnly,
+                               ButtonVariant::Disclosure,
+                               ButtonVariant::Repeat})
+    {
+        Button button(L"MMMMMMMM");
+        button.SetVariant(variant);
+        DesiredSize original;
+        RequireSucceeded(button.Measure({host}, {}, original), "measure inherited button content");
+        const bool icon       = variant == ButtonVariant::IconOnly || variant == ButtonVariant::Disclosure;
+        const float requested = icon ? 18.0f : 14.0f;
+        Require(button.SetContentFontSizeDip(requested) == S_OK, "override button content size");
+        const FontRole role =
+            icon ? (host.HasFluentIconFont() ? FontRole::Icon : (variant == ButtonVariant::IconOnly ? FontRole::Body : FontRole::Small)) : FontRole::Body;
+        auto* const base = host.GetTextFormat(role);
+        Require(base != nullptr, "host retains the original role format");
+        const auto baseSize = base->GetFontSize();
+        Label reference(std::wstring(button.GetText()));
+        reference.SetFontRole(role);
+        RequireSucceeded(reference.SetTypographyOverride(LabelTypography{.fontSizeDip = requested, .fontWeight = base->GetFontWeight()}),
+                         "shape an independent label with matching role family and weight");
+        DesiredSize text;
+        DesiredSize sized;
+        RequireSucceeded(reference.Measure({host}, {}, text), "measure independent requested glyph geometry");
+        RequireSucceeded(button.Measure({host}, {}, sized), "measure requested button content");
+        float horizontal = icon ? 16.0f : 24.0f;
+        if (variant == ButtonVariant::DropDown)
+            horizontal += kButtonDropDownChevronWidthDip;
+        else if (variant == ButtonVariant::Selector)
+            horizontal += kButtonSelectorChevronWidthDip;
+        else if (variant == ButtonVariant::Split)
+            horizontal += kButtonSplitDropDownSegmentDip;
+        Require(Close(sized.sizeDip.width, std::max(icon ? 32.0f : 0.0f, text.sizeDip.width + horizontal)) &&
+                    Close(sized.sizeDip.height, std::max(32.0f, text.sizeDip.height + 16.0f)) && sized.baselineDip && text.baselineDip &&
+                    Close(sized.baselineDip.value(), text.baselineDip.value() + 8.0f),
+                "every button variant measures the requested glyph size with its unchanged chrome and baseline padding");
+        Require(base->GetFontSize() == baseSize, "a per-control size never mutates the host's role format");
+        Require(button.SetContentFontSizeDip(std::nullopt) == S_OK, "restore role defaults");
+        DesiredSize restored;
+        RequireSucceeded(button.Measure({host}, {}, restored), "remeasure restored role defaults");
+        Require(Close(original.sizeDip.width, restored.sizeDip.width) && Close(original.sizeDip.height, restored.sizeDip.height),
+                "null preserves exact default intrinsic metrics for every variant");
+    }
+    Button multiline(L"A translated caption that needs several measured lines at this width");
+    multiline.SetMultiline(true);
+    DesiredSize compactCaption, expandedCaption;
+    RequireSucceeded(multiline.SetContentFontSizeDip(14.0f), "size wrapped button text");
+    RequireSucceeded(multiline.Measure({host}, {.maximumWidthDip = 180.0f}, compactCaption), "measure wrapped 14-DIP caption");
+    RequireSucceeded(multiline.SetContentFontSizeDip(28.0f), "enlarge wrapped caption");
+    RequireSucceeded(multiline.Measure({host}, {.maximumWidthDip = 180.0f}, expandedCaption), "measure wrapped enlarged caption");
+    Require(expandedCaption.sizeDip.height > compactCaption.sizeDip.height && (expandedCaption.sizeDip.width <= 180.01f || expandedCaption.overflow),
+            "wrapped measurement uses the same requested font size and preserves truthful overflow");
+}
+
+void TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration()
+{
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host             = window.Host();
+    auto theme             = host.GetTheme();
+    theme.reducedMotion    = true;
+    theme.text             = D2D1::ColorF(D2D1::ColorF::Black);
+    theme.windowBackground = theme.buttonFill = theme.buttonHotFill = theme.buttonPressedFill = theme.buttonBorder = D2D1::ColorF(D2D1::ColorF::White);
+    host.SetTheme(theme);
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"MMMMMMMM");
+    button->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 100.0f));
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    const auto capture = [&]
+    {
+        host.Invalidate();
+        WindowHostBitmapCapture pixels;
+        Require(host.DebugCaptureBitmap(pixels), "capture offscreen WARP button glyphs without desktop activation");
+        return pixels;
+    };
+    // This fixture needs the dark glyph's ink bounds inside a border-free white button interior;
+    // alpha/full-image comparison helpers deliberately measure a different property.
+    const auto ink = [&](const WindowHostBitmapCapture& pixels)
+    {
+        const auto bounds = button->GetBounds();
+        const UINT left   = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.left + 4.0f)));
+        const UINT right  = std::min(pixels.widthPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.right - 4.0f))));
+        const UINT top    = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.top + 4.0f)));
+        const UINT bottom = std::min(pixels.heightPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.bottom - 4.0f))));
+        UINT minX = right, minY = bottom, maxX = left, maxY = top;
+        bool found = false;
+        for (UINT y = top; y < bottom; ++y)
+            for (UINT x = left; x < right; ++x)
+            {
+                const auto at = (static_cast<size_t>(y) * pixels.widthPx + x) * 4u;
+                if (pixels.bgraPixels[at] < 80u && pixels.bgraPixels[at + 1u] < 80u && pixels.bgraPixels[at + 2u] < 80u)
+                {
+                    minX  = std::min(minX, x);
+                    minY  = std::min(minY, y);
+                    maxX  = std::max(maxX, x);
+                    maxY  = std::max(maxY, y);
+                    found = true;
+                }
+            }
+        Require(found, "button capture contains actual shaped glyph pixels");
+        return D2D1::SizeF(static_cast<float>(maxX - minX + 1u), static_cast<float>(maxY - minY + 1u));
+    };
+    const auto inherited = ink(capture());
+    RequireSucceeded(button->SetContentFontSizeDip(14.0f), "paint exact chrome label size");
+    const auto normal = ink(capture());
+    Require(normal.width > inherited.width, "14-DIP paint grows actual glyph geometry above the inherited 13-DIP role");
+    RequireSucceeded(button->SetContentFontSizeDip(28.0f), "paint doubled chrome label size");
+    const auto doubled = ink(capture());
+    Require(doubled.width > normal.width * 1.8f && doubled.height > normal.height * 1.7f,
+            "paint uses the requested content size rather than only enlarging intrinsic bounds");
+    RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native role default");
+    const auto restored = ink(capture());
+    Require(Close(restored.width, inherited.width) && Close(restored.height, inherited.height), "clearing the size restores native default glyph geometry");
+
+    button->SetVariant(ButtonVariant::IconOnly);
+    button->SetText(host.HasFluentIconFont() ? L"\uE710" : L"+");
+    const auto originalIcon = ink(capture());
+    RequireSucceeded(button->SetContentFontSizeDip(18.0f), "paint 18-DIP line icon");
+    const auto sizedIcon = ink(capture());
+    Require(sizedIcon.width > originalIcon.width + 1.0f && sizedIcon.height > originalIcon.height + 1.0f,
+            "IconOnly scales actual Fluent or fallback glyphs using its retained host family");
+    const auto cacheCount = host.DebugGetConfiguredTextFormatCount();
+    for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+        static_cast<void>(capture());
+    Require(host.DebugGetConfiguredTextFormatCount() == cacheCount, "repeated painting reuses configured formats without per-frame format growth");
+    const auto generation = host.GetResourceGeneration();
+    host.DebugSimulateDeviceLoss();
+    const auto recreated = ink(capture());
+    Require(host.GetResourceGeneration() != generation && Close(recreated.width, sizedIcon.width) && Close(recreated.height, sizedIcon.height) &&
+                button->GetContentFontSizeDip() == 18.0f && host.DebugGetConfiguredTextFormatCount() == cacheCount,
+            "device-generation replacement preserves requested glyph geometry and device-independent format cache identity");
+
+    button->SetVariant(ButtonVariant::DropDown);
+    button->SetText(L"Apply");
+    RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native drop-down baseline");
+    const auto before = capture();
+    RequireSucceeded(button->SetContentFontSizeDip(28.0f), "enlarge only the drop-down's caller content");
+    const auto after   = capture();
+    const auto chevron = ComputeButtonChromeLayout(button->GetBounds(), ButtonVariant::DropDown).chevronRect;
+    for (UINT y = static_cast<UINT>(host.DipsToPixels(chevron.top)); y < static_cast<UINT>(host.DipsToPixels(chevron.bottom)); ++y)
+        for (UINT x = static_cast<UINT>(host.DipsToPixels(chevron.left)); x < static_cast<UINT>(host.DipsToPixels(chevron.right)); ++x)
+        {
+            const auto at = (static_cast<size_t>(y) * before.widthPx + x) * 4u;
+            Require(std::equal(before.bgraPixels.begin() + at, before.bgraPixels.begin() + at + 4u, after.bgraPixels.begin() + at),
+                    "internal drop-down chevron keeps its original pixel geometry when the caption size changes");
+        }
+}
+
+void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
+{
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "button typography embedded WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "button typography graphics pool");
+    EmbeddedHost view;
+    struct CallbackState
+    {
+        ControlHost* host{};
+        Button* button{};
+        bool armed{}, retire{};
+        HRESULT measured = E_PENDING;
+        DesiredSize desired;
+    } state{.host = &view.Controls()};
+    const EmbeddedCallbacks callbacks{.context            = &state,
+                                      .requestPreparation = [](void* context) noexcept
+    {
+        auto& current = *static_cast<CallbackState*>(context);
+        if (! current.armed)
+            return;
+        current.armed = false;
+        if (current.retire)
+            current.host->SetRoot(nullptr);
+        else
+            current.measured = current.button->Measure({*current.host}, {}, current.desired);
+    }};
+    RequireSucceeded(view.Attach(device, callbacks), "attach button typography callback fixture");
+    auto root    = std::make_unique<FlexPanel>();
+    state.button = root->AddChild<Button>(L"A caption measured synchronously");
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(320u, 160u), "prepare callback fixture before changing typography");
+    state.armed = true;
+    Require(state.button->SetContentFontSizeDip(14.0f) == S_OK && state.measured == S_OK && state.desired.sizeDip.width > 50.0f,
+            "embedded scheduling can synchronously measure the already-published new typography without stale output");
+    RequireSucceeded(view.Prepare(320u, 160u), "prepare changed intrinsic typography");
+    state.armed = state.retire = true;
+    Require(state.button->SetContentFontSizeDip(18.0f) == S_OK && view.Controls().GetRoot() == nullptr,
+            "the setter returns without dereferencing a button retired by its preparation callback");
+}
+
 void TestFlexFlowWrapGrowthRtlAndOverflow()
 {
     ControlHost host;
@@ -805,6 +1023,98 @@ void TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress()
     static_cast<void>(view.DispatchPointer(event(PointerAction::Up, button->GetBounds())));
     Require(invocations == 0u, "a stale press cannot commit against the new rectangle");
 }
+
+void TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry()
+{
+    using namespace DxUi;
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "font-role embedded WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role shared graphics pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "font-role embedded attach");
+
+    auto root   = std::make_unique<FlexPanel>();
+    auto* panel = root.get();
+    auto* field = panel->AddChild<TextField>(L"iiiiiiiiiiiiiiiiiiiiiiii");
+    field->SetMultiline(true);
+    RequireSucceeded(panel->SetChildOptions(field, Fixed(150.0f, 120.0f)), "font-role embedded editor extent");
+    RequireSucceeded(panel->SetOrientation(StackOrientation::Vertical), "font-role embedded editor flow");
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Body-role editor");
+    view.Controls().SetFocusControl(field);
+
+    EmbeddedTextInputSnapshot before;
+    Require(view.ReadTextInput(before) == S_OK && before.caretBoundsDip.has_value(), "embedded Body-role text geometry is published");
+    NativeTextInputState composition  = before.state;
+    composition.selectionAnchorIndex  = 2u;
+    composition.caretIndex            = 6u;
+    composition.compositionStartIndex = 2u;
+    composition.compositionEndIndex   = 6u;
+    RequireSucceeded(view.ApplyTextInput(before.revision, composition, EmbeddedTextInputAction::Preview), "preview an embedded composition before role change");
+    EmbeddedTextInputSnapshot preview;
+    Require(view.ReadTextInput(preview) == S_OK && preview.state.compositionStartIndex == composition.compositionStartIndex,
+            "embedded composition is active before changing typography");
+
+    D2D1_RECT_F bodyCaret{};
+    Require(field->DebugGetCaretRect(view.Controls(), 18u, bodyCaret), "embedded Body role measures a wrapped caret");
+    field->SetFontRole(FontRole::Monospace);
+    Require(view.NeedsPreparation(), "font role invalidation requests event-driven embedded preparation");
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Monospace editor");
+    EmbeddedTextInputSnapshot after;
+    Require(view.ReadTextInput(after) == S_OK && after.state.text == preview.state.text &&
+                after.state.selectionAnchorIndex == preview.state.selectionAnchorIndex && after.state.caretIndex == preview.state.caretIndex &&
+                after.state.compositionStartIndex == preview.state.compositionStartIndex &&
+                after.state.compositionEndIndex == preview.state.compositionEndIndex,
+            "font role reflow preserves embedded draft, selection and active composition");
+    D2D1_RECT_F monoCaret{};
+    Require(field->DebugGetCaretRect(view.Controls(), 18u, monoCaret) && monoCaret.top > bodyCaret.top + 4.0f,
+            "embedded caret geometry uses the selected Monospace role");
+    size_t hitIndex                = 0u;
+    const D2D1_POINT_2F caretPoint = D2D1::Point2F(monoCaret.left + 0.1f, (monoCaret.top + monoCaret.bottom) * 0.5f);
+    Require(view.HitTestTextInput(after.revision, caretPoint, hitIndex) == S_OK && hitIndex == 18u,
+            "embedded text-service hit testing resolves the refreshed Monospace caret at ACP 18");
+    RequireSucceeded(view.ApplyTextInput(after.revision, {}, EmbeddedTextInputAction::Cancel), "cancel embedded composition after typography test");
+    Require(field->GetText() == L"iiiiiiiiiiiiiiiiiiiiiiii", "font role and composition cancellation preserve the underlying draft");
+}
+
+void TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires()
+{
+    using namespace DxUi;
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "font-role retirement WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role retirement graphics pool");
+
+    EmbeddedHost view;
+    struct RetirementContext
+    {
+        ControlHost* controls = nullptr;
+        bool armed            = false;
+    } retirement{&view.Controls()};
+    const EmbeddedCallbacks callbacks{
+        .context = &retirement,
+        .requestPreparation =
+            [](void* context) noexcept
+    {
+        const auto* state = static_cast<RetirementContext*>(context);
+        if (state->armed)
+            state->controls->SetRoot(std::unique_ptr<Control>{});
+    },
+    };
+    RequireSucceeded(view.Attach(device, callbacks), "font-role retirement embedded attach");
+    auto root   = std::make_unique<FlexPanel>();
+    auto* field = root->AddChild<TextField>(L"draft");
+    field->SetMultiline(true);
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(240u, 120u, 96.0f), "prepare font-role retirement editor");
+    retirement.armed = true;
+
+    // The preparation callback retires the control through its host when the setter invalidates layout.
+    // It does not re-enter EmbeddedHost; the setter must observe its expired control lifetime before continuing.
+    field->SetFontRole(FontRole::Monospace);
+    Require(view.Controls().GetRoot() == nullptr, "font-role setter returns safely after preparation retires its control");
+}
 } // namespace
 
 void RunIntrinsicLayoutTests()
@@ -812,6 +1122,10 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs);
     DXUI_RUN_TEST(TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable);
     DXUI_RUN_TEST(TestLabelTypographyCharacterSpacingUsesRequestedTotal);
+    DXUI_RUN_TEST(TestButtonContentFontSizeDefaultsValidationAndNormalization);
+    DXUI_RUN_TEST(TestButtonContentFontSizeShapesIntrinsicVariants);
+    DXUI_RUN_TEST(TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration);
+    DXUI_RUN_TEST(TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks);
     DXUI_RUN_TEST(TestFlexFlowWrapGrowthRtlAndOverflow);
     DXUI_RUN_TEST(TestFlexCacheInvalidationAndCompositeBounds);
     DXUI_RUN_TEST(TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry);
@@ -822,4 +1136,6 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit);
     DXUI_RUN_TEST(TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts);
     DXUI_RUN_TEST(TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress);
+    DXUI_RUN_TEST(TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry);
+    DXUI_RUN_TEST(TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires);
 }

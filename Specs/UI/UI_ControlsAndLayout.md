@@ -71,6 +71,13 @@ wrapping, chrome, availability, ownership and inherited settings invalidate the 
 checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
 per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again.
 
+`TextField::SetFontRole` selects one valid shared `FontRole` for its text and placeholder, with `Body` as the
+default. The role is used consistently for intrinsic measurement, single- and multiline shaping/paint, selection,
+caret and hit-test geometry, scrolling, keyboard movement and native/embedded text-service geometry. Changing the
+role is idempotent for the current value; an invalid enum value leaves state unchanged. A change retires the
+single- and multiline shaped-layout caches and intrinsic measurement revision, then refreshes attached input and
+accessibility geometry. It preserves the draft, selection, undo/redo history and active text composition.
+
 Intrinsic owners request work through the shared pending-layout traversal used by native painting and embedded
 `Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A failed or superseded layout
 prevents the host from publishing that preparation. The layout owner stages all numeric geometry before the first
@@ -302,6 +309,19 @@ geometry from already measured sizes, with unchanged outputs on invalid/capacity
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+`Button::SetContentFontSizeDip(std::optional<float>)` optionally sizes the caller's text or icon content in all
+Button variants. Null preserves the existing role defaults (Body 13 DIP, Icon 12 DIP). Accept only finite
+6..96-DIP sizes, normalized to 1/64 DIP; return `E_INVALIDARG` without mutation for invalid input, `S_FALSE`
+for a normalized no-op and `S_OK` for a change. The getter returns the normalized optional value. Intrinsic
+measurement, wrapping, glyph painting and hyperlink underline width MUST use the same requested size while
+retaining the host role's UI/icon family, fallback, weight, alignment and flow direction. Internal dropdown,
+selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Consumers can
+request 14-DIP chrome labels and 18-DIP line icons without changing global typography or creating local controls.
+Reuse the host's bounded configured-format cache and common drawing/measurement helpers; stable painting MUST
+not allocate new formats per frame. A changed override invalidates intrinsic measurement before requesting
+paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
+setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
+resource-generation replacement and embedded callback tests cover the opt-in behavior.
 A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
 partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure

@@ -1066,10 +1066,12 @@ void DrawCenteredText(ControlHost& host,
                       DWRITE_TEXT_ALIGNMENT alignment,
                       DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
                       bool wrap,
-                      FlowDirection flowDirection)
+                      FlowDirection flowDirection,
+                      IDWriteTextFormat* configuredFormat)
 {
-    auto* dc     = host.GetDeviceContext();
-    auto* format = host.GetTextFormat(fontRole, alignment, paragraphAlignment, wrap, ResolveReadingDirection(flowDirection));
+    auto* dc = host.GetDeviceContext();
+    auto* format =
+        configuredFormat ? configuredFormat : host.GetTextFormat(fontRole, alignment, paragraphAlignment, wrap, ResolveReadingDirection(flowDirection));
     if (! dc || ! format)
     {
         return;
@@ -2745,6 +2747,41 @@ bool Button::IsMultiline() const noexcept
     return _multiline;
 }
 
+HRESULT Button::SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept
+{
+    if (fontSizeDip && (! std::isfinite(fontSizeDip.value()) || fontSizeDip.value() < 6.0f || fontSizeDip.value() > 96.0f))
+        return E_INVALIDARG;
+    if (fontSizeDip)
+        fontSizeDip = static_cast<float>(std::lround(fontSizeDip.value() * 64.0f)) / 64.0f;
+    if (_contentFontSizeDip == fontSizeDip)
+        return S_FALSE;
+    _contentFontSizeDip = fontSizeDip;
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    // Embedded preparation scheduling may synchronously retire this control or its owning root.
+    if (! lifetime.expired())
+        RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<float> Button::GetContentFontSizeDip() const noexcept
+{
+    return _contentFontSizeDip;
+}
+
+IDWriteTextFormat* Button::ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap) const noexcept
+{
+    const auto reading = ResolveReadingDirection(GetFlowDirection());
+    auto* const base   = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, wrap, reading);
+    if (! _contentFontSizeDip || ! base)
+        return base;
+    // Retain the actual role/fallback family and weight; only the caller's content size changes.
+    if (role == FontRole::Icon && ! host.HasFluentIconFont())
+        role = FontRole::Small;
+    return host.GetTextFormat(
+        role, _contentFontSizeDip.value(), base->GetFontWeight(), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, wrap, reading);
+}
+
 void Button::SetText(std::wstring text)
 {
     if (_text != text)
@@ -2973,6 +3010,19 @@ void Button::Paint(ControlHost& host) const
                                                                  ResolveFocusAnimationProgress(host),
                                                                  _toggleState.value_or(false));
     const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    const auto drawContent            = [&](std::wstring_view text, const D2D1_RECT_F& bounds, FontRole role, const D2D1_COLOR_F& color, bool wrap = false)
+    {
+        DrawCenteredText(host,
+                         text,
+                         bounds,
+                         role,
+                         color,
+                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         wrap,
+                         flowDirection,
+                         ResolveContentTextFormat(host, role, wrap));
+    };
 
     if (_variant == ButtonVariant::Hyperlink)
     {
@@ -2982,14 +3032,15 @@ void Button::Paint(ControlHost& host) const
         {
             PaintFocusRing(host, GetBounds(), kButtonCornerRadiusDip);
         }
-        DrawCenteredText(host, _text, GetBounds(), FontRole::Body, fg, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawContent(_text, GetBounds(), FontRole::Body, fg);
         if (IsHovered() && IsEnabled())
         {
-            const D2D1_RECT_F b           = GetBounds();
-            const float widthDip          = (std::max)(0.0f, b.right - b.left);
-            const float heightDip         = (std::max)(1.0f, b.bottom - b.top);
-            const float availableDip      = (std::max)(0.0f, widthDip - 8.0f);
-            const float textWidthDip      = MeasureSingleLineTextWidthDip(&host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection));
+            const D2D1_RECT_F b      = GetBounds();
+            const float widthDip     = (std::max)(0.0f, b.right - b.left);
+            const float heightDip    = (std::max)(1.0f, b.bottom - b.top);
+            const float availableDip = (std::max)(0.0f, widthDip - 8.0f);
+            const float textWidthDip = MeasureSingleLineTextWidthDip(
+                &host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection), ResolveContentTextFormat(host, FontRole::Body));
             const float underlineWidthDip = (std::clamp)(textWidthDip, 0.0f, availableDip);
             const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
             const float underlineRightDip = underlineLeftDip + underlineWidthDip;
@@ -3013,8 +3064,7 @@ void Button::Paint(ControlHost& host) const
         spec.hoverStrength   = ResolveHoverAnimationProgress(host);
         spec.focusStrength   = ResolveFocusAnimationProgress(host);
 
-        IDWriteTextFormat* const textFormat =
-            host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
+        IDWriteTextFormat* const textFormat = ResolveContentTextFormat(host, FontRole::Body);
         IDWriteTextFormat* const iconFormat =
             host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
         DrawButtonChrome(host.GetDeviceContext(), host.GetSolidBrush(style.text), textFormat, iconFormat, host.GetTheme(), spec);
@@ -3034,7 +3084,7 @@ void Button::Paint(ControlHost& host) const
         }
         else
         {
-            DrawCenteredText(host, _text, GetBounds(), FontRole::Icon, style.text);
+            drawContent(_text, GetBounds(), FontRole::Icon, style.text);
         }
         return;
     }
@@ -3057,8 +3107,7 @@ void Button::Paint(ControlHost& host) const
                                                       layout.textRect.top + style.textOffsetYDip,
                                                       layout.textRect.right + style.textOffsetXDip,
                                                       layout.textRect.bottom + style.textOffsetYDip);
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawContent(_text, textRect, FontRole::Body, style.text);
         DrawCenteredText(host, std::wstring_view(&kButtonDropDownChevronGlyph, 1u), layout.chevronRect, FontRole::Icon, style.text);
     }
     else if (_variant == ButtonVariant::Split)
@@ -3068,8 +3117,7 @@ void Button::Paint(ControlHost& host) const
                                                       layout.textRect.top + style.textOffsetYDip,
                                                       layout.textRect.right + style.textOffsetXDip,
                                                       layout.textRect.bottom + style.textOffsetYDip);
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawContent(_text, textRect, FontRole::Body, style.text);
         DrawLineWithColor(
             host, D2D1::Point2F(layout.dividerX, GetBounds().top + 6.0f), D2D1::Point2F(layout.dividerX, GetBounds().bottom - 6.0f), style.border, 1.0f);
         DrawCenteredText(host, std::wstring_view(&kButtonDropDownChevronGlyph, 1u), layout.chevronRect, FontRole::Icon, style.text);
@@ -3078,7 +3126,7 @@ void Button::Paint(ControlHost& host) const
     {
         // Segoe Fluent Icons when that family is installed (the same choice as RedSalamander chrome). A missing
         // family draws the caller's Unicode stand-in in the UI font instead of a private-use box.
-        DrawCenteredText(host, _text, GetBounds(), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
+        drawContent(_text, GetBounds(), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
     }
     else
     {
@@ -3111,8 +3159,7 @@ void Button::Paint(ControlHost& host) const
                                               swatchBottom + 1.0f + style.textOffsetYDip,
                                               bounds.right + style.textOffsetXDip,
                                               bounds.bottom + style.textOffsetYDip - 2.0f);
-            DrawCenteredText(
-                host, _text, textRect, FontRole::Small, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+            drawContent(_text, textRect, FontRole::Small, style.text);
         }
         else
         {
@@ -3122,8 +3169,7 @@ void Button::Paint(ControlHost& host) const
                                                      GetBounds().top + style.textOffsetYDip + padY,
                                                      (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
                                                      (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
-            DrawCenteredText(
-                host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, flowDirection);
+            drawContent(_text, textRect, FontRole::Body, style.text, _multiline);
         }
     }
 }

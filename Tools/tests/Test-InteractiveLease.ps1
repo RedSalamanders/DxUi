@@ -106,6 +106,15 @@ Invoke-FixtureCase '--check reads the session, writes the result the PowerShell 
     $expected = if ($run.Exit -eq 0) { '[LEASE] an interactive desktop is available' } else { '[LEASE] no interactive desktop: ' }
     Assert-True ($found -and $found.StartsWith($expected)) "and says what it found: $found"
 }
+Invoke-FixtureCase '--check reports failed result writes without taking the desktop' {
+    param($root)
+    # An existing directory is never a writable result file. --check only reads desktop availability;
+    # this failure exercises the native writer without creating a warning, activating or injecting.
+    $run = Invoke-Bounded @('--check', "--result=$root") 30
+    Assert-True $run.Exited 'the refused write ends promptly'
+    Assert-Equal (Get-DxUiLeaseExitCodes).ResultFailed $run.Exit 'an unwritten result cannot return a successful check'
+    Assert-True (@($run.Output | Where-Object { $_ -like '*the result file could not be written:*' }).Count -eq 1) 'the native writer states the evidence failure'
+}
 Invoke-FixtureCase 'a malformed command line is a usage error before anything is shown' {
     param($root)
     Set-FixtureFile $root 'no-tabs.txt' "Menu only-a-name`n"

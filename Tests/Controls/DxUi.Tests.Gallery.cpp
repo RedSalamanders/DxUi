@@ -1078,6 +1078,12 @@ void AddComboItems(ComboBox& combo)
         scene.focusedControl = scene.focusedControl ? scene.focusedControl : field;
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"TextField / Monospace");
+        auto* field     = scene.root->AddChild<TextField>(L"x^2 + y^2 = r^2");
+        field->SetFontRole(FontRole::Monospace);
+        field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"TextField / Multiline");
         auto* field     = scene.root->AddChild<TextField>(L"Alpha\nBeta\nGamma");
         field->SetMultiline(true);

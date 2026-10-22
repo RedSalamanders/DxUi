@@ -1,1 +1,0 @@
-- Add a catalogued noninteractive Separator, bounded Label and Tree typography overrides, and opt-in three-swatch Button previews. Focused regression coverage and native/embedded validation are pending; default Label/Tree/button rendering remains unchanged unless opted in.

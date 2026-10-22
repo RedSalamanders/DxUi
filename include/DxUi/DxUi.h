@@ -2030,6 +2030,10 @@ public:
     // Opt-in wrapping for Standard button text. The caller measures and supplies sufficient bounds.
     void SetMultiline(bool multiline) noexcept;
     [[nodiscard]] bool IsMultiline() const noexcept;
+    // Optional consumer chrome size; null preserves the role default. Finite 6..96 DIP, normalized to 1/64 DIP.
+    // Applies to caller content only; built-in drop-down/disclosure chevrons retain their chrome metrics.
+    [[nodiscard]] HRESULT SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept;
+    [[nodiscard]] std::optional<float> GetContentFontSizeDip() const noexcept;
     void SetPrimary(bool primary) noexcept;
     [[nodiscard]] bool IsPrimary() const noexcept;
     void SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept;
@@ -2102,6 +2106,7 @@ private:
     [[nodiscard]] bool AdvanceDisclosureTransition(ControlHost& host, uint64_t nowTickMs) noexcept;
     [[nodiscard]] bool IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept;
     [[nodiscard]] bool InvokeDropDown(ControlHost& host);
+    [[nodiscard]] IDWriteTextFormat* ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap = false) const noexcept;
 
     static constexpr uint64_t _interactionAnimationDurationMs = 140u;
     static constexpr uint64_t _disclosureAnimationDurationMs  = 240u;
@@ -2121,6 +2126,7 @@ private:
     bool _primary                                  = false;
     std::optional<bool> _toggleState;
     std::optional<ButtonThemePreview> _themePreview;
+    std::optional<float> _contentFontSizeDip;
     bool _multiline        = false;
     ButtonVariant _variant = ButtonVariant::Standard;
 };
@@ -3121,6 +3127,9 @@ public:
     void SetText(std::wstring text);
     void SetTextAndNotify(std::wstring text);
     [[nodiscard]] std::wstring_view GetText() const noexcept;
+    // Selects the shared host font role used by text shaping, rendering and editor geometry. Body is the default.
+    void SetFontRole(FontRole fontRole) noexcept;
+    [[nodiscard]] FontRole GetFontRole() const noexcept;
     [[nodiscard]] size_t GetCaretIndex() const noexcept;
     void SetSelectionRange(size_t selectionStart, size_t selectionEnd) noexcept;
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetSelectionRange() const noexcept;
@@ -3252,6 +3261,7 @@ private:
 
     std::wstring _text;
     std::wstring _placeholder;
+    FontRole _fontRole = FontRole::Body;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
     std::shared_ptr<const std::function<void()>> _onSubmitted;
     std::shared_ptr<const std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)>> _onPreviewKeyDown;
@@ -3267,6 +3277,7 @@ private:
     mutable wil::com_ptr<IDWriteTextLayout> _cachedMultilineLayout;
     mutable std::wstring _cachedLayoutText;
     mutable D2D1_SIZE_F _cachedLayoutSize           = D2D1::SizeF(0.0f, 0.0f);
+    mutable FontRole _cachedLayoutRole              = FontRole::Body;
     mutable bool _multilineLayoutDirty              = true;
     size_t _multilineFirstVisibleLine               = 0u;
     float _multilineWheelDeltaRemainder             = 0.0f;

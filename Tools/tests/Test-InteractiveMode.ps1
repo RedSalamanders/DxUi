@@ -206,10 +206,13 @@ Invoke-TestCase 'the plan is one tab-separated line per child' {
     }
 }
 $completed = @(
-    'state: completed', 'exit: 1', 'confirmation: started', 'foreground.saved: class ''CASCADIA_HOSTING_WINDOW_CLASS'' of WindowsTerminal.exe (process 4242)',
+    'state: completed', 'exit: 1', 'confirmation: started', 'confirmation.autoStart: 0', 'confirmation.seconds: 120',
+    'foreground.saved: class ''CASCADIA_HOSTING_WINDOW_CLASS'' of WindowsTerminal.exe (process 4242)',
+    'focus.capture.reason: recorded', 'focus.capture.error: 0',
     'restoration.foreground: restored', 'restoration.focus: unchanged', 'restoration.cursor: restored', 'cursor.saved: 400,300', 'cursor.atExit: 900,700',
     'restoration.runMovedSomething: 1', 'child: Menu launched=1 exit=0 seconds=43.3 timedout=0 interrupted=0',
     'child: NativeTextInput launched=1 exit=3221225477 seconds=1.2 timedout=0 interrupted=0') -join "`r`n"
+$successful = $completed.Replace("exit: 1`r`n", "exit: 0`r`n").Replace('exit=3221225477', 'exit=0')
 Invoke-TestCase 'the result is read back as the lease writes it' {
     $result = Read-DxUiLeaseResult -Text $completed
     Assert-Equal 'completed' $result.State 'the state'
@@ -244,10 +247,20 @@ Invoke-TestCase 'capture reasons retain skipped, failed, null and recorded query
     foreach ($reason in 'no-foreground','no-foreground-thread','foreground-minimized','query-failed','query-returned-null','recorded') {
         $focus = if ($reason -ceq 'recorded') { 'restored' } else { 'none' }
         $queryError = if ($reason -ceq 'query-failed') { 5 } else { 0 }
-        $result = Read-DxUiLeaseResult -Text "state: completed`nrestoration.foreground: restored`nrestoration.focus: $focus`nrestoration.cursor: restored`nfocus.capture.reason: $reason`nfocus.capture.error: $queryError`n"
+        $text = $successful.Replace('restoration.focus: unchanged', "restoration.focus: $focus").
+            Replace('focus.capture.reason: recorded', "focus.capture.reason: $reason").Replace('focus.capture.error: 0', "focus.capture.error: $queryError")
+        $result = Read-DxUiLeaseResult -Text $text
         Assert-Equal $reason $result.FocusCapture.Reason 'the original reason survives parsing'
         Assert-Equal ([uint32]$queryError) $result.FocusCapture.QueryError 'with the immediate query error, meaningful only on failure'
-        Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $result -ExitCode 0).Count 'absence of recorded focus remains unverified, not a restoration failure'
+        $problems = @(Get-DxUiLeaseProblems -Result $result -ExitCode 0)
+        if ($reason -cin @('recorded','query-returned-null','foreground-minimized')) {
+            Assert-Equal 0 $problems.Count 'recorded focus or a definitive absent focus has a complete truthful result'
+            $qualified = @(Get-DxUiLeaseProblems -Result $result -ExitCode 0 -RequireRecordedFocus)
+            if ($reason -ceq 'recorded') { Assert-Equal 0 $qualified.Count 'recorded focus qualifies the full focus round trip' }
+            else { Assert-True ($qualified -match 'requires recorded initial active focus') 'known absence cannot qualify a full focus round trip' }
+        } else {
+            Assert-True ($problems -match 'keyboard focus capture was not verified') 'failed or unavailable focus capture cannot qualify a successful lease'
+        }
         $shown = Get-RunnerLeasePresentation $result
         Assert-True ($shown.Contains("Focus capture before confirmation: $reason")) 'the canonical runner presents the original reason'
         if ($reason -ceq 'recorded') {
@@ -259,7 +272,8 @@ Invoke-TestCase 'capture reasons retain skipped, failed, null and recorded query
         elseif ($reason -ceq 'query-returned-null') { Assert-True ($shown.Contains('query succeeded with no focus')) 'success with null is distinct from failure' }
         elseif ($reason -cne 'recorded') { Assert-True ($shown.Contains('query not attempted')) 'guards do not imply a query happened' }
     }
-    $legacy = Read-DxUiLeaseResult -Text ($completed -replace 'restoration.focus: unchanged', 'restoration.focus: none')
+    $legacyText = (($completed -split '\r?\n') | Where-Object { $_ -notlike 'focus.capture.*' }) -join "`n"
+    $legacy = Read-DxUiLeaseResult -Text ($legacyText -replace 'restoration.focus: unchanged', 'restoration.focus: none')
     Assert-Equal $null $legacy.FocusCapture 'historical receipts remain readable without inventing capture facts'
     Assert-True ((Get-RunnerLeasePresentation $legacy).Contains('diagnostic unavailable in this receipt')) 'historical absence remains explicit'
 }
@@ -296,7 +310,8 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     }, $true))
     Assert-Equal 1 $assignment.Count 'one canonical lease receipt mapping'
     $writeLease = [scriptblock]::Create($assignment[0].Extent.Text)
-    $leaseResult = Read-DxUiLeaseResult -Text ($completed.Replace('restoration.focus: unchanged', 'restoration.focus: none') + "`nfocus.capture.reason: foreground-minimized`nfocus.capture.error: 0`n")
+    $leaseResult = Read-DxUiLeaseResult -Text ($completed.Replace('restoration.focus: unchanged', 'restoration.focus: none').
+        Replace('focus.capture.reason: recorded', 'focus.capture.reason: foreground-minimized'))
     $lease = [pscustomobject]@{ ExitCode=0; RequestedAutoStart=$false; RequestedConfirmationSeconds=0 }
     $hostedForegroundLease = $true
     $InteractiveAutoStart = $false
@@ -330,8 +345,8 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     Assert-True (@(Get-DxUiLeaseProblems -Result $leaseResult -ExitCode 24) -match 'native lease wrote no result') 'the missing result remains a failure'
 }
 Invoke-TestCase 'what is wrong with a finished lease is said in a message' {
-    $fine = Read-DxUiLeaseResult -Text ($completed -replace 'exit=3221225477', 'exit=0')
-    Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $fine -ExitCode 0).Count 'a lease that completed with its desktop restored has no problem'
+    $fine = Read-DxUiLeaseResult -Text $successful
+    Assert-Equal 0 @(Get-DxUiLeaseProblems -Result $fine -ExitCode 0 -ExpectedChildren @('Menu','NativeTextInput')).Count 'a lease that completed its exact children with its desktop restored has no problem'
     $noResult = @(Get-DxUiLeaseProblems -Result $null -ExitCode 21)
     Assert-True ($noResult.Count -eq 1 -and $noResult[0].Contains('wrote no result') -and $noResult[0].Contains('cancelled')) "no result is named with what its exit code means: $noResult"
     $declined = Read-DxUiLeaseResult -Text "state: declined`nexit: 21`nreason: the person chose Cancel`nconfirmation: declined`n"
@@ -339,7 +354,74 @@ Invoke-TestCase 'what is wrong with a finished lease is said in a message' {
     Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('(declined)') -and $problems[0].Contains('the person chose Cancel')) "a cancelled run did not take place: $problems"
     $failed = Read-DxUiLeaseResult -Text ($completed -replace 'restoration.focus: unchanged', 'restoration.focus: failed' -replace 'restoration.cursor: restored', 'restoration.cursor: failed')
     $problems = @(Get-DxUiLeaseProblems -Result $failed -ExitCode 1)
-    Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('focus, cursor failed') -and $problems[0].Contains('WindowsTerminal.exe')) "a part that was not given back is named, with the window: $problems"
+    Assert-True ($problems -match 'focus, cursor failed.*WindowsTerminal.exe') "a part that was not given back is named, with the window: $problems"
+}
+Invoke-TestCase 'completed receipts reject missing, duplicate, unknown and malformed protocol facts without throwing' {
+    $required = @('state','exit','confirmation','confirmation.autoStart','confirmation.seconds','foreground.saved',
+        'focus.capture.reason','focus.capture.error','restoration.foreground','restoration.focus','restoration.cursor',
+        'cursor.saved','cursor.atExit','restoration.runMovedSomething')
+    foreach ($key in $required) {
+        $lines = @($successful -split '\r?\n')
+        $missing = ($lines | Where-Object { -not $_.StartsWith($key + ': ') }) -join "`n"
+        Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $missing) -ExitCode 0).Count -gt 0) "missing $key cannot pass"
+        $line = @($lines | Where-Object { $_.StartsWith($key + ': ') })[0]
+        $duplicate = $successful + "`n" + $line
+        Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $duplicate) -ExitCode 0).Count -gt 0) "repeated $key cannot pass"
+    }
+    foreach ($extra in @('new.unrecognized: fact','a damaged line','exit: 99999999999999999999999',
+        'confirmation.seconds: 4294967296','confirmation.autoStart: true','restoration.runMovedSomething: true',
+        'restoration.foreground: Restored','cursor.saved: 2147483648,0','cursor.atExit: 0,-2147483649')) {
+        $parsed = Read-DxUiLeaseResult -Text ($successful + "`n" + $extra)
+        Assert-True (@(Get-DxUiLeaseProblems -Result $parsed -ExitCode 0).Count -gt 0) "invalid protocol fact cannot pass: $extra"
+    }
+    $truncated = "state: completed`nexit: 0`nconfirmation: autostarted`nconfirmation.autoStart: 1`nconfirmation.seconds: 30`n"
+    Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $truncated) -ExitCode 0).Count -gt 0) 'a truncated approved receipt cannot establish restoration or child execution'
+    $mismatch = @(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $successful) -ExitCode 25)
+    Assert-True ($mismatch -match 'differs from process exit') 'receipt and actual process exit must agree'
+}
+Invoke-TestCase 'child receipt integrity binds exact requested names, order and successful execution' {
+    foreach ($children in @(@(), @('Menu'), @('Menu','NativeTextInput','Extra'), @('NativeTextInput','Menu'), @('Menu','Other'))) {
+        $parsed = Read-DxUiLeaseResult -Text $successful
+        Assert-True (@(Get-DxUiLeaseProblems -Result $parsed -ExitCode 0 -ExpectedChildren $children).Count -gt 0) "a different plan cannot pass: $($children -join ',')"
+    }
+    $childLines = @($successful -split '\r?\n' | Where-Object { $_ -like 'child:*' })
+    $prefix = (($successful -split '\r?\n' | Where-Object { $_ -notlike 'child:*' }) -join "`n") + "`n"
+    foreach ($rows in @('', $childLines[0], "$($childLines[0])`n$($childLines[0])", "$($childLines[1])`n$($childLines[0])")) {
+        Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text ($prefix + $rows)) -ExitCode 0 -ExpectedChildren @('Menu','NativeTextInput')).Count -gt 0) 'missing, duplicated or reordered executions cannot qualify'
+    }
+    foreach ($mutation in @(@('launched=1','launched=0'), @('exit=0','exit=124'), @('timedout=0','timedout=1'),
+        @('interrupted=0','interrupted=1'), @('seconds=43.3','seconds=-1'), @('seconds=43.3','seconds=1.2.3'),
+        @('exit=0','exit=4294967296'), @('timedout=0','timedout=true'))) {
+        $changed = $successful.Replace($mutation[0], $mutation[1])
+        Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $changed) -ExitCode 0).Count -gt 0) "invalid child execution cannot pass: $($mutation -join ' -> ')"
+    }
+    $withSpaces = $successful.Replace('child: NativeTextInput ', 'child: Native text input ')
+    Assert-Equal 0 @(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $withSpaces) -ExitCode 0 -ExpectedChildren @('Menu','Native text input')).Count 'names with spaces round-trip exactly like plan fields'
+}
+Invoke-TestCase 'truthful gone and unknown restoration remains readable but cannot qualify a restored lease' {
+    foreach ($part in 'foreground','focus','cursor') {
+        foreach ($status in 'gone','skipped','none','failed','unknown') {
+            $old = if ($part -ceq 'focus') { 'unchanged' } else { 'restored' }
+            $text = $successful.Replace("restoration.${part}: $old", "restoration.${part}: $status")
+            $parsed = Read-DxUiLeaseResult -Text $text
+            Assert-Equal $status $parsed.$part 'the original restoration observation remains visible'
+            Assert-True (@(Get-DxUiLeaseProblems -Result $parsed -ExitCode 0).Count -gt 0) "$part=$status cannot establish a restored desktop"
+        }
+    }
+    $unknownPointer = $successful.Replace('cursor.saved: 400,300', 'cursor.saved: unknown')
+    Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $unknownPointer) -ExitCode 0) -match 'no recorded starting position') 'pointer restoration requires a known original position'
+    foreach ($sentinel in 'none','unknown','no window') {
+        $text = $successful -replace 'foreground.saved: [^\r\n]*', "foreground.saved: $sentinel"
+        Assert-True (@(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $text) -ExitCode 0) -match 'no foreground target') 'a textual sentinel is not a recorded foreground target'
+    }
+    # atExit is read BEFORE restoration, not after it. A moved coordinate or transient failure reading atExit
+    # can coexist with restored/unchanged: native RestoreCursor independently reads, sets and verifies later.
+    $unknownAtExit = $successful.Replace('cursor.atExit: 900,700', 'cursor.atExit: unknown')
+    Assert-Equal 0 @(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $unknownAtExit) -ExitCode 0).Count 'pre-restoration pointer observation does not replace the native restoration readback'
+    $unchanged = $successful.Replace('restoration.foreground: restored','restoration.foreground: unchanged').
+        Replace('restoration.cursor: restored','restoration.cursor: unchanged').Replace('cursor.atExit: 900,700','cursor.atExit: 400,300').
+        Replace('restoration.runMovedSomething: 1','restoration.runMovedSomething: 0')
+    Assert-Equal 0 @(Get-DxUiLeaseProblems -Result (Read-DxUiLeaseResult -Text $unchanged) -ExitCode 0).Count 'a complete unchanged desktop remains a valid success'
 }
 Invoke-TestCase 'the runner cannot describe failed restoration as an unchanged desktop' {
     $result = Read-DxUiLeaseResult -Text "state: timedout`nexit: 25`nconfirmation: timedout`nrestoration.foreground: failed`nrestoration.focus: skipped`nrestoration.cursor: failed`ncursor.saved: 400,300`ncursor.atExit: unknown`nrestoration.runMovedSomething: 0`n"
@@ -394,7 +476,7 @@ Invoke-TestCase 'mixed restoration reports retain successful parts without hidin
     Assert-True ($summary.PointerNotice.StartsWith('The lease restored the pointer from 900,700 to 400,300.')) 'the independently restored pointer remains explicit'
     Assert-Equal $before ($result | ConvertTo-Json -Depth 4 -Compress) 'presentation changes no result facts'
     $problems = @(Get-DxUiLeaseProblems -Result $result -ExitCode 25)
-    Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('focus failed')) 'the existing restoration failure accounting stays failing'
+    Assert-True ($problems -match 'focus failed') 'the existing restoration failure accounting stays failing'
     $result.Focus = 'unknown'
     Assert-True ((Get-DxUiLeaseSummary -Result $result).Message.EndsWith('Desktop restoration was not fully verified.')) 'a restored pointer also cannot verify an unknown focus state'
 }
@@ -589,7 +671,7 @@ switch ($label) {
     'unrequested' { $policy = "confirmation.autoStart: 1`nconfirmation.seconds: 30`n"; $confirmation = 'autostarted' }
 }
 if ($label -eq 'unrequested') { $action = "confirmation: $confirmation`n" }
-"state: completed`nexit: 0`n${action}${policy}restoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: unchanged`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
+"state: completed`nexit: 0`n${action}${policy}foreground.saved: invented fixture window`nfocus.capture.reason: recorded`nfocus.capture.error: 0`nrestoration.foreground: unchanged`nrestoration.focus: unchanged`nrestoration.cursor: unchanged`ncursor.saved: 1,2`ncursor.atExit: 1,2`nrestoration.runMovedSomething: 0`nchild: Menu launched=1 exit=0 seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
 $global:LASTEXITCODE = 0
 '@ | Set-Content -LiteralPath $fake
     $parameters = @{ Executable=$fake; Runs=@([pscustomobject]@{ Name='Menu'; CommandLine='unused.exe'; Log='unused.log' }); Label='Menu'; EstimateSeconds=1; WorkDirectory=$fixture }
@@ -624,7 +706,32 @@ $global:LASTEXITCODE = 0
     Assert-True (@($answer.PolicyProblems).Count -gt 0) 'ordinary calls reject an unrequested automatic policy'
     $parameters.Label = 'missing'
     $answer = Invoke-DxUiInteractiveLease @parameters
-    Assert-Equal 0 @($answer.PolicyProblems).Count 'ordinary historical results remain readable without the new metadata'
+    Assert-Equal 'completed' $answer.Result.State 'ordinary historical results remain readable'
+    Assert-True (@($answer.PolicyProblems) -match 'missing confirmation.autoStart') 'historical metadata cannot qualify a new execution'
+}
+Invoke-FixtureCase 'public lease wrappers validate restoration and exact children without consumer-local checks' { param($fixture)
+    $fake = Join-Path $fixture 'receipt-lease.ps1'
+    $receiptPath = Join-Path $fixture 'receipt-source.txt'
+    @'
+param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
+$resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
+[IO.File]::Copy((Join-Path $PSScriptRoot 'receipt-source.txt'), $resultPath, $true)
+$global:LASTEXITCODE = 0
+'@ | Set-Content -LiteralPath $fake
+    $parameters = @{ Executable=$fake; Runs=@([pscustomobject]@{ Name='Menu'; CommandLine='unused.exe'; Log='unused.log' },
+        [pscustomobject]@{ Name='NativeTextInput'; CommandLine='unused.exe'; Log='unused2.log' }); Label='fixture'; EstimateSeconds=1; WorkDirectory=$fixture }
+    [IO.File]::WriteAllText($receiptPath, $successful)
+    Assert-Equal 0 @((Invoke-DxUiInteractiveLease @parameters).PolicyProblems).Count 'the complete requested plan succeeds through the shared wrapper'
+    foreach ($text in @(
+        "state: completed`nexit: 0`nconfirmation: started`nconfirmation.autoStart: 0`nconfirmation.seconds: 120`n",
+        $successful.Replace('child: NativeTextInput ', 'child: Other '),
+        $successful.Replace('timedout=0', 'timedout=1'),
+        $successful.Replace('restoration.foreground: restored', 'restoration.foreground: gone'),
+        $successful.Replace('restoration.focus: unchanged', 'restoration.focus: none').
+            Replace('focus.capture.reason: recorded','focus.capture.reason: query-failed').Replace('focus.capture.error: 0','focus.capture.error: 5'))) {
+        [IO.File]::WriteAllText($receiptPath, $text)
+        Assert-True (@((Invoke-DxUiInteractiveLease @parameters).PolicyProblems).Count -gt 0) 'zero native exit cannot hide incomplete restoration or a different child plan'
+    }
 }
 Invoke-FixtureCase 'automatic start without an interactive request stops before tooling, build or output writes' { param($fixture)
     New-RefusalFixture $fixture

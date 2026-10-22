@@ -1,1 +1,0 @@
-- Add opt-in consumer-owned Button TogglePattern state with persistent selection visuals, Tree single-click row invocation, and optional primary-button palette colors. Focused UIA, Tree and theme tests were added; candidate validation is pending because the shared source tree is waiting for a coordinated build.

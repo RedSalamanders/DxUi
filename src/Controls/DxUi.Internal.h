@@ -431,7 +431,8 @@ void DrawCenteredText(ControlHost& host,
                       DWRITE_TEXT_ALIGNMENT alignment               = DWRITE_TEXT_ALIGNMENT_CENTER,
                       DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                       bool wrap                                     = false,
-                      FlowDirection flowDirection                   = FlowDirection::LeftToRight);
+                      FlowDirection flowDirection                   = FlowDirection::LeftToRight,
+                      IDWriteTextFormat* configuredFormat           = nullptr);
 void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,
@@ -634,7 +635,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
                                                   std::wstring_view text,
                                                   FontRole role,
                                                   float heightDip                           = 24.0f,
-                                                  DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
+                                                  DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT,
+                                                  IDWriteTextFormat* configuredFormat       = nullptr) noexcept;
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateSingleLineTextLayout(
     const ControlHost* host,
     std::wstring_view text,

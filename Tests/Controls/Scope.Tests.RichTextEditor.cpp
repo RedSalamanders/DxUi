@@ -753,7 +753,10 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
         const auto deadline = GetTickCount64() + 12000u;
         ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
         while (window.Host().HasPendingContentPreparation() && GetTickCount64() < deadline)
+        {
             window.PumpMessages(10u);
+            Sleep(1u); // A failed/stalled request must not turn the test's independent deadline into a busy loop.
+        }
         const auto elapsed        = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
         const auto preparedSource = sourceView->DebugGetState(), preparedRich = richView->DebugGetState();
         std::cout << "    [DENSE-SOURCE] blocks=" << blockCount << " elapsed_ms=" << elapsed.count() << " source_turns=" << sourceView->calls

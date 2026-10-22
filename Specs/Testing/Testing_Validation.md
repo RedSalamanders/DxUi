@@ -764,6 +764,28 @@ window, process or thread identities. Existing raw desktop descriptions remain p
 while retaining each child's own duration. Repeated, incomplete, unknown or contradictory diagnostic fields
 MUST fail result validation. Historical receipts with neither field remain readable but establish no capture
 reason. A reason for `none` MUST NOT promote it to verified focus restoration or close qualification.
+New completed executions MUST have every protocol field written by the native lease exactly once, including
+the confirmation policy/countdown, original foreground description, focus capture diagnostic, all three
+restoration states, both pointer observations and the moved flag. Unknown, repeated, malformed or missing
+fields and child rows MUST fail validation; historical incomplete receipts remain readable for presentation
+only. Receipt and process exits MUST agree and both MUST be zero for success. Every requested child MUST occur
+exactly once in plan order with its exact name, `launched=1`, exit zero, and neither timeout nor interruption.
+Both public PowerShell lease wrappers validate the result against their original `Runs` through the shared
+`Get-DxUiLeaseProblems -ExpectedChildren` contract and return failures in `PolicyProblems`; consumers MUST check
+that collection as well as the process exit. A completed-state prefix or a successful child JSON cannot supply
+missing lease facts. Numeric codes, flags, finite nonnegative durations and physical pointer coordinates MUST
+validate before conversion, without throwing away a corrupt row or overflowing during diagnostic parsing.
+
+Foreground and pointer restoration MUST be `restored` or `unchanged`, with an original target and known original
+pointer position. `gone` is a truthful observation that the target disappeared, never verified restoration.
+`cursor.atExit` is the observation before restoration, so it may differ from `cursor.saved` or be unreadable;
+the native restore operation separately verifies the final pointer position. Never compare that earlier
+observation to the saved position as though it were a final readback.
+Focus capture failures, unavailable thread identity and unknown capture facts MUST leave the run unqualified.
+For `recorded` initial focus, its restoration MUST also be `restored` or `unchanged`. Only successful null-focus
+capture or the deliberate minimized-foreground guard permits a truthful `none` focus state; the summary MUST
+retain that limitation. A consumer requiring a complete real-focus restoration proof MUST also use
+`Get-DxUiLeaseProblems -RequireRecordedFocus`; definitive absence cannot satisfy that gate.
 If the native result is missing, the runner's fallback MUST keep capture metadata absent and still write
 the failed child receipt under strict mode; it MUST NOT invent a capture reason or throw on missing fields.
 Deterministic fake-backend, serialization, parser, presentation and child-receipt tests MUST cover these
@@ -800,8 +822,11 @@ refusal, authorization loss and active capture. These checks do not replace fres
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
 the lease, 23 when the warning could not be shown (the desktop was not taken), 24 when a suite could not be started, 25 when the
-suites passed but the desktop could not be given back and 26 when the run was stopped; `Tools/tests/Test-InteractiveMode.ps1` keeps
+suites passed but the desktop could not be given back, 26 when the run was stopped and 27 when the native result
+could not be completely written/closed; `Tools/tests/Test-InteractiveMode.ps1` keeps
 `Tools/InteractiveRun.psm1`'s table equal to `LeaseExit` in `Tests/Support/Support.Tests.InteractiveLease.h`.
+The native writer MUST check buffered output through close and return the result-write failure even if child
+execution and restoration succeeded. A partial result MUST remain unqualified when retained as failure evidence.
 
 The `InteractiveLease` control suite (in every `test.ps1` run, with `--no-activate`) restores a desktop built of fake windows, a fake
 pointer and a fake foreground, so no window is activated and no pointer moves: untouched, moved, refused, never-sticking and

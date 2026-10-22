@@ -443,15 +443,20 @@ private:
     if (! file)
         return false;
     file.write(text.data(), static_cast<std::streamsize>(text.size()));
+    file.close(); // Include buffered writes and close errors in the result-file contract.
     return file.good();
 }
 
-void WriteResult(const std::filesystem::path& path, const TS::LeaseOutcome& outcome)
+[[nodiscard]] bool WriteResult(const std::filesystem::path& path, const TS::LeaseOutcome& outcome)
 {
     if (path.empty())
-        return;
+        return true;
     if (! WriteFileUtf8(path, TS::FormatLeaseResult(outcome)))
+    {
         Print(std::format("the result file could not be written: {}", path.string()));
+        return false;
+    }
+    return true;
 }
 
 int Usage(std::string_view problem)
@@ -478,7 +483,8 @@ int Check(const std::filesystem::path& resultPath)
     outcome.exitCode = availability.available ? TS::LeaseExit::kPassed : TS::LeaseExit::kNoDesktop;
     outcome.reason   = availability.reason;
     Print(availability.available ? std::string("an interactive desktop is available") : std::format("no interactive desktop: {}", availability.reason));
-    WriteResult(resultPath, outcome);
+    if (! WriteResult(resultPath, outcome))
+        return TS::LeaseExit::kResultFailed;
     return outcome.exitCode;
 }
 
@@ -515,9 +521,9 @@ int Run(const RunOptions& options, bool hosted)
 
     Win32LeaseServices services(kLeaseMutexName, hosted);
     const TS::LeaseOutcome outcome = TS::RunLease(services, request);
-    WriteResult(options.result, outcome);
+    const bool resultWritten       = WriteResult(options.result, outcome);
     Print(std::format("{}{}{}", outcome.state, outcome.reason.empty() ? "" : ": ", outcome.reason));
-    return outcome.exitCode;
+    return resultWritten ? outcome.exitCode : TS::LeaseExit::kResultFailed;
 }
 
 // ---- The self-test ----------------------------------------------------------------------------------------------------------

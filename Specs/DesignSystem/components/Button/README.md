@@ -10,6 +10,7 @@ Push button with eight variants: Standard, DropDown, Selector, Split, Hyperlink,
 - **Chevrons**: DropDown 20 DIP, Selector 24 DIP, Split segment 32 DIP, glyph U+E70D (fallback ▾ U+25BE).
 - **Disclosure**: the chevron rotates right (or left) to down over 240 ms from its first animation tick, so a state changed while hidden rotates once shown, and a pause in the ticks pauses it; reduced motion snaps it.
 - **Multiline**: 12 DIP horizontal / 8 DIP vertical text padding; never clip or ellipsize a caption — size the button to the measured text.
+- **Content size**: `SetContentFontSizeDip` is optional and leaves the Body 13/Icon 12 DIP defaults unchanged when null. Finite 6..96 DIP values normalize to 1/64 DIP, with idempotent HRESULT validation. Use 14 DIP for larger chrome labels and 18 DIP for line icons; the host's UI/icon family and weight, intrinsic wrapping and cached painting stay consistent. Internal dropdown/disclosure chevrons keep their own metrics.
 - **Do**: one Primary per surface. **Don't**: use Hyperlink for destructive actions.
 
 The preview is a static HTML rendition styled by `bundle.css` from the tokens; the real control is painted by DxUi.lib with Direct2D. The gallery captures under Assets › Gallery are the authoritative rendering.

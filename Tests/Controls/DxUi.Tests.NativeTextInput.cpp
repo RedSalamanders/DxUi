@@ -7882,6 +7882,90 @@ void TestNativeTextInputTextStoreExposesAcp2Surface()
     RequireSucceeded(store2->UnadviseSink(&sink), "native ACP2 text store unadvises the sink");
 }
 
+void TestNativeTextFieldFontRoleUpdatesSingleAndMultilineGeometry()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root       = std::make_unique<Panel>();
+    auto* single    = root->AddChild<TextField>(L"iiiiiiiiiiii");
+    auto* multiline = root->AddChild<TextField>(L"iiiiiiiiiiiiiiiiiiiiiiii\nnext line");
+    single->SetBounds(D2D1::RectF(12.0f, 12.0f, 340.0f, 52.0f));
+    multiline->SetMultiline(true);
+    multiline->SetBounds(D2D1::RectF(12.0f, 64.0f, 140.0f, 180.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(single);
+
+    single->SetSelectionRange(2u, 6u);
+    const auto singleSelection = single->GetSelectionRange();
+    D2D1_RECT_F bodyCaret2{};
+    D2D1_RECT_F bodyCaret4{};
+    Require(single->DebugGetCaretRect(window.Host(), 2u, bodyCaret2) && single->DebugGetCaretRect(window.Host(), 4u, bodyCaret4),
+            "single-line Body role prepares native caret geometry");
+    const float probeX = (bodyCaret2.left + bodyCaret4.left) * 0.5f;
+    const float probeY = (bodyCaret2.top + bodyCaret2.bottom) * 0.5f;
+    const auto bodyHit = single->TryHitTestTextInputPoint(window.Host(), D2D1::Point2F(probeX, probeY));
+    NativeTextInputState beforeState{};
+    Require(window.Host().DebugGetNativeTextInputState(beforeState), "single-line native input state is available before role change");
+    const auto singleMeasureRevision = single->GetMeasureRevision();
+
+    single->SetFontRole(FontRole::Monospace);
+    Require(single->GetFontRole() == FontRole::Monospace && single->GetMeasureRevision() != singleMeasureRevision,
+            "single-line font role updates intrinsic measurement revision");
+    D2D1_RECT_F monoCaret2{};
+    D2D1_RECT_F monoCaret4{};
+    Require(single->DebugGetCaretRect(window.Host(), 2u, monoCaret2) && single->DebugGetCaretRect(window.Host(), 4u, monoCaret4),
+            "single-line Monospace role rebuilds caret geometry from the new text format");
+    const auto monoHit = single->TryHitTestTextInputPoint(window.Host(), D2D1::Point2F(probeX, probeY));
+    Require(std::abs((monoCaret4.left - monoCaret2.left) - (bodyCaret4.left - bodyCaret2.left)) > 4.0f,
+            "single-line glyph advances change with the selected host font role");
+    Require(bodyHit.has_value() && monoHit.has_value() && monoHit.value() < bodyHit.value(),
+            "single-line native hit testing uses the same updated role as caret geometry");
+    NativeTextInputState afterState{};
+    Require(window.Host().DebugGetNativeTextInputState(afterState) && afterState.text == beforeState.text && afterState.caretIndex == beforeState.caretIndex &&
+                afterState.selectionAnchorIndex == beforeState.selectionAnchorIndex && single->GetSelectionRange() == singleSelection,
+            "font role changes preserve native text and the current selection");
+    const auto monoMeasureRevision = single->GetMeasureRevision();
+    single->SetFontRole(FontRole::Monospace);
+    Require(single->GetMeasureRevision() == monoMeasureRevision, "setting the current font role is idempotent");
+    single->SetFontRole(static_cast<FontRole>(255u));
+    Require(single->GetFontRole() == FontRole::Monospace && single->GetMeasureRevision() == monoMeasureRevision,
+            "invalid font roles leave rendering and measure state unchanged");
+
+    single->SetSelectionRange(2u, 4u);
+    Require(single->OnChar(window.Host(), L'Z', 0u), "font-role history fixture creates a replacement edit");
+    single->SetFontRole(FontRole::BodyStrong);
+    Require(single->OnKeyDown(window.Host(), 'Z', MK_CONTROL) && single->GetText() == L"iiiiiiiiiiii",
+            "changing font role preserves the existing undo history");
+
+    window.Host().SetFocusControl(multiline);
+    multiline->SetSelectionRange(4u, 7u);
+    DesiredSize bodySize{};
+    RequireSucceeded(multiline->Measure({window.Host()}, {.maximumWidthDip = 120.0f}, bodySize), "measure multiline Body role");
+    D2D1_RECT_F multilineBodyCaret{};
+    Require(multiline->DebugGetCaretRect(window.Host(), 18u, multilineBodyCaret), "multiline Body role prepares wrapped caret geometry");
+    TextFieldDebugMultilineState cachedBefore{};
+    Require(multiline->DebugGetMultilineState(window.Host(), cachedBefore), "multiline layout cache is inspectable before role change");
+    Require(cachedBefore.cachedLayoutPresent && ! cachedBefore.layoutDirty, "caret query has populated the multiline shaped-layout cache");
+    const auto multilineMeasureRevision = multiline->GetMeasureRevision();
+    multiline->SetFontRole(FontRole::Monospace);
+    Require(multiline->GetMeasureRevision() != multilineMeasureRevision, "multiline font role invalidates intrinsic measurement");
+    TextFieldDebugMultilineState invalidated{};
+    Require(multiline->DebugGetMultilineState(window.Host(), invalidated) && ! invalidated.cachedLayoutPresent && invalidated.layoutDirty,
+            "multiline font role retires the old shaped-layout cache");
+    DesiredSize monoSize{};
+    RequireSucceeded(multiline->Measure({window.Host()}, {.maximumWidthDip = 120.0f}, monoSize), "measure multiline Monospace role");
+    D2D1_RECT_F multilineMonoCaret{};
+    Require(multiline->DebugGetCaretRect(window.Host(), 18u, multilineMonoCaret), "multiline Monospace role prepares new wrapped caret geometry");
+    Require(multilineMonoCaret.top > multilineBodyCaret.top + 4.0f && monoSize.sizeDip.height > bodySize.sizeDip.height,
+            "multiline wrapping, measurement and caret placement all use the selected font role");
+    Require(multiline->GetSelectionRange() == std::make_optional(std::pair<size_t, size_t>{4u, 7u}),
+            "multiline font role change preserves its selected source range");
+}
+
 void TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport()
 {
     using namespace DxUi;
@@ -9294,6 +9378,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextStoreStaleSameLockCompositionCannotReplaceExternalText);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesAcp2Surface);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport);
+    DXUI_RUN_TEST(TestNativeTextFieldFontRoleUpdatesSingleAndMultilineGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp);

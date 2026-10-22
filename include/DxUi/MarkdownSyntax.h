@@ -66,7 +66,7 @@ struct MarkdownBlock
     MarkdownBlockKind kind{};
     MarkdownRange source, content;
     // Auxiliary source metadata varies by block kind: fence info, footnote
-    // marker, front-matter payload, or the exact list-marker token.
+    // marker, front-matter opening marker, or the exact list-marker token.
     MarkdownRange info;
     unsigned heading{}, fenceIndent{};
     wchar_t fenceMarker{};
