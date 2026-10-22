@@ -1133,6 +1133,22 @@ void AddComboItems(ComboBox& combo)
         presentation->SetBounds(presentationTile.content);
     }
     {
+        const Tile sourceTile = flow.Next(*scene.root, L"RichTextEditor / prepared Source syntax ink", 2u, 210.0f);
+        auto* sourceEditor    = scene.root->AddChild<RichTextEditor>(
+            L"# Source stays exact\n\n- **Emphasis** and [a local link](https://example.invalid/note)\n- `literal tokens` keep every delimiter.\n");
+        sourceEditor->SetBounds(sourceTile.content);
+        sourceEditor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::CommonMark0312);
+        sourceEditor->SetViewMode(RichText::ViewMode::Source);
+        RichTextEditorAppearance sourceAppearance;
+        sourceAppearance.drawBorder                = false;
+        sourceAppearance.blendWithWindowBackground = true;
+        sourceAppearance.colorizeMarkdownSource    = true;
+        sourceAppearance.bodyFontFamily            = L"Consolas";
+        sourceAppearance.bodyFontSizeDip           = 14.0f;
+        sourceAppearance.lineHeightMultiplier      = 1.6f;
+        sourceEditor->SetAppearance(sourceAppearance);
+        sourceEditor->SetReadOnly(true);
+
         const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
         auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
                                                                L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");

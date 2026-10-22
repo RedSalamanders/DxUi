@@ -1297,6 +1297,15 @@ void RichEditorPresentationAndLinkCues(bool embedded)
     fixture.Publish();
     Require(editor->GetText() == source && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
             "source mode preserves exact raw text and retires semantic decoration");
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    fixture.Publish();
+    Require(editor->DebugGetState().sourceInkRangeCount > 0u && client.DocumentText(owner) == source,
+            "native/embedded source ink keeps actual UIA text exact, including delimiters and original line endings");
+    editor->SetSelection({alpha, alpha + 5u});
+    fixture.Publish();
+    Require(client.TextSelectionText(owner) == L"alpha" && client.TextCaretPosition(owner) == alpha + 5u && ! editor->CanUndo(),
+            "syntax ink never replaces source selection, text-service offsets or history");
 }
 void TestRichTextAccessibilityWindowPresentationAndLinkCues()
 {
@@ -1322,13 +1331,18 @@ void RichEditorSelectionNotifications(bool embedded)
         pointerGesture = fixture.editor->IsSelectionGestureActive();
     });
     RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::AddToSelection), "actual client selects source beta");
-    Require(calls == 1u && ! pointerGesture && published == RichText::Selection{11u, 15u} && client.TextSelectionText(owner) == L"beta",
-            "UIA source selection publishes the consumer callback synchronously");
+    const auto detail =
+        std::format("UIA source selection callback: calls={}, anchor={}, caret={}, gesture={}", calls, published.anchor, published.caret, pointerGesture);
+    Require(calls == 1u && ! pointerGesture && published == RichText::Selection{11u, 15u}, detail.c_str());
+    fixture.Publish();
+    Require(client.TextSelectionText(owner) == L"beta", "actual client reads source selection after owner snapshot publication");
     RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::AddToSelection), "actual client repeats beta selection");
     Require(calls == 1u, "identical UIA selection does not duplicate consumer notification");
     RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::RemoveFromSelection), "actual client removes source beta");
-    Require(calls == 2u && published.anchor == published.caret && client.TextSelectionText(owner).empty() && ! fixture.editor->CanUndo(),
+    Require(calls == 2u && published.anchor == published.caret && ! fixture.editor->CanUndo(),
             "UIA deselection uses canonical publication without changing source history");
+    fixture.Publish();
+    Require(client.TextSelectionText(owner).empty(), "actual client reads deselection from the published owner snapshot");
 }
 void TestRichTextAccessibilityWindowSelectionNotifications()
 {
@@ -1337,6 +1351,60 @@ void TestRichTextAccessibilityWindowSelectionNotifications()
 void TestRichTextAccessibilityEmbeddedSelectionNotifications()
 {
     EmbeddedCase(RichEditorSelectionNotifications);
+}
+void RichEditorAcknowledgementIsPerEditor(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded);
+    const std::wstring source = L"inline $x$ formula\r\n\r\nsecond paragraph";
+    auto panel                = std::make_unique<Panel>();
+    auto* editor              = panel->AddChild<RichAccessibilityEditor>(source);
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 440.0f, 120.0f));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto* preview = panel->AddChild<RichTextEditor>(L"preview");
+    preview->SetBounds(D2D1::RectF(0.0f, 130.0f, 440.0f, 230.0f));
+    fixture.editor = editor;
+    fixture.controls->SetRoot(std::move(panel));
+    fixture.controls->SetFocusControl(editor, false);
+    fixture.Publish();
+    const auto document = editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document != nullptr, "two-editor owner fixture acknowledges initial semantic geometry");
+    const auto math =
+        std::find_if(document->Elements().begin(), document->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Math; });
+    Require(math != document->Elements().end() && source.substr(math->source.first, math->source.last - math->source.first) == L"$x$",
+            "acknowledged semantic math retains exact inline source envelope");
+    const auto index = static_cast<size_t>(math - document->Elements().begin());
+    editor->SetOnSelectionChanged([&] { preview->SetText(L"pending equation preview"); });
+    editor->SetSelection({math->source.first, math->source.first});
+    Require(fixture.controls->HasPendingContentPreparation() && editor->GetAcknowledgedSemanticDocument(*fixture.controls) == document &&
+                editor->GetSemanticElementBounds(*fixture.controls, index).has_value(),
+            "selection-triggered sibling preparation cannot revoke current main semantic geometry or math source");
+    const auto ranges = editor->GetTextInputRangeRects(*fixture.controls, 0u, 6u);
+    Require(ranges && ! ranges->empty(), "own source geometry stays usable while a sibling is pending");
+    Require(editor->OnKeyDown(*fixture.controls, VK_DOWN, 0u) && editor->GetSelection().caret > math->source.first,
+            "own prepared vertical navigation remains available during sibling work");
+    ControlHost foreign;
+    Require(! editor->GetAcknowledgedSemanticDocument(foreign), "foreign host never acknowledges the editor's geometry");
+    editor->SetOnSelectionChanged({});
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 120.0f));
+    Require(! editor->GetAcknowledgedSemanticDocument(*fixture.controls), "own width reflow still rejects stale semantic geometry");
+    fixture.Publish();
+    editor->SetSelection({0u, 0u});
+    Require(editor->ReplaceSelection(L"!") && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "own source mutation immediately rejects old geometry even when a sibling is also preparing");
+    Require(editor->Undo() && editor->GetText() == source && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "undo retains exact source but still needs own current geometry acknowledgement");
+    fixture.Publish();
+    Require(editor->GetAcknowledgedSemanticDocument(*fixture.controls) != nullptr, "owner preparation restores acknowledgement without depending on siblings");
+}
+void TestRichTextAccessibilityWindowAcknowledgementIsPerEditor()
+{
+    RichEditorAcknowledgementIsPerEditor(false);
+}
+void TestRichTextAccessibilityEmbeddedAcknowledgementIsPerEditor()
+{
+    EmbeddedCase(RichEditorAcknowledgementIsPerEditor);
 }
 void SemanticAttributesAndFormats(bool embedded)
 {
@@ -2264,6 +2332,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPresentationAndLinkCues);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionNotifications);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionNotifications);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowAcknowledgementIsPerEditor);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedAcknowledgementIsPerEditor);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticAttributesAndFormats);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticCompositionBindingAndRetirement);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement);

@@ -616,10 +616,11 @@ std::shared_ptr<const RichText::SemanticDocument> RichTextEditor::GetAcknowledge
 {
     const auto document  = GetSemanticDocument();
     const auto* geometry = _state->layout.SemanticGeometry();
-    return document && ! host.HasPendingContentPreparation() && LayoutIsCurrent(host) && _state->mode == RichText::ViewMode::Rich && geometry &&
-                   &geometry->Document() == document.get()
-               ? document
-               : nullptr;
+    // Another retained editor may be preparing a preview in the same host. The
+    // exact owner/source/width/typography/resource key acknowledges this editor;
+    // unrelated work must not revoke its coherent semantic geometry/actions.
+    return document && LayoutIsCurrent(host) && _state->mode == RichText::ViewMode::Rich && geometry && &geometry->Document() == document.get() ? document
+                                                                                                                                                : nullptr;
 }
 std::shared_ptr<const RichText::Detail::AccessibilityEpoch> RichTextEditor::AccessibilitySemanticEpoch() const noexcept
 {
@@ -1338,7 +1339,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 void RichTextEditor::RequireCurrentLayout(const ControlHost& host) const
 {
     // Geometry queries, input and painting never drain pending preparation.
-    if (! LayoutIsCurrent(host) || host.HasPendingContentPreparation())
+    if (! LayoutIsCurrent(host))
         throw std::logic_error("Rich-text geometry is pending or unavailable");
     UpdateCaretScroll();
 }
@@ -1703,7 +1704,12 @@ void RichTextEditor::Paint(ControlHost& host) const
     links.caret     = CaretLinkDisplayRange();
     if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
     {
-        links.inkRanges  = state.sourceInk.Ranges();
+        links.inkRanges = state.sourceInk.Ranges();
+        // Keep the ordinary first pass beneath true selection. Translucent
+        // selection fill and antialiased selected glyph edges must never retain
+        // colored syntax ink from underneath their selected-text pass.
+        if (selection.anchor != selection.caret)
+            links.inkExclusion = RichText::MarkdownRange{projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End())};
         links.inkBrushes = {
             host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
     }
@@ -1834,8 +1840,6 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         SetSelection({extend ? selection.anchor : source, source});
         return;
     }
-    if (host.HasPendingContentPreparation() && key != VK_LEFT && key != VK_RIGHT && ! (byWord && (key == VK_HOME || key == VK_END)))
-        return;
     auto& state            = *_state;
     const auto selection   = GetSelection();
     const auto& projection = state.layout;

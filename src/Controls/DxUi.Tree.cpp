@@ -79,7 +79,7 @@ struct TreeResolvedRowVisuals final
     else if (selected)
     {
         visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground);
+        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
     }
     else if (hovered)
     {
@@ -570,6 +570,8 @@ HRESULT Tree::SetTypographyOverride(std::optional<TypographyOverride> typography
         (! std::isfinite(typography->fontSizeDip) || typography->fontSizeDip < 6.0f || typography->fontSizeDip > 96.0f || typography->fontWeight < 100 ||
          typography->fontWeight > 900 || typography->currentFontWeight < 100 || typography->currentFontWeight > 900))
         return E_INVALIDARG;
+    if (typography)
+        typography->fontSizeDip = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
     if (_typographyOverride == typography)
         return S_FALSE;
     _typographyOverride = typography;

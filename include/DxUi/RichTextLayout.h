@@ -57,6 +57,9 @@ struct LinkDrawing
     // ordinary ink; no style affects source offsets or text metrics.
     std::span<const TextInkRange> inkRanges;
     std::array<ID2D1Brush*, 3> inkBrushes{};
+    // True selection keeps ordinary base ink beneath its selected-text pass,
+    // including antialiased edges over a translucent selection fill.
+    std::optional<MarkdownRange> inkExclusion;
 };
 struct Hit
 {

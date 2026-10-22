@@ -1923,6 +1923,9 @@ void TestLabelTypographyOverrideValidatesAtomically()
     Require(label.SetTypographyOverride(wanted) == S_OK, "label accepts a bounded typography override");
     Require(label.GetTypographyOverride() == wanted, "label returns its typography override");
     Require(label.SetTypographyOverride(wanted) == S_FALSE, "setting the same label typography is idempotent");
+    auto sameBucket = wanted;
+    sameBucket.fontSizeDip += 0.003f;
+    Require(label.SetTypographyOverride(sameBucket) == S_FALSE, "label normalizes sizes to the documented 1/64-DIP step");
     const LabelTypography invalid{std::numeric_limits<float>::infinity(), DWRITE_FONT_WEIGHT_NORMAL, 0.0f};
     Require(label.SetTypographyOverride(invalid) == E_INVALIDARG, "label rejects a non-finite font size");
     Require(label.GetTypographyOverride() == wanted, "invalid label typography leaves the prior value unchanged");

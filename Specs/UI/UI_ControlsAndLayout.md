@@ -9,6 +9,12 @@ MUST publish only after complete owner preparation, be disjoint/sorted and stay
 bounded to 65,536 staging events. Source/host/layout retirement cancels pending
 ink. Capacity overflow falls back to the whole ordinary source view and is
 remembered for that syntax identity. High contrast disables custom source ink.
+Every owner preparation advance MUST share a 256-step budget across block-marker
+walks, inline delimiter runs, link child walks, raw destination scans,
+incremental bottom-up event ordering and range publication. Long scans and sort
+passes resume on later advances; no partial range set is visible before completion.
+List-item accent ink MUST use the exact marker range retained by block parsing,
+including nested, ordered, quoted, tab-indented and task-list items.
 
 Status: normative intended contract
 Last reviewed: 2026-10-18
@@ -323,6 +329,14 @@ Adding a control requires an aligned public declaration/implementation, catalog 
 behavior tests and a populated gallery tile. `gallery.ps1` generates light, dark, rainbow light/dark and high-contrast
 PNG sheets with interactive-state variants, plus a supplied-device toggle/slider image. Gallery rendering supplements
 runtime tests; empty-control construction alone does not prove selection, keyboard, editing or accessibility behavior.
+
+`Separator` is a decorative, nonfocusable control with horizontal and vertical orientations. It reports UIA Separator
+control type and exposes neither Invoke nor a pointer hit target. In high contrast it uses the system border color;
+`Toolbar::AddSeparator` uses the toolbar's existing divider color. `Label::SetTypographyOverride` and
+`Tree::SetTypographyOverride` are optional; font size is bounded to 6–96 DIP and normalized to 1/64 DIP, weights are
+100–900, and Label character spacing is bounded to −4..16 DIP. Invalid values leave the prior override unchanged;
+`nullopt` restores role-default behavior. Tree current/focused rows use the configured current-row weight. Labels and
+Tree rows use host-cached DirectWrite formats and do not mutate shared font-role formats.
 
 ### Page indicator
 

@@ -571,10 +571,20 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
             continue;
         const auto first = std::max(ink->display.first, links->displayOrigin);
         const auto last  = std::min(ink->display.last, links->displayOrigin + projection_.text.size());
-        if (first < last)
-            Check(state_->layout->SetDrawingEffect(links->inkBrushes[role],
-                                                   {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
-                  "Set prepared source syntax ink");
+        const auto apply = [&](size_t begin, size_t end)
+        {
+            if (begin < end)
+                Check(state_->layout->SetDrawingEffect(
+                          links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(end - begin)}),
+                      "Set prepared source syntax ink");
+        };
+        if (links->inkExclusion && links->inkExclusion->first < last && first < links->inkExclusion->last)
+        {
+            apply(first, std::min(last, links->inkExclusion->first));
+            apply(std::max(first, links->inkExclusion->last), last);
+        }
+        else
+            apply(first, last);
     }
     for (const auto& run : projection_.runs)
         if (run.flags & Link)

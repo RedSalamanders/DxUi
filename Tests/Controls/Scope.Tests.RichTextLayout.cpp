@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichTextLayout.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../../src/Controls/DxUi.RichSourceInk.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
@@ -384,6 +385,163 @@ void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
     dormant.emphasis.reset();
     dormant.emphasisBrush = nullptr;
     Require(render(layout, &dormant) == render(layout, nullptr), "explicit underline survives hover-only link policy");
+    const auto normal = render(layout, nullptr);
+    const std::array inkRanges{TextInkRange{{5u, 10u}, TextInkRole::Accent}};
+    dormant.inkRanges                                            = inkRanges;
+    dormant.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    Require(render(layout, &dormant) != normal && render(layout, nullptr) == normal,
+            "prepared source ink borrows brushes and restores shared DirectWrite drawing state");
+}
+void TestRichTextSourceInkPreparationRolesAndCapacity()
+{
+    const auto parse = [](std::wstring_view source)
+    {
+        MarkdownParser parser;
+        parser.Begin(source, 1u, MarkdownProfile::Gfm029);
+        for (size_t turn = 0u; turn < 100000u; ++turn)
+            if (parser.Advance().status == MarkdownPreparationStatus::Complete)
+                return parser.Published();
+        throw std::runtime_error("source ink syntax fixture did not complete");
+    };
+    const std::wstring source = L"# Heading\r\n\r\n- **strong** [label](https://example.invalid/a\\(b\\))\r\n";
+    const auto syntax         = parse(source);
+    Detail::RichSourceInk ink;
+    size_t turns = 0u;
+    while (! ink.Advance(syntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "source ink shares one bounded preparation budget");
+        ++turns;
+        Require(ink.Ranges().empty() && turns < 1000u, "staged source ink never publishes partial ranges");
+    }
+    Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "final source ink turn stays within its work budget");
+    const auto roleAt = [&](size_t offset) -> std::optional<TextInkRole>
+    {
+        for (const auto& range : ink.Ranges())
+            if (range.display.first <= offset && offset < range.display.last)
+                return range.role;
+        return std::nullopt;
+    };
+    Require(roleAt(0u) == TextInkRole::Accent, "ATX heading marker receives accent ink");
+    Require(roleAt(source.find(L"- ")) == TextInkRole::Accent, "list marker receives accent ink");
+    Require(roleAt(source.find(L"**")) == TextInkRole::Subtle, "strong delimiter receives subtle ink");
+    Require(roleAt(source.find(L"https:")) == TextInkRole::Link && roleAt(source.find(L"\\(")) == TextInkRole::Link,
+            "escaped explicit-link destination receives exact source link ink");
+    Require(! roleAt(source.find(L"Heading")) && ! roleAt(source.find(L"strong")), "ordinary heading and strong content retain their normal ink");
+    size_t previous = 0u;
+    for (const auto& range : ink.Ranges())
+    {
+        Require(previous <= range.display.first && range.display.first < range.display.last && range.display.last <= source.size(),
+                "published source ink is bounded, sorted and disjoint");
+        previous = range.display.last;
+    }
+
+    const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";
+    const auto listSyntax          = parse(listFixture);
+    const std::array<std::wstring_view, 7> markers{L"-", L"-", L"-", L"-", L"12.", L"-", L"-"};
+    const std::array<size_t, 7> markerOffsets{listFixture.find(L"- outer"),
+                                              listFixture.find(L"- nested"),
+                                              listFixture.find(L"-\t- tab nested"),
+                                              listFixture.find(L"- tab nested"),
+                                              listFixture.find(L"12."),
+                                              listFixture.find(L"- quoted"),
+                                              listFixture.find(L"- [x]")};
+    for (size_t index = 0u; index < markers.size(); ++index)
+    {
+        Require(markerOffsets[index] != std::wstring::npos, "list marker fixture offset exists");
+        const auto found = std::ranges::find_if(listSyntax->Nodes(),
+                                                [&](const auto& node)
+        {
+            return node.block.kind == MarkdownBlockKind::ListItem && node.block.info.first == markerOffsets[index] &&
+                   node.block.info.last == markerOffsets[index] + markers[index].size() &&
+                   listFixture.substr(node.block.info.first, node.block.info.last - node.block.info.first) == markers[index];
+        });
+        Require(found != listSyntax->Nodes().end(), "list parser publishes exact source ranges for nested, ordered, quote, tab and task markers");
+    }
+    turns = 0u;
+    while (! ink.Advance(listSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "list marker preparation remains bounded and unpublished while pending");
+        ++turns;
+    }
+    for (const auto offset : markerOffsets)
+    {
+        const auto found = std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Accent && range.display.first <= offset && offset < range.display.last; });
+        Require(found, "each parsed list marker receives accent ink at its exact source offset");
+    }
+
+    std::wstring longCode(700u, L'`');
+    longCode += L"x";
+    longCode.append(700u, L'`');
+    const auto longCodeSyntax = parse(longCode);
+    turns                     = 0u;
+    while (! ink.Advance(longCodeSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "long inline delimiter scan yields without partial ranges or budget overflow");
+        ++turns;
+    }
+    const auto codeRoleAt = [&](size_t offset)
+    {
+        return std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Subtle && range.display.first <= offset && offset < range.display.last; });
+    };
+    Require(turns >= 2u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && codeRoleAt(0u) && codeRoleAt(699u) && ! codeRoleAt(700u),
+            "long code delimiter runs are colored exactly after resumable scanning");
+
+    std::wstring manyChildren = L"[";
+    for (size_t i = 0u; i < 300u; ++i)
+        manyChildren.append(L"**x** ");
+    manyChildren.append(L"](https://example.invalid/");
+    manyChildren.append(1400u, L'a');
+    manyChildren.append(L")");
+    const auto manyChildrenSyntax = parse(manyChildren);
+    turns                         = 0u;
+    while (! ink.Advance(manyChildrenSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "link label and destination scans share the bounded turn budget");
+        ++turns;
+    }
+    const auto linkedRoleAt = [&](size_t offset)
+    {
+        return std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Link && range.display.first <= offset && offset < range.display.last; });
+    };
+    const auto destination = manyChildren.find(L"https:");
+    Require(turns >= 3u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && linkedRoleAt(destination) && linkedRoleAt(manyChildren.find_last_of(L'a')),
+            "many-child link and long destination publish exact link ink after yielding");
+
+    std::wstring mergeFixture;
+    for (size_t i = 0u; i < 6000u; ++i)
+        mergeFixture.append(L"```\nx\n```\n");
+    const auto mergeSyntax = parse(mergeFixture);
+    turns                  = 0u;
+    while (! ink.Advance(mergeSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "incremental event merge does not publish partial ranges or exceed its per-turn budget");
+        ++turns;
+    }
+    Require(turns > 200u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ! ink.Ranges().empty(),
+            "multiple merge passes complete incrementally for a dense admitted source");
+
+    std::wstring crowded;
+    for (size_t i = 0u; i < 10000u; ++i)
+        crowded.append(L"# `x`\n");
+    Require(crowded.size() <= Document::MaximumUnits, "source ink overflow fixture stays within the admitted Markdown source limit");
+    const auto crowdedSyntax = parse(crowded);
+    turns                    = 0u;
+    while (! ink.Advance(crowdedSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "capacity-bound source ink yields without partial publication");
+        Require(++turns < 10000u, "capacity fallback remains bounded");
+    }
+    Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty() && ! ink.Pending(),
+            "source ink capacity overflow falls back to the complete ordinary view");
+    Require(ink.Advance(crowdedSyntax, [](size_t value) { return value; }) && ink.Ranges().empty(), "capacity rejection coalesces for exact syntax identity");
+    ink.Clear();
+    Require(! ink.Pending() && ink.Ranges().empty(), "source retirement cancels staged and published ink");
 }
 void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
 {
@@ -415,6 +573,7 @@ void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
     DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);
+    DXUI_RUN_TEST(TestRichTextSourceInkPreparationRolesAndCapacity);
     DXUI_RUN_TEST(TestPreparedFlowchartSdkBudgetAndLifetime);
     DXUI_RUN_TEST(TestPreparedFlowchartIndependentSdkRasterOracle);
     DXUI_RUN_TEST(TestPreparedFlowchartBorrowedWarpTargets);

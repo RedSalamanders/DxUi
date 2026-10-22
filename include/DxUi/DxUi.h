@@ -1933,8 +1933,10 @@ private:
 
 struct LabelTypography final
 {
-    float fontSizeDip                                                               = 13.0f;
-    DWRITE_FONT_WEIGHT fontWeight                                                   = DWRITE_FONT_WEIGHT_NORMAL;
+    float fontSizeDip             = 13.0f;
+    DWRITE_FONT_WEIGHT fontWeight = DWRITE_FONT_WEIGHT_NORMAL;
+    // Total added spacing per character in DIPs; normalized to 1/64 DIP before
+    // layout and paint. The host distributes this total across leading/trailing.
     float characterSpacingDip                                                       = 0.0f;
     friend bool operator==(const LabelTypography&, const LabelTypography&) noexcept = default;
 };

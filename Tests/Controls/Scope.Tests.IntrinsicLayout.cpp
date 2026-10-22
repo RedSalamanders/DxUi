@@ -166,6 +166,29 @@ void TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable()
             "checkbox measurement reserves its indicator and vertical padding and reports excess natural width");
 }
 
+void TestLabelTypographyCharacterSpacingUsesRequestedTotal()
+{
+    ControlHost host;
+    Label baseline(L"MMMM");
+    Label spaced(L"MMMM");
+    const LabelTypography unspaced{.fontSizeDip = 16.0f, .fontWeight = DWRITE_FONT_WEIGHT_NORMAL, .characterSpacingDip = 0.0f};
+    auto tracked                = unspaced;
+    tracked.characterSpacingDip = 1.5f;
+    Require(baseline.SetTypographyOverride(unspaced) == S_OK && spaced.SetTypographyOverride(tracked) == S_OK,
+            "labels accept matching font metrics with explicit tracking");
+    DesiredSize baselineSize;
+    DesiredSize spacedSize;
+    RequireSucceeded(baseline.Measure({host}, {}, baselineSize), "measure untracked typography baseline");
+    RequireSucceeded(spaced.Measure({host}, {}, spacedSize), "measure tracked typography");
+    const float increase = spacedSize.sizeDip.width - baselineSize.sizeDip.width;
+    Require(increase > 5.8f && increase < 6.2f, "characterSpacingDip is the total 1.5 DIP per character across four glyphs, not 3 DIP per glyph");
+    const auto normalized = spaced.GetTypographyOverride();
+    Require(normalized && normalized->characterSpacingDip == 1.5f, "published character spacing uses the normalized public value");
+    tracked.characterSpacingDip = 1.5001f;
+    Require(spaced.SetTypographyOverride(tracked) == S_FALSE && spaced.GetTypographyOverride() == normalized,
+            "spacing values within one 1/64-DIP bucket publish idempotently");
+}
+
 void TestFlexFlowWrapGrowthRtlAndOverflow()
 {
     ControlHost host;
@@ -788,6 +811,7 @@ void RunIntrinsicLayoutTests()
 {
     DXUI_RUN_TEST(TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs);
     DXUI_RUN_TEST(TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable);
+    DXUI_RUN_TEST(TestLabelTypographyCharacterSpacingUsesRequestedTotal);
     DXUI_RUN_TEST(TestFlexFlowWrapGrowthRtlAndOverflow);
     DXUI_RUN_TEST(TestFlexCacheInvalidationAndCompositeBounds);
     DXUI_RUN_TEST(TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry);

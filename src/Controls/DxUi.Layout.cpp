@@ -256,7 +256,8 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
         if (FAILED(hr))
             return hr;
-        hr = layout1->SetCharacterSpacing(_typographyOverride->characterSpacingDip, _typographyOverride->characterSpacingDip, 0.0f, range);
+        const float halfSpacing = _typographyOverride->characterSpacingDip * 0.5f;
+        hr                      = layout1->SetCharacterSpacing(halfSpacing, halfSpacing, 0.0f, range);
         if (FAILED(hr))
             return hr;
         DWRITE_TEXT_METRICS metrics{};

@@ -43,6 +43,13 @@ services, selection and history are unchanged. Preparation publishes complete
 disjoint ranges; drawing never parses. High contrast uses the ordinary text
 pair. The 65,536-event presentation bound falls back to the complete uncolored
 source view rather than publishing partial syntax or repeatedly retrying it.
+List marker ink uses the parser's exact source token range, so nested, ordered,
+quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
+Each owner preparation advance uses at most 256 work steps shared across block
+markers, inline delimiter runs, link-label children, raw destination scans,
+incremental event ordering and range publication. Long scans and bottom-up merge
+passes resume on later advances; ranges remain hidden until the complete set is
+ready.
 
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and

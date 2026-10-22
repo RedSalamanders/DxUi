@@ -1,5 +1,10 @@
 # Tree
 
+Inactive selected rows prefer `selectionText` on `selectionInactiveFill`; the
+shared contrast resolver replaces an unreadable preferred token. High contrast
+retains the explicit system Highlight/HighlightText pair. Icons and expanders
+follow the resolved row text color.
+
 Hierarchical list over a borrowed model with expand/collapse, badges and optional multi-select.
 
 - **Consumer supplies**: a borrowed `ITreeModel`, optional `ITreeDelegate`, stable IDs for selection/expansion; `NotifyDataChanged` when data changes. Read selection membership from `GetSelectedItemIds` (visible order) and `OnTreeSelectionSetChanged`; `GetFocusedItemId` and `OnTreeFocusedItemChanged` report independent keyboard focus.
@@ -7,7 +12,7 @@ Hierarchical list over a borrowed model with expand/collapse, badges and optiona
 - **Colors**: selected rows `selectionFill`/`selectionText`, unfocused `selectionInactiveFill`, hover `hoverFill`; rainbow mode tints rows by a stable hash. Inactive text keeps `text` when it reaches 4.5:1 against the composited row fill, otherwise uses the more contrasting pure black or white. High contrast keeps the supplied `selectionText` exactly.
 - **Selection and focus**: a tree that never enables multi-select remains single-select. Focus-only movement preserves selection in either mode; removing the selected row leaves an empty single selection while retaining focus. Adding a different item to an occupied single selection is refused, and adding the same item is idempotent. Selection callbacks report membership changes; the focused-item callback reports focus changes. In multi-select, every selected row takes the selection colors, and only the focused row draws a 1 DIP ring inset 1.5 DIP, even when it is not selected. The ring keeps `focusStroke` when it contrasts with the resolved painted fill, falling back to the more contrasting pure black or white; high contrast uses `selectionText` on selected rows. Click selects one row and sets the anchor, Ctrl+click toggles and moves the anchor, Shift+click (or Shift with a movement key) selects the visible range from the anchor, Ctrl with a movement key moves focus alone, Ctrl+Space toggles the focused row and Ctrl+A selects every row. A right-click on a selected row keeps the selection. A reorder drag still names one row, and a press with Ctrl or Shift never starts it.
 - **Single-click invocation**: `SetInvokeOnSingleClick(true)` opts in to invoking an item after a completed click on its row. The press/release must resolve to the same current item; release outside the row or cancellation does not invoke. The expander continues to expand/collapse only. Selection still follows the pointer-down gesture; Enter invokes the focused row, Space does not invoke in this mode, and a double-click does not invoke a leaf twice. The default `false` preserves existing behavior including Space and double-click handling.
-- **Typography**: `SetTypographyOverride` optionally configures a bounded font size plus regular and current-row weights; current/focused rows use `currentFontWeight`. `nullopt` preserves the existing Body role format.
+- **Typography**: `SetTypographyOverride` optionally configures a bounded font size (6–96 DIP, normalized to 1/64 DIP) plus regular and current-row weights (100–900); current/focused rows use `currentFontWeight`. `nullopt` preserves the existing Body role format.
 - **Flow direction**: RTL mirrors expander, icon, badge and text layout; pointer expander targeting and left/right group traversal follow the mirrored direction.
 
 ## Optional prepared accessibility rows

@@ -19,8 +19,11 @@ void TestTreeTypographyOverrideValidatesAtomically()
     Require(tree.SetTypographyOverride(wanted) == S_OK, "tree accepts bounded row typography");
     Require(tree.GetTypographyOverride() == wanted, "tree returns its row typography override");
     Require(tree.SetTypographyOverride(wanted) == S_FALSE, "same tree typography setting is idempotent");
+    auto sameBucket = wanted;
+    sameBucket.fontSizeDip += 0.003f;
+    Require(tree.SetTypographyOverride(sameBucket) == S_FALSE, "tree normalizes sizes to the documented 1/64-DIP step");
     auto invalid              = wanted;
-    invalid.currentFontWeight = 901;
+    invalid.currentFontWeight = static_cast<DWRITE_FONT_WEIGHT>(901);
     Require(tree.SetTypographyOverride(invalid) == E_INVALIDARG, "tree rejects invalid selected-row weight");
     Require(tree.GetTypographyOverride() == wanted, "invalid tree typography leaves the prior value unchanged");
     Require(tree.SetTypographyOverride(std::nullopt) == S_OK, "tree clears its optional typography override");
@@ -1316,6 +1319,35 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
     Require(! state.usesRainbow, "tree selected row suppresses rainbow tint in high-contrast mode");
     Require(state.fillArgb == PackColorForTest(highContrastRainbowTheme.selectionFill),
             "tree high-contrast selected row falls back to the shared selection fill");
+}
+
+void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
+{
+    using namespace DxUi;
+    Tree tree;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = L"Current document"}});
+    tree.SetModel(&model);
+    tree.SetSelectedItemId(1u);
+    auto theme                  = MakeDefaultThemePalette(false);
+    theme.rainbowMode           = false;
+    theme.surfaceBackground     = D2D1::ColorF(1, 1, 1, 1);
+    theme.selectionInactiveFill = D2D1::ColorF(.98f, .92f, .92f, 1);
+    theme.selectionText         = D2D1::ColorF(.63f, .16f, .20f, 1);
+    TreeDebugRowVisualState row;
+    Require(! tree.HasFocus() && tree.DebugGetRowVisualState(theme, 0u, false, row) && row.selected,
+            "inactive selected Tree row resolves through its native paint resolver");
+    Require(row.textArgb == PackColorForTest(theme.selectionText) && row.iconArgb == row.textArgb && row.expanderArgb == row.textArgb,
+            "readable selection text token controls inactive current-row label and icon chrome");
+    theme.selectionText = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) &&
+                row.textArgb ==
+                    PackColorForTest(ChooseContrastingTextColorForTest(CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground))),
+            "unreadable inactive selection text still receives the shared contrast fallback");
+    theme.highContrast          = true;
+    theme.selectionInactiveFill = D2D1::ColorF(0, 0, .5f, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == PackColorForTest(theme.selectionText),
+            "high contrast keeps the explicit HighlightText and Highlight pair");
 }
 
 void TestTreeNotifyDataChangedClearsMissingSelection()
@@ -2794,7 +2826,7 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
         Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
                 "a selected row of an unfocused tree is filled with the inactive selection color");
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground)),
                 "a selected row of an unfocused tree uses text contrasting with its painted inactive fill");
     }
 
@@ -2803,7 +2835,8 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         const ThemePalette polarityTheme = MakeDefaultThemePalette(dark);
         Require(tree.DebugGetRowVisualState(polarityTheme, 0u, true, state), "unfocused Tree resolves selected text in both light and dark themes");
         const D2D1_COLOR_F paintedFill = CompositeOverBackground(polarityTheme.selectionInactiveFill, polarityTheme.surfaceBackground);
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.text, polarityTheme.surfaceBackground)),
+        Require(state.textArgb ==
+                    PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.selectionText, polarityTheme.surfaceBackground)),
                 "unfocused Tree preserves readable text or substitutes contrast over the painted alpha selection");
     }
 
@@ -3141,4 +3174,5 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules);
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
+    DXUI_RUN_TEST(TestTreeInactiveSelectionPrefersSelectionTextWhenReadable);
 }

@@ -326,6 +326,58 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
     Require(raw->DebugGetState().layoutReady, "show prepares layout again");
 }
 
+void TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection()
+{
+    AttachedHostWindow window;
+    const std::wstring source = L"# Heading\r\n\r\n- **strong** [label](https://example.invalid/path)\r\n";
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
+    editor->SetViewMode(ViewMode::Source);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    WindowHostBitmapCapture plain, colored, selectedColored, selectedPlain;
+    Require(window.Host().DebugCaptureBitmap(plain), "ordinary source fixture capture without activation");
+    const auto geometry               = editor->DebugGetState().layoutGeneration;
+    const auto before                 = editor->TryGetTextInputCaretRect(window.Host(), source.find(L"strong"));
+    auto appearance                   = editor->GetAppearance();
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    const auto after = editor->TryGetTextInputCaretRect(window.Host(), source.find(L"strong"));
+    Require(editor->DebugGetState().sourceInkRangeCount > 0u && ! editor->DebugGetState().sourceInkPreparationPending &&
+                editor->DebugGetState().layoutGeneration == geometry && before && after && before->left == after->left && before->top == after->top &&
+                before->bottom == after->bottom && editor->GetText() == source && ! editor->CanUndo(),
+            "source ink publication preserves exact source/SDK geometry and history");
+    Require(window.Host().DebugCaptureBitmap(colored) && colored.bgraPixels != plain.bgraPixels, "prepared source roles change actual glyph ink");
+    editor->SetFocusModeEnabled(true);
+    RenderEditor(window);
+    WindowHostBitmapCapture sourceFocused;
+    Require(window.Host().DebugCaptureBitmap(sourceFocused) && sourceFocused.bgraPixels == colored.bgraPixels, "Source view never receives focus dimming");
+    editor->SetSelection({0u, source.size()});
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(selectedColored), "selected colored source capture");
+    appearance.colorizeMarkdownSource = false;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(selectedPlain) && selectedPlain.bgraPixels == selectedColored.bgraPixels,
+            "true selection colors override all custom source roles");
+    editor->SetSelection({0u, 0u});
+    auto palette         = window.Host().GetTheme();
+    palette.highContrast = true;
+    window.Host().SetTheme(palette);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(plain), "high contrast source capture");
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(colored) && colored.bgraPixels == plain.bgraPixels,
+            "high contrast suppresses custom syntax ink using the shared ordinary text pair");
+    editor->SetText(L"replacement");
+    Require(editor->DebugGetState().sourceInkRangeCount == 0u, "source replacement immediately retires all old ink");
+}
+
 void TestRichTextEditorNativeUnicodeRoutingAndNavigation()
 {
     AttachedHostWindow window;
@@ -659,6 +711,66 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
             "multiple message-loop turns publish only the latest complete native document");
     window.PumpMessages(20u);
     Require(editor->DebugGetState().preparationAdvances == prepared.preparationAdvances, "completed native content leaves no preparation polling loop");
+}
+void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
+{
+    class ObservedEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::RichTextEditor;
+        size_t calls{};
+        std::chrono::microseconds maximumAdvance{};
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            ++calls;
+            const auto start = std::chrono::steady_clock::now();
+            const HRESULT hr = RichTextEditor::PrepareContent(host);
+            maximumAdvance   = std::max(maximumAdvance, std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start));
+            return hr;
+        }
+    };
+    for (const size_t blockCount : {1500u, 6000u})
+    {
+        std::wstring source;
+        for (size_t block = 0u; block < blockCount; ++block)
+            source.append(L"```\nx\n```\n");
+        AttachedHostWindow window;
+        auto root        = std::make_unique<Panel>();
+        auto* sourceView = root->AddChild<ObservedEditor>(source);
+        auto* richView   = root->AddChild<ObservedEditor>(source);
+        sourceView->SetBounds(D2D1::RectF(0.f, 0.f, 145.f, 145.f));
+        richView->SetBounds(D2D1::RectF(150.f, 0.f, 295.f, 145.f));
+        sourceView->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        sourceView->SetViewMode(ViewMode::Source);
+        auto appearance                   = sourceView->GetAppearance();
+        appearance.colorizeMarkdownSource = true;
+        sourceView->SetAppearance(appearance);
+        richView->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        richView->SetMarkdownRenderingEnabled(true);
+        window.Host().SetRoot(std::move(root));
+        Require((GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "dense split fixture cannot activate the person's desktop window");
+        const auto start    = std::chrono::steady_clock::now();
+        const auto deadline = GetTickCount64() + 12000u;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        while (window.Host().HasPendingContentPreparation() && GetTickCount64() < deadline)
+            window.PumpMessages(10u);
+        const auto elapsed        = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+        const auto preparedSource = sourceView->DebugGetState(), preparedRich = richView->DebugGetState();
+        std::cout << "    [DENSE-SOURCE] blocks=" << blockCount << " elapsed_ms=" << elapsed.count() << " source_turns=" << sourceView->calls
+                  << " rich_turns=" << richView->calls << " source_max_us=" << sourceView->maximumAdvance.count()
+                  << " rich_max_us=" << richView->maximumAdvance.count() << " ink_ranges=" << preparedSource.sourceInkRangeCount << '\n';
+        Require(! window.Host().HasPendingContentPreparation() && preparedSource.layoutReady && preparedRich.layoutReady &&
+                    preparedSource.sourceInkRangeCount >= blockCount && ! preparedSource.sourceInkPreparationPending &&
+                    richView->GetMarkdownRenderingStatus() ==
+                        (blockCount < SemanticDocument::MaximumParagraphs ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::SourceFallback),
+                "ordinary native messages finish dense Source ink and sibling Rich geometry within the independent deadline");
+        Require(sourceView->GetText() == source && richView->GetText() == source && ! sourceView->CanUndo() && ! richView->CanUndo() &&
+                    sourceView->GetSelection() == Selection{} && richView->GetSelection() == Selection{},
+                "dense cooperative preparation preserves both exact source bindings, selection and histories");
+        const auto sourceCalls = sourceView->calls, richCalls = richView->calls;
+        window.PumpMessages(20u);
+        Require(sourceView->calls == sourceCalls && richView->calls == richCalls, "completed dense split preparation leaves no polling work");
+    }
 }
 void TestRichTextEditorNativeHostVisibilityAndZeroHeight()
 {
@@ -1319,6 +1431,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);
     DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
+    DXUI_RUN_TEST(TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
@@ -1331,6 +1444,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
     DXUI_RUN_TEST(TestRichTextEditorNativeCooperativePreparation);
     DXUI_RUN_TEST(TestRichTextEditorNativeMessageSchedulingAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorNativeDenseSourceAndSplitScheduling);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);
     DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
     DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);

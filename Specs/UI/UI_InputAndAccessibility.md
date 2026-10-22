@@ -1042,7 +1042,12 @@ empty and transformed/image/task tokens are atomic. Source-range scrolling uses
 these fragments without taking focus. Source line units remain ordered raw ACP
 partitions, with cell-local wrapping and atomic objects coalesced across wrapped
 SDK lines. All geometry is unavailable until its current host/source/resource
-publication is acknowledged; queries never finish pending preparation.
+publication is acknowledged; queries never finish pending preparation. This is
+per editor: pending work in a sibling preview MUST NOT revoke current semantic
+actions, glyph geometry or vertical navigation. The editor's host binding, exact
+source revision, viewport width, typography/resource epochs and semantic document
+identity must remain coherent. Its own source/width/resource changes still reject
+old geometry immediately, including after undo restores equal source bytes.
 Pending semantic preparation uses raw source graphemes for logical commands,
 not another Markdown dialect's v0 projection. Exact document Home/End includes
 trailing raw trivia. A collapsed visual delete from inside a transformed/object

@@ -1,5 +1,10 @@
 # Theme and typography
 
+Tree inactive selection MUST prefer the theme's `selectionText` token on the
+composited `selectionInactiveFill`, consistent with Grid. The shared contrast
+fallback still applies; high contrast preserves the supplied HighlightText pair.
+Selected row icons and expanders follow that resolved text color.
+
 Status: normative intended contract
 Last reviewed: 2026-09-29
 

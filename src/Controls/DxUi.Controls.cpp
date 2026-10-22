@@ -2613,6 +2613,11 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
                        typography->fontWeight < 100 || typography->fontWeight > 900 || ! std::isfinite(typography->characterSpacingDip) ||
                        typography->characterSpacingDip < -4.0f || typography->characterSpacingDip > 16.0f))
         return E_INVALIDARG;
+    if (typography)
+    {
+        typography->fontSizeDip         = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
+        typography->characterSpacingDip = static_cast<float>(std::lround(typography->characterSpacingDip * 64.0f)) / 64.0f;
+    }
     if (_typographyOverride == typography)
         return S_FALSE;
     _typographyOverride = typography;
@@ -2671,7 +2676,7 @@ void Label::Paint(ControlHost& host) const
                     layout)
                 {
                     const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
-                    const float spacing = _typographyOverride->characterSpacingDip;
+                    const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
                     wil::com_ptr<IDWriteTextLayout1> layout1;
                     if (SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
                         SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range)))
