@@ -731,6 +731,9 @@ struct GalleryScene
     Slider* touchSlider                = nullptr;
     Control* focusedControl            = nullptr;
     Grid* grid                         = nullptr;
+    RichTextEditor* presentationEditor = nullptr;
+    size_t presentationLinkOffset      = 0u;
+    size_t presentationMatchOffset     = 0u;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
     float heightDip = 1.0f;
 };
@@ -1144,6 +1147,10 @@ void AddComboItems(ComboBox& combo)
         const std::array highlights{RichTextSourceHighlight{match, 6u, true}};
         presentation->SetSourceHighlights(highlights);
         presentation->SetBounds(presentationTile.content);
+        scene.presentationEditor      = presentation;
+        scene.presentationLinkOffset  = link + 1u;
+        scene.presentationMatchOffset = match;
+        scene.focusedControl          = presentation;
     }
     {
         const Tile sourceTile = flow.Next(*scene.root, L"RichTextEditor / prepared Source syntax ink", 2u, 210.0f);
@@ -1492,6 +1499,18 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
 
     WindowHostBitmapCapture capture;
     Require(PrepareNativeContentForTests(window.Host()), "gallery cooperative controls reach one acknowledged frame");
+    Require(scene.presentationEditor && scene.presentationEditor->HasFocus(), "gallery presentation has logical focus without desktop activation");
+    Require(scene.presentationEditor->IsLinkUnderlineVisible(scene.presentationLinkOffset), "gallery presentation exposes its focused caret-link underline");
+    const auto matchRects =
+        scene.presentationEditor->TryGetTextInputRangeRects(window.Host(), scene.presentationMatchOffset, scene.presentationMatchOffset + 6u);
+    Require(matchRects.has_value() && ! matchRects.value().empty(), "gallery presentation search match has acknowledged native geometry");
+    const auto presentationBounds = scene.presentationEditor->GetBounds();
+    for (const auto& rect : matchRects.value())
+    {
+        Require(rect.left >= presentationBounds.left - 0.5f && rect.top >= presentationBounds.top - 0.5f && rect.right <= presentationBounds.right + 0.5f &&
+                    rect.bottom <= presentationBounds.bottom + 0.5f && rect.right > rect.left && rect.bottom > rect.top,
+                "gallery presentation search highlight stays visible within its content tile");
+    }
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;
