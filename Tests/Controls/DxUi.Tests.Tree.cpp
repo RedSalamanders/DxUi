@@ -3085,6 +3085,70 @@ void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
     Require(log.selectionSetChangedCount == 3u, "only the Shift+Down and the two removals reported a set");
 }
 
+void TestTreeSingleClickCaptureTransferMayRetireTheTree()
+{
+    using namespace DxUi;
+    const HWND activeBefore = GetActiveWindow();
+    Require(GetCapture() == nullptr, "the test thread starts without native capture");
+    struct CaptureState
+    {
+        WindowHost* target{};
+        bool armed{};
+        unsigned notifications{};
+    } state;
+    AttachedHostWindow window;
+    AttachedHostWindow previous;
+    state.target = &window.Host();
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}});
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 160.0f));
+    tree->SetModel(&model);
+    tree->SetInvokeOnSingleClick(true);
+    window.Host().SetRoot(std::move(root));
+    // The press below focuses an already-logical, non-text owner; no native
+    // focus transfer or foreground input is needed to exercise capture handoff.
+    window.Host().SetFocusControl(tree, false);
+    const auto lifetime = tree->GetLifetimeToken();
+    class PreviousCaptureOwner final : public Panel
+    {
+    public:
+        explicit PreviousCaptureOwner(CaptureState& state) noexcept : _state(state)
+        {
+        }
+        void OnCaptureLost(ControlHost&) override
+        {
+            if (! _state.armed)
+                return;
+            _state.armed = false;
+            ++_state.notifications;
+            _state.target->SetRoot(std::make_unique<Panel>());
+        }
+
+    private:
+        CaptureState& _state;
+    };
+    auto previousRoot  = std::make_unique<PreviousCaptureOwner>(state);
+    auto* captureOwner = previousRoot.get();
+    previousRoot->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));
+    previous.Host().SetRoot(std::move(previousRoot));
+    previous.Host().CaptureMouse(captureOwner);
+    const auto releaseOwnedCapture = wil::scope_exit([&]() noexcept
+    {
+        const HWND captured = GetCapture();
+        if (captured == previous.Hwnd() || captured == window.Hwnd())
+            static_cast<void>(ReleaseCapture());
+    });
+    Require(GetCapture() == previous.Hwnd(), "the previous owned HWND holds native capture without activation");
+    state.armed = true;
+    Require(tree->OnMouseDown(window.Host(), D2D1::Point2F(60.0f, 16.0f), false, 0u), "single-click capture handoff is handled");
+    Require(state.notifications == 1u && lifetime.expired() && window.Host().GetRoot() != nullptr,
+            "native capture-lost notification replaces the root before the original press returns");
+    Require(window.Host().GetCapturedControl() == nullptr && GetCapture() != window.Hwnd(), "retirement clears the original tree's capture");
+    Require(GetActiveWindow() == activeBefore, "capture handoff does not activate either owned test window");
+}
+
 // A tree press or double click on an item that focuses the tree, given a focus callback that replaces every control,
 // touches the destroyed tree no further (AddressSanitizer catches one that does).
 void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()
@@ -3115,6 +3179,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
     DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
     DXUI_RUN_TEST(TestTreeInputLeavesATreeTheFocusCallbackDestroyed);
+    DXUI_RUN_TEST(TestTreeSingleClickCaptureTransferMayRetireTheTree);
     DXUI_RUN_TEST(TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange);
     DXUI_RUN_TEST(TestTreeIconFontAndReorderReleaseEdgeCases);
     DXUI_RUN_TEST(TestTreePointerSelectionNotifiesDelegate);

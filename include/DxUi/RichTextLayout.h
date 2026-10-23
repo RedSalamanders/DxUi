@@ -4,6 +4,7 @@
 #include <array>
 #include <d2d1_1.h>
 #include <dwrite.h>
+#include <optional>
 #include <span>
 #include <utility>
 #include <wil/com.h>
@@ -27,6 +28,11 @@ struct LayoutOptions
     std::wstring locale                       = L"en-us"; // Empty uses DirectWrite's default, as ControlHost does.
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
     DWRITE_TEXT_ALIGNMENT textAlignment       = DWRITE_TEXT_ALIGNMENT_LEADING;
+    // Semantic-only minimum gaps. Null/null preserves legacy 8-DIP box gaps.
+    // Either override engages blank-line credit; an unset paragraph gap is an
+    // 8-DIP minimum. Real blank-source caret lines contribute to these gaps.
+    std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
+    std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
 };
 struct CaretGeometry
 {

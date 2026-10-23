@@ -378,26 +378,30 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
 {
     const auto validFont = [](std::wstring_view value) noexcept
     { return value.size() <= 255u && value.find(L'\0') == value.npos && RichText::IsValidUtf16(value); };
-    const auto validSize   = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
-    const auto validHeight = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
+    const auto validSize    = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
+    const auto validHeight  = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
+    const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
+    { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f || appearance.maximumTextWidthDip > 1048576.0f ||
         ! std::isfinite(appearance.paddingDip) || (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) ||
         ! validSize(appearance.bodyFontSizeDip) || ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
         (appearance.lineHeightMultiplier != 0.0f && (appearance.lineHeightMultiplier < 1.0f || appearance.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
         ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) ||
-        ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight))
+        ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) || ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) ||
+        ! validSpacing(appearance.listItemSpacingDip, 256.0f))
         throw std::invalid_argument("Invalid rich editor appearance");
     if (_state->appearance == appearance)
         return;
-    auto next                   = appearance; // Stage all owned strings before publishing any option.
-    const auto& previous        = _state->appearance;
-    const bool geometryChanged  = previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-                                  previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
-                                  previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
-                                  previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
-                                  previous.headingFontSizeDip != next.headingFontSizeDip ||
-                                  previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier;
+    auto next            = appearance; // Stage all owned strings before publishing any option.
+    const auto& previous = _state->appearance;
+    const bool geometryChanged =
+        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
+        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
+        previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
+        previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
+        previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip;
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
@@ -414,6 +418,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.headingScaleStep            = next.headingScaleStep;
     value.headingFontSizeDip          = next.headingFontSizeDip;
     value.headingLineHeightMultiplier = next.headingLineHeightMultiplier;
+    value.paragraphSpacingAfterLines  = next.paragraphSpacingAfterLines;
+    value.listItemSpacingDip          = next.listItemSpacingDip;
     value.bodyFontFamily.swap(next.bodyFontFamily);
     value.codeFontFamily.swap(next.codeFontFamily);
     const auto lifetime = GetLifetimeToken();
@@ -1218,6 +1224,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.headingScaleStep            = appearance.headingScaleStep;
             options.headingFontSizeDip          = appearance.headingFontSizeDip;
             options.headingLineHeightMultiplier = appearance.headingLineHeightMultiplier;
+            options.paragraphSpacingAfterLines  = appearance.paragraphSpacingAfterLines;
+            options.listItemSpacingDip          = appearance.listItemSpacingDip;
             if (! appearance.bodyFontFamily.empty())
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
@@ -1870,10 +1878,15 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             const bool page      = key == VK_NEXT || key == VK_PRIOR;
             const float distance = page ? std::max(caret.height, TextViewport().bottom - TextViewport().top) : caret.height;
             target               = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance : -distance));
-            // Preserve wrapped SDK lines; only a spacing tie needs a second
-            // probe across the 8-DIP block gap or 12-DIP table-row padding.
+            // Ordinary wrapped lines keep their existing SDK hit path. Only
+            // a same-row tie must cross an explicitly requested larger gap.
             if (! page && std::abs(geometry->SourceCaret(target.position, target.site).y - caret.y) < .01f)
-                target = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance + 12.0f : -distance - 12.0f));
+            {
+                if (state.appearance.paragraphSpacingAfterLines || state.appearance.listItemSpacingDip)
+                    target = geometry->AdjacentSourceLine(selection.caret, state.sourceCaretSite, preferredX.value(), down);
+                else
+                    target = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance + 12.0f : -distance - 12.0f));
+            }
         }
         else
         {

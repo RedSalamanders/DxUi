@@ -2511,8 +2511,12 @@ void Separator::SetOrientation(SeparatorOrientation orientation) noexcept
     const auto next = orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical;
     if (_orientation == next)
         return;
-    _orientation = next;
+    _orientation        = next;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
@@ -2583,8 +2587,12 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 {
     if (_fontRole == fontRole)
         return;
-    _fontRole = fontRole;
+    _fontRole           = fontRole;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
@@ -2625,7 +2633,11 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
     _typographyOverride = typography;
     _typographyLayout.reset();
     _typographyLayoutText.clear();
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return S_OK;
     RequestInvalidate();
     return S_OK;
 }

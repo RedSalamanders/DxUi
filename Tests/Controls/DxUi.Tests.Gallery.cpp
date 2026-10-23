@@ -1134,6 +1134,8 @@ void AddComboItems(ComboBox& combo)
         appearance.maximumTextWidthDip            = 520.0f;
         appearance.bodyFontSizeDip                = 16.0f;
         appearance.lineHeightMultiplier           = 1.65f;
+        appearance.paragraphSpacingAfterLines     = 1.0f;
+        appearance.listItemSpacingDip             = 10.0f;
         appearance.headingFontSizeDip[0]          = 28.0f;
         appearance.headingLineHeightMultiplier[0] = 1.2f;
         presentation->SetAppearance(appearance);

@@ -125,6 +125,11 @@ callback is synchronous and must not re-enter the host. Dirty requests coalesce;
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
+It may retire or replace controls through a `ControlHost` reference borrowed before the callback; this limited
+retirement is tolerated. Library continuations that may run after synchronous scheduling or measurement callbacks
+MUST keep a weak control lifetime and stop before later member access if it expired. Host-specific continuation also
+revalidates current ownership. This contract does not promise safety when the callback destroys the owning host.
 
 Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
 milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime

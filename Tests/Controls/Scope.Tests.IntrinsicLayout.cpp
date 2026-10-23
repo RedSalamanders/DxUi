@@ -429,6 +429,54 @@ void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
             "the setter returns without dereferencing a button retired by its preparation callback");
 }
 
+void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks()
+{
+    const auto runRetiringSetter = []<typename AddChild, typename ChangeTypography>(AddChild&& addChild, ChangeTypography&& changeTypography)
+    {
+        GraphicsFixture graphics;
+        RequireSucceeded(graphics.Create(), "embedded WARP fixture for a retiring typography setter");
+        std::shared_ptr<GraphicsDevice> device;
+        RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "graphics pool for a retiring typography setter");
+        EmbeddedHost view;
+        struct CallbackState
+        {
+            ControlHost* host{};
+            bool armed{};
+        } state{.host = &view.Controls()};
+        const EmbeddedCallbacks callbacks{.context            = &state,
+                                          .requestPreparation = [](void* context) noexcept
+        {
+            auto& current = *static_cast<CallbackState*>(context);
+            if (current.armed)
+            {
+                current.armed = false;
+                current.host->SetRoot(nullptr);
+            }
+        }};
+        RequireSucceeded(view.Attach(device, callbacks), "attach retiring typography callback fixture");
+        auto root              = std::make_unique<FlexPanel>();
+        Control* const control = addChild(*root);
+        Require(control != nullptr, "create intrinsic child for retiring typography setter");
+        view.Controls().SetRoot(std::move(root));
+        RequireSucceeded(view.Prepare(320u, 160u), "prepare callback fixture before changing typography");
+        state.armed = true;
+        changeTypography(control);
+        Require(view.Controls().GetRoot() == nullptr, "setter returns after embedded preparation retires its root");
+    };
+
+    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
+                      [](Control* control) { static_cast<Label*>(control)->SetFontRole(FontRole::Title); });
+    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
+                      [](Control* control)
+    {
+        Require(static_cast<Label*>(control)->SetTypographyOverride(
+                    LabelTypography{.fontSizeDip = 16.0f, .fontWeight = DWRITE_FONT_WEIGHT_SEMI_BOLD, .characterSpacingDip = 0.5f}) == S_OK,
+                "label typography override is accepted before embedded retirement");
+    });
+    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Separator>(); },
+                      [](Control* control) { static_cast<Separator*>(control)->SetOrientation(SeparatorOrientation::Horizontal); });
+}
+
 void TestFlexFlowWrapGrowthRtlAndOverflow()
 {
     ControlHost host;
@@ -1151,6 +1199,7 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestButtonContentFontSizeShapesIntrinsicVariants);
     DXUI_RUN_TEST(TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration);
     DXUI_RUN_TEST(TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks);
+    DXUI_RUN_TEST(TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks);
     DXUI_RUN_TEST(TestFlexFlowWrapGrowthRtlAndOverflow);
     DXUI_RUN_TEST(TestFlexCacheInvalidationAndCompositeBounds);
     DXUI_RUN_TEST(TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry);

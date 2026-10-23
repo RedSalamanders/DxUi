@@ -63,12 +63,16 @@ validated native HTML text subset reuses existing styles; unsupported markup
 keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
 selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret
 ink role; selection keeps the existing selected-text/fill roles in every theme.
-Cell padding is 6 DIP, block spacing 8 DIP and nesting indentation 16 DIP per level
+Cell padding is 6 DIP, default block spacing 8 DIP and nesting indentation 16 DIP per level
 within the bounded viewport, plus measured ancestor list gutters. Native marker
 and body share a first baseline and RTL mirrors the leading column. Empty/trailing/container-only source lines have
 caret boxes with the same typography/indentation; empty/padded cells retain
 distinct visual affinity without adding source text or selection ink. No palette
-token changes. M4e source-exact commands reuse existing host focus/capture and
+token changes. Document appearance may opt into `paragraphSpacingAfterLines`
+and `listItemSpacingDip` minimum gaps. Either option credits real blank-source
+caret heights, so one separator occupies a paragraph margin rather than adding
+a second one; both absent retain the original per-box gaps. The document-surface
+gallery appearance opts into one body line and a 10-DIP item minimum. M4e source-exact commands reuse existing host focus/capture and
 transaction visuals: task toggles commit on matching release, empty/padded cell
 typing materializes only the focused cell, and Tab returns to host traversal when
 no list/table command applies. The standalone sample adds two rows of standard

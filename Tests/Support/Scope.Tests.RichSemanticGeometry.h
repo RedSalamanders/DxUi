@@ -2,6 +2,7 @@
 #include "../../src/Controls/DxUi.RichSemanticGeometry.h"
 #include "Scope.Tests.RichSemanticDocument.h"
 #include <cmath>
+#include <limits>
 #include <wil/resource.h>
 #include <wil/result.h>
 #include <wincodec.h>
@@ -18,12 +19,14 @@ inline wil::com_ptr<IDWriteFactory> Factory()
     THROW_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(result.put())));
     return result;
 }
-inline void Complete(PreparedSemanticGeometry& geometry)
+inline void Complete(PreparedSemanticGeometry& geometry, std::size_t* layoutCalls = nullptr)
 {
     std::size_t steps = 0u;
     while (geometry.Pending())
     {
         const auto result = geometry.Advance({1u, 3u});
+        if (layoutCalls)
+            *layoutCalls += result.layoutsPrepared;
         Check(result.layoutsPrepared <= 1u && result.blockSteps <= 3u, "semantic geometry respects independent SDK/event budgets");
         Check(++steps < 100000u, "semantic geometry finishes its bounded staging graph");
     }
@@ -398,6 +401,190 @@ inline void TaskCheckboxAlignment()
                       "a list containing just one task keeps its gutter and wrapping when toggled, without a wider sibling to reserve space");
             }
 }
+inline void SemanticSpacingPolicy()
+{
+    auto factory = Factory();
+    for (const auto& [size, multiplier] : {std::pair{16.0f, 1.65f}, {15.0f, 1.65f}, {18.0f, 1.65f}, {18.0f, 0.0f}})
+    {
+        LayoutOptions options;
+        options.widthDip                   = 420.0f;
+        options.fontSizeDip                = size;
+        options.lineHeightMultiplier       = multiplier;
+        options.paragraphSpacingAfterLines = 1.0f;
+        options.listItemSpacingDip         = 10.0f;
+        // Independent native body measurement; the baseline value does not
+        // affect line height and deliberately differs from editor positioning.
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory->CreateTextFormat(options.fontFamily.c_str(),
+                                                  nullptr,
+                                                  DWRITE_FONT_WEIGHT_NORMAL,
+                                                  DWRITE_FONT_STYLE_NORMAL,
+                                                  DWRITE_FONT_STRETCH_NORMAL,
+                                                  size,
+                                                  options.locale.c_str(),
+                                                  format.put()));
+        wil::com_ptr<IDWriteTextLayout> measured;
+        THROW_IF_FAILED(factory->CreateTextLayout(L"x", 1u, format.get(), options.widthDip, 100000.0f, measured.put()));
+        if (multiplier > 0.0f)
+            THROW_IF_FAILED(measured->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, size * multiplier, size * multiplier * .75f));
+        DWRITE_LINE_METRICS metric{};
+        UINT32 actual{};
+        THROW_IF_FAILED(measured->GetLineMetrics(&metric, 1u, &actual));
+        Check(actual == 1u && metric.height > 0.0f, "spacing oracle obtains a real native body line");
+        const auto line = metric.height;
+        for (const unsigned blanks : {1u, 2u})
+        {
+            const std::wstring source = L"a" + std::wstring(blanks + 1u, L'\n') + L"b";
+            const auto document       = RichSemanticDocumentTests::Build(source);
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(factory.get(), document, options);
+            std::size_t calls{};
+            Complete(geometry, &calls);
+            Check(calls == 2u + blanks + (multiplier == 0.0f ? 1u : 0u),
+                  "native body-line measurement is one budgeted SDK layout and explicit line height adds none");
+            const auto first = geometry.SourceCaret(0u), last = geometry.SourceCaret(source.size() - 1u);
+            Check(std::abs(first.height - line) < .02f && std::abs(last.y - first.y - line * static_cast<float>(blanks + 1u)) < .04f,
+                  "real separator caret lines fill the one-line paragraph margin without stacking another blank gap");
+            float previous = first.y;
+            for (const auto& empty : document->Syntax()->EmptyLines())
+            {
+                const auto caret = geometry.SourceCaret(empty.insertion);
+                const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
+                Check(caret.y > previous && hit.position == empty.insertion && geometry.IsEmptySourceSite(hit.position, hit.site),
+                      "every separator retains a distinct exact ACP caret and native hit site under collapsed spacing");
+                previous = caret.y;
+            }
+            Check(last.y > previous && document->Map().Source() == source, "paragraph spacing retains source bytes and ordered source sites");
+            const auto generation = geometry.Generation();
+            Check(geometry.Begin(factory.get(), document, options) == LayoutPreparationStatus::Complete && geometry.Generation() == generation,
+                  "identical semantic spacing reuses the complete geometry generation");
+            auto changed                       = options;
+            changed.paragraphSpacingAfterLines = 2.0f;
+            geometry.Begin(factory.get(), document, changed);
+            geometry.Cancel();
+            Check(geometry.Generation() == generation && geometry.SourceCaret(source.size() - 1u).y == last.y,
+                  "cancelled spacing change retains the prior exact geometry publication");
+            geometry.Begin(factory.get(), document, changed);
+            Complete(geometry);
+            Check(geometry.Generation() != generation, "spacing values participate in geometry reuse identity");
+        }
+        for (const std::wstring_view source : {L"- one\n- two", L"- outer\n  - inner\n  - second\n- final"})
+        {
+            const auto document = RichSemanticDocumentTests::Build(source);
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(factory.get(), document, options);
+            Complete(geometry);
+            float previousBottom{};
+            bool first = true;
+            for (const auto& paragraph : document->Paragraphs())
+            {
+                const auto bounds = geometry.ElementBounds(paragraph.element);
+                Check(bounds.has_value(), "each list body has complete real layout bounds");
+                if (! first)
+                    Check(std::abs(bounds.value().top - previousBottom - 10.0f) < .04f,
+                          "sibling, nested-entry and outer-sibling list transitions use exactly the requested ten DIP gap");
+                previousBottom = bounds.value().bottom;
+                first          = false;
+            }
+        }
+        for (const std::wstring_view source : {L"- one\n\n- two", L"- one\n\n  continuation\n\n- two"})
+        {
+            const auto document = RichSemanticDocumentTests::Build(source);
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(factory.get(), document, options);
+            Complete(geometry);
+            float previousBottom{};
+            bool first = true;
+            for (const auto& paragraph : document->Paragraphs())
+            {
+                const auto bounds = geometry.ElementBounds(paragraph.element);
+                Check(bounds.has_value(), "loose list body has native layout bounds");
+                if (! first)
+                    Check(std::abs(bounds.value().top - previousBottom - line) < .04f,
+                          "a loose-list separator or continuation supplies its real body line instead of stacking a list gap");
+                previousBottom = bounds.value().bottom;
+                first          = false;
+            }
+        }
+        const auto document = RichSemanticDocumentTests::Build(L"a\n# b");
+        PreparedSemanticGeometry geometry;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto first = geometry.SourceCaret(0u), heading = geometry.SourceCaret(4u);
+        Check(std::abs(heading.y - first.y - first.height - line) < .04f,
+              "a paragraph without a physical blank separator still receives one nominal body line of bottom margin");
+        auto legacy = options;
+        legacy.paragraphSpacingAfterLines.reset();
+        legacy.listItemSpacingDip.reset();
+        const auto tight = RichSemanticDocumentTests::Build(L"- one\n- two");
+        geometry.Begin(factory.get(), tight, legacy);
+        Complete(geometry);
+        const auto one = geometry.ElementBounds(tight->Paragraphs()[0u].element), two = geometry.ElementBounds(tight->Paragraphs()[1u].element);
+        Check(one && two && std::abs(two.value().top - one.value().bottom - 8.0f) < .04f,
+              "absent spacing options preserve the exact established eight DIP semantic box gap");
+        geometry.Begin(factory.get(), tight, options);
+        Complete(geometry);
+        const auto listGeneration    = geometry.Generation();
+        auto widerList               = options;
+        widerList.listItemSpacingDip = 20.0f;
+        geometry.Begin(factory.get(), tight, widerList);
+        Complete(geometry);
+        const auto widerOne = geometry.ElementBounds(tight->Paragraphs()[0u].element), widerTwo = geometry.ElementBounds(tight->Paragraphs()[1u].element);
+        Check(widerOne && widerTwo && std::abs(widerTwo.value().top - widerOne.value().bottom - 20.0f) < .04f && geometry.Generation() != listGeneration,
+              "list minimum alone participates in same-document geometry reuse and actual placement");
+        const auto separated = RichSemanticDocumentTests::Build(L"a\n\nb");
+        geometry.Begin(factory.get(), separated, legacy);
+        Complete(geometry);
+        const auto oldA = geometry.SourceCaret(0u), oldB = geometry.SourceCaret(3u);
+        Check(std::abs(oldB.y - oldA.y - 2.0f * line - 16.0f) < .04f, "null/null also preserves legacy eight DIP after each real separator caret box");
+        auto listOnly               = legacy;
+        listOnly.listItemSpacingDip = 10.0f;
+        geometry.Begin(factory.get(), tight, listOnly);
+        Complete(geometry);
+        const auto listOne = geometry.ElementBounds(tight->Paragraphs()[0u].element), listTwo = geometry.ElementBounds(tight->Paragraphs()[1u].element);
+        Check(listOne && listTwo && std::abs(listTwo.value().top - listOne.value().bottom - 10.0f) < .04f,
+              "list-only engagement applies its ten DIP minimum to tight items");
+        geometry.Begin(factory.get(), separated, listOnly);
+        Complete(geometry);
+        Check(std::abs(geometry.SourceCaret(3u).y - geometry.SourceCaret(0u).y - 2.0f * line) < .04f,
+              "list-only engagement uses an eight DIP paragraph minimum credited by the real blank line");
+        geometry.Begin(factory.get(), document, listOnly);
+        Complete(geometry);
+        const auto listA = geometry.SourceCaret(0u), listHeading = geometry.SourceCaret(4u);
+        Check(std::abs(listHeading.y - listA.y - listA.height - 8.0f) < .04f,
+              "list-only engagement keeps the unset paragraph minimum at eight DIP without a source separator");
+        auto paragraphOnly                       = legacy;
+        paragraphOnly.paragraphSpacingAfterLines = 1.0f;
+        geometry.Begin(factory.get(), tight, paragraphOnly);
+        Complete(geometry);
+        const auto paragraphOne = geometry.ElementBounds(tight->Paragraphs()[0u].element),
+                   paragraphTwo = geometry.ElementBounds(tight->Paragraphs()[1u].element);
+        Check(paragraphOne && paragraphTwo && std::abs(paragraphTwo.value().top - paragraphOne.value().bottom - line) < .04f,
+              "paragraph-only engagement applies its paragraph minimum when no list-specific override is supplied");
+        geometry.Begin(factory.get(), tight, legacy);
+        Complete(geometry);
+        const auto generation = geometry.Generation();
+        for (const float invalid : {-1.0f, 257.0f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+        {
+            auto rejected               = options;
+            rejected.listItemSpacingDip = invalid;
+            RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), tight, rejected); }, "invalid list spacing rejects admission");
+            rejected                            = options;
+            rejected.paragraphSpacingAfterLines = invalid == 257.0f ? 4.01f : invalid;
+            RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), tight, rejected); },
+                                                             "invalid paragraph spacing rejects admission");
+            Check(geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && &geometry.Document() == tight.get(),
+                  "invalid spacing cannot change the previous complete publication");
+        }
+        auto zero                       = options;
+        zero.paragraphSpacingAfterLines = 0.0f;
+        zero.listItemSpacingDip         = 0.0f;
+        geometry.Begin(factory.get(), tight, zero);
+        Complete(geometry);
+        const auto zeroOne = geometry.ElementBounds(tight->Paragraphs()[0u].element), zeroTwo = geometry.ElementBounds(tight->Paragraphs()[1u].element);
+        Check(zeroOne && zeroTwo && std::abs(zeroTwo.value().top - zeroOne.value().bottom) < .04f, "explicit zero spacing is valid and distinct from null");
+    }
+}
 inline void ParagraphsTablesAndSourceRanges()
 {
     auto factory              = Factory();
@@ -442,6 +629,7 @@ inline void ParagraphsTablesAndSourceRanges()
           "matching invalidated geometry can be acknowledged again");
     geometry.Clear();
     Check(! geometry.Ready() && ! geometry.Pending() && geometry.Height() == 0.0f, "semantic retirement releases both staged and published SDK graphs");
+    SemanticSpacingPolicy();
 }
 inline void AtomicNavigationAndCancellation()
 {
@@ -475,11 +663,16 @@ inline void AtomicNavigationAndCancellation()
           "empty semantic document has an SDK caret without invented source text");
     RichSemanticTests::Reject<std::out_of_range>([&] { geometry.Range(0u, 1u); }, "semantic range bound validation");
 }
-inline void SourceCaretSites()
+inline void SourceCaretSitesPolicy(bool spacing)
 {
     auto factory = Factory();
     LayoutOptions options;
     options.widthDip = 360.0f;
+    if (spacing)
+    {
+        options.paragraphSpacingAfterLines = 1.0f;
+        options.listItemSpacingDip         = 10.0f;
+    }
     std::wstring source(0u, L' ');
     std::vector<std::size_t> insertions(0u);
     const std::array<std::pair<std::wstring_view, std::wstring_view>, 6u> lines{
@@ -636,5 +829,10 @@ inline void SourceCaretSites()
                   geometry.StepSource(1u, MarkdownNoNode, true).position == std::wstring_view(sourceText).size(),
               "raw interior entity/image ACPs move to the atomic source boundary in either direction");
     }
+}
+inline void SourceCaretSites()
+{
+    SourceCaretSitesPolicy(false);
+    SourceCaretSitesPolicy(true);
 }
 } // namespace RichSemanticGeometryTests

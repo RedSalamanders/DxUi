@@ -2,6 +2,7 @@
 #include "Scope.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
+#include <limits>
 
 namespace RichSemanticEditorTests
 {
@@ -515,13 +516,148 @@ template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, P
           "empty native HTML typing resolves normally and is exactly one source undo");
     prepare();
 }
-template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& prepare)
+template <typename Prepare> void SpacingAppearance(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"- one\n- two\n\na\n\nb";
+    auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance                 = editor->GetAppearance();
+    appearance.bodyFontSizeDip      = 16.0f;
+    appearance.lineHeightMultiplier = 1.65f;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    editor->SetSelection({source.size(), source.size()});
+    Check(editor->OnChar(host, L'!', 0u) && editor->Undo(), "spacing fixture retains a real redo transaction");
+    editor->SetSelection({2u, 5u});
+    prepare();
+    const auto snapshot   = editor->Snapshot();
+    const auto revision   = editor->Revision();
+    const auto syntax     = editor->GetMarkdownSyntax();
+    const auto selection  = editor->GetSelection();
+    const auto generation = editor->DebugGetState().layoutGeneration;
+    const auto one = editor->TryGetTextInputCaretRect(host, 2u), two = editor->TryGetTextInputCaretRect(host, 8u);
+    Check(one && two && std::abs(two->top - one->bottom - 8.0f) < .05f, "both hosts start with the actual legacy list gap");
+    appearance.paragraphSpacingAfterLines = 1.0f;
+    appearance.listItemSpacingDip         = 10.0f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto changedOne = editor->TryGetTextInputCaretRect(host, 2u), changedTwo = editor->TryGetTextInputCaretRect(host, 8u);
+    Check(changedOne && changedTwo && std::abs(changedTwo->top - changedOne->bottom - 10.0f) < .05f && editor->DebugGetState().layoutGeneration != generation &&
+              editor->Snapshot().IsSameRevision(snapshot) && editor->Revision() == revision && editor->GetMarkdownSyntax() == syntax &&
+              editor->GetSelection() == selection && ! editor->CanUndo() && editor->CanRedo(),
+          "native/embedded spacing reflow changes actual geometry without source, selection, syntax or history mutation");
+    const auto configuredGeneration = editor->DebugGetState().layoutGeneration;
+    editor->SetAppearance(appearance);
+    Check(editor->DebugGetState().layoutReady && editor->DebugGetState().layoutGeneration == configuredGeneration,
+          "idempotent appearance spacing retains prepared geometry");
+    for (const float invalid : {-1.0f, 257.0f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+    {
+        auto rejected               = appearance;
+        rejected.listItemSpacingDip = invalid;
+        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid editor list spacing rejects atomically");
+        rejected                            = appearance;
+        rejected.paragraphSpacingAfterLines = invalid == 257.0f ? 4.01f : invalid;
+        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid editor paragraph spacing rejects atomically");
+        Check(editor->GetAppearance() == appearance && editor->DebugGetState().layoutGeneration == configuredGeneration &&
+                  editor->Snapshot().IsSameRevision(snapshot) && editor->GetSelection() == selection && editor->CanRedo(),
+              "rejected spacing preserves current appearance, prepared geometry and exact editor state");
+    }
+    editor->SetViewMode(ViewMode::Source);
+    prepare();
+    const auto raw                        = editor->TryGetTextInputCaretRect(host, source.size() - 1u);
+    appearance.paragraphSpacingAfterLines = 3.0f;
+    appearance.listItemSpacingDip         = 100.0f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto rawAfter = editor->TryGetTextInputCaretRect(host, source.size() - 1u);
+    Check(raw && rawAfter && raw->top == rawAfter->top && raw->bottom == rawAfter->bottom && editor->Snapshot().IsSameRevision(snapshot) &&
+              editor->GetSelection() == selection && ! editor->CanUndo() && editor->CanRedo(),
+          "semantic spacing is inert in exact Source geometry and history");
+    Check(editor->Redo() && editor->GetText() == source + L"!" && editor->Undo() && editor->GetText() == source,
+          "spacing and view changes preserve the original one-undo source transaction");
+    prepare();
+}
+template <typename Prepare> void SpacingNavigation(ControlHost& host, Prepare&& prepare)
+{
+    auto root    = std::make_unique<SourceCaretEditorFixture>(L"");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance                       = editor->GetAppearance();
+    appearance.bodyFontSizeDip            = 16.0f;
+    appearance.lineHeightMultiplier       = 1.65f;
+    appearance.paragraphSpacingAfterLines = 4.0f;
+    appearance.listItemSpacingDip         = 256.0f;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    for (const auto flow : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+    {
+        const std::wstring source = L"- iiiii\n- iiiii";
+        editor->SetText(source);
+        editor->SetFlowDirection(flow);
+        prepare();
+        const auto snapshot = editor->Snapshot();
+        const auto revision = editor->Revision();
+        editor->SetSelection({4u, 4u});
+        Check(editor->OnKeyDown(host, VK_DOWN, 0u) && editor->GetSelection() == Selection{12u, 12u},
+              "native/embedded Down crosses a 256-DIP list gap with preferred x in either flow");
+        prepare();
+        Check(editor->OnKeyDown(host, VK_UP, 0u) && editor->GetSelection() == Selection{4u, 4u},
+              "native/embedded Up reverses the large list gap at the same exact source column");
+        prepare();
+        Check(editor->OnKeyDown(host, VK_DOWN, MK_SHIFT) && editor->GetSelection() == Selection{4u, 12u},
+              "large-gap Shift+Down extends the exact source selection");
+        prepare();
+        Check(editor->OnKeyDown(host, VK_UP, MK_SHIFT) && editor->GetSelection() == Selection{4u, 4u}, "large-gap Shift+Up preserves the original anchor");
+        prepare();
+        Check(editor->OnKeyDown(host, VK_UP, 0u) && editor->GetSelection() == Selection{4u, 4u}, "Up at the first prepared visual line stays in place");
+        editor->SetSelection({12u, 12u});
+        Check(editor->OnKeyDown(host, VK_DOWN, 0u) && editor->GetSelection() == Selection{12u, 12u}, "Down at the final prepared visual line stays in place");
+        Check(editor->Snapshot().IsSameRevision(snapshot) && editor->Revision() == revision && editor->GetText() == source && ! editor->CanUndo() &&
+                  ! editor->CanRedo(),
+              "large-gap navigation changes no source revision or history");
+    }
+    for (const auto source : {L"a\n# b", L"a\n\nb"})
+    {
+        editor->SetText(source);
+        editor->SetFlowDirection(FlowDirection::LeftToRight);
+        prepare();
+        editor->SetSelection({0u, 0u});
+        const auto firstTarget = std::wstring_view(source) == L"a\n# b" ? 4u : 2u;
+        Check(editor->OnKeyDown(host, VK_DOWN, 0u) && editor->GetSelection() == Selection{firstTarget, firstTarget},
+              "Down crosses a four-body-line paragraph margin or first visits its real separator site");
+        prepare();
+        if (firstTarget == 2u)
+        {
+            Check(editor->OnKeyDown(host, VK_DOWN, 0u) && editor->GetSelection() == Selection{3u, 3u},
+                  "Down crosses the remaining margin after its credited source blank");
+            prepare();
+            Check(editor->OnKeyDown(host, VK_UP, 0u) && editor->GetSelection() == Selection{2u, 2u},
+                  "Up returns to the same real blank ACP across a large margin");
+            prepare();
+        }
+        Check(editor->OnKeyDown(host, VK_UP, 0u) && editor->GetSelection() == Selection{0u, 0u} && editor->GetText() == source && ! editor->CanUndo(),
+              "paragraph margin navigation reverses without virtual source positions or history");
+    }
+    prepare();
+}
+template <typename Prepare> void SourceCaretSitesPolicy(ControlHost& host, Prepare&& prepare, bool spacing)
 {
     const std::wstring source = L"\r\n>\r\n> >\n- \r\n\r\n";
     auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
     auto* editor              = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetMarkdownRenderingEnabled(true);
+    if (spacing)
+    {
+        auto appearance                       = editor->GetAppearance();
+        appearance.paragraphSpacingAfterLines = 1.0f;
+        appearance.listItemSpacingDip         = 10.0f;
+        editor->SetAppearance(appearance);
+    }
     host.SetRoot(std::move(root));
     prepare();
     const auto revision = editor->Revision();
@@ -660,6 +796,13 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
                   editor->GetText() == sourceText && ! editor->CanUndo(),
               "native/embedded Right reaches the trailing atomic boundary without source/history mutation");
     }
+}
+template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& prepare)
+{
+    SpacingAppearance(host, prepare);
+    SpacingNavigation(host, prepare);
+    SourceCaretSitesPolicy(host, prepare, false);
+    SourceCaretSitesPolicy(host, prepare, true);
 }
 template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
 {

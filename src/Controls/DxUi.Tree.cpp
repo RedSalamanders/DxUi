@@ -1694,8 +1694,10 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     if (_invokeOnSingleClick && hit.zone == HitZone::Item && guard.IsCurrent())
     {
         _singleClickInvokeItemId = hitItem.id;
-        host.CaptureMouse(this);
         _singleClickCaptureArmed = true;
+        // Native capture transfer can synchronously notify the previous owner,
+        // whose callback may retire this tree. Publish state before that boundary.
+        host.CaptureMouse(this);
         if (! guard.IsCurrent())
             return true;
     }

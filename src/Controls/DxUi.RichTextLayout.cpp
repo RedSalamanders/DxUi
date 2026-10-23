@@ -163,6 +163,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
     const auto validHeadingSize   = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
     const auto validHeadingHeight = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
+    const auto validSpacing       = [](const std::optional<float>& value, float maximum) noexcept
+    { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.codeFontSizeDip) ||
         options.codeFontSizeDip < 0.0f || options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) ||
         (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
@@ -172,7 +174,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
         ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f || ! std::ranges::all_of(options.headingFontSizeDip, validHeadingSize) ||
-        ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight))
+        ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight) || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) ||
+        ! validSpacing(options.listItemSpacingDip, 256.0f))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
     if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||

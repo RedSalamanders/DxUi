@@ -12,6 +12,29 @@ line-height multiplier, heading scale and per-level `headingFontSizeDip` /
 including caret, hit-testing and UI Automation. Zero font sizes and line height
 inherit the existing host/native defaults. Invalid options fail atomically.
 
+`paragraphSpacingAfterLines` and `listItemSpacingDip` are optional semantic
+spacing values, also available on pure `LayoutOptions`. With both unset, the
+legacy 8-DIP gap after every native semantic box is unchanged. Setting either
+engages minimum-gap spacing: an unset paragraph value means an 8-DIP minimum,
+and real intervening blank-source caret lines contribute their actual heights
+to the gap instead of adding a second margin. Set `paragraphSpacingAfterLines=1`
+and `listItemSpacingDip=10` for one nominal body line after paragraphs and 10 DIP
+between list items. Values accept finite 0..4 lines / 0..256 DIP; zero is an
+explicit zero minimum. One separator line occupies the paragraph margin; two
+real separator lines still occupy two lines. Leading, trailing, empty/container
+and equal-ACP table caret sites retain their source identity and navigation.
+Nested item entry and following siblings use the item minimum; continuation
+paragraphs in one item use the paragraph minimum. Loose-list separator lines
+contribute to the item minimum. Table row padding is unchanged. Source/v0 line
+placement is unaffected. Both values belong to geometry reuse identity, and
+changing them never edits source, selection or history.
+
+A nominal body line uses the configured body size and explicit line-height
+multiplier, excluding enlarged headings and inline objects. If line height is
+native, preparation measures one empty native body layout, counted against the
+cooperative SDK budget. No measurement, traversal or allocation runs during
+composition or caret queries. The gallery's document-presentation tile opts in.
+
 `SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret)` opts into
 underlines on the whole link while its visible glyphs are hovered or its source
 contains the focused caret. `Always` is the default. Explicit `<u>` style and

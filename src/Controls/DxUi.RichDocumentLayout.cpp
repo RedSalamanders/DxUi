@@ -31,6 +31,7 @@ bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
     return left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip && left.codeFontSizeDip == right.codeFontSizeDip &&
            left.lineHeightMultiplier == right.lineHeightMultiplier && left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily &&
            left.headingFontSizeDip == right.headingFontSizeDip && left.headingLineHeightMultiplier == right.headingLineHeightMultiplier &&
+           left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines && left.listItemSpacingDip == right.listItemSpacingDip &&
            left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection &&
            left.textAlignment == right.textAlignment;
 }

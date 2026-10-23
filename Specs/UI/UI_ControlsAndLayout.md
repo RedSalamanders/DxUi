@@ -322,6 +322,17 @@ not allocate new formats per frame. A changed override invalidates intrinsic mea
 paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
 setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
 resource-generation replacement and embedded callback tests cover the opt-in behavior.
+`Label` typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
+view, measurement invalidation may synchronously reach the consumer's preparation-scheduling callback; the consumer
+may retire or replace controls through a `ControlHost` reference borrowed before that callback. The callback must not
+re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle methods. A setter continuing after the
+callback MUST check its captured weak lifetime before touching the control again, and MUST verify current host
+ownership before continuing with host-specific work. Whole-host destruction from inside a callback is not covered.
+
+Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
+needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
+`WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester
+MUST verify that its lifetime and current host ownership still match before reading members or continuing input.
 A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
 partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure

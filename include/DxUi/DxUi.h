@@ -2885,6 +2885,11 @@ struct RichTextEditorAppearance
     std::array<float, 6> headingLineHeightMultiplier{};
     std::wstring bodyFontFamily; // Empty inherits the host body family.
     std::wstring codeFontFamily; // Empty inherits the host monospace family.
+    // Semantic-only minimum gaps; either override credits real blank-source
+    // caret lines. Unset paragraph gap is then an 8-DIP minimum. Null/null
+    // preserves the existing 8-DIP gap after every semantic box.
+    std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
+    std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     bool operator==(const RichTextEditorAppearance&) const noexcept = default;
 };
 struct RichTextSourceHighlight

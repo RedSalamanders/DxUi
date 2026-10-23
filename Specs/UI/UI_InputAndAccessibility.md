@@ -567,6 +567,12 @@ The next preparation applies that rule; input dispatched while the bounds revisi
 drag, so a consumer applies pane layout on its next preparation rather than inside the change callback.
 WindowHost applies the same rule at message entry: a captured control that is still in the tree but no longer
 interactive receives `OnCaptureLost` (its drag reports Cancel) instead of losing the capture silently.
+Native capture acquisition is synchronous and reentrant: `SetCapture` can deliver `WM_CAPTURECHANGED` to the
+previous HWND before the initiating input handler returns. The previous owner's `OnCaptureLost` callback may replace
+the initiating host's root and retire the control that requested capture. Controls MUST publish pending capture
+state before transfer, retain a weak lifetime across it, and revalidate both lifetime and current host ownership
+before later member access or callbacks. A retired requester consumes the original input without continuing against
+the replacement tree. This does not extend to destroying the owning host during its own callback.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME

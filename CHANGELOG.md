@@ -4,6 +4,11 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add optional shared semantic paragraph/list spacing with legacy defaults, real blank-source caret credit to avoid doubled margins, exact source/navigation/history preservation, cooperative native line-height measurement and bounded opt-in metadata. Extend native/embedded metric, empty-site, option and allocation-failure oracles; the gallery presentation opts into one body line and a 10-DIP list minimum. Final profile/resource/gallery qualification remains required.
+- Label typography/font-role and Separator orientation setters stop after embedded measurement scheduling retires their
+  control. Tree single-click capture handoff publishes state before synchronous native capture transfer and revalidates
+  lifetime and host ownership before continuing. Focused embedded retirement and capture-transfer regressions cover
+  these callback boundaries; broader qualification remains in the owning test receipts.
 - Give the presentation gallery editor logical focus without desktop activation and require its caret-link underline and visible native search-highlight bounds before capture.
 - Fit the theme-preview button inside its gallery tile with a containment check, and expose the rich editor's caret underline and Search highlight in the presentation exhibit. These are harness fixture changes; the shared library inputs and RedTilde's tested production pin remain unchanged. Preserve original native-suite evidence separately from regenerated gallery artifacts.
 - Keep local and explicitly enabled remote image-source admission able to unwind allocation failures in MSVC Debug by constructing optional string returns directly. The per-allocation fault sweep covers mixed local/remote admission, prior snapshot preservation and successful retries; full profile qualification remains pending.

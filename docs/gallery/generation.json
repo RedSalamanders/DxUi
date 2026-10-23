@@ -1,35 +1,35 @@
 {
   "command": "gallery.ps1 -PublishDocs",
-  "sourceCommit": "1caabdee04fedbf43d20187daf782ae77d71b0e6",
-  "sourceDirty": true,
-  "configuration": "Debug",
+  "sourceCommit": "23bbe886307586b5b786de8a9982d6962f531366",
+  "sourceDirty": false,
+  "configuration": "Release",
   "platform": "x64",
   "nativeArchitecture": "X64",
-  "controlCount": 34,
+  "controlCount": 35,
   "images": [
     {
-      "file": "embedded-controls.png",
-      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "file": "embedded-controls.png"
     },
     {
-      "file": "theme-controls-dark.png",
-      "sha256": "6AE614BF0B9CA77C4EA6EAF331E0F071472EC03F5FD6E755CF4FBA1580722B0B"
+      "sha256": "43AD63AC1963E9F5C6B355ABAB0D4E5DD3C532E263CBF7CB086B450BE6D2BE55",
+      "file": "theme-controls-dark.png"
     },
     {
-      "file": "theme-controls-high-contrast.png",
-      "sha256": "A34736E0D962A6C8126FE77C506100F794C28A1A58C243ED171D71FAB87BF770"
+      "sha256": "BB86B62D6A9D3968FAFC1F6EF33ECA5A1373E502B3A2E1417138BE9575261C7C",
+      "file": "theme-controls-high-contrast.png"
     },
     {
-      "file": "theme-controls-light.png",
-      "sha256": "1612C2F6E9B1F9466893C4D2CD945CDB9D2F7E82A899B3C79A93ABBC5C860718"
+      "sha256": "402A2EC0640D6DA34FF2B49FC9CFDF12EB9951C5BA9B0F831BF796F0DEB38A0C",
+      "file": "theme-controls-light.png"
     },
     {
-      "file": "theme-controls-rainbow-dark.png",
-      "sha256": "683A913B32FDED7C524CE9F02A1CEB5434ACC70FE565C0831A403BB39424A945"
+      "sha256": "170FAF00F28FC6E9C2B5CCDE27AD325FD839F78C621C2FA2F76C31CAF9D1C2A5",
+      "file": "theme-controls-rainbow-dark.png"
     },
     {
-      "file": "theme-controls-rainbow-light.png",
-      "sha256": "40246116425C72195620A15A1E3C35779BD0EDFB31B59C26D74C986D00EE703B"
+      "sha256": "24AF19AFF6AEBFB7D33855B6E7B01BD522581313FF498295031123822CA6C020",
+      "file": "theme-controls-rainbow-light.png"
     }
   ]
 }

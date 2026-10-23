@@ -103,6 +103,12 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     invalid        = options;
     invalid.locale = std::wstring(L"fr\0FR", 5);
     Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "embedded NUL locale rejected");
+    invalid                            = options;
+    invalid.paragraphSpacingAfterLines = std::numeric_limits<float>::quiet_NaN();
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite semantic paragraph spacing rejected at public layout admission");
+    invalid                    = options;
+    invalid.listItemSpacingDip = 257.0f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
     auto malformed                = projection;
     malformed.runs.front().length = projection.text.size() + 1;
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "out-of-range public style rejected");

@@ -1,5 +1,23 @@
 # Performance and resources
 
+Semantic spacing overrides are prepared geometry policy. Both absent retain
+legacy placement and allocate no new spacing metadata. An opted-in list minimum
+may stage one nearest-ListItem index per bounded syntax node in the existing
+parent-first metadata pass; it is retired with staging, not queried by walking
+ancestors during input or composition. A paragraph minimum in native body lines
+uses at most one additional native empty-body layout, counted against the SDK
+layout budget; an explicit body line-height multiplier needs no such layout.
+Only scalar margin/blank-credit state changes placement. Cancellation and every
+allocation/SDK failure retain the previous complete source/geometry publication.
+Warm queries, clean/hidden frames and composition add no spacing allocations,
+layout calls, timers or workers. Tests cover both override combinations, exact
+empty-site navigation, native-height allocation failure and unchanged defaults.
+Only an opted-in non-page Up/Down hit which stays on the same visual line uses
+the adjacent-line fallback. It reads bounded prepared box/SDK line spans and
+the existing source hit/caret mapping, preserving preferred x and site affinity
+across large gaps without allocation or layout. Ordinary wrapped movement and
+the default fixed-spacing fallback remain unchanged.
+
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
