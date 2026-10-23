@@ -232,6 +232,164 @@ void TestRichTextEditorSelectionPublicationAndRetirement()
     Require(calls == 1u, "selection callback may retire its editor synchronously");
 }
 
+void TestRichTextEditorCommittedTextThenSelectionCallbacks()
+{
+    RichTextEditor editor(L"abc");
+    std::vector<char> events;
+    std::vector<Selection> selections;
+    editor.SetOnTextChanged([&] { events.push_back('T'); });
+    editor.SetOnSelectionChanged([&]
+    {
+        events.push_back('S');
+        selections.push_back(editor.GetSelection());
+    });
+    editor.SetSelection({1u, 1u});
+    events.clear();
+    selections.clear();
+    Require(editor.ReplaceSelection(L"x") && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{2u, 2u}},
+            "committed edit notifies text consumer before final selection consumer");
+    events.clear();
+    selections.clear();
+    Require(editor.Undo() && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{1u, 1u}},
+            "undo publishes committed source before its restored selection");
+
+    events.clear();
+    selections.clear();
+    editor.SetOnTextChanged([&]
+    {
+        events.push_back('T');
+        editor.SetOnTextChanged({});
+    });
+    Require(editor.Redo() && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{2u, 2u}},
+            "self-clearing text callback does not suppress its surviving selection publication");
+
+    RichTextEditor throwing(L"ab");
+    throwing.SetSelection({1u, 1u});
+    std::vector<char> failedCallbackEvents;
+    throwing.SetOnTextChanged([&]
+    {
+        failedCallbackEvents.push_back('T');
+        throw std::runtime_error("planned committed text callback failure");
+    });
+    throwing.SetOnSelectionChanged([&] { failedCallbackEvents.push_back('S'); });
+    Require(throwing.ReplaceSelection(L"x") && throwing.GetText() == L"axb" && throwing.CanUndo() && failedCallbackEvents == std::vector<char>{'T', 'S'},
+            "standard text callback failure retains committed source/history and still publishes selection");
+
+    RichTextEditor replacedRegistration(L"abc");
+    replacedRegistration.SetSelection({1u, 1u});
+    unsigned oldSelectionCalls = 0u, newSelectionCalls = 0u;
+    replacedRegistration.SetOnSelectionChanged([&] { ++oldSelectionCalls; });
+    replacedRegistration.SetOnTextChanged([&] { replacedRegistration.SetOnSelectionChanged([&] { ++newSelectionCalls; }); });
+    Require(replacedRegistration.ReplaceSelection(L"x") && oldSelectionCalls == 0u && newSelectionCalls == 0u,
+            "selection callback replacement remains silent and does not receive an already-current registration event");
+    replacedRegistration.SetSelection({0u, 0u});
+    Require(newSelectionCalls == 1u, "replacement selection callback receives the next actual selection change");
+
+    RichTextEditor nested(L"abcd");
+    nested.SetSelection({1u, 1u});
+    std::vector<char> nestedEvents;
+    std::vector<Selection> nestedSelections;
+    unsigned callbackDepth = 0u;
+    nested.SetOnTextChanged([&]
+    {
+        nestedEvents.push_back('T');
+        if (callbackDepth++ == 0u)
+            Require(nested.ReplaceSelection(L"y"), "text callback can commit a nested edit");
+        --callbackDepth;
+    });
+    nested.SetOnSelectionChanged([&]
+    {
+        nestedEvents.push_back('S');
+        nestedSelections.push_back(nested.GetSelection());
+    });
+    Require(nested.ReplaceSelection(L"x") && nested.GetText() == L"axybcd" && nestedEvents == std::vector<char>{'T', 'T', 'S'} &&
+                nestedSelections == std::vector<Selection>{{3u, 3u}},
+            "nested source revision publishes only its final selection and suppresses stale outer publication");
+
+    RichTextEditor movedSelection(L"abc");
+    movedSelection.SetSelection({1u, 1u});
+    std::vector<char> movedEvents;
+    movedSelection.SetOnSelectionChanged([&] { movedEvents.push_back('S'); });
+    movedSelection.SetOnTextChanged([&]
+    {
+        movedEvents.push_back('T');
+        movedSelection.SetSelection({0u, 0u});
+    });
+    Require(movedSelection.ReplaceSelection(L"x") && movedEvents == std::vector<char>{'T', 'S'} && movedSelection.GetSelection() == Selection{0u, 0u},
+            "selection mutation inside text callback publishes once and prevents stale duplicate selection");
+
+    class TextServiceEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::RichTextEditor;
+    };
+    ControlHost textHost;
+    auto textOwner   = std::make_unique<TextServiceEditor>(L"abc");
+    auto* textEditor = textOwner.get();
+    textHost.SetRoot(std::move(textOwner));
+    textEditor->SetSelection({1u, 1u});
+    TextInputState committed;
+    Require(textEditor->ExportTextInputState(committed), "text-service baseline exports");
+    auto preview                 = committed;
+    preview.text                 = L"aXbc";
+    preview.caretIndex           = 2u;
+    preview.selectionAnchorIndex = 2u;
+    std::vector<char> serviceEvents;
+    textEditor->SetOnTextChanged([&] { serviceEvents.push_back('T'); });
+    textEditor->SetOnSelectionChanged([&] { serviceEvents.push_back('S'); });
+    Require(textEditor->ImportTextInputState(textHost, preview, false) && textEditor->GetText() == L"aXbc" && serviceEvents == std::vector<char>{'S'} &&
+                ! textEditor->CanUndo(),
+            "TSF preview remains immediate and does not become a committed text/history event");
+    serviceEvents.clear();
+    Require(textEditor->ImportTextInputState(textHost, committed, false) && textEditor->GetText() == L"abc" && serviceEvents == std::vector<char>{'S'} &&
+                ! textEditor->CanUndo(),
+            "TSF cancellation immediately restores selection/source without history notification");
+    serviceEvents.clear();
+    Require(textEditor->ImportTextInputState(textHost, preview, true) && textEditor->GetText() == L"aXbc" && textEditor->CanUndo() &&
+                serviceEvents == std::vector<char>{'T', 'S'},
+            "TSF commit uses committed text-then-selection callback ordering exactly once");
+
+    serviceEvents.clear();
+    textEditor->SetSelection({4u, 4u});
+    serviceEvents.clear();
+    textEditor->SetText(L"x");
+    Require(serviceEvents == std::vector<char>{'S'}, "silent SetText keeps its selection-only notification and never reports committed text");
+
+    ControlHost firstHost, secondHost;
+    auto panelOwner = std::make_unique<Panel>();
+    auto* panel     = panelOwner.get();
+    auto* rebound   = panelOwner->AddChild<RichTextEditor>();
+    rebound->SetText(L"kept");
+    rebound->SetSelection({4u, 4u});
+    firstHost.SetRoot(std::move(panelOwner));
+    unsigned reboundSelectionCalls = 0u;
+    rebound->SetOnTextChanged([&]
+    {
+        auto child = panel->TakeChild(0u);
+        secondHost.SetRoot(std::move(child));
+    });
+    rebound->SetOnSelectionChanged([&] { ++reboundSelectionCalls; });
+    Require(rebound->ReplaceSelection(L"!") && secondHost.GetRoot() == rebound && rebound->GetText() == L"kept!" && rebound->CanUndo() &&
+                reboundSelectionCalls == 0u,
+            "same editor rebind during text callback suppresses the stale outer selection while preserving source/history");
+    rebound->SetOnTextChanged({});
+    rebound->SetSelection({0u, 0u});
+    Require(reboundSelectionCalls == 1u, "rebound editor publishes later selection changes through its current host");
+
+    ControlHost retirementHost;
+    auto retiring        = std::make_unique<RichTextEditor>(L"abc");
+    auto* retiringEditor = retiring.get();
+    retirementHost.SetRoot(std::move(retiring));
+    unsigned staleSelections = 0u;
+    retiringEditor->SetSelection({1u, 1u});
+    retiringEditor->SetOnTextChanged([&] { retirementHost.SetRoot(std::make_unique<Label>(L"replacement")); });
+    retiringEditor->SetOnSelectionChanged([&] { ++staleSelections; });
+    Require(retiringEditor->ReplaceSelection(L"x") && dynamic_cast<Label*>(retirementHost.GetRoot()) && staleSelections == 0u,
+            "text callback retirement prevents a deferred selection access to the former editor");
+}
+
 void TestRichTextEditorSelectionGestureAndTextServicePublication()
 {
     class SelectionAdapterEditor final : public RichTextEditor
@@ -1432,6 +1590,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
     DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
     DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);
+    DXUI_RUN_TEST(TestRichTextEditorCommittedTextThenSelectionCallbacks);
     DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
     DXUI_RUN_TEST(TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection);

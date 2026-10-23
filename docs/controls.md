@@ -342,3 +342,5 @@ committed edits. Invalid fences stay literal and repairable. Real IME/AT, final 
 platform and performance acceptance remain under the active plan.
 
 RichMarkdown also supplies native inline/display mathematics and bounded state/class Mermaid diagrams. See [the exact syntax and limits](rich-text.md#native-in-document-mathematics-and-broader-diagrams-redtilde-continuation). These objects preserve raw source ACPs and the existing document history.
+
+When `SetOnTextChanged` and `SetOnSelectionChanged` are both registered, a committed edit runs the text callback before the corresponding selection callback. This lets consumers update document-derived facts from the committed snapshot before processing its final selection. Selection-only changes and non-notifying text-service previews/cancellation keep their immediate selection notification; `SetText` does not invoke the text callback.

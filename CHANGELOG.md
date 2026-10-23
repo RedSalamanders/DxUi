@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- RichTextEditor now invokes the committed text-change callback before publishing the corresponding selection callback when both are registered, so consumers can derive facts from the current source; selection-only and non-notifying text-service updates remain immediate. Added callback-order, reentrancy, rebind, retirement, and transient-import regressions. Build and runtime qualification remain pending.
 - Measure semantic spacing with complete content frames and equal-font line advances while retaining exact source-caret and history checks. Use the existing lifetime-token test helper for the capture-transfer regression, keep callback/model state alive through host teardown, and give the Separator fixture its required explicit layout extent.
 - Add optional shared semantic paragraph/list spacing with legacy defaults, real blank-source caret credit to avoid doubled margins, exact source/navigation/history preservation, cooperative native line-height measurement and bounded opt-in metadata. Extend native/embedded metric, empty-site, option and allocation-failure oracles; the gallery presentation opts into one body line and a 10-DIP list minimum. Final profile/resource/gallery qualification remains required.
 - Label typography/font-role and Separator orientation setters stop after embedded measurement scheduling retires their

@@ -3040,7 +3040,10 @@ public:
     bool Redo();
     [[nodiscard]] bool CanUndo() const noexcept;
     [[nodiscard]] bool CanRedo() const noexcept;
-    // Called after publication/invalidation. May replace/destroy this control.
+    // Called after committed source publication/invalidation. When the selection
+    // callback is registered, a notifying source edit invokes this callback before
+    // publishing its corresponding selection notification. May replace/destroy
+    // this control.
     // Standard callback exceptions are contained; the committed edit remains.
     void SetOnTextChanged(std::function<void()> callback);
     // Owner-thread notification after source selection/gesture publication,
@@ -3110,7 +3113,7 @@ private:
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
     [[nodiscard]] bool CanPasteMarkdownFileReferences() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
-    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false);
+    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true);
     void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards);

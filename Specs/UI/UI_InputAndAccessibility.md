@@ -43,6 +43,18 @@ callbacks may replace themselves, change selection reentrantly or retire the
 editor. Notification state MUST publish before invocation so those changes cannot
 replay an older event. Standard callback failures retain committed selection;
 allocation failure is fatal at the native callback boundary.
+For a notifying source transaction with both `SetOnTextChanged` and
+`SetOnSelectionChanged` registered, the editor first synchronizes native text
+input and internal selection state, invokes the text callback for the committed
+source, then publishes the final selection if the original editor, host binding
+and source revision remain current. The text callback may clear or replace
+itself without suppressing that transaction's selection notification. A nested
+source edit, rebind, detach or retirement supersedes the outer selection event;
+the outer transaction MUST NOT publish stale selection state. This ordering lets
+the consumer derive document facts from committed source before receiving the
+selection notification. Selection-only changes and non-notifying TSF preview,
+cancellation and selection imports retain their immediate selection callback;
+`SetText` remains silent for the text callback.
 `IsSelectionGestureActive` identifies pointer selection/press updates. Consumers
 may hide transient selection UI and return immediately while it is true.
 Matching pointer release or capture cancellation MUST publish a final inactive

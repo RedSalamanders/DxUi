@@ -975,7 +975,12 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     const auto revision = Revision();
     const auto binding  = _state->bindingRevision;
     const auto* host    = GetHost();
-    SelectionChanged(synchronizeTextInput);
+    // A committed source edit may have both callbacks registered. Keep native
+    // text-input synchronization and internal selection state current now, but
+    // let the consumer derive facts from the committed source before publishing
+    // the corresponding selection notification.
+    const bool deferSelectionPublication = sourceChanged && callback && _state->onSelectionChanged;
+    SelectionChanged(synchronizeTextInput, false, ! deferSelectionPublication);
     // An embedded scheduling callback may itself edit, detach or retire this
     // control. Never publish a superseded notification or touch a retired owner.
     if (lifetime.expired() || GetHost() != host || Revision() != revision || _state->bindingRevision != binding ||
@@ -987,12 +992,24 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         {
             (*callback)();
         }
+        catch (const std::bad_alloc&)
+        {
+            // Allocation failure is fatal at this native notification boundary.
+            std::terminate();
+        }
         catch (const std::exception&)
-        { /* The edit is committed; notification failure cannot roll it back. */
+        {
+            // The source edit is committed; notification failure cannot roll it back.
+            Debug::Warning(L"DxUi::RichTextEditor: text notification failed; committed source retained.");
         }
     }
+    // The text callback may replace its own registration; that must not suppress
+    // this source revision's selection event. Source, attachment and owner still
+    // have to be the transaction whose notification was deferred.
+    if (deferSelectionPublication && ! lifetime.expired() && GetHost() == host && Revision() == revision && _state->bindingRevision == binding)
+        PublishSelectionChanged();
 }
-void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX)
+void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection)
 {
     if (_state->sourceEditing)
     {
@@ -1023,7 +1040,7 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && host && HasFocus() && Editable() && ! host->GetTheme().reducedMotion)
         host->RequestAnimation();
-    if (! lifetime.expired() && GetHost() == host)
+    if (publishSelection && ! lifetime.expired() && GetHost() == host)
         PublishSelectionChanged();
 }
 D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
