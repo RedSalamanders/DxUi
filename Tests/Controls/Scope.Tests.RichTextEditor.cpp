@@ -537,7 +537,12 @@ void TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry()
     auto appearance       = editor->GetAppearance();
     appearance.drawBorder = false;
     editor->SetAppearance(appearance);
-    window.Host().SetFocusControl(editor, true);
+    window.Host().SetFocusControl(editor, false);
+    bool handled = false;
+    // Logical input on the owned test host sets keyboard modality without OS input or native focus transfer.
+    (void)window.Host().HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_SHIFT, 0, handled);
+    (void)window.Host().HandleMessage(window.Hwnd(), WM_KEYUP, VK_SHIFT, 0, handled);
+    Require(editor->HasFocus() && window.Host().IsKeyboardFocusVisible(), "the focus-chrome fixture owns logical keyboard focus");
     RenderEditor(window);
     const auto source     = editor->Snapshot();
     const auto selection  = editor->GetSelection();

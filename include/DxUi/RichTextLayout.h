@@ -1,6 +1,7 @@
 #pragma once
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
+#include <DxUi/RichTextPresentation.h>
 #include <array>
 #include <d2d1_1.h>
 #include <dwrite.h>
@@ -33,6 +34,7 @@ struct LayoutOptions
     // 8-DIP minimum. Real blank-source caret lines contribute to these gaps.
     std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
+    std::optional<SemanticSpacing> semanticSpacing;
 };
 struct CaretGeometry
 {

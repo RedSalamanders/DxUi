@@ -224,8 +224,8 @@ bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
            a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep && a.fontFamily == b.fontFamily &&
            a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
-           a.listItemSpacingDip == b.listItemSpacingDip && a.locale == b.locale && a.readingDirection == b.readingDirection &&
-           a.textAlignment == b.textAlignment;
+           a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
+           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -478,7 +478,8 @@ struct PreparedSemanticGeometry::Preparation
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
     bool HasSpacingPolicy() const noexcept
     {
-        return state->options.paragraphSpacingAfterLines.has_value() || state->options.listItemSpacingDip.has_value();
+        return state->options.paragraphSpacingAfterLines.has_value() || state->options.listItemSpacingDip.has_value() ||
+               state->options.semanticSpacing.has_value();
     }
     void SetBodyLineHeight(float height)
     {
@@ -504,6 +505,8 @@ struct PreparedSemanticGeometry::Preparation
     {
         if (spacingItems && flowItem != MarkdownNoNode && content.markerOwner != MarkdownNoNode && content.markerOwner != flowItem)
             return state->options.listItemSpacingDip.value();
+        if (state->options.semanticSpacing && content.heading > 0 && content.heading <= 6)
+            return std::max(gapAfter, state->options.semanticSpacing->headingBeforeDip[content.heading - 1]);
         return gapAfter;
     }
     std::size_t ItemOwner(const SemanticParagraph& content) const noexcept
@@ -767,12 +770,13 @@ struct PreparedSemanticGeometry::Preparation
             // blank adds another real line; no extra synthetic ACP is needed.
             y = AddHeight(flowBottom, caretOnly ? emptyHeight : std::max(IncomingGap(content), emptyHeight));
         }
-        const float baseIndent = static_cast<float>(std::min(content.indent, 64u)) * 16.0f;
-        const float indent     = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
-        box->x                 = rtl ? 0.0f : indent;
-        box->y                 = y;
-        box->width             = next.options.widthDip - indent;
-        LayoutOptions options  = next.options;
+        const float baseIndent =
+            static_cast<float>(std::min(content.indent, 64u)) * (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f);
+        const float indent    = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
+        box->x                = rtl ? 0.0f : indent;
+        box->y                = y;
+        box->width            = next.options.widthDip - indent;
+        LayoutOptions options = next.options;
         if (table)
         {
             if (! content.columns || content.column >= content.columns)
@@ -958,6 +962,8 @@ struct PreparedSemanticGeometry::Preparation
                 emptyHeight = 0.0f;
                 gapAfter =
                     next.options.paragraphSpacingAfterLines && next.document->Elements()[content.element].role == SemanticRole::Paragraph ? paragraphGap : 8.0f;
+                if (next.options.semanticSpacing && content.heading > 0 && content.heading <= 6)
+                    gapAfter = next.options.semanticSpacing->headingAfterDip[content.heading - 1];
                 flowItem = ItemOwner(content);
             }
             y = AddHeight(flowBottom, std::max(gapAfter, emptyHeight));
@@ -980,8 +986,10 @@ struct PreparedSemanticGeometry::Preparation
         {
             auto& box = *next.boxes[rowPlacement++];
             const float cellWidth =
-                (next.options.widthDip -
-                 std::min(next.options.widthDip - 1.0f, static_cast<float>(std::min(box.paragraph.indent, 64u)) * 16.0f + Gutter(box.paragraph))) /
+                (next.options.widthDip - std::min(next.options.widthDip - 1.0f,
+                                                  static_cast<float>(std::min(box.paragraph.indent, 64u)) *
+                                                          (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f) +
+                                                      Gutter(box.paragraph))) /
                 static_cast<float>(box.paragraph.columns);
             box.frame                          = D2D1::RectF(box.x - 6.0f, y, box.x - 6.0f + cellWidth, y + rowHeight + 12.0f);
             next.bounds[box.paragraph.element] = box.frame;
@@ -1011,7 +1019,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
-        options.fontSizeDip <= 0.0f || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f))
+        options.fontSizeDip <= 0.0f || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
+        (options.semanticSpacing && ! options.semanticSpacing->IsValid()))
         throw std::invalid_argument("Invalid semantic geometry request");
     const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
     const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();

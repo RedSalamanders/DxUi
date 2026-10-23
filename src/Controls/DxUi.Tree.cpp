@@ -56,7 +56,8 @@ struct TreeResolvedRowVisuals final
                                                            bool current,
                                                            bool focused,
                                                            bool keyboardFocused,
-                                                           bool hovered) noexcept
+                                                           bool hovered,
+                                                           bool neutralDecorations = false) noexcept
 {
     TreeResolvedRowVisuals visuals{};
     visuals.text = theme.text;
@@ -91,6 +92,12 @@ struct TreeResolvedRowVisuals final
     const TreeBadgeVisualStyle badgeStyle = ResolveTreeBadgeVisualStyle(theme, badgeTone);
     visuals.badgeFill                     = badgeStyle.fill;
     visuals.badgeText                     = badgeStyle.text;
+    if (neutralDecorations && ! theme.highContrast)
+    {
+        visuals.icon      = selected ? visuals.text : theme.subduedText;
+        visuals.badgeFill = theme.buttonFill;
+        visuals.badgeText = theme.subduedText;
+    }
     visuals.focus     = current && selected && ! theme.highContrast ? ChooseContrastingTextColor(CompositeOverBackground(visuals.fill, theme.surfaceBackground))
                                                                     : (current && selected ? theme.selectionText : theme.focusStroke);
     visuals.showFocus = current && (keyboardFocused || (theme.highContrast && focused));
@@ -174,12 +181,14 @@ void DrawTreeRow(ControlHost& host,
                  float expanderProgress,
                  float alpha,
                  FlowDirection flowDirection,
-                 const std::optional<Tree::TypographyOverride>& typographyOverride) noexcept
+                 const std::optional<Tree::TypographyOverride>& typographyOverride,
+                 bool neutralDecorations) noexcept
 {
-    const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered);
-    const D2D1_COLOR_F fill                 = WithAlpha(rowVisuals.fill, alpha);
-    const D2D1_COLOR_F textColor            = WithAlpha(rowVisuals.text, alpha);
-    const D2D1_COLOR_F transparent          = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    const TreeResolvedRowVisuals rowVisuals =
+        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered, neutralDecorations);
+    const D2D1_COLOR_F fill        = WithAlpha(rowVisuals.fill, alpha);
+    const D2D1_COLOR_F textColor   = WithAlpha(rowVisuals.text, alpha);
+    const D2D1_COLOR_F transparent = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (fill.a > 0.0f)
     {
@@ -222,16 +231,21 @@ void DrawTreeRow(ControlHost& host,
 
     if (layout.hasBadge)
     {
-        DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.badgeFill, alpha), transparent, 9.0f);
-        DrawCenteredText(host,
-                         item.badgeText,
-                         layout.badgeRect,
-                         FontRole::Small,
-                         WithAlpha(rowVisuals.badgeText, alpha),
-                         DWRITE_TEXT_ALIGNMENT_CENTER,
-                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                         false,
-                         flowDirection);
+        if (item.badgeIsDot)
+            DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.text, alpha), transparent, 4.0f);
+        else
+        {
+            DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.badgeFill, alpha), transparent, 9.0f);
+            DrawCenteredText(host,
+                             item.badgeText,
+                             layout.badgeRect,
+                             FontRole::Small,
+                             WithAlpha(rowVisuals.badgeText, alpha),
+                             DWRITE_TEXT_ALIGNMENT_CENTER,
+                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                             false,
+                             flowDirection);
+        }
     }
 
     if (typographyOverride)
@@ -1124,11 +1138,11 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
-    const bool selected = IsItemSelected(item.id);
-    const bool current  = _focusedItemId && _focusedItemId.value() == item.id;
-    const bool hovered  = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
-    const TreeResolvedRowVisuals visuals =
-        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
+    const bool selected                  = IsItemSelected(item.id);
+    const bool current                   = _focusedItemId && _focusedItemId.value() == item.id;
+    const bool hovered                   = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
+    const TreeResolvedRowVisuals visuals = ResolveTreeRowVisuals(
+        theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered, _appearance.neutralDecorations);
     out.fillArgb         = PackColor(visuals.fill);
     out.textArgb         = PackColor(visuals.text);
     out.iconArgb         = PackColor(visuals.icon);
@@ -1292,7 +1306,8 @@ void Tree::Paint(ControlHost& host) const
                     expanderProgress,
                     rowAlpha,
                     GetFlowDirection(),
-                    _typographyOverride);
+                    _typographyOverride,
+                    _appearance.neutralDecorations);
     }
 
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
@@ -1338,7 +1353,8 @@ void Tree::Paint(ControlHost& host) const
                             expanderProgress,
                             1.0f - progress,
                             GetFlowDirection(),
-                            _typographyOverride);
+                            _typographyOverride,
+                            _appearance.neutralDecorations);
             }
         }
     }
@@ -2378,6 +2394,13 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
 
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, size_t visibleIndex, const TreeItemData& item) const noexcept
 {
+    // Paint, input, tooltip and accessibility geometry share exactly one row layout.
+    const float rowTop = GetBounds().top + kTreeContentInsetDip + static_cast<float>(visibleIndex) * _rowHeightDip - _verticalScrollDip;
+    return ComputeItemLayoutMetrics(host, rowTop, item);
+}
+
+TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
+{
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
@@ -2386,8 +2409,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
         return metrics;
     }
 
-    const float rowTop  = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
-    metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTop, contentRect.right - 2.0f, rowTop + _rowHeightDip);
+    metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTopDip, contentRect.right - 2.0f, rowTopDip + _rowHeightDip);
     metrics.hasExpander = item.hasChildren && _appearance.showExpanders;
     metrics.hasIcon     = ! item.iconText.empty();
     metrics.hasBadge    = ! item.badgeText.empty();
@@ -2409,74 +2431,12 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
     float contentRight = contentRect.right - 8.0f;
     if (metrics.hasBadge)
     {
-        const float badgeTextWidth = MeasureCachedBadgeTextWidthDip(host, item.badgeText);
-        const float badgeWidth     = (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
-                                                  kTreeBadgeMinWidthDip,
-                                                  (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
-        const float badgeHeight    = (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
-        const float badgeTop       = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - badgeHeight) * 0.5f);
-        const float badgeLeft      = (std::max)(contentLeft + 20.0f, contentRight - badgeWidth);
-        metrics.badgeRect          = D2D1::RectF(badgeLeft, badgeTop, contentRight, badgeTop + badgeHeight);
-        contentRight               = metrics.badgeRect.left - 8.0f;
-    }
-
-    metrics.textRect = D2D1::RectF(contentLeft, metrics.rowRect.top, (std::max)(contentLeft, contentRight), metrics.rowRect.bottom);
-    if (IsRightToLeft())
-    {
-        const auto mirrorRect = [contentRect](D2D1_RECT_F& rect) noexcept
-        {
-            if (rect.right > rect.left)
-            {
-                const float left = contentRect.left + contentRect.right - rect.right;
-                rect.right       = contentRect.left + contentRect.right - rect.left;
-                rect.left        = left;
-            }
-        };
-        mirrorRect(metrics.rowRect);
-        mirrorRect(metrics.expanderRect);
-        mirrorRect(metrics.iconRect);
-        mirrorRect(metrics.badgeRect);
-        mirrorRect(metrics.textRect);
-    }
-    return metrics;
-}
-
-TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
-{
-    TreeItemLayoutMetrics metrics{};
-    const D2D1_RECT_F contentRect = GetContentRect();
-    if (contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
-    {
-        return metrics;
-    }
-
-    metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTopDip, contentRect.right - 2.0f, rowTopDip + _rowHeightDip);
-    metrics.hasExpander = item.hasChildren;
-    metrics.hasIcon     = ! item.iconText.empty();
-    metrics.hasBadge    = ! item.badgeText.empty();
-
-    float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    if (metrics.hasExpander)
-    {
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + 12.0f, metrics.rowRect.bottom - 6.0f);
-        contentLeft          = metrics.expanderRect.right + 4.0f;
-    }
-
-    if (metrics.hasIcon)
-    {
-        const float iconTop = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - 18.0f) * 0.5f);
-        metrics.iconRect    = D2D1::RectF(contentLeft, iconTop, contentLeft + 18.0f, (std::min)(metrics.rowRect.bottom - 2.0f, iconTop + 18.0f));
-        contentLeft         = metrics.iconRect.right + 4.0f;
-    }
-
-    float contentRight = contentRect.right - 8.0f;
-    if (metrics.hasBadge)
-    {
-        const float badgeTextWidth = MeasureCachedBadgeTextWidthDip(host, item.badgeText);
-        const float badgeWidth     = (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
-                                                  kTreeBadgeMinWidthDip,
-                                                  (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
-        const float badgeHeight    = (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
+        const float badgeTextWidth = item.badgeIsDot ? 0.f : MeasureCachedBadgeTextWidthDip(host, item.badgeText);
+        const float badgeWidth     = item.badgeIsDot ? 8.f
+                                                     : (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
+                                                                    kTreeBadgeMinWidthDip,
+                                                                    (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
+        const float badgeHeight    = item.badgeIsDot ? 8.f : (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
         const float badgeTop       = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - badgeHeight) * 0.5f);
         const float badgeLeft      = (std::max)(contentLeft + 20.0f, contentRight - badgeWidth);
         metrics.badgeRect          = D2D1::RectF(badgeLeft, badgeTop, contentRight, badgeTop + badgeHeight);

@@ -11,3 +11,10 @@ Status: implementation in progress. The owner requested that RedTilde match its 
 - [ ] Commit the exact SDK revision for isolated consumer restore and verify actual RedTilde captures in its own repository.
 
 Application layout, paths, report fixtures, theme policy and caption actions stay in RedTilde. Existing performance/policy, physical input/AT, ARM64 runtime and release qualification gates are not closed by this visual change. A screenshot cannot establish those claims.
+
+First matched app capture exposed a second Tree paint-layout calculation that bypassed the new presentation;
+both paths now share one canonical helper. The continuation also adds neutral tree decoration/state dots,
+subtle splitter seams and optional per-heading margins/container indentation. Real source blank-line caret sites
+remain full native lines. The first focus-chrome regression fixture lacked keyboard modality; its failing record
+is retained and the fixture now sends owned-host logical Shift messages without OS input or native focus transfer.
+Three simultaneous filtered attempts refused the runner's artifact lock; final suites run serially.

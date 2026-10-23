@@ -39,6 +39,13 @@ void TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion()
     const auto leaf   = tree->GetItemLayoutMetrics(host, 1);
     const auto parent = tree->GetItemLayoutMetrics(host, 0);
     Require(leaf.textRect.left == parent.textRect.left, "file-tree leaves align with parent labels by reserving the expander lane");
+    auto appearance               = tree->GetAppearance();
+    appearance.neutralDecorations = true;
+    tree->SetAppearance(appearance);
+    TreeDebugRowVisualState visual;
+    auto theme = MakeDefaultThemePalette(true);
+    Require(tree->DebugGetRowVisualState(theme, 1, false, visual) && visual.iconArgb == PackColorForTest(theme.subduedText),
+            "quiet file-tree decorations use subdued ink outside selection");
 }
 
 void TestTreeTypographyOverrideValidatesAtomically()

@@ -31,6 +31,17 @@ leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, 
 the same borrowed model. High contrast forces the system surface and border. `RichTextEditorAppearance::drawFocusIndicator`
 may omit decorative editor focus chrome for a document surface, without retiring text geometry, selection or history;
 the caret remains independent and high contrast always forces the focus indicator.
+
+Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
+hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
+retains its textual accessible description. Subtle Splitters paint a thin idle seam while preserving the full resize
+hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast retain the normal handle.
+
+`RichText::SemanticSpacing` optionally supplies per-level heading margins and container indentation to semantic
+document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DIP. Heading margins are minima and
+credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
+preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
+replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
 Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending

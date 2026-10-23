@@ -32,8 +32,8 @@ bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
            left.lineHeightMultiplier == right.lineHeightMultiplier && left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily &&
            left.headingFontSizeDip == right.headingFontSizeDip && left.headingLineHeightMultiplier == right.headingLineHeightMultiplier &&
            left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines && left.listItemSpacingDip == right.listItemSpacingDip &&
-           left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection &&
-           left.textAlignment == right.textAlignment;
+           left.semanticSpacing == right.semanticSpacing && left.codeFontFamily == right.codeFontFamily && left.locale == right.locale &&
+           left.readingDirection == right.readingDirection && left.textAlignment == right.textAlignment;
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {

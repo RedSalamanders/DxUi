@@ -390,19 +390,20 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
         ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) ||
         ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) || ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) ||
-        ! validSpacing(appearance.listItemSpacingDip, 256.0f))
+        ! validSpacing(appearance.listItemSpacingDip, 256.0f) || (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()))
         throw std::invalid_argument("Invalid rich editor appearance");
     if (_state->appearance == appearance)
         return;
-    auto next            = appearance; // Stage all owned strings before publishing any option.
-    const auto& previous = _state->appearance;
-    const bool geometryChanged =
-        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
-        previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
-        previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
-        previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
-        previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip;
+    auto next                   = appearance; // Stage all owned strings before publishing any option.
+    const auto& previous        = _state->appearance;
+    const bool geometryChanged  = previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
+                                  previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+                                  previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
+                                  previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
+                                  previous.headingFontSizeDip != next.headingFontSizeDip ||
+                                  previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
+                                  previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines ||
+                                  previous.listItemSpacingDip != next.listItemSpacingDip || previous.semanticSpacing != next.semanticSpacing;
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
@@ -422,6 +423,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.headingLineHeightMultiplier = next.headingLineHeightMultiplier;
     value.paragraphSpacingAfterLines  = next.paragraphSpacingAfterLines;
     value.listItemSpacingDip          = next.listItemSpacingDip;
+    value.semanticSpacing             = next.semanticSpacing;
     value.bodyFontFamily.swap(next.bodyFontFamily);
     value.codeFontFamily.swap(next.codeFontFamily);
     const auto lifetime = GetLifetimeToken();
@@ -1248,6 +1250,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.headingLineHeightMultiplier = appearance.headingLineHeightMultiplier;
             options.paragraphSpacingAfterLines  = appearance.paragraphSpacingAfterLines;
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
+            options.semanticSpacing             = appearance.semanticSpacing;
             if (! appearance.bodyFontFamily.empty())
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
@@ -1905,7 +1908,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             // a same-row tie must cross an explicitly requested larger gap.
             if (! page && std::abs(geometry->SourceCaret(target.position, target.site).y - caret.y) < .01f)
             {
-                if (state.appearance.paragraphSpacingAfterLines || state.appearance.listItemSpacingDip)
+                if (state.appearance.paragraphSpacingAfterLines || state.appearance.listItemSpacingDip || state.appearance.semanticSpacing)
                     target = geometry->AdjacentSourceLine(selection.caret, state.sourceCaretSite, preferredX.value(), down);
                 else
                     target = geometry->HitTestSource(*preferredX, caret.y + caret.height * .5f + (down ? distance + 12.0f : -distance - 12.0f));

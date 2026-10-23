@@ -6,6 +6,10 @@ the consumer owns shortcut dispatch. `TreeAppearance` exposes the pane ground an
 decorative expanders without flattening hierarchy. Document editors can omit decorative focus chrome with
 `RichTextEditorAppearance::drawFocusIndicator=false`; high contrast always retains its indicator.
 
+`RichText::SemanticSpacing` adds optional per-heading margins and container indentation without removing real
+blank-source caret lines. Quiet Tree decoration includes neutral count badges and accessible state dots. A subtle
+Splitter keeps its original resize hit geometry while painting only a thin idle seam.
+
 RichTextEditor supports file-reference paste and caller-serviced native images.
 Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels

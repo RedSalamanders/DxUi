@@ -7,6 +7,7 @@
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
 #include "RichTextCommands.h"
+#include "RichTextPresentation.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -854,6 +855,8 @@ struct TreeItemData
     bool hasChildren        = false;
     bool expanded           = false;
     AdornmentTone badgeTone = AdornmentTone::Accent;
+    // A dot retains badgeText as its accessible state description.
+    bool badgeIsDot = false;
 };
 
 struct TreeItemLayoutMetrics
@@ -2913,6 +2916,7 @@ struct RichTextEditorAppearance
     std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     bool operator==(const RichTextEditorAppearance&) const noexcept = default;
+    std::optional<RichText::SemanticSpacing> semanticSpacing;
 };
 struct RichTextSourceHighlight
 {
@@ -4167,6 +4171,7 @@ struct TreeAppearance final
     bool drawBorder                                       = true;
     bool showExpanders                                    = true;
     bool reserveExpanderSpace                             = false;
+    bool neutralDecorations                               = false;
     bool operator==(const TreeAppearance&) const noexcept = default;
 };
 
@@ -5001,6 +5006,9 @@ public:
     static constexpr float kHitSlopDip            = 2.0f;
 
     Splitter();
+    // A quiet idle divider keeps the full resize hit target; hover/drag/focus/contrast retain the handle.
+    void SetSubtle(bool subtle) noexcept;
+    [[nodiscard]] bool IsSubtle() const noexcept;
 
     void SetOrientation(SplitterOrientation orientation) noexcept;
     [[nodiscard]] SplitterOrientation GetOrientation() const noexcept;
@@ -5036,6 +5044,7 @@ protected:
 
 private:
     void NotifyChange(SplitterChangePhase phase) noexcept;
+    bool _subtle = false;
     [[nodiscard]] float Extent() const noexcept;
     [[nodiscard]] float PointerAxis(D2D1_POINT_2F point) const noexcept;
 

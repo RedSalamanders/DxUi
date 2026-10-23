@@ -74,6 +74,9 @@
     "headers": ["include/DxUi"]
   },
   "supported": [
+    "opt-in-quiet-button-tree-splitter-presentation",
+    "decorated-command-icons-and-keyboard-hints",
+    "source-preserving-document-heading-margins-and-indent",
     "frame-clock",
     "frame-stage-scope",
     "reduced-motion",

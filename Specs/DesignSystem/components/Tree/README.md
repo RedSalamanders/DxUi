@@ -4,6 +4,9 @@
 expanders while retaining its hierarchical model, keyboard expansion and UIA semantics. File lists can reserve
 the expander lane for leaves to align their icons. High contrast always retains its system surface and perimeter.
 
+`neutralDecorations` uses subdued file/folder ink and quiet count badges. `TreeItemData::badgeIsDot` renders a
+small state dot while retaining `badgeText` for accessibility. Paint and exposed row metrics share one calculation.
+
 Inactive selected rows prefer `selectionText` on `selectionInactiveFill`; the
 shared contrast resolver replaces an unreadable preferred token. High contrast
 retains the explicit system Highlight/HighlightText pair. Icons and expanders

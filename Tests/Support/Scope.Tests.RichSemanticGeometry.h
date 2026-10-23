@@ -866,6 +866,60 @@ inline void SourceCaretSitesPolicy(bool spacing)
               "raw interior entity/image ACPs move to the atomic source boundary in either direction");
     }
 }
+inline void DocumentHeadingMarginsAndIndentation()
+{
+    const auto factory        = Factory();
+    const std::wstring source = L"# Title\nMeta\n## Section\n- one\n- two";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    LayoutOptions options;
+    options.widthDip                    = 600.f;
+    options.fontSizeDip                 = 16.f;
+    options.lineHeightMultiplier        = 1.65f;
+    options.headingFontSizeDip          = {34.f, 23.f, 20.f, 18.f, 16.f, 16.f};
+    options.headingLineHeightMultiplier = {1.2f, 1.3f, 1.3f, 1.3f, 1.3f, 1.3f};
+    options.paragraphSpacingAfterLines  = 18.f / 26.4f;
+    options.listItemSpacingDip          = 10.f;
+    SemanticSpacing spacing;
+    spacing.headingBeforeDip[1] = 40.f;
+    spacing.headingAfterDip[0]  = 0.f;
+    spacing.headingAfterDip[1]  = 14.f;
+    spacing.containerIndentDip  = 10.f;
+    options.semanticSpacing     = spacing;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    const auto paragraphs = document->Paragraphs();
+    Check(paragraphs.size() == 5u, "the margin oracle contains exactly five real semantic paragraphs");
+    const auto title = geometry.ElementBounds(paragraphs[0].element), meta = geometry.ElementBounds(paragraphs[1].element),
+               heading = geometry.ElementBounds(paragraphs[2].element), one = geometry.ElementBounds(paragraphs[3].element),
+               two = geometry.ElementBounds(paragraphs[4].element);
+    Check(title && meta && heading && one && two, "all document margin oracle paragraphs retain actual native bounds");
+    Check(std::abs(meta->top - title->bottom) < .04f && std::abs(heading->top - meta->bottom - 40.f) < .04f &&
+              std::abs(one->top - heading->bottom - 14.f) < .04f && std::abs(two->top - one->bottom - 10.f) < .04f,
+          "heading, paragraph and list gaps follow their independent declared DIP values");
+    const auto body            = source.find(L"one");
+    const auto compact         = geometry.SourceCaret(body);
+    const auto generation      = geometry.Generation();
+    spacing.containerIndentDip = 16.f;
+    options.semanticSpacing    = spacing;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    Check(std::abs(geometry.SourceCaret(body).x - compact.x - 6.f) < .04f && geometry.Generation() != generation && document->Map().Source() == source,
+          "container indentation participates in reuse while retaining exact source and marker ownership");
+    auto rejected                                 = options;
+    rejected.semanticSpacing->headingBeforeDip[1] = std::numeric_limits<float>::quiet_NaN();
+    bool invalid                                  = false;
+    try
+    {
+        geometry.Begin(factory.get(), document, rejected);
+    }
+    catch (const std::invalid_argument&)
+    {
+        invalid = true;
+    }
+    Check(invalid && geometry.Ready(), "invalid heading margins fail before replacing a complete geometry publication");
+}
+
 inline void SourceCaretSites()
 {
     SourceCaretSitesPolicy(false);

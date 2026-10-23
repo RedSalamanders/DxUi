@@ -518,12 +518,33 @@ float Splitter::PointerAxis(D2D1_POINT_2F point) const noexcept
     return IsRightToLeft() ? (bounds.right - point.x) : (point.x - bounds.left);
 }
 
+void Splitter::SetSubtle(bool subtle) noexcept
+{
+    if (_subtle == subtle)
+        return;
+    _subtle = subtle;
+    RequestInvalidate();
+}
+
+bool Splitter::IsSubtle() const noexcept
+{
+    return _subtle;
+}
+
 void Splitter::Paint(ControlHost& host) const
 {
     const ThemePalette& theme   = host.GetTheme();
     const D2D1_RECT_F separator = GetSeparatorBounds();
     if (Width(separator) <= 0.0f || Height(separator) <= 0.0f)
     {
+        return;
+    }
+    if (_subtle && ! theme.highContrast && ! IsHovered() && ! _dragging && ! (HasFocus() && host.IsKeyboardFocusVisible()))
+    {
+        if (_orientation == SplitterOrientation::Horizontal)
+            FillRect(host, D2D1::RectF(separator.left, separator.top, separator.right, separator.top + 1.f), theme.border);
+        else
+            FillRect(host, D2D1::RectF(separator.left, separator.top, separator.left + 1.f, separator.bottom), theme.border);
         return;
     }
     D2D1_COLOR_F fill = theme.border;
