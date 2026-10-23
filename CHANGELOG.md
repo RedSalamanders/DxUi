@@ -4,6 +4,11 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Added the RichText audit remediation and completion plan with its findings register and Markdown, math and
+  Mermaid completeness specification. The audit read every rich-text partition, verified bug findings with
+  independent refute and reproduce passes, and maps every surviving finding to one plan item. It changes no
+  library code, tests, rendering or capability status; the documented defects and stale status data remain until
+  their plan items land.
 - Verify retained run inventories using fresh pinned-handle metadata and stable path/stream ordering; preserve before/after move diagnostics and exact safety checks, with stale-metadata and reversed-enumeration regressions.
 - Execute filesystem preservation regressions on Windows, explicitly reporting their coverage as not run in the Linux validator; keep all Windows identity, stream, ACL and reparse-point controls enabled.
 - Preserve unique successful, failed and interrupted test output in verified per-run evidence; retain shared read-only payloads and existing qualification checks.
