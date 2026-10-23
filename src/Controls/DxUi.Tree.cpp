@@ -2417,15 +2417,16 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
     if (metrics.hasExpander || _appearance.reserveExpanderSpace)
     {
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + 12.0f, metrics.rowRect.bottom - 6.0f);
-        contentLeft          = metrics.expanderRect.right + 4.0f;
+        const float width    = _appearance.reserveExpanderSpace ? 16.f : 12.f;
+        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + width, metrics.rowRect.bottom - 6.0f);
+        contentLeft          = metrics.expanderRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
     if (metrics.hasIcon)
     {
         const float iconTop = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - 18.0f) * 0.5f);
         metrics.iconRect    = D2D1::RectF(contentLeft, iconTop, contentLeft + 18.0f, (std::min)(metrics.rowRect.bottom - 2.0f, iconTop + 18.0f));
-        contentLeft         = metrics.iconRect.right + 4.0f;
+        contentLeft         = metrics.iconRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
     float contentRight = contentRect.right - 8.0f;
@@ -2526,11 +2527,10 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     hit.visibleIndex = visibleIndex;
     hit.rectDip      = D2D1::RectF(contentRect.left, rowTop, contentRect.right, rowTop + _rowHeightDip);
 
-    const float indentLeft         = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    const float indentRight        = contentRect.right - 8.0f - (static_cast<float>(item.depth) * _indentDip);
-    const D2D1_RECT_F expanderRect = IsRightToLeft() ? D2D1::RectF(indentRight - 12.0f, hit.rectDip.top + 6.0f, indentRight, hit.rectDip.bottom - 6.0f)
-                                                     : D2D1::RectF(indentLeft, hit.rectDip.top + 6.0f, indentLeft + 12.0f, hit.rectDip.bottom - 6.0f);
-    if (item.hasChildren && _appearance.showExpanders && PointInRect(expanderRect, point))
+    const auto layout = ComputeItemLayoutMetrics(host, rowTop, item);
+    if (! guard.IsCurrent())
+        return {};
+    if (layout.hasExpander && PointInRect(layout.expanderRect, point))
     {
         hit.zone = HitZone::Expander;
     }

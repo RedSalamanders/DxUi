@@ -3097,8 +3097,22 @@ void Button::Paint(ControlHost& host) const
         {
             const float left = rtl ? bounds.right - 26.0f : bounds.left + 10.0f;
             const float top  = (bounds.top + bounds.bottom - 16.0f) * 0.5f;
-            DrawCenteredText(
-                host, _leadingIcon, D2D1::RectF(left, top, left + 16.0f, top + 16.0f), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
+            DrawCenteredText(host,
+                             _leadingIcon,
+                             D2D1::RectF(left, top, left + 16.0f, top + 16.0f),
+                             host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body,
+                             style.text,
+                             DWRITE_TEXT_ALIGNMENT_CENTER,
+                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                             false,
+                             flowDirection,
+                             host.GetTextFormat(host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body,
+                                                16.f,
+                                                DWRITE_FONT_WEIGHT_NORMAL,
+                                                DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                false,
+                                                ResolveReadingDirection(flowDirection)));
             if (rtl)
                 textBounds.right -= 28.0f;
             else
@@ -3192,8 +3206,8 @@ void Button::Paint(ControlHost& host) const
     {
         const auto bounds = GetBounds();
         DrawLineWithColor(host,
-                          D2D1::Point2F(bounds.left + 6.0f, bounds.bottom - 1.0f),
-                          D2D1::Point2F(bounds.right - 6.0f, bounds.bottom - 1.0f),
+                          D2D1::Point2F(bounds.left + 10.0f, bounds.bottom - 1.0f),
+                          D2D1::Point2F(bounds.right - 10.0f, bounds.bottom - 1.0f),
                           host.GetTheme().accent,
                           2.0f);
     }
