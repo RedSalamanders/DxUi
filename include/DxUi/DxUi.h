@@ -4335,7 +4335,7 @@ private:
         Thumb,
     };
 
-    [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
+    [[nodiscard]] HitInfo HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept;
     [[nodiscard]] float GetVerticalScrollableExtent() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetContentRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetVerticalScrollbarRect() const noexcept;

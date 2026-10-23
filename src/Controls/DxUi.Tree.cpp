@@ -1508,7 +1508,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     }
 
     const ITreeModel* const model = _model;
-    const HitInfo hit             = HitTestPoint(MakePointDip(point));
+    const HitInfo hit             = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return false;
     const std::optional<size_t> previousHoveredIndex = _hoveredVisibleIndex;
@@ -1570,7 +1570,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 {
     _singleClickInvokeItemId.reset();
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    HitInfo hit = HitTestPoint(MakePointDip(point));
+    HitInfo hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (hit.zone == HitZone::None)
@@ -1584,7 +1584,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     }
     if (! guard.IsCurrent())
         return true;
-    hit = HitTestPoint(MakePointDip(point));
+    hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (hit.zone == HitZone::None)
@@ -1751,7 +1751,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     }
 
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    HitInfo hit = HitTestPoint(MakePointDip(point));
+    HitInfo hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
@@ -1765,7 +1765,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     }
     if (! guard.IsCurrent())
         return true;
-    hit = HitTestPoint(MakePointDip(point));
+    hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
@@ -1873,7 +1873,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
             return dragged;
         if (invokeId.has_value() && _delegate)
         {
-            const HitInfo releaseHit = HitTestPoint(MakePointDip(point));
+            const HitInfo releaseHit = HitTestPoint(host, MakePointDip(point));
             if (! guard.IsCurrent())
                 return false;
             TreeItemData releaseItem{};
@@ -1892,7 +1892,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     const bool wasDragging = _dragVerticalThumb;
     _dragVerticalThumb     = false;
     _dragThumbOffsetDip    = 0.0f;
-    UpdateScrollbarHotState(HitTestPoint(MakePointDip(point)));
+    UpdateScrollbarHotState(HitTestPoint(host, MakePointDip(point)));
     if (! guard.IsCurrent())
         return wasDragging;
     SyncScrollbarAnimation(host);
@@ -1910,7 +1910,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     }
     if (invokeId.has_value() && _invokeOnSingleClick && _delegate)
     {
-        const HitInfo releaseHit = HitTestPoint(MakePointDip(point));
+        const HitInfo releaseHit = HitTestPoint(host, MakePointDip(point));
         if (! guard.IsCurrent())
             return wasDragging;
         TreeItemData releaseItem{};
@@ -2253,7 +2253,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     }
     else
     {
-        const HitInfo hit = HitTestPoint(MakePointDip(pointDip));
+        const HitInfo hit = HitTestPoint(host, MakePointDip(pointDip));
         if (! guard.IsCurrent())
             return false;
         if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
@@ -2465,7 +2465,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     return metrics;
 }
 
-Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
+Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;

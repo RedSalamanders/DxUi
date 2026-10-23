@@ -39,6 +39,15 @@ void TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion()
     const auto leaf   = tree->GetItemLayoutMetrics(host, 1);
     const auto parent = tree->GetItemLayoutMetrics(host, 0);
     Require(leaf.textRect.left == parent.textRect.left, "file-tree leaves align with parent labels by reserving the expander lane");
+    const auto expandedEdge      = D2D1::Point2F(parent.expanderRect.right - 1.f, (parent.expanderRect.top + parent.expanderRect.bottom) * .5f);
+    const size_t previousToggles = delegate.toggleCount;
+    Require(tree->OnMouseDown(host, expandedEdge, false, 0) && delegate.toggleCount == previousToggles + 1u,
+            "the full painted expander lane is clickable when reservation widens it");
+    tree->OnMouseUp(host, expandedEdge, false, 0);
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .showExpanders = false, .reserveExpanderSpace = true});
+    Require(tree->OnMouseDown(host, expandedEdge, false, 0) && delegate.toggleCount == previousToggles + 1u,
+            "a reserved but hidden expander lane selects the row without expanding it");
+    tree->OnMouseUp(host, expandedEdge, false, 0);
     auto appearance               = tree->GetAppearance();
     appearance.neutralDecorations = true;
     tree->SetAppearance(appearance);
