@@ -16,7 +16,7 @@ inherit the existing host/native defaults. Invalid options fail atomically.
 spacing values, also available on pure `LayoutOptions`. With both unset, the
 legacy 8-DIP gap after every native semantic box is unchanged. Setting either
 engages minimum-gap spacing: an unset paragraph value means an 8-DIP minimum,
-and real intervening blank-source caret lines contribute their actual heights
+and real intervening blank-source caret lines contribute their full line-box heights
 to the gap instead of adding a second margin. Set `paragraphSpacingAfterLines=1`
 and `listItemSpacingDip=10` for one nominal body line after paragraphs and 10 DIP
 between list items. Values accept finite 0..4 lines / 0..256 DIP; zero is an
@@ -28,6 +28,11 @@ paragraphs in one item use the paragraph minimum. Loose-list separator lines
 contribute to the item minimum. Table row padding is unchanged. Source/v0 line
 placement is unaffected. Both values belong to geometry reuse identity, and
 changing them never edits source, selection or history.
+
+These are gaps between complete content frames. Native caret rectangles use
+DirectWrite hit-test extents, which may be inset and shorter than the line
+advance. Compare full frames or equal-font caret-top advances when measuring
+spacing; public semantic element bounds are clipped to the text viewport.
 
 A nominal body line uses the configured body size and explicit line-height
 multiplier, excluding enlarged headings and inline objects. If line height is

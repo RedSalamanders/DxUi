@@ -539,15 +539,18 @@ template <typename Prepare> void SpacingAppearance(ControlHost& host, Prepare&& 
     const auto selection  = editor->GetSelection();
     const auto generation = editor->DebugGetState().layoutGeneration;
     const auto one = editor->TryGetTextInputCaretRect(host, 2u), two = editor->TryGetTextInputCaretRect(host, 8u);
-    Check(one && two && std::abs(two->top - one->bottom - 8.0f) < .05f, "both hosts start with the actual legacy list gap");
+    const float bodyLine = 16.0f * 1.65f;
+    // Equal-font caret tops share the same native inset. Their advance includes
+    // one explicitly configured body line; caret height itself need not equal it.
+    Check(one && two && std::abs(two->top - one->top - bodyLine - 8.0f) < .05f, "both hosts start with the actual legacy list gap");
     appearance.paragraphSpacingAfterLines = 1.0f;
     appearance.listItemSpacingDip         = 10.0f;
     editor->SetAppearance(appearance);
     prepare();
     const auto changedOne = editor->TryGetTextInputCaretRect(host, 2u), changedTwo = editor->TryGetTextInputCaretRect(host, 8u);
-    Check(changedOne && changedTwo && std::abs(changedTwo->top - changedOne->bottom - 10.0f) < .05f && editor->DebugGetState().layoutGeneration != generation &&
-              editor->Snapshot().IsSameRevision(snapshot) && editor->Revision() == revision && editor->GetMarkdownSyntax() == syntax &&
-              editor->GetSelection() == selection && ! editor->CanUndo() && editor->CanRedo(),
+    Check(changedOne && changedTwo && std::abs(changedTwo->top - changedOne->top - bodyLine - 10.0f) < .05f &&
+              editor->DebugGetState().layoutGeneration != generation && editor->Snapshot().IsSameRevision(snapshot) && editor->Revision() == revision &&
+              editor->GetMarkdownSyntax() == syntax && editor->GetSelection() == selection && ! editor->CanUndo() && editor->CanRedo(),
           "native/embedded spacing reflow changes actual geometry without source, selection, syntax or history mutation");
     const auto configuredGeneration = editor->DebugGetState().layoutGeneration;
     editor->SetAppearance(appearance);

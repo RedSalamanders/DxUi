@@ -5,6 +5,8 @@
 
 #include <limits>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <thread>
 
 namespace
@@ -431,18 +433,20 @@ void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
 
 void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks()
 {
-    const auto runRetiringSetter = []<typename AddChild, typename ChangeTypography>(AddChild&& addChild, ChangeTypography&& changeTypography)
+    const auto runRetiringSetter =
+        []<typename AddChild, typename ChangeTypography>(std::string_view fixtureName, AddChild&& addChild, ChangeTypography&& changeTypography)
     {
         GraphicsFixture graphics;
         RequireSucceeded(graphics.Create(), "embedded WARP fixture for a retiring typography setter");
         std::shared_ptr<GraphicsDevice> device;
         RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "graphics pool for a retiring typography setter");
-        EmbeddedHost view;
         struct CallbackState
         {
             ControlHost* host{};
             bool armed{};
-        } state{.host = &view.Controls()};
+        } state;
+        EmbeddedHost view;
+        state.host = &view.Controls();
         const EmbeddedCallbacks callbacks{.context            = &state,
                                           .requestPreparation = [](void* context) noexcept
         {
@@ -458,22 +462,33 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
         Control* const control = addChild(*root);
         Require(control != nullptr, "create intrinsic child for retiring typography setter");
         view.Controls().SetRoot(std::move(root));
-        RequireSucceeded(view.Prepare(320u, 160u), "prepare callback fixture before changing typography");
+        const std::string prepareMessage = std::string("prepare ") + std::string(fixtureName) + " callback fixture before changing typography";
+        RequireSucceeded(view.Prepare(320u, 160u), prepareMessage.c_str());
         state.armed = true;
         changeTypography(control);
-        Require(view.Controls().GetRoot() == nullptr, "setter returns after embedded preparation retires its root");
+        const std::string retirementMessage = std::string(fixtureName) + " setter returns after embedded preparation retires its root";
+        Require(view.Controls().GetRoot() == nullptr, retirementMessage.c_str());
     };
 
-    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
-                      [](Control* control) { static_cast<Label*>(control)->SetFontRole(FontRole::Title); });
-    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
+    runRetiringSetter("Label font role", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        static_cast<Label*>(control)->SetFontRole(FontRole::Title);
+    });
+    runRetiringSetter("Label typography override",
+                      [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
                       [](Control* control)
     {
         Require(static_cast<Label*>(control)->SetTypographyOverride(
                     LabelTypography{.fontSizeDip = 16.0f, .fontWeight = DWRITE_FONT_WEIGHT_SEMI_BOLD, .characterSpacingDip = 0.5f}) == S_OK,
                 "label typography override is accepted before embedded retirement");
     });
-    runRetiringSetter([](FlexPanel& root) -> Control* { return root.AddChild<Separator>(); },
+    runRetiringSetter("Separator orientation",
+                      [](FlexPanel& root) -> Control*
+    {
+        auto* separator = root.AddChild<Separator>();
+        // Separator intentionally has no intrinsic size; callers supply an explicit layout extent.
+        RequireSucceeded(root.SetChildOptions(separator, Fixed(320.0f, 8.0f)), "give the separator an explicit layout extent");
+        return separator;
+    },
                       [](Control* control) { static_cast<Separator*>(control)->SetOrientation(SeparatorOrientation::Horizontal); });
 }
 

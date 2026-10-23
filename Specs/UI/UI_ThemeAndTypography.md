@@ -53,7 +53,7 @@ Optional `paragraphSpacingAfterLines` (finite 0..4) and `listItemSpacingDip`
 (finite 0..256) configure semantic minimum spacing. Both absent preserve the
 legacy 8-DIP gap after every box, including source-only empty caret boxes. Either
 override engages collapsed minimum-gap placement: an unset paragraph option is
-an 8-DIP minimum, while actual intervening blank-source caret heights contribute
+an 8-DIP minimum, while actual intervening blank-source line-box heights contribute
 to the requested gap. One separator must not stack another full paragraph
 margin; additional source blank lines keep their full, distinct geometry. A
 nominal body line uses body font/line metrics, excluding larger headings and
@@ -63,6 +63,13 @@ spacing. Table row/cell padding is unchanged. Values are validated and included
 in preparation/reuse identity; Source/v0 placement, exact ACPs, source selection,
 empty/container/trailing caret sites and undo/redo remain unchanged. No consumer
 may implement these gaps by rewriting source or displacing local glyphs.
+
+Spacing is measured between complete prepared content frames. A DirectWrite
+hit-test caret can be inset and shorter than its line box; its bottom is not
+the paragraph bottom. Geometry oracles use complete frames or equal-font
+caret-top advances against an independently specified line advance. Public
+semantic bounds are viewport-clipped, so frame-gap assertions must also prove
+that the queried frames are fully visible.
 
 The extracted MotionPolicy resolves immediately to the target when reduced motion is enabled and otherwise keeps
 the caller's animated progress. Shared controls paint with consumer-supplied theme tokens; text shaping and control

@@ -2,6 +2,7 @@
 #include "../../src/Controls/DxUi.RichSemanticGeometry.h"
 #include "Scope.Tests.RichSemanticDocument.h"
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <wil/resource.h>
 #include <wil/result.h>
@@ -443,8 +444,39 @@ inline void SemanticSpacingPolicy()
             Check(calls == 2u + blanks + (multiplier == 0.0f ? 1u : 0u),
                   "native body-line measurement is one budgeted SDK layout and explicit line height adds none");
             const auto first = geometry.SourceCaret(0u), last = geometry.SourceCaret(source.size() - 1u);
-            Check(std::abs(first.height - line) < .02f && std::abs(last.y - first.y - line * static_cast<float>(blanks + 1u)) < .04f,
-                  "real separator caret lines fill the one-line paragraph margin without stacking another blank gap");
+            const auto firstBounds = geometry.ElementBounds(document->Paragraphs().front().element);
+            const auto lastBounds  = geometry.ElementBounds(document->Paragraphs().back().element);
+            // A native caret is a font hit-test extent, not the complete line
+            // advance. Assert block geometry and equal-role caret advances
+            // independently rather than treating caret.bottom as box.bottom.
+            const bool spacingMatches = firstBounds && lastBounds && std::abs(firstBounds.value().bottom - firstBounds.value().top - line) < .02f &&
+                                        std::abs(lastBounds.value().bottom - lastBounds.value().top - line) < .02f &&
+                                        std::abs(lastBounds.value().top - firstBounds.value().bottom - line * static_cast<float>(blanks)) < .04f &&
+                                        first.height > 0.0f && last.height > 0.0f && std::abs(last.y - first.y - line * static_cast<float>(blanks + 1u)) < .04f;
+            if (! spacingMatches)
+            {
+                std::cout << "semantic spacing diagnostic size=" << size << " multiplier=" << multiplier << " blanks=" << blanks << " nativeLine=" << line
+                          << " firstY=" << first.y << " firstHeight=" << first.height << " lastY=" << last.y << " lastHeight=" << last.height
+                          << " totalHeight=" << geometry.Height() << " boxes=" << geometry.BoxCount() << " paragraphs=" << document->Paragraphs().size()
+                          << " emptySites=" << document->Syntax()->EmptyLines().size() << '\n';
+                for (const auto& paragraph : document->Paragraphs())
+                {
+                    const auto bounds = geometry.ElementBounds(paragraph.element);
+                    std::cout << "spacing paragraph element=" << paragraph.element << " display=" << paragraph.display.first << ',' << paragraph.display.last
+                              << " boundsPresent=" << bounds.has_value();
+                    if (bounds)
+                        std::cout << " top=" << bounds.value().top << " bottom=" << bounds.value().bottom;
+                    std::cout << '\n';
+                }
+                for (const auto& empty : document->Syntax()->EmptyLines())
+                {
+                    const auto caret = geometry.SourceCaret(empty.insertion);
+                    std::cout << "spacing empty source=" << empty.source.first << ',' << empty.source.last << " insertion=" << empty.insertion
+                              << " caretY=" << caret.y << " caretHeight=" << caret.height << '\n';
+                }
+                std::cout << std::flush;
+            }
+            Check(spacingMatches, "real separator caret lines fill the one-line paragraph margin without stacking another blank gap");
             float previous = first.y;
             for (const auto& empty : document->Syntax()->EmptyLines())
             {
@@ -511,7 +543,10 @@ inline void SemanticSpacingPolicy()
         geometry.Begin(factory.get(), document, options);
         Complete(geometry);
         const auto first = geometry.SourceCaret(0u), heading = geometry.SourceCaret(4u);
-        Check(std::abs(heading.y - first.y - first.height - line) < .04f,
+        const auto firstBody   = geometry.ElementBounds(document->Paragraphs().front().element);
+        const auto headingBody = geometry.ElementBounds(document->Paragraphs().back().element);
+        Check(firstBody && headingBody && std::abs(headingBody.value().top - firstBody.value().bottom - line) < .04f && first.height > 0.0f &&
+                  heading.height > 0.0f,
               "a paragraph without a physical blank separator still receives one nominal body line of bottom margin");
         auto legacy = options;
         legacy.paragraphSpacingAfterLines.reset();
@@ -550,8 +585,9 @@ inline void SemanticSpacingPolicy()
               "list-only engagement uses an eight DIP paragraph minimum credited by the real blank line");
         geometry.Begin(factory.get(), document, listOnly);
         Complete(geometry);
-        const auto listA = geometry.SourceCaret(0u), listHeading = geometry.SourceCaret(4u);
-        Check(std::abs(listHeading.y - listA.y - listA.height - 8.0f) < .04f,
+        const auto listA       = geometry.ElementBounds(document->Paragraphs().front().element),
+                   listHeading = geometry.ElementBounds(document->Paragraphs().back().element);
+        Check(listA && listHeading && std::abs(listHeading.value().top - listA.value().bottom - 8.0f) < .04f,
               "list-only engagement keeps the unset paragraph minimum at eight DIP without a source separator");
         auto paragraphOnly                       = legacy;
         paragraphOnly.paragraphSpacingAfterLines = 1.0f;

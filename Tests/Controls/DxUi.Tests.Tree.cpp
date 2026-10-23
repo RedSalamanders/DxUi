@@ -3096,10 +3096,10 @@ void TestTreeSingleClickCaptureTransferMayRetireTheTree()
         bool armed{};
         unsigned notifications{};
     } state;
+    MutableTreeModel model;
     AttachedHostWindow window;
     AttachedHostWindow previous;
     state.target = &window.Host();
-    MutableTreeModel model;
     model.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}});
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
@@ -3110,7 +3110,7 @@ void TestTreeSingleClickCaptureTransferMayRetireTheTree()
     // The press below focuses an already-logical, non-text owner; no native
     // focus transfer or foreground input is needed to exercise capture handoff.
     window.Host().SetFocusControl(tree, false);
-    const auto lifetime = tree->GetLifetimeToken();
+    const auto lifetime = GetControlLifetimeToken(*tree);
     class PreviousCaptureOwner final : public Panel
     {
     public:
