@@ -163,6 +163,7 @@ function Get-WorkflowJob([string] $Name) {
 }
 
 function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
+    Assert-True ($Native -cmatch '(?m)^      fail-fast: false\r?$') 'a profile failure cannot cancel the other native producers'
     Assert-True ($Native -cmatch '(?m)^    timeout-minutes: \$\{\{ matrix\.jobTimeoutMinutes \}\}\r?$') 'the enclosing timeout follows the selected matrix row'
     $rows = [regex]::Matches($Native, '(?ms)^          - platform: (?<platform>\S+)\r?\n(?<body>.*?)(?=^          - platform:|^    runs-on:|\z)')
     Assert-Equal 6 $rows.Count 'six native profiles retain their own job budgets'
@@ -181,25 +182,36 @@ function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
     $steps = [regex]::Matches($Native, '(?ms)^      - (?<body>.*?)(?=^      - |\z)')
     $stageLimits = @{}
     foreach ($stage in @(
-        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling ' },
+        @{ Name = 'Build'; Pattern = '(?m)^        run: \./build\.ps1 -Configuration "\$\{\{ matrix\.configuration \}\}" -Platform \$\{\{ matrix\.platform \}\}\r?$' },
+        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling -SkipBuild -Configuration "\$\{\{ matrix\.configuration \}\}" -Platform \$\{\{ matrix\.platform \}\}\r?$' },
         @{ Name = 'Consumer'; Pattern = '^name: Qualify the relocated public consumer\r?\n'; Minutes = 15 },
         @{ Name = 'DisabledAnnotations'; Pattern = '^name: Qualify the consumer with STL annotations disabled\r?\n'; Minutes = 15 }
     )) {
         $selected = @($steps | Where-Object { $_.Groups['body'].Value -cmatch $stage.Pattern })
         Assert-Equal 1 $selected.Count "the $($stage.Name) qualification is present exactly once"
-        if ($stage.Name -ceq 'Native') {
-            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 65 \|\| 35 \}\}\r?$') 'Full retains finite cold-rich-build plus native-suite windows'
-            $stageLimits.Native = @{ x64 = 35; ARM64 = 65 }
+        if ($stage.Name -in @('Build','Native')) {
+            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 65 \|\| 35 \}\}\r?$') 'build and Full each retain a separate finite qualification window'
+            Assert-True (-not ($selected[0].Groups['body'].Value -cmatch '(?m)^        (if|continue-on-error):')) 'build and Full retain default success dependency and failure accounting'
+            $stageLimits[$stage.Name] = @{ x64 = 35; ARM64 = 65 }
         } else {
             $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
             Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
             $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
             Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+            $condition = if ($stage.Name -ceq 'Consumer') { '        if: ${{ !cancelled() }}' }
+                else { '        if: ${{ !cancelled() && matrix.configuration == ''ASan Debug'' }}' }
+            Assert-True ($selected[0].Groups['body'].Value.Contains($condition)) 'consumer failure accounting remains independent of the build/Full verdict'
         }
     }
+    $buildStep = @($steps | Where-Object { $_.Groups['body'].Value -cmatch '^name: Build native profile\r?\n' })
+    $fullStep = @($steps | Where-Object { $_.Groups['body'].Value -cmatch '^name: Full native qualification\r?\n' })
+    Assert-True ($buildStep.Count -eq 1 -and $fullStep.Count -eq 1 -and $buildStep[0].Index -lt $fullStep[0].Index) 'one official build precedes one attested Full run'
+    Assert-Equal 1 @($steps | Where-Object { $_.Groups['body'].Value -cmatch '(?m)^        run: \./test\.ps1 -Full(?: |\r?$)' }).Count 'there is exactly one Full invocation, without a second rebuilding path'
+    $upload = @($steps | Where-Object { $_.Groups['body'].Value.Contains('          name: native-${{ matrix.platform }}-${{ matrix.configuration }}') })
+    Assert-True ($upload.Count -eq 1 -and $upload[0].Groups['body'].Value.Contains('        if: always()')) 'native evidence is still retained after failure'
     foreach ($key in $expected) {
         $parts = $key -split '\|', 2
-        $stages = $stageLimits.Native[$parts[0]] + $stageLimits.Consumer
+        $stages = $stageLimits.Build[$parts[0]] + $stageLimits.Native[$parts[0]] + $stageLimits.Consumer
         if ($parts[1] -ceq 'ASan Debug') { $stages += $stageLimits.DisabledAnnotations }
         Assert-True ($limits[$key] -ge $stages + 5) "the $key job fits every explicit qualification window and five minutes for setup and artifacts"
         Assert-Equal ($stages + 5) $limits[$key] "the $key job retains its reviewed bounded allowance"
@@ -267,6 +279,26 @@ Invoke-TestCase 'the observed rich-build Full cutoffs cannot replace complete na
     }
 }
 
+Invoke-TestCase 'Full cannot bypass the official build dependency or its early receipt gate' {
+    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
+    $native = Get-WorkflowJob 'native'
+    $full = [regex]::Match($native, '(?ms)^      - name: Full native qualification\r?\n.*?(?=^      - |\z)').Value
+    $build = [regex]::Match($native, '(?ms)^      - name: Build native profile\r?\n.*?(?=^      - |\z)').Value
+    Assert-True ($full.Length -gt 0 -and $build.Length -gt 0) 'both falsification targets exist'
+    foreach ($changed in @(
+        $native.Replace($full,$full.Replace('-SkipTooling -SkipBuild','-SkipTooling')),
+        $native.Replace($build,''),
+        $native.Replace($build,$build + $build),
+        $native.Replace($full,''),
+        $native.Replace($full,$full + $full),
+        $native.Replace($build + $full,$full + $build),
+        $native.Replace($full,$full.Replace('        shell: pwsh',"        if: `${{ always() }}`n        shell: pwsh")),
+        $native.Replace($build,$build.Replace('        shell: pwsh',"        continue-on-error: true`n        shell: pwsh"))
+    )) {
+        Assert-True ($changed -cne $native) 'each falsification changes the qualification dependency'
+        Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing/duplicate/reordered builds, rebuilding Full, or failure bypass cannot satisfy the contract'
+    }
+}
 Invoke-TestCase 'consumer qualification windows remain bounded and unchanged' {
     $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
     $native = Get-WorkflowJob 'native'

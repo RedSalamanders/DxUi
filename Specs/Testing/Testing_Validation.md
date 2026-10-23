@@ -199,12 +199,25 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
 instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI bounds `test.ps1` at 35 minutes on x64 and 65 minutes on ARM64, and each clean-pin
-consumer qualification at 15 minutes, including hangs the per-test watchdog cannot reach (Foundation, Embedded, the consumer).
-The enclosing budgets are 55 minutes for x64 Debug/Release, 70 for x64 ASan Debug, 85 for ARM64 Debug/Release and 100 for ARM64
-ASan Debug. Each row includes its selected Full stage, regular consumer, separate annotations-disabled consumer when ASan,
-and five minutes for setup, resource/gallery work and artifact collection. The per-test watchdogs, six standard consumer qualifications, both
-annotations-disabled ASan qualifications and failure accounting remain required.
+how close any of their tests comes. Native CI runs the official `build.ps1` first, then
+`test.ps1 -Full -SkipTooling -SkipBuild` against its current canonical v2 attestation. Each stage has a separate
+35-minute ceiling on x64 or 65-minute ceiling on ARM64. The early SkipBuild gate verifies source, dependencies,
+resolved toolchain and final artifacts before any native desktop probe, filter/watchdog self-check or suite;
+a missing, old or stale receipt refuses instead of rebuilding or executing native work. Full still performs its
+existing before/after measurement and native checks. Each clean-pin consumer qualification retains its 15-minute
+limit, including hangs that the native per-test watchdog cannot reach (Foundation, Embedded, the consumer).
+The enclosing ceilings are 90 minutes for x64 Debug/Release, 105 for x64 ASan Debug, 150 for ARM64 Debug/Release
+and 165 for ARM64 ASan Debug: both build/Full windows, regular consumer, the separate annotations-disabled consumer
+when ASan, and five minutes for setup, resource/gallery work and artifact collection. These are reviewed finite
+ceilings, not measured normal durations or performance acceptance. Native watchdogs, all assertions, six standard
+consumer qualifications, both annotations-disabled ASan qualifications and failure accounting remain required.
+PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
+Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
+before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records
+identify Visual Studio discovery, output-use checks, dependency admission, pre-build attestation, MSBuild,
+post-build attestation and the SkipBuild gate with UTC and monotonic elapsed milliseconds. They log no new path or
+environment values, do not alter operation results or failures, and do not establish a compiler bottleneck or hang.
+The split requires fresh complete CI receipts; prior incomplete results remain failures.
 PR #89's retained x64 ASan and ARM64 Release runs exceeded the previous 25/45-minute
 combined cold-build/provenance/Full windows; ARM64 Release was still compiling before
 its first native suite at minute 45. Their incomplete native results remain

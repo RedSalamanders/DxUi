@@ -91,41 +91,45 @@ jobs:
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Debug
-            jobTimeoutMinutes: 55
+            jobTimeoutMinutes: 90
           - platform: x64
             runner: windows-2025-vs2026
             configuration: Release
-            jobTimeoutMinutes: 55
+            jobTimeoutMinutes: 90
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Debug
-            jobTimeoutMinutes: 85
+            jobTimeoutMinutes: 150
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Release
-            jobTimeoutMinutes: 85
+            jobTimeoutMinutes: 150
           - platform: x64
             runner: windows-2025-vs2026
             configuration: ASan Debug
-            jobTimeoutMinutes: 70
+            jobTimeoutMinutes: 105
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: ASan Debug
-            jobTimeoutMinutes: 100
+            jobTimeoutMinutes: 165
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.jobTimeoutMinutes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
-      # PR #89's cold x64 ASan and ARM64 Release builds + Full suites exceeded 25/45 minutes.
-      # ARM64 Release was still compiling at minute 45, before any suite. Reserve build + complete suite time.
-      # Keep finite Full windows (x64 35, ARM64 65), the native per-test watchdog and both consumer 15-minute limits.
-      # Every row includes its Full + consumer(s) windows and five minutes for setup, resource/gallery work and artifacts.
-      - shell: pwsh
+      # Separate finite build and receipt-verified Full windows; PR #99 exhausted the combined x64 Release window.
+      # These ceilings (35/35 x64, 65/65 ARM64) are not measured normal duration or performance acceptance.
+      # Every row includes both windows, unchanged consumer(s), and five minutes for setup, resources and artifacts.
+      - name: Build native profile
+        shell: pwsh
+        timeout-minutes: ${{ matrix.platform == 'ARM64' && 65 || 35 }}
+        run: ./build.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
+      - name: Full native qualification
+        shell: pwsh
         timeout-minutes: ${{ matrix.platform == 'ARM64' && 65 || 35 }}
         # Tooling has one qualification per host. Native runner/filter/watchdog checks remain per profile.
-        run: ./test.ps1 -Full -SkipTooling -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
+        run: ./test.ps1 -Full -SkipTooling -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       # The relocated consumer builds its own clean pin and does not require the foreground lease. Retain its
       # independent result after a native-suite failure; a failed step still fails this job and the aggregate gate.
       - name: Qualify the relocated public consumer

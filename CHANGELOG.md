@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Separate official SDK builds from receipt-verified Full native qualification in CI, with finite build/runtime ceilings
+  and unchanged native watchdogs, assertions and consumer scopes. Reject invalid v2 SkipBuild identity before native
+  probes and self-checks; add bounded top-level phase diagnostics and fixtures for gate refusal, workflow dependencies,
+  and output/exception preservation. Prior timeout evidence remains failed; fresh complete CI qualification is required.
 - Complete scoped rich-editor presentation qualification at exact producer `38ec36be`: six builds, 74 zero-skip successful x64 suite executions, separate real ASan detector failures and reviewed gallery continuation. Publish Markdown integrity summaries while preserving raw evidence privately; paired performance-policy, physical input, native ARM64 runtime, consumer, CI and release acceptance remain open.
 - Avoid clearing untouched DirectWrite drawing effects during rich-text rasterization while preserving restoration after attempted or failed effect changes and ordered overlapping underlines.
   Extend native pixel, source geometry and shared-layout lifetime regressions for plain, excluded and partially applied ink. Paired performance acceptance and parent platform/input qualification remain separate gates.
